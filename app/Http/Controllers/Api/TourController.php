@@ -652,8 +652,11 @@ class TourController extends Controller
             }
 
             // Calculate final amounts
-            $settlementAmount = $enquiry->amount ?? $tourTotalPrice;
-            $discount = ceil($tourTotalPrice) - $settlementAmount;
+            $enquiry_amount = $enquiry->amount ?? 0;
+            $frstenquiry = Enquiry::where('tour_id', $tour->tour_id)->first();
+            $first_enquiry_amount = $frstenquiry->actual_amount ?? 0;
+            $discount = $first_enquiry_amount - $enquiry_amount;
+            $settlementAmount = ceil($tourTotalPrice) - $discount;
             
             // Calculate tax amounts
             $baseAmount = ceil($tourTotalPrice) - $discount;

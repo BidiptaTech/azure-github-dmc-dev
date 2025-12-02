@@ -1351,6 +1351,7 @@
                                                     $vehicleName = $transportData['vehicles_name'] ?? '';
                                                     $vehicleType = $transportData['type'] ?? '';
                                                     $passengers = $transportData['passengers'] ?? '';
+                                                    $availableVehicles = $vehicles ?? collect();
                                                 @endphp
                                                 <form class="service-item mb-3 p-3 border rounded shadow-sm bg-white transport-edit-form" data-form-type="entry_port" data-update-url="{{ route('edit-tour.update-transport', $order->booking_id) }}" onsubmit="updateExistingTransport(event, {{ $order->booking_id }})">
                                                     @csrf
@@ -1413,7 +1414,26 @@
                                                         </div>
                                                         <div class="col-md-3">
                                                             <label class="form-label fw-semibold text-muted mb-1"><i class="ri-car-line me-1 text-info"></i>Vehicle</label>
-                                                            <input type="text" class="form-control border-2" name="vehicle_name" value="{{ $vehicleName }}" placeholder="Vehicle name">
+                                                            @php $vehicleMatched = false; @endphp
+                                                            <select class="form-select border-2" name="vehicle_name">
+                                                                <option value="">{{ $vehicleName ? 'Select vehicle' : 'Select vehicle' }}</option>
+                                                                @foreach($availableVehicles as $vehicleOption)
+                                                                    @php
+                                                                        $vehicleDisplayName = $vehicleOption->vehicle_name ?? $vehicleOption->vehicle_id;
+                                                                        $isSelected = $vehicleDisplayName && strcasecmp($vehicleDisplayName, $vehicleName ?? '') === 0;
+                                                                        $vehicleMatched = $vehicleMatched || $isSelected;
+                                                                    @endphp
+                                                                    <option value="{{ $vehicleDisplayName }}" {{ $isSelected ? 'selected' : '' }}>
+                                                                        {{ $vehicleDisplayName }}
+                                                                        @if(!empty($vehicleOption->vehicle_type))
+                                                                            ({{ $vehicleOption->vehicle_type }})
+                                                                        @endif
+                                                                    </option>
+                                                                @endforeach
+                                                                @if($vehicleName && !$vehicleMatched)
+                                                                    <option value="{{ $vehicleName }}" selected>{{ $vehicleName }}</option>
+                                                                @endif
+                                                            </select>
                                                         </div>
                                                         <div class="col-md-2">
                                                             <label class="form-label fw-semibold text-muted mb-1">Service Type</label>
@@ -1518,7 +1538,7 @@
                                                 <div class="row g-3">
                                                     <div class="col-md-6">
                                                         <label class="form-label fw-semibold text-muted mb-1"><i class="ri-restaurant-line me-1 text-primary"></i>Restaurant Name</label>
-                                                        <select class="form-select border-2" name="restaurant_name" id="restaurant_name_{{ $order->booking_id }}" required>
+                                                        <select class="form-select border-2" name="restaurant_name" id="restaurant_name_{{ $order->booking_id }}" onchange="loadRestaurantMealsForEdit({{ $order->booking_id }})" required>
                                                             <option value="">Select Restaurant</option>
                                                             @php
                                                                 $tourCountry = $tour->destination ?? '';
@@ -1551,11 +1571,23 @@
                                                     </div>
                                                     <div class="col-md-3">
                                                         <label class="form-label fw-semibold text-muted mb-1"><i class="ri-cup-line me-1 text-warning"></i>Meal Type</label>
-                                                        <input type="text" class="form-control border-2" name="meal_type" value="{{ $mealType }}" placeholder="Lunch, Dinner">
+                                                        <select class="form-select border-2" name="meal_type" id="meal_type_{{ $order->booking_id }}" onchange="loadDishTypesForEdit({{ $order->booking_id }})" required>
+                                                            <option value="">Select Restaurant First</option>
+                                                            @if($mealType)
+                                                                <option value="{{ $mealType }}" selected>{{ $mealType }}</option>
+                                                            @endif
+                                                        </select>
+                                                        <input type="hidden" id="current_meal_type_{{ $order->booking_id }}" value="{{ $mealType }}">
                                                     </div>
                                                     <div class="col-md-3">
                                                         <label class="form-label fw-semibold text-muted mb-1"><i class="ri-cup-line me-1 text-info"></i>Dish Type</label>
-                                                        <input type="text" class="form-control border-2" name="meal_specific_type" value="{{ $mealSpecificType }}" placeholder="Buffet, À la carte">
+                                                        <select class="form-select border-2" name="meal_specific_type" id="meal_specific_type_{{ $order->booking_id }}" required>
+                                                            <option value="">Select Meal Type First</option>
+                                                            @if($mealSpecificType)
+                                                                <option value="{{ $mealSpecificType }}" selected>{{ $mealSpecificType }}</option>
+                                                            @endif
+                                                        </select>
+                                                        <input type="hidden" id="current_dish_type_{{ $order->booking_id }}" value="{{ $mealSpecificType }}">
                                                     </div>
                                                     <div class="col-md-3">
                                                         <label class="form-label fw-semibold text-muted mb-1"><i class="ri-time-line me-1 text-warning"></i>Time Slot</label>
@@ -1569,10 +1601,6 @@
                                                     <div class="col-md-3">
                                                         <label class="form-label fw-semibold text-muted mb-1"><i class="ri-user-smile-line me-1 text-secondary"></i>Children</label>
                                                         <input type="number" class="form-control border-2" name="child_count" min="0" value="{{ $childCount }}" required>
-                                                    </div>
-                                                    <div class="col-md-3">
-                                                        <label class="form-label fw-semibold text-muted mb-1"><i class="ri-money-dollar-circle-line me-1 text-success"></i>Total Price</label>
-                                                        <input type="number" class="form-control border-2" name="total_price" step="0.01" min="0" value="{{ number_format($totalPrice, 2, '.', '') }}" placeholder="0.00">
                                                     </div>
                                                 </div>
                                                 <div class="d-flex justify-content-end align-items-center gap-3 mt-3">
@@ -1655,6 +1683,7 @@
                                                     $adultCount = $transportData['adultCount'] ?? $transportData['adults'] ?? 0;
                                                     $childCount = $transportData['childCount'] ?? $transportData['children'] ?? 0;
                                                     $notes = $transportData['notes'] ?? $transportData['specialRequests'] ?? '';
+                                                    $availableVehicles = $vehicles ?? collect();
                                                 @endphp
                                                 <form class="service-item mb-3 p-3 border rounded shadow-sm bg-white transport-edit-form" data-form-type="travel_hourly" data-update-url="{{ route('edit-tour.update-transport', $order->booking_id) }}" onsubmit="updateExistingTransport(event, {{ $order->booking_id }})">
                                                     @csrf
@@ -1670,11 +1699,12 @@
                                                     <div class="row g-3">
                                                         <div class="col-md-4">
                                                             <label class="form-label fw-semibold text-muted mb-1"><i class="ri-map-pin-line me-1 text-primary"></i>Pickup Location</label>
-                                                            <input type="text" class="form-control border-2" name="pickup_location" value="{{ $pickupLocation }}" placeholder="Enter pickup location" required>
-                                                        </div>
-                                                        <div class="col-md-4">
-                                                            <label class="form-label fw-semibold text-muted mb-1"><i class="ri-map-pin-2-line me-1 text-success"></i>Dropoff Location (optional)</label>
-                                                            <input type="text" class="form-control border-2" name="dropoff_location" value="{{ $dropoffLocation }}" placeholder="Enter dropoff location">
+                                                            <div class="position-relative">
+                                                                <input type="text" class="form-control border-2 google-maps-autocomplete" name="pickup_location" value="{{ $pickupLocation }}" placeholder="Search pickup location" style="padding-left: 45px;" required>
+                                                                <i class="ri-map-pin-line position-absolute text-primary" style="left: 15px; top: 50%; transform: translateY(-50%); z-index: 5;"></i>
+                                                            </div>
+                                                            <input type="hidden" name="pickup_latitude" value="{{ $transportData['pickup_latitude'] ?? '' }}">
+                                                            <input type="hidden" name="pickup_longitude" value="{{ $transportData['pickup_longitude'] ?? '' }}">
                                                         </div>
                                                         <div class="col-md-2">
                                                             <label class="form-label fw-semibold text-muted mb-1"><i class="ri-calendar-line me-1 text-secondary"></i>Pickup Date</label>
@@ -1685,8 +1715,33 @@
                                                             <input type="time" class="form-control border-2" name="pickup_time" value="{{ $pickupTimeValue }}" required>
                                                         </div>
                                                         <div class="col-md-4">
-                                                            <label class="form-label fw-semibold text-muted mb-1"><i class="ri-car-line me-1 text-info"></i>Vehicle Name</label>
-                                                            <input type="text" class="form-control border-2" name="vehicle_name" value="{{ $vehicleName }}" placeholder="Vehicle name">
+                                                            <label class="form-label fw-semibold text-muted mb-1"><i class="ri-car-line me-1 text-info"></i>Vehicle</label>
+                                                            @php $vehicleMatched = false; @endphp
+                                                            <select class="form-select border-2 js-hourly-vehicle-select" name="vehicle_name" id="hourly_vehicle_name_{{ $order->booking_id }}">
+                                                                <option value="">{{ $vehicleName ? 'Select vehicle' : 'Select vehicle' }}</option>
+                                                                @foreach($availableVehicles as $vehicleOption)
+                                                                    @php
+                                                                        $vehicleDisplayName = $vehicleOption->vehicle_name ?? $vehicleOption->vehicle_id;
+                                                                        $isSelected = false;
+                                                                        if ($vehicleDisplayName) {
+                                                                            $isSelected = strcasecmp($vehicleDisplayName, $vehicleName ?? '') === 0;
+                                                                        }
+                                                                        $vehicleMatched = $vehicleMatched || $isSelected;
+                                                                    @endphp
+                                                                    <option value="{{ $vehicleDisplayName }}"
+                                                                        data-vehicle-id="{{ $vehicleOption->vehicle_id }}"
+                                                                        data-vehicle-name="{{ $vehicleDisplayName }}"
+                                                                        data-vehicle-type="{{ $vehicleOption->vehicle_type ?? '' }}">
+                                                                        {{ $vehicleDisplayName }}
+                                                                        @if(!empty($vehicleOption->vehicle_type))
+                                                                            ({{ $vehicleOption->vehicle_type }})
+                                                                        @endif
+                                                                    </option>
+                                                                @endforeach
+                                                                @if($vehicleName && !$vehicleMatched)
+                                                                    <option value="{{ $vehicleName }}" selected>{{ $vehicleName }}</option>
+                                                                @endif
+                                                            </select>
                                                         </div>
                                                         <div class="col-md-3">
                                                             <label class="form-label fw-semibold text-muted mb-1"><i class="ri-user-settings-line me-1 text-secondary"></i>Service Type</label>
@@ -1699,18 +1754,6 @@
                                                         <div class="col-md-2">
                                                             <label class="form-label fw-semibold text-muted mb-1"><i class="ri-hourglass-line me-1 text-info"></i>Hours</label>
                                                             <input type="number" class="form-control border-2" name="selected_hours" min="1" value="{{ $selectedHours }}" placeholder="e.g. 4">
-                                                        </div>
-                                                        <div class="col-md-3">
-                                                            <label class="form-label fw-semibold text-muted mb-1"><i class="ri-money-dollar-circle-line me-1 text-success"></i>Total Price</label>
-                                                            <input type="number" class="form-control border-2" name="total_price" step="0.01" min="0" value="{{ number_format((float) $totalPrice, 2, '.', '') }}" placeholder="0.00">
-                                                        </div>
-                                                        <div class="col-md-2">
-                                                            <label class="form-label fw-semibold text-muted mb-1"><i class="ri-user-line me-1 text-secondary"></i>Adults</label>
-                                                            <input type="number" class="form-control border-2" name="adult_count" min="0" value="{{ $adultCount }}">
-                                                        </div>
-                                                        <div class="col-md-2">
-                                                            <label class="form-label fw-semibold text-muted mb-1"><i class="ri-user-smile-line me-1 text-secondary"></i>Children</label>
-                                                            <input type="number" class="form-control border-2" name="child_count" min="0" value="{{ $childCount }}">
                                                         </div>
                                                     </div>
                                                     <div class="d-flex justify-content-end align-items-center gap-3 mt-3">
@@ -1751,6 +1794,13 @@
                                                     $childCount = $transportData['childCount'] ?? $transportData['children'] ?? 0;
                                                     $distance = $transportData['distance'] ?? 0;
                                                     $notes = $transportData['notes'] ?? $transportData['specialRequests'] ?? '';
+                                                    $pickupLatitude = $transportData['pickup_latitude'] ?? $transportData['pickup_lat'] ?? '';
+                                                    $pickupLongitude = $transportData['pickup_longitude'] ?? $transportData['pickup_lng'] ?? '';
+                                                    $dropoffLatitude = $transportData['dropoff_latitude'] ?? $transportData['dropoff_lat'] ?? '';
+                                                    $dropoffLongitude = $transportData['dropoff_longitude'] ?? $transportData['dropoff_lng'] ?? '';
+                                                    $pickupPlaceId = $transportData['pickup_place_id'] ?? '';
+                                                    $dropoffPlaceId = $transportData['dropoff_place_id'] ?? '';
+                                                    $availableVehicles = $vehicles ?? collect();
                                                 @endphp
                                                 <form class="service-item mb-3 p-3 border rounded shadow-sm bg-white transport-edit-form" data-form-type="travel_point" data-update-url="{{ route('edit-tour.update-transport', $order->booking_id) }}" onsubmit="updateExistingTransport(event, {{ $order->booking_id }})">
                                                     @csrf
@@ -1766,11 +1816,39 @@
                                                     <div class="row g-3">
                                                         <div class="col-md-4">
                                                             <label class="form-label fw-semibold text-muted mb-1"><i class="ri-map-pin-line me-1 text-primary"></i>Pickup Location</label>
-                                                            <input type="text" class="form-control border-2" name="pickup_location" value="{{ $pickupLocation }}" placeholder="Enter pickup location" required>
+                                                            <div class="position-relative">
+                                                                <input 
+                                                                    type="text" 
+                                                                    class="form-control border-2 google-maps-autocomplete" 
+                                                                    id="point_pickup_location_{{ $order->booking_id }}"
+                                                                    name="pickup_location" 
+                                                                    value="{{ $pickupLocation }}" 
+                                                                    placeholder="Search pickup location" 
+                                                                    style="padding-left: 45px;" 
+                                                                    required>
+                                                                <i class="ri-map-pin-line position-absolute text-primary" style="left: 15px; top: 50%; transform: translateY(-50%); z-index: 5;"></i>
+                                                                <input type="hidden" name="pickup_latitude" id="point_pickup_lat_{{ $order->booking_id }}" value="{{ $pickupLatitude }}">
+                                                                <input type="hidden" name="pickup_longitude" id="point_pickup_lng_{{ $order->booking_id }}" value="{{ $pickupLongitude }}">
+                                                                <input type="hidden" name="pickup_place_id" id="point_pickup_place_id_{{ $order->booking_id }}" value="{{ $pickupPlaceId }}">
+                                                            </div>
                                                         </div>
                                                         <div class="col-md-4">
                                                             <label class="form-label fw-semibold text-muted mb-1"><i class="ri-map-pin-2-line me-1 text-success"></i>Dropoff Location</label>
-                                                            <input type="text" class="form-control border-2" name="dropoff_location" value="{{ $dropoffLocation }}" placeholder="Enter dropoff location" required>
+                                                            <div class="position-relative">
+                                                                <input 
+                                                                    type="text" 
+                                                                    class="form-control border-2 google-maps-autocomplete" 
+                                                                    id="point_dropoff_location_{{ $order->booking_id }}"
+                                                                    name="dropoff_location" 
+                                                                    value="{{ $dropoffLocation }}" 
+                                                                    placeholder="Search dropoff location" 
+                                                                    style="padding-left: 45px;" 
+                                                                    required>
+                                                                <i class="ri-map-pin-2-line position-absolute text-success" style="left: 15px; top: 50%; transform: translateY(-50%); z-index: 5;"></i>
+                                                                <input type="hidden" name="dropoff_latitude" id="point_dropoff_lat_{{ $order->booking_id }}" value="{{ $dropoffLatitude }}">
+                                                                <input type="hidden" name="dropoff_longitude" id="point_dropoff_lng_{{ $order->booking_id }}" value="{{ $dropoffLongitude }}">
+                                                                <input type="hidden" name="dropoff_place_id" id="point_dropoff_place_id_{{ $order->booking_id }}" value="{{ $dropoffPlaceId }}">
+                                                            </div>
                                                         </div>
                                                         <div class="col-md-2">
                                                             <label class="form-label fw-semibold text-muted mb-1"><i class="ri-calendar-line me-1 text-secondary"></i>Pickup Date</label>
@@ -1782,7 +1860,26 @@
                                                         </div>
                                                         <div class="col-md-4">
                                                             <label class="form-label fw-semibold text-muted mb-1"><i class="ri-car-line me-1 text-info"></i>Vehicle Name</label>
-                                                            <input type="text" class="form-control border-2" name="vehicle_name" value="{{ $vehicleName }}" placeholder="Vehicle name">
+                                                            @php $vehicleMatched = false; @endphp
+                                                            <select class="form-select border-2" name="vehicle_name">
+                                                                <option value="">{{ $vehicleName ? 'Select vehicle' : 'Select vehicle' }}</option>
+                                                                @foreach($availableVehicles as $vehicleOption)
+                                                                    @php
+                                                                        $vehicleDisplayName = $vehicleOption->vehicle_name ?? $vehicleOption->vehicle_id;
+                                                                        $isSelected = $vehicleDisplayName && strcasecmp($vehicleDisplayName, $vehicleName ?? '') === 0;
+                                                                        $vehicleMatched = $vehicleMatched || $isSelected;
+                                                                    @endphp
+                                                                    <option value="{{ $vehicleDisplayName }}" {{ $isSelected ? 'selected' : '' }}>
+                                                                        {{ $vehicleDisplayName }}
+                                                                        @if(!empty($vehicleOption->vehicle_type))
+                                                                            ({{ $vehicleOption->vehicle_type }})
+                                                                        @endif
+                                                                    </option>
+                                                                @endforeach
+                                                                @if($vehicleName && !$vehicleMatched)
+                                                                    <option value="{{ $vehicleName }}" selected>{{ $vehicleName }}</option>
+                                                                @endif
+                                                            </select>
                                                         </div>
                                                         <div class="col-md-3">
                                                             <label class="form-label fw-semibold text-muted mb-1"><i class="ri-user-settings-line me-1 text-secondary"></i>Service Type</label>
@@ -1792,21 +1889,13 @@
                                                                 <option value="Shared" {{ strtolower($vehicleType) === 'shared' ? 'selected' : '' }}>Shared</option>
                                                             </select>
                                                         </div>
-                                                        <div class="col-md-2">
+                                                        <!-- <div class="col-md-2">
                                                             <label class="form-label fw-semibold text-muted mb-1"><i class="ri-roadster-line me-1 text-info"></i>Distance (km)</label>
                                                             <input type="number" class="form-control border-2" name="distance" step="0.01" min="0" value="{{ $distance }}" placeholder="0">
-                                                        </div>
+                                                        </div> -->
                                                         <div class="col-md-3">
                                                             <label class="form-label fw-semibold text-muted mb-1"><i class="ri-money-dollar-circle-line me-1 text-success"></i>Total Price</label>
                                                             <input type="number" class="form-control border-2" name="total_price" step="0.01" min="0" value="{{ number_format((float) $totalPrice, 2, '.', '') }}" placeholder="0.00">
-                                                        </div>
-                                                        <div class="col-md-2">
-                                                            <label class="form-label fw-semibold text-muted mb-1"><i class="ri-user-line me-1 text-secondary"></i>Adults</label>
-                                                            <input type="number" class="form-control border-2" name="adult_count" min="0" value="{{ $adultCount }}">
-                                                        </div>
-                                                        <div class="col-md-2">
-                                                            <label class="form-label fw-semibold text-muted mb-1"><i class="ri-user-smile-line me-1 text-secondary"></i>Children</label>
-                                                            <input type="number" class="form-control border-2" name="child_count" min="0" value="{{ $childCount }}">
                                                         </div>
                                                     </div>
                                                     <div class="d-flex justify-content-end align-items-center gap-3 mt-3">
@@ -1841,15 +1930,45 @@
                                                         }
                                                     }
                                                     $vehicleName = $transportData['vehicles_name'] ?? '';
+                                                    $vehicleId = $transportData['vehicles_id'] ?? $transportData['vehicle_id'] ?? '';
                                                     $vehicleType = $transportData['type'] ?? '';
                                                     $totalPrice = $transportData['totalPrice'] ?? $transportData['price'] ?? 0;
                                                     $adultCount = $transportData['adultCount'] ?? $transportData['adults'] ?? 0;
                                                     $childCount = $transportData['childCount'] ?? $transportData['children'] ?? 0;
                                                     $notes = $transportData['notes'] ?? $transportData['specialRequests'] ?? '';
+                                                    $pickupZoneId = $transportData['pickup_zone_id'] ?? $transportData['pickupZoneId'] ?? '';
+                                                    $dropoffZoneId = $transportData['dropoff_zone_id'] ?? $transportData['dropoffZoneId'] ?? '';
+                                                    $pickupLocationType = $transportData['pickup_location_type'] ?? '';
+                                                    $dropoffLocationType = $transportData['dropoff_location_type'] ?? '';
+                                                    $availablePorts = $ports ?? collect();
+                                                    $availableHotels = $hotels ?? collect();
+                                                    $availableAttractions = $attractions ?? collect();
+                                                    $availableRestaurants = $restaurants ?? collect();
+                                                    $availableVehicles = $vehicles ?? collect();
                                                 @endphp
-                                                <form class="service-item mb-3 p-3 border rounded shadow-sm bg-white transport-edit-form" data-form-type="local_transport" data-update-url="{{ route('edit-tour.update-transport', $order->booking_id) }}" onsubmit="updateExistingTransport(event, {{ $order->booking_id }})">
+                                                <form
+                                                    class="service-item mb-3 p-3 border rounded shadow-sm bg-white transport-edit-form"
+                                                    data-form-type="local_transport"
+                                                    data-update-url="{{ route('edit-tour.update-transport', $order->booking_id) }}"
+                                                    data-booking-id="{{ $order->booking_id }}"
+                                                    data-fetch-url="{{ route('fetch-vehicles-by-zones') }}"
+                                                    data-zone-status="{{ $UserDmc->zone_on ?? 0 }}"
+                                                    data-city="{{ $tour->city ?? $tour->destination ?? '' }}"
+                                                    data-initial-vehicle-id="{{ $vehicleId }}"
+                                                    data-initial-vehicle-name="{{ $vehicleName }}"
+                                                    data-initial-service-type="{{ $vehicleType }}"
+                                                    data-initial-total-price="{{ number_format((float) $totalPrice, 2, '.', '') }}"
+                                                    data-initial-private-price="{{ $transportData['private_price'] ?? $transportData['price'] ?? $totalPrice }}"
+                                                    data-initial-shared-price="{{ $transportData['shared_price'] ?? '' }}"
+                                                    data-initial-vehicle-sharable="{{ $transportData['sharable'] ?? $transportData['sharable_option'] ?? '' }}"
+                                                    onsubmit="updateExistingTransport(event, {{ $order->booking_id }})">
                                                     @csrf
                                                     <input type="hidden" name="type" value="local_transport">
+                                                    <input type="hidden" name="pickup_location_reference" id="pickup_location_reference_{{ $order->booking_id }}" value="{{ $pickupZoneId }}">
+                                                    <input type="hidden" name="pickup_location_type" id="pickup_location_type_{{ $order->booking_id }}" value="{{ $pickupLocationType }}">
+                                                    <input type="hidden" name="dropoff_location_reference" id="dropoff_location_reference_{{ $order->booking_id }}" value="{{ $dropoffZoneId }}">
+                                                    <input type="hidden" name="dropoff_location_type" id="dropoff_location_type_{{ $order->booking_id }}" value="{{ $dropoffLocationType }}">
+                                                    <input type="hidden" name="vehicle_id" id="vehicle_id_{{ $order->booking_id }}" value="{{ $vehicleId }}">
                                                     <div class="d-flex justify-content-between align-items-center mb-3">
                                                         <h6 class="mb-0 fw-bold text-secondary"><i class="ri-taxi-line me-2"></i>Local Transport #{{ $index + 1 }}</h6>
                                                         <div class="d-flex gap-2">
@@ -1861,11 +1980,95 @@
                                                     <div class="row g-3">
                                                         <div class="col-md-4">
                                                             <label class="form-label fw-semibold text-muted mb-1"><i class="ri-map-pin-line me-1 text-primary"></i>Pickup Zone/Location</label>
-                                                            <input type="text" class="form-control border-2" name="pickup_location" value="{{ $pickupLocation }}" placeholder="Enter pickup zone" required>
+                                                            @php $pickupMatched = false; @endphp
+                                                            <select class="form-select border-2 js-local-pickup-select" name="pickup_location" id="pickup_location_{{ $order->booking_id }}" data-booking-id="{{ $order->booking_id }}" required>
+                                                                <option value="">{{ $pickupLocation ? 'Select pickup location' : 'Select pickup location' }}</option>
+                                                                <optgroup label="Ports">
+                                                                    @foreach($availablePorts as $port)
+                                                                        @php $isSelected = strcasecmp($port->port_name ?? '', $pickupLocation ?? '') === 0; $pickupMatched = $pickupMatched || $isSelected; @endphp
+                                                                        <option value="{{ $port->port_name }}" data-location-type="Port" data-location-id="{{ $port->port_id }}" {{ $isSelected ? 'selected' : '' }}>
+                                                                            {{ $port->port_name }}
+                                                                        </option>
+                                                                    @endforeach
+                                                                </optgroup>
+                                                                <optgroup label="Hotels">
+                                                                    @foreach($availableHotels as $hotelOption)
+                                                                        @php $isSelected = strcasecmp($hotelOption->name ?? '', $pickupLocation ?? '') === 0; $pickupMatched = $pickupMatched || $isSelected; @endphp
+                                                                        <option value="{{ $hotelOption->name }}" data-location-type="Hotel" data-location-id="{{ $hotelOption->hotel_unique_id }}" {{ $isSelected ? 'selected' : '' }}>
+                                                                            {{ $hotelOption->name }}
+                                                                        </option>
+                                                                    @endforeach
+                                                                </optgroup>
+                                                                <optgroup label="Attractions">
+                                                                    @foreach($availableAttractions as $attractionOption)
+                                                                        @php $isSelected = strcasecmp($attractionOption->name ?? '', $pickupLocation ?? '') === 0; $pickupMatched = $pickupMatched || $isSelected; @endphp
+                                                                        <option value="{{ $attractionOption->name }}" data-location-type="Attraction" data-location-id="{{ $attractionOption->attraction_id }}" {{ $isSelected ? 'selected' : '' }}>
+                                                                            {{ $attractionOption->name }}
+                                                                        </option>
+                                                                    @endforeach
+                                                                </optgroup>
+                                                                <optgroup label="Restaurants">
+                                                                    @foreach($availableRestaurants as $restaurantOption)
+                                                                        @php $isSelected = strcasecmp($restaurantOption->name ?? '', $pickupLocation ?? '') === 0; $pickupMatched = $pickupMatched || $isSelected; @endphp
+                                                                        <option value="{{ $restaurantOption->name }}" data-location-type="Restaurant" data-location-id="{{ $restaurantOption->restaurant_id }}" {{ $isSelected ? 'selected' : '' }}>
+                                                                            {{ $restaurantOption->name }}
+                                                                        </option>
+                                                                    @endforeach
+                                                                </optgroup>
+                                                                @if($pickupLocation && !$pickupMatched)
+                                                                    <option value="{{ $pickupLocation }}" selected
+                                                                        data-location-id="{{ $pickupZoneId }}"
+                                                                        data-location-type="{{ $pickupLocationType }}">
+                                                                        {{ $pickupLocation }}
+                                                                    </option>
+                                                                @endif
+                                                            </select>
                                                         </div>
                                                         <div class="col-md-4">
                                                             <label class="form-label fw-semibold text-muted mb-1"><i class="ri-map-pin-2-line me-1 text-success"></i>Dropoff Zone/Location</label>
-                                                            <input type="text" class="form-control border-2" name="dropoff_location" value="{{ $dropoffLocation }}" placeholder="Enter dropoff zone" required>
+                                                            @php $dropoffMatched = false; @endphp
+                                                            <select class="form-select border-2 js-local-dropoff-select" name="dropoff_location" id="dropoff_location_{{ $order->booking_id }}" data-booking-id="{{ $order->booking_id }}" required>
+                                                                <option value="">{{ $dropoffLocation ? 'Select dropoff location' : 'Select dropoff location' }}</option>
+                                                                <optgroup label="Ports">
+                                                                    @foreach($availablePorts as $port)
+                                                                        @php $isSelected = strcasecmp($port->port_name ?? '', $dropoffLocation ?? '') === 0; $dropoffMatched = $dropoffMatched || $isSelected; @endphp
+                                                                        <option value="{{ $port->port_name }}" data-location-type="Port" data-location-id="{{ $port->port_id }}" {{ $isSelected ? 'selected' : '' }}>
+                                                                            {{ $port->port_name }}
+                                                                        </option>
+                                                                    @endforeach
+                                                                </optgroup>
+                                                                <optgroup label="Hotels">
+                                                                    @foreach($availableHotels as $hotelOption)
+                                                                        @php $isSelected = strcasecmp($hotelOption->name ?? '', $dropoffLocation ?? '') === 0; $dropoffMatched = $dropoffMatched || $isSelected; @endphp
+                                                                        <option value="{{ $hotelOption->name }}" data-location-type="Hotel" data-location-id="{{ $hotelOption->hotel_unique_id }}" {{ $isSelected ? 'selected' : '' }}>
+                                                                            {{ $hotelOption->name }}
+                                                                        </option>
+                                                                    @endforeach
+                                                                </optgroup>
+                                                                <optgroup label="Attractions">
+                                                                    @foreach($availableAttractions as $attractionOption)
+                                                                        @php $isSelected = strcasecmp($attractionOption->name ?? '', $dropoffLocation ?? '') === 0; $dropoffMatched = $dropoffMatched || $isSelected; @endphp
+                                                                        <option value="{{ $attractionOption->name }}" data-location-type="Attraction" data-location-id="{{ $attractionOption->attraction_id }}" {{ $isSelected ? 'selected' : '' }}>
+                                                                            {{ $attractionOption->name }}
+                                                                        </option>
+                                                                    @endforeach
+                                                                </optgroup>
+                                                                <optgroup label="Restaurants">
+                                                                    @foreach($availableRestaurants as $restaurantOption)
+                                                                        @php $isSelected = strcasecmp($restaurantOption->name ?? '', $dropoffLocation ?? '') === 0; $dropoffMatched = $dropoffMatched || $isSelected; @endphp
+                                                                        <option value="{{ $restaurantOption->name }}" data-location-type="Restaurant" data-location-id="{{ $restaurantOption->restaurant_id }}" {{ $isSelected ? 'selected' : '' }}>
+                                                                            {{ $restaurantOption->name }}
+                                                                        </option>
+                                                                    @endforeach
+                                                                </optgroup>
+                                                                @if($dropoffLocation && !$dropoffMatched)
+                                                                    <option value="{{ $dropoffLocation }}" selected
+                                                                        data-location-id="{{ $dropoffZoneId }}"
+                                                                        data-location-type="{{ $dropoffLocationType }}">
+                                                                        {{ $dropoffLocation }}
+                                                                    </option>
+                                                                @endif
+                                                            </select>
                                                         </div>
                                                         <div class="col-md-2">
                                                             <label class="form-label fw-semibold text-muted mb-1"><i class="ri-calendar-line me-1 text-secondary"></i>Pickup Date</label>
@@ -1877,27 +2080,65 @@
                                                         </div>
                                                         <div class="col-md-4">
                                                             <label class="form-label fw-semibold text-muted mb-1"><i class="ri-car-line me-1 text-info"></i>Vehicle Name</label>
-                                                            <input type="text" class="form-control border-2" name="vehicle_name" value="{{ $vehicleName }}" placeholder="Vehicle name">
+                                                            @php $vehicleMatched = false; @endphp
+                                                            <select class="form-select border-2 js-local-vehicle-select" name="vehicle_name" id="vehicle_name_{{ $order->booking_id }}" data-booking-id="{{ $order->booking_id }}">
+                                                                <option value="">{{ $vehicleName ? 'Select vehicle' : 'Select vehicle' }}</option>
+                                                                @foreach($availableVehicles as $vehicleOption)
+                                                                    @php
+                                                                        $vehicleDisplayName = $vehicleOption->vehicle_name ?? $vehicleOption->vehicle_id;
+                                                                        $isSelected = false;
+                                                                        if ($vehicleDisplayName) {
+                                                                            $isSelected = strcasecmp($vehicleDisplayName, $vehicleName ?? '') === 0;
+                                                                        }
+                                                                        if (!$isSelected && $vehicleId) {
+                                                                            $isSelected = (string)$vehicleId === (string)($vehicleOption->vehicle_id ?? '');
+                                                                        }
+                                                                        $vehicleMatched = $vehicleMatched || $isSelected;
+                                                                    @endphp
+                                                                    <option value="{{ $vehicleDisplayName }}"
+                                                                        data-vehicle-id="{{ $vehicleOption->vehicle_id }}"
+                                                                        data-vehicle-name="{{ $vehicleDisplayName }}"
+                                                                        data-vehicle-type="{{ $vehicleOption->vehicle_type }}"
+                                                                        data-seating-capacity="{{ $vehicleOption->seating_capacity ?? '' }}"
+                                                                        data-private-price="{{ $vehicleOption->private_price ?? '' }}"
+                                                                        data-shared-price="{{ $vehicleOption->shared_price ?? '' }}"
+                                                                        data-cost-per-hour="{{ $vehicleOption->cost_per_hour ?? '' }}"
+                                                                        data-sharable-cost-per-hour="{{ $vehicleOption->sharable_cost_per_hour ?? '' }}"
+                                                                        data-sharable="{{ $vehicleOption->sharable ?? '' }}"
+                                                                        data-service-type="{{ $vehicleOption->service_type ?? '' }}"
+                                                                        data-vehicle='@json($vehicleOption)'
+                                                                        {{ $isSelected ? 'selected' : '' }}>
+                                                                        {{ $vehicleDisplayName }}
+                                                                        @if(!empty($vehicleOption->vehicle_type))
+                                                                            ({{ $vehicleOption->vehicle_type }})
+                                                                        @endif
+                                                                    </option>
+                                                                @endforeach
+                                                                @if($vehicleName && !$vehicleMatched)
+                                                                    <option value="{{ $vehicleName }}" selected
+                                                                        data-vehicle-id="{{ $vehicleId }}"
+                                                                        data-vehicle-name="{{ $vehicleName }}"
+                                                                        data-vehicle-type="{{ $vehicleType }}"
+                                                                        data-seating-capacity="{{ $transportData['seating_capacity'] ?? '' }}"
+                                                                        data-private-price="{{ $transportData['price'] ?? $totalPrice }}"
+                                                                        data-shared-price="{{ $transportData['shared_price'] ?? '' }}"
+                                                                        data-cost-per-hour="{{ $transportData['cost_per_hour'] ?? '' }}"
+                                                                        data-sharable-cost-per-hour="{{ $transportData['sharable_cost_per_hour'] ?? '' }}"
+                                                                        data-sharable="{{ $transportData['sharable'] ?? '' }}"
+                                                                        data-service-type="{{ $transportData['service_type'] ?? '' }}"
+                                                                        data-vehicle='@json($transportData)'>
+                                                                        {{ $vehicleName }}
+                                                                    </option>
+                                                                @endif
+                                                            </select>
                                                         </div>
                                                         <div class="col-md-3">
                                                             <label class="form-label fw-semibold text-muted mb-1"><i class="ri-user-settings-line me-1 text-secondary"></i>Service Type</label>
-                                                            <select class="form-select border-2" name="vehicle_type">
+                                                            <select class="form-select border-2 js-local-service-type" name="vehicle_type" id="vehicle_type_{{ $order->booking_id }}" data-booking-id="{{ $order->booking_id }}">
                                                                 <option value="">Select type</option>
                                                                 <option value="Private" {{ strtolower($vehicleType) === 'private' ? 'selected' : '' }}>Private</option>
                                                                 <option value="Shared" {{ strtolower($vehicleType) === 'shared' ? 'selected' : '' }}>Shared</option>
                                                             </select>
-                                                        </div>
-                                                        <div class="col-md-3">
-                                                            <label class="form-label fw-semibold text-muted mb-1"><i class="ri-money-dollar-circle-line me-1 text-success"></i>Total Price</label>
-                                                            <input type="number" class="form-control border-2" name="total_price" step="0.01" min="0" value="{{ number_format((float) $totalPrice, 2, '.', '') }}" placeholder="0.00">
-                                                        </div>
-                                                        <div class="col-md-2">
-                                                            <label class="form-label fw-semibold text-muted mb-1"><i class="ri-user-line me-1 text-secondary"></i>Adults</label>
-                                                            <input type="number" class="form-control border-2" name="adult_count" min="0" value="{{ $adultCount }}">
-                                                        </div>
-                                                        <div class="col-md-2">
-                                                            <label class="form-label fw-semibold text-muted mb-1"><i class="ri-user-smile-line me-1 text-secondary"></i>Children</label>
-                                                            <input type="number" class="form-control border-2" name="child_count" min="0" value="{{ $childCount }}">
                                                         </div>
                                                     </div>
                                                     <div class="d-flex justify-content-end align-items-center gap-3 mt-3">
@@ -1978,7 +2219,7 @@
                                             <div class="row g-3">
                                                 <div class="col-md-6">
                                                     <label class="form-label fw-semibold text-muted mb-1"><i class="ri-map-pin-line me-1 text-primary"></i>Attraction Name</label>
-                                                    <select class="form-select border-2" name="attraction_name" id="attraction_name_{{ $order->booking_id }}" required>
+                                                    <select class="form-select border-2" name="attraction_name" id="attraction_name_{{ $order->booking_id }}" onchange="populateTicketFromAttraction(this, 'ticket_name_{{ $order->booking_id }}')" required>
                                                         <option value="">Select Attraction</option>
                                                         @php
                                                             $tourCountry = $tour->destination ?? '';
@@ -2008,7 +2249,13 @@
                                                 </div>
                                                 <div class="col-md-6">
                                                     <label class="form-label fw-semibold text-muted mb-1"><i class="ri-ticket-line me-1 text-info"></i>Ticket</label>
-                                                    <input type="text" class="form-control border-2" name="ticket_name" value="{{ $ticket }}" placeholder="Ticket name">
+                                                    <select class="form-select border-2" name="ticket_name" id="ticket_name_{{ $order->booking_id }}" required>
+                                                        <option value="">Select Ticket</option>
+                                                        @if($ticket && $ticket != 'N/A')
+                                                            <option value="{{ $ticket }}" selected>{{ $ticket }}</option>
+                                                        @endif
+                                                    </select>
+                                                    <small class="text-muted">Select an attraction to see available tickets</small>
                                                 </div>
                                                 <div class="col-md-6">
                                                     <label class="form-label fw-semibold text-muted mb-1"><i class="ri-time-line me-1 text-warning"></i>Time Slot</label>
@@ -2129,10 +2376,6 @@
                                                     </select>
                                                     <small class="text-muted">Available time slots from database</small>
                                                 </div>
-                                                <div class="col-md-6">
-                                                    <label class="form-label fw-semibold text-muted mb-1"><i class="ri-money-dollar-circle-line me-1 text-success"></i>Total Price</label>
-                                                    <input type="number" class="form-control border-2" name="total_price" step="0.01" min="0" value="{{ number_format($totalPrice, 2, '.', '') }}" placeholder="0.00">
-                                                </div>
                                                 <div class="col-md-4">
                                                     <label class="form-label fw-semibold text-muted mb-1"><i class="ri-user-line me-1 text-secondary"></i>Adults</label>
                                                     <input type="number" class="form-control border-2" name="adult_count" min="0" value="{{ $adultCount }}" required>
@@ -2205,6 +2448,21 @@
                                             $pickupTime = $payload['entrytime'] ?? '';
                                             $guestSummary = $payload['fullName'] ?? '';
                                             $guideNotes = $payload['notes'] ?? '';
+                                            // Convert pickup time to AM/PM format for display
+                                            $pickupTimeAMPM = '';
+                                            if ($pickupTime) {
+                                                try {
+                                                    $timeObj = \Carbon\Carbon::createFromFormat('H:i', $pickupTime);
+                                                    $pickupTimeAMPM = $timeObj->format('h:i A');
+                                                } catch (\Exception $e) {
+                                                    try {
+                                                        $timeObj = \Carbon\Carbon::parse($pickupTime);
+                                                        $pickupTimeAMPM = $timeObj->format('h:i A');
+                                                    } catch (\Exception $e2) {
+                                                        $pickupTimeAMPM = $pickupTime; // Keep original if parsing fails
+                                                    }
+                                                }
+                                            }
                                         @endphp
                                         <form class="service-item mb-3 p-3 border rounded shadow-sm bg-white guide-edit-form" data-update-url="{{ route('edit-tour.update-guide', $order->booking_id) }}" onsubmit="updateExistingGuide(event, {{ $order->booking_id }})">
                                             @csrf
@@ -2270,8 +2528,8 @@
                                                     <label class="form-label fw-semibold text-muted mb-1"><i class="ri-time-line me-1 text-info"></i>Pickup Time</label>
                                                     <select class="form-select border-2" name="pickup_time" id="guide_pickup_time_{{ $order->booking_id }}" required>
                                                         <option value="">Select Guide First</option>
-                                                        @if($pickupTime)
-                                                            <option value="{{ $pickupTime }}" selected>{{ $pickupTime }}</option>
+                                                        @if($pickupTimeAMPM)
+                                                            <option value="{{ $pickupTimeAMPM }}" selected>{{ $pickupTimeAMPM }}</option>
                                                         @endif
                                                     </select>
                                                     <small class="text-muted">Available times from selected guide</small>
@@ -2337,6 +2595,7 @@
                                                     $vehicleName = $transportData['vehicles_name'] ?? '';
                                                     $vehicleType = $transportData['type'] ?? '';
                                                     $passengers = $transportData['passengers'] ?? '';
+                                                    $availableVehicles = $vehicles ?? collect();
                                                 @endphp
                                                 <form class="service-item mb-3 p-3 border rounded shadow-sm bg-white transport-edit-form" data-form-type="exit_port" data-update-url="{{ route('edit-tour.update-transport', $order->booking_id) }}" onsubmit="updateExistingTransport(event, {{ $order->booking_id }})">
                                                     @csrf
@@ -2393,13 +2652,60 @@
                                                         <div class="col-md-2">
                                                             <label class="form-label fw-semibold text-muted mb-1"><i class="ri-time-line me-1 text-warning"></i>Departure Time</label>
                                                             @php
-                                                                $time24 = $pickupTime ? date('H:i', strtotime($pickupTime)) : '';
+                                                                $departureTimeAMPM = '';
+                                                                if ($pickupTime) {
+                                                                    try {
+                                                                        $timeObj = \Carbon\Carbon::createFromFormat('H:i', $pickupTime);
+                                                                        $departureTimeAMPM = $timeObj->format('h:i A');
+                                                                    } catch (\Exception $e) {
+                                                                        try {
+                                                                            $timeObj = \Carbon\Carbon::parse($pickupTime);
+                                                                            $departureTimeAMPM = $timeObj->format('h:i A');
+                                                                        } catch (\Exception $e2) {
+                                                                            $departureTimeAMPM = $pickupTime; // Keep original if parsing fails
+                                                                        }
+                                                                    }
+                                                                }
                                                             @endphp
-                                                            <input type="time" class="form-control border-2" name="pickup_time" value="{{ $time24 }}" required>
+                                                            <select class="form-select border-2" name="pickup_time" id="departure_time_{{ $order->booking_id }}" required>
+                                                                <option value="">Select Time</option>
+                                                                @php
+                                                                    // Generate time slots from 12:00 AM to 11:30 PM in 30-minute intervals
+                                                                    $timeSlots = [];
+                                                                    for ($hour = 0; $hour < 24; $hour++) {
+                                                                        for ($minute = 0; $minute < 60; $minute += 30) {
+                                                                            $timeObj = \Carbon\Carbon::createFromTime($hour, $minute, 0);
+                                                                            $timeSlots[] = $timeObj->format('h:i A');
+                                                                        }
+                                                                    }
+                                                                @endphp
+                                                                @foreach($timeSlots as $timeSlot)
+                                                                    <option value="{{ $timeSlot }}" {{ $departureTimeAMPM == $timeSlot ? 'selected' : '' }}>{{ $timeSlot }}</option>
+                                                                @endforeach
+                                                            </select>
                                                         </div>
                                                         <div class="col-md-3">
                                                             <label class="form-label fw-semibold text-muted mb-1"><i class="ri-car-line me-1 text-info"></i>Vehicle</label>
-                                                            <input type="text" class="form-control border-2" name="vehicle_name" value="{{ $vehicleName }}" placeholder="Vehicle name">
+                                                            @php $vehicleMatched = false; @endphp
+                                                            <select class="form-select border-2" name="vehicle_name">
+                                                                <option value="">{{ $vehicleName ? 'Select vehicle' : 'Select vehicle' }}</option>
+                                                                @foreach($availableVehicles as $vehicleOption)
+                                                                    @php
+                                                                        $vehicleDisplayName = $vehicleOption->vehicle_name ?? $vehicleOption->vehicle_id;
+                                                                        $isSelected = $vehicleDisplayName && strcasecmp($vehicleDisplayName, $vehicleName ?? '') === 0;
+                                                                        $vehicleMatched = $vehicleMatched || $isSelected;
+                                                                    @endphp
+                                                                    <option value="{{ $vehicleDisplayName }}" {{ $isSelected ? 'selected' : '' }}>
+                                                                        {{ $vehicleDisplayName }}
+                                                                        @if(!empty($vehicleOption->vehicle_type))
+                                                                            ({{ $vehicleOption->vehicle_type }})
+                                                                        @endif
+                                                                    </option>
+                                                                @endforeach
+                                                                @if($vehicleName && !$vehicleMatched)
+                                                                    <option value="{{ $vehicleName }}" selected>{{ $vehicleName }}</option>
+                                                                @endif
+                                                            </select>
                                                         </div>
                                                         <div class="col-md-2">
                                                             <label class="form-label fw-semibold text-muted mb-1">Service Type</label>
@@ -2932,7 +3238,7 @@
             </div>
             <div class="modal-footer">
                 <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
-                <button type="button" class="btn btn-success" id="confirm_restaurant_btn" disabled>
+                <button type="button" class="btn btn-secondary" id="confirm_restaurant_btn" disabled title="Please complete all required fields">
                     <i class="ri-check-line me-1"></i>Confirm Restaurant Selection
                 </button>
             </div>
@@ -4795,6 +5101,9 @@
         initializeModalAccessibility();
         // Initialize person selector with default max occupancy of 2 (no extra bed by default)
         generatePersonSelector(2, false);
+        // Initialize restaurant edit forms
+        initializeRestaurantEditForms();
+        initializeLocalTransportEditForms();
         // Initialize attraction time slot selects for existing forms
         initializeExistingAttractionTimeSlots();
     });
@@ -4885,6 +5194,54 @@
         }
     }
     
+    // Function to populate ticket select from attraction data
+    function populateTicketFromAttraction(attractionSelect, ticketSelectId, currentValue = '') {
+        if (!attractionSelect) return;
+        
+        const ticketSelect = typeof ticketSelectId === 'string' ? document.getElementById(ticketSelectId) : ticketSelectId;
+        if (!ticketSelect) return;
+        
+        const selectedOption = attractionSelect.options[attractionSelect.selectedIndex];
+        if (!selectedOption || !selectedOption.getAttribute('data-attraction-data')) {
+            ticketSelect.innerHTML = '<option value="">Select Ticket</option>';
+            return;
+        }
+        
+        try {
+            const attractionData = JSON.parse(selectedOption.getAttribute('data-attraction-data'));
+            ticketSelect.innerHTML = '<option value="">Select Ticket</option>';
+            
+            // Populate tickets from attraction data
+            if (attractionData.tickets && Array.isArray(attractionData.tickets) && attractionData.tickets.length > 0) {
+                attractionData.tickets.forEach(ticket => {
+                    const ticketOption = document.createElement('option');
+                    // Use ticket name as value, or ticket_id if name is not available
+                    const ticketValue = ticket.name || ticket.ticket_name || ticket.ticket_id || '';
+                    const ticketText = ticket.name || ticket.ticket_name || ticketValue;
+                    ticketOption.value = ticketValue;
+                    ticketOption.textContent = ticketText;
+                    
+                    // Set selected if it matches current value
+                    if (currentValue && (ticketValue === currentValue || ticketText === currentValue)) {
+                        ticketOption.selected = true;
+                    }
+                    
+                    ticketSelect.appendChild(ticketOption);
+                });
+            } else {
+                // If no tickets found, show message
+                const noTicketOption = document.createElement('option');
+                noTicketOption.value = '';
+                noTicketOption.textContent = 'No tickets available for this attraction';
+                noTicketOption.disabled = true;
+                ticketSelect.appendChild(noTicketOption);
+            }
+        } catch (error) {
+            console.error('Error parsing attraction data for tickets:', error);
+            ticketSelect.innerHTML = '<option value="">Error loading tickets</option>';
+        }
+    }
+    
     // Initialize time slot selects for existing attraction forms
     function initializeExistingAttractionTimeSlots() {
         // Find all attraction select boxes in existing forms
@@ -4894,6 +5251,7 @@
             const bookingId = attractionSelect.id.replace('attraction_name_', '');
             // Try both visit_time and time_slot field names
             const timeSlotSelect = document.getElementById(`visit_time_${bookingId}`) || document.getElementById(`time_slot_${bookingId}`);
+            const ticketSelect = document.getElementById(`ticket_name_${bookingId}`);
             
             if (timeSlotSelect) {
                 // Populate on page load if attraction is already selected
@@ -4906,6 +5264,12 @@
                 attractionSelect.addEventListener('change', function() {
                     populateTimeSlotFromAttraction(attractionSelect, timeSlotSelect);
                 });
+            }
+            
+            // Initialize tickets on page load if attraction is already selected
+            if (ticketSelect && attractionSelect.value) {
+                const currentTicket = ticketSelect.value || '';
+                populateTicketFromAttraction(attractionSelect, ticketSelect, currentTicket);
             }
         });
     }
@@ -10526,6 +10890,9 @@
                         });
                     }
                 }
+                
+                // Run validation after everything is initialized
+                validateRestaurantForm();
             }, 200);
         }, 100);
         
@@ -10602,7 +10969,13 @@
             timeSlotSelect.addEventListener('change', validateRestaurantForm);
         }
         if (diningDateSelect) {
-            diningDateSelect.addEventListener('change', validateRestaurantForm);
+            // Date change event listener (optional - validation will still work with default date)
+            diningDateSelect.addEventListener('change', function() {
+                console.log('Dining date changed to:', diningDateSelect.value);
+                validateRestaurantForm();
+            });
+            // Also validate on input event for better responsiveness
+            diningDateSelect.addEventListener('input', validateRestaurantForm);
         }
         if (confirmBtn) {
             confirmBtn.addEventListener('click', confirmRestaurantSelection);
@@ -10616,6 +10989,15 @@
             diningDateSelect.min = startDate;
             diningDateSelect.max = endDate;
             diningDateSelect.value = startDate; // Default to start date
+            
+            // Mark that date has a default value so validation knows it's filled
+            console.log('Default dining date set to:', startDate);
+            
+            // Trigger validation after setting default date
+            // Use setTimeout to ensure the value is set in the DOM first
+            setTimeout(() => {
+                validateRestaurantForm();
+            }, 50);
         }
         
         // Initialize guest data from tour data
@@ -10723,6 +11105,12 @@
             // Add 30 minutes
             currentTime.setMinutes(currentTime.getMinutes() + 30);
         }
+        
+        // Validate form after time slots are populated
+        console.log('Time slots populated, running validation');
+        setTimeout(() => {
+            validateRestaurantForm();
+        }, 50);
     }
     
     // Parse time string (handles various formats)
@@ -10908,6 +11296,12 @@
         dishOption.setAttribute('data-dish', JSON.stringify(mealData));
         dishSelect.appendChild(dishOption);
         
+        // Auto-select the first (and only) dish option
+        if (dishSelect.options.length > 1) {
+            dishSelect.selectedIndex = 1; // Select the dish (skip "Select Dish" option)
+            console.log('Auto-selected dish:', dishOption.textContent);
+        }
+        
         // Get restaurant data to populate time slots
         if (restaurantSelect && restaurantSelect.value) {
             const selectedRestaurantOption = restaurantSelect.options[restaurantSelect.selectedIndex];
@@ -10919,7 +11313,11 @@
         }
         
         // Validate form after meal type selection
-        validateRestaurantForm();
+        // Use setTimeout to ensure all DOM updates are complete
+        setTimeout(() => {
+            console.log('Running validation after meal type selection and dish/time slot population');
+            validateRestaurantForm();
+        }, 100);
     }
     
     function getPax() {
@@ -11043,18 +11441,46 @@
                         mealSelect.appendChild(mealOption);
                     });
                     
-                    // Refresh Select2 if it's initialized on meal select
+                    // Refresh Select2 to show the new meal options
                     const $mealSelect = $(mealSelect);
                     if ($mealSelect.data('select2')) {
-                        console.log('Refreshing Select2 on meal select');
-                        $mealSelect.trigger('change.select2');
+                        console.log('Refreshing Select2 on meal select after adding options');
+                        // Destroy and reinitialize Select2 to ensure new options are visible
+                        $mealSelect.select2('destroy');
+                        $mealSelect.removeAttr('data-select2-initialized');
                     }
+                    // Initialize or reinitialize Select2
+                    setTimeout(function() {
+                        const $modal = $mealSelect.closest('.modal');
+                        const dropdownParent = $modal.length ? $modal : $('body');
+                        const firstOption = $mealSelect.find('option:first');
+                        let placeholder = 'Select Meal Type';
+                        if (firstOption.length && firstOption.val() === '') {
+                            placeholder = firstOption.text() || 'Select Meal Type';
+                        }
+                        $mealSelect.select2({
+                            theme: 'bootstrap-5',
+                            placeholder: placeholder,
+                            allowClear: true,
+                            width: '100%',
+                            closeOnSelect: true,
+                            dropdownParent: dropdownParent
+                        });
+                        $mealSelect.attr('data-select2-initialized', 'true');
+                        console.log('Select2 reinitialized on meal select with', mealSelect.options.length, 'options');
+                    }, 50);
                 } else {
-                    console.warn('No meals found for restaurant or mealSelect element missing', {
+                    console.warn('No meals found in restaurant data, attempting to fetch from API', {
                         mealSelect: !!mealSelect,
                         hasMeals: restaurantData.meals && Array.isArray(restaurantData.meals),
-                        mealsLength: restaurantData.meals ? restaurantData.meals.length : 0
+                        mealsLength: restaurantData.meals ? restaurantData.meals.length : 0,
+                        restaurantId: restaurantData.restaurant_id
                     });
+                    
+                    // Fallback: Fetch meals from API if not in restaurant data
+                    if (restaurantData.restaurant_id && mealSelect) {
+                        fetchMealsForRestaurant(restaurantData.restaurant_id, mealSelect);
+                    }
                 }
                 
                 // Note: Meal type selection is now handled by onMealTypeSelection() function
@@ -11081,6 +11507,90 @@
         validateRestaurantForm();
     }
     
+    // Function to fetch meals from API for restaurant modal
+    async function fetchMealsForRestaurant(restaurantId, mealSelect) {
+        try {
+            const response = await fetch(`{{ route('fetch-meals-by-restaurant') }}?restaurant_id=${restaurantId}`, {
+                method: 'GET',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRF-TOKEN': '{{ csrf_token() }}'
+                }
+            });
+            
+            if (!response.ok) {
+                throw new Error('Failed to fetch meals');
+            }
+            
+            const data = await response.json();
+            
+            if (data.success && data.meals && Array.isArray(data.meals) && data.meals.length > 0) {
+                console.log('Fetched meals from API, count:', data.meals.length);
+                
+                // Clear existing options except the first placeholder
+                mealSelect.innerHTML = '<option value="">Select Meal Type</option>';
+                
+                // Add meal options
+                data.meals.forEach(meal => {
+                    let mealType = meal.type == 1 
+                        ? 'Buffet' 
+                        : meal.type == 2 
+                            ? 'Set Menu' 
+                            : meal.type == 3 
+                                ? 'A-La-Carte' 
+                                : '...';
+                    let mealPeriod = meal.meal_period == 1 ? 'Breakfast' : meal.meal_period == 2 ? 'Lunch' : meal.meal_period == 3 ? 'Dinner' : '...';
+                    let mealCategory = meal.category == 1 ? 'Alcoholic' : meal.category == 2 ? 'Non Alcoholic' : 'No Beverage';
+                    let mealItemType = meal.item_type == 1 ? 'Vegetarian' : meal.item_type == 2 ? 'Non Vegetarian' : '...';
+                    let mealName = mealPeriod + ' - ' + mealType + ' - ' + mealCategory + ' - ' + mealItemType;
+                    
+                    const mealOption = document.createElement('option');
+                    mealOption.value = meal.meal_id;
+                    mealOption.textContent = mealName;
+                    mealOption.setAttribute('data-meal', JSON.stringify(meal));
+                    mealSelect.appendChild(mealOption);
+                });
+                
+                // Refresh Select2 to show the new meal options
+                const $mealSelect = $(mealSelect);
+                if ($mealSelect.data('select2')) {
+                    $mealSelect.select2('destroy');
+                    $mealSelect.removeAttr('data-select2-initialized');
+                }
+                // Initialize or reinitialize Select2
+                setTimeout(function() {
+                    const $modal = $mealSelect.closest('.modal');
+                    const dropdownParent = $modal.length ? $modal : $('body');
+                    const firstOption = $mealSelect.find('option:first');
+                    let placeholder = 'Select Meal Type';
+                    if (firstOption.length && firstOption.val() === '') {
+                        placeholder = firstOption.text() || 'Select Meal Type';
+                    }
+                    $mealSelect.select2({
+                        theme: 'bootstrap-5',
+                        placeholder: placeholder,
+                        allowClear: true,
+                        width: '100%',
+                        closeOnSelect: true,
+                        dropdownParent: dropdownParent
+                    });
+                    $mealSelect.attr('data-select2-initialized', 'true');
+                    console.log('Select2 reinitialized on meal select with', mealSelect.options.length, 'options (from API)');
+                }, 50);
+            } else {
+                console.warn('No meals returned from API for restaurant:', restaurantId);
+                if (mealSelect) {
+                    mealSelect.innerHTML = '<option value="">No meals available</option>';
+                }
+            }
+        } catch (error) {
+            console.error('Error fetching meals from API:', error);
+            if (mealSelect) {
+                mealSelect.innerHTML = '<option value="">Error loading meals</option>';
+            }
+        }
+    }
+    
     function validateRestaurantForm() {
         const citySelect = document.getElementById('modal_restaurant_city_select');
         const restaurantSelect = document.getElementById('modal_restaurant_select');
@@ -11091,18 +11601,74 @@
         const confirmBtn = document.getElementById('confirm_restaurant_btn');
         
         let isValid = true;
+        let missingFields = [];
+        let fieldStatus = {};
         
-        // Check required fields
-        if (!citySelect || !citySelect.value) isValid = false;
-        if (!restaurantSelect || !restaurantSelect.value) isValid = false;
-        if (!mealType || !mealType.value) isValid = false;
-        if (!dishSelect || !dishSelect.value) isValid = false;
-        if (!timeSlotSelect || !timeSlotSelect.value) isValid = false;
-        if (!diningDateSelect || !diningDateSelect.value) isValid = false;
+        // Check required fields and track missing ones with detailed status
+        const cityValue = citySelect?.value || '';
+        fieldStatus.city = cityValue;
+        if (!citySelect || !cityValue || cityValue === '') {
+            isValid = false;
+            missingFields.push('City');
+        }
+        
+        const restaurantValue = restaurantSelect?.value || '';
+        fieldStatus.restaurant = restaurantValue;
+        if (!restaurantSelect || !restaurantValue || restaurantValue === '') {
+            isValid = false;
+            missingFields.push('Restaurant');
+        }
+        
+        const mealValue = mealType?.value || '';
+        fieldStatus.mealType = mealValue;
+        if (!mealType || !mealValue || mealValue === '') {
+            isValid = false;
+            missingFields.push('Meal Type');
+        }
+        
+        const dishValue = dishSelect?.value || '';
+        fieldStatus.dish = dishValue;
+        if (!dishSelect || !dishValue || dishValue === '') {
+            isValid = false;
+            missingFields.push('Dish');
+        }
+        
+        const timeSlotValue = timeSlotSelect?.value || '';
+        fieldStatus.timeSlot = timeSlotValue;
+        if (!timeSlotSelect || !timeSlotValue || timeSlotValue === '') {
+            isValid = false;
+            missingFields.push('Time Slot');
+        }
+        
+        const dateValue = diningDateSelect?.value || '';
+        fieldStatus.diningDate = dateValue;
+        if (!diningDateSelect || !dateValue || dateValue === '') {
+            isValid = false;
+            missingFields.push('Dining Date');
+        }
         
         if (confirmBtn) {
             confirmBtn.disabled = !isValid;
+            
+            // Add visual feedback
+            if (isValid) {
+                confirmBtn.classList.remove('btn-secondary');
+                confirmBtn.classList.add('btn-success');
+                confirmBtn.title = 'Click to confirm your restaurant selection';
+            } else {
+                confirmBtn.classList.remove('btn-success');
+                confirmBtn.classList.add('btn-secondary');
+                confirmBtn.title = 'Please complete all fields: ' + missingFields.join(', ');
+            }
         }
+        
+        console.log('Restaurant form validation:', { 
+            isValid, 
+            missingFields, 
+            fieldStatus,
+            buttonDisabled: confirmBtn?.disabled 
+        });
+        return isValid;
     }
 
     // Tour Guest Selector Functions
@@ -12368,6 +12934,13 @@
             formData.set('total_price', priceValue);
         }
         
+        // Explicitly ensure number_of_rooms is captured with its current value
+        const numberOfRoomsInput = formDiv.querySelector('input[name="number_of_rooms"]');
+        if (numberOfRoomsInput) {
+            const roomsValue = numberOfRoomsInput.value || '1';
+            formData.set('number_of_rooms', roomsValue);
+        }
+        
         // Add rooms_json to form data
         formData.append('rooms_json', roomsJson);
 
@@ -12504,11 +13077,18 @@
         if (!guideDataAttr) {
             // If no guide data, use default time slots
             const defaultTimes = generateDefaultTimeSlots();
+            
+            // Convert current value to AM/PM if needed
+            let convertedCurrentValue = currentValue;
+            if (currentValue && !currentValue.match(/\d{1,2}:\d{2}\s*(AM|PM)/i)) {
+                convertedCurrentValue = convertToAMPM(currentValue);
+            }
+            
             defaultTimes.forEach(time => {
                 const option = document.createElement('option');
                 option.value = time;
                 option.textContent = time;
-                if (time === currentValue) option.selected = true;
+                if (time === convertedCurrentValue) option.selected = true;
                 pickupTimeSelect.appendChild(option);
             });
             return;
@@ -12543,20 +13123,36 @@
                 }
             }
             
+            // Convert times to AM/PM format if they're in 24-hour format
+            const convertedTimes = availableTimes.map(time => {
+                // Check if time is already in AM/PM format
+                if (time.match(/\d{1,2}:\d{2}\s*(AM|PM)/i)) {
+                    return time;
+                }
+                // Convert from 24-hour to AM/PM
+                return convertToAMPM(time);
+            });
+            
+            // Convert current value to AM/PM if needed
+            let convertedCurrentValue = currentValue;
+            if (currentValue && !currentValue.match(/\d{1,2}:\d{2}\s*(AM|PM)/i)) {
+                convertedCurrentValue = convertToAMPM(currentValue);
+            }
+            
             // Populate the select box
-            availableTimes.forEach(time => {
+            convertedTimes.forEach(time => {
                 const option = document.createElement('option');
                 option.value = time;
                 option.textContent = time;
-                if (time === currentValue) option.selected = true;
+                if (time === convertedCurrentValue) option.selected = true;
                 pickupTimeSelect.appendChild(option);
             });
             
             // If current value is not in the list, add it
-            if (currentValue && !availableTimes.includes(currentValue)) {
+            if (convertedCurrentValue && !convertedTimes.includes(convertedCurrentValue)) {
                 const option = document.createElement('option');
-                option.value = currentValue;
-                option.textContent = currentValue;
+                option.value = convertedCurrentValue;
+                option.textContent = convertedCurrentValue;
                 option.selected = true;
                 pickupTimeSelect.appendChild(option);
             }
@@ -12564,27 +13160,84 @@
             console.error('Error parsing guide data:', error);
             // Fallback to default time slots
             const defaultTimes = generateDefaultTimeSlots();
+            
+            // Convert current value to AM/PM if needed
+            let convertedCurrentValue = currentValue;
+            if (currentValue && !currentValue.match(/\d{1,2}:\d{2}\s*(AM|PM)/i)) {
+                convertedCurrentValue = convertToAMPM(currentValue);
+            }
+            
             defaultTimes.forEach(time => {
                 const option = document.createElement('option');
                 option.value = time;
                 option.textContent = time;
-                if (time === currentValue) option.selected = true;
+                if (time === convertedCurrentValue) option.selected = true;
                 pickupTimeSelect.appendChild(option);
             });
         }
     }
     
-    // Generate default time slots (08:00 to 20:00, every hour)
+    // Convert 24-hour time to AM/PM format
+    function convertToAMPM(time24) {
+        if (!time24) return '';
+        try {
+            const parts = time24.toString().split(':');
+            if (parts.length >= 2) {
+                let hours = parseInt(parts[0], 10);
+                const minutes = parseInt(parts[1], 10);
+                if (isNaN(hours) || isNaN(minutes)) return time24;
+                
+                const period = hours >= 12 ? 'PM' : 'AM';
+                hours = hours % 12;
+                hours = hours ? hours : 12; // 0 should be 12
+                const minutesStr = minutes.toString().padStart(2, '0');
+                return `${hours}:${minutesStr} ${period}`;
+            }
+        } catch (e) {
+            console.error('Error converting time to AM/PM:', e);
+        }
+        return time24;
+    }
+    
+    // Convert AM/PM time to 24-hour format
+    function convertTo24Hour(timeAMPM) {
+        if (!timeAMPM) return '';
+        try {
+            const timeStr = timeAMPM.toString().trim();
+            const match = timeStr.match(/(\d{1,2}):(\d{2})\s*(AM|PM)/i);
+            if (match) {
+                let hours = parseInt(match[1], 10);
+                const minutes = parseInt(match[2], 10);
+                const period = match[3].toUpperCase();
+                
+                if (period === 'PM' && hours !== 12) {
+                    hours += 12;
+                } else if (period === 'AM' && hours === 12) {
+                    hours = 0;
+                }
+                
+                return `${hours.toString().padStart(2, '0')}:${minutes.toString().padStart(2, '0')}`;
+            }
+        } catch (e) {
+            console.error('Error converting time to 24-hour:', e);
+        }
+        return timeAMPM;
+    }
+    
+    // Generate default time slots (08:00 AM to 08:00 PM, every hour) in AM/PM format
     function generateDefaultTimeSlots() {
         const times = [];
         for (let hour = 8; hour <= 20; hour++) {
-            const timeStr = hour.toString().padStart(2, '0') + ':00';
+            const period = hour >= 12 ? 'PM' : 'AM';
+            let displayHour = hour % 12;
+            displayHour = displayHour ? displayHour : 12; // 0 should be 12
+            const timeStr = `${displayHour}:00 ${period}`;
             times.push(timeStr);
         }
         return times;
     }
     
-    // Generate time slots from a time range
+    // Generate time slots from a time range in AM/PM format
     function generateTimeSlotsFromRange(startTime, endTime) {
         const times = [];
         try {
@@ -12596,7 +13249,11 @@
                 while (current <= end) {
                     const hours = Math.floor(current / 60);
                     const minutes = current % 60;
-                    times.push(`${hours.toString().padStart(2, '0')}:${minutes.toString().padStart(2, '0')}`);
+                    const period = hours >= 12 ? 'PM' : 'AM';
+                    let displayHour = hours % 12;
+                    displayHour = displayHour ? displayHour : 12; // 0 should be 12
+                    const timeStr = `${displayHour}:${minutes.toString().padStart(2, '0')} ${period}`;
+                    times.push(timeStr);
                     current += 60; // Add 1 hour
                 }
             }
@@ -12607,9 +13264,29 @@
         return times.length > 0 ? times : generateDefaultTimeSlots();
     }
     
-    // Parse time string (HH:MM or HH:MM:SS) to minutes
+    // Parse time string (HH:MM or HH:MM:SS or hh:mm AM/PM) to minutes
     function parseTime(timeStr) {
         if (!timeStr) return null;
+        
+        // Try to parse AM/PM format first
+        const ampmMatch = timeStr.toString().match(/(\d{1,2}):(\d{2})\s*(AM|PM)/i);
+        if (ampmMatch) {
+            let hours = parseInt(ampmMatch[1], 10);
+            const minutes = parseInt(ampmMatch[2], 10);
+            const period = ampmMatch[3].toUpperCase();
+            
+            if (period === 'PM' && hours !== 12) {
+                hours += 12;
+            } else if (period === 'AM' && hours === 12) {
+                hours = 0;
+            }
+            
+            if (!isNaN(hours) && !isNaN(minutes)) {
+                return hours * 60 + minutes;
+            }
+        }
+        
+        // Fallback to 24-hour format
         const parts = timeStr.toString().split(':');
         if (parts.length >= 2) {
             const hours = parseInt(parts[0], 10);
@@ -12674,6 +13351,515 @@
         } finally {
             submitButton.disabled = false;
             spinner?.classList.add('d-none');
+        }
+    }
+
+    // Functions to load meals and dish types for restaurant edit form
+    function loadRestaurantMealsForEdit(bookingId) {
+        const restaurantSelect = document.getElementById(`restaurant_name_${bookingId}`);
+        const mealTypeSelect = document.getElementById(`meal_type_${bookingId}`);
+        const dishTypeSelect = document.getElementById(`meal_specific_type_${bookingId}`);
+        
+        if (!restaurantSelect || !mealTypeSelect) {
+            console.error('Restaurant or meal type select not found for booking:', bookingId);
+            return;
+        }
+        
+        // Get current values to preserve them
+        const currentMealType = document.getElementById(`current_meal_type_${bookingId}`)?.value || '';
+        const currentDishType = document.getElementById(`current_dish_type_${bookingId}`)?.value || '';
+        
+        // Clear dependent dropdowns
+        mealTypeSelect.innerHTML = '<option value="">Select Restaurant First</option>';
+        dishTypeSelect.innerHTML = '<option value="">Select Meal Type First</option>';
+        
+        const selectedOption = restaurantSelect.options[restaurantSelect.selectedIndex];
+        if (!selectedOption || !selectedOption.value) {
+            return;
+        }
+        
+        // Try to get restaurant data from data attribute
+        const restaurantDataStr = selectedOption.getAttribute('data-restaurant-data');
+        const restaurantId = selectedOption.getAttribute('data-restaurant-id');
+        
+        if (restaurantDataStr) {
+            try {
+                const restaurantData = JSON.parse(restaurantDataStr);
+                
+                // If restaurant has meals in data, use them directly
+                if (restaurantData.meals && Array.isArray(restaurantData.meals) && restaurantData.meals.length > 0) {
+                    populateMealTypesForEdit(mealTypeSelect, restaurantData.meals, currentMealType);
+                    return;
+                }
+            } catch (error) {
+                console.error('Error parsing restaurant data:', error);
+            }
+        }
+        
+        // Try to fetch meals from API
+        if (restaurantId) {
+            fetchMealsForRestaurantEdit(restaurantId, mealTypeSelect, bookingId, currentMealType, currentDishType);
+        }
+    }
+    
+    function populateMealTypesForEdit(mealTypeSelect, meals, currentMealType = '') {
+        mealTypeSelect.innerHTML = '<option value="">Select Meal Type</option>';
+        
+        meals.forEach(meal => {
+            const mealPeriod = meal.meal_period == 1 ? 'Breakfast' : (meal.meal_period == 2 ? 'Lunch' : (meal.meal_period == 3 ? 'Dinner' : ''));
+            const mealTypeText = meal.type == 1 ? 'Buffet' : (meal.type == 2 ? 'Set Menu' : (meal.type == 3 ? 'A-La-Carte' : ''));
+            const mealCategory = meal.category == 1 ? 'Alcoholic' : (meal.category == 2 ? 'Non Alcoholic' : 'No Beverage');
+            const mealItemType = meal.item_type == 1 ? 'Vegetarian' : (meal.item_type == 2 ? 'Non Vegetarian' : '');
+            const mealName = mealPeriod + ' - ' + mealTypeText + ' - ' + mealCategory + ' - ' + mealItemType;
+            
+            // Store meal period as value (matching backend expectation for meal_type)
+            // Backend expects text like "Lunch", "Dinner", etc.
+            const mealValue = mealPeriod;
+            
+            // Check if this matches the current meal type
+            const isSelected = currentMealType && (
+                mealName.includes(currentMealType) || 
+                currentMealType.includes(mealPeriod) ||
+                currentMealType.includes(mealTypeText) ||
+                mealPeriod === currentMealType
+            );
+            
+            const mealOption = document.createElement('option');
+            mealOption.value = mealValue;
+            mealOption.textContent = mealName;
+            mealOption.setAttribute('data-meal', JSON.stringify(meal));
+            mealOption.setAttribute('data-meal-id', meal.meal_id);
+            if (isSelected) {
+                mealOption.selected = true;
+            }
+            mealTypeSelect.appendChild(mealOption);
+        });
+        
+        // If a meal was selected, trigger dish type loading
+        if (mealTypeSelect.value) {
+            const bookingId = mealTypeSelect.id.replace('meal_type_', '');
+            loadDishTypesForEdit(bookingId);
+        }
+    }
+    
+    async function fetchMealsForRestaurantEdit(restaurantId, mealTypeSelect, bookingId = null, currentMealType = '', currentDishType = '') {
+        try {
+            const dmcId = document.getElementById('dmc_id')?.value;
+            if (!dmcId) {
+                console.error('DMC ID not found');
+                return;
+            }
+            
+            const response = await fetch(`{{ route('api.restaurant.details') }}?restaurantId=${restaurantId}&dmc_id=${dmcId}`);
+            const data = await response.json();
+            
+            if (data.success && data.meals && Array.isArray(data.meals)) {
+                // Convert API format to expected format
+                const meals = data.meals.map(meal => ({
+                    meal_id: meal.meal_id,
+                    type: meal.type === 'Buffet' ? 1 : (meal.type === 'Set Menu' ? 2 : (meal.type === 'A la carte' || meal.type === 'A-La-Carte' ? 3 : null)),
+                    meal_period: meal.meal_period === 'Breakfast' ? 1 : (meal.meal_period === 'Lunch' ? 2 : (meal.meal_period === 'Dinner' ? 3 : null)),
+                    category: meal.category === 'Alcoholic' ? 1 : (meal.category === 'Non Alcoholic' ? 2 : null),
+                    item_type: meal.item_type === 'Veg' ? 1 : (meal.item_type === 'Non Veg' ? 2 : null),
+                    adult_price: meal.adult_price,
+                    child_price: meal.child_price
+                }));
+                populateMealTypesForEdit(mealTypeSelect, meals, currentMealType);
+            }
+        } catch (error) {
+            console.error('Error fetching meals for restaurant:', error);
+        }
+    }
+    
+    function loadDishTypesForEdit(bookingId) {
+        const mealTypeSelect = document.getElementById(`meal_type_${bookingId}`);
+        const dishTypeSelect = document.getElementById(`meal_specific_type_${bookingId}`);
+        const currentDishType = document.getElementById(`current_dish_type_${bookingId}`)?.value || '';
+        
+        if (!mealTypeSelect || !dishTypeSelect) {
+            console.error('Meal type or dish type select not found for booking:', bookingId);
+            return;
+        }
+        
+        dishTypeSelect.innerHTML = '<option value="">Select Meal Type First</option>';
+        
+        const selectedOption = mealTypeSelect.options[mealTypeSelect.selectedIndex];
+        if (!selectedOption || !selectedOption.value) {
+            return;
+        }
+        
+        const mealDataStr = selectedOption.getAttribute('data-meal');
+        if (!mealDataStr) {
+            // Try to match by meal name or ID
+            const mealText = selectedOption.textContent;
+            const dishTypeMatch = mealText.match(/(Buffet|Set Menu|A-La-Carte)/);
+            if (dishTypeMatch) {
+                const dishOption = document.createElement('option');
+                dishOption.value = dishTypeMatch[1];
+                dishOption.textContent = dishTypeMatch[1];
+                if (currentDishType && (dishTypeMatch[1] === currentDishType || currentDishType.includes(dishTypeMatch[1]))) {
+                    dishOption.selected = true;
+                }
+                dishTypeSelect.appendChild(dishOption);
+                if (!dishTypeSelect.value && currentDishType) {
+                    dishTypeSelect.value = dishTypeMatch[1];
+                }
+            }
+            return;
+        }
+        
+        try {
+            const mealData = JSON.parse(mealDataStr);
+            const dishTypeText = mealData.type == 1 ? 'Buffet' : (mealData.type == 2 ? 'Set Menu' : (mealData.type == 3 ? 'A-La-Carte' : ''));
+            
+            const dishOption = document.createElement('option');
+            dishOption.value = dishTypeText;
+            dishOption.textContent = dishTypeText;
+            dishOption.setAttribute('data-dish', mealDataStr);
+            
+            // Select if it matches current dish type
+            if (currentDishType && (dishTypeText === currentDishType || currentDishType.includes(dishTypeText))) {
+                dishOption.selected = true;
+            }
+            
+            dishTypeSelect.appendChild(dishOption);
+            
+            // Set value if not already selected
+            if (!dishTypeSelect.value && currentDishType) {
+                dishTypeSelect.value = dishTypeText;
+            } else if (!dishTypeSelect.value) {
+                dishTypeSelect.value = dishTypeText;
+            }
+        } catch (error) {
+            console.error('Error parsing meal data:', error);
+        }
+    }
+    
+    // Initialize restaurant forms on page load
+    function initializeRestaurantEditForms() {
+        // Find all restaurant edit forms
+        const restaurantSelects = document.querySelectorAll('select[id^="restaurant_name_"]');
+        restaurantSelects.forEach(restaurantSelect => {
+            const bookingId = restaurantSelect.id.replace('restaurant_name_', '');
+            
+            // If a restaurant is already selected, load its meals
+            if (restaurantSelect.value) {
+                // Small delay to ensure DOM is ready
+                setTimeout(() => {
+                    loadRestaurantMealsForEdit(bookingId);
+                }, 100);
+            }
+        });
+    }
+    
+    const fetchVehiclesByZonesUrl = "{{ route('fetch-vehicles-by-zones') }}";
+    const userDmcZoneStatus = {{ (int) ($UserDmc->zone_on ?? 0) }};
+    const defaultLocalTransferCity = @json($tour->city ?? $tour->destination ?? '');
+    
+    function initializeLocalTransportEditForms() {
+        const localTransportForms = document.querySelectorAll('.transport-edit-form[data-form-type="local_transport"]');
+        localTransportForms.forEach(form => setupLocalTransportEditForm(form));
+    }
+    
+    function syncLocalTransportLocation(select, type) {
+        if (!select) return;
+        const bookingId = select.dataset.bookingId;
+        if (!bookingId) return;
+        const selectedOption = select.options[select.selectedIndex];
+        const referenceInput = document.getElementById(`${type}_location_reference_${bookingId}`);
+        const typeInput = document.getElementById(`${type}_location_type_${bookingId}`);
+        if (referenceInput) {
+            referenceInput.value = selectedOption ? (selectedOption.getAttribute('data-location-id') || '') : '';
+        }
+        if (typeInput) {
+            typeInput.value = selectedOption ? (selectedOption.getAttribute('data-location-type') || '') : '';
+        }
+    }
+    
+    function syncLocalTransportVehicle(select) {
+        if (!select) return;
+        const bookingId = select.dataset.bookingId;
+        if (!bookingId) return;
+        const selectedOption = select.options[select.selectedIndex];
+        const vehicleIdInput = document.getElementById(`vehicle_id_${bookingId}`);
+        if (vehicleIdInput) {
+            vehicleIdInput.value = selectedOption ? (selectedOption.getAttribute('data-vehicle-id') || '') : '';
+        }
+    }
+    
+    function setupLocalTransportEditForm(form) {
+        if (!form || form.dataset.localEditInitialized === '1') return;
+        form.dataset.localEditInitialized = '1';
+        
+        const pickupSelect = form.querySelector('.js-local-pickup-select');
+        const dropoffSelect = form.querySelector('.js-local-dropoff-select');
+        const vehicleSelect = form.querySelector('.js-local-vehicle-select');
+        const serviceTypeSelect = form.querySelector('.js-local-service-type');
+        
+        const triggerVehicleRefresh = (immediate = false) => {
+            scheduleLocalTransportVehicleRefresh(form, { immediate });
+        };
+        
+        if (pickupSelect) {
+            pickupSelect.addEventListener('change', () => {
+                syncLocalTransportLocation(pickupSelect, 'pickup');
+                triggerVehicleRefresh();
+            });
+            syncLocalTransportLocation(pickupSelect, 'pickup');
+        }
+        
+        if (dropoffSelect) {
+            dropoffSelect.addEventListener('change', () => {
+                syncLocalTransportLocation(dropoffSelect, 'dropoff');
+                triggerVehicleRefresh();
+            });
+            syncLocalTransportLocation(dropoffSelect, 'dropoff');
+        }
+        
+        if (vehicleSelect) {
+            vehicleSelect.addEventListener('change', () => {
+                syncLocalTransportVehicle(vehicleSelect);
+                updateLocalTransportEditServiceTypeOptions(form);
+                updateLocalTransportEditPrice(form);
+            });
+            syncLocalTransportVehicle(vehicleSelect);
+        }
+        
+        if (serviceTypeSelect) {
+            serviceTypeSelect.addEventListener('change', () => {
+                updateLocalTransportEditPrice(form);
+            });
+        }
+        
+        triggerVehicleRefresh(true);
+    }
+    
+    function scheduleLocalTransportVehicleRefresh(form, options = {}) {
+        if (!form) return;
+        const delay = options.immediate ? 0 : 200;
+        if (form._localVehicleRefreshTimeout) {
+            clearTimeout(form._localVehicleRefreshTimeout);
+        }
+        form._localVehicleRefreshTimeout = setTimeout(() => {
+            refreshLocalTransportVehicleOptions(form);
+        }, delay);
+    }
+    
+    async function refreshLocalTransportVehicleOptions(form) {
+        if (!form || form.dataset.loadingVehicles === '1') return;
+        
+        const bookingId = form.dataset.bookingId;
+        if (!bookingId) return;
+        
+        const pickupReferenceInput = document.getElementById(`pickup_location_reference_${bookingId}`);
+        const dropoffReferenceInput = document.getElementById(`dropoff_location_reference_${bookingId}`);
+        const pickupTypeInput = document.getElementById(`pickup_location_type_${bookingId}`);
+        const dropoffTypeInput = document.getElementById(`dropoff_location_type_${bookingId}`);
+        const vehicleSelect = form.querySelector('.js-local-vehicle-select');
+        
+        if (!vehicleSelect) return;
+        
+        const pickupReference = pickupReferenceInput?.value;
+        const dropoffReference = dropoffReferenceInput?.value;
+        
+        if (!pickupReference || !dropoffReference) {
+            vehicleSelect.innerHTML = '<option value="">Select pickup & dropoff first</option>';
+            vehicleSelect.disabled = true;
+            return;
+        }
+        
+        if (!fetchVehiclesByZonesUrl) {
+            console.warn('Fetch vehicles URL not configured');
+            return;
+        }
+        
+        const payload = {
+            from_zone_id: pickupReference,
+            to_zone_id: dropoffReference,
+            from_zone_type: pickupTypeInput?.value || 'zone',
+            to_zone_type: dropoffTypeInput?.value || 'zone',
+            city: form.dataset.city || defaultLocalTransferCity || '',
+            zone_status: parseInt(form.dataset.zoneStatus || userDmcZoneStatus || 0, 10)
+        };
+        
+        form.dataset.loadingVehicles = '1';
+        vehicleSelect.disabled = true;
+        
+        try {
+            const csrfMeta = document.querySelector('meta[name="csrf-token"]');
+            const csrfToken = csrfMeta ? csrfMeta.getAttribute('content') : '';
+            const response = await fetch(fetchVehiclesByZonesUrl, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    ...(csrfToken ? { 'X-CSRF-TOKEN': csrfToken } : {})
+                },
+                body: JSON.stringify(payload)
+            });
+            const data = await response.json();
+            if (data.success && Array.isArray(data.vehicles) && data.vehicles.length > 0) {
+                populateLocalTransportVehicleSelect(form, data.vehicles, true);
+            } else {
+                populateLocalTransportVehicleSelect(form, [], true);
+            }
+        } catch (error) {
+            console.error('Error fetching vehicles for local transport edit form:', error);
+            populateLocalTransportVehicleSelect(form, [], true);
+        } finally {
+            delete form.dataset.loadingVehicles;
+        }
+    }
+    
+    function populateLocalTransportVehicleSelect(form, vehicles, preserveSelection = true) {
+        const vehicleSelect = form.querySelector('.js-local-vehicle-select');
+        if (!vehicleSelect) return;
+        const bookingId = form.dataset.bookingId;
+        const vehicleIdInput = document.getElementById(`vehicle_id_${bookingId}`);
+        const currentVehicleId = vehicleIdInput?.value || form.dataset.initialVehicleId || '';
+        const currentVehicleName = form.dataset.initialVehicleName || '';
+        
+        vehicleSelect.innerHTML = '<option value="">' + (vehicles.length ? 'Select vehicle' : 'No vehicles available for selected zones') + '</option>';
+        
+        let matchedSelection = false;
+        
+        vehicles.forEach(vehicle => {
+            const option = document.createElement('option');
+            option.value = vehicle.vehicle_name || vehicle.vehicle_id;
+            option.textContent = formatVehicleOptionLabel(vehicle);
+            option.setAttribute('data-vehicle-id', vehicle.vehicle_id || '');
+            option.setAttribute('data-vehicle-name', vehicle.vehicle_name || '');
+            option.setAttribute('data-vehicle-type', vehicle.vehicle_type || '');
+            option.setAttribute('data-seating-capacity', vehicle.seating_capacity || '');
+            option.setAttribute('data-private-price', vehicle.private_price || '');
+            option.setAttribute('data-shared-price', vehicle.shared_price || '');
+            option.setAttribute('data-cost-per-hour', vehicle.cost_per_hour || '');
+            option.setAttribute('data-sharable-cost-per-hour', vehicle.sharable_cost_per_hour || '');
+            option.setAttribute('data-sharable', vehicle.sharable || '');
+            option.setAttribute('data-service-type', vehicle.service_type || '');
+            option.setAttribute('data-vehicle', JSON.stringify(vehicle));
+            
+            if (preserveSelection && currentVehicleId && vehicle.vehicle_id && String(currentVehicleId) === String(vehicle.vehicle_id)) {
+                option.selected = true;
+                matchedSelection = true;
+            }
+            vehicleSelect.appendChild(option);
+        });
+        
+        if (!matchedSelection && (currentVehicleId || currentVehicleName)) {
+            const fallbackOption = document.createElement('option');
+            fallbackOption.value = currentVehicleName || currentVehicleId || 'selected-vehicle';
+            fallbackOption.textContent = currentVehicleName || 'Current vehicle';
+            fallbackOption.setAttribute('data-vehicle-id', currentVehicleId || '');
+            fallbackOption.setAttribute('data-vehicle-name', currentVehicleName || '');
+            fallbackOption.setAttribute('data-vehicle-type', form.dataset.initialServiceType || '');
+            fallbackOption.setAttribute('data-seating-capacity', '');
+            fallbackOption.setAttribute('data-private-price', form.dataset.initialPrivatePrice || form.dataset.initialTotalPrice || '');
+            fallbackOption.setAttribute('data-shared-price', form.dataset.initialSharedPrice || '');
+            fallbackOption.setAttribute('data-cost-per-hour', '');
+            fallbackOption.setAttribute('data-sharable-cost-per-hour', '');
+            fallbackOption.setAttribute('data-sharable', form.dataset.initialVehicleSharable || '');
+            fallbackOption.setAttribute('data-service-type', form.dataset.initialServiceType || '');
+            fallbackOption.setAttribute('data-vehicle', '{}');
+            fallbackOption.selected = true;
+            vehicleSelect.appendChild(fallbackOption);
+        }
+        
+        vehicleSelect.disabled = false;
+        syncLocalTransportVehicle(vehicleSelect);
+        updateLocalTransportEditServiceTypeOptions(form);
+        updateLocalTransportEditPrice(form);
+    }
+    
+    function formatVehicleOptionLabel(vehicle) {
+        const name = vehicle.vehicle_name || vehicle.vehicle_id || 'Vehicle';
+        const typeText = vehicle.vehicle_type ? ` (${vehicle.vehicle_type})` : '';
+        const seatsText = vehicle.seating_capacity ? ` - ${vehicle.seating_capacity} seats` : '';
+        return `${name}${typeText}${seatsText}`;
+    }
+    
+    function updateLocalTransportEditServiceTypeOptions(form) {
+        const serviceTypeSelect = form.querySelector('.js-local-service-type');
+        const vehicleSelect = form.querySelector('.js-local-vehicle-select');
+        if (!serviceTypeSelect || !vehicleSelect) return;
+        
+        const selectedOption = vehicleSelect.options[vehicleSelect.selectedIndex];
+        const previousValue = serviceTypeSelect.value || form.dataset.initialServiceType || '';
+        serviceTypeSelect.innerHTML = '<option value="">Select type</option>';
+        
+        if (!selectedOption || !selectedOption.value) {
+            serviceTypeSelect.value = '';
+            serviceTypeSelect.disabled = true;
+            return;
+        }
+        
+        let sharable = parseInt(selectedOption.getAttribute('data-sharable') || 0, 10);
+        const defaultServiceType = (selectedOption.getAttribute('data-service-type') || '').toLowerCase();
+        
+        if (!sharable) {
+            if (defaultServiceType === 'shared') {
+                sharable = 2;
+            } else if (defaultServiceType === 'private') {
+                sharable = 1;
+            }
+        }
+        
+        const addOption = (value) => {
+            const option = document.createElement('option');
+            option.value = value;
+            option.textContent = value;
+            serviceTypeSelect.appendChild(option);
+        };
+        
+        if (sharable === 1) {
+            addOption('Private');
+        } else if (sharable === 2) {
+            addOption('Shared');
+        } else if (sharable === 3) {
+            addOption('Private');
+            addOption('Shared');
+        } else {
+            addOption('Private');
+            if (selectedOption.getAttribute('data-shared-price')) {
+                addOption('Shared');
+            }
+        }
+        
+        serviceTypeSelect.disabled = false;
+        
+        if (previousValue && serviceTypeSelect.querySelector(`option[value="${previousValue}"]`)) {
+            serviceTypeSelect.value = previousValue;
+        } else if (serviceTypeSelect.options.length > 1) {
+            serviceTypeSelect.selectedIndex = 1;
+        }
+        
+        form.dataset.initialServiceType = serviceTypeSelect.value;
+    }
+    
+    function updateLocalTransportEditPrice(form) {
+        const vehicleSelect = form.querySelector('.js-local-vehicle-select');
+        const serviceTypeSelect = form.querySelector('.js-local-service-type');
+        const totalPriceInput = form.querySelector('input[name="total_price"]');
+        
+        if (!vehicleSelect || !serviceTypeSelect || !totalPriceInput) return;
+        
+        const selectedVehicle = vehicleSelect.options[vehicleSelect.selectedIndex];
+        const serviceType = serviceTypeSelect.value;
+        
+        if (!selectedVehicle || !serviceType) {
+            if (form.dataset.initialTotalPrice) {
+                totalPriceInput.value = parseFloat(form.dataset.initialTotalPrice).toFixed(2);
+            }
+            return;
+        }
+        
+        const priceAttr = serviceType.toLowerCase() === 'shared' ? 'data-shared-price' : 'data-private-price';
+        const rawPrice = selectedVehicle.getAttribute(priceAttr) || selectedVehicle.getAttribute('data-private-price');
+        const priceNumber = parseFloat(rawPrice);
+        
+        if (!isNaN(priceNumber)) {
+            totalPriceInput.value = priceNumber.toFixed(2);
+        } else if (form.dataset.initialTotalPrice) {
+            totalPriceInput.value = parseFloat(form.dataset.initialTotalPrice).toFixed(2);
         }
     }
 
