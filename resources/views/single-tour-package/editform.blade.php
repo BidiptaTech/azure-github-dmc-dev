@@ -11027,6 +11027,9 @@
                         });
                     }
                 }
+                
+                // Run validation after everything is initialized
+                validateRestaurantForm();
             }, 200);
         }, 100);
         
@@ -11145,7 +11148,13 @@
             timeSlotSelect.addEventListener('change', validateRestaurantForm);
         }
         if (diningDateSelect) {
-            diningDateSelect.addEventListener('change', validateRestaurantForm);
+            // Date change event listener (optional - validation will still work with default date)
+            diningDateSelect.addEventListener('change', function() {
+                console.log('Dining date changed to:', diningDateSelect.value);
+                validateRestaurantForm();
+            });
+            // Also validate on input event for better responsiveness
+            diningDateSelect.addEventListener('input', validateRestaurantForm);
         }
         if (confirmBtn) {
             confirmBtn.addEventListener('click', confirmRestaurantSelection);
@@ -11159,6 +11168,15 @@
             diningDateSelect.min = startDate;
             diningDateSelect.max = endDate;
             diningDateSelect.value = startDate; // Default to start date
+            
+            // Mark that date has a default value so validation knows it's filled
+            console.log('Default dining date set to:', startDate);
+            
+            // Trigger validation after setting default date
+            // Use setTimeout to ensure the value is set in the DOM first
+            setTimeout(() => {
+                validateRestaurantForm();
+            }, 50);
         }
         
         // Initialize guest data from tour data
@@ -11269,6 +11287,12 @@
             // Add 30 minutes
             currentTime.setMinutes(currentTime.getMinutes() + 30);
         }
+        
+        // Validate form after time slots are populated
+        console.log('Time slots populated, running validation');
+        setTimeout(() => {
+            validateRestaurantForm();
+        }, 50);
     }
     
     // Parse time string (handles various formats)
@@ -11454,6 +11478,12 @@
         dishOption.setAttribute('data-dish', JSON.stringify(mealData));
         dishSelect.appendChild(dishOption);
         
+        // Auto-select the first (and only) dish option
+        if (dishSelect.options.length > 1) {
+            dishSelect.selectedIndex = 1; // Select the dish (skip "Select Dish" option)
+            console.log('Auto-selected dish:', dishOption.textContent);
+        }
+        
         // Get restaurant data to populate time slots
         if (restaurantSelect && restaurantSelect.value) {
             const selectedRestaurantOption = restaurantSelect.options[restaurantSelect.selectedIndex];
@@ -11465,7 +11495,11 @@
         }
         
         // Validate form after meal type selection
-        validateRestaurantForm();
+        // Use setTimeout to ensure all DOM updates are complete
+        setTimeout(() => {
+            console.log('Running validation after meal type selection and dish/time slot population');
+            validateRestaurantForm();
+        }, 100);
     }
     
     function getPax() {
