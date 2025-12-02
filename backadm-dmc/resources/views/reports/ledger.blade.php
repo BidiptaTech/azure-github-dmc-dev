@@ -71,8 +71,18 @@ use Illuminate\Support\Facades\Auth;
             <div class="col-md-3 mb-4">
                 @php
                     use Carbon\Carbon;
-                    $start = Carbon::parse($startDate)->translatedFormat('l, F d, Y');
-                    $end = Carbon::parse($endDate)->translatedFormat('l, F d, Y');
+                    
+                    // Use filtered dates if available, otherwise use current month
+                    $displayStartDate = $startDate ?? Carbon::now()->startOfMonth()->format('Y-m-d');
+                    $displayEndDate = $endDate ?? Carbon::now()->format('Y-m-d');
+                    
+                    $start = Carbon::parse($displayStartDate)->translatedFormat('D, M d, Y');
+                    $end = Carbon::parse($displayEndDate)->translatedFormat('D, M d, Y');
+                    
+                    // Check if it's current month
+                    $isCurrentMonth = Carbon::parse($displayStartDate)->isSameMonth(Carbon::now()) 
+                                      && Carbon::parse($displayStartDate)->isStartOfMonth()
+                                      && Carbon::parse($displayEndDate)->isToday();
                 @endphp
 
                 <div class="card border-0 shadow-sm h-100">
@@ -82,10 +92,23 @@ use Illuminate\Support\Facades\Auth;
                                 <i class="ri-calendar-line ri-xl"></i>
                             </div>
                             <div>
-                                <small class="text-muted text-uppercase fw-semibold">Reporting Period</small>
-                                <div class="text-dark fw-bold mt-1 small">
-                                    {{ $start }} <br class="d-sm-none">– {{ $end }}
+                                <small class="text-muted text-uppercase fw-semibold d-block">
+                                    Reporting Period
+                                    @if($isCurrentMonth)
+                                        <span class="badge bg-success ms-1" style="font-size: 0.65rem;">Current Month</span>
+                                    @endif
+                                </small>
+                                <div class="text-dark fw-bold mt-1 small" style="line-height: 1.4;">
+                                    <i class="ri-calendar-check-line text-primary me-1"></i>{{ $start }}
+                                    <br>
+                                    <i class="ri-arrow-right-line text-muted me-1"></i>{{ $end }}
                                 </div>
+                                @php
+                                    $daysDiff = Carbon::parse($displayStartDate)->diffInDays(Carbon::parse($displayEndDate)) + 1;
+                                @endphp
+                                <small class="text-muted mt-1 d-block">
+                                    <i class="ri-time-line me-1"></i>{{ $daysDiff }} {{ $daysDiff == 1 ? 'day' : 'days' }}
+                                </small>
                             </div>
                         </div>
                     </div>
@@ -115,14 +138,14 @@ use Illuminate\Support\Facades\Auth;
                                     <label for="start_date" class="form-label fw-semibold">Start Date</label>
                                     <div class="input-group">
                                         <span class="input-group-text"><i class="ri-calendar-line"></i></span>
-                                        <input type="date" id="start_date" name="start_date" value="{{ $startDate }}" class="form-control" required aria-label="Start Date" autocomplete="off" onchange="applyFilters()">
+                                        <input type="date" id="start_date" name="start_date" value="{{ $startDate }}" max="{{ date('Y-m-d') }}" class="form-control" required aria-label="Start Date" autocomplete="off" onchange="applyFilters()">
                                     </div>
                                 </div>
                                 <div class="col-md-2">
                                     <label for="end_date" class="form-label fw-semibold">End Date</label>
                                     <div class="input-group">
                                         <span class="input-group-text"><i class="ri-calendar-line"></i></span>
-                                        <input type="date" id="end_date" name="end_date" value="{{ $endDate }}" class="form-control" required aria-label="End Date" autocomplete="off" onchange="applyFilters()">
+                                        <input type="date" id="end_date" name="end_date" value="{{ $endDate }}" max="{{ date('Y-m-d') }}" class="form-control" required aria-label="End Date" autocomplete="off" onchange="applyFilters()">
                                     </div>
                                 </div>
                                 <div class="col-md-2">
@@ -980,21 +1003,39 @@ use Illuminate\Support\Facades\Auth;
 
         // Date range logic
         function setEndDateLimits() {
+            // Get today's date
+            const today = new Date();
+            today.setHours(0, 0, 0, 0);
+            const todayStr = today.toISOString().split('T')[0];
+            
+            // Set max date for start date to today
+            startInput.max = todayStr;
+            
             if (startInput.value) {
+                // End date must be >= start date
                 endInput.min = startInput.value;
+                
+                // Calculate max end date (3 months from start OR today, whichever is earlier)
                 const start = new Date(startInput.value);
                 const maxEnd = new Date(start);
                 maxEnd.setMonth(maxEnd.getMonth() + 3);
-                if (maxEnd.getDate() !== start.getDate()) {
-                    maxEnd.setDate(0);
-                }
-                endInput.max = maxEnd.toISOString().split('T')[0];
+                
+                // Ensure max end date doesn't exceed today
+                const finalMaxEnd = maxEnd > today ? today : maxEnd;
+                endInput.max = finalMaxEnd.toISOString().split('T')[0];
+                
+                // Adjust end date if it's less than start date
                 if (endInput.value < startInput.value) {
                     endInput.value = startInput.value;
                 }
+                
+                // Adjust end date if it exceeds max allowed date
                 if (endInput.value > endInput.max) {
                     endInput.value = endInput.max;
                 }
+            } else {
+                // If no start date, end date max is today
+                endInput.max = todayStr;
             }
         }
 
@@ -1043,7 +1084,7 @@ use Illuminate\Support\Facades\Auth;
             const previousAgencyValue = preSelectedAgencyId || agencySelect.value;
             const previousAgentValue = preSelectedAgentId;
             console.log('Loading agencies for DMC, preserving agency:', previousAgencyValue, 'and agent:', previousAgentValue);
-            
+
             // Show loading state
             agencySelect.innerHTML = '<option value="">Loading agencies...</option>';
             agencySelect.disabled = true;
@@ -1145,7 +1186,7 @@ use Illuminate\Support\Facades\Auth;
             // Store the current agent value or use preSelectedAgentId
             const previousAgentValue = preSelectedAgentId || agentSelect.value;
             console.log('Preserving agent value:', previousAgentValue);
-            
+
             // Show loading state
             agentSelect.innerHTML = '<option value="">Loading agents...</option>';
             agentSelect.disabled = true;
@@ -1255,24 +1296,80 @@ use Illuminate\Support\Facades\Auth;
             }
             
             if (currency === 'INR') {
-                // Ensure we have a valid rate, default to 67.50 if not set
-                if (!customExchangeRate || customExchangeRate <= 0) {
-                    customExchangeRate = 67.50;
-                    console.log('Reset customExchangeRate to default:', customExchangeRate);
-                }
+                // Fetch real-time rate if not already set or if it's the default value
+                if (!customExchangeRate || customExchangeRate <= 0 || customExchangeRate === 67.50) {
+                    exchangeRateInput.value = 'Loading...';
+                    
+                    // Primary API: frankfurter.app (Free, no API key required)
+                    fetch('https://api.frankfurter.app/latest?from=SGD&to=INR')
+                        .then(response => response.json())
+                        .then(data => {
+                            if (data.rates && data.rates.INR) {
+                                customExchangeRate = parseFloat(data.rates.INR);
+                                const displayValue = `1 SGD = ${customExchangeRate.toFixed(2)} INR`;
+                                exchangeRateInput.value = displayValue;
+                                
+                                const customExchangeRateField = document.getElementById('customExchangeRateField');
+                                if (customExchangeRateField) {
+                                    customExchangeRateField.value = customExchangeRate.toFixed(2);
+                                }
+                                
+                                console.log('Real-time exchange rate fetched:', customExchangeRate, 'SGD to INR');
+                            } else {
+                                throw new Error('Invalid API response');
+                            }
+                        })
+                        .catch(error => {
+                            console.error('Error fetching from primary API:', error);
+                            
+                            // Fallback API: exchangerate-api.com (Free tier, no registration needed)
+                            fetch('https://open.er-api.com/v6/latest/SGD')
+                                .then(response => response.json())
+                                .then(data => {
+                                    if (data.rates && data.rates.INR) {
+                                        customExchangeRate = parseFloat(data.rates.INR);
                 const displayValue = `1 SGD = ${customExchangeRate.toFixed(2)} INR`;
                 exchangeRateInput.value = displayValue;
                 
-                if (editRateBtn) {
-                    editRateBtn.style.display = 'inline-block';
-                }
+                                        const customExchangeRateField = document.getElementById('customExchangeRateField');
+                                        if (customExchangeRateField) {
+                                            customExchangeRateField.value = customExchangeRate.toFixed(2);
+                                        }
+                                        
+                                        console.log('Real-time rate from fallback API:', customExchangeRate);
+                                    } else {
+                                        throw new Error('Fallback API failed');
+                                    }
+                                })
+                                .catch(fallbackError => {
+                                    console.error('Both APIs failed, using default:', fallbackError);
+                                    customExchangeRate = 62.50;
+                                    exchangeRateInput.value = `1 SGD = ${customExchangeRate.toFixed(2)} INR (Offline)`;
                 
                 const customExchangeRateField = document.getElementById('customExchangeRateField');
                 if (customExchangeRateField) {
                     customExchangeRateField.value = customExchangeRate.toFixed(2);
                 }
+                                });
+                        });
+                } else {
+                    // Use existing rate
+                    const displayValue = `1 SGD = ${customExchangeRate.toFixed(2)} INR`;
+                    exchangeRateInput.value = displayValue;
+                    
+                    const customExchangeRateField = document.getElementById('customExchangeRateField');
+                    if (customExchangeRateField) {
+                        customExchangeRateField.value = customExchangeRate.toFixed(2);
+                    }
+                    
+                    console.log('Using existing exchange rate:', customExchangeRate);
+                }
                 
-                console.log('Set INR display:', displayValue);
+                if (editRateBtn) {
+                    editRateBtn.style.display = 'inline-block';
+                }
+                
+                console.log('Set INR display');
             } else {
                 exchangeRateInput.value = '1 SGD = 1.00 SGD';
                 
@@ -1298,6 +1395,18 @@ use Illuminate\Support\Facades\Auth;
 
         // Event listeners
         startInput.addEventListener('change', setEndDateLimits);
+        endInput.addEventListener('change', function() {
+            // Ensure end date doesn't exceed today
+            const today = new Date().toISOString().split('T')[0];
+            if (this.value > today) {
+                this.value = today;
+            }
+            // Ensure end date is not before start date
+            if (startInput.value && this.value < startInput.value) {
+                this.value = startInput.value;
+            }
+        });
+        
         if (masterDmcSelect) {
             masterDmcSelect.addEventListener('change', filterDmcsByMaster);
         }
@@ -1457,30 +1566,70 @@ use Illuminate\Support\Facades\Auth;
     }
 
     function refreshExchangeRate() {
-        // Simulate API call to get live exchange rate
+        // Fetch live exchange rate from API
         const exchangeRateInput = document.getElementById('exchangeRate');
         const currency = document.getElementById('currency').value;
         
         exchangeRateInput.value = 'Loading...';
         
-        // Simulate API delay
-        setTimeout(() => {
             if (currency === 'INR') {
-                // You can replace this with actual API call
-                const rate = (67.50 + Math.random() * 0.1).toFixed(2);
-                customExchangeRate = parseFloat(rate);
+            // Primary API: frankfurter.app (Free, no API key required, European Central Bank data)
+            fetch('https://api.frankfurter.app/latest?from=SGD&to=INR')
+                .then(response => response.json())
+                .then(data => {
+                    if (data.rates && data.rates.INR) {
+                        const rate = parseFloat(data.rates.INR);
+                        customExchangeRate = rate;
                 exchangeRateInput.value = `1 SGD = ${customExchangeRate.toFixed(2)} INR`;
                 document.getElementById('customExchangeRateField').value = customExchangeRate.toFixed(2);
-                
-                // Apply filters to refresh data with new rate
-                showRateUpdateMessage('Exchange rate updated! Refreshing data...');
-                setTimeout(() => {
-                    applyFilters();
-                }, 500);
+                        
+                        // Apply filters to refresh data with new rate
+                        showRateUpdateMessage('Exchange rate updated! Refreshing data...');
+                        setTimeout(() => {
+                            applyFilters();
+                        }, 500);
+                        
+                        console.log('Exchange rate fetched from API:', rate, 'SGD to INR');
+                    } else {
+                        throw new Error('Invalid API response');
+                    }
+                })
+                .catch(error => {
+                    console.error('Error fetching exchange rate:', error);
+                    
+                    // Fallback API: exchangerate-api.com (Free tier, no registration needed)
+                    fetch('https://open.er-api.com/v6/latest/SGD')
+                        .then(response => response.json())
+                        .then(data => {
+                            if (data.rates && data.rates.INR) {
+                                const rate = parseFloat(data.rates.INR);
+                                customExchangeRate = rate;
+                                exchangeRateInput.value = `1 SGD = ${customExchangeRate.toFixed(2)} INR`;
+                                document.getElementById('customExchangeRateField').value = customExchangeRate.toFixed(2);
+                                
+                                // Apply filters to refresh data with new rate
+                                showRateUpdateMessage('Exchange rate updated! Refreshing data...');
+                                setTimeout(() => {
+                                    applyFilters();
+                                }, 500);
+                                
+                                console.log('Exchange rate fetched from fallback API:', rate, 'SGD to INR');
+                            } else {
+                                throw new Error('Fallback API also failed');
+                            }
+                        })
+                        .catch(fallbackError => {
+                            console.error('Both APIs failed:', fallbackError);
+                            // Use a reasonable default rate if both APIs fail
+                            customExchangeRate = 62.50;
+                            exchangeRateInput.value = `1 SGD = ${customExchangeRate.toFixed(2)} INR (Offline)`;
+                            document.getElementById('customExchangeRateField').value = customExchangeRate.toFixed(2);
+                            showRateUpdateMessage('Using default rate (API unavailable)', 'warning');
+                        });
+                });
             } else {
                 exchangeRateInput.value = '1 SGD = 1.00 SGD';
             }
-        }, 1000);
     }
 
     // Exchange rate editing functions
@@ -1701,17 +1850,17 @@ use Illuminate\Support\Facades\Auth;
                             <div class="mb-3 pb-3 border-bottom">
                                 <small class="text-muted d-block mb-1">Transaction ID</small>
                                 <h5 class="mb-0 text-primary">#${transaction.id}</h5>
-                            </div>
+                        </div>
                             <div class="mb-3 pb-3 border-bottom">
                                 <small class="text-muted d-block mb-1">Booking ID</small>
                                 <h6 class="mb-0">${serviceBadge} <span class="text-dark ms-2">${transaction.booking_id}</span></h6>
-                            </div>
+                    </div>
                             <div class="mb-3 pb-3 border-bottom">
                                 <small class="text-muted d-block mb-1">Transaction Amount</small>
                                 <div class="d-flex flex-column">
                                     <h4 class="mb-1 text-success fw-bold">${currencySymbol}${amountConverted.toFixed(2)}</h4>
                                     ${currency === 'INR' ? `<small class="text-muted">Original: S$${amountSGD.toFixed(2)} (Rate: 1 SGD = ${exchangeRate.toFixed(2)} INR)</small>` : ''}
-                                </div>
+                </div>
                             </div>
                             <div class="mb-0">
                                 <small class="text-muted d-block mb-1">Date & Time</small>
@@ -1747,10 +1896,10 @@ use Illuminate\Support\Facades\Auth;
                                 <small class="text-muted d-block mb-1">Transaction Status</small>
                                 <span class="badge ${transaction.status == 1 ? 'bg-success' : 'bg-danger'} px-3 py-2">
                                     <i class="ri-${transaction.status == 1 ? 'check' : 'close'}-circle-line me-1"></i>
-                                    ${transaction.status == 1 ? 'Active' : 'Inactive'}
-                                </span>
-                            </div>
+                                            ${transaction.status == 1 ? 'Active' : 'Inactive'}
+                                        </span>
                         </div>
+                    </div>
                     </div>
                 </div>
             </div>
@@ -1964,9 +2113,9 @@ use Illuminate\Support\Facades\Auth;
             <div class="card border-0 shadow-sm mb-3">
                 <div class="card-body">
                     <div class="row g-3">
-                        <div class="col-md-6">
+                <div class="col-md-6">
                             <label class="form-label small text-muted mb-1"><i class="ri-search-line me-1"></i>Search Transactions</label>
-                            <div class="input-group">
+                    <div class="input-group">
                                 <span class="input-group-text bg-white border-end-0"><i class="ri-search-line text-success"></i></span>
                                 <input type="text" id="balanceHistorySearch" class="form-control border-start-0 ${searchTerm ? 'border-end-0' : ''}" placeholder="Search by booking ID, service type, or date..." value="${searchTerm}" autocomplete="off">
                                 ${searchTerm ? `
@@ -1974,20 +2123,20 @@ use Illuminate\Support\Facades\Auth;
                                         <i class="ri-close-line"></i>
                                     </button>
                                 ` : ''}
-                            </div>
+                    </div>
                             ${searchTerm ? `<small class="text-muted"><i class="ri-filter-line me-1"></i>Filtering results...</small>` : ''}
-                        </div>
-                        <div class="col-md-3">
+                </div>
+                <div class="col-md-3">
                             <label class="form-label small text-muted mb-1"><i class="ri-list-check me-1"></i>Items Per Page</label>
-                            <select id="itemsPerPageSelect" class="form-select">
-                                <option value="5" ${itemsPerPage == 5 ? 'selected' : ''}>5 per page</option>
-                                <option value="10" ${itemsPerPage == 10 ? 'selected' : ''}>10 per page</option>
-                                <option value="25" ${itemsPerPage == 25 ? 'selected' : ''}>25 per page</option>
-                                <option value="50" ${itemsPerPage == 50 ? 'selected' : ''}>50 per page</option>
-                                <option value="100" ${itemsPerPage == 100 ? 'selected' : ''}>100 per page</option>
-                            </select>
-                        </div>
-                        <div class="col-md-3">
+                    <select id="itemsPerPageSelect" class="form-select">
+                        <option value="5" ${itemsPerPage == 5 ? 'selected' : ''}>5 per page</option>
+                        <option value="10" ${itemsPerPage == 10 ? 'selected' : ''}>10 per page</option>
+                        <option value="25" ${itemsPerPage == 25 ? 'selected' : ''}>25 per page</option>
+                        <option value="50" ${itemsPerPage == 50 ? 'selected' : ''}>50 per page</option>
+                        <option value="100" ${itemsPerPage == 100 ? 'selected' : ''}>100 per page</option>
+                    </select>
+                </div>
+                <div class="col-md-3">
                             <label class="form-label small text-muted mb-1"><i class="ri-information-line me-1"></i>Showing</label>
                             <div class="alert alert-light border mb-0 py-2">
                                 <small class="text-dark fw-semibold mb-0">
@@ -2006,10 +2155,10 @@ use Illuminate\Support\Facades\Auth;
                     <h6 class="mb-0 text-dark"><i class="ri-file-list-3-line me-2 text-success"></i>Transaction History</h6>
                 </div>
                 <div class="card-body p-0">
-                    <div class="table-responsive">
+            <div class="table-responsive">
                         <table class="table table-hover mb-0">
                             <thead style="background: linear-gradient(135deg, #11998e 0%, #38ef7d 100%); color: white;">
-                                <tr>
+                        <tr>
                                     <th class="text-center" style="width: 60px;">#</th>
                                     <th style="min-width: 130px;">Date & Time</th>
                                     <th style="min-width: 100px;">Booking ID</th>
@@ -2017,9 +2166,9 @@ use Illuminate\Support\Facades\Auth;
                                     <th class="text-end" style="min-width: 120px;">Opening Balance</th>
                                     <th class="text-end" style="min-width: 150px;">Transaction</th>
                                     <th class="text-end" style="min-width: 120px;">Closing Balance</th>
-                                </tr>
-                            </thead>
-                            <tbody>
+                        </tr>
+                    </thead>
+                    <tbody>
                                 ${tableRows || `
                                     <tr>
                                         <td colspan="7" class="text-center py-5">
@@ -2034,8 +2183,8 @@ use Illuminate\Support\Facades\Auth;
                                         </td>
                                     </tr>
                                 `}
-                            </tbody>
-                        </table>
+                    </tbody>
+                </table>
                     </div>
                 </div>
             </div>
@@ -2129,7 +2278,7 @@ use Illuminate\Support\Facades\Auth;
             searchInput.oninput = function(event) {
                 const searchValue = event.target.value;
                 console.log('Search input changed:', searchValue);
-                
+            
                 // Update search term immediately
                 window.searchTerm = searchValue;
                 window.currentPage = 1; // Reset to first page when searching

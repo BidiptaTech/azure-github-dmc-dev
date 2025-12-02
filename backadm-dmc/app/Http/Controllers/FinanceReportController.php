@@ -923,8 +923,8 @@ class FinanceReportController extends Controller
                 if ($dmc_id) {
                     $agencyIds = Agency::where('status', 1)
                         ->whereJsonContains('dmc_id', (int)$dmc_id)
-                        ->pluck('agency_id')
-                        ->toArray();
+                    ->pluck('agency_id')
+                    ->toArray();
     
                     $agents = Agent::where('status', 1)
                         ->whereIn('agency_id', $agencyIds)
@@ -957,8 +957,8 @@ class FinanceReportController extends Controller
                 if ($dmc_id) {
                     $agencyIds = Agency::where('status', 1)
                         ->whereJsonContains('dmc_id', (int)$dmc_id)
-                        ->pluck('agency_id')
-                        ->toArray();
+                    ->pluck('agency_id')
+                    ->toArray();
     
                     $agents = Agent::where('status', 1)
                         ->whereIn('agency_id', $agencyIds)
@@ -997,8 +997,8 @@ class FinanceReportController extends Controller
                 if ($dmc_id) {
                     $agencyIds = Agency::where('status', 1)
                         ->whereJsonContains('dmc_id', (int)$dmc_id)
-                        ->pluck('agency_id')
-                        ->toArray();
+                    ->pluck('agency_id')
+                    ->toArray();
     
                     $agents = Agent::where('status', 1)
                         ->whereIn('agency_id', $agencyIds)
