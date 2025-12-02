@@ -2397,14 +2397,6 @@
                                                 
                                                 <!-- Additional Pax Details -->
                                                 <div class="col-md-4">
-                                                    <label class="form-label fw-semibold text-muted mb-1"><i class="ri-men-line me-1 text-primary"></i>Male Count</label>
-                                                    <input type="number" class="form-control border-2" name="male_count" min="0" value="{{ $maleCount }}">
-                                                </div>
-                                                <div class="col-md-4">
-                                                    <label class="form-label fw-semibold text-muted mb-1"><i class="ri-women-line me-1 text-danger"></i>Female Count</label>
-                                                    <input type="number" class="form-control border-2" name="female_count" min="0" value="{{ $femaleCount }}">
-                                                </div>
-                                                <div class="col-md-4">
                                                     <label class="form-label fw-semibold text-muted mb-1"><i class="ri-user-heart-line me-1 text-warning"></i>Infants</label>
                                                     <input type="number" class="form-control border-2" name="infants" min="0" value="{{ $infantsCount }}">
                                                 </div>
