@@ -3238,7 +3238,7 @@
             </div>
             <div class="modal-footer">
                 <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
-                <button type="button" class="btn btn-success" id="confirm_restaurant_btn" disabled>
+                <button type="button" class="btn btn-secondary" id="confirm_restaurant_btn" disabled title="Please complete all required fields">
                     <i class="ri-check-line me-1"></i>Confirm Restaurant Selection
                 </button>
             </div>
@@ -10890,6 +10890,9 @@
                         });
                     }
                 }
+                
+                // Run validation after everything is initialized
+                validateRestaurantForm();
             }, 200);
         }, 100);
         
@@ -10966,7 +10969,13 @@
             timeSlotSelect.addEventListener('change', validateRestaurantForm);
         }
         if (diningDateSelect) {
-            diningDateSelect.addEventListener('change', validateRestaurantForm);
+            // Date change event listener (optional - validation will still work with default date)
+            diningDateSelect.addEventListener('change', function() {
+                console.log('Dining date changed to:', diningDateSelect.value);
+                validateRestaurantForm();
+            });
+            // Also validate on input event for better responsiveness
+            diningDateSelect.addEventListener('input', validateRestaurantForm);
         }
         if (confirmBtn) {
             confirmBtn.addEventListener('click', confirmRestaurantSelection);
@@ -10980,6 +10989,15 @@
             diningDateSelect.min = startDate;
             diningDateSelect.max = endDate;
             diningDateSelect.value = startDate; // Default to start date
+            
+            // Mark that date has a default value so validation knows it's filled
+            console.log('Default dining date set to:', startDate);
+            
+            // Trigger validation after setting default date
+            // Use setTimeout to ensure the value is set in the DOM first
+            setTimeout(() => {
+                validateRestaurantForm();
+            }, 50);
         }
         
         // Initialize guest data from tour data
@@ -11087,6 +11105,12 @@
             // Add 30 minutes
             currentTime.setMinutes(currentTime.getMinutes() + 30);
         }
+        
+        // Validate form after time slots are populated
+        console.log('Time slots populated, running validation');
+        setTimeout(() => {
+            validateRestaurantForm();
+        }, 50);
     }
     
     // Parse time string (handles various formats)
@@ -11272,6 +11296,12 @@
         dishOption.setAttribute('data-dish', JSON.stringify(mealData));
         dishSelect.appendChild(dishOption);
         
+        // Auto-select the first (and only) dish option
+        if (dishSelect.options.length > 1) {
+            dishSelect.selectedIndex = 1; // Select the dish (skip "Select Dish" option)
+            console.log('Auto-selected dish:', dishOption.textContent);
+        }
+        
         // Get restaurant data to populate time slots
         if (restaurantSelect && restaurantSelect.value) {
             const selectedRestaurantOption = restaurantSelect.options[restaurantSelect.selectedIndex];
@@ -11283,7 +11313,11 @@
         }
         
         // Validate form after meal type selection
-        validateRestaurantForm();
+        // Use setTimeout to ensure all DOM updates are complete
+        setTimeout(() => {
+            console.log('Running validation after meal type selection and dish/time slot population');
+            validateRestaurantForm();
+        }, 100);
     }
     
     function getPax() {
@@ -11567,18 +11601,74 @@
         const confirmBtn = document.getElementById('confirm_restaurant_btn');
         
         let isValid = true;
+        let missingFields = [];
+        let fieldStatus = {};
         
-        // Check required fields
-        if (!citySelect || !citySelect.value) isValid = false;
-        if (!restaurantSelect || !restaurantSelect.value) isValid = false;
-        if (!mealType || !mealType.value) isValid = false;
-        if (!dishSelect || !dishSelect.value) isValid = false;
-        if (!timeSlotSelect || !timeSlotSelect.value) isValid = false;
-        if (!diningDateSelect || !diningDateSelect.value) isValid = false;
+        // Check required fields and track missing ones with detailed status
+        const cityValue = citySelect?.value || '';
+        fieldStatus.city = cityValue;
+        if (!citySelect || !cityValue || cityValue === '') {
+            isValid = false;
+            missingFields.push('City');
+        }
+        
+        const restaurantValue = restaurantSelect?.value || '';
+        fieldStatus.restaurant = restaurantValue;
+        if (!restaurantSelect || !restaurantValue || restaurantValue === '') {
+            isValid = false;
+            missingFields.push('Restaurant');
+        }
+        
+        const mealValue = mealType?.value || '';
+        fieldStatus.mealType = mealValue;
+        if (!mealType || !mealValue || mealValue === '') {
+            isValid = false;
+            missingFields.push('Meal Type');
+        }
+        
+        const dishValue = dishSelect?.value || '';
+        fieldStatus.dish = dishValue;
+        if (!dishSelect || !dishValue || dishValue === '') {
+            isValid = false;
+            missingFields.push('Dish');
+        }
+        
+        const timeSlotValue = timeSlotSelect?.value || '';
+        fieldStatus.timeSlot = timeSlotValue;
+        if (!timeSlotSelect || !timeSlotValue || timeSlotValue === '') {
+            isValid = false;
+            missingFields.push('Time Slot');
+        }
+        
+        const dateValue = diningDateSelect?.value || '';
+        fieldStatus.diningDate = dateValue;
+        if (!diningDateSelect || !dateValue || dateValue === '') {
+            isValid = false;
+            missingFields.push('Dining Date');
+        }
         
         if (confirmBtn) {
             confirmBtn.disabled = !isValid;
+            
+            // Add visual feedback
+            if (isValid) {
+                confirmBtn.classList.remove('btn-secondary');
+                confirmBtn.classList.add('btn-success');
+                confirmBtn.title = 'Click to confirm your restaurant selection';
+            } else {
+                confirmBtn.classList.remove('btn-success');
+                confirmBtn.classList.add('btn-secondary');
+                confirmBtn.title = 'Please complete all fields: ' + missingFields.join(', ');
+            }
         }
+        
+        console.log('Restaurant form validation:', { 
+            isValid, 
+            missingFields, 
+            fieldStatus,
+            buttonDisabled: confirmBtn?.disabled 
+        });
+        return isValid;
     }
 
     // Tour Guest Selector Functions
