@@ -391,6 +391,8 @@
                     </div>
                 </div>
             </div>
+        </form>
+        <!-- End of main tour information form -->
 
             <!-- Service Action Buttons -->
 
@@ -2767,7 +2769,6 @@
                     </div>
                 </div>
             </div>
-        </form>
     </div>
 </div>
 
