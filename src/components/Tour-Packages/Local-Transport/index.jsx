@@ -133,7 +133,7 @@ const LocalTransportComponent = React.memo(function LocalTransportComponent({ da
   const [hasInitializedBookings, setHasInitializedBookings] = useState(false);
   const [hasDispatchedToRedux, setHasDispatchedToRedux] = useState(false);
   const [lastInitializationKey, setLastInitializationKey] = useState('');
-  
+  const tourStatus = useSelector((state) => state.tourPackages.tourStatus);
   // Use ref to track if initialization has already been attempted for this component instance
   const initializationAttempted = useRef(false);
   
@@ -2118,7 +2118,7 @@ const LocalTransportComponent = React.memo(function LocalTransportComponent({ da
                         </IconButton>
                       </Tooltip>
 
-
+{(tourStatus !== "Confirmed" && tourStatus !== "Definite" && tourStatus !== "Actual") && (
                         <Tooltip title="Remove this transport service">
                           <IconButton 
                             size="small" 
@@ -2133,7 +2133,7 @@ const LocalTransportComponent = React.memo(function LocalTransportComponent({ da
                             <DeleteIcon sx={{ fontSize: 16, color: '#f44336' }} />
                           </IconButton>
                         </Tooltip>
-
+                      )}
 
                       <Button
                         variant="outlined"

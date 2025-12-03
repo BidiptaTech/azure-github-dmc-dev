@@ -26,6 +26,7 @@ const initialState = {
   selectedPackages: [],
   AllServices: [],
   packageData: null,
+  tourStatus: null,
   customerInfoValid: false, // Track if customer info form is valid
 };
 
@@ -601,6 +602,8 @@ const tourPackageSlice = createSlice({
       .addCase(UpdateCustomPackage.fulfilled, (state, action) => {
         state.loading = false;
         state.packageData = action.payload;
+        state.tourStatus = action.payload?.tour?.tour_status;
+        console.log("tourStatus", state.tourStatus);
       })
       .addCase(UpdateCustomPackage.rejected, (state, action) => {
         state.loading = false;

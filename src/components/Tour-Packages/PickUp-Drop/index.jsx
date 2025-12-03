@@ -52,7 +52,8 @@ export default function PickupDropComponent({portType, setPortType, portType1, s
   const hasVehicles = vehicles && vehicles.length > 0;
   const hasVehicles1 = vehicles1 && vehicles1.length > 0;
   const zone_on = useSelector((state) => state.auth.zone_on);
- 
+ const tourStatus = useSelector((state) => state.tourPackages.tourStatus);
+ console.log("tourStatus4", tourStatus);
   
   // Updated handler for entry vehicle changes that tracks all selections
   const handleVehicleChange = (vehicleId, mode, dmcId, city, country, bookingIndex = 0) => {

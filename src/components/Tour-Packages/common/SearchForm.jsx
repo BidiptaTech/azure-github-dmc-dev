@@ -274,7 +274,7 @@ export default function SearchForm({ onNext, setActiveTab, packageData: propPack
   const [snackbarMessage, setSnackbarMessage] = useState("");
   const [snackbarSeverity, setSnackbarSeverity] = useState("error");
   console.log("packageDatasss", packageData);
-
+  const tourStatus = useSelector((state) => state.tourPackages.tourStatus);
   // Helper functions to get destination and city values
   const getDestinationValue = () => {
     if (packageData?.tour?.destination) {
@@ -298,6 +298,14 @@ export default function SearchForm({ onNext, setActiveTab, packageData: propPack
 
   // Check if data is coming from enquirydetail (to disable date and guest selection)
   const isDataFromEnquiryDetail = Boolean(enquirydetail && !packageData?.tour) || isupdated; 
+
+  // Lock dates/guests if tour is already confirmed/definite/actual
+  const isStatusLocked =
+    tourStatus === "Confirmed" ||
+    tourStatus === "Definite" ||
+    tourStatus === "Actual";
+
+  const isDateGuestLocked = isDataFromEnquiryDetail || isStatusLocked;
 
   // Helper function to safely get ages array
   const getSafeAges = () => {
@@ -506,8 +514,8 @@ export default function SearchForm({ onNext, setActiveTab, packageData: propPack
   };
 
   const handleDateChange = (dateRange) => {
-    // Prevent date changes when data is from enquirydetail
-    if (isDataFromEnquiryDetail) {
+    // Prevent date changes when data is from enquirydetail or status-locked
+    if (isDateGuestLocked) {
       return;
     }
     
@@ -763,8 +771,8 @@ dispatch(fetchHotels());
   
 
   const handleGuestChange = (updatedGuestCounts) => {
-    // Prevent guest changes when data is from enquirydetail
-    if (isDataFromEnquiryDetail) {
+    // Prevent guest changes when data is from enquirydetail or status-locked
+    if (isDateGuestLocked) {
       return;
     }
     
@@ -1510,17 +1518,17 @@ dispatch(fetchHotels());
                 sx={{
                   p: 1,
                   borderRadius: 1.5,
-                  bgcolor: isDataFromEnquiryDetail ? '#f5f5f5' : 'white',
+                  bgcolor: isDateGuestLocked ? '#f5f5f5' : 'white',
                   border: '1px solid #e2e8f0',
                   height: '100%',
                   minHeight: '60px',
                   position: 'relative',
                   zIndex: 10,
                   overflow: 'visible',
-                  opacity: isDataFromEnquiryDetail ? 0.7 : 1,
+                  opacity: isDateGuestLocked ? 0.7 : 1,
                   '&:hover': {
-                    borderColor: isDataFromEnquiryDetail ? '#e2e8f0' : '#3b82f6',
-                    boxShadow: isDataFromEnquiryDetail ? 'none' : '0 2px 6px rgba(59, 130, 246, 0.1)'
+                    borderColor: isDateGuestLocked ? '#e2e8f0' : '#3b82f6',
+                    boxShadow: isDateGuestLocked ? 'none' : '0 2px 6px rgba(59, 130, 246, 0.1)'
                   },
                   transition: 'all 0.2s ease-in-out'
                 }}
@@ -1530,7 +1538,7 @@ dispatch(fetchHotels());
                   sx={{ 
                     mb: 0.5, 
                     fontWeight: 600, 
-                    color: isDataFromEnquiryDetail ? '#9ca3af' : '#374151',
+                    color: isDateGuestLocked ? '#9ca3af' : '#374151',
                     textTransform: 'uppercase',
                     fontSize: '0.65rem',
                     letterSpacing: '0.05em',
@@ -1539,9 +1547,9 @@ dispatch(fetchHotels());
                     gap: 0.5
                   }}
                 >
-                  <CalendarIcon sx={{ color: isDataFromEnquiryDetail ? '#9ca3af' : '#10b981', fontSize: 14 }} />
+                  <CalendarIcon sx={{ color: isDateGuestLocked ? '#9ca3af' : '#10b981', fontSize: 14 }} />
                   Travel Dates
-                  {isDataFromEnquiryDetail && (
+                  {isDateGuestLocked && (
                     <Typography 
                       variant="caption" 
                       sx={{ 
@@ -1560,9 +1568,9 @@ dispatch(fetchHotels());
                     onDateChange={handleDateChange}
                     defaultCheckIn={packageData?.tour?.check_in_time || enquirydetail?.check_in_time}
                     defaultCheckOut={packageData?.tour?.check_out_time || enquirydetail?.check_out_time}
-                    isDataFromEnquiryDetail={isDataFromEnquiryDetail}
+                    isDataFromEnquiryDetail={isDateGuestLocked}
                   />
-                  {isDataFromEnquiryDetail && (
+                  {isDateGuestLocked &&  (
                     <Box
                       sx={{
                         position: 'absolute',
@@ -1586,17 +1594,17 @@ dispatch(fetchHotels());
                 sx={{
                   p: 1,
                   borderRadius: 1.5,
-                  bgcolor: isDataFromEnquiryDetail ? '#f5f5f5' : 'white',
+                  bgcolor: isDateGuestLocked ? '#f5f5f5' : 'white',
                   border: '1px solid #e2e8f0',
                   height: '100%',
                   minHeight: '60px',
                   position: 'relative',
                   zIndex: 9,
                   overflow: 'visible',
-                  opacity: isDataFromEnquiryDetail ? 0.7 : 1,
+                  opacity: isDateGuestLocked ? 0.7 : 1,
                   '&:hover': {
-                    borderColor: isDataFromEnquiryDetail ? '#e2e8f0' : '#3b82f6',
-                    boxShadow: isDataFromEnquiryDetail ? 'none' : '0 2px 6px rgba(59, 130, 246, 0.1)'
+                    borderColor: isDateGuestLocked ? '#e2e8f0' : '#3b82f6',
+                    boxShadow: isDateGuestLocked ? 'none' : '0 2px 6px rgba(59, 130, 246, 0.1)'
                   },
                   transition: 'all 0.2s ease-in-out'
                 }}
@@ -1606,7 +1614,7 @@ dispatch(fetchHotels());
                   sx={{ 
                     mb: 0.5, 
                     fontWeight: 600, 
-                    color: isDataFromEnquiryDetail ? '#9ca3af' : '#374151',
+                    color: isDateGuestLocked ? '#9ca3af' : '#374151',
                     textTransform: 'uppercase',
                     fontSize: '0.65rem',
                     letterSpacing: '0.05em',
@@ -1615,9 +1623,9 @@ dispatch(fetchHotels());
                     gap: 0.5
                   }}
                 >
-                  <PeopleIcon sx={{ color: isDataFromEnquiryDetail ? '#9ca3af' : '#f59e0b', fontSize: 14 }} />
+                  <PeopleIcon sx={{ color: isDateGuestLocked ? '#9ca3af' : '#f59e0b', fontSize: 14 }} />
                   Guests
-                  {isDataFromEnquiryDetail && (
+                  {isDateGuestLocked && (
                     <Typography 
                       variant="caption" 
                       sx={{ 
@@ -1635,9 +1643,9 @@ dispatch(fetchHotels());
                   <PaxSelector 
                     guestCounts={guestCounts}
                     onGuestChange={handleGuestChange}
-                    disabled={isDataFromEnquiryDetail}
+                    disabled={isDateGuestLocked}
                   />
-                  {isDataFromEnquiryDetail && (
+                  {isDateGuestLocked && (
                     <Box
                       sx={{
                         position: 'absolute',
