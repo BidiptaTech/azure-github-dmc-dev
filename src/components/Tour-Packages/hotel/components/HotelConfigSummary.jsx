@@ -41,7 +41,7 @@ const HotelConfigSummary = ({
   // Get tour dates from Redux state to check for date conflicts
   const searchCriteria = useSelector(state => state.tourPackages?.searchCriteria);
   const tourDates = searchCriteria?.dates || [];
-
+  const tourStatus = useSelector((state) => state.tourPackages.tourStatus);
   // Enhanced booking status calculation with validation logic
   const bookingStatus = React.useMemo(() => {
     if (!hotelConfigurations || hotelConfigurations.length === 0) {
@@ -962,7 +962,7 @@ const HotelConfigSummary = ({
                                  Room {configIndex + 1}
                                </Typography>
                              </Box>
-                             
+                             {(tourStatus !== "Confirmed" && tourStatus !== "Definite" && tourStatus !== "Actual") && (
                              <IconButton
                                size="small"
                                color="error"
@@ -974,6 +974,7 @@ const HotelConfigSummary = ({
                              >
                                <DeleteIcon fontSize="small" />
                              </IconButton>
+                             )}
                            </Box>
 
                                                      {/* Room Details */}
@@ -1178,6 +1179,7 @@ const HotelConfigSummary = ({
                      </Button>
                    </Grid>
                    <Grid item xs={12} sm={6}>
+                    {(tourStatus !== "Confirmed" && tourStatus !== "Definite" && tourStatus !== "Actual") && (
                      <Button
                        fullWidth
                        variant="text"
@@ -1194,6 +1196,7 @@ const HotelConfigSummary = ({
                      >
                        Remove This Hotel
                      </Button>
+                     )}
                    </Grid>
                  </Grid>
                </Box>

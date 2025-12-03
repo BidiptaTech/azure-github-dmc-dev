@@ -71,7 +71,7 @@ export default function RestaurantComponent({ date, dayIndex, restaurantspack, t
   const tour = useSelector((state) => state.hotels.tourdetails, shallowEqual);
   console.log('Restaurant update', restaurantspack);
   console.log("tour", tour);
-  
+  const tourStatus = useSelector((state) => state.tourPackages.tourStatus);
   // Get existing services from Redux state
   const existingServices = useSelector((state) => state.tourPackages.AllServices || []);
 
@@ -1692,7 +1692,8 @@ export default function RestaurantComponent({ date, dayIndex, restaurantspack, t
                           View Summary
                         </Button>
                       )}
-                                  
+
+                      {(tourStatus !== "Confirmed" && tourStatus !== "Definite" && tourStatus !== "Actual") && (
                       <Tooltip title="Remove Booking">
                         <IconButton 
                           size="small"
@@ -1706,6 +1707,7 @@ export default function RestaurantComponent({ date, dayIndex, restaurantspack, t
                           <DeleteIcon sx={{ fontSize: 16 }} />
                         </IconButton>
                       </Tooltip>
+                      )}
                     </Box>
                   </Box>
 

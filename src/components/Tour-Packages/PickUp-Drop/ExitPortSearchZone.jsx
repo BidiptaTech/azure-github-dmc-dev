@@ -56,7 +56,7 @@ const ExitPortSearchZone = ({ Location, portType}) => {
   const [selectedDate1, setSelectedDate1] = useState("");
   const [entryytime1, setentryytime1] = useState("");
   const errorMessage = useSelector((state) => state.pickupDrop.error);
-  
+  const country = useSelector((state) => state.hotels.tourdetails.destination);
 
   const TourId = useSelector((state) => state.hotels.id);
       console.log("TourId", TourId);
@@ -104,8 +104,8 @@ const ExitPortSearchZone = ({ Location, portType}) => {
       // Ensure TourId is passed correctly as a number
       dispatch(
         fetchPortCity({
+          country: country,
           city: selectedCity.name,
-          tourId: parseInt(TourId),
           type: "hotel",
         })
       )
