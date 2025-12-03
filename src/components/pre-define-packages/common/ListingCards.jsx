@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { useSelector, useDispatch } from 'react-redux';
 import { useNavigate } from 'react-router-dom';
-import { fetchPackageDetails, fetchPackages, setSearchParams } from '../../../slice/tour-packages/prePackagesSlice';
+import { fetchPackageDetails, fetchPackages, setSearchParams, clearPackages } from '../../../slice/tour-packages/prePackagesSlice';
 import { 
   Box, 
   Card, 
@@ -746,9 +746,7 @@ const ListingCards = ({
   const { packages, loading, error, searchParams } = useSelector(state => state.prePackages);
   const dispatch = useDispatch();
   
-  // Log DMC information for debugging
-  console.log('🏢 ListingCards - Selected DMC ID:', selectedDmcId);
-  console.log('🏢 ListingCards - Selected DMC Data:', selectedDmcData);
+ 
   
   // Infinite scroll states
   const [currentPage, setCurrentPage] = useState(1);
@@ -799,10 +797,10 @@ const ListingCards = ({
     // Update previous DMC ID
     previousDmcId.current = selectedDmcId;
     
-    // Only refetch if we have searchParams AND packages have been loaded (not during initial load)
-    // This prevents double-fetching when first DMC is auto-selected during initial search
-    if (searchParams && packages.length > 0 && !loading) {
-      console.log('🏢 DMC selection changed, refetching packages with DMC ID:', selectedDmcId);
+    // Only refetch if we have searchParams (don't require packages.length > 0)
+    // This allows refetching even if packages array is empty
+    if (searchParams && !loading) {
+      
       
       // Update searchParams with new DMC ID (single selection)
       const updatedSearchParams = { ...searchParams };
@@ -817,26 +815,31 @@ const ListingCards = ({
       // Remove dmc_ids if it exists (ensure we only use single dmc_id)
       delete updatedSearchParams.dmc_ids;
       
+      // Clear existing packages immediately to avoid showing stale data
+      dispatch(clearPackages());
+      
       // Update Redux searchParams
       dispatch(setSearchParams(updatedSearchParams));
       
-      // Refetch packages from the beginning
+      // Reset pagination
       setCurrentPage(1);
       setHasMore(true);
       setIsLoadingMore(false);
       
+      // Fetch packages with start: 0 will replace existing packages array
+      // This ensures we get fresh data for the new DMC selection
       dispatch(fetchPackages({ searchParams: updatedSearchParams, start: 0, limit: 5 }))
         .unwrap()
         .then((response) => {
-          console.log('🏢 Packages refetched successfully with DMC filter');
+          // console.log('🏢 Packages refetched successfully with DMC filter');
         })
         .catch((error) => {
-          console.error('🏢 Failed to refetch packages:', error);
+          // console.error('🏢 Failed to refetch packages:', error);
         });
-    } else if (dmcIdChanged && selectedDmcId) {
-      console.log('🏢 First DMC auto-selected, will be used in initial package fetch');
+    } else if (dmcIdChanged && selectedDmcId && !searchParams) {
+      // console.log('🏢 DMC selected but no searchParams yet, will be used in initial package fetch');
     }
-  }, [selectedDmcId, searchParams, dispatch, packages.length, loading]); // Track single selectedDmcId
+  }, [selectedDmcId, searchParams, dispatch, loading]); // Removed packages.length from dependencies
 
   // Infinite scroll effect - load more packages when scrolling
   useEffect(() => {

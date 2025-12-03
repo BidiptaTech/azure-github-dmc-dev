@@ -1,3 +1,192 @@
+import dayjs from "dayjs";
+
+// Helper function to calculate total amount with taxes
+export const calculateTotalWithTaxes = (booking) => {
+  // Base amount
+  const baseAmount = Number(booking.total_amount || 0);
+  
+  // If base amount is 0 or invalid, return 0
+  if (!baseAmount || baseAmount <= 0) {
+    return 0;
+  }
+
+  // Helper function to safely convert to number
+  const safeNumber = (value) => {
+    const num = Number(value);
+    return isNaN(num) ? 0 : num;
+  };
+
+  // Helper function to calculate nights
+  const calculateNights = (checkIn, checkOut) => {
+    if (!checkIn || !checkOut) return 0;
+    try {
+      const inDate = dayjs(checkIn);
+      const outDate = dayjs(checkOut);
+      const nights = outDate.diff(inDate, 'day');
+      return Math.max(nights, 0);
+    } catch (e) {
+      return 0;
+    }
+  };
+
+  // Parse taxes from JSON string or array
+  let taxes = [];
+  try {
+    if (booking.taxes && typeof booking.taxes === 'string') {
+      taxes = JSON.parse(booking.taxes);
+    } else if (Array.isArray(booking.taxes)) {
+      taxes = booking.taxes;
+    }
+  } catch (e) {
+    console.error('Error parsing taxes for booking:', booking.booking_id, e);
+    return Math.ceil(baseAmount);
+  }
+
+  if (!taxes || taxes.length === 0) {
+    return Math.ceil(baseAmount);
+  }
+
+  // Initialize with base amount
+  let total = baseAmount;
+  
+  // Calculate total pax
+  const adultCount = safeNumber(booking.booking_details?.adult_count || 0);
+  const childCount = safeNumber(booking.booking_details?.child_count || 0);
+  const totalPax = adultCount + childCount;
+  
+  // Calculate nights
+  const checkIn = booking.travel_dates?.check_in || booking.booking_details?.travel_dates?.check_in;
+  const checkOut = booking.travel_dates?.check_out || booking.booking_details?.travel_dates?.check_out;
+  const nights = calculateNights(checkIn, checkOut);
+
+  // Store calculated amounts for each tax by tax_id (for cascading)
+  const taxCalculations = {};
+
+  // Step 1: Process taxes where calculate_on = "total"
+  const totalTaxes = taxes.filter(tax => 
+    tax.calculate_on && tax.calculate_on.toLowerCase() === 'total'
+  );
+
+  totalTaxes.forEach(tax => {
+    let taxAmount = 0;
+    const taxValue = safeNumber(tax.tax_value);
+
+    if (tax.tax_type === 'percentage') {
+      // Calculate percentage tax on BASE amount (not running total)
+      taxAmount = (baseAmount * taxValue) / 100;
+    } else if (tax.tax_type === 'fixed') {
+      // Calculate fixed tax based on if_fixed type
+      switch (tax.if_fixed) {
+        case 'person':
+        case 'per_person':
+          taxAmount = totalPax * taxValue;
+          break;
+        case 'person_day':
+        case 'per_person_per_day':
+          taxAmount = totalPax * nights * taxValue;
+          break;
+        case 'per_day':
+        case 'per_tour_per_day':
+          taxAmount = nights * taxValue;
+          break;
+        case 'per_tour':
+        case 'person_tour':
+          taxAmount = taxValue;
+          break;
+        default:
+          taxAmount = taxValue;
+      }
+    }
+
+    // Validate taxAmount is not NaN
+    if (isNaN(taxAmount)) {
+      taxAmount = 0;
+    }
+
+    // Round the tax amount for consistency between display and calculation
+    const roundedTaxAmount = Math.ceil(taxAmount);
+    total += roundedTaxAmount;
+
+    // Store the cumulative total after this tax by tax_id (for cascading lookups)
+    taxCalculations[tax.tax_id] = {
+      amount: total,
+      taxAmount: roundedTaxAmount
+    };
+  });
+
+  // Step 2: Process cascading taxes (where calculate_on != "total")
+  // These taxes are calculated on (base amount + specific referenced tax amount)
+  // NOT on the cumulative total
+  const cascadingTaxes = taxes.filter(tax => 
+    tax.calculate_on && tax.calculate_on.toLowerCase() !== 'total'
+  );
+
+  cascadingTaxes.forEach(tax => {
+    let taxAmount = 0;
+    const taxValue = safeNumber(tax.tax_value);
+
+    // Find the tax amount from the referenced tax_id
+    // calculate_on contains the tax_id (e.g., "12")
+    const referencedTaxId = String(tax.calculate_on);
+    const baseCalc = taxCalculations[referencedTaxId];
+    
+    // Calculate on (base amount + referenced tax amount)
+    // Example: if base is 2550 and tax_id 12 added 600, 
+    // then baseAmountForCascade = 2550 + 600 = 3150
+    const referencedTaxAmount = baseCalc ? baseCalc.taxAmount : 0;
+    const baseAmountForCascade = baseAmount + referencedTaxAmount;
+
+    if (tax.tax_type === 'percentage') {
+      // Calculate percentage tax on (base + referenced tax amount)
+      taxAmount = (baseAmountForCascade * taxValue) / 100;
+    } else if (tax.tax_type === 'fixed') {
+      // Calculate fixed tax based on if_fixed type
+      switch (tax.if_fixed) {
+        case 'person':
+        case 'per_person':
+          taxAmount = totalPax * taxValue;
+          break;
+        case 'person_day':
+        case 'per_person_per_day':
+          taxAmount = totalPax * nights * taxValue;
+          break;
+        case 'per_day':
+        case 'per_tour_per_day':
+          taxAmount = nights * taxValue;
+          break;
+        case 'per_tour':
+          taxAmount = taxValue;
+          break;
+        default:
+          taxAmount = taxValue;
+      }
+    }
+
+    // Validate taxAmount is not NaN
+    if (isNaN(taxAmount)) {
+      taxAmount = 0;
+    }
+
+    // Round the tax amount for consistency between display and calculation
+    const roundedTaxAmount = Math.ceil(taxAmount);
+    total += roundedTaxAmount;
+
+    // Store the tax amount by tax_id for potential cascading
+    taxCalculations[tax.tax_id] = {
+      amount: total,
+      taxAmount: roundedTaxAmount
+    };
+  });
+
+  // Final validation - if total is NaN, fallback to baseAmount
+  if (isNaN(total) || !isFinite(total)) {
+    console.error('Total became NaN for booking:', booking.booking_id);
+    return Math.ceil(baseAmount);
+  }
+
+  return Math.ceil(total);
+};
+
 // Function to sort data
 export function getSorting(order, orderBy) {
   return order === 'desc'

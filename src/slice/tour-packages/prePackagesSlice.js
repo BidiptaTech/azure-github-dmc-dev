@@ -322,6 +322,11 @@ const prePackagesSlice = createSlice({
       state.error = null;
       state.searchParams = null;
     },
+    clearPackages: (state) => {
+      // Clear packages array and error, but keep searchParams
+      state.packages = [];
+      state.error = null;
+    },
     resetPackageDetails: (state) => {
       state.packageDetails = null;
       state.errorDetails = null;
@@ -478,7 +483,7 @@ const prePackagesSlice = createSlice({
           state.bookingLists = state.bookingLists.map(booking => {
             if ((booking.booking_id && booking.booking_id === action.payload.booking_id) || 
                 (booking.id && booking.id === action.payload.booking_id)) {
-              return { ...booking, status: 7 };
+              return { ...booking, status: 4 };
             }
             return booking;
           });
@@ -561,6 +566,7 @@ const prePackagesSlice = createSlice({
 export const { 
   setSearchParams, 
   resetPackages, 
+  clearPackages,
   resetPackageDetails, 
   resetBookingStatus, 
   resetBookingLists,

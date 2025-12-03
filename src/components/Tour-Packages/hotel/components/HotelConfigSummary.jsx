@@ -1172,7 +1172,18 @@ const HotelConfigSummary = ({
                        variant="outlined"
                        size="small"
                        startIcon={<AddIcon />}
-                       onClick={() => onAddMoreRooms && onAddMoreRooms()}
+                       disabled={isUnconfigured || !configurations[0]?.hotelId}
+                       onClick={() => {
+                         // Get the hotelId from the first configuration in this hotel group
+                         const targetHotelId = configurations.length > 0 && configurations[0].hotelId 
+                           ? configurations[0].hotelId 
+                           : null;
+                         if (targetHotelId && onAddMoreRooms) {
+                           onAddMoreRooms(targetHotelId);
+                         } else if (onAddMoreRooms) {
+                           onAddMoreRooms();
+                         }
+                       }}
                        sx={{ textTransform: 'none', fontSize: '0.7rem', py: 0.6 }}
                      >
                        Add More Rooms to This Hotel
