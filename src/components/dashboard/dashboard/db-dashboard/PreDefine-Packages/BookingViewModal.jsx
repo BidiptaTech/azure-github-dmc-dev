@@ -51,6 +51,7 @@ import {
 } from '@mui/icons-material';
 import { StatusChip, PaymentStatusChip } from './StatusChips';
 import PDFGenerator, { PDFPrintButton, usePDFGenerator } from './PDFGenerator';
+import { calculateTotalWithTaxes } from './utils';
 
 // Slide transition for modal
 const Transition = React.forwardRef(function Transition(props, ref) {
@@ -883,9 +884,56 @@ const BookingViewModal = ({ open, onClose, bookingData }) => {
                       <AttachMoney sx={{ color: 'success.main', mt: 0.25, mr: 1.5, fontSize: '1.3rem' }} />
                       <Box>
                         <Typography variant="caption" color="text.secondary" sx={{ display: 'block' }}>Payment Amount</Typography>
-                        <Typography variant="body1" fontWeight={500}>
-                          SGD {bookingDetails?.total_price || bookingData.payment}
+                        
+                        {/* Base Amount */}
+                        <Typography variant="body2" fontWeight={400} color="text.secondary" sx={{ mb: 0.5 }}>
+                          SGD {bookingData.payment || bookingData.total_amount}
                         </Typography>
+                        
+                        {/* Total with Taxes - Green highlighted */}
+                        {bookingData.taxes && (Array.isArray(bookingData.taxes) ? bookingData.taxes.length > 0 : bookingData.taxes) && (
+                          <Box sx={{ 
+                            display: 'inline-flex', 
+                            alignItems: 'baseline',
+                            padding: '4px 8px',
+                            backgroundColor: 'rgba(76, 175, 80, 0.1)',
+                            borderRadius: '6px',
+                            mt: 0.5
+                          }}>
+                            <Typography variant="body1" sx={{ 
+                              fontWeight: 600, 
+                              color: 'success.main', 
+                              mr: 0.5
+                            }}>
+                              SGD {calculateTotalWithTaxes(bookingData)}
+                            </Typography>
+                            <Typography variant="caption" sx={{ 
+                              color: 'success.main',
+                              fontStyle: 'italic'
+                            }}>
+                              (incl. tax)
+                            </Typography>
+                          </Box>
+                        )}
+                        
+                        {/* If no taxes, show single amount */}
+                        {(!bookingData.taxes || (Array.isArray(bookingData.taxes) && bookingData.taxes.length === 0)) && (
+                          <Box sx={{ 
+                            display: 'inline-flex', 
+                            alignItems: 'baseline',
+                            padding: '4px 8px',
+                            backgroundColor: 'rgba(76, 175, 80, 0.1)',
+                            borderRadius: '6px',
+                            mt: 0.5
+                          }}>
+                            <Typography variant="body1" sx={{ 
+                              fontWeight: 600, 
+                              color: 'success.main'
+                            }}>
+                              SGD {bookingData.payment || bookingData.total_amount}
+                            </Typography>
+                          </Box>
+                        )}
                       </Box>
                     </Box>
                   </Grid>
@@ -975,7 +1023,7 @@ const BookingViewModal = ({ open, onClose, bookingData }) => {
                     </Box>
                   </Grid>
                   
-                  <Grid item xs={6} sx={{ mt: 1 }}>
+                  {/* <Grid item xs={6} sx={{ mt: 1 }}>
                     <Box sx={{ 
                       p: 1.5, 
                       bgcolor: 'grey.50', 
@@ -985,7 +1033,7 @@ const BookingViewModal = ({ open, onClose, bookingData }) => {
                       <Typography variant="body2" color="text.secondary" gutterBottom>Payment Status</Typography>
                       <PaymentStatusChip status={bookingData.paymentStatus} />
                     </Box>
-                  </Grid>
+                  </Grid> */}
                 </Grid>
               </Grid>
             </Grid>

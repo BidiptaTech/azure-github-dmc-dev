@@ -1,5 +1,6 @@
 import React, { useEffect } from 'react';
 import { useSelector } from 'react-redux';
+import { calculateTotalWithTaxes } from './utils';
 
 // PDF Generator Component - Store booking data globally for PDF access
 let globalBookingData = null;
@@ -194,6 +195,64 @@ const extractServiceTime = (service) => {
   }
 };
 
+// Helper function to get status details for PDF display
+const getStatusDetails = (status) => {
+  const statusNum = typeof status === 'string' ? parseInt(status, 10) : status;
+  
+  let color = '#9e9e9e'; // default gray
+  let bgColor = '#f5f5f5'; // default light gray
+  let displayText = 'Pending';
+  
+  switch (statusNum) {
+    case 1: // Confirm
+      color = '#2e7d32'; // success green
+      bgColor = '#e8f5e9';
+      displayText = 'Confirm';
+      break;
+    case 2: // Definite
+      color = '#0288d1'; // info blue
+      bgColor = '#e3f2fd';
+      displayText = 'Definite';
+      break;
+    case 3: // Actual
+      color = '#1976d2'; // primary blue
+      bgColor = '#e3f2fd';
+      displayText = 'Actual';
+      break;
+    case 4: // Cancelled
+      color = '#d32f2f'; // error red
+      bgColor = '#ffebee';
+      displayText = 'Cancelled';
+      break;
+    case 5: // Refund-pending
+      color = '#ed6c02'; // warning orange
+      bgColor = '#fff3e0';
+      displayText = 'Refund-pending';
+      break;
+    case 6: // Refunded
+      color = '#9e9e9e'; // gray
+      bgColor = '#f5f5f5';
+      displayText = 'Refunded';
+      break;
+    case 7: // Cancel-confirm
+      color = '#d32f2f'; // error red
+      bgColor = '#ffebee';
+      displayText = 'Cancel-confirm';
+      break;
+    case 8: // Completed
+      color = '#2e7d32'; // success green
+      bgColor = '#e8f5e9';
+      displayText = 'Completed';
+      break;
+    default:
+      color = '#9e9e9e';
+      bgColor = '#f5f5f5';
+      displayText = 'Pending';
+  }
+  
+  return { color, bgColor, displayText };
+};
+
 // Extract booking data using the actual booking data from props
 const extractBookingData = () => {
   if (!globalBookingData) {
@@ -215,10 +274,14 @@ const extractBookingData = () => {
   const startDate = bookingData.startDate || 'N/A';
   const endDate = bookingData.endDate || 'N/A';
   
-  // Extract payment amount
-  const paymentAmount = bookingDetails?.total_price ? 
-    `SGD ${bookingDetails.total_price}` : 
-    (bookingData.payment ? `SGD ${bookingData.payment}` : 'N/A');
+  // Extract payment amount - base and with taxes
+  const baseAmount = bookingData.payment || bookingData.total_amount || 'N/A';
+  const totalWithTaxes = (bookingData.taxes && (Array.isArray(bookingData.taxes) ? bookingData.taxes.length > 0 : bookingData.taxes)) 
+    ? calculateTotalWithTaxes(bookingData) 
+    : null;
+  
+  const paymentAmount = baseAmount !== 'N/A' ? `SGD ${baseAmount}` : 'N/A';
+  const paymentAmountWithTaxes = totalWithTaxes ? `SGD ${totalWithTaxes}` : null;
 
   // Extract guest information
   let guests = 'N/A';
@@ -236,6 +299,10 @@ const extractBookingData = () => {
   } else if (bookingData.pax) {
     guests = `${bookingData.pax} person(s)`;
   }
+
+  // Extract status information
+  const status = bookingData.status || 0;
+  const statusDetails = getStatusDetails(status);
 
   // Extract Agent information from global state (stored from Redux)
   const agentInfo = {
@@ -334,7 +401,9 @@ const extractBookingData = () => {
     startDate,
     endDate,
     paymentAmount,
+    paymentAmountWithTaxes,
     guests,
+    status: statusDetails,
     agentInfo,
     itinerary
   };
@@ -619,15 +688,24 @@ const createCustomPDFHTML = (bookingData) => {
         <div style="max-width: 600px; margin: 0 auto;">
           <h2 style="margin: 0 0 24px 0; font-size: 20px; font-weight: 600; color: white; text-align: center;">Booking Details</h2>
           
-          <div style="background: white;height: 200px; border-radius: 12px; padding: 24px; box-shadow: 0 4px 6px rgba(0,0,0,0.1);">
-            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 24px;">
-              <div style="text-align: center; padding: 16px; border-right: 1px solid #e2e8f0;">
-                <div style="color: #64748b; font-size: 12px; text-transform: uppercase; font-weight: 600; margin-bottom: 8px; letter-spacing: 1px;">Customer Name</div>
-                <div style="color: #1a202c; font-size: 16px; font-weight: 600;">${bookingData.customerName}</div>
+          <div style="background: white; border-radius: 12px; padding: 20px 24px; box-shadow: 0 4px 6px rgba(0,0,0,0.1); overflow: hidden;">
+            <div style="display: flex; justify-content: space-between; align-items: flex-start; gap: 20px; flex-wrap: wrap;">
+              <div style="flex: 1; min-width: 200px; text-align: center; padding: 12px;">
+                <div style="color: #64748b; font-size: 11px; text-transform: uppercase; font-weight: 600; margin-bottom: 6px; letter-spacing: 1px;">Customer Name</div>
+                <div style="color: #1a202c; font-size: 15px; font-weight: 600;">${bookingData.customerName}</div>
               </div>
-              <div style="text-align: center; padding: 16px;">
-                <div style="color: #64748b; font-size: 12px; text-transform: uppercase; font-weight: 600; margin-bottom: 8px; letter-spacing: 1px;">Total Amount</div>
-                <div style="color: #059669; font-size: 16px; font-weight: 700;position: relative; top: -5px;">${bookingData.paymentAmount}</div>
+              <div style="flex: 1; min-width: 200px; text-align: center; padding: 12px; border-left: 1px solid #e2e8f0; border-right: 1px solid #e2e8f0;">
+                <div style="color: #64748b; font-size: 11px; text-transform: uppercase; font-weight: 600; margin-bottom: 6px; letter-spacing: 1px;">Total Amount</div>
+                <div style="font-size: 15px; font-weight: 600; white-space: nowrap;">
+                  <span style="color: #059669;">${bookingData.paymentAmountWithTaxes || bookingData.paymentAmount}</span>
+                  ${bookingData.paymentAmountWithTaxes ? `<span style="color: #059669; font-size: 14px; font-style: italic; font-weight: 500; margin-left: 5px;">(incl. tax)</span>` : ''}
+                </div>
+              </div>
+              <div style="flex: 1; min-width: 150px; text-align: center; padding: 12px;">
+                <div style="color: #64748b; font-size: 11px; text-transform: uppercase; font-weight: 600; margin-bottom: 6px; letter-spacing: 1px;">Status</div>
+                <div style="display: inline-block; padding: 5px 14px; border-radius: 14px; background: ${bookingData.status.bgColor}; color: ${bookingData.status.color}; font-size: 13px; font-weight: 600;">
+                  ${bookingData.status.displayText}
+                </div>
               </div>
             </div>
           </div>
