@@ -510,9 +510,8 @@ export default function HotelComponent({ searchParams }) {
   };
 
   // Handler for adding more rooms to the same hotel - Enhanced with validation
-  const handleAddMoreRooms = () => {
-    console.log("Add more rooms clicked for hotel:", hotelConfigurations[activeHotelIndex]?.hotelDetails?.hotel_name);
-    
+  // hotelId: optional - if provided, add room to that specific hotel; otherwise use activeHotelIndex
+  const handleAddMoreRooms = (hotelId = null) => {
     // Check if there are any incomplete hotels (without hotelId)
     const incompleteHotels = hotelConfigurations.filter(config => !config.hotelId);
     
@@ -538,21 +537,46 @@ export default function HotelComponent({ searchParams }) {
       return;
     }
     
-    if (!hotelConfigurations[activeHotelIndex]?.hotelId) {
-      console.warn("Cannot add room: No hotel selected for current configuration");
-      setAlert({
-        show: true,
-        message: 'Please select a hotel for the current room first',
-        severity: 'warning'
-      });
-      
-      setTimeout(() => {
-        setAlert(prev => ({ ...prev, show: false }));
-      }, 3000);
-      return;
-    }
+    // Find the configuration to use as base
+    let currentConfig;
+    let configIndex;
     
-    const currentConfig = hotelConfigurations[activeHotelIndex];
+    if (hotelId) {
+      // If hotelId is provided, find the first configuration with that hotelId
+      configIndex = hotelConfigurations.findIndex(config => config.hotelId === hotelId);
+      if (configIndex === -1) {
+        console.warn("Cannot add room: Hotel ID not found in configurations");
+        setAlert({
+          show: true,
+          message: 'Hotel not found. Please try again.',
+          severity: 'error'
+        });
+        setTimeout(() => {
+          setAlert(prev => ({ ...prev, show: false }));
+        }, 3000);
+        return;
+      }
+      currentConfig = hotelConfigurations[configIndex];
+      console.log("Add more rooms clicked for specific hotel:", currentConfig.hotelDetails?.hotel_name);
+    } else {
+      // Use activeHotelIndex (for global "Add More Rooms" button)
+      if (!hotelConfigurations[activeHotelIndex]?.hotelId) {
+        console.warn("Cannot add room: No hotel selected for current configuration");
+        setAlert({
+          show: true,
+          message: 'Please select a hotel for the current room first',
+          severity: 'warning'
+        });
+        
+        setTimeout(() => {
+          setAlert(prev => ({ ...prev, show: false }));
+        }, 3000);
+        return;
+      }
+      currentConfig = hotelConfigurations[activeHotelIndex];
+      configIndex = activeHotelIndex;
+      console.log("Add more rooms clicked for active hotel:", currentConfig.hotelDetails?.hotel_name);
+    }
     
     // Create a new room configuration for the same hotel
     const newRoomConfig = {
