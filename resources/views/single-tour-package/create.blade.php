@@ -8807,6 +8807,22 @@ document.addEventListener('DOMContentLoaded', function() {
 
          // Add Hotel Function
     window.addHotel = function() {
+         // Check if travel dates are set
+         if (!tourStartDate) {
+             alert('Please add travel dates first before adding hotels.');
+             return;
+         }
+         
+         // Check if guests (pax) are added
+         const adults = parseInt(document.getElementById('adults').value) || 0;
+         const children = parseInt(document.getElementById('children').value) || 0;
+         const totalGuests = adults + children;
+         
+         if (totalGuests === 0) {
+             alert('Please add guests (PAX) first before adding hotels.');
+             return;
+         }
+         
          const hotelSelect = document.getElementById('hotelSelect');
          const roomType = document.getElementById('roomTypeSelect').value;
          const bedType = document.getElementById('bedTypeSelect').value;
