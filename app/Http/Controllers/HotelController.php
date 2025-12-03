@@ -1896,6 +1896,7 @@ class HotelController extends Controller
         $updateResult = $room->update([
             'room_type' => $request->room_type,
             'no_of_room' => $request->total_no_of_room,
+            'varient_price' => $request->varient_price ?? 0,
             'weekday_price' => $finalWeekdayPrice,
             'weekend_price' => $finalWeekendPrice,
             'dimension' => $request->dimension,
