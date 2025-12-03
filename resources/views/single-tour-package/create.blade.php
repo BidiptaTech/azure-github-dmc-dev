@@ -7555,7 +7555,7 @@ document.addEventListener('DOMContentLoaded', function() {
     };
     
     // Update hotel dependent dropdowns by fetching rooms
-    function updateHotelDependentDropdowns(hotelId) {
+    window.updateHotelDependentDropdowns = function(hotelId) {
         const roomTypeSelect = document.getElementById('roomTypeSelect');
         const bedTypeSelect = document.getElementById('bedTypeSelect');
         const mealPlanSelect = document.getElementById('mealPlanSelect');
@@ -7938,10 +7938,10 @@ document.addEventListener('DOMContentLoaded', function() {
         
         // Display hotel information
         displayHotelInfo(selectedHotel);
-    }
+    };
     
     // Display hotel information
-    function displayHotelInfo(hotel) {
+    window.displayHotelInfo = function(hotel) {
         const hotelLoadingStatus = document.getElementById('hotelLoadingStatus');
         
         if (hotelLoadingStatus && hotel) {
@@ -7972,10 +7972,10 @@ document.addEventListener('DOMContentLoaded', function() {
                 hotelLoadingStatus.innerHTML = infoHTML;
             }
         }
-    }
+    };
     
     // Update bed types for selected room type
-    function updateBedTypesForRoom(roomType) {
+    window.updateBedTypesForRoom = function(roomType) {
         const bedTypeSelect = document.getElementById('bedTypeSelect');
         const roomTypeSelect = document.getElementById('roomTypeSelect');
         
@@ -8129,10 +8129,10 @@ document.addEventListener('DOMContentLoaded', function() {
                     window.reinitializeSelect2('bedTypeSelect', 'Error loading bed types');
                 }
             });
-    }
+    };
 
     // Update pricing when bed type is selected
-    function updatePricingForBed(bedTypeValue) {
+    window.updatePricingForBed = function(bedTypeValue) {
         console.log('updatePricingForBed called with:', bedTypeValue);
         const bedTypeSelect = document.getElementById('bedTypeSelect');
         const selectedOption = bedTypeSelect.options[bedTypeSelect.selectedIndex];
