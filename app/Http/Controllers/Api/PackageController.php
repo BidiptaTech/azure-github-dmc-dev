@@ -985,7 +985,11 @@ class PackageController extends Controller
                     'tour_id' => $tourId,
                     'data' => $data,
                     'type' => $type,
-                    'bookingType' => $data[0]['bookingType'] ?? 'enquiry',
+                    'bookingType'  => in_array($tour->tour_status, [
+                        'New Enquiry',
+                        'Tentative',
+                        'Prospect'
+                    ]) ? 'enquiry' : 'booking',
                     'status' => 1,
                 ]);
             }
@@ -994,9 +998,14 @@ class PackageController extends Controller
         // Delete orders that are no longer in the incoming data
         $bookingIdsToDelete = array_diff($existingBookingIds, $processedBookingIds);
         if (!empty($bookingIdsToDelete)) {
-            Order::where('tour_id', $tourId)
+            if($tour->tour_status !== "New Enquiry" && $tour->tour_status !== "Prospect" && $tour->tour_status !== "Tentative"){
+                Order::where('tour_id', $tourId)
                 ->whereIn('booking_id', $bookingIdsToDelete)
                 ->delete();
+                $enquiry = Enquiry::where('tour_id', $tourId)
+                ->delete();
+                
+            }
         }
         
         return response()->json([
