@@ -2633,7 +2633,7 @@ class TourController extends Controller
                 
                 if ($enquiry) {
                     // Mark previous enquiry as inactive if it exists
-                    if ($currentEnquiry && $currentEnquiry->id !== $enquiry->id) {
+                    if ($currentEnquiry && $currentEnquiry->enquiry_id !== $enquiry->enquiry_id) {
                         $currentEnquiry->update(['status' => 0]);
                     }
                     

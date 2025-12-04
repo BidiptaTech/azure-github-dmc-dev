@@ -391,6 +391,8 @@
                     </div>
                 </div>
             </div>
+        </form>
+        <!-- End of main tour information form -->
 
             <!-- Service Action Buttons -->
 
@@ -2204,6 +2206,11 @@
                                             $seniorCount = $payload['seniorCount'] ?? 0;
                                             $totalPrice = $payload['totalPrice'] ?? 0;
                                             $attractionNotes = $payload['notes'] ?? '';
+                                            // Additional pax details
+                                            $maleCount = $order->male_count ?? 0;
+                                            $femaleCount = $order->female_count ?? 0;
+                                            $infantsCount = $order->infants ?? 0;
+                                            $totalPax = $adultCount + $childCount;
                                         @endphp
                                         <form class="service-item mb-3 p-3 border rounded shadow-sm bg-white attraction-edit-form" data-update-url="{{ route('edit-tour.update-attraction', $order->booking_id) }}" onsubmit="updateExistingAttraction(event, {{ $order->booking_id }})">
                                             @csrf
@@ -2376,6 +2383,7 @@
                                                     </select>
                                                     <small class="text-muted">Available time slots from database</small>
                                                 </div>
+                                                
                                                 <div class="col-md-4">
                                                     <label class="form-label fw-semibold text-muted mb-1"><i class="ri-user-line me-1 text-secondary"></i>Adults</label>
                                                     <input type="number" class="form-control border-2" name="adult_count" min="0" value="{{ $adultCount }}" required>
@@ -2387,6 +2395,12 @@
                                                 <div class="col-md-4">
                                                     <label class="form-label fw-semibold text-muted mb-1"><i class="ri-user-heart-line me-1 text-secondary"></i>Seniors</label>
                                                     <input type="number" class="form-control border-2" name="senior_count" min="0" value="{{ $seniorCount }}" required>
+                                                </div>
+                                                
+                                                <!-- Additional Pax Details -->
+                                                <div class="col-md-4">
+                                                    <label class="form-label fw-semibold text-muted mb-1"><i class="ri-user-heart-line me-1 text-warning"></i>Infants</label>
+                                                    <input type="number" class="form-control border-2" name="infants" min="0" value="{{ $infantsCount }}">
                                                 </div>
                                             </div>
                                             <div class="d-flex justify-content-end align-items-center gap-3 mt-3">
@@ -2755,7 +2769,6 @@
                     </div>
                 </div>
             </div>
-        </form>
     </div>
 </div>
 
@@ -2982,9 +2995,8 @@
                         <!-- Number of Persons -->
                         <div class="col-md-3">
                             <label class="form-label fw-semibold">Number of Persons</label>
-                            <select class="form-select" id="person_count_select" name="person_count" onchange="selectPersonCount(this.value); updateHotelModalPrice();">
-                                <option value="1">1 Person</option>
-                                <option value="2">2 Persons</option>
+                            <select class="form-select" id="person_count_select" name="person_count" data-no-select2="true" onchange="selectPersonCount(this.value); updateHotelModalPrice();">
+                                <!-- Options will be generated dynamically based on room max_occupancy -->
                             </select>
                             <small class="text-muted">Max Occupancy: 2</small>
                         </div>
@@ -3238,7 +3250,7 @@
             </div>
             <div class="modal-footer">
                 <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
-                <button type="button" class="btn btn-secondary" id="confirm_restaurant_btn" disabled title="Please complete all required fields">
+                <button type="button" class="btn btn-success" id="confirm_restaurant_btn">
                     <i class="ri-check-line me-1"></i>Confirm Restaurant Selection
                 </button>
             </div>
@@ -3514,24 +3526,26 @@
                         </div>
 
                         <!-- Guest Selector -->
-                        <div class="col-md-6">
+                        <div class="col-12">
                             <label class="form-label fw-semibold">Select Guests</label>
                             <div class="guest-selector">
-                                <div class="guest-display p-2 border rounded bg-light">
+                                <div class="guest-display p-3 border rounded bg-light shadow-sm">
                                     <div class="d-flex align-items-center justify-content-between">
-                                        <div class="guest-info">
-                                            <span id="modal_attraction_guest_summary" class="text-muted small">
-                                                1 adults (1 male, 0 female), 0 children -0 infants
-                                            </span>
+                                        <div class="flex-grow-1">
+                                            <div class="mb-2">
+                                                <span id="modal_attraction_guest_summary" class="text-dark">
+                                                    1 pax (1 adults, 0 children) - 1 male, 0 female - 0 infants
+                                                </span>
+                                            </div>
+                                            <div class="d-flex gap-2">
+                                                <span class="badge bg-primary" id="modal_badge_adults">1</span>
+                                                <span class="badge bg-success" id="modal_badge_children">0</span>
+                                                <span class="badge bg-warning text-dark" id="modal_badge_infants">0</span>
+                                            </div>
                                         </div>
                                         <button type="button" class="btn btn-sm btn-outline-primary" onclick="openAttractionGuestSelector()">
                                             <i class="ri-edit-line"></i>
                                         </button>
-                                    </div>
-                                    <div class="guest-badges mt-1">
-                                        <span class="badge bg-primary">1</span>
-                                        <span class="badge bg-success">0</span>
-                                        <span class="badge bg-warning text-dark">0</span>
                                     </div>
                                 </div>
                             </div>
@@ -4812,6 +4826,11 @@
         $container.find('select.form-select, select.form-control').each(function() {
             const $select = $(this);
             
+            // Skip if data-no-select2 attribute is present
+            if ($select.attr('data-no-select2') === 'true') {
+                return;
+            }
+            
             // Skip if already initialized with Select2
             if ($select.data('select2')) {
                 return;
@@ -4869,7 +4888,7 @@
                 if (mutation.addedNodes.length) {
                     $(mutation.addedNodes).find('select.form-select, select.form-control').each(function() {
                         const $select = $(this);
-                        if (!$select.data('select2') && !$select.attr('data-select2-initialized')) {
+                        if (!$select.data('select2') && !$select.attr('data-select2-initialized') && $select.attr('data-no-select2') !== 'true') {
                             setTimeout(function() {
                                 initializeAllSelect2($select.parent());
                             }, 50);
@@ -4909,7 +4928,7 @@
     
     // Watch for selects that become enabled (check periodically)
     setInterval(function() {
-        $('select.form-select:not([data-select2-initialized]):not(:disabled), select.form-control:not([data-select2-initialized]):not(:disabled)').each(function() {
+        $('select.form-select:not([data-select2-initialized]):not(:disabled):not([data-no-select2]), select.form-control:not([data-select2-initialized]):not(:disabled):not([data-no-select2])').each(function() {
             const $select = $(this);
             if (!$select.data('select2')) {
                 initializeAllSelect2($select.parent());
@@ -5436,6 +5455,49 @@
     }
     
     function initializeAttractionModal() {
+        // Check if already initialized to prevent duplicate event listeners
+        if (window.attractionModalInitialized) {
+            // Just update the guest data
+            const adults = parseInt(document.getElementById('adults')?.value) || 1;
+            const children = parseInt(document.getElementById('children')?.value) || 0;
+            const infants = parseInt(document.getElementById('infants')?.value) || 0;
+            const maleCount = parseInt(document.getElementById('male_count')?.value) || 1;
+            const femaleCount = parseInt(document.getElementById('female_count')?.value) || 0;
+            const pax = adults + children;
+            
+            window.attractionModalGuestData = {
+                pax: pax.toString(),
+                adults: adults.toString(),
+                children: children.toString(),
+                infants: infants.toString(),
+                male_count: maleCount.toString(),
+                female_count: femaleCount.toString(),
+                child_ages: (function() {
+                    const hiddenField = document.getElementById('child_ages');
+                    if (hiddenField && hiddenField.value) {
+                        return hiddenField.value;
+                    }
+                    const children = parseInt(document.getElementById('children')?.value) || 0;
+                    const childAgeValues = [];
+                    for (let i = 1; i <= children; i++) {
+                        const ageSelect = document.getElementById(`tour_child_age_${i}`);
+                        if (ageSelect && ageSelect.value) {
+                            childAgeValues.push(ageSelect.value);
+                        }
+                    }
+                    return childAgeValues.join(',');
+                })()
+            };
+            
+            // Update the modal display with current guest data
+            updateModalGuestDisplay();
+            validateAttractionForm();
+            return;
+        }
+        
+        // Mark as initialized
+        window.attractionModalInitialized = true;
+        
         // Add event listeners only for elements that exist
         const citySelect = document.getElementById('modal_attraction_city_select');
         const attractionSelect = document.getElementById('modal_attraction_select');
@@ -5543,6 +5605,9 @@
                 return childAgeValues.join(',');
             })()
         };
+        
+        // Update the modal display with initial guest data
+        updateModalGuestDisplay();
     }
     
     function loadAttractionsForCity(city, country) {
@@ -5817,6 +5882,9 @@
             }
         });
         
+        // Update the summary display with current values
+        updateAttractionGuestSummary();
+        
         const modal = new bootstrap.Modal(document.getElementById('attractionGuestSelectorModal'));
         modal.show();
     }
@@ -5889,6 +5957,42 @@
         }
     }
 
+    function updateModalGuestDisplay() {
+        // Update the main modal guest display using data from window.attractionModalGuestData
+        const guestData = window.attractionModalGuestData || {
+            pax: '1',
+            adults: '1',
+            children: '0',
+            infants: '0',
+            male_count: '1',
+            female_count: '0'
+        };
+        
+        const pax = parseInt(guestData.pax);
+        const adults = parseInt(guestData.adults);
+        const children = parseInt(guestData.children);
+        const infants = parseInt(guestData.infants);
+        const maleCount = parseInt(guestData.male_count);
+        const femaleCount = parseInt(guestData.female_count);
+        
+        const summary = `${pax} pax (${adults} adults, ${children} children) - ${maleCount} male, ${femaleCount} female - ${infants} infants`;
+        
+        // Update summary
+        const summaryElement = document.getElementById('modal_attraction_guest_summary');
+        if (summaryElement) {
+            summaryElement.textContent = summary;
+        }
+
+        // Update badges
+        const adultBadge = document.getElementById('modal_badge_adults');
+        const childBadge = document.getElementById('modal_badge_children');
+        const infantBadge = document.getElementById('modal_badge_infants');
+        
+        if (adultBadge) adultBadge.textContent = adults;
+        if (childBadge) childBadge.textContent = children;
+        if (infantBadge) infantBadge.textContent = infants;
+    }
+    
     function updateAttractionGuestSummary() {
         const pax = parseInt(document.getElementById('attraction_modal_pax').value);
         const children = parseInt(document.getElementById('attraction_modal_children').value);
@@ -5897,7 +6001,7 @@
         const femaleCount = parseInt(document.getElementById('attraction_modal_female_count').value);
         const adults = pax - children; // Calculate adults as pax - children
 
-        const summary = `${pax} pax (${adults} adults, ${children} children) - ${maleCount} male, ${femaleCount} female -${infants} infants`;
+        const summary = `${pax} pax (${adults} adults, ${children} children) - ${maleCount} male, ${femaleCount} female - ${infants} infants`;
         
         // Update summary if element exists
         const summaryElement = document.getElementById('modal_attraction_guest_summary');
@@ -5905,13 +6009,14 @@
             summaryElement.textContent = summary;
         }
 
-        // Update badges
-        const badges = document.querySelectorAll('#attractionSelectionModal .guest-badges .badge');
-        if (badges.length >= 3) {
-            badges[0].textContent = adults;
-            badges[1].textContent = children;
-            badges[2].textContent = infants;
-        }
+        // Update badges with IDs
+        const adultBadge = document.getElementById('modal_badge_adults');
+        const childBadge = document.getElementById('modal_badge_children');
+        const infantBadge = document.getElementById('modal_badge_infants');
+        
+        if (adultBadge) adultBadge.textContent = adults;
+        if (childBadge) childBadge.textContent = children;
+        if (infantBadge) infantBadge.textContent = infants;
 
         // Enable/disable child ages field
         const childAgesField = document.getElementById('attraction_modal_child_ages');
@@ -8851,6 +8956,25 @@
         const timeSlot = formData.get('time_slot');
         const ticketId = formData.get('modal_attraction_ticket');
         const visitDate = formData.get('visit_date');
+        
+        // Validate required fields before submission
+        if (!attractionId) {
+            showNotification('Please select an attraction', 'error');
+            return;
+        }
+        if (!timeSlot) {
+            showNotification('Please select a time slot', 'error');
+            return;
+        }
+        if (!ticketId) {
+            showNotification('Please select a ticket', 'error');
+            return;
+        }
+        if (!visitDate) {
+            showNotification('Please select a visit date', 'error');
+            return;
+        }
+        
         const customer_info = getCustomerInfo();
         console.log('Customer info:', customer_info);
         const agentId = document.getElementById('agent_id').value;
@@ -9106,6 +9230,9 @@
     // Hotel Modal Functions
     function initializeHotelModal() {
         // Note: Hotels will be loaded via addHotelService function
+        
+        // Initialize person selector with default max occupancy
+        generatePersonSelector(2, false);
         
         // Add event listeners with null checks
         const checkInDate = document.getElementById('check_in_date');
@@ -9822,6 +9949,9 @@
             proceedBtn.classList.remove('btn-success');
             proceedBtn.classList.add('btn-secondary');
         }
+        
+        // Reset person selector to default (max occupancy 2, no extra bed)
+        generatePersonSelector(2, false);
         
         // Clear stored data
         window.roomData = null;
@@ -10901,6 +11031,48 @@
     }
     
     function initializeRestaurantModal() {
+        // Check if already initialized to prevent duplicate event listeners
+        if (window.restaurantModalInitialized) {
+            // Just update the guest data and summary
+            const adults = parseInt(document.getElementById('adults')?.value) || 1;
+            const children = parseInt(document.getElementById('children')?.value) || 0;
+            const infants = parseInt(document.getElementById('infants')?.value) || 0;
+            const maleCount = parseInt(document.getElementById('male_count')?.value) || 1;
+            const femaleCount = parseInt(document.getElementById('female_count')?.value) || 0;
+            const pax = adults + children;
+            
+            window.modalGuestData = {
+                pax: pax.toString(),
+                adults: adults.toString(),
+                children: children.toString(),
+                infants: infants.toString(),
+                male_count: maleCount.toString(),
+                female_count: femaleCount.toString(),
+                child_ages: (function() {
+                    const hiddenField = document.getElementById('child_ages');
+                    if (hiddenField && hiddenField.value) {
+                        return hiddenField.value;
+                    }
+                    const children = parseInt(document.getElementById('children')?.value) || 0;
+                    const childAgeValues = [];
+                    for (let i = 1; i <= children; i++) {
+                        const ageSelect = document.getElementById(`tour_child_age_${i}`);
+                        if (ageSelect && ageSelect.value) {
+                            childAgeValues.push(ageSelect.value);
+                        }
+                    }
+                    return childAgeValues.join(',');
+                })()
+            };
+            
+            updateModalGuestSummaryDisplay();
+            validateRestaurantForm();
+            return;
+        }
+        
+        // Mark as initialized
+        window.restaurantModalInitialized = true;
+        
         // Add event listeners only for elements that exist
         const citySelect = document.getElementById('modal_restaurant_city_select');
         const restaurantSelect = document.getElementById('modal_restaurant_select');
@@ -11033,6 +11205,9 @@
                 return childAgeValues.join(',');
             })()
         };
+        
+        // Update the guest summary display immediately after setting the data
+        updateModalGuestSummaryDisplay();
         
         // Initial validation
         validateRestaurantForm();
@@ -11600,75 +11775,10 @@
         const diningDateSelect = document.getElementById('modal_restaurant_dining_date');
         const confirmBtn = document.getElementById('confirm_restaurant_btn');
         
-        let isValid = true;
-        let missingFields = [];
-        let fieldStatus = {};
-        
-        // Check required fields and track missing ones with detailed status
-        const cityValue = citySelect?.value || '';
-        fieldStatus.city = cityValue;
-        if (!citySelect || !cityValue || cityValue === '') {
-            isValid = false;
-            missingFields.push('City');
-        }
-        
-        const restaurantValue = restaurantSelect?.value || '';
-        fieldStatus.restaurant = restaurantValue;
-        if (!restaurantSelect || !restaurantValue || restaurantValue === '') {
-            isValid = false;
-            missingFields.push('Restaurant');
-        }
-        
-        const mealValue = mealType?.value || '';
-        fieldStatus.mealType = mealValue;
-        if (!mealType || !mealValue || mealValue === '') {
-            isValid = false;
-            missingFields.push('Meal Type');
-        }
-        
-        const dishValue = dishSelect?.value || '';
-        fieldStatus.dish = dishValue;
-        if (!dishSelect || !dishValue || dishValue === '') {
-            isValid = false;
-            missingFields.push('Dish');
-        }
-        
-        const timeSlotValue = timeSlotSelect?.value || '';
-        fieldStatus.timeSlot = timeSlotValue;
-        if (!timeSlotSelect || !timeSlotValue || timeSlotValue === '') {
-            isValid = false;
-            missingFields.push('Time Slot');
-        }
-        
-        const dateValue = diningDateSelect?.value || '';
-        fieldStatus.diningDate = dateValue;
-        if (!diningDateSelect || !dateValue || dateValue === '') {
-            isValid = false;
-            missingFields.push('Dining Date');
-        }
-        
+        // Always enable the confirm button
         if (confirmBtn) {
-            confirmBtn.disabled = !isValid;
-            
-            // Add visual feedback
-            if (isValid) {
-                confirmBtn.classList.remove('btn-secondary');
-                confirmBtn.classList.add('btn-success');
-                confirmBtn.title = 'Click to confirm your restaurant selection';
-            } else {
-                confirmBtn.classList.remove('btn-success');
-                confirmBtn.classList.add('btn-secondary');
-                confirmBtn.title = 'Please complete all fields: ' + missingFields.join(', ');
-            }
+            confirmBtn.disabled = false;
         }
-        
-        console.log('Restaurant form validation:', { 
-            isValid, 
-            missingFields, 
-            fieldStatus,
-            buttonDisabled: confirmBtn?.disabled 
-        });
-        return isValid;
     }
 
     // Tour Guest Selector Functions
@@ -12011,6 +12121,37 @@
         }
     }
 
+    function updateModalGuestSummaryDisplay() {
+        // Update guest summary display from window.modalGuestData
+        if (!window.modalGuestData) return;
+        
+        const pax = parseInt(window.modalGuestData.pax) || 1;
+        const children = parseInt(window.modalGuestData.children) || 0;
+        const infants = parseInt(window.modalGuestData.infants) || 0;
+        const maleCount = parseInt(window.modalGuestData.male_count) || 1;
+        const femaleCount = parseInt(window.modalGuestData.female_count) || 0;
+        const adults = parseInt(window.modalGuestData.adults) || (pax - children);
+
+        const summary = `${pax} pax (${adults} adults, ${children} children) - ${maleCount} male, ${femaleCount} female - ${infants} infants`;
+        
+        // Update summary if element exists
+        const summaryElement = document.getElementById('modal_restaurant_guest_summary');
+        if (summaryElement) {
+            summaryElement.textContent = summary;
+        }
+
+        // Update badges in restaurant modal
+        const badgesContainer = document.querySelector('#restaurantSelectionModal .guest-badges');
+        if (badgesContainer) {
+            const badges = badgesContainer.querySelectorAll('.badge');
+            if (badges.length >= 3) {
+                badges[0].textContent = adults;
+                badges[1].textContent = children;
+                badges[2].textContent = infants;
+            }
+        }
+    }
+
     function confirmModalGuestSelection() {
         const pax = document.getElementById('modal_pax').value;
         const children = document.getElementById('modal_children').value;
@@ -12048,6 +12189,29 @@
         const dishId = formData.get('modal_restaurant_dish');
         const timeSlot = formData.get('modal_restaurant_time_slot');
         const diningDate = formData.get('dining_date');
+        
+        // Validate required fields before submission
+        if (!restaurantId) {
+            showNotification('Please select a restaurant', 'error');
+            return;
+        }
+        if (!mealType) {
+            showNotification('Please select a meal type', 'error');
+            return;
+        }
+        if (!dishId) {
+            showNotification('Please select a dish', 'error');
+            return;
+        }
+        if (!timeSlot) {
+            showNotification('Please select a time slot', 'error');
+            return;
+        }
+        if (!diningDate) {
+            showNotification('Please select a dining date', 'error');
+            return;
+        }
+        
         const customer_info = getCustomerInfo();
         
         const agentId = document.getElementById('agent_id').value;
