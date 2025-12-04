@@ -461,7 +461,10 @@
                                 
                                 <div class="col-md-2">
                                     <label class="form-label fw-semibold">Price</label>
-                                    <input type="text" class="form-control" id="roomPriceDisplay" value="$0.00" style="background-color: #f8f9fa; font-weight: bold; color: #198754;"> 
+                                    <div class="input-group">
+                                        <span class="input-group-text" style="background-color: #f8f9fa; font-size: 0.875rem;">SGD</span>
+                                        <input type="text" class="form-control" id="roomPriceDisplay" value="0.00" style="background-color: #f8f9fa; color: #198754; font-size: 0.875rem;"> 
+                                    </div>
                                 </div>
                                 
                                 <div class="col-md-1 d-flex align-items-end">
@@ -1422,7 +1425,39 @@
                                     selectedMeals: {
                                         meal_1: {
                                             type: hotel.mealPlan || hotel.meal_plan || "",
-                                            price: parseFloat(hotel.meal_price) || 0
+                                            // Calculate total meal cost using the same logic as the display
+                                            price: (() => {
+                                                const numNights = parseInt(hotel.totalNights) || 1;
+                                                const numRooms = parseInt(hotel.numberOfRooms) || 1;
+                                                const numPersons = parseInt(hotel.selectedPersons) || 1;
+                                                
+                                                if (typeof window.calculateCorrectMealCosts === 'function') {
+                                                    return window.calculateCorrectMealCosts(
+                                                        hotel.mealPlan || hotel.meal_plan || "", 
+                                                        numNights, 
+                                                        numPersons, 
+                                                        0, 
+                                                        hotel.mealPrices, 
+                                                        numRooms
+                                                    );
+                                                }
+                                                
+                                                // Fallback calculation if function not available
+                                                let mealCost = 0;
+                                                if (hotel.mealPrices && typeof hotel.mealPrices === 'object') {
+                                                    const mealPlan = hotel.mealPlan || hotel.meal_plan || "";
+                                                    if (mealPlan.includes('breakfast') || mealPlan.includes('bf')) {
+                                                        mealCost += (parseFloat(hotel.mealPrices.breakfast_price) || 0) * numPersons * numNights * numRooms;
+                                                    }
+                                                    if (mealPlan.includes('lunch')) {
+                                                        mealCost += (parseFloat(hotel.mealPrices.lunch_price) || 0) * numPersons * numNights * numRooms;
+                                                    }
+                                                    if (mealPlan.includes('dinner')) {
+                                                        mealCost += (parseFloat(hotel.mealPrices.dinner_price) || 0) * numPersons * numNights * numRooms;
+                                                    }
+                                                }
+                                                return mealCost;
+                                            })()
                                         }
                                     }
                                 }]
@@ -5436,6 +5471,9 @@
          // Update all service guest fields to match main guest values
          updateAllServiceGuestFields(male, female, children, infants);
          
+         // Reset hotel section
+         resetHotelSection();
+         
          // Close modal
          const modal = bootstrap.Modal.getInstance(document.getElementById('mainGuestSelectorModal'));
          modal.hide();
@@ -5503,6 +5541,27 @@
         if (typeof initializeTransportServiceTypeStyling === 'function') {
             initializeTransportServiceTypeStyling();
         }
+        
+        // Initialize all service guest fields with main guest values
+        setTimeout(() => {
+            const male = parseInt(document.getElementById('male').value) || 0;
+            const female = parseInt(document.getElementById('female').value) || 0;
+            const children = parseInt(document.getElementById('children').value) || 0;
+            const infants = parseInt(document.getElementById('infants').value) || 0;
+            
+            if (typeof updateAllServiceGuestFields === 'function') {
+                updateAllServiceGuestFields(male, female, children, infants);
+                console.log('Service guest fields initialized with main guest values');
+            }
+            
+            // Initialize hotel section if bed type is already selected
+            const bedTypeSelect = document.getElementById('bedTypeSelect');
+            if (bedTypeSelect && bedTypeSelect.value && window.selectedBedInfo) {
+                if (typeof updatePersonSelector === 'function') {
+                    updatePersonSelector(window.selectedBedInfo.maxOccupancy, window.selectedBedInfo.extraBedAvailable);
+                }
+            }
+        }, 500); // Small delay to ensure all DOM elements are ready
     });
 </script>
 
@@ -5711,7 +5770,15 @@ function validateServiceSelections() {
                 
                 // Check if pickup time is selected
                 const pickupTimeInput = document.getElementById(`day${day}_guide_${index}_pickup_time`);
-                if (pickupTimeInput && !pickupTimeInput.value) {
+                const pickupTimeValue = pickupTimeInput ? pickupTimeInput.value : null;
+                
+                console.log(`Validating guide pickup time for day${day}_guide_${index}:`, {
+                    inputFound: !!pickupTimeInput,
+                    value: pickupTimeValue,
+                    isEmpty: !pickupTimeValue || pickupTimeValue.trim() === ''
+                });
+                
+                if (pickupTimeInput && (!pickupTimeValue || pickupTimeValue.trim() === '')) {
                     const guideName = select.options[select.selectedIndex].text;
                     errorMessages.push(`Day ${day}: Please select a pickup time for guide ${guideName}`);
                     isValid = false;
@@ -5724,6 +5791,8 @@ function validateServiceSelections() {
                             this.classList.remove('border', 'border-danger');
                         }, { once: true });
                     }
+                } else if (pickupTimeInput && pickupTimeValue) {
+                    console.log(`Guide pickup time validation PASSED for day${day}_guide_${index}: ${pickupTimeValue}`);
                 }
             }
         }
@@ -8254,16 +8323,16 @@ document.addEventListener('DOMContentLoaded', function() {
             return;
         }
         
-        // If no room type selected, show $0.00
+        // If no room type selected, show 0.00 (SGD is fixed prefix)
         if (!roomTypeSelect || !roomTypeSelect.value) {
-            roomPriceDisplay.value = '$0.00';
+            roomPriceDisplay.value = '0.00';
             roomPriceDisplay.dataset.manuallyEdited = 'false';
             return;
         }
         
         const selectedOption = roomTypeSelect.options[roomTypeSelect.selectedIndex];
         if (!selectedOption || !selectedOption.dataset) {
-            roomPriceDisplay.value = '$0.00';
+            roomPriceDisplay.value = '0.00';
             return;
         }
         
@@ -8311,8 +8380,8 @@ document.addEventListener('DOMContentLoaded', function() {
         // Calculate total price
         const totalPrice = pricePerRoom * numberOfRooms;
         
-        // Update display
-        roomPriceDisplay.value = '$' + totalPrice.toFixed(2);
+        // Update display (SGD is fixed prefix, only set numeric value)
+        roomPriceDisplay.value = totalPrice.toFixed(2);
         roomPriceDisplay.dataset.manuallyEdited = 'false'; // Mark as auto-calculated
     }
 
@@ -8992,7 +9061,8 @@ document.addEventListener('DOMContentLoaded', function() {
         }
 
         const customRoomPrice = document.getElementById('roomPriceDisplay').value;
-        const customRoomPriceNum = parseFloat(customRoomPrice.replace('$', ''));
+        // SGD is now a fixed prefix, value is already numeric
+        const customRoomPriceNum = parseFloat(customRoomPrice);
 
         console.log('Custom room price:', customRoomPrice);
         if((customRoomPriceNum)*(weekdayNights+weekendNights) === totalRoomPrice*numberOfRooms) {
@@ -10228,11 +10298,9 @@ document.addEventListener('DOMContentLoaded', function() {
                                              <div class="position-relative">
                                                  <select class="form-select dropoff-zone-select border-2" name="day${day}_transport_dropoff_zone_id" disabled style="padding-left: 45px; padding-right: 45px;">
                                                      <option value="">Select city and pickup location first</option>
-                                                 </select>
-                                                 <i class="ri-map-pin-fill position-absolute text-danger" style="left: 15px; top: 50%; transform: translateY(-50%); z-index: 5;"></i>
-                                                     
-                                                 </button>
-                                             </div>
+                                     </select>
+                                     <i class="ri-map-pin-fill position-absolute text-danger" style="left: 15px; top: 50%; transform: translateY(-50%); z-index: 5;"></i>
+                                 </div>
                                          </div>
                                      </div>
                                      <div class="col-md-3 local-transfer-field" style="display: none;">
@@ -12881,12 +12949,30 @@ document.addEventListener('DOMContentLoaded', function() {
             selectElement.appendChild(option);
         }
         
-        // Add change event listener
+        // Add change event listener for native select
         selectElement.addEventListener('change', function() {
             const selectedTime = this.value;
             const selectedTimeDisplay = selectedTime ? formatTo12Hour(parseInt(selectedTime.split(':')[0], 10)) : '';
+            console.log('Native change event fired for pickup time select:', selectedTime);
             selectPickupTime(day, index, selectedTime, selectedTimeDisplay);
         });
+        
+        // Add Select2 event listeners after initialization
+        setTimeout(() => {
+            if (typeof jQuery !== 'undefined' && jQuery(selectElement).data('select2')) {
+                jQuery(selectElement).on('select2:select', function(e) {
+                    const selectedTime = e.params.data.id;
+                    const selectedTimeDisplay = selectedTime ? formatTo12Hour(parseInt(selectedTime.split(':')[0], 10)) : '';
+                    console.log('Select2 select event fired for pickup time:', selectedTime);
+                    selectPickupTime(day, index, selectedTime, selectedTimeDisplay);
+                });
+                
+                jQuery(selectElement).on('select2:unselect select2:clear', function() {
+                    console.log('Select2 unselect/clear event fired for pickup time');
+                    selectPickupTime(day, index, '', '');
+                });
+            }
+        }, 100);
         
         // Add night hours info at top if night hours exist
         if (nightStart !== null && nightEnd !== null && nightEnd >= 0) {
@@ -12905,6 +12991,20 @@ document.addEventListener('DOMContentLoaded', function() {
         
         // Append the select element to the container
         timeOptionsContainer.appendChild(selectElement);
+        
+        // Initialize Select2 on the newly created select element
+        setTimeout(() => {
+            if (typeof jQuery !== 'undefined' && typeof jQuery.fn.select2 !== 'undefined') {
+                jQuery(selectElement).select2({
+                    placeholder: "Select pickup time",
+                    allowClear: true,
+                    width: '100%',
+                    dropdownParent: jQuery(timeOptionsContainer)
+                });
+                
+                console.log('Select2 initialized for guide pickup time:', selectElement.id);
+            }
+        }, 100);
     }
     
     // Check if time is in night range
@@ -12932,10 +13032,16 @@ document.addEventListener('DOMContentLoaded', function() {
     
     // Select pickup time
     function selectPickupTime(day, index, timeValue, timeDisplay) {
-        const hiddenInput = document.getElementById('day' + day + '_guide_' + index + '_pickup_time');
+        const hiddenInputId = 'day' + day + '_guide_' + index + '_pickup_time';
+        const hiddenInput = document.getElementById(hiddenInputId);
+        
+        console.log('selectPickupTime called:', { day, index, timeValue, timeDisplay, hiddenInputId, hiddenInputFound: !!hiddenInput });
         
         if (hiddenInput) {
             hiddenInput.value = timeValue;
+            console.log('Updated hidden input:', hiddenInputId, 'with value:', timeValue);
+        } else {
+            console.error('Hidden input not found:', hiddenInputId);
         }
         
         // Update package prices based on selected time
@@ -12953,13 +13059,14 @@ document.addEventListener('DOMContentLoaded', function() {
             return;
         }
         
-        // Close dropdown when clicking outside
-        document.addEventListener('click', function(e) {
-            if (!button.contains(e.target) && !dropdown.contains(e.target)) {
-                dropdown.classList.remove('show');
-                button.setAttribute('aria-expanded', 'false');
-            }
-        });
+        // Initialize Select2 on the element if jQuery and Select2 are available
+        if (typeof jQuery !== 'undefined' && typeof jQuery.fn.select2 !== 'undefined') {
+            jQuery(selectElement).select2({
+                placeholder: "Select pickup time",
+                allowClear: true,
+                width: '100%'
+            });
+        }
     }
      
     window.addGuideService = function(day) {
@@ -13225,12 +13332,12 @@ document.addEventListener('DOMContentLoaded', function() {
                                  <label class="form-label fw-semibold text-muted mb-2">
                                      <i class="ri-map-pin-line text-success me-2"></i>Pick Up Location
                                  </label>
-                                 <div class="position-relative">
-                                     <select class="form-select pickup-zone-select border-2" name="day${day}_transport_${newIndex}_pickup_zone_id" style="padding-left: 45px;">
-                                         <option value="">Select pickup location</option>
-                                     </select>
-                                     <i class="ri-map-pin-fill position-absolute text-success" style="left: 15px; top: 50%; transform: translateY(-50%); z-index: 5;"></i>
-                                 </div>
+                                <div class="position-relative">
+                                    <select class="form-select pickup-zone-select border-2" name="day${day}_transport_${newIndex}_pickup_zone_id" style="padding-left: 45px;" onchange="handlePickupZoneChangeForAdditionalTransport(${day}, ${newIndex})">
+                                        <option value="">Select pickup location</option>
+                                    </select>
+                                    <i class="ri-map-pin-fill position-absolute text-success" style="left: 15px; top: 50%; transform: translateY(-50%); z-index: 5;"></i>
+                                </div>
                              </div>
                          </div>
                          <div class="col-md-3 local-transfer-field" style="display: none;">
@@ -13239,13 +13346,11 @@ document.addEventListener('DOMContentLoaded', function() {
                                      <i class="ri-map-pin-line text-danger me-2"></i>Drop Off Location
                                  </label>
                                  <div class="position-relative">
-                                     <select class="form-select dropoff-zone-select border-2" name="day${day}_transport_${newIndex}_dropoff_zone_id" disabled style="padding-left: 45px; padding-right: 45px;">
-                                         <option value="">Select pickup location first</option>
-                                     </select>
-                                     <i class="ri-map-pin-fill position-absolute text-danger" style="left: 15px; top: 50%; transform: translateY(-50%); z-index: 5;"></i>
-                                         
-                                     </button>
-                                 </div>
+                                    <select class="form-select dropoff-zone-select border-2" name="day${day}_transport_${newIndex}_dropoff_zone_id" disabled style="padding-left: 45px; padding-right: 45px;">
+                                        <option value="">Select pickup location first</option>
+                                    </select>
+                                    <i class="ri-map-pin-fill position-absolute text-danger" style="left: 15px; top: 50%; transform: translateY(-50%); z-index: 5;"></i>
+                                </div>
                              </div>
                          </div>
                          <div class="col-md-3 local-transfer-field" style="display: none;">
@@ -13373,7 +13478,7 @@ document.addEventListener('DOMContentLoaded', function() {
                                  </div>
                              </div>
                          </div>
-                         <div class="col-md-1 hourly-field" id="day${day}_transport_${newIndex}_hourly_search_field" style="display: none;">
+                         <div class="col-md-2 hourly-field" id="day${day}_transport_${newIndex}_hourly_search_field" style="display: none;">
                              <button type="button" class="btn btn-danger w-100 py-2" onclick="searchVehicles(${day}, 'transport_${newIndex}_hourly',${newIndex})" id="day${day}_transport_${newIndex}_hourly_search_btn">
                                  <i class="ri-search-line me-2"></i>Search
                              </button>
@@ -13821,11 +13926,21 @@ document.addEventListener('DOMContentLoaded', function() {
                         }
                         
                         dropoffZoneSelect.disabled = false;
-                            console.log('Dynamic transport dropoff populated and enabled');
+                        console.log('Dynamic transport dropoff populated and enabled');
+                        
+                        // Reinitialize Select2 if available
+                        if (typeof jQuery !== 'undefined' && jQuery(dropoffZoneSelect).data('select2')) {
+                            jQuery(dropoffZoneSelect).select2('destroy');
+                            jQuery(dropoffZoneSelect).select2({
+                                placeholder: "Select dropoff location",
+                                allowClear: true,
+                                width: '100%'
+                            });
+                        }
                     } else {
                         dropoffZoneSelect.innerHTML = '<option value="">No locations available</option>';
                         dropoffZoneSelect.disabled = true;
-                            console.log('No locations available for dynamic transport');
+                        console.log('No locations available for dynamic transport');
                     }
                 })
                 .catch(error => {
@@ -13895,6 +14010,16 @@ document.addEventListener('DOMContentLoaded', function() {
                             
                             dropoffZoneSelect.disabled = false;
                             console.log('Dynamic transport dropoff populated with API and enabled');
+                            
+                            // Reinitialize Select2 if available
+                            if (typeof jQuery !== 'undefined' && jQuery(dropoffZoneSelect).data('select2')) {
+                                jQuery(dropoffZoneSelect).select2('destroy');
+                                jQuery(dropoffZoneSelect).select2({
+                                    placeholder: "Select dropoff location",
+                                    allowClear: true,
+                                    width: '100%'
+                                });
+                            }
                         } else {
                             dropoffZoneSelect.innerHTML = '<option value="">No locations available</option>';
                             dropoffZoneSelect.disabled = true;
@@ -14804,7 +14929,7 @@ document.addEventListener('DOMContentLoaded', function() {
          // Update the service guest summary text
          const summaryElement = document.getElementById(serviceId + '_guest_summary');
          if (summaryElement) {
-             summaryElement.textContent = `${adults} adults (${male} male, ${female} female), ${children} children -${infants} infants`;
+             summaryElement.textContent = `${adults} adults (${male} male, ${female} female), ${children} children - ${infants} infants`;
          }
          
          // Update the badges for this specific service
@@ -14888,7 +15013,92 @@ document.addEventListener('DOMContentLoaded', function() {
         if (hotelSelect && hotelSelect.value) {
             updateHotelDependentDropdowns(hotelSelect.value);
         }
+        
+        // Update all service guest fields to match main guest values
+        updateAllServiceGuestFields(male, female, children, infants);
+        
+        // Reset hotel section when main guest changes
+        resetHotelSection();
     }
+    
+    
+    // Function to reset hotel section when main guest changes
+    window.resetHotelSection = function() {
+        console.log('Resetting hotel section due to main guest change');
+        
+        // Check if any hotel selections were made
+        const hotelSelect = document.getElementById('hotelSelect');
+        const bedTypeSelect = document.getElementById('bedTypeSelect');
+        const hasHotelSelections = hotelSelect && hotelSelect.value && bedTypeSelect && bedTypeSelect.value;
+        
+        // Reset number of persons selector
+        const personSelector = document.getElementById('personSelector');
+        if (personSelector) {
+            // Check if bed type is selected
+            if (bedTypeSelect && bedTypeSelect.value && window.selectedBedInfo) {
+                // Re-initialize person selector with updated tour pax
+                updatePersonSelector(window.selectedBedInfo.maxOccupancy, window.selectedBedInfo.extraBedAvailable);
+            } else {
+                // No bed type selected, show default message
+                personSelector.innerHTML = '<div class="text-muted small">Select bed type first</div>';
+            }
+        }
+        
+        // Reset selected persons to default based on new guest count
+        const selectedPersonsInput = document.getElementById('selectedPersons');
+        if (selectedPersonsInput) {
+            const adults = parseInt(document.getElementById('adults').value) || 0;
+            const children = parseInt(document.getElementById('children').value) || 0;
+            const totalGuests = adults + children;
+            
+            // If bed type is selected, set persons to min of total guests and max occupancy
+            if (bedTypeSelect && bedTypeSelect.value && window.selectedBedInfo) {
+                const maxOccupancy = window.selectedBedInfo.maxOccupancy || 1;
+                const extraBedAvailable = window.selectedBedInfo.extraBedAvailable || false;
+                const maxRoomOccupancy = extraBedAvailable ? maxOccupancy + 1 : maxOccupancy;
+                const defaultPersons = Math.min(totalGuests, maxRoomOccupancy);
+                selectedPersonsInput.value = defaultPersons > 0 ? defaultPersons : 1;
+            } else {
+                selectedPersonsInput.value = '1';
+            }
+        }
+        
+        // Reset number of rooms to 1
+        const numberOfRoomsInput = document.getElementById('numberOfRooms');
+        if (numberOfRoomsInput) {
+            numberOfRoomsInput.value = '1';
+        }
+        
+        // Reset price display
+        const roomPriceDisplay = document.getElementById('roomPriceDisplay');
+        if (roomPriceDisplay) {
+            // If room type is selected, recalculate price with new values
+            const roomTypeSelect = document.getElementById('roomTypeSelect');
+            if (roomTypeSelect && roomTypeSelect.value) {
+                // Trigger price recalculation
+                if (typeof updateRoomPriceDisplay === 'function') {
+                    updateRoomPriceDisplay(true);
+                }
+            } else {
+                // No room type, set to 0
+                roomPriceDisplay.value = '0.00';
+                roomPriceDisplay.dataset.manuallyEdited = 'false';
+            }
+        }
+        
+        // Update room cost calculation
+        if (typeof updateRoomCostCalculation === 'function') {
+            updateRoomCostCalculation();
+        }
+        
+        // Show notification if hotel selections were reset
+        if (hasHotelSelections && typeof showNotification === 'function') {
+            showNotification('Hotel room settings have been updated for the new guest count', 'info');
+        }
+        
+        console.log('Hotel section reset completed');
+    };
+    
     // Initialize attraction pricing for existing selections
     function initializeAttractionPricing() {
         // Find all attraction containers and update pricing for each
@@ -17322,12 +17532,27 @@ function loadDropoffZones(day, section) {
              });
          }
          
-         // Re-evaluate search button state after pickup zone change
-         enableSearchButton(day, section);
-     } else {
-         dropoffZoneSelect.innerHTML = '<option value="">Select pickup zone first</option>';
-         dropoffZoneSelect.disabled = true;
-     }
+        // Re-evaluate search button state after pickup zone change
+        enableSearchButton(day, section);
+    } else {
+        // Pickup zone is empty - disable dropoff but handle differently based on section
+        if (section === 'exit') {
+            // For exit port, dropoff contains ports which don't depend on pickup
+            // Just disable it and update the placeholder, but keep the port options
+            const firstOption = dropoffZoneSelect.querySelector('option[value=""]');
+            if (firstOption) {
+                firstOption.textContent = 'Select pickup location first';
+            }
+            dropoffZoneSelect.disabled = true;
+            // Clear selection but preserve options
+            dropoffZoneSelect.value = '';
+            console.log('Exit port: Disabled dropoff but preserved port options');
+        } else {
+            // For other sections, clear the options as they depend on pickup
+            dropoffZoneSelect.innerHTML = '<option value="">Select pickup zone first</option>';
+            dropoffZoneSelect.disabled = true;
+        }
+    }
      
      // Reset vehicle and service type selects only for non-transport sections
      // For transport sections (local transfer), preserve the existing vehicle and service type data
