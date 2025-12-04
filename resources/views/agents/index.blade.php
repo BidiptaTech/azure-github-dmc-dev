@@ -73,7 +73,12 @@
               {{-- <th>Country & City</th> --}}
               {{-- <th>Service Country</th> --}}
               {{-- @if(hasPermission('edit agents') || hasPermission('delete agents')) --}}
+              @php
+                $roleIds = [11, 33, 37, 38, 128, 129, 130, 134, 135, 136, 138];
+              @endphp
+              @if(in_array($user->role_id, $roleIds))
                   <th>Action</th>
+              @endif
               {{-- @endif --}}
               <th>Created At</th>
             </tr>
@@ -201,6 +206,7 @@
                   @endif
                 </td> --}}
                 {{-- @if(hasPermission('edit agents') || hasPermission('delete agents')) --}}
+                @if(in_array($user->role_id, $roleIds))
                 <td>
                   <div class="d-flex gap-2">
                     <!-- Edit Button -->
@@ -233,6 +239,7 @@
                     {{-- @endif --}}
                   </div>
                 </td>
+                @endif
                 {{-- @endif --}}
                 <td>
                   <div class="d-flex flex-column">
