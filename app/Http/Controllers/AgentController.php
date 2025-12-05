@@ -500,7 +500,10 @@ class AgentController extends Controller
 
         $card = Country::whereIn('name', $authUserCountries)->get(['card_type']);
         //$agency = Agency::get();
-        if($user->role_id == 11){
+         if($user->role_id == 1 || $user->role_id == 2 || $user->role_id == 3 || $user->role_id == 4 || $user->role_id == 19){
+            $agency = Agency::where('status', 1)->whereRaw('dmc_id::jsonb @> ?', [json_encode([$user->userId])])->get();
+         }
+        else if($user->role_id == 11){
             $agency = Agency::where('status', 1)->whereRaw('dmc_id::jsonb @> ?', [json_encode([$user->userId])])->get();
         }
         elseif($user->role_id == 33 || $user->role_id == 128 || $user->role_id == 129 || $user->role_id == 130 || $user->role_id == 134 || $user->role_id == 135 || $user->role_id == 136 || $user->role_id == 138){
