@@ -41,9 +41,7 @@
                                                     <p class="mb-2">
                                                         <strong>Destination:</strong> {{ $tourDetails['destination'] ?? 'N/A' }}
                                                     </p>
-                                                    <p class="mb-2">
-                                                        <strong>City:</strong> {{ $tourDetails['city'] ?? 'N/A' }}
-                                                    </p>
+                                                    
                                                 </div>
                                                 <div class="col-md-6">
                                                     <p class="mb-2">
