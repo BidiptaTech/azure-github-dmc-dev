@@ -725,7 +725,7 @@
                                     <p class="text-muted mb-0" id="bookingsSummary">No bookings added yet</p>
                                 </div>
                                 <div>
-                                    <button type="button" class="btn btn-success btn-lg px-5 me-3" onclick="saveAllBookings()">
+                                    <button type="button" class="btn btn-success btn-lg px-5 me-3" id="savePackageBtn" onclick="handleSavePackage(this)">
                                         <i class="ri-save-line me-2"></i>Save Tour Package
                                     </button>
                                     <a href="{{ route('single-tour-package.index') }}" class="btn btn-outline-secondary btn-lg px-5">
@@ -3816,6 +3816,32 @@
                         console.error('Error updating price breakdown:', error);
                     }
                 }
+                
+                // Reset save button to original state
+                function resetSaveButton() {
+                    const saveBtn = document.getElementById('savePackageBtn');
+                    if (saveBtn) {
+                        saveBtn.disabled = false;
+                        saveBtn.innerHTML = '<i class="ri-save-line me-2"></i>Save Tour Package';
+                    }
+                }
+                
+                // Handle save package button click - show loader and disable
+                async function handleSavePackage(button) {
+                    // Disable button
+                    button.disabled = true;
+                    
+                    // Show loader and update text
+                    button.innerHTML = '<span class="spinner-border spinner-border-sm me-2" role="status" aria-hidden="true"></span>Saving...';
+                    
+                    // Call the actual save function
+                    const result = await saveAllBookings();
+                    
+                    // If save failed or returned false, reset button
+                    if (result === false) {
+                        resetSaveButton();
+                    }
+                }
 
                 async function saveAllBookings() {
                     
@@ -3839,6 +3865,7 @@
 
                         if (!country || !startDate || !endDate || !agent) {
                             alert('Please fill in all required fields (Country, Travel Dates, Agent, and Guests) before saving the tour package.');
+                            resetSaveButton();
                             return false;
                         }
 
@@ -5878,8 +5905,13 @@ function validateServiceSelections() {
         
         // Show notification with the errors
         showNotification(errorHTML, 'error', 10000); // 10 second timeout for longer message
+        
+        // Reset save button if validation failed
+        if (!isValid) {
+            resetSaveButton();
+        }
     }
-    
+
     return isValid;
 }
 
@@ -7392,12 +7424,19 @@ document.addEventListener('DOMContentLoaded', function() {
              manuallySelectedNights.push(selectedNight);
          }
          
-         // Fill gaps and update selection
-         const allConsecutiveNights = fillConsecutiveNights(manuallySelectedNights);
-         updateConsecutiveSelectionWithColors(manuallySelectedNights, allConsecutiveNights);
-         updateNightDisplay();
-         updateRoomPriceDisplay(); // Update price when nights are selected
-    }
+        // Fill gaps and update selection
+        const allConsecutiveNights = fillConsecutiveNights(manuallySelectedNights);
+        updateConsecutiveSelectionWithColors(manuallySelectedNights, allConsecutiveNights);
+        updateNightDisplay();
+        
+        // Update room price display based on selected nights (weekday/weekend calculation)
+        // Use setTimeout to ensure DOM is updated before price calculation
+        console.log('Night selection changed, updating room price...');
+        setTimeout(() => {
+            console.log('Executing delayed price update after night selection...');
+            updateRoomPriceDisplay(true); // Force update when nights change
+        }, 100);
+   }
 
      // Fill gaps to make consecutive nights
     function fillConsecutiveNights(nights) {
@@ -8347,9 +8386,33 @@ document.addEventListener('DOMContentLoaded', function() {
         
         // Check if nights are selected
         const selectedNights = document.querySelectorAll('.night-btn.active');
-        if (selectedNights.length > 0 && window.tourStartDate) {
+        
+        console.log('=== CHECKING NIGHT SELECTION FOR PRICE CALCULATION ===');
+        console.log('Selected nights query result:', selectedNights);
+        console.log('Selected nights length:', selectedNights.length);
+        console.log('Selected nights array:', Array.from(selectedNights).map(n => n.dataset.night));
+        console.log('window.tourStartDate:', window.tourStartDate);
+        console.log('tourStartDate (alternative):', window.tourStartDate || tourStartDate);
+        
+        // Also check for manually-selected and auto-selected classes as backup
+        if (selectedNights.length === 0) {
+            const manuallySelected = document.querySelectorAll('.night-btn.manually-selected');
+            const autoSelected = document.querySelectorAll('.night-btn.auto-selected');
+            console.log('Fallback check - manually selected:', manuallySelected.length);
+            console.log('Fallback check - auto selected:', autoSelected.length);
+        }
+        
+        console.log('Condition result:', selectedNights.length > 0 && window.tourStartDate);
+        
+        // Use tourStartDate from global scope if window.tourStartDate is not available
+        const startDate = window.tourStartDate || (typeof tourStartDate !== 'undefined' ? tourStartDate : null);
+        
+        if (selectedNights.length > 0 && startDate) {
             // Calculate price based on selected nights (weekday/weekend)
             let totalPrice = 0;
+            let weekdayCount = 0;
+            let weekendCount = 0;
+            
             const weekdayPrice = isSingleOccupancy 
                 ? parseFloat(selectedOption.dataset.weekdayPrice) || 0
                 : parseFloat(selectedOption.dataset.doubleWeekdayPrice) || 0;
@@ -8359,19 +8422,38 @@ document.addEventListener('DOMContentLoaded', function() {
             
             selectedNights.forEach(nightBtn => {
                 const nightNum = parseInt(nightBtn.dataset.night);
-                const nightDate = moment(window.tourStartDate).add(nightNum - 1, 'days');
+                const nightDate = moment(startDate).add(nightNum - 1, 'days');
                 const dayOfWeek = nightDate.day(); // 0 = Sunday, 6 = Saturday
                 const isWeekend = dayOfWeek === 0 || dayOfWeek === 6;
                 const nightPrice = isWeekend ? weekendPrice : weekdayPrice;
                 totalPrice += nightPrice;
+                
+                console.log(`Night ${nightNum} (${nightDate.format('MMM DD, ddd')}): ${isWeekend ? 'WEEKEND' : 'WEEKDAY'} - Price: ${nightPrice}`);
+                
+                if (isWeekend) {
+                    weekendCount++;
+                } else {
+                    weekdayCount++;
+                }
             });
             
             pricePerRoom = totalPrice;
+            
+            console.log('Room price calculation on night selection:', {
+                totalNights: selectedNights.length,
+                weekdayNights: weekdayCount,
+                weekendNights: weekendCount,
+                weekdayPrice: weekdayPrice,
+                weekendPrice: weekendPrice,
+                pricePerRoom: pricePerRoom,
+                isSingleOccupancy: isSingleOccupancy
+            });
         } else {
             // No nights selected, use weekday price as default
             pricePerRoom = isSingleOccupancy 
                 ? parseFloat(selectedOption.dataset.weekdayPrice) || 0
                 : parseFloat(selectedOption.dataset.doubleWeekdayPrice) || 0;
+            console.log('No nights selected, using weekday price as default:', pricePerRoom);
         }
         
         // Get number of rooms
@@ -8380,9 +8462,18 @@ document.addEventListener('DOMContentLoaded', function() {
         // Calculate total price
         const totalPrice = pricePerRoom * numberOfRooms;
         
+        console.log('Final room price calculation:', {
+            pricePerRoom: pricePerRoom,
+            numberOfRooms: numberOfRooms,
+            totalPrice: totalPrice,
+            formattedPrice: totalPrice.toFixed(2)
+        });
+        
         // Update display (SGD is fixed prefix, only set numeric value)
         roomPriceDisplay.value = totalPrice.toFixed(2);
         roomPriceDisplay.dataset.manuallyEdited = 'false'; // Mark as auto-calculated
+        
+        console.log('Room price display updated to:', roomPriceDisplay.value);
     }
 
     // Update room cost calculation
@@ -9065,7 +9156,11 @@ document.addEventListener('DOMContentLoaded', function() {
         const customRoomPriceNum = parseFloat(customRoomPrice);
 
         console.log('Custom room price:', customRoomPrice);
-        if((customRoomPriceNum)*(weekdayNights+weekendNights) === totalRoomPrice*numberOfRooms) {
+        console.log('Custom room price/numberOfRooms:', customRoomPriceNum/numberOfRooms);
+        console.log('Weekday nights*storedWeekdayPrice:', weekdayNights*storedWeekdayPrice);
+        console.log('Weekend nights*storedWeekendPrice:', weekendNights*storedWeekendPrice);
+        console.log('Total room price:', totalRoomPrice);
+        if((customRoomPriceNum/numberOfRooms)*(weekdayNights*storedWeekdayPrice+weekendNights*storedWeekendPrice) === totalRoomPrice) {
             console.log('Custom room price is correct');
         } else {
             console.log('totalRoomPrice before correction:', totalRoomPrice);
