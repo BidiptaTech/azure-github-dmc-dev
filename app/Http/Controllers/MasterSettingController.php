@@ -7,6 +7,8 @@ use Illuminate\Http\Request;
 use App\Models\Setting;
 use App\Helpers\CommonHelper;
 use Illuminate\Support\Facades\Storage;
+use MicrosoftAzure\Storage\Blob\BlobRestProxy;
+use Illuminate\Support\Facades\Log;
 
 class MasterSettingController extends Controller
 {
@@ -57,8 +59,39 @@ class MasterSettingController extends Controller
                 // For S3 storage
                 $logoPath = Storage::disk('s3')->url(Storage::disk('s3')->putFileAs('uploads', $logoFile, $logoName));
             } elseif ($get_filestorage == 'azure') {
-                // For Azure storage
-                $logoPath = Storage::disk('azure')->url(Storage::disk('azure')->putFileAs('uploads', $logoFile, $logoName));
+                // For Azure storage - use blob client directly
+                $config = config('filesystems.disks.azure');
+                $container = $config['container'] ?? 'uploads';
+                
+                // Create connection string
+                $connectionString = sprintf(
+                    'DefaultEndpointsProtocol=https;AccountName=%s;AccountKey=%s;EndpointSuffix=core.windows.net',
+                    $config['name'],
+                    $config['key']
+                );
+                
+                // Create blob client
+                $blobClient = BlobRestProxy::createBlobService($connectionString);
+                
+                // Ensure container exists
+                CommonHelper::ensureAzureContainerExists($blobClient, $container);
+                
+                // Read file content
+                $fileContent = file_get_contents($logoFile->getRealPath());
+                
+                // Upload path includes container directory
+                $uploadPath = 'uploads/' . $logoName;
+                
+                // Upload directly using blob client
+                $blobClient->createBlockBlob($container, $uploadPath, $fileContent);
+                
+                // Generate URL
+                $logoPath = sprintf(
+                    'https://%s.blob.core.windows.net/%s/%s',
+                    $config['name'],
+                    $container,
+                    $uploadPath
+                );
             }
         
             // Save logo path in the settings
@@ -82,8 +115,39 @@ class MasterSettingController extends Controller
                 // For S3 storage
                 $iconPath = Storage::disk('s3')->url(Storage::disk('s3')->putFileAs('uploads', $iconFile, $iconName));
             } elseif ($get_filestorage == 'azure') {
-                // For Azure storage
-                $iconPath = Storage::disk('azure')->url(Storage::disk('azure')->putFileAs('uploads', $iconFile, $iconName));
+                // For Azure storage - use blob client directly
+                $config = config('filesystems.disks.azure');
+                $container = $config['container'] ?? 'uploads';
+                
+                // Create connection string
+                $connectionString = sprintf(
+                    'DefaultEndpointsProtocol=https;AccountName=%s;AccountKey=%s;EndpointSuffix=core.windows.net',
+                    $config['name'],
+                    $config['key']
+                );
+                
+                // Create blob client
+                $blobClient = BlobRestProxy::createBlobService($connectionString);
+                
+                // Ensure container exists
+                CommonHelper::ensureAzureContainerExists($blobClient, $container);
+                
+                // Read file content
+                $fileContent = file_get_contents($iconFile->getRealPath());
+                
+                // Upload path includes container directory
+                $uploadPath = 'uploads/' . $iconName;
+                
+                // Upload directly using blob client
+                $blobClient->createBlockBlob($container, $uploadPath, $fileContent);
+                
+                // Generate URL
+                $iconPath = sprintf(
+                    'https://%s.blob.core.windows.net/%s/%s',
+                    $config['name'],
+                    $container,
+                    $uploadPath
+                );
             }
         
             // Save favicon path in the settings

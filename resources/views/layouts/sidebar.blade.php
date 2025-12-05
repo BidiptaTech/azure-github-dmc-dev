@@ -218,6 +218,47 @@
         box-shadow: 0 3px 10px rgba(99, 102, 241, 0.3);
         transform: translateY(-2px);
     }
+
+    /* Pro Badge - Top Right Corner Like Verified Badge */
+    .pro-badge {
+        position: absolute !important;
+        top: 8px;
+        right: 12px;
+        display: inline-flex !important;
+        align-items: center;
+        justify-content: center;
+        background: linear-gradient(135deg, #FFD700, #FFA500) !important;
+        color: #ffffff !important;
+        padding: 3px 8px;
+        border-radius: 10px;
+        font-size: 8px;
+        font-weight: 800;
+        letter-spacing: 0.5px;
+        text-transform: uppercase;
+        box-shadow: 0 2px 8px rgba(255, 215, 0, 0.5);
+        z-index: 10;
+        animation: pulse-star 2s ease-in-out infinite;
+    }
+    
+    .menu-item.active .pro-badge {
+        background: linear-gradient(135deg, #FFD700, #FFA500) !important;
+        color: #ffffff !important;
+        box-shadow: 0 2px 12px rgba(255, 215, 0, 0.6);
+    }
+    
+    .menu-item:hover .pro-badge {
+        transform: scale(1.05);
+        box-shadow: 0 3px 15px rgba(255, 215, 0, 0.7);
+    }
+    
+    @keyframes pulse-star {
+        0%, 100% {
+            box-shadow: 0 2px 8px rgba(255, 215, 0, 0.5);
+        }
+        50% {
+            box-shadow: 0 2px 15px rgba(255, 215, 0, 0.8);
+        }
+    }
     
     /* Submenu styling */
     .menu-sub {
@@ -713,6 +754,16 @@
                     </ul>
                 </li>
                 @endif -->
+
+        
+
+        <li class="menu-item @if(Request::is('enquiry-form-pro/create')) active @endif" style="position: relative;">
+            <a href="{{ route('enquiry-form-pro.create') }}" class="menu-link">
+                <i class="menu-icon tf-icons ri-file-list-3-line"></i>
+                <div data-i18n="Create Single Tour">Create Single Tour</div>
+                <span class="pro-badge">Pro</span>
+            </a>
+        </li> 
 
         @if(in_array(auth()->user()->role_id, [33, 37, 38, 128, 129, 130, 134, 135, 136, 138]))
             <!-- Single Tour Package for DMCs -->
