@@ -27,6 +27,7 @@ use App\Http\Controllers\AttractionController;
 use App\Http\Controllers\CountryController;
 use App\Http\Controllers\GuideController;
 use App\Http\Controllers\EnquiryController;
+use App\Http\Controllers\EnquiryFormPro;
 use App\Http\Controllers\TransportController;
 use App\Http\Controllers\VehicleController;
 use App\Http\Controllers\DriverController;
@@ -180,6 +181,12 @@ Route::get('/clear', function () {
             Route::get('/single-tour-package/{id}/edit', [SingleTourPackageController::class, 'edit'])->name('single-tour-package.edit');
             Route::put('/single-tour-package/{id}', [SingleTourPackageController::class, 'update'])->name('single-tour-package.update');
             Route::delete('/single-tour-package/{id}', [SingleTourPackageController::class, 'destroy'])->name('single-tour-package.destroy');
+            
+            // Enquiry Form Pro Routes
+            Route::get('/enquiry-form-pro/create', [EnquiryFormPro::class, 'create'])->name('enquiry-form-pro.create');
+            Route::get('/enquiry-form-pro/get-hotels', [EnquiryFormPro::class, 'getHotelsByDestination'])->name('enquiry-form-pro.get-hotels');
+            Route::get('/enquiry-form-pro/get-agents', [EnquiryFormPro::class, 'getAgentsByAgency'])->name('enquiry-form-pro.get-agents');
+            
             Route::get('/tour/{tourId}/download-itinerary', function ($tourId) {
                 $pdfResponse = CommonHelper::downloadTourPdf($tourId);
                 if ($pdfResponse) {
