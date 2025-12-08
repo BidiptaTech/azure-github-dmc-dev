@@ -3014,7 +3014,7 @@
                                                                         </div>
                                                                     @endif
                                                                     
-                                                                    @if(!empty($data['totalPrice']))
+                                                                    @if(!empty($data['totalPrice']) && $priceHide == 1)  
                                                                         <div class="hotel-info-item">
                                                                             <small class="text-success fw-bold">
                                                                                 <i class="fas fa-dollar-sign me-1"></i>
@@ -3055,7 +3055,7 @@
                                                                                                 @if(!empty($bed['head_count']))
                                                                                                     ({{ $bed['head_count'] }} pax)
                                                                                                 @endif
-                                                                                                @if(!empty($bed['price']))
+                                                                                                @if(!empty($bed['price']) && $priceHide == 1)
                                                                                                     - SGD {{ number_format($bed['price'], 2) }}
                                                                                                 @endif
                                                                                             </small>
@@ -3065,7 +3065,7 @@
                                                                                                     @foreach($bed['selectedMeals'] as $mealKey => $meal)
                                                                                                         <span class="badge meal-badge me-1 mb-1">
                                                                                                             <i class="fas fa-utensils me-1"></i>{{ $meal['type'] ?? 'Meal' }}
-                                                                                                            @if(!empty($meal['price']))
+                                                                                                            @if(!empty($meal['price']) && $priceHide == 1)
                                                                                                                 <span class="meal-price">+${{ number_format($meal['price'], 2) }}</span>
                                                                                                             @endif
                                                                                                         </span>
@@ -3125,7 +3125,7 @@
                                                                         </div>
                                                                     @endif
                                                                     
-                                                                    @if(!empty($totalPrice))
+                                                                    @if(!empty($totalPrice) && $priceHide == 1)
                                                                         <div class="guide-info-item">
                                                                             <small class="text-success fw-bold">
                                                                                 <i class="fas fa-dollar-sign me-1"></i>
@@ -3256,7 +3256,7 @@
                                                                         </div>
                                                                     @endif
                                                                     
-                                                                    @if(!empty($totalPrice))
+                                                                    @if(!empty($totalPrice) && $priceHide == 1)
                                                                         <div class="transfer-info-item">
                                                                             <small class="text-success fw-bold">
                                                                                 <i class="fas fa-dollar-sign me-1"></i>
@@ -3376,7 +3376,7 @@
                                                                         </div>
                                                                     @endif
                                                                     
-                                                                    @if(!empty($totalPrice))
+                                                                    @if(!empty($totalPrice) && $priceHide == 1)
                                                                         <div class="entry-port-info-item">
                                                                             <small class="text-success fw-bold">
                                                                                 <i class="fas fa-dollar-sign me-1"></i>
@@ -3486,7 +3486,7 @@
                                                                         </div>
                                                                     @endif
                                                                     
-                                                                    @if(!empty($totalPrice))
+                                                                    @if(!empty($totalPrice) && $priceHide == 1)
                                                                         <div class="exit-port-info-item">
                                                                             <small class="text-success fw-bold">
                                                                                 <i class="fas fa-dollar-sign me-1"></i>
@@ -3593,7 +3593,7 @@
                                                                         </div>
                                                                     @endif
                                                                     
-                                                                    @if(!empty($totalPrice))
+                                                                    @if(!empty($totalPrice) && $priceHide == 1)
                                                                         <div class="attraction-info-item">
                                                                             <small class="text-success fw-bold">
                                                                                 <i class="fas fa-dollar-sign me-1"></i>
@@ -3659,7 +3659,7 @@
                                                                             @endif
                                                                             
                                                                             <!-- Ticket Pricing -->
-                                                                            @if(isset($ticketDetails) && is_array($ticketDetails))
+                                                                            @if(isset($ticketDetails) && is_array($ticketDetails) && $priceHide == 1)
                                                                                 <div class="pricing-info mt-1">
                                                                                     @if(!empty($ticketDetails['adult_price']))
                                                                                         <span class="badge pricing-badge me-1 mb-1">
@@ -3735,7 +3735,7 @@
                                                                         </div>
                                                                     @endif
                                                                     
-                                                                    @if(!empty($totalPrice))
+                                                                    @if(!empty($totalPrice) && $priceHide == 1)
                                                                         <div class="restaurant-info-item">
                                                                             <small class="text-success fw-bold">
                                                                                 <i class="fas fa-dollar-sign me-1"></i>
@@ -3771,7 +3771,7 @@
                                                                                                 {{ $mealSpecificType }}
                                                                                             @endif
                                                                                         </strong>
-                                                                                        @if(!empty($mealPrice))
+                                                                                        @if(!empty($mealPrice) && $priceHide == 1)
                                                                                             <span class="meal-price-badge">SGD {{ number_format($mealPrice, 2) }}</span>
                                                                                         @endif
                                                                                     </small>
@@ -3824,8 +3824,14 @@
                                                                                         @if(!empty($transport))
                                                                                             {{ $transport }}
                                                                                         @else
-                                                                                            @if($transportPrice > 0)
+                                                                                            @if($priceHide == 1 && $transportPrice > 0)
                                                                                                 Transport Included (+SGD {{ number_format($transportPrice, 2) }})
+                                                                                            @elseif($priceHide == 0)
+                                                                                                @if(!empty($transport))
+                                                                                                    {{ $transport }}
+                                                                                                @else
+                                                                                                    No Transport
+                                                                                                @endif
                                                                                             @else
                                                                                                 No Transport
                                                                                             @endif
@@ -4237,6 +4243,111 @@
                 messageDiv.remove();
             }, 3000);
         }
+        
+        // Price Hide Auto-Refresh Functionality
+        // Ensure priceHide is properly set as integer (0 or 1)
+        let currentPriceHide = {{ isset($priceHide) ? (int)$priceHide : 1 }};
+        let priceCheckInterval = null;
+        let isChecking = false; // Prevent multiple simultaneous checks
+        
+        // Debug logging
+        console.log('=== Price Hide Auto-Refresh Initialized ===');
+        console.log('Initial price_hide value:', currentPriceHide, '(Type:', typeof currentPriceHide + ')');
+        console.log('Polling will start in 1 second...');
+        
+        function startPriceHidePolling() {
+            // Check every 3 seconds for price_hide changes (reduced from 5 for faster response)
+            if (priceCheckInterval) {
+                clearInterval(priceCheckInterval);
+            }
+            
+            priceCheckInterval = setInterval(function() {
+                if (!isChecking) {
+                    checkPriceHideStatus();
+                }
+            }, 3000); // 3 seconds interval
+            
+            console.log('Price hide polling started');
+        }
+        
+        function checkPriceHideStatus() {
+            if (isChecking) {
+                return; // Skip if already checking
+            }
+            
+            isChecking = true;
+            
+            const csrfToken = document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') || 
+                             document.querySelector('input[name="_token"]')?.value || 
+                             '{{ csrf_token() }}';
+            
+            const url = '{{ route("bookinglist.checkPriceHide") }}';
+            
+            fetch(url, {
+                method: 'GET',
+                headers: {
+                    'X-Requested-With': 'XMLHttpRequest',
+                    'Accept': 'application/json',
+                    'X-CSRF-TOKEN': csrfToken
+                },
+                credentials: 'same-origin',
+                cache: 'no-cache'
+            })
+            .then(response => {
+                if (!response.ok) {
+                    throw new Error('Network response was not ok: ' + response.status);
+                }
+                return response.json();
+            })
+            .then(data => {
+                isChecking = false;
+                
+                if (data && data.success !== undefined && data.price_hide !== undefined) {
+                    // Convert to integer for proper comparison (0 or 1)
+                    const newPriceHide = parseInt(data.price_hide);
+                    const currentPriceHideInt = parseInt(currentPriceHide);
+                    
+                    console.log('Checking price_hide - Current:', currentPriceHideInt, 'New:', newPriceHide);
+                    
+                    // If price_hide value has changed, refresh the page
+                    if (newPriceHide !== currentPriceHideInt) {
+                        console.log('Price hide status changed from', currentPriceHideInt, 'to', newPriceHide, '- Refreshing page...');
+                        
+                        // Stop polling before refresh
+                        if (priceCheckInterval) {
+                            clearInterval(priceCheckInterval);
+                            priceCheckInterval = null;
+                        }
+                        
+                        // Small delay to ensure cleanup
+                        setTimeout(function() {
+                            // Refresh the page to show updated prices
+                            window.location.reload(true);
+                        }, 100);
+                    }
+                } else {
+                    console.warn('Invalid response data:', data);
+                }
+            })
+            .catch(error => {
+                isChecking = false;
+                console.error('Error checking price hide status:', error);
+                // Don't stop polling on error, just log it
+            });
+        }
+        
+        // Start polling when page loads (with small delay to ensure page is fully loaded)
+        setTimeout(function() {
+            startPriceHidePolling();
+        }, 1000);
+        
+        // Stop polling when page is about to unload
+        window.addEventListener('beforeunload', function() {
+            if (priceCheckInterval) {
+                clearInterval(priceCheckInterval);
+                priceCheckInterval = null;
+            }
+        });
     });
 </script>
 @endsection 
