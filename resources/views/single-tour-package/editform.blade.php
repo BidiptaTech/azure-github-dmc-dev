@@ -2911,15 +2911,15 @@
 
 <!-- Hotel Booking Modal -->
 <div class="modal fade" id="hotelBookingModal" tabindex="-1" aria-labelledby="hotelBookingModalLabel" aria-hidden="true">
-    <div class="modal-dialog modal-lg">
+    <div class="modal-dialog modal-dialog-centered modal-xl">
         <div class="modal-content">
-            <div class="modal-header bg-gradient-primary text-white">
-                <h5 class="modal-title" id="hotelBookingModalLabel">
-                    <i class="ri-hotel-line me-2"></i>Let's Book Your Hotels!
-                </h5>
+            <div class="modal-header bg-gradient-primary text-white py-2">
+                <h6 class="modal-title mb-0" id="hotelBookingModalLabel">
+                    <i class="ri-hotel-line me-1"></i>Book Your Hotels
+                </h6>
                 <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
             </div>
-            <div class="modal-body">
+            <div class="modal-body p-3">
                 <form id="hotelBookingForm">
                     @csrf
                     <input type="hidden" id="modal_tour_id" name="tour_id">
@@ -2927,165 +2927,165 @@
                     <input type="hidden" id="modal_city" name="city">
                     
                     <!-- Tour Info Display -->
-                    <div class="row mb-3">
-                        <div class="col-md-6">
+                    <div class="row mb-2">
+                        <div class="col-12 col-lg-6">
                             <div class="d-flex align-items-center">
-                                <i class="ri-calendar-line me-2 text-primary"></i>
-                                <span class="fw-semibold">Tour Dates: <span id="modal_tour_dates" class="text-primary"></span></span>
+                                <i class="ri-calendar-line me-1 text-primary"></i>
+                                <small class="fw-semibold">Dates: <span id="modal_tour_dates" class="text-primary"></span></small>
                             </div>
                         </div>
-                        <div class="col-md-6">
+                        <div class="col-12 col-lg-6">
                             <div class="d-flex align-items-center">
-                                <i class="ri-map-pin-line me-2 text-primary"></i>
-                                <span class="fw-semibold">Destination: <span id="modal_destination" class="text-primary"></span></span>
+                                <i class="ri-map-pin-line me-1 text-primary"></i>
+                                <small class="fw-semibold">Dest: <span id="modal_destination" class="text-primary"></span></small>
                             </div>
                         </div>
                     </div>
 
-                    <!-- City Selection -->
-                    <div class="mb-3">
-                        <label for="modal_city_select" class="form-label fw-semibold">
-                            <i class="ri-map-pin-line me-1"></i>City
-                        </label>
-                        <select class="form-select" id="modal_city_select" name="city" onchange="loadHotelsForSelectedCity(this.value)">
-                            <option value="">Select City</option>
-                            @foreach($cities as $city)
-                                @if($city->country == $tour->destination)
-                                    <option value="{{ $city->name }}">{{ $city->name }}</option>
-                                @endif
-                            @endforeach
-                        </select>
-                        <div class="form-text">
-                            <i class="ri-check-line text-success me-1"></i>
-                            <span id="hotel_count">0</span> hotels found in <span id="modal_city_display2">No City</span>
-                        </div>
-                    </div>
-
-                    <!-- Hotel Selection -->
-                    <div class="mb-3">
-                        <label for="hotel_select" class="form-label fw-semibold">
-                            <i class="ri-building-line me-1"></i>Select Hotel
-                        </label>
-                        <select class="form-select" id="hotel_select" name="hotel_id" onchange="loadRoomsForSelectedHotel(this.value)" disabled>
-                            <option value="">Select city first to load hotels</option>
-                        </select>
-                        <small class="text-muted" id="hotel_loading_status">
-                            <span id="hotel_count_display">0</span> hotels found
-                        </small>
-                    </div>
-
-                    <!-- Room Details -->
-                    <div class="row mb-3">
-                        <div class="col-md-3">
-                            <label for="room_type" class="form-label fw-semibold">Room Type</label>
-                            <select class="form-select" id="room_type" name="room_type" onchange="loadBedsForSelectedRoom(this.value); updateHotelModalPrice();" disabled>
-                                <option value="">Select hotel first</option>
-                            </select>
-                        </div>
-                        <div class="col-md-3">
-                            <label for="bed_type" class="form-label fw-semibold">Bed Type</label>
-                            <select class="form-select" id="bed_type" name="bed_type" onchange="updateBedPricingAndMealPlans(); updateHotelModalPrice();" disabled>
-                                <option value="">Select room type first</option>
-                            </select>
-                            <div class="small text-success mt-1">
-                                <span id="bed_occupancy_info">Max Occupancy: 2</span>
-                            </div>
-                        </div>
-                        
-                        <!-- Number of Persons -->
-                        <div class="col-md-3">
-                            <label class="form-label fw-semibold">Number of Persons</label>
-                            <select class="form-select" id="person_count_select" name="person_count" data-no-select2="true" onchange="selectPersonCount(this.value); updateHotelModalPrice();">
-                                <!-- Options will be generated dynamically based on room max_occupancy -->
-                            </select>
-                            <small class="text-muted">Max Occupancy: 2</small>
-                        </div>
-
-                        <div class="col-md-3">
-                            <label for="meal_plan" class="form-label fw-semibold">Meal Plan</label>
-                            <select class="form-select" id="meal_plan" name="meal_plan" onchange="updateMealPricing()" disabled>
-                                <option value="">Select bed type first</option>
-                            </select>
-                        </div>
-                    </div>
-                    
-                    <!-- Number of Rooms and Price -->
-                    <div class="row mb-3">
-                        <div class="col-md-3">
-                            <label for="number_of_rooms_modal" class="form-label fw-semibold">Number of Rooms</label>
-                            <input type="number" class="form-control" id="number_of_rooms_modal" name="number_of_rooms" min="1" value="1" placeholder="e.g. 1" onchange="updateHotelModalPrice();">
-                        </div>
-                        <div class="col-md-3">
-                            <label for="total_price_modal" class="form-label fw-semibold">
-                                <i class="ri-money-dollar-circle-line me-1 text-success"></i>Total Price
-                            </label>
-                            <div class="input-group">
-                                <span class="input-group-text">$</span>
-                                <input type="number" class="form-control" id="total_price_modal" name="total_price" step="0.01" min="0" value="0.00" placeholder="0.00">
-                            </div>
-                            <small class="text-muted">Price per room type and number of rooms</small>
-                        </div>
-                    </div>
-
-                    <!-- Date Range Selection -->
-                    <div class="mb-3">
-                        <label class="form-label fw-semibold">
-                            <i class="ri-calendar-line me-1"></i>Select Hotel Nights
-                        </label>
-                        <p class="form-text mb-2">(Choose nights for this hotel - consecutive nights will be automatically selected)</p>
-                        
-                        <!-- Night Selection Guide -->
-                        <div class="d-flex gap-3 mb-3">
-                                <div class="d-flex align-items-center">
-                                <div class="bg-success text-white rounded me-2" style="width: 20px; height: 20px; display: flex; align-items: center; justify-content: center;">
-                                    <i class="ri-check-line fs-6"></i>
+                    <div class="row g-3">
+                        <!-- Left: City, Hotel, Rooms, Pricing -->
+                        <div class="col-12 col-lg-6">
+                            <!-- City & Hotel Selection -->
+                            <div class="row g-2 mb-2">
+                                <div class="col-12">
+                                    <label for="modal_city_select" class="form-label small fw-semibold mb-1">
+                                        <i class="ri-map-pin-line me-1"></i>City
+                                    </label>
+                                    <select class="form-select form-select-sm" id="modal_city_select" name="city" onchange="loadHotelsForSelectedCity(this.value)">
+                                        <option value="">Select City</option>
+                                        @foreach($cities as $city)
+                                            @if($city->country == $tour->destination)
+                                                <option value="{{ $city->name }}">{{ $city->name }}</option>
+                                            @endif
+                                        @endforeach
+                                    </select>
+                                    <small class="form-text text-muted">
+                                        <span id="hotel_count">0</span> hotels in <span id="modal_city_display2">No City</span>
+                                    </small>
                                 </div>
-                                    <small>Manually Selected</small>
+                                <div class="col-12">
+                                    <label for="hotel_select" class="form-label small fw-semibold mb-1">
+                                        <i class="ri-building-line me-1"></i>Hotel
+                                    </label>
+                                    <select class="form-select form-select-sm" id="hotel_select" name="hotel_id" onchange="loadRoomsForSelectedHotel(this.value)" disabled>
+                                        <option value="">Select city first</option>
+                                    </select>
+                                    <small class="text-muted" id="hotel_loading_status">
+                                        <span id="hotel_count_display">0</span> found
+                                    </small>
                                 </div>
-                                <div class="d-flex align-items-center">
-                                <div class="bg-warning text-dark rounded me-2" style="width: 20px; height: 20px; display: flex; align-items: center; justify-content: center;">
-                                    <i class="ri-flashlight-line fs-6"></i>
-                                </div>
-                                    <small>Auto-Required (for consecutive nights)</small>
                             </div>
-                        </div>
-                        
-                        <!-- Date Range Input -->
-                        <div class="row">
-                            <div class="col-md-6">
-                                <label for="check_in_date" class="form-label">Check-in Date</label>
-                                <input type="date" class="form-control" id="check_in_date" name="check_in_date" required onchange="updateHotelModalPrice();">
-                            </div>
-                            <div class="col-md-6">
-                                <label for="check_out_date" class="form-label">Check-out Date</label>
-                                <input type="date" class="form-control" id="check_out_date" name="check_out_date" required onchange="updateHotelModalPrice();">
-                            </div>
-                        </div>
-                        
-                        <!-- Selected Nights Display -->
-                        <div class="mt-3">
-                            <div id="selected_nights_display" class="d-none">
-                                <label class="form-label fw-semibold">Selected Nights:</label>
-                                <div id="nights_list" class="d-flex flex-wrap gap-2"></div>
-                            </div>
-                        </div>
-                    </div>
 
-                    <!-- Information Alerts -->
-                    <div class="alert alert-info" id="no_nights_alert" style="z-index: 1050; position: relative;">
-                        <i class="ri-information-line me-2"></i>
-                        No nights selected. Click on the nights above to select hotel stay.
-                    </div>
-                    <div class="alert alert-info" id="no_hotels_alert" style="z-index: 1050; position: relative;">
-                        <i class="ri-information-line me-2"></i>
-                        No hotels selected yet. Choose your hotels above.
+                            <!-- Room Details -->
+                            <div class="row g-2 mb-2">
+                                <div class="col-6">
+                                    <label for="room_type" class="form-label small fw-semibold mb-1">Room Type</label>
+                                    <select class="form-select form-select-sm" id="room_type" name="room_type" onchange="loadBedsForSelectedRoom(this.value); updateHotelModalPrice();" disabled>
+                                        <option value="">Select hotel</option>
+                                    </select>
+                                </div>
+                                <div class="col-6">
+                                    <label for="bed_type" class="form-label small fw-semibold mb-1">Bed Type</label>
+                                    <select class="form-select form-select-sm" id="bed_type" name="bed_type" onchange="updateBedPricingAndMealPlans(); updateHotelModalPrice();" disabled>
+                                        <option value="">Select room</option>
+                                    </select>
+                                    <div class="text-success mt-1" style="font-size: 0.75rem;">
+                                        <span id="bed_occupancy_info">Max Occupancy: 2</span>
+                                    </div>
+                                </div>
+                                <div class="col-6">
+                                    <label class="form-label small fw-semibold mb-1">Persons</label>
+                                    <select class="form-select form-select-sm" id="person_count_select" name="person_count" data-no-select2="true" onchange="selectPersonCount(this.value); updateHotelModalPrice();">
+                                        <!-- Options generated dynamically -->
+                                    </select>
+                                    <small class="text-muted">Max Occ: 2</small>
+                                </div>
+                                <div class="col-6">
+                                    <label for="meal_plan" class="form-label small fw-semibold mb-1">Meal Plan</label>
+                                    <select class="form-select form-select-sm" id="meal_plan" name="meal_plan" onchange="updateMealPricing()" disabled>
+                                        <option value="">Select bed</option>
+                                    </select>
+                                </div>
+                            </div>
+                            
+                            <!-- Number of Rooms and Price -->
+                            <div class="row g-2">
+                                <div class="col-6">
+                                    <label for="number_of_rooms_modal" class="form-label small fw-semibold mb-1">Rooms</label>
+                                    <input type="number" class="form-control form-control-sm" id="number_of_rooms_modal" name="number_of_rooms" min="1" value="1" placeholder="1" onchange="updateHotelModalPrice();">
+                                </div>
+                                <div class="col-6">
+                                    <label for="total_price_modal" class="form-label small fw-semibold mb-1">
+                                        <i class="ri-money-dollar-circle-line me-1 text-success"></i>Total
+                                    </label>
+                                    <div class="input-group input-group-sm">
+                                        <span class="input-group-text">$</span>
+                                        <input type="number" class="form-control form-control-sm" id="total_price_modal" name="total_price" step="0.01" min="0" value="0.00" placeholder="0.00">
+                                    </div>
+                                    <small class="text-muted">Per room x qty</small>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Right: Dates, Nights, Alerts -->
+                        <div class="col-12 col-lg-6">
+                            <div class="mb-2">
+                                <label class="form-label small fw-semibold mb-1">
+                                    <i class="ri-calendar-line me-1"></i>Hotel Nights
+                                </label>
+                                <p class="form-text mb-2" style="font-size: 0.8rem;">Choose nights; consecutive nights auto-selected.</p>
+                                
+                                <div class="d-flex gap-3 mb-2" style="font-size: 0.8rem;">
+                                    <div class="d-flex align-items-center">
+                                        <div class="bg-success text-white rounded me-2" style="width: 18px; height: 18px; display: flex; align-items: center; justify-content: center;">
+                                            <i class="ri-check-line" style="font-size: 0.85rem;"></i>
+                                        </div>
+                                        <span>Selected</span>
+                                    </div>
+                                    <div class="d-flex align-items-center">
+                                        <div class="bg-warning text-dark rounded me-2" style="width: 18px; height: 18px; display: flex; align-items: center; justify-content: center;">
+                                            <i class="ri-flashlight-line" style="font-size: 0.85rem;"></i>
+                                        </div>
+                                        <span>Auto-required</span>
+                                    </div>
+                                </div>
+                                
+                                <div class="row g-2">
+                                    <div class="col-6">
+                                        <label for="check_in_date" class="form-label small">Check-in</label>
+                                        <input type="date" class="form-control form-control-sm" id="check_in_date" name="check_in_date" required onchange="updateHotelModalPrice();">
+                                    </div>
+                                    <div class="col-6">
+                                        <label for="check_out_date" class="form-label small">Check-out</label>
+                                        <input type="date" class="form-control form-control-sm" id="check_out_date" name="check_out_date" required onchange="updateHotelModalPrice();">
+                                    </div>
+                                </div>
+                                
+                                <div class="mt-2">
+                                    <div id="selected_nights_display" class="d-none">
+                                        <label class="form-label small fw-semibold mb-1">Selected Nights:</label>
+                                        <div id="nights_list" class="d-flex flex-wrap gap-2"></div>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- Information Alerts -->
+                            <div class="alert alert-info py-2 mb-2" id="no_nights_alert" style="z-index: 1050; position: relative; font-size: 0.9rem;">
+                                <i class="ri-information-line me-1"></i>
+                                No nights selected. Click nights above.
+                            </div>
+                            <div class="alert alert-info py-2 mb-0" id="no_hotels_alert" style="z-index: 1050; position: relative; font-size: 0.9rem;">
+                                <i class="ri-information-line me-1"></i>
+                                No hotels selected yet.
+                            </div>
+                        </div>
                     </div>
                 </form>
             </div>
-            <div class="modal-footer">
-                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
-                <button type="button" class="btn btn-success" id="proceed_hotel_btn" onclick="proceedWithHotelBooking()" disabled>
-                    <i class="ri-check-line me-1"></i>Let's Book Your Hotels!
+            <div class="modal-footer py-2">
+                <button type="button" class="btn btn-sm btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                <button type="button" class="btn btn-sm btn-success" id="proceed_hotel_btn" onclick="proceedWithHotelBooking()" disabled>
+                    <i class="ri-check-line me-1"></i>Book Hotels
                 </button>
             </div>
         </div>
@@ -3094,67 +3094,62 @@
 
 <!-- Restaurant Selection Modal -->
 <div class="modal fade" id="restaurantSelectionModal" tabindex="-1" aria-labelledby="restaurantSelectionModalLabel" aria-hidden="true">
-    <div class="modal-dialog modal-lg">
+    <div class="modal-dialog modal-dialog-centered modal-md">
         <div class="modal-content">
-            <div class="modal-header bg-gradient-success text-white">
-                <h5 class="modal-title" id="restaurantSelectionModalLabel">
-                    <i class="ri-restaurant-2-line me-2"></i>Select Restaurant & Dining Options
-                </h5>
+            <div class="modal-header bg-gradient-success text-white py-2">
+                <h6 class="modal-title mb-0" id="restaurantSelectionModalLabel">
+                    <i class="ri-restaurant-2-line me-1"></i>Select Restaurant & Dining
+                </h6>
                 <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
             </div>
-            <div class="modal-body">
+            <div class="modal-body p-3">
                 <!-- Tour Info Display -->
-                <div class="row mb-3">
+                <div class="row mb-2">
                     <div class="col-md-6">
                         <div class="d-flex align-items-center">
-                            <i class="ri-calendar-line me-2 text-primary"></i>
-                            <span class="fw-semibold">Tour Dates: <span id="modal_restaurant_tour_dates" class="text-primary"></span></span>
+                            <i class="ri-calendar-line me-1 text-primary"></i>
+                            <small class="fw-semibold">Dates: <span id="modal_restaurant_tour_dates" class="text-primary"></span></small>
                         </div>
                     </div>
                     <div class="col-md-6">
                         <div class="d-flex align-items-center">
-                            <i class="ri-map-pin-line me-2 text-primary"></i>
-                            <span class="fw-semibold">Destination: <span id="modal_restaurant_destination" class="text-primary"></span></span>
+                            <i class="ri-map-pin-line me-1 text-primary"></i>
+                            <small class="fw-semibold">Dest: <span id="modal_restaurant_destination" class="text-primary"></span></small>
                         </div>
                     </div>
                 </div>
 
                 <!-- Restaurant Selection Form -->
                 <form id="restaurantSelectionForm">
-                    <div class="row g-3">
-                        <div class="col-md-3">
-                            <div class="form-group">
-                                <label class="form-label fw-semibold text-muted mb-2">
-                                    <i class="ri-map-pin-line text-success me-2"></i>City
-                                </label>
-                                <div class="position-relative">
-                                    <select class="form-select border-2" id="modal_restaurant_city_select" name="city" style="padding-left: 45px;" onchange="loadRestaurantsForCity(this.value, this.dataset.country)">
-                                        <option value="">Select city</option>
-                                        @foreach($cities as $city)
-                                            <option value="{{ $city->name }}" data-city="{{ json_encode($city) }}" data-country="{{ $city->country }}">{{ $city->name }}</option>
-                                        @endforeach
-                                    </select>
-                                    <i style="left: 15px; top: 50%; transform: translateY(-50%); z-index: 5;"></i>
-                                </div>
-                            </div>
+                    <div class="row g-2">
+                        <!-- City Selection -->
+                        <div class="col-md-6">
+                            <label class="form-label small fw-semibold mb-1">
+                                <i class="ri-map-pin-line text-success me-1"></i>City
+                            </label>
+                            <select class="form-select form-select-sm" id="modal_restaurant_city_select" name="city" onchange="loadRestaurantsForCity(this.value, this.dataset.country)">
+                                <option value="">Select city</option>
+                                @foreach($cities as $city)
+                                    <option value="{{ $city->name }}" data-city="{{ json_encode($city) }}" data-country="{{ $city->country }}">{{ $city->name }}</option>
+                                @endforeach
+                            </select>
                         </div>
                         <!-- Restaurant Selection -->
                         <div class="col-md-6">
-                            <label for="modal_restaurant_select" class="form-label fw-semibold">
-                                <i class="ri-restaurant-2-line me-1"></i>Select Restaurant
+                            <label for="modal_restaurant_select" class="form-label small fw-semibold mb-1">
+                                <i class="ri-restaurant-2-line me-1"></i>Restaurant
                             </label>
-                            <select class="form-select" id="modal_restaurant_select" name="restaurant_id" required>
+                            <select class="form-select form-select-sm" id="modal_restaurant_select" name="restaurant_id" required>
                                 <option value="">Search Restaurant</option>
                             </select>
-                            <div class="form-text">
-                                <i class="ri-information-line text-info me-1"></i>
-                                <span id="restaurant_count">0</span> restaurants available in <span id="modal_restaurant_city"></span>
-                            </div>
+                            <small class="form-text text-muted">
+                                <span id="restaurant_count">0</span> in <span id="modal_restaurant_city"></span>
+                            </small>
                         </div>
 
                         <!-- Guest Selector -->
-                        <div class="col-md-6">
-                            <label class="form-label fw-semibold">Select Guests</label>
+                        <div class="col-12">
+                            <label class="form-label small fw-semibold mb-1">Guests</label>
                             <div class="guest-selector">
                                 <div class="guest-display p-2 border rounded bg-light">
                                     <div class="d-flex align-items-center justify-content-between">
@@ -3163,7 +3158,7 @@
                                                 1 adults (1 male, 0 female), 0 children -0 infants
                                             </span>
                                         </div>
-                                        <button type="button" class="btn btn-sm btn-outline-primary" onclick="openModalGuestSelector()">
+                                        <button type="button" class="btn btn-sm btn-outline-primary p-1" onclick="openModalGuestSelector()">
                                             <i class="ri-edit-line"></i>
                                         </button>
                                     </div>
@@ -3183,62 +3178,59 @@
 
                         <!-- Dining Date Selection -->
                         <div class="col-md-6">
-                            <label for="modal_restaurant_dining_date" class="form-label fw-semibold">
+                            <label for="modal_restaurant_dining_date" class="form-label small fw-semibold mb-1">
                                 <i class="ri-calendar-line me-1"></i>Dining Date
                             </label>
-                            <input type="date" class="form-control" id="modal_restaurant_dining_date" name="dining_date" required>
-                            <small class="text-muted">Select the date for dining</small>
+                            <input type="date" class="form-control form-control-sm" id="modal_restaurant_dining_date" name="dining_date" required>
                         </div>
 
                         <!-- Meal Type Selection -->
                         <div class="col-md-6">
-                            <label for="modal_restaurant_meal_type" class="form-label fw-semibold">
+                            <label for="modal_restaurant_meal_type" class="form-label small fw-semibold mb-1">
                                 <i class="ri-time-line me-1"></i>Meal Type
                             </label>
-                            <select class="form-select" id="modal_restaurant_meal_type" name="meal_type" required>
+                            <select class="form-select form-select-sm" id="modal_restaurant_meal_type" name="meal_type" required data-no-select2="true">
                                 <option value="">Select Restaurant First</option>
                             </select>
-                            <small id="meal-price-section" class="text-muted"></small>
+                            <small id="meal-price-section" class="text-muted d-block"></small>
                         </div>
 
                         <!-- Select Dish -->
                         <div class="col-md-6">
-                            <label for="modal_restaurant_dish" class="form-label fw-semibold">Select Dish</label>
-                            <select class="form-select" name="modal_restaurant_dish" id="modal_restaurant_dish">
+                            <label for="modal_restaurant_dish" class="form-label small fw-semibold mb-1">Dish</label>
+                            <select class="form-select form-select-sm" name="modal_restaurant_dish" id="modal_restaurant_dish" data-no-select2="true">
                                 <option value="">Select Dish</option>
                             </select>
-                            <small class="text-muted">Buffet or Set Menu options</small>
                         </div>
 
                         <!-- Time Slot -->
                         <div class="col-md-6">
-                            <label for="modal_restaurant_time_slot" class="form-label fw-semibold">Time Slot</label>
-                            <select class="form-select" name="modal_restaurant_time_slot" id="modal_restaurant_time_slot">
+                            <label for="modal_restaurant_time_slot" class="form-label small fw-semibold mb-1">Time Slot</label>
+                            <select class="form-select form-select-sm" name="modal_restaurant_time_slot" id="modal_restaurant_time_slot" data-no-select2="true">
                                 <option value="">Select Time Slot</option>
                             </select>
-                            <small class="text-muted">Available time slots</small>
                         </div>
 
                         <!-- Restaurant Details Display -->
                         <div class="col-12" id="restaurant_details_container" style="display: none;">
-                            <div class="card border-success bg-light">
-                                <div class="card-body p-3">
+                            <div class="card border-success bg-light mb-0">
+                                <div class="card-body p-2">
                                     <div class="row align-items-center">
-                                        <div class="col-md-2">
-                                            <img id="selected_restaurant_image" src="" alt="Restaurant" class="rounded" style="width: 60px; height: 60px; object-fit: cover;">
+                                        <div class="col-auto">
+                                            <img id="selected_restaurant_image" src="" alt="Restaurant" class="rounded" style="width: 50px; height: 50px; object-fit: cover;">
                                         </div>
-                                        <div class="col-md-7">
-                                            <h6 id="selected_restaurant_name" class="mb-1 fw-bold"></h6>
-                                            <p id="selected_restaurant_cuisine" class="mb-1 text-muted small"></p>
-                                            <p id="selected_restaurant_location" class="mb-0 text-muted small"></p>
+                                        <div class="col">
+                                            <h6 id="selected_restaurant_name" class="mb-0 fw-bold small"></h6>
+                                            <p id="selected_restaurant_cuisine" class="mb-0 text-muted" style="font-size: 0.75rem;"></p>
+                                            <p id="selected_restaurant_location" class="mb-0 text-muted" style="font-size: 0.7rem;"></p>
                                         </div>
-                                        <div class="col-md-3 text-end">
+                                        <div class="col-auto text-end">
                                             <div class="restaurant-rating mb-1">
                                                 <i class="ri-star-fill text-warning"></i>
-                                                <span id="selected_restaurant_rating" class="fw-semibold"></span>
+                                                <span id="selected_restaurant_rating" class="fw-semibold small"></span>
                                             </div>
                                             <div class="restaurant-price-range">
-                                                <span id="selected_restaurant_price_range" class="fw-bold text-success"></span>
+                                                <span id="selected_restaurant_price_range" class="fw-bold text-success small"></span>
                                             </div>
                                         </div>
                                     </div>
@@ -3248,10 +3240,10 @@
                     </div>
                 </form>
             </div>
-            <div class="modal-footer">
-                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
-                <button type="button" class="btn btn-success" id="confirm_restaurant_btn">
-                    <i class="ri-check-line me-1"></i>Confirm Restaurant Selection
+            <div class="modal-footer py-2">
+                <button type="button" class="btn btn-sm btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                <button type="button" class="btn btn-sm btn-success" id="confirm_restaurant_btn">
+                    <i class="ri-check-line me-1"></i>Confirm
                 </button>
             </div>
         </div>
@@ -3467,73 +3459,99 @@
 
 <!-- Attraction Selection Modal -->
 <div class="modal fade" id="attractionSelectionModal" tabindex="-1" aria-labelledby="attractionSelectionModalLabel" aria-hidden="true">
-    <div class="modal-dialog modal-lg">
+    <div class="modal-dialog modal-dialog-centered modal-xl">
         <div class="modal-content">
-            <div class="modal-header bg-gradient-danger text-white">
-                <h5 class="modal-title" id="attractionSelectionModalLabel">
-                    <i class="ri-ticket-2-line me-2"></i>Select Attraction & Ticket Options
-                </h5>
+            <div class="modal-header bg-gradient-danger text-white py-2">
+                <h6 class="modal-title mb-0" id="attractionSelectionModalLabel">
+                    <i class="ri-ticket-2-line me-1"></i>Select Attraction & Tickets
+                </h6>
                 <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
             </div>
-            <div class="modal-body">
+            <div class="modal-body p-3">
                 <!-- Tour Info Display -->
-                <div class="row mb-3">
-                    <div class="col-md-6">
+                <div class="row mb-2">
+                    <div class="col-12 col-lg-6">
                         <div class="d-flex align-items-center">
-                            <i class="ri-calendar-line me-2 text-primary"></i>
-                            <span class="fw-semibold">Tour Dates: <span id="modal_attraction_tour_dates" class="text-primary"></span></span>
+                            <i class="ri-calendar-line me-1 text-primary"></i>
+                            <small class="fw-semibold">Dates: <span id="modal_attraction_tour_dates" class="text-primary"></span></small>
                         </div>
                     </div>
-                    <div class="col-md-6">
+                    <div class="col-12 col-lg-6">
                         <div class="d-flex align-items-center">
-                            <i class="ri-map-pin-line me-2 text-primary"></i>
-                            <span class="fw-semibold">Destination: <span id="modal_attraction_destination" class="text-primary"></span></span>
+                            <i class="ri-map-pin-line me-1 text-primary"></i>
+                            <small class="fw-semibold">Dest: <span id="modal_attraction_destination" class="text-primary"></span></small>
                         </div>
                     </div>
                 </div>
 
                 <!-- Attraction Selection Form -->
                 <form id="attractionSelectionForm" onsubmit="return false;">
-                    <div class="row g-3">
-                        <div class="col-md-6">
-                            <div class="form-group">
-                                <label class="form-label fw-semibold text-muted mb-2">
-                                    <i class="ri-map-pin-line text-success me-2"></i>Attraction City
-                                </label>
-                                <div class="position-relative">
-                                    <select class="form-select border-2" id="modal_attraction_city_select" name="city" style="padding-left: 45px;">
-                                        <option value="">Select city</option>
-                                        @foreach($cities as $city)
-                                            <option value="{{ $city->name }}" data-city="{{ json_encode($city) }}" data-country="{{ $city->country }}">{{ $city->name }}</option>
-                                        @endforeach
-                                    </select>
-                                    <i style="left: 15px; top: 50%; transform: translateY(-50%); z-index: 5;"></i>
+                    <!-- First Row: City and Attraction Name -->
+                    <div class="row g-3 mb-3">
+                        <div class="col-12 col-md-6">
+                            <label class="form-label small fw-semibold mb-1">
+                                <i class="ri-map-pin-line text-success me-1"></i>City
+                            </label>
+                            <select class="form-select form-select-sm" id="modal_attraction_city_select" name="city" data-no-select2="true">
+                                <option value="">Select city</option>
+                                @foreach($cities as $city)
+                                    <option value="{{ $city->name }}" data-city="{{ json_encode($city) }}" data-country="{{ $city->country }}">{{ $city->name }}</option>
+                                @endforeach
+                            </select>
+                        </div>
+                        <div class="col-12 col-md-6">
+                            <label for="modal_attraction_select" class="form-label small fw-semibold mb-1">
+                                <i class="ri-ticket-2-line me-1"></i>Attraction
+                            </label>
+                            <select class="form-select form-select-sm" id="modal_attraction_select" name="attraction_id" required data-no-select2="true">
+                                <option value="">Search Attraction</option>
+                            </select>
+                            <small class="form-text text-muted">
+                                <span id="attraction_count">0</span> in <span id="modal_attraction_city"></span>
+                            </small>
+                        </div>
+                    </div>
+
+                    <!-- Attraction Details Display -->
+                    <div class="row mb-3" id="attraction_details_container" style="display: none;">
+                        <div class="col-12">
+                            <div class="card border-danger bg-light mb-0">
+                                <div class="card-body p-2">
+                                    <div class="row align-items-center">
+                                        <div class="col-auto">
+                                            <img id="selected_attraction_image" src="" alt="Attraction" class="rounded" style="width: 50px; height: 50px; object-fit: cover;">
+                                        </div>
+                                        <div class="col">
+                                            <h6 id="selected_attraction_name" class="mb-0 fw-bold small"></h6>
+                                            <p id="selected_attraction_category" class="mb-0 text-muted" style="font-size: 0.75rem;"></p>
+                                            <p id="selected_attraction_location" class="mb-0 text-muted" style="font-size: 0.7rem;"></p>
+                                        </div>
+                                        <div class="col-auto text-end">
+                                            <div class="attraction-rating mb-1">
+                                                <i class="ri-star-fill text-warning"></i>
+                                                <span id="selected_attraction_rating" class="fw-semibold small"></span>
+                                            </div>
+                                            <div class="attraction-price-range">
+                                                <span id="selected_attraction_price_range" class="fw-bold text-danger small"></span>
+                                            </div>
+                                        </div>
+                                    </div>
                                 </div>
                             </div>
                         </div>
-                        <!-- Attraction Selection -->
-                        <div class="col-md-6">
-                            <label for="modal_attraction_select" class="form-label fw-semibold">
-                                <i class="ri-ticket-2-line me-1"></i>Select Attraction
-                            </label>
-                            <select class="form-select" id="modal_attraction_select" name="attraction_id" required>
-                                <option value="">Search Attraction</option>
-                            </select>
-                            <div class="form-text">
-                                <i class="ri-information-line text-info me-1"></i>
-                                <span id="attraction_count">0</span> attractions available in <span id="modal_attraction_city"></span>
-                            </div>
-                        </div>
+                    </div>
 
+                    <!-- Below: Guest Selector, Visit Date, Time Slot, Ticket -->
+                    <div class="row g-3">
                         <!-- Guest Selector -->
-                        <div class="col-12">
-                            <label class="form-label fw-semibold">Select Guests</label>
+                        <div class="col-12 col-md-6">
+                            <label class="form-label small fw-semibold mb-1">Guests</label>
                             <div class="guest-selector">
-                                <div class="guest-display p-3 border rounded bg-light shadow-sm">
+                                <div class="guest-display p-2 border rounded bg-light">
                                     <div class="d-flex align-items-center justify-content-between">
                                         <div class="flex-grow-1">
-                                            <div class="mb-2">
-                                                <span id="modal_attraction_guest_summary" class="text-dark">
+                                            <div class="mb-1">
+                                                <span id="modal_attraction_guest_summary" class="text-dark" style="font-size: 0.9rem;">
                                                     1 pax (1 adults, 0 children) - 1 male, 0 female - 0 infants
                                                 </span>
                                             </div>
@@ -3543,7 +3561,7 @@
                                                 <span class="badge bg-warning text-dark" id="modal_badge_infants">0</span>
                                             </div>
                                         </div>
-                                        <button type="button" class="btn btn-sm btn-outline-primary" onclick="openAttractionGuestSelector()">
+                                        <button type="button" class="btn btn-sm btn-outline-primary p-1" onclick="openAttractionGuestSelector()">
                                             <i class="ri-edit-line"></i>
                                         </button>
                                     </div>
@@ -3556,67 +3574,39 @@
                             <input type="hidden" name="modal_attraction_ticket_name" id="modal_attraction_ticket_name" value="">
                         </div>
 
-                        <!-- Visit Date Selection -->
-                        <div class="col-md-6">
-                            <label for="modal_attraction_visit_date" class="form-label fw-semibold">
+                        <!-- Visit Date -->
+                        <div class="col-12 col-md-6">
+                            <label for="modal_attraction_visit_date" class="form-label small fw-semibold mb-1">
                                 <i class="ri-calendar-line me-1"></i>Visit Date
                             </label>
-                            <input type="date" class="form-control" id="modal_attraction_visit_date" name="visit_date" required>
-                            <small class="text-muted">Select the date for attraction visit</small>
+                            <input type="date" class="form-control form-control-sm" id="modal_attraction_visit_date" name="visit_date" required>
                         </div>
 
-                        <!-- Time Slot Selection -->
-                        <div class="col-md-6">
-                            <label for="modal_attraction_time_slot" class="form-label fw-semibold">
+                        <!-- Time Slot -->
+                        <div class="col-12 col-md-6">
+                            <label for="modal_attraction_time_slot" class="form-label small fw-semibold mb-1">
                                 <i class="ri-time-line me-1"></i>Time Slot
                             </label>
-                            <select class="form-select" id="modal_attraction_time_slot" name="time_slot" required>
+                            <select class="form-select form-select-sm" id="modal_attraction_time_slot" name="time_slot" required data-no-select2="true">
                                 <option value="">Select Attraction First</option>
                             </select>
-                            <small class="text-muted">Available time slots for the attraction</small>
+                            <small class="text-muted">Available time slots</small>
                         </div>
 
                         <!-- Ticket Selection -->
-                        <div class="col-md-6">
-                            <label for="modal_attraction_ticket" class="form-label fw-semibold">Select Ticket</label>
-                            <select class="form-select" name="modal_attraction_ticket" id="modal_attraction_ticket" onchange="onTicketSelection(); updateAttractionPricing();">
+                        <div class="col-12 col-md-6">
+                            <label for="modal_attraction_ticket" class="form-label small fw-semibold mb-1">Ticket</label>
+                            <select class="form-select form-select-sm" name="modal_attraction_ticket" id="modal_attraction_ticket" onchange="onTicketSelection(); updateAttractionPricing();" data-no-select2="true">
                                 <option value="">Select Ticket</option>
                             </select>
-                            <small id="modal_attraction_ticket_prices" class="text-muted"></small>
-                        </div>
-
-                        <!-- Attraction Details Display -->
-                        <div class="col-12" id="attraction_details_container" style="display: none;">
-                            <div class="card border-danger bg-light">
-                                <div class="card-body p-3">
-                                    <div class="row align-items-center">
-                                        <div class="col-md-2">
-                                            <img id="selected_attraction_image" src="" alt="Attraction" class="rounded" style="width: 60px; height: 60px; object-fit: cover;">
-                                        </div>
-                                        <div class="col-md-7">
-                                            <h6 id="selected_attraction_name" class="mb-1 fw-bold"></h6>
-                                            <p id="selected_attraction_category" class="mb-1 text-muted small"></p>
-                                            <p id="selected_attraction_location" class="mb-0 text-muted small"></p>
-                                        </div>
-                                        <div class="col-md-3 text-end">
-                                            <div class="attraction-rating mb-1">
-                                                <i class="ri-star-fill text-warning"></i>
-                                                <span id="selected_attraction_rating" class="fw-semibold"></span>
-                                            </div>
-                                            <div class="attraction-price-range">
-                                                <span id="selected_attraction_price_range" class="fw-bold text-danger"></span>
-                                            </div>
-                                        </div>
-                                    </div>
-                                </div>
-                            </div>
+                            <small id="modal_attraction_ticket_prices" class="text-muted d-block"></small>
                         </div>
 
                         <!-- Attraction Price Display -->
                         <div class="col-12" id="attraction_price_display" style="display: none;">
-                            <div class="alert alert-info">
+                            <div class="alert alert-info py-2">
                                 <div class="d-flex align-items-center">
-                                    <i class="ri-money-dollar-circle-line me-2 fs-4"></i>
+                                    <i class="ri-money-dollar-circle-line me-2 fs-5"></i>
                                     <div>
                                         <strong>Attraction Pricing</strong>
                                         <div id="attraction_price_details" class="small">Select an attraction and configure guests to see pricing</div>
@@ -3627,10 +3617,10 @@
                     </div>
                 </form>
             </div>
-            <div class="modal-footer">
-                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
-                <button type="button" class="btn btn-danger" id="confirm_attraction_btn" disabled>
-                    <i class="ri-check-line me-1"></i>Confirm Attraction Selection
+            <div class="modal-footer py-2">
+                <button type="button" class="btn btn-sm btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                <button type="button" class="btn btn-sm btn-danger" id="confirm_attraction_btn" disabled>
+                    <i class="ri-check-line me-1"></i>Confirm
                 </button>
             </div>
         </div>
@@ -5458,11 +5448,11 @@
         // Check if already initialized to prevent duplicate event listeners
         if (window.attractionModalInitialized) {
             // Just update the guest data
-            const adults = parseInt(document.getElementById('adults')?.value) || 1;
-            const children = parseInt(document.getElementById('children')?.value) || 0;
-            const infants = parseInt(document.getElementById('infants')?.value) || 0;
-            const maleCount = parseInt(document.getElementById('male_count')?.value) || 1;
-            const femaleCount = parseInt(document.getElementById('female_count')?.value) || 0;
+            const children = parseInt(document.getElementById('children')?.value || '0') || 0;
+            const infants = parseInt(document.getElementById('infants')?.value || '0') || 0;
+            const maleCount = parseInt(document.getElementById('male_count')?.value || '1') || 1;
+            const femaleCount = parseInt(document.getElementById('female_count')?.value || '0') || 0;
+            const adults = maleCount + femaleCount;
             const pax = adults + children;
             
             window.attractionModalGuestData = {
@@ -5573,11 +5563,11 @@
         }
         
         // Initialize guest data from tour data
-        const adults = parseInt(document.getElementById('adults')?.value) || 1;
-        const children = parseInt(document.getElementById('children')?.value) || 0;
-        const infants = parseInt(document.getElementById('infants')?.value) || 0;
-        const maleCount = parseInt(document.getElementById('male_count')?.value) || 1;
-        const femaleCount = parseInt(document.getElementById('female_count')?.value) || 0;
+        const children = parseInt(document.getElementById('children')?.value || '0') || 0;
+        const infants = parseInt(document.getElementById('infants')?.value || '0') || 0;
+        const maleCount = parseInt(document.getElementById('male_count')?.value || '1') || 1;
+        const femaleCount = parseInt(document.getElementById('female_count')?.value || '0') || 0;
+        const adults = maleCount + femaleCount; // Calculate adults as male + female
         const pax = adults + children; // Calculate pax as adults + children
         
         // Set default guest data
@@ -5858,6 +5848,7 @@
         // Initialize guest selector modal with current values
         const guestData = window.attractionModalGuestData || {
             pax: '1',
+            adults: '1',
             children: '0',
             infants: '0',
             male_count: '1',
@@ -5865,20 +5856,41 @@
             child_ages: ''
         };
         
-        // Set current values in the modal
-        document.getElementById('attraction_modal_pax').value = guestData.pax;
-        document.getElementById('attraction_modal_children').value = guestData.children;
-        document.getElementById('attraction_modal_infants').value = guestData.infants;
-        document.getElementById('attraction_modal_male_count').value = guestData.male_count;
-        document.getElementById('attraction_modal_female_count').value = guestData.female_count;
-        document.getElementById('attraction_modal_child_ages').value = guestData.child_ages;
+        // Ensure values are valid numbers
+        const maleCount = parseInt(guestData.male_count || '1') || 1;
+        const femaleCount = parseInt(guestData.female_count || '0') || 0;
+        const children = parseInt(guestData.children || '0') || 0;
+        const infants = parseInt(guestData.infants || '0') || 0;
+        const adults = parseInt(guestData.adults || '1') || 1;
+        const pax = parseInt(guestData.pax || '1') || 1;
+        const childAges = guestData.child_ages || '';
         
-        // Add event listeners for the modal inputs
-        const modalInputs = ['attraction_modal_pax', 'attraction_modal_children', 'attraction_modal_infants', 'attraction_modal_male_count', 'attraction_modal_female_count', 'attraction_modal_child_ages'];
+        // Set current values in the modal
+        const paxElem = document.getElementById('attraction_modal_pax');
+        const childrenElem = document.getElementById('attraction_modal_children');
+        const infantsElem = document.getElementById('attraction_modal_infants');
+        const maleCountElem = document.getElementById('attraction_modal_male_count');
+        const femaleCountElem = document.getElementById('attraction_modal_female_count');
+        const childAgesElem = document.getElementById('attraction_modal_child_ages');
+        
+        if (paxElem) paxElem.value = pax;
+        if (childrenElem) childrenElem.value = children;
+        if (infantsElem) infantsElem.value = infants;
+        if (maleCountElem) maleCountElem.value = maleCount;
+        if (femaleCountElem) femaleCountElem.value = femaleCount;
+        if (childAgesElem) childAgesElem.value = childAges;
+        
+        // Remove existing event listeners and add new ones
+        const modalInputs = ['attraction_modal_children', 'attraction_modal_infants', 'attraction_modal_male_count', 'attraction_modal_female_count', 'attraction_modal_child_ages'];
         modalInputs.forEach(inputId => {
             const input = document.getElementById(inputId);
             if (input) {
-                input.addEventListener('input', updateAttractionGuestSummary);
+                // Clone and replace to remove old listeners
+                const newInput = input.cloneNode(true);
+                input.parentNode.replaceChild(newInput, input);
+                // Add new listener
+                newInput.addEventListener('input', updateAttractionGuestSummary);
+                newInput.addEventListener('change', updateAttractionGuestSummary);
             }
         });
         
@@ -5891,8 +5903,10 @@
 
     function incrementAttractionCount(fieldId) {
         const field = document.getElementById(fieldId);
-        const currentValue = parseInt(field.value);
-        const maxValue = parseInt(field.max);
+        if (!field) return;
+        
+        const currentValue = parseInt(field.value || '0') || 0;
+        const maxValue = parseInt(field.max || '20') || 20;
         
         if (fieldId === 'attraction_modal_pax') {
             // For pax, just increment normally
@@ -5901,45 +5915,26 @@
                 updateAttractionGuestSummary();
             }
         } else {
-            // For other fields, check if incrementing would exceed pax
-            const paxValue = parseInt(document.getElementById('attraction_modal_pax').value);
-            const childrenValue = parseInt(document.getElementById('attraction_modal_children').value);
-            const maleValue = parseInt(document.getElementById('attraction_modal_male_count').value);
-            const femaleValue = parseInt(document.getElementById('attraction_modal_female_count').value);
-            
-            let newValue = currentValue;
-            if (fieldId === 'attraction_modal_children') {
-                newValue = childrenValue + 1;
-            } else if (fieldId === 'attraction_modal_male_count') {
-                newValue = maleValue + 1;
-            } else if (fieldId === 'attraction_modal_female_count') {
-                newValue = femaleValue + 1;
-            }
-            
-            // Check if the new total would exceed pax
-            const totalAfterIncrement = newValue + (fieldId === 'attraction_modal_children' ? maleValue + femaleValue : 
-                                                   fieldId === 'attraction_modal_male_count' ? childrenValue + femaleValue : 
-                                                   childrenValue + maleValue);
-            
-            if (totalAfterIncrement <= paxValue && currentValue < maxValue) {
+            // For other fields, just increment (pax will be auto-calculated)
+            if (currentValue < maxValue) {
                 field.value = currentValue + 1;
                 updateAttractionGuestSummary();
-            } else if (totalAfterIncrement > paxValue) {
-                showNotification('Total of children, males, and females cannot exceed pax count', 'warning');
             }
         }
     }
 
     function decrementAttractionCount(fieldId) {
         const field = document.getElementById(fieldId);
-        const currentValue = parseInt(field.value);
-        const minValue = parseInt(field.min);
+        if (!field) return;
+        
+        const currentValue = parseInt(field.value || '0') || 0;
+        const minValue = parseInt(field.min || '0') || 0;
         
         if (fieldId === 'attraction_modal_pax') {
             // For pax, check if decrementing would make it less than the sum of other fields
-            const childrenValue = parseInt(document.getElementById('attraction_modal_children').value);
-            const maleValue = parseInt(document.getElementById('attraction_modal_male_count').value);
-            const femaleValue = parseInt(document.getElementById('attraction_modal_female_count').value);
+            const childrenValue = parseInt(document.getElementById('attraction_modal_children')?.value || '0') || 0;
+            const maleValue = parseInt(document.getElementById('attraction_modal_male_count')?.value || '0') || 0;
+            const femaleValue = parseInt(document.getElementById('attraction_modal_female_count')?.value || '0') || 0;
             const totalOthers = childrenValue + maleValue + femaleValue;
             
             if (currentValue > totalOthers && currentValue > minValue) {
@@ -5949,7 +5944,7 @@
                 showNotification('Pax cannot be less than the sum of children, males, and females', 'warning');
             }
         } else {
-            // For other fields, just decrement normally
+            // For other fields, just decrement normally (pax will be auto-calculated)
             if (currentValue > minValue) {
                 field.value = currentValue - 1;
                 updateAttractionGuestSummary();
@@ -5968,12 +5963,13 @@
             female_count: '0'
         };
         
-        const pax = parseInt(guestData.pax);
-        const adults = parseInt(guestData.adults);
-        const children = parseInt(guestData.children);
-        const infants = parseInt(guestData.infants);
-        const maleCount = parseInt(guestData.male_count);
-        const femaleCount = parseInt(guestData.female_count);
+        // Parse with proper NaN handling
+        const pax = parseInt(guestData.pax || '1') || 1;
+        const adults = parseInt(guestData.adults || '1') || 1;
+        const children = parseInt(guestData.children || '0') || 0;
+        const infants = parseInt(guestData.infants || '0') || 0;
+        const maleCount = parseInt(guestData.male_count || '1') || 1;
+        const femaleCount = parseInt(guestData.female_count || '0') || 0;
         
         const summary = `${pax} pax (${adults} adults, ${children} children) - ${maleCount} male, ${femaleCount} female - ${infants} infants`;
         
@@ -5994,13 +5990,29 @@
     }
     
     function updateAttractionGuestSummary() {
-        const pax = parseInt(document.getElementById('attraction_modal_pax').value);
-        const children = parseInt(document.getElementById('attraction_modal_children').value);
-        const infants = parseInt(document.getElementById('attraction_modal_infants').value);
-        const maleCount = parseInt(document.getElementById('attraction_modal_male_count').value);
-        const femaleCount = parseInt(document.getElementById('attraction_modal_female_count').value);
-        const adults = pax - children; // Calculate adults as pax - children
+        // Get values with proper NaN handling - default to 0 if empty or NaN
+        const paxElem = document.getElementById('attraction_modal_pax');
+        const childrenElem = document.getElementById('attraction_modal_children');
+        const infantsElem = document.getElementById('attraction_modal_infants');
+        const maleCountElem = document.getElementById('attraction_modal_male_count');
+        const femaleCountElem = document.getElementById('attraction_modal_female_count');
+        
+        const children = parseInt(childrenElem?.value || '0') || 0;
+        const infants = parseInt(infantsElem?.value || '0') || 0;
+        const maleCount = parseInt(maleCountElem?.value || '0') || 0;
+        const femaleCount = parseInt(femaleCountElem?.value || '0') || 0;
+        
+        // Calculate pax as the sum of adults (male + female) + children
+        // Adults = male + female, Pax = adults + children
+        const adults = maleCount + femaleCount;
+        const pax = adults + children;
+        
+        // Update pax field if it exists
+        if (paxElem) {
+            paxElem.value = pax;
+        }
 
+        // Build summary string with safe values
         const summary = `${pax} pax (${adults} adults, ${children} children) - ${maleCount} male, ${femaleCount} female - ${infants} infants`;
         
         // Update summary if element exists
@@ -6031,19 +6043,14 @@
             }
         }
         
-        // Validate total doesn't exceed pax
-        const total = children + maleCount + femaleCount;
-        if (total > pax) {
-            showNotification('Total of children, males, and females exceeds pax count', 'warning');
-        }
-        
         // Update the attraction modal guest data for pricing calculations
         window.attractionModalGuestData = {
+            pax: pax.toString(),
             adults: adults.toString(),
             children: children.toString(),
             infants: infants.toString(),
-            maleCount: maleCount.toString(),
-            femaleCount: femaleCount.toString()
+            male_count: maleCount.toString(),
+            female_count: femaleCount.toString()
         };
         
         // Update pricing based on new guest counts
@@ -6051,26 +6058,36 @@
     }
 
     function confirmAttractionGuestSelection() {
-        const pax = document.getElementById('attraction_modal_pax').value;
-        const children = document.getElementById('attraction_modal_children').value;
-        const infants = document.getElementById('attraction_modal_infants').value;
-        const maleCount = document.getElementById('attraction_modal_male_count').value;
-        const femaleCount = document.getElementById('attraction_modal_female_count').value;
-        const childAges = document.getElementById('attraction_modal_child_ages').value;
-        const adults = parseInt(pax) - parseInt(children); // Calculate adults
+        // Get values with proper NaN handling
+        const childrenElem = document.getElementById('attraction_modal_children');
+        const infantsElem = document.getElementById('attraction_modal_infants');
+        const maleCountElem = document.getElementById('attraction_modal_male_count');
+        const femaleCountElem = document.getElementById('attraction_modal_female_count');
+        const childAgesElem = document.getElementById('attraction_modal_child_ages');
+        
+        const children = parseInt(childrenElem?.value || '0') || 0;
+        const infants = parseInt(infantsElem?.value || '0') || 0;
+        const maleCount = parseInt(maleCountElem?.value || '0') || 0;
+        const femaleCount = parseInt(femaleCountElem?.value || '0') || 0;
+        const childAges = childAgesElem?.value || '';
+        
+        // Calculate adults and pax
+        const adults = maleCount + femaleCount;
+        const pax = adults + children;
 
         // Store the values for use in attraction booking
         window.attractionModalGuestData = {
-            pax: pax,
+            pax: pax.toString(),
             adults: adults.toString(),
-            children: children,
-            infants: infants,
-            male_count: maleCount,
-            female_count: femaleCount,
+            children: children.toString(),
+            infants: infants.toString(),
+            male_count: maleCount.toString(),
+            female_count: femaleCount.toString(),
             child_ages: childAges
         };
 
-        updateAttractionGuestSummary();
+        // Update the display in the main attraction modal
+        updateModalGuestDisplay();
 
         // Close modal safely
         safeCloseModal('attractionGuestSelectorModal');
@@ -6098,16 +6115,23 @@
                 let children = 0;
                 
                 if (window.attractionModalGuestData) {
-                    adults = parseInt(window.attractionModalGuestData.adults) || 0;
-                    children = parseInt(window.attractionModalGuestData.children) || 0;
+                    adults = parseInt(window.attractionModalGuestData.adults || '0') || 0;
+                    children = parseInt(window.attractionModalGuestData.children || '0') || 0;
                 } else {
                     // Fallback to calculating from the form fields
                     const paxElem = document.getElementById('attraction_modal_pax');
                     const childrenElem = document.getElementById('attraction_modal_children');
+                    const maleCountElem = document.getElementById('attraction_modal_male_count');
+                    const femaleCountElem = document.getElementById('attraction_modal_female_count');
                     
-                    if (paxElem && childrenElem) {
-                        const pax = parseInt(paxElem.value) || 0;
-                        children = parseInt(childrenElem.value) || 0;
+                    if (maleCountElem && femaleCountElem && childrenElem) {
+                        const maleCount = parseInt(maleCountElem.value || '0') || 0;
+                        const femaleCount = parseInt(femaleCountElem.value || '0') || 0;
+                        adults = maleCount + femaleCount;
+                        children = parseInt(childrenElem.value || '0') || 0;
+                    } else if (paxElem && childrenElem) {
+                        const pax = parseInt(paxElem.value || '0') || 0;
+                        children = parseInt(childrenElem.value || '0') || 0;
                         adults = pax - children;
                     } else {
                         adults = 1; // Default fallback
@@ -8993,6 +9017,7 @@
         
         // Get guest data from modal
         const guestData = window.attractionModalGuestData || {
+            pax: '1',
             adults: '1',
             children: '0',
             infants: '0',
@@ -9008,10 +9033,12 @@
         const startDate = document.getElementById('start_date').value;
         const endDate = document.getElementById('end_date').value;
         
-        // Calculate pricing based on guest data
-        const adultPrice = parseFloat(ticketData.adult_price || '0');
-        const childPrice = parseFloat(ticketData.child_price || '0');
-        const basePrice = adultPrice * parseInt(guestData.adults) + childPrice * parseInt(guestData.children);
+        // Calculate pricing based on guest data with proper NaN handling
+        const adultPrice = parseFloat(ticketData.adult_price || '0') || 0;
+        const childPrice = parseFloat(ticketData.child_price || '0') || 0;
+        const adults = parseInt(guestData.adults || '1') || 1;
+        const children = parseInt(guestData.children || '0') || 0;
+        const basePrice = (adultPrice * adults) + (childPrice * children);
         const totalPrice = basePrice;
         
         // Build the complex booking data structure in required format
@@ -11240,6 +11267,7 @@
                 console.log('Unknown meal period:', mealPeriod);
                 return;
         }
+        console.log("openTime and closeTime: ",openTime, closeTime);
         
         if (!openTime || !closeTime) {
             console.log('No timing data available for meal period:', mealPeriod);
@@ -11260,26 +11288,129 @@
         const startTime = parseTime(openTime);
         const endTime = parseTime(closeTime);
         
+        console.log('After parseTime - startTime:', startTime, 'Type:', typeof startTime, 'Is Date:', startTime instanceof Date);
+        console.log('After parseTime - endTime:', endTime, 'Type:', typeof endTime, 'Is Date:', endTime instanceof Date);
+        
         if (!startTime || !endTime) {
             console.log('Failed to parse times:', openTime, closeTime);
             return;
         }
         
-        // Generate 30-minute intervals
-        let currentTime = new Date(startTime);
+        // Validate that we have Date objects
+        if (!(startTime instanceof Date) || !(endTime instanceof Date)) {
+            console.error('Parsed times are not Date objects:', startTime, endTime);
+            console.error('startTime type:', typeof startTime, 'value:', startTime);
+            console.error('endTime type:', typeof endTime, 'value:', endTime);
+            
+            // Try to recreate Date objects if they're numbers
+            let startDateObj, endDateObj;
+            
+            if (typeof startTime === 'number') {
+                // If it's a number, it might be minutes since midnight
+                const hours = Math.floor(startTime / 60);
+                const minutes = startTime % 60;
+                startDateObj = new Date();
+                startDateObj.setHours(hours, minutes, 0, 0);
+                console.log('Recreated startDate from number:', startDateObj);
+            } else if (startTime instanceof Date) {
+                startDateObj = new Date(startTime);
+            } else {
+                console.error('Cannot convert startTime to Date');
+                return;
+            }
+            
+            if (typeof endTime === 'number') {
+                // If it's a number, it might be minutes since midnight
+                const hours = Math.floor(endTime / 60);
+                const minutes = endTime % 60;
+                endDateObj = new Date();
+                endDateObj.setHours(hours, minutes, 0, 0);
+                console.log('Recreated endDate from number:', endDateObj);
+            } else if (endTime instanceof Date) {
+                endDateObj = new Date(endTime);
+            } else {
+                console.error('Cannot convert endTime to Date');
+                return;
+            }
+            
+            // Use the recreated Date objects
+            const today = new Date();
+            const startDate = new Date(today);
+            startDate.setHours(startDateObj.getHours(), startDateObj.getMinutes(), startDateObj.getSeconds(), 0);
+            
+            const endDate = new Date(today);
+            endDate.setHours(endDateObj.getHours(), endDateObj.getMinutes(), endDateObj.getSeconds(), 0);
+            
+            if (endDate < startDate) {
+                endDate.setDate(endDate.getDate() + 1);
+            }
+            
+            // Generate time slots with the corrected dates
+            let currentTime = new Date(startDate);
+            let iterationCount = 0;
+            const maxIterations = 100;
+            
+            while (currentTime <= endDate && iterationCount < maxIterations) {
+                const timeValue = formatTime24(currentTime);
+                const timeDisplay = formatTime12(currentTime);
+                
+                const option = document.createElement('option');
+                option.value = timeValue;
+                option.textContent = timeDisplay;
+                timeSlotSelect.appendChild(option);
+                
+                currentTime = new Date(currentTime.getTime() + 30 * 60 * 1000);
+                iterationCount++;
+            }
+            
+            console.log('Total time slots generated (fallback):', iterationCount);
+            setTimeout(() => {
+                validateRestaurantForm();
+            }, 50);
+            return;
+        }
         
-        while (currentTime <= endTime) {
+        console.log('Parsed startTime:', startTime, 'Type:', typeof startTime);
+        console.log('Parsed endTime:', endTime, 'Type:', typeof endTime);
+        
+        // Normalize dates to same day for proper comparison
+        const today = new Date();
+        const startDate = new Date(today);
+        startDate.setHours(startTime.getHours(), startTime.getMinutes(), startTime.getSeconds(), 0);
+        
+        const endDate = new Date(today);
+        endDate.setHours(endTime.getHours(), endTime.getMinutes(), endTime.getSeconds(), 0);
+        
+        // If end time is before start time, assume it's next day
+        if (endDate < startDate) {
+            endDate.setDate(endDate.getDate() + 1);
+        }
+        
+        console.log('Normalized startDate:', startDate);
+        console.log('Normalized endDate:', endDate);
+        
+        // Generate 30-minute intervals
+        let currentTime = new Date(startDate);
+        let iterationCount = 0;
+        const maxIterations = 100; // Safety limit
+        
+        while (currentTime <= endDate && iterationCount < maxIterations) {
             const timeValue = formatTime24(currentTime);
             const timeDisplay = formatTime12(currentTime);
+            
+            console.log('Adding time slot:', timeValue, '(', timeDisplay, ')');
             
             const option = document.createElement('option');
             option.value = timeValue;
             option.textContent = timeDisplay;
             timeSlotSelect.appendChild(option);
             
-            // Add 30 minutes
-            currentTime.setMinutes(currentTime.getMinutes() + 30);
+            // Add 30 minutes by creating a new Date object
+            currentTime = new Date(currentTime.getTime() + 30 * 60 * 1000);
+            iterationCount++;
         }
+        
+        console.log('Total time slots generated:', iterationCount);
         
         // Validate form after time slots are populated
         console.log('Time slots populated, running validation');
@@ -11290,40 +11421,78 @@
     
     // Parse time string (handles various formats)
     function parseTime(timeStr) {
-        if (!timeStr) return null;
+        if (!timeStr) {
+            console.log('parseTime: Empty time string');
+            return null;
+        }
         
         try {
-            console.log('Parsing time string:', timeStr);
+            // Convert to string and trim
+            timeStr = String(timeStr).trim();
+            console.log('Parsing time string:', timeStr, 'Type:', typeof timeStr);
             
             // Handle "HH:MM AM/PM" format
             if (timeStr.includes('AM') || timeStr.includes('PM')) {
                 const today = new Date();
-                const [time, period] = timeStr.split(' ');
+                const parts = timeStr.split(' ');
+                const time = parts[0];
+                const period = parts[1] ? parts[1].toUpperCase() : '';
                 const [hours, minutes] = time.split(':');
-                let hour = parseInt(hours);
+                let hour = parseInt(hours, 10);
+                const minute = parseInt(minutes || 0, 10);
+                
+                if (isNaN(hour) || isNaN(minute)) {
+                    console.log('Invalid hour or minute in 12-hour format');
+                    return null;
+                }
                 
                 if (period === 'PM' && hour !== 12) hour += 12;
                 if (period === 'AM' && hour === 12) hour = 0;
                 
-                today.setHours(hour, parseInt(minutes) || 0, 0, 0);
-                console.log('Parsed 12-hour time:', today);
-                return today;
+                today.setHours(hour, minute, 0, 0);
+                console.log('Parsed 12-hour time:', today, 'Hour:', hour, 'Minute:', minute);
+                
+                // Ensure we return a proper Date object
+                const result = new Date(today);
+                console.log('Returning Date object:', result, 'Is Date:', result instanceof Date);
+                return result;
             }
             
             // Handle "HH:MM:SS" or "HH:MM" format (24-hour)
             const timeMatch = timeStr.match(/(\d{1,2}):(\d{2})(?::(\d{2}))?/);
             if (timeMatch) {
                 const today = new Date();
-                const hour = parseInt(timeMatch[1]);
-                const minute = parseInt(timeMatch[2]);
-                const second = timeMatch[3] ? parseInt(timeMatch[3]) : 0;
+                const hour = parseInt(timeMatch[1], 10);
+                const minute = parseInt(timeMatch[2], 10);
+                const second = timeMatch[3] ? parseInt(timeMatch[3], 10) : 0;
+                
+                if (isNaN(hour) || isNaN(minute)) {
+                    console.log('Invalid hour or minute in 24-hour format');
+                    return null;
+                }
+                
+                if (hour < 0 || hour > 23 || minute < 0 || minute > 59) {
+                    console.log('Time out of valid range:', hour, minute);
+                    return null;
+                }
                 
                 today.setHours(hour, minute, second, 0);
-                console.log('Parsed 24-hour time:', today);
-                return today;
+                console.log('Parsed 24-hour time:', today, 'Hour:', hour, 'Minute:', minute, 'Second:', second);
+                
+                // Create a new Date object to ensure we return a proper Date instance
+                const result = new Date(today.getTime());
+                console.log('Returning Date object:', result, 'Is Date:', result instanceof Date, 'getTime():', result.getTime());
+                
+                // Verify it's a Date object
+                if (!(result instanceof Date)) {
+                    console.error('Failed to create Date object - result is not a Date');
+                    return null;
+                }
+                
+                return result;
             }
             
-            console.log('Failed to parse time:', timeStr);
+            console.log('Failed to parse time - no match:', timeStr);
             return null;
         } catch (error) {
             console.error('Error parsing time:', timeStr, error);
@@ -11333,6 +11502,10 @@
     
     // Format time to 24-hour format (HH:MM)
     function formatTime24(date) {
+        if (!(date instanceof Date)) {
+            console.error('formatTime24: Expected Date object, got:', typeof date, date);
+            return '00:00';
+        }
         const hours = date.getHours().toString().padStart(2, '0');
         const minutes = date.getMinutes().toString().padStart(2, '0');
         return `${hours}:${minutes}`;
@@ -11340,6 +11513,10 @@
     
     // Format time to 12-hour format (HH:MM AM/PM)
     function formatTime12(date) {
+        if (!(date instanceof Date)) {
+            console.error('formatTime12: Expected Date object, got:', typeof date, date);
+            return '12:00 AM';
+        }
         let hours = date.getHours();
         const minutes = date.getMinutes().toString().padStart(2, '0');
         const period = hours >= 12 ? 'PM' : 'AM';
@@ -11483,6 +11660,7 @@
             if (selectedRestaurantOption && selectedRestaurantOption.getAttribute('data-restaurant')) {
                 const restaurantData = JSON.parse(selectedRestaurantOption.getAttribute('data-restaurant'));
                 // Set time slots based on restaurant's opening/closing times for the selected meal period
+                console.log('Restaurant data:', restaurantData);
                 populateTimeSlotsBasedOnMealPeriod(mealData.meal_period, restaurantData);
             }
         }
