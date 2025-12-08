@@ -1084,7 +1084,7 @@ class BookingListController extends Controller
             if ($dmcId) {
                 $dmc = \App\Models\User::where('userId', $dmcId)->first();
                 if ($dmc) {
-                    $priceHide = $dmc->price_hide ?? 1; // Default to 1 (show prices) if not set
+                    $priceHide = $dmc->price_hide ?? 0; // Default to 0 (show prices) if not set
                 }
             }
         }
@@ -1147,7 +1147,7 @@ class BookingListController extends Controller
     {
         try {
             $currentUser = auth()->user();
-            $priceHide = 1; // Default to show prices
+            $priceHide = 0; // Default to show prices (0 = show, 1 = hide)
             $dmcId = null;
             
             if ($currentUser) {
@@ -1156,7 +1156,8 @@ class BookingListController extends Controller
                     $dmc = \App\Models\User::where('userId', $dmcId)->first();
                     if ($dmc) {
                         // Ensure price_hide is returned as integer (0 or 1)
-                        $priceHide = (int)($dmc->price_hide ?? 1);
+                        // 0 = show prices, 1 = hide prices
+                        $priceHide = (int)($dmc->price_hide ?? 0);
                     }
                 }
             }
@@ -1172,7 +1173,7 @@ class BookingListController extends Controller
             return response()->json([
                 'success' => false,
                 'error' => 'Failed to check price hide status',
-                'price_hide' => 1 // Default to show prices on error
+                'price_hide' => 0 // Default to show prices on error (0 = show, 1 = hide)
             ], 500);
         }
     }
