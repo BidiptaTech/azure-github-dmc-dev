@@ -9944,6 +9944,13 @@ document.addEventListener('DOMContentLoaded', function() {
              
                            // Other Services (Only on Day 1)
               if (day === 1) {
+                  // Get main guest values for initial attraction display
+                  const mainMale = parseInt(document.getElementById('male')?.value) || 1;
+                  const mainFemale = parseInt(document.getElementById('female')?.value) || 0;
+                  const mainChildren = parseInt(document.getElementById('children')?.value) || 0;
+                  const mainInfants = parseInt(document.getElementById('infants')?.value) || 0;
+                  const mainAdults = mainMale + mainFemale;
+                  
                   servicesHTML += `
                   <div class="services-container">
                       <!-- Attraction Tickets -->
@@ -10001,7 +10008,7 @@ document.addEventListener('DOMContentLoaded', function() {
                                                 <div class="d-flex align-items-center justify-content-between">
                                                     <div class="guest-info">
                                                         <span id="day${day}_attraction_1_guest_summary" class="text-muted small">
-                                                            1 adults (1 male, 0 female), 0 children - 0 infants
+                                                            ${mainAdults} adults (${mainMale} male, ${mainFemale} female), ${mainChildren} children - ${mainInfants} infants
                                                         </span>
                                                     </div>
                                                     <button type="button" class="btn btn-sm btn-outline-primary" onclick="openGuestSelector('day${day}_attraction_1')">
@@ -10009,9 +10016,9 @@ document.addEventListener('DOMContentLoaded', function() {
                                                     </button>
                                                 </div>
                                                 <div class="guest-badges mt-1">
-                                                    <span class="badge bg-primary">4</span>
-                                                    <span class="badge bg-success">0</span>
-                                                    <span class="badge bg-warning text-dark">0</span>
+                                                    <span class="badge bg-primary">${mainAdults}</span>
+                                                    <span class="badge bg-success">${mainChildren}</span>
+                                                    <span class="badge bg-warning text-dark">${mainInfants}</span>
                                                 </div>
                                             </div>
                                         </div>
@@ -11374,7 +11381,7 @@ document.addEventListener('DOMContentLoaded', function() {
                                         </button>
                                     </div>
                                     <div class="guest-badges mt-1">
-                                        <span class="badge bg-primary">4</span>
+                                        <span class="badge bg-primary">1</span>
                                         <span class="badge bg-success">0</span>
                                         <span class="badge bg-warning text-dark">0</span>
                                     </div>
@@ -11423,7 +11430,7 @@ document.addEventListener('DOMContentLoaded', function() {
         
         // Note: Attraction dropdown will be loaded when city is selected
         
-        // Update guest summary for the new attraction with current main guest selection
+        // Update guest summary and badges for the new attraction with current main guest selection
         const mainMale = parseInt(document.getElementById('male')?.value) || 0;
         const mainFemale = parseInt(document.getElementById('female')?.value) || 0;
         const mainChildren = parseInt(document.getElementById('children')?.value) || 0;
@@ -11433,6 +11440,17 @@ document.addEventListener('DOMContentLoaded', function() {
         if (summaryElement) {
             const adults = mainMale + mainFemale;
             summaryElement.textContent = `${adults} adults (${mainMale} male, ${mainFemale} female), ${mainChildren} children - ${mainInfants} infants`;
+            
+            // Update badges
+            const guestDisplay = summaryElement.closest('.guest-display');
+            if (guestDisplay) {
+                const badges = guestDisplay.querySelectorAll('.guest-badges .badge');
+                if (badges.length >= 3) {
+                    badges[0].textContent = adults; // Total adults
+                    badges[1].textContent = mainChildren; // Children
+                    badges[2].textContent = mainInfants; // Infants
+                }
+            }
         }
         
         showNotification(`Attraction Booking #${newIndex} added for Day ${day}`, 'success');
@@ -14765,6 +14783,11 @@ document.addEventListener('DOMContentLoaded', function() {
             initializeModalGuestValues();
             const modalInstance = new bootstrap.Modal(modal);
             modalInstance.show();
+            // Re-initialize after modal is shown to ensure DOM is ready
+            modal.addEventListener('shown.bs.modal', function onShown() {
+                initializeModalGuestValues();
+                modal.removeEventListener('shown.bs.modal', onShown);
+            }, { once: true });
         } else {
             // Create modal if it doesn't exist
             createGuestSelectorModal(serviceId);
@@ -14909,13 +14932,17 @@ document.addEventListener('DOMContentLoaded', function() {
          
         document.body.insertAdjacentHTML('beforeend', modalHTML);
         
-        // Initialize modal values from main form
-        initializeModalGuestValues();
-        
-        // Show modal
+        // Show modal first, then initialize values after it's shown
         const modal = document.getElementById('guestSelectorModal');
         modal.setAttribute('data-service-id', serviceId);
         const modalInstance = new bootstrap.Modal(modal);
+        
+        // Initialize values after modal is fully shown
+        modal.addEventListener('shown.bs.modal', function onShown() {
+            initializeModalGuestValues();
+            modal.removeEventListener('shown.bs.modal', onShown);
+        }, { once: true });
+        
         modalInstance.show();
     }
      
