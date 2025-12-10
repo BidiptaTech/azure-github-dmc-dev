@@ -10127,7 +10127,7 @@ document.addEventListener('DOMContentLoaded', function() {
                                                      </button>
                                                  </div>
                                                  <div class="guest-badges mt-1">
-                                                     <span class="badge bg-primary">4</span>
+                                                     <span class="badge bg-primary">1</span>
                                                      <span class="badge bg-success">0</span>
                                                      <span class="badge bg-warning text-dark">0</span>
                                                  </div>
@@ -10264,7 +10264,7 @@ document.addEventListener('DOMContentLoaded', function() {
                                                      </button>
                                                  </div>
                                                  <div class="guest-badges mt-1">
-                                                     <span class="badge bg-primary">4</span>
+                                                     <span class="badge bg-primary">1</span>
                                                      <span class="badge bg-success">0</span>
                                                      <span class="badge bg-warning text-dark">0</span>
                                                  </div>
@@ -12622,7 +12622,7 @@ document.addEventListener('DOMContentLoaded', function() {
                                         </button>
                                     </div>
                                     <div class="guest-badges mt-1">
-                                        <span class="badge bg-primary">4</span>
+                                        <span class="badge bg-primary">1</span>
                                         <span class="badge bg-success">0</span>
                                         <span class="badge bg-warning text-dark">0</span>
                                     </div>
@@ -12685,7 +12685,7 @@ document.addEventListener('DOMContentLoaded', function() {
         
         // Note: Restaurant dropdown will be loaded when city is selected
         
-        // Update guest summary for the new restaurant with current main guest selection
+        // Update guest summary and badges for the new restaurant with current main guest selection
         const mainMale = parseInt(document.getElementById('male')?.value) || 0;
         const mainFemale = parseInt(document.getElementById('female')?.value) || 0;
         const mainChildren = parseInt(document.getElementById('children')?.value) || 0;
@@ -12695,6 +12695,17 @@ document.addEventListener('DOMContentLoaded', function() {
         if (summaryElement) {
             const adults = mainMale + mainFemale;
             summaryElement.textContent = `${adults} adults (${mainMale} male, ${mainFemale} female), ${mainChildren} children - ${mainInfants} infants`;
+            
+            // Update badges
+            const guestDisplay = summaryElement.closest('.guest-display');
+            if (guestDisplay) {
+                const badges = guestDisplay.querySelectorAll('.guest-badges .badge');
+                if (badges.length >= 3) {
+                    badges[0].textContent = adults; // Total adults
+                    badges[1].textContent = mainChildren; // Children
+                    badges[2].textContent = mainInfants; // Infants
+                }
+            }
         }
         
         showNotification(`Restaurant Booking #${newIndex} added for Day ${day}`, 'success');
@@ -13243,7 +13254,7 @@ document.addEventListener('DOMContentLoaded', function() {
                                         </button>
                                     </div>
                                     <div class="guest-badges mt-1">
-                                        <span class="badge bg-primary">4</span>
+                                        <span class="badge bg-primary">1</span>
                                         <span class="badge bg-success">0</span>
                                         <span class="badge bg-warning text-dark">0</span>
                                     </div>
@@ -13344,7 +13355,7 @@ document.addEventListener('DOMContentLoaded', function() {
         
         // Note: Guide dropdown will be loaded when city is selected
         
-        // Update guest summary for the new guide with current main guest selection
+        // Update guest summary and badges for the new guide with current main guest selection
         const mainMale = parseInt(document.getElementById('male')?.value) || 0;
         const mainFemale = parseInt(document.getElementById('female')?.value) || 0;
         const mainChildren = parseInt(document.getElementById('children')?.value) || 0;
@@ -13354,6 +13365,17 @@ document.addEventListener('DOMContentLoaded', function() {
         if (summaryElement) {
             const adults = mainMale + mainFemale;
             summaryElement.textContent = `${adults} adults (${mainMale} male, ${mainFemale} female), ${mainChildren} children - ${mainInfants} infants`;
+            
+            // Update badges
+            const guestDisplay = summaryElement.closest('.guest-display');
+            if (guestDisplay) {
+                const badges = guestDisplay.querySelectorAll('.guest-badges .badge');
+                if (badges.length >= 3) {
+                    badges[0].textContent = adults; // Total adults
+                    badges[1].textContent = mainChildren; // Children
+                    badges[2].textContent = mainInfants; // Infants
+                }
+            }
         }
         
         showNotification(`Tour Guide Booking #${newIndex} added for Day ${day}`, 'success');
