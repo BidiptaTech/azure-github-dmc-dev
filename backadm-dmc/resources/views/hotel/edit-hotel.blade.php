@@ -690,6 +690,32 @@
                                                 <div class="text-danger mt-1">{{ $message }}</div>
                                                 @enderror
                                             </div>
+
+                                            <!-- Auto Cancel Date -->
+                                            <div class="mb-3 col-md-2">
+                                                <label for="auto_cancel_date" class="form-label"><strong>Auto Cancel Date</strong></label>
+                                                <select name="auto_cancel_date" id="auto_cancel_date" class="form-control"
+                                                        @if(Auth::user()->role_id != 1 && Auth::user()->role_id != 20) disabled @endif>
+                                                    <option value="">Select Days</option>
+                                                    <option value="1" {{ (old('auto_cancel_date', $hotel->auto_cancel_date) == 1 || (is_null($hotel->auto_cancel_date) && old('auto_cancel_date') == '')) ? 'selected' : '' }}>D-1</option>
+                                                    <option value="2" {{ old('auto_cancel_date', $hotel->auto_cancel_date) == 2 ? 'selected' : '' }}>D-2</option>
+                                                    <option value="3" {{ old('auto_cancel_date', $hotel->auto_cancel_date) == 3 ? 'selected' : '' }}>D-3</option>
+                                                    <option value="4" {{ old('auto_cancel_date', $hotel->auto_cancel_date) == 4 ? 'selected' : '' }}>D-4</option>
+                                                    <option value="5" {{ old('auto_cancel_date', $hotel->auto_cancel_date) == 5 ? 'selected' : '' }}>D-5</option>
+                                                    <option value="6" {{ old('auto_cancel_date', $hotel->auto_cancel_date) == 6 ? 'selected' : '' }}>D-6</option>
+                                                    <option value="7" {{ old('auto_cancel_date', $hotel->auto_cancel_date) == 7 ? 'selected' : '' }}>D-7</option>
+                                                    <option value="8" {{ old('auto_cancel_date', $hotel->auto_cancel_date) == 8 ? 'selected' : '' }}>D-8</option>
+                                                    <option value="9" {{ old('auto_cancel_date', $hotel->auto_cancel_date) == 9 ? 'selected' : '' }}>D-9</option>
+                                                    <option value="10" {{ old('auto_cancel_date', $hotel->auto_cancel_date) == 10 ? 'selected' : '' }}>D-10</option>
+                                                    <option value="11" {{ old('auto_cancel_date', $hotel->auto_cancel_date) == 11 ? 'selected' : '' }}>D-11</option>
+                                                    <option value="12" {{ old('auto_cancel_date', $hotel->auto_cancel_date) == 12 ? 'selected' : '' }}>D-12</option>
+                                                    <option value="13" {{ old('auto_cancel_date', $hotel->auto_cancel_date) == 13 ? 'selected' : '' }}>D-13</option>
+                                                    <option value="14" {{ old('auto_cancel_date', $hotel->auto_cancel_date) == 14 ? 'selected' : '' }}>D-14</option>
+                                                </select>
+                                                @error('auto_cancel_date')
+                                                    <div class="text-danger mt-1">{{ $message }}</div>
+                                                @enderror
+                                            </div>
                                         </fieldset>
                                     </div>
                                 </div>
@@ -976,6 +1002,11 @@
         });
         $('#star_rating').select2({
             placeholder: "Search and Select Star",
+            allowClear: true,
+            width: '100%'
+        });
+        $('#auto_cancel_date').select2({
+            placeholder: "Select Days",
             allowClear: true,
             width: '100%'
         });
