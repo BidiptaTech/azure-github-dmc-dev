@@ -1263,6 +1263,177 @@
                 </div>
             </div>
             
+            <!-- Arrival Transport Services Section -->
+            @php
+                // Collect all arrival services from all days
+                $allArrivalServices = [];
+                foreach($tourDays as $dateKey => $dayInfo) {
+                    foreach($dayInfo['orders'] as $order) {
+                        if ($order->type === 'entry_port') {
+                            $allArrivalServices[] = $order;
+                        }
+                    }
+                }
+            @endphp
+            <div class="row mb-4">
+                <div class="col-12">
+                    <div class="card border-success shadow-sm">
+                        <div class="card-header bg-success text-white">
+                            <div class="d-flex align-items-center">
+                                <span class="service-icon me-3">
+                                    <i class="ri-login-circle-line fs-4"></i>
+                                </span>
+                                <div>
+                                    <h6 class="mb-0 fw-bold">Arrival Transport Services</h6>
+                                    <small class="opacity-75">Edit entry port transfers</small>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="card-body mt-3">
+                            @if(count($allArrivalServices) > 0)
+                                @foreach($allArrivalServices as $index => $order)
+                                    @php
+                                        $transportData = is_array($order->processed_data) ? $order->processed_data : json_decode($order->processed_data, true);
+                                        if (isset($transportData[0])) {
+                                            $transportData = $transportData[0];
+                                        }
+                                        $cityValue = $transportData['city'] ?? '';
+                                        $pickupLocation = $transportData['entrypickup'] ?? $transportData['pickup'] ?? ($transportData['exitpickup'] ?? '');
+                                        $dropoffLocation = $transportData['entrydropoff'] ?? $transportData['dropoff'] ?? ($transportData['exitdropoff'] ?? '');
+                                        $pickupTime = $transportData['entrytime'] ?? $transportData['time'] ?? '';
+                                        $vehicleName = $transportData['vehicles_name'] ?? '';
+                                        $vehicleType = $transportData['type'] ?? '';
+                                        $passengers = $transportData['passengers'] ?? '';
+                                        $availableVehicles = $vehicles ?? collect();
+                                    @endphp
+                                    <form class="service-item mb-3 p-3 border rounded shadow-sm bg-white transport-edit-form" data-form-type="entry_port" data-update-url="{{ route('edit-tour.update-transport', $order->booking_id) }}" onsubmit="updateExistingTransport(event, {{ $order->booking_id }})">
+                                        @csrf
+                                        <input type="hidden" name="type" value="entry_port">
+                                        <div class="d-flex justify-content-between align-items-center mb-3">
+                                            <h6 class="mb-0 fw-bold text-primary"><i class="ri-login-circle-line me-2"></i>Entry Port Transfer #{{ $index + 1 }}</h6>
+                                            <div class="d-flex gap-2">
+                                                <button type="button" class="btn btn-sm btn-outline-danger" onclick="removeTransportService({{ $order->booking_id }})">
+                                                    <i class="ri-delete-bin-line"></i> Remove
+                                                </button>
+                                            </div>
+                                        </div>
+                                        <div class="row g-3 align-items-end">
+                                            <div class="col-md-3">
+                                                <label class="form-label fw-semibold text-muted mb-1"><i class="ri-map-pin-line me-1 text-success"></i>City</label>
+                                                <select class="form-select border-2" name="city">
+                                                    <option value="">Select city</option>
+                                                    @foreach($cities as $city)
+                                                        <option value="{{ $city->name }}" {{ $city->name == $cityValue ? 'selected' : '' }}>{{ $city->name }}</option>
+                                                    @endforeach
+                                                    @if($cityValue && !$cities->contains('name', $cityValue))
+                                                        <option value="{{ $cityValue }}" selected>{{ $cityValue }}</option>
+                                                    @endif
+                                                </select>
+                                            </div>
+                                            <div class="col-md-3">
+                                                <label class="form-label fw-semibold text-muted mb-1"><i class="ri-map-pin-line me-1 text-success"></i>Pick Up Location</label>
+                                                <select class="form-select border-2" name="pickup_location">
+                                                    <option value="">Select pickup port</option>
+                                                    @foreach($ports as $port)
+                                                        <option value="{{ $port->port_name }}" {{ $port->port_name == $pickupLocation ? 'selected' : '' }}>
+                                                            {{ $port->port_name }}
+                                                        </option>
+                                                    @endforeach
+                                                    @if($pickupLocation && !$ports->contains('port_name', $pickupLocation))
+                                                        <option value="{{ $pickupLocation }}" selected>{{ $pickupLocation }}</option>
+                                                    @endif
+                                                </select>
+                                            </div>
+                                            <div class="col-md-3">
+                                                <label class="form-label fw-semibold text-muted mb-1"><i class="ri-map-pin-line me-1 text-danger"></i>Drop Off Location</label>
+                                                <select class="form-select border-2" name="dropoff_location">
+                                                    <option value="">Select dropoff</option>
+                                                    @foreach($hotels as $hotel)
+                                                        <option value="{{ $hotel->name }}" {{ $hotel->name == $dropoffLocation ? 'selected' : '' }}>
+                                                            {{ $hotel->name }}
+                                                        </option>
+                                                    @endforeach
+                                                    @if($dropoffLocation && !$hotels->contains('name', $dropoffLocation))
+                                                        <option value="{{ $dropoffLocation }}" selected>{{ $dropoffLocation }}</option>
+                                                    @endif
+                                                </select>
+                                            </div>
+                                            <div class="col-md-2">
+                                                <label class="form-label fw-semibold text-muted mb-1"><i class="ri-time-line me-1 text-warning"></i>Pick Up Time</label>
+                                                @php
+                                                    $time24 = $pickupTime ? date('H:i', strtotime($pickupTime)) : '';
+                                                @endphp
+                                                <input type="time" class="form-control border-2" name="pickup_time" value="{{ $time24 }}" required>
+                                            </div>
+                                            <div class="col-md-3">
+                                                <label class="form-label fw-semibold text-muted mb-1"><i class="ri-car-line me-1 text-info"></i>Vehicle</label>
+                                                @php $vehicleMatched = false; @endphp
+                                                <select class="form-select border-2" name="vehicle_name">
+                                                    <option value="">{{ $vehicleName ? 'Select vehicle' : 'Select vehicle' }}</option>
+                                                    @foreach($availableVehicles as $vehicleOption)
+                                                        @php
+                                                            $vehicleDisplayName = $vehicleOption->vehicle_name ?? $vehicleOption->vehicle_id;
+                                                            $isSelected = $vehicleDisplayName && strcasecmp($vehicleDisplayName, $vehicleName ?? '') === 0;
+                                                            $vehicleMatched = $vehicleMatched || $isSelected;
+                                                        @endphp
+                                                        <option value="{{ $vehicleDisplayName }}" {{ $isSelected ? 'selected' : '' }}>
+                                                            {{ $vehicleDisplayName }}
+                                                            @if(!empty($vehicleOption->vehicle_type))
+                                                                ({{ $vehicleOption->vehicle_type }})
+                                                            @endif
+                                                        </option>
+                                                    @endforeach
+                                                    @if($vehicleName && !$vehicleMatched)
+                                                        <option value="{{ $vehicleName }}" selected>{{ $vehicleName }}</option>
+                                                    @endif
+                                                </select>
+                                            </div>
+                                            <div class="col-md-2">
+                                                <label class="form-label fw-semibold text-muted mb-1">Service Type</label>
+                                                <select class="form-select border-2" name="vehicle_type">
+                                                    <option value="">Select type</option>
+                                                    <option value="Private" {{ strtolower($vehicleType) === 'private' ? 'selected' : '' }}>Private</option>
+                                                    <option value="Shared" {{ strtolower($vehicleType) === 'shared' ? 'selected' : '' }}>Shared</option>
+                                                </select>
+                                            </div>
+                                        </div>
+                                        <div class="d-flex justify-content-end align-items-center gap-3 mt-3">
+                                            <div class="text-muted small" id="transport_feedback_{{ $order->booking_id }}_entry_port"></div>
+                                            <button type="submit" class="btn btn-sm btn-primary d-flex align-items-center gap-2">
+                                                <span class="spinner-border spinner-border-sm d-none" id="transport_spinner_{{ $order->booking_id }}_entry_port"></span>
+                                                <span>Save Changes</span>
+                                            </button>
+                                        </div>
+                                    </form>
+                                @endforeach
+                            @else
+                                <div class="text-center py-4 text-muted">
+                                    <i class="ri-inbox-line fs-1 mb-2"></i>
+                                    <p class="mb-0">No arrival services added yet</p>
+                                </div>
+                            @endif
+                        </div>
+                        <!-- Arrival Services Add More Section (Static) -->
+                        <div class="card-footer bg-light">
+                            <div class="text-center py-3">
+                                <button type="button" class="btn btn-gradient-primary btn-lg shadow-sm px-5 py-3" onclick="addArrivalService()" style="
+                                    background: linear-gradient(135deg, #11998e 0%, #38ef7d 100%);
+                                    border: none;
+                                    color: white;
+                                    font-weight: 600;
+                                    letter-spacing: 0.5px;
+                                    transition: all 0.3s ease;
+                                    border-radius: 8px;
+                                    box-shadow: 0 4px 15px rgba(17, 153, 142, 0.4);
+                                " onmouseover="this.style.transform='translateY(-2px)'; this.style.boxShadow='0 6px 20px rgba(17, 153, 142, 0.6)';" onmouseout="this.style.transform='translateY(0)'; this.style.boxShadow='0 4px 15px rgba(17, 153, 142, 0.4)';">
+                                    <i class="ri-add-circle-line me-2" style="font-size: 1.2em;"></i>Add More Arrival Services
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
             <!-- Day-based Service Sections -->
                 @php
                     // Check if any day has services
@@ -1285,6 +1456,7 @@
                                 $allTransportHourly = [];
                                 $allTransportPoint = [];
                                 $allLocalTransport = [];
+                                $allArrivalServices = [];
                                 foreach($tourDays as $dateKey => $dayInfo) {
                                     foreach($dayInfo['orders'] as $order) {
                                         if ($order->type === 'attraction') {
@@ -1297,6 +1469,8 @@
                                             $allTransportPoint[] = $order;
                                         } elseif ($order->type === 'local_transport') {
                                             $allLocalTransport[] = $order;
+                                        } elseif ($order->type === 'entry_port') {
+                                            $allArrivalServices[] = $order;
                                         }
                                     }
                                 }
@@ -1323,163 +1497,6 @@
                                             $dayOrdersByType[$type][] = $order;
                                         }
                                     @endphp
-                                    
-                                <!-- Arrival Transport Services Section -->
-                                @if(isset($dayOrdersByType['entry_port']))
-                                <div class="service-section mb-3">
-                                    <div class="card border-success shadow-sm">
-                                        <div class="card-header bg-success text-white">
-                                            <div class="d-flex align-items-center">
-                                                <span class="service-icon me-3">
-                                                    <i class="ri-login-circle-line fs-4"></i>
-                                                </span>
-                                                <div>
-                                                    <h6 class="mb-0 fw-bold">Arrival Transport Services</h6>
-                                                    <small class="opacity-75">Edit entry port transfers</small>
-                                                </div>
-                                            </div>
-                                        </div>
-                                        <div class="card-body mt-3">
-                                            @foreach($dayOrdersByType['entry_port'] as $index => $order)
-                                                @php
-                                                    $transportData = is_array($order->processed_data) ? $order->processed_data : json_decode($order->processed_data, true);
-                                                    if (isset($transportData[0])) {
-                                                        $transportData = $transportData[0];
-                                                    }
-                                                    $cityValue = $transportData['city'] ?? '';
-                                                    $pickupLocation = $transportData['entrypickup'] ?? $transportData['pickup'] ?? ($transportData['exitpickup'] ?? '');
-                                                    $dropoffLocation = $transportData['entrydropoff'] ?? $transportData['dropoff'] ?? ($transportData['exitdropoff'] ?? '');
-                                                    $pickupTime = $transportData['entrytime'] ?? $transportData['time'] ?? '';
-                                                    $vehicleName = $transportData['vehicles_name'] ?? '';
-                                                    $vehicleType = $transportData['type'] ?? '';
-                                                    $passengers = $transportData['passengers'] ?? '';
-                                                    $availableVehicles = $vehicles ?? collect();
-                                                @endphp
-                                                <form class="service-item mb-3 p-3 border rounded shadow-sm bg-white transport-edit-form" data-form-type="entry_port" data-update-url="{{ route('edit-tour.update-transport', $order->booking_id) }}" onsubmit="updateExistingTransport(event, {{ $order->booking_id }})">
-                                                    @csrf
-                                                    <input type="hidden" name="type" value="entry_port">
-                                                    <div class="d-flex justify-content-between align-items-center mb-3">
-                                                        <h6 class="mb-0 fw-bold text-primary"><i class="ri-login-circle-line me-2"></i>Entry Port Transfer #{{ $index + 1 }}</h6>
-                                                        <div class="d-flex gap-2">
-                                                            <button type="button" class="btn btn-sm btn-outline-danger" onclick="removeTransportService({{ $order->booking_id }})">
-                                                                <i class="ri-delete-bin-line"></i> Remove
-                                                            </button>
-                                                        </div>
-                                                    </div>
-                                                    <div class="row g-3 align-items-end">
-                                                        <div class="col-md-3">
-                                                            <label class="form-label fw-semibold text-muted mb-1"><i class="ri-map-pin-line me-1 text-success"></i>City</label>
-                                                            <select class="form-select border-2" name="city">
-                                                                <option value="">Select city</option>
-                                                                @foreach($cities as $city)
-                                                                    <option value="{{ $city->name }}" {{ $city->name == $cityValue ? 'selected' : '' }}>{{ $city->name }}</option>
-                                                                @endforeach
-                                                                @if($cityValue && !$cities->contains('name', $cityValue))
-                                                                    <option value="{{ $cityValue }}" selected>{{ $cityValue }}</option>
-                                                                @endif
-                                                            </select>
-                                                        </div>
-                                                        <div class="col-md-3">
-                                                            <label class="form-label fw-semibold text-muted mb-1"><i class="ri-map-pin-line me-1 text-success"></i>Pick Up Location</label>
-                                                            <select class="form-select border-2" name="pickup_location">
-                                                                <option value="">Select pickup port</option>
-                                                                @foreach($ports as $port)
-                                                                    <option value="{{ $port->port_name }}" {{ $port->port_name == $pickupLocation ? 'selected' : '' }}>
-                                                                        {{ $port->port_name }}
-                                                                    </option>
-                                                                @endforeach
-                                                                @if($pickupLocation && !$ports->contains('port_name', $pickupLocation))
-                                                                    <option value="{{ $pickupLocation }}" selected>{{ $pickupLocation }}</option>
-                                                                @endif
-                                                            </select>
-                                                        </div>
-                                                        <div class="col-md-3">
-                                                            <label class="form-label fw-semibold text-muted mb-1"><i class="ri-map-pin-line me-1 text-danger"></i>Drop Off Location</label>
-                                                            <select class="form-select border-2" name="dropoff_location">
-                                                                <option value="">Select dropoff</option>
-                                                                @foreach($hotels as $hotel)
-                                                                    <option value="{{ $hotel->name }}" {{ $hotel->name == $dropoffLocation ? 'selected' : '' }}>
-                                                                        {{ $hotel->name }}
-                                                                    </option>
-                                                                @endforeach
-                                                                @if($dropoffLocation && !$hotels->contains('name', $dropoffLocation))
-                                                                    <option value="{{ $dropoffLocation }}" selected>{{ $dropoffLocation }}</option>
-                                                                @endif
-                                                            </select>
-                                                        </div>
-                                                        <div class="col-md-2">
-                                                            <label class="form-label fw-semibold text-muted mb-1"><i class="ri-time-line me-1 text-warning"></i>Pick Up Time</label>
-                                                            @php
-                                                                $time24 = $pickupTime ? date('H:i', strtotime($pickupTime)) : '';
-                                                            @endphp
-                                                            <input type="time" class="form-control border-2" name="pickup_time" value="{{ $time24 }}" required>
-                                                        </div>
-                                                        <div class="col-md-3">
-                                                            <label class="form-label fw-semibold text-muted mb-1"><i class="ri-car-line me-1 text-info"></i>Vehicle</label>
-                                                            @php $vehicleMatched = false; @endphp
-                                                            <select class="form-select border-2" name="vehicle_name">
-                                                                <option value="">{{ $vehicleName ? 'Select vehicle' : 'Select vehicle' }}</option>
-                                                                @foreach($availableVehicles as $vehicleOption)
-                                                                    @php
-                                                                        $vehicleDisplayName = $vehicleOption->vehicle_name ?? $vehicleOption->vehicle_id;
-                                                                        $isSelected = $vehicleDisplayName && strcasecmp($vehicleDisplayName, $vehicleName ?? '') === 0;
-                                                                        $vehicleMatched = $vehicleMatched || $isSelected;
-                                                                    @endphp
-                                                                    <option value="{{ $vehicleDisplayName }}" {{ $isSelected ? 'selected' : '' }}>
-                                                                        {{ $vehicleDisplayName }}
-                                                                        @if(!empty($vehicleOption->vehicle_type))
-                                                                            ({{ $vehicleOption->vehicle_type }})
-                                                                        @endif
-                                                                    </option>
-                                                                @endforeach
-                                                                @if($vehicleName && !$vehicleMatched)
-                                                                    <option value="{{ $vehicleName }}" selected>{{ $vehicleName }}</option>
-                                                                @endif
-                                                            </select>
-                                                        </div>
-                                                        <div class="col-md-2">
-                                                            <label class="form-label fw-semibold text-muted mb-1">Service Type</label>
-                                                            <select class="form-select border-2" name="vehicle_type">
-                                                                <option value="">Select type</option>
-                                                                <option value="Private" {{ strtolower($vehicleType) === 'private' ? 'selected' : '' }}>Private</option>
-                                                                <option value="Shared" {{ strtolower($vehicleType) === 'shared' ? 'selected' : '' }}>Shared</option>
-                                                            </select>
-                                                        </div>
-                                                        <!-- <div class="col-md-2">
-                                                            <label class="form-label fw-semibold text-muted mb-1">Passengers</label>
-                                                            <input type="number" class="form-control border-2" name="passenger_count" min="1" value="{{ $passengers }}" placeholder="Count">
-                                                        </div> -->
-                                                    </div>
-                                                    <div class="d-flex justify-content-end align-items-center gap-3 mt-3">
-                                                        <div class="text-muted small" id="transport_feedback_{{ $order->booking_id }}_entry_port"></div>
-                                                        <button type="submit" class="btn btn-sm btn-primary d-flex align-items-center gap-2">
-                                                            <span class="spinner-border spinner-border-sm d-none" id="transport_spinner_{{ $order->booking_id }}_entry_port"></span>
-                                                            <span>Save Changes</span>
-                                                        </button>
-                                                    </div>
-                                                </form>
-                                            @endforeach
-                                        </div>
-                                        <!-- Arrival Services Add More Section (Static) -->
-                                        <div class="card-footer bg-light">
-                                            <div class="text-center py-3">
-                                                <button type="button" class="btn btn-gradient-primary btn-lg shadow-sm px-5 py-3" onclick="addArrivalService()" style="
-                                                    background: linear-gradient(135deg, #11998e 0%, #38ef7d 100%);
-                                                    border: none;
-                                                    color: white;
-                                                    font-weight: 600;
-                                                    letter-spacing: 0.5px;
-                                                    transition: all 0.3s ease;
-                                                    border-radius: 8px;
-                                                    box-shadow: 0 4px 15px rgba(17, 153, 142, 0.4);
-                                                " onmouseover="this.style.transform='translateY(-2px)'; this.style.boxShadow='0 6px 20px rgba(17, 153, 142, 0.6)';" onmouseout="this.style.transform='translateY(0)'; this.style.boxShadow='0 4px 15px rgba(17, 153, 142, 0.4)';">
-                                                    <i class="ri-add-circle-line me-2" style="font-size: 1.2em;"></i>Add More Arrival Services
-                                                </button>
-                                            </div>
-                                        </div>
-                                    </div>
-                                </div>
-                                @endif
 
                                 <!-- Restaurant Services Section -->
                                 @if(isset($dayOrdersByType['restaurant']))
@@ -7025,7 +7042,9 @@
             toZoneType = '';
         }
         // Make API call to fetch vehicles by zones
-        fetch(`{{ route('fetch-vehicles-by-zones') }}`, {
+        const routeUrl = `{{ route('fetch-vehicles-by-zones') }}`;
+        console.log('Fetching vehicles from route:', routeUrl);
+        fetch(routeUrl, {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
@@ -7040,7 +7059,16 @@
                 city: selectedCity
             })
         })
-        .then(response => response.json())
+        .then(response => {
+            console.log('Response status:', response.status, response.statusText);
+            if (!response.ok) {
+                return response.text().then(text => {
+                    console.error('Error response:', text);
+                    throw new Error(`HTTP error! status: ${response.status}`);
+                });
+            }
+            return response.json();
+        })
         .then(data => {
             console.log('Zone-based vehicle search response:', data);
             
@@ -7083,7 +7111,11 @@
         })
         .catch(error => {
             console.error('Error searching vehicles:', error);
-            alert('Error searching vehicles. Please try again.');
+            let errorMessage = 'Error searching vehicles. Please try again.';
+            if (error.message && error.message.includes('404')) {
+                errorMessage = 'Route not found. Please contact administrator to clear route cache.';
+            }
+            showNotification(errorMessage, 'error');
             if (searchBtn) {
                 searchBtn.innerHTML = '<i class="ri-search-line me-2"></i>Search Vehicles';
                 searchBtn.disabled = false;
