@@ -87,7 +87,7 @@ const MainFilterSearchBox = () => {
 
   const handleLocationSelect = (location) => {
     console.log("Selected Location:", location);
-    setSelectedLocation(location?.code);
+    setSelectedLocation(location);
   };
 
   const handleDateChange = (dates) => {
@@ -209,7 +209,7 @@ const MainFilterSearchBox = () => {
     }
 
     // Convert country code to full name for destination
-    const destinationName = countryCodeToName[selectedLocation] || selectedLocation;
+    const destinationName = selectedLocation ?? countryCodeToName[selectedLocation];
     
     // Fetch cities from API based on selected country name and wait for response
     const citiesResult = await dispatch(fetchCitiesByCountry(destinationName));
