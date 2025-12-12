@@ -100,4 +100,6 @@ Route::middleware('auth:sanctum')->prefix('v1')->group(function () {
     
      // Order routes
     Route::post('/save-service', 'App\Http\Controllers\OrderController@saveService');
+
+    Route::get('/city-country', 'App\Http\Controllers\Api\CountryController@cityCountry');
 });
