@@ -9,6 +9,7 @@ use App\Models\User;
 use App\Models\Agent;
 use Illuminate\Http\Request;
 use App\Models\Agency;
+use App\Helpers\CountryHelper;
 
 class CountryController extends Controller
 {
@@ -262,14 +263,16 @@ class CountryController extends Controller
         $cities = City::whereRaw('LOWER(name) LIKE LOWER(?)', [$search . '%'])
             ->get();
         
-        // Format results as "city, country" with city_id
+        // Format results as "city, country" with city_id and country code
         $formattedResults = $cities->map(function($city) {
             $countryName = $city->country ?? '';
+            $countryCode = CountryHelper::getCountryCode($countryName);
             
             return [
                 'city_id' => $city->city_id ?? $city->id,
                 'city' => $city->name,
                 'country' => $countryName,
+                'country_code' => $countryCode,
                 'formatted' => $city->name . ', ' . $countryName
             ];
         });
