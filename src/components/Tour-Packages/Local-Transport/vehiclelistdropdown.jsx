@@ -355,7 +355,7 @@ const VehicleListDropdown = ({
   const [data, setData] = useState(null);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState(null);
-  
+  const tourStatus = useSelector((state) => state.tourPackages.tourStatus);
   // Define totalGuests for price calculation
   const totalGuests = adults + children;
   
