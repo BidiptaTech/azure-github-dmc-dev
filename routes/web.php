@@ -184,8 +184,11 @@ Route::get('/clear', function () {
             
             // Enquiry Form Pro Routes
             Route::get('/enquiry-form-pro/create', [EnquiryFormPro::class, 'create'])->name('enquiry-form-pro.create');
+            Route::post('/enquiry-form-pro/initialize', [EnquiryFormPro::class, 'initialize'])->name('enquiry-form-pro.initialize');
             Route::get('/enquiry-form-pro/get-hotels', [EnquiryFormPro::class, 'getHotelsByDestination'])->name('enquiry-form-pro.get-hotels');
             Route::get('/enquiry-form-pro/get-agents', [EnquiryFormPro::class, 'getAgentsByAgency'])->name('enquiry-form-pro.get-agents');
+            Route::get('/enquiry-form-pro/get-agencies', [EnquiryFormPro::class, 'getAgencies'])->name('enquiry-form-pro.get-agencies');
+            Route::get('/enquiry-form-pro/get-destinations', [EnquiryFormPro::class, 'getDestinations'])->name('enquiry-form-pro.get-destinations');
             
             Route::get('/tour/{tourId}/download-itinerary', function ($tourId) {
                 $pdfResponse = CommonHelper::downloadTourPdf($tourId);
