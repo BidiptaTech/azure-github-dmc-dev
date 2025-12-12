@@ -950,7 +950,7 @@ const ExitPortBooking = ({
                           />
                         </Box>
 
-                        <Box
+                        {/* <Box
                           sx={{
                             display: "flex",
                             justifyContent: "space-between",
@@ -1034,14 +1034,14 @@ const ExitPortBooking = ({
                               py: 0.5,
                             }}
                           >
-                            <Typography
+                            {/* <Typography
                               sx={{
                                 fontSize: "0.8rem",
                                 color: "rgba(255, 255, 255, 0.7)",
                               }}
                             >
                               Tax Amount ({currentTax}%)
-                            </Typography>
+                            </Typography> */}
                             <Typography
                               sx={{
                                 fontSize: "0.85rem",
@@ -1050,7 +1050,7 @@ const ExitPortBooking = ({
                             >
                               {formatPrice(
                                 safeParseFloat(bookingDetails.totalPrice) *
-                                  (safeParseFloat(currentTax) / 100) *
+                                  // (safeParseFloat(currentTax) / 100) *
                                   safeParseFloat(exchangeRate || 1)
                               )}
                             </Typography>
@@ -1076,7 +1076,7 @@ const ExitPortBooking = ({
                                 color: "white",
                               }}
                             >
-                              Total (With Tax)
+                              Total (Without Tax)
                             </Typography>
                             <Typography
                               sx={{
@@ -1086,11 +1086,11 @@ const ExitPortBooking = ({
                               }}
                             >
                               {formatPrice(
-                                (safeParseFloat(bookingDetails.totalPrice) +
-                                  (safeParseFloat(bookingDetails.totalPrice) *
-                                    safeParseFloat(currentTax)) /
-                                    100) *
-                                  safeParseFloat(exchangeRate || 1)
+                                (safeParseFloat(bookingDetails.totalPrice))
+                                  // (safeParseFloat(bookingDetails.totalPrice) *
+                                  //   safeParseFloat(currentTax)) /
+                                  //   100) *
+                                  //safeParseFloat(exchangeRate || 1)
                               )}
                             </Typography>
                           </Box>
@@ -1128,7 +1128,7 @@ const ExitPortBooking = ({
                                 >
                                   {usdCurrencyCode}
                                 </Typography>
-                                <Typography
+                                {/* <Typography
                                   sx={{
                                     fontSize: "0.7rem",
                                     color: "rgba(255, 255, 255, 0.7)",
@@ -1136,7 +1136,7 @@ const ExitPortBooking = ({
                                   }}
                                 >
                                   ({usdTax}%)
-                                </Typography>
+                                </Typography> */}
                               </Box>
                               <Typography
                                 sx={{
@@ -1145,11 +1145,12 @@ const ExitPortBooking = ({
                                 }}
                               >
                                 {formatPrice(
-                                  (safeParseFloat(bookingDetails.totalPrice) +
-                                    (safeParseFloat(bookingDetails.totalPrice) *
-                                      safeParseFloat(usdTax)) /
-                                      100) *
-                                    safeParseFloat(usdExchangeRate || 1)
+                                  (safeParseFloat(bookingDetails.totalPrice) * safeParseFloat(usdExchangeRate || 1))
+                                    // (safeParseFloat(bookingDetails.totalPrice) +
+                                    //   safeParseFloat(bookingDetails.totalPrice) *
+                                    //   safeParseFloat(usdTax)) /
+                                    //   100) *
+                                    // safeParseFloat(usdExchangeRate || 1)
                                 )}
                               </Typography>
                             </Box>
@@ -1175,7 +1176,7 @@ const ExitPortBooking = ({
                                 >
                                   SGD
                                 </Typography>
-                                <Typography
+                                {/* <Typography
                                   sx={{
                                     fontSize: "0.7rem",
                                     color: "rgba(255, 255, 255, 0.7)",
@@ -1183,7 +1184,7 @@ const ExitPortBooking = ({
                                   }}
                                 >
                                   ({sgdTax}%)
-                                </Typography>
+                                </Typography> */}
                               </Box>
                               <Typography
                                 sx={{
@@ -1192,10 +1193,11 @@ const ExitPortBooking = ({
                                 }}
                               >
                                 {formatPrice(
-                                  safeParseFloat(bookingDetails.totalPrice) +
-                                    (safeParseFloat(bookingDetails.totalPrice) *
-                                      safeParseFloat(sgdTax)) /
-                                      100 || 0
+                                  safeParseFloat(bookingDetails.totalPrice) 
+                                    // safeParseFloat(bookingDetails.totalPrice) +
+                                    //   safeParseFloat(bookingDetails.totalPrice) *
+                                    //   safeParseFloat(sgdTax)) /
+                                    //   100 || 0
                                 )}
                               </Typography>
                             </Box>

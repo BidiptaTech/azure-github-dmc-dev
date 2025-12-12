@@ -139,7 +139,7 @@ const Pickuptime = ({
           PaperProps: {
             style: {
               maxHeight: 280,
-              borderRadius: "10px",
+              borderRadius: "5px",
               backgroundColor: "rgba(255, 255, 255, 0.98)",
               boxShadow: "0 8px 16px rgba(0,0,0,0.15)",
             },

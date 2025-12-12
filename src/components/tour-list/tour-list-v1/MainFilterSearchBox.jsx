@@ -8,8 +8,10 @@ import {
   fetchAttractions,
 } from "../../../slice/attractions/attractionSlice";
 import { setSelectedCity } from "@/slice/common/commonSlice";
+import { triggerSearch, clearTriggerSearch } from "@/slice/common/stepsSlice";
 
 const MainFilterSearchBox = () => {
+  console.log('🔍 Attraction MainFilterSearchBox - Component rendered/mounted');
   const dispatch = useDispatch();
 
   const tourdetails = useSelector((state) => state.hotels.tourdetails);
@@ -49,7 +51,8 @@ const MainFilterSearchBox = () => {
 
     const searchData = {
       location: selectedLocation,
-      date: selectedDate,
+      date: selectedDate ? selectedDate.format("YYYY-MM-DD") : null,
+      selectedDate: selectedDate ? selectedDate.format("YYYY-MM-DD") : null,
       adults: guestCounts.Adults,
       children: guestCounts.Children,
       tour_id: tourdetails?.tour_id,
@@ -60,6 +63,9 @@ const MainFilterSearchBox = () => {
     dispatch(setSearchParams(searchData));
     // Clear previous attractions before new search
     dispatch({ type: "attractions/clearAttractions" });
+    
+    // Reset pagination to first page for new search
+    // Note: This will be handled by the TourProperties component
 
     dispatch(
       fetchAttractions({
@@ -69,9 +75,30 @@ const MainFilterSearchBox = () => {
         children: guestCounts.Children,
         tour_id: tourdetails?.tour_id,
         selectedDate: selectedDate,
+        start: 0,
+        limit: 5,
       })
     );
   };
+
+  // Listen for triggerSearch from Redux and call handleSearch when attraction step is triggered
+  const searchTrigger = useSelector((state) => {
+    const trigger = state.steps.triggerSearch;
+    console.log('🔍 Attraction MainFilterSearchBox - Selector called, searchTrigger:', trigger);
+    return trigger;
+  });
+  
+  useEffect(() => {
+    console.log('🔍 Attraction MainFilterSearchBox - useEffect triggered, searchTrigger:', searchTrigger);
+    console.log('🔍 Attraction MainFilterSearchBox - Component is mounted and listening for triggers');
+    
+    if (searchTrigger === 'attraction') {
+      console.log('🔍 Attraction MainFilterSearchBox - Trigger search received for attraction, calling handleSearch');
+      handleSearch();
+      // Clear the trigger after handling
+      dispatch(clearTriggerSearch());
+    }
+  }, [searchTrigger, dispatch]);
 
   return (
     <div className="mainSearch -col-3-big bg-white px-10 py-10 lg:px-20 lg:pt-5 lg:pb-20 rounded-4 mt-30">

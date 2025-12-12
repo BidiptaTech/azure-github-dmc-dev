@@ -5,6 +5,7 @@ import TourStatus from "../common/sub_common/TourStatus";
 import { useNavigate } from "react-router-dom";
 import React from "react";
 import { Avatar } from "@mui/material";
+import { selectSelectedDmcLogo, selectSelectedDmcCompanyName } from "../../slice/dmc/dmcSlice"; // Import DMC slice selectors
 
 const OrderSubmittedInfo = () => {
   const bookingResponse = useSelector((state) => state.hotels.bookingResponse);
@@ -58,18 +59,19 @@ const OrderSubmittedInfo = () => {
   const usdPrice = Math.ceil(basePrice * usdExchangeRate);
   const convertedPrice = Math.ceil(basePrice * exchangeRate);
   
-  // Step 2: Calculate tax amounts for all currencies
-  const sgdTaxAmount = Math.ceil((sgdPrice * sgdTax) / 100);
-  const usdTaxAmount = Math.ceil((usdPrice * usdTax) / 100);
-  const convertedTaxAmount = Math.ceil((convertedPrice * currentTax) / 100);
+  // Step 2: Calculate tax amounts for all currencies (COMMENTED OUT)
+  // const sgdTaxAmount = Math.ceil((sgdPrice * sgdTax) / 100);
+  // const usdTaxAmount = Math.ceil((usdPrice * usdTax) / 100);
+  // const convertedTaxAmount = Math.ceil((convertedPrice * currentTax) / 100);
   
-  // Step 3: Calculate grand totals for all currencies
-  const sgdGrandTotal = sgdPrice + sgdTaxAmount;
-  const usdGrandTotal = usdPrice + usdTaxAmount;
-  const convertedGrandTotal = convertedPrice + convertedTaxAmount;
+  // Step 3: Calculate grand totals for all currencies (WITHOUT TAX)
+  const sgdGrandTotal = sgdPrice; // + sgdTaxAmount;
+  const usdGrandTotal = usdPrice; // + usdTaxAmount;
+  const convertedGrandTotal = convertedPrice; // + convertedTaxAmount;
   
-  const dmcName = useSelector((state) => state.auth.DmcName) || 'DMC';
-  const dmcLogo = useSelector((state) => state.auth.DmcLogo); 
+  // Get DMC logo and company name from DMC slice instead of auth slice
+  const dmcLogo = useSelector(selectSelectedDmcLogo);
+  const dmcCompanyName = useSelector(selectSelectedDmcCompanyName) || 'DMC'; 
 
   const handleClick = () => {
     console.log("Clicked");
@@ -128,10 +130,12 @@ const OrderSubmittedInfo = () => {
             <div className="border-type-1 rounded-8 px-50 py-35 mt-40">
               <div className="row">
                 <div className="col-lg-2 col-md-6">
-                  <div className="text-15 lh-12">Booking Number</div>
+                <div className="text-15 lh-12">Tour ID </div>
                   <div className="text-15 lh-12 fw-500 text-blue-1 mt-10">
-                    {order?.booking_id}
+                    {order?.tour_id}
                   </div>
+                
+               
                 </div>
                 {/* <div className="col-lg-3 col-md-6">
                   <div className="text-15 lh-12">Booking Date</div>
@@ -159,14 +163,14 @@ const OrderSubmittedInfo = () => {
                   (
                   <>
                   <div className="text-15 lh-12 fw-500 text-blue-1 mt-10">
-                    {currencyCode} {formatPrice(convertedGrandTotal)} <span className="text-13 text-light-1">(incl. {currentTax}% tax)</span>
+                    {currencyCode} {formatPrice(convertedGrandTotal)}
                   </div>
                  
                   <div className="text-13 lh-12 text-light-1">
-                    {usdCurrencyCode} {formatPrice(usdGrandTotal)} <span className="text-12">(incl. {usdTax}% tax)</span>
+                    {usdCurrencyCode} {formatPrice(usdGrandTotal)}
                   </div>
                   <div className="text-13 lh-12 text-light-1">
-                    SGD {formatPrice(sgdGrandTotal)} <span className="text-12">(incl. {sgdTax}% tax)</span>
+                    SGD {formatPrice(sgdGrandTotal)}
                   </div>
                   </>
                   ):(
@@ -191,14 +195,14 @@ const OrderSubmittedInfo = () => {
                         {dmcLogo && (
                           <Avatar
                             src={dmcLogo}
-                            alt={`${dmcName} Logo`}
+                            alt={`${dmcCompanyName} Logo`}
                             sx={{ 
                               width: 24,
                               height: 24,
                             }}
                           />
                         )}
-                        <span>{`${dmcName || "DMC"}'s Mode`}</span>
+                        <span>{`${dmcCompanyName}'s Mode`}</span>
                       </div>
                     ) : latestBooking.priceMode === "travClicks" || 
                         latestBooking.priceMode === "travclicks" || 

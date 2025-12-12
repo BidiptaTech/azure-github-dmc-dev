@@ -34,6 +34,7 @@ import { useSelector } from "react-redux";
 import SearchZone from "./LocationZoneSearch";
 import Pickuptimezone from "./Pickuptimezone";
 import DateSearchZone from "./DateSearchZone";
+import { triggerSearch, clearTriggerSearch } from "@/slice/common/stepsSlice";
 
 const MainFilterSearchBox = ({ Location }) => {
   const dispatch = useDispatch();
@@ -50,13 +51,14 @@ const MainFilterSearchBox = ({ Location }) => {
   const [selectedDateZone, setSelectedDateZone] = useState("");
   //const [selectedPort, setSelectedPort] = useState("Point To Point"); // Default selection
   const selectedPort = useSelector((state) => state.localtour.selectedPort);
+  console.log("selectedPort2", selectedPort);
   const [pickUpLatLng, setPickupLatLng] = useState(""); // New state for pick-up place_id
   const [dropOffLatLng, setDropoffLatLng] = useState(""); // New state for drop-off place_id
   const [entryytime, setentryytime] = useState("");
   const [entryytime1, setentryytime1] = useState("");
   const [entryytimezone, setentryytimezone] = useState("");
-  const zone_on = useSelector((state) => state.auth.zone_on);
-
+  const rawZoneOn = useSelector((state) => state.auth.zone_on);
+  const zone_on = rawZoneOn !== null ? Number(rawZoneOn) : null;
   // Add state for validation
   const [validationTriggered, setValidationTriggered] = useState(false);
 
@@ -95,7 +97,7 @@ const MainFilterSearchBox = ({ Location }) => {
       // Only fetch vehicles if locations and time are valid
       if (locationsValid && time) {
         setTimeout(() => {
-          dispatch(fetchVehicles());
+          dispatch(fetchVehicles({ start: 0, limit: 5 }));
         }, 500);
       }
     } else if (selectedPort === "Hourly") {
@@ -114,7 +116,7 @@ const MainFilterSearchBox = ({ Location }) => {
       // Only fetch vehicles if location and time are valid
       if (locationValid && time1) {
         setTimeout(() => {
-          dispatch(fetchVehicles());
+          dispatch(fetchVehicles({ start: 0, limit: 5 }));
         }, 500);
       }
     } else if (selectedPort === "Local Transfer") {
@@ -139,7 +141,7 @@ const MainFilterSearchBox = ({ Location }) => {
       ) {
         console.log("Local Transfer search with droptype:", droptype);
         setTimeout(() => {
-          dispatch(fetchZoneVehicles());
+          dispatch(fetchZoneVehicles({ start: 0, limit: 5 }));
         }, 500);
       } else {
         console.log("Missing required fields for Local Transfer search:", {
@@ -152,6 +154,18 @@ const MainFilterSearchBox = ({ Location }) => {
       }
     }
   };
+
+  // Listen for triggerSearch from Redux and call buttonsearch when travel step is triggered
+  const searchTrigger = useSelector((state) => state.steps.triggerSearch);
+  
+  useEffect(() => {
+    if (searchTrigger === 'travel') {
+      console.log('🔍 Travel MainFilterSearchBox - Trigger search received, calling buttonsearch');
+      buttonsearch();
+      // Clear the trigger after handling
+      dispatch(clearTriggerSearch());
+    }
+  }, [searchTrigger, dispatch]);
 
   return (
     <>
@@ -182,7 +196,7 @@ const MainFilterSearchBox = ({ Location }) => {
                 viewDetails && 
                 (viewDetails.hotel?.length > 0 || 
                  viewDetails.attraction?.length > 0 || 
-                 viewDetails.restaurant?.length > 0)) && (
+                 viewDetails.restaurant?.length > 0 )) && (
                 <option value="Local Transfer">Local Transfer</option>
               )}
             </select>

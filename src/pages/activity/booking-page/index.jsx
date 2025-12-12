@@ -5,7 +5,7 @@ import StepperBooking from "@/components/activity-single/booking-page";
 import { useNavigate } from "react-router-dom";
 import { useDispatch, useSelector } from "react-redux";
 import { selectUserInfo } from "@/slice/common/customerInfo";
-import { selectIsNavigating } from "@/slice/common/commonSlice";
+import { selectIsNavigating, setIsNavigating } from "@/slice/common/commonSlice";
 import { useState, useEffect } from "react";
 
 import MetaComponent from "@/components/common/MetaComponent";
@@ -20,11 +20,17 @@ const metadata = {
 };
 
 const BookingPage5 = () => {
+  const dispatch = useDispatch();
   const userInfo = useSelector(selectUserInfo);
   console.log("userInfo", userInfo);
   const isNavigating = useSelector(selectIsNavigating);
   console.log("isNavigating", isNavigating);
   const location = useLocation();
+
+  // Reset isNavigating on mount so second booking shows index2.jsx if userInfo exists
+  useEffect(() => {
+    dispatch(setIsNavigating(false));
+  }, [dispatch]);
 
   // Only show Index2 component when we have userInfo AND we're not in the process of navigating
   const showBookingDetails = userInfo?.fullName && !isNavigating;

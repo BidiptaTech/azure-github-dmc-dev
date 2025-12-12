@@ -11,6 +11,7 @@ import {
 } from "@mui/material";
 import { useNavigate } from "react-router-dom";
 import { useSelector } from "react-redux";
+import { selectSelectedDmcLogo, selectSelectedDmcCompanyName } from "@/slice/dmc/dmcSlice";
 // import { Link } from "react-router-dom";
 // import {
 //   setSelectedGuide,
@@ -21,8 +22,7 @@ import { useSelector } from "react-redux";
 //   selectFilters,
 //   selectSortBy,
 // } from "@/slice/tourguide/guideslice";
-import Pagination from "../common/Pagination"; // Import your pagination component
-import { useEffect } from "react";
+
 
 const ActivityProperties = ({
   guides,
@@ -31,19 +31,18 @@ const ActivityProperties = ({
   sortBy,
   status,
   error,
-  currentPage,
-  itemsPerPage,
-  onPageChange,
   onGuideClick,
   selectedModes,
   setSelectedModes,
   priceMode,
+  hasMore,
+  isLoadingMore,
 }) => {
   console.log("guidesabc", guides);
   const navigate = useNavigate();
   console.log("status", status);
-  const DmcName = useSelector((state) => state.auth.DmcName);
-  const DmcLogo = useSelector((state) => state.auth.DmcLogo);
+  const DmcName = useSelector(selectSelectedDmcCompanyName);
+  const DmcLogo = useSelector(selectSelectedDmcLogo);
   const bookingType = useSelector((state) => state.common.bookingType);
   const currencySymbol = useSelector((state) => state.auth.currencySymbol);
   console.log("currencySymbol", currencySymbol);
@@ -114,14 +113,7 @@ const ActivityProperties = ({
   //     }
   //   });
 
-  // Pagination logic
-  const totalItems = guides.length;
-  const totalPages = Math.ceil(totalItems / itemsPerPage);
-  const paginatedGuides = guides.slice(
-    (currentPage - 1) * itemsPerPage,
-    currentPage * itemsPerPage
-  );
-  console.log("pagegui", paginatedGuides);
+
 
   // const handlePageChange = (page) => {
   //   setCurrentPage(page);
@@ -195,7 +187,7 @@ const ActivityProperties = ({
 
       {/* Render Guides */}
       {status === "succeeded" &&
-        paginatedGuides.map((guide) => {
+        guides.map((guide) => {
           // const selectedMode =
           //   selectedModes[guide.id] ||
           //   (priceMode === "marketplace" ? "travclicks" : "dmc");
@@ -577,13 +569,35 @@ const ActivityProperties = ({
           );
         })}
 
-      {/* Pagination Component */}
-      {totalPages > 1 && status === "succeeded" && (
-        <Pagination
-          currentPage={currentPage}
-          totalPages={totalPages}
-          onPageChange={onPageChange}
-        />
+      {/* Loading More Indicator */}
+      {isLoadingMore && (
+        <div className="col-12 text-center mt-30">
+          <div className="border-top-light pt-30">
+            <div className="row justify-content-center">
+              <div className="col-md-auto">
+                <div className="d-flex align-items-center justify-content-center">
+                  <div className="spinner-border text-primary me-3" role="status">
+                    <span className="visually-hidden">Loading...</span>
+                  </div>
+                  <span className="text-15 fw-500">Loading more guides...</span>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* No More Data Indicator */}
+      {!hasMore && guides.length > 0 && (
+        <div className="col-12 text-center mt-30">
+          <div className="border-top-light pt-30">
+            <div className="row justify-content-center">
+              <div className="col-md-auto">
+                <span className="text-15 fw-500 text-muted">No more guides to load</span>
+              </div>
+            </div>
+          </div>
+        </div>
       )}
     </>
   );

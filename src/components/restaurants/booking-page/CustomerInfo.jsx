@@ -26,7 +26,7 @@ import {
 import Cookies from "js-cookie";
 import { toast } from "react-toastify";
 import { createSelector } from '@reduxjs/toolkit';
-import { setBookingType, setIsNavigating } from '../../../slice/common/commonSlice';
+import { setBookingType, setHaveBooking, setIsNavigating } from '../../../slice/common/commonSlice';
 
 // Add country codes constant
 const countryCodes = [
@@ -291,7 +291,6 @@ const CustomerInfo = forwardRef(function CustomerInfo(props, ref) {
           transport: restaurantBookings?.[0]?.data?.[0]?.transport || null,
           transportPrice: transportPrice,
           priceTypes: restaurantBookings?.[0]?.data?.[0]?.priceTypes,
-          dmc_id: selectedRestaurant?.meals?.[0]?.dmc_id,
           bookingType: "booking"
         }],
         tour_id: parseInt(tourdetails?.tour_id, 10) || 0,
@@ -309,7 +308,7 @@ const CustomerInfo = forwardRef(function CustomerInfo(props, ref) {
         dispatch(setUserInfo(response.service.data));
         dispatch(setBookingResponse(response));
         dispatch(setBookingType(response?.order?.bookingType));
-        
+        dispatch(setHaveBooking(true));
         // Navigate to thank you page after a short delay to ensure Redux updates
         setTimeout(() => {
           navigate("/dashboard/db-dashboard/restaurants-thank-you", {
@@ -435,7 +434,6 @@ const CustomerInfo = forwardRef(function CustomerInfo(props, ref) {
           transport: restaurantBookings?.[0]?.data?.[0]?.transport || null,
           transportPrice: transportPrice,
           priceTypes: restaurantBookings?.[0]?.data?.[0]?.priceTypes,
-          dmc_id: selectedRestaurant?.meals?.[0]?.dmc_id,
           bookingType: "enquiry",
         }],
         tour_id: parseInt(tourdetails?.tour_id, 10) || 0,
@@ -454,7 +452,7 @@ const CustomerInfo = forwardRef(function CustomerInfo(props, ref) {
         dispatch(setUserInfo(response.service.data));
         dispatch(setBookingResponse(response));
         dispatch(setBookingType(response?.order?.bookingType));
-        
+        dispatch(setHaveBooking(true));
         // Show success message
         toast.success("Enquiry submitted successfully!", {
           position: "top-center",

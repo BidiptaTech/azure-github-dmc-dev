@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from "react";
 import { useSelector, useDispatch } from "react-redux";
-import { selectUserInfo } from "@/slice/common/customerInfo";
+import { selectUserInfo, clearUserInfo } from "@/slice/common/customerInfo";
 import {
   setHotelBooking,
   hottelBookingDataSubmit,
@@ -39,7 +39,7 @@ import BabyChangingStationIcon from "@mui/icons-material/BabyChangingStation";
 import dayjs from "dayjs";
 import { setHotelDetails } from "@/slice/hotel/HotelDetailsSlice";
 import { setPriceMode } from "@/slice/hotel/CategorySlice";
-import { setBookingType } from "@/slice/common/commonSlice";
+import { setBookingType, setHaveBooking, setIsNavigating } from "@/slice/common/commonSlice";
 import DoNotDisturbIcon from "@mui/icons-material/DoNotDisturb";
 import CheckCircleIcon from "@mui/icons-material/CheckCircle";
 
@@ -131,6 +131,62 @@ export default function Index2() {
   // Add PriceHide selector
   const PriceHide = useSelector((state) => state.auth.PriceHide);
 
+  // Get destination from multiple possible sources (for second booking when tour_id exists)
+  // This is needed because hottelBookingDataSubmit only adds destination when !hasTourId
+  const destinationFromBookings = useSelector((state) => state.bookings?.searchLocation);
+  const destinationFromEnquiry = useSelector((state) => state.enquiry?.destination);
+  const destinationFromTour = tourdetails?.destination;
+  const destinationFromSearchState = bookingDates?.location;
+  const auth = useSelector((state) => state.auth);
+
+  // Determine destination - same logic as hotelSlice.js (lines 173-176)
+  const getDestination = () => {
+    // Priority 1: tourDetails.destination
+    if (destinationFromTour) {
+      return Array.isArray(destinationFromTour) ? destinationFromTour.join(", ") : destinationFromTour;
+    }
+    
+    // Priority 2: enquiry.destination
+    if (destinationFromEnquiry) {
+      return Array.isArray(destinationFromEnquiry) ? destinationFromEnquiry.join(", ") : destinationFromEnquiry;
+    }
+    
+    // Priority 3: bookings.searchLocation (convert country codes to names)
+    if (destinationFromBookings) {
+      // Create country code to name mapping (same as hotelSlice.js)
+      const countryCodeToName = {};
+      if (auth?.user_country && Array.isArray(auth.user_country)) {
+        auth.user_country.forEach((country) => {
+          if (country && country.name && country.code) {
+            countryCodeToName[country.code] = country.name;
+            countryCodeToName[country.code.toLowerCase()] = country.name;
+          }
+        });
+      }
+      
+      // Convert searchLocation (can be array or single value)
+      const searchLocation = Array.isArray(destinationFromBookings) 
+        ? destinationFromBookings 
+        : [destinationFromBookings];
+      
+      // Map codes to names and join
+      return searchLocation
+        .map((loc) => countryCodeToName[loc] || loc)
+        .join(", ");
+    }
+    
+    // Priority 4: searchState.location
+    if (destinationFromSearchState) {
+      return Array.isArray(destinationFromSearchState) 
+        ? destinationFromSearchState.join(", ") 
+        : destinationFromSearchState;
+    }
+    
+    return "";
+  };
+
+  const destination = getDestination();
+
   // Get data directly from location state (similar to index.jsx)
   const rooms = location.state?.bookingArray || location.state?.rooms || [];
   const totalPrice = location.state?.totalPrice || 0;
@@ -153,6 +209,10 @@ export default function Index2() {
   // const [enquiryComment, setEnquiryComment] = useState("");
   // const [commentError, setCommentError] = useState(false);
   const [responseData, setResponseData] = useState(null);
+
+  // Add state for tracking button loading
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [isEnquiring, setIsEnquiring] = useState(false);
 
   // If no user info, redirect back
   useEffect(() => {
@@ -182,7 +242,14 @@ export default function Index2() {
   }, [rooms, totalPrice, priceMode, priceModeId, dispatch]);
 
   const handleFinalSubmit = async () => {
+    // Prevent multiple submissions
+    if (isSubmitting) {
+      return;
+    }
+
     try {
+      setIsSubmitting(true);
+
       if (!userInfo || !userInfo.fullName) {
         toast.error(
           "Customer information is missing. Please fill out the form first."
@@ -202,13 +269,14 @@ export default function Index2() {
         totalPrice: totalPrice || hotelData?.totalPrice || 0,
         priceMode: priceMode || hotelData?.priceMode || "both",
         priceModeId: priceModeId || "",
+        destination: destination || "", // Add destination at root level (needed when tour_id exists)
 
         hotelDetails: {
           hotel_id: hotelDetails?.hotel_id || "",
           hotel_name: hotelDetails?.hotel_name || "",
           checkInTime: hotelDetails?.check_in_time || "",
           checkOutTime: hotelDetails?.check_out_time || "",
-          location: hotelDetails?.location || "",
+          location: tourdetails?.destination || "",
           image: hotelDetails?.image || "",
           cancellation_charge: hotelDetails?.cancellation_charge || "",
         },
@@ -226,30 +294,43 @@ export default function Index2() {
         hottelBookingDataSubmit("booking")
       ).unwrap();
 
+      console.log("✅ Booking response received:", response);
+
       setResponseData(response);
+      dispatch(setHaveBooking(true));
       dispatch(setBookingType(response.order?.bookingType));
+      
       if (response?.service?.date_service) {
         dispatch(setDateService(response.service.date_service));
         dispatch(setHotelService(response?.service?.data));
-
-        toast.success("Booking successful!", {
-          position: "top-center",
-          autoClose: 3000,
-        });
-
-        dispatch(setPriceMode("both"));
-
-        navigate("/dashboard/db-dashboard/thank-you", {
-          state: { bookingResponse: response },
-          replace: true,
-        });
       }
+
+      toast.success("Booking successful!", {
+        position: "top-center",
+        autoClose: 3000,
+      });
+
+      dispatch(setPriceMode("both"));
+      
+      // Keep userInfo for next booking, just set isNavigating
+      dispatch(setIsNavigating(true));
+      
+      console.log("🚀 About to navigate to thank-you page...");
+
+      navigate("/dashboard/db-dashboard/thank-you", {
+        state: { bookingResponse: response },
+        replace: true,
+      });
+      
+      console.log("✨ Navigate called successfully");
     } catch (error) {
       console.error("Error during submission:", error);
       toast.error("Something went wrong. Please try again later.", {
         position: "top-center",
         autoClose: 3000,
       });
+    } finally {
+      setIsSubmitting(false);
     }
   };
 
@@ -264,7 +345,14 @@ export default function Index2() {
   // };
 
   const handleEnquirySubmit = async () => {
+    // Prevent multiple submissions
+    if (isEnquiring) {
+      return;
+    }
+
     try {
+      setIsEnquiring(true);
+
       // if (!enquiryComment.trim()) {
       //   setCommentError(true);
       //   toast.error("Please enter a comment");
@@ -287,12 +375,13 @@ export default function Index2() {
         // comment: enquiryComment,
         priceMode: priceMode || hotelData?.priceMode || "both",
         priceModeId: priceModeId || "",
+        destination: destination || "", // Add destination at root level (needed when tour_id exists)
         hotelDetails: {
           hotel_id: hotelDetails?.hotel_id || "",
           hotel_name: hotelDetails?.hotel_name || "",
           checkInTime: hotelDetails?.check_in_time || "",
           checkOutTime: hotelDetails?.check_out_time || "",
-          location: hotelDetails?.location || "",
+          location: tourdetails?.destination || "",
           image: hotelDetails?.image || "",
           cancellation_charge: hotelDetails?.cancellation_charge || "",
         },
@@ -310,34 +399,40 @@ export default function Index2() {
       ).unwrap();
 
       setResponseData(response);
+      dispatch(setHaveBooking(true));
       dispatch(setBookingType(response.order?.bookingType));
 
       if (response?.service?.date_service) {
         dispatch(setDateService(response.service.date_service));
         dispatch(setHotelService(response?.service?.data));
-
-        toast.success("Enquiry submitted successfully!", {
-          position: "top-center",
-          autoClose: 3000,
-        });
-
-        // Clear form and close enquiry section
-        // setShowEnquiry(false);
-        // setEnquiryComment("");
-
-        dispatch(setPriceMode("both"));
-
-        navigate("/dashboard/db-dashboard/thank-you", {
-          state: { bookingResponse: response },
-          replace: true,
-        });
       }
+
+      toast.success("Enquiry submitted successfully!", {
+        position: "top-center",
+        autoClose: 3000,
+      });
+
+      // Clear form and close enquiry section
+      // setShowEnquiry(false);
+      // setEnquiryComment("");
+
+      dispatch(setPriceMode("both"));
+      
+      // Keep userInfo for next booking, just set isNavigating
+      dispatch(setIsNavigating(true));
+
+      navigate("/dashboard/db-dashboard/thank-you", {
+        state: { bookingResponse: response },
+        replace: true,
+      });
     } catch (error) {
       console.error("Error during enquiry submission:", error);
       toast.error("Something went wrong. Please try again later.", {
         position: "top-center",
         autoClose: 3000,
       });
+    } finally {
+      setIsEnquiring(false);
     }
   };
 
@@ -1402,23 +1497,11 @@ export default function Index2() {
                                     (state) => state.auth.usdCurrencyCode
                                   );
 
-                                  // Get tax percentages from auth slice
-                                  const currentTax = useSelector(
-                                    (state) => state.auth.currentTax
-                                  );
-                                  const sgdTax = useSelector(
-                                    (state) => state.auth.sgdTax
-                                  );
-                                  const usdTax = useSelector(
-                                    (state) => state.auth.usdTax
-                                  );
-                                  console.log(currentTax);
-
-                                  // Get base price and apply ceiling + tax calculation
+                                  // Get base price (NO TAX APPLIED)
                                   const basePrice =
                                     totalPrice || hotelData?.totalPrice || 0;
 
-                                  // Step 1: Ceiling the base prices
+                                  // Ceiling the base prices (NO TAX)
                                   const sgdPrice = Math.ceil(basePrice);
                                   const usdPrice = Math.ceil(
                                     basePrice * usdExchangeRate
@@ -1427,28 +1510,16 @@ export default function Index2() {
                                     basePrice * exchangeRate
                                   );
 
-                                  // Step 2: Calculate tax amounts for all currencies
-                                  const currentTaxAmount = Math.ceil(
-                                    (convertedPrice * currentTax) / 100
-                                  );
-                                  const sgdTaxAmount = Math.ceil(
-                                    (sgdPrice * sgdTax) / 100
-                                  );
-                                  const usdTaxAmount = Math.ceil(
-                                    (usdPrice * usdTax) / 100
-                                  );
-
-                                  // Step 3: Calculate grand totals for all currencies
-                                  const convertedGrandTotal =
-                                    convertedPrice + currentTaxAmount;
-                                  const sgdGrandTotal = sgdPrice + sgdTaxAmount;
-                                  const usdGrandTotal = usdPrice + usdTaxAmount;
+                                  // Grand totals (WITHOUT TAX)
+                                  const convertedGrandTotal = convertedPrice;
+                                  const sgdGrandTotal = sgdPrice;
+                                  const usdGrandTotal = usdPrice;
 
                                   return (
                                     <>
                                       {PriceHide === "0" ? (
                                         <>
-                                          <Box
+                                          {/* <Box
                                             sx={{
                                               display: "flex",
                                               justifyContent: "space-between",
@@ -1481,7 +1552,7 @@ export default function Index2() {
                                                 fontSize: "0.7rem",
                                               }}
                                             />
-                                          </Box>
+                                          </Box> */}
 
                                           {/* Current Currency Section */}
                                           <Box sx={{ mb: 1.5 }}>
@@ -1497,65 +1568,7 @@ export default function Index2() {
                                               {currencyCode}
                                             </Typography>
 
-                                            {/* Base Price */}
-                                            <Box
-                                              sx={{
-                                                display: "flex",
-                                                justifyContent: "space-between",
-                                                alignItems: "center",
-                                                py: 0.5,
-                                              }}
-                                            >
-                                              <Typography
-                                                sx={{
-                                                  fontSize: "0.8rem",
-                                                  color:
-                                                    "rgba(255, 255, 255, 0.7)",
-                                                }}
-                                              >
-                                                Base Price (Without Tax)
-                                              </Typography>
-                                              <Typography
-                                                sx={{
-                                                  fontSize: "0.85rem",
-                                                  color:
-                                                    "rgba(255, 255, 255, 0.9)",
-                                                }}
-                                              >
-                                                {formatPrice(convertedPrice)}
-                                              </Typography>
-                                            </Box>
-
-                                            {/* Tax Amount */}
-                                            <Box
-                                              sx={{
-                                                display: "flex",
-                                                justifyContent: "space-between",
-                                                alignItems: "center",
-                                                py: 0.5,
-                                              }}
-                                            >
-                                              <Typography
-                                                sx={{
-                                                  fontSize: "0.8rem",
-                                                  color:
-                                                    "rgba(255, 255, 255, 0.7)",
-                                                }}
-                                              >
-                                                Tax Amount ({currentTax}%)
-                                              </Typography>
-                                              <Typography
-                                                sx={{
-                                                  fontSize: "0.85rem",
-                                                  color:
-                                                    "rgba(255, 255, 255, 0.9)",
-                                                }}
-                                              >
-                                                {formatPrice(currentTaxAmount)}
-                                              </Typography>
-                                            </Box>
-
-                                            {/* Total With Tax */}
+                                            {/* Total Price (Without Tax) */}
                                             <Box
                                               sx={{
                                                 display: "flex",
@@ -1576,7 +1589,7 @@ export default function Index2() {
                                                   color: "white",
                                                 }}
                                               >
-                                                Total (With Tax)
+                                                Total Price
                                               </Typography>
                                               <Typography
                                                 sx={{
@@ -1592,7 +1605,7 @@ export default function Index2() {
                                             </Box>
                                           </Box>
 
-                                          {/* Other currencies with tax included */}
+                                          {/* Other currencies (without tax) */}
                                           <Box sx={{ mt: 1 }}>
                                             <Typography
                                               sx={{
@@ -1613,32 +1626,15 @@ export default function Index2() {
                                                 py: 0.5,
                                               }}
                                             >
-                                              <Box
+                                              <Typography
                                                 sx={{
-                                                  display: "flex",
-                                                  alignItems: "center",
+                                                  fontSize: "0.85rem",
+                                                  color:
+                                                    "rgba(255, 255, 255, 0.9)",
                                                 }}
                                               >
-                                                <Typography
-                                                  sx={{
-                                                    fontSize: "0.85rem",
-                                                    color:
-                                                      "rgba(255, 255, 255, 0.9)",
-                                                  }}
-                                                >
-                                                  {usdCurrencyCode}
-                                                </Typography>
-                                                <Typography
-                                                  sx={{
-                                                    fontSize: "0.7rem",
-                                                    color:
-                                                      "rgba(255, 255, 255, 0.7)",
-                                                    ml: 0.5,
-                                                  }}
-                                                >
-                                                  ({usdTax}%)
-                                                </Typography>
-                                              </Box>
+                                                {usdCurrencyCode}
+                                              </Typography>
                                               <Typography
                                                 sx={{
                                                   fontSize: "0.85rem",
@@ -1658,32 +1654,15 @@ export default function Index2() {
                                                 py: 0.5,
                                               }}
                                             >
-                                              <Box
+                                              <Typography
                                                 sx={{
-                                                  display: "flex",
-                                                  alignItems: "center",
+                                                  fontSize: "0.85rem",
+                                                  color:
+                                                    "rgba(255, 255, 255, 0.9)",
                                                 }}
                                               >
-                                                <Typography
-                                                  sx={{
-                                                    fontSize: "0.85rem",
-                                                    color:
-                                                      "rgba(255, 255, 255, 0.9)",
-                                                  }}
-                                                >
-                                                  SGD
-                                                </Typography>
-                                                <Typography
-                                                  sx={{
-                                                    fontSize: "0.7rem",
-                                                    color:
-                                                      "rgba(255, 255, 255, 0.7)",
-                                                    ml: 0.5,
-                                                  }}
-                                                >
-                                                  ({sgdTax}%)
-                                                </Typography>
-                                              </Box>
+                                                SGD
+                                              </Typography>
                                               <Typography
                                                 sx={{
                                                   fontSize: "0.85rem",
@@ -2096,22 +2075,11 @@ export default function Index2() {
                               (state) => state.auth.usdCurrencyCode
                             );
 
-                            // Get tax percentages from auth slice
-                            const currentTax = useSelector(
-                              (state) => state.auth.currentTax
-                            );
-                            const sgdTax = useSelector(
-                              (state) => state.auth.sgdTax
-                            );
-                            const usdTax = useSelector(
-                              (state) => state.auth.usdTax
-                            );
-
-                            // Get base price and apply ceiling + tax calculation
+                            // Get base price (NO TAX APPLIED)
                             const basePrice =
                               totalPrice || hotelData?.totalPrice || 0;
 
-                            // Step 1: Ceiling the base prices
+                            // Ceiling the base prices (NO TAX)
                             const sgdPrice = Math.ceil(basePrice);
                             const usdPrice = Math.ceil(
                               basePrice * usdExchangeRate
@@ -2120,28 +2088,16 @@ export default function Index2() {
                               basePrice * exchangeRate
                             );
 
-                            // Step 2: Calculate tax amounts for all currencies
-                            const currentTaxAmount = Math.ceil(
-                              (convertedPrice * currentTax) / 100
-                            );
-                            const sgdTaxAmount = Math.ceil(
-                              (sgdPrice * sgdTax) / 100
-                            );
-                            const usdTaxAmount = Math.ceil(
-                              (usdPrice * usdTax) / 100
-                            );
-
-                            // Step 3: Calculate grand totals for all currencies
-                            const convertedGrandTotal =
-                              convertedPrice + currentTaxAmount;
-                            const sgdGrandTotal = sgdPrice + sgdTaxAmount;
-                            const usdGrandTotal = usdPrice + usdTaxAmount;
+                            // Grand totals (WITHOUT TAX)
+                            const convertedGrandTotal = convertedPrice;
+                            const sgdGrandTotal = sgdPrice;
+                            const usdGrandTotal = usdPrice;
 
                             return (
                               <>
                                 {PriceHide === "0" ? (
                                   <>
-                                    <Box
+                                    {/* <Box
                                       sx={{
                                         display: "flex",
                                         justifyContent: "space-between",
@@ -2172,7 +2128,7 @@ export default function Index2() {
                                           fontSize: "0.7rem",
                                         }}
                                       />
-                                    </Box>
+                                    </Box> */}
 
                                     {/* Current Currency Section */}
                                     <Box sx={{ mb: 1.5 }}>
@@ -2187,61 +2143,7 @@ export default function Index2() {
                                         {currencyCode}
                                       </Typography>
 
-                                      {/* Base Price */}
-                                      <Box
-                                        sx={{
-                                          display: "flex",
-                                          justifyContent: "space-between",
-                                          alignItems: "center",
-                                          py: 0.5,
-                                        }}
-                                      >
-                                        <Typography
-                                          sx={{
-                                            fontSize: "0.8rem",
-                                            color: "rgba(255, 255, 255, 0.7)",
-                                          }}
-                                        >
-                                          Base Price (Without Tax)
-                                        </Typography>
-                                        <Typography
-                                          sx={{
-                                            fontSize: "0.85rem",
-                                            color: "rgba(255, 255, 255, 0.9)",
-                                          }}
-                                        >
-                                          {formatPrice(convertedPrice)}
-                                        </Typography>
-                                      </Box>
-
-                                      {/* Tax Amount */}
-                                      <Box
-                                        sx={{
-                                          display: "flex",
-                                          justifyContent: "space-between",
-                                          alignItems: "center",
-                                          py: 0.5,
-                                        }}
-                                      >
-                                        <Typography
-                                          sx={{
-                                            fontSize: "0.8rem",
-                                            color: "rgba(255, 255, 255, 0.7)",
-                                          }}
-                                        >
-                                          Tax Amount ({currentTax}%)
-                                        </Typography>
-                                        <Typography
-                                          sx={{
-                                            fontSize: "0.85rem",
-                                            color: "rgba(255, 255, 255, 0.9)",
-                                          }}
-                                        >
-                                          {formatPrice(currentTaxAmount)}
-                                        </Typography>
-                                      </Box>
-
-                                      {/* Total With Tax */}
+                                      {/* Total Price (Without Tax) */}
                                       <Box
                                         sx={{
                                           display: "flex",
@@ -2262,7 +2164,7 @@ export default function Index2() {
                                             color: "white",
                                           }}
                                         >
-                                          Total (With Tax)
+                                          Total Price
                                         </Typography>
                                         <Typography
                                           sx={{
@@ -2276,7 +2178,7 @@ export default function Index2() {
                                       </Box>
                                     </Box>
 
-                                    {/* Other currencies with tax included */}
+                                    {/* Other currencies (without tax) */}
                                     <Box sx={{ mt: 1 }}>
                                       <Typography
                                         sx={{
@@ -2296,30 +2198,14 @@ export default function Index2() {
                                           py: 0.5,
                                         }}
                                       >
-                                        <Box
+                                        <Typography
                                           sx={{
-                                            display: "flex",
-                                            alignItems: "center",
+                                            fontSize: "0.85rem",
+                                            color: "rgba(255, 255, 255, 0.9)",
                                           }}
                                         >
-                                          <Typography
-                                            sx={{
-                                              fontSize: "0.85rem",
-                                              color: "rgba(255, 255, 255, 0.9)",
-                                            }}
-                                          >
-                                            {usdCurrencyCode}
-                                          </Typography>
-                                          <Typography
-                                            sx={{
-                                              fontSize: "0.7rem",
-                                              color: "rgba(255, 255, 255, 0.7)",
-                                              ml: 0.5,
-                                            }}
-                                          >
-                                            ({usdTax}%)
-                                          </Typography>
-                                        </Box>
+                                          {usdCurrencyCode}
+                                        </Typography>
                                         <Typography
                                           sx={{
                                             fontSize: "0.85rem",
@@ -2338,30 +2224,14 @@ export default function Index2() {
                                           py: 0.5,
                                         }}
                                       >
-                                        <Box
+                                        <Typography
                                           sx={{
-                                            display: "flex",
-                                            alignItems: "center",
+                                            fontSize: "0.85rem",
+                                            color: "rgba(255, 255, 255, 0.9)",
                                           }}
                                         >
-                                          <Typography
-                                            sx={{
-                                              fontSize: "0.85rem",
-                                              color: "rgba(255, 255, 255, 0.9)",
-                                            }}
-                                          >
-                                            SGD
-                                          </Typography>
-                                          <Typography
-                                            sx={{
-                                              fontSize: "0.7rem",
-                                              color: "rgba(255, 255, 255, 0.7)",
-                                              ml: 0.5,
-                                            }}
-                                          >
-                                            ({sgdTax}%)
-                                          </Typography>
-                                        </Box>
+                                          SGD
+                                        </Typography>
                                         <Typography
                                           sx={{
                                             fontSize: "0.85rem",
@@ -2438,6 +2308,7 @@ export default function Index2() {
           <Button
             variant="contained"
             onClick={handleFinalSubmit}
+            disabled={isSubmitting}
             startIcon={<Box component="span">✓</Box>}
             size="medium"
             sx={{
@@ -2448,18 +2319,21 @@ export default function Index2() {
               fontWeight: "bold",
               fontSize: "1.05rem",
               textTransform: "none",
+              "&:disabled": {
+                background: "rgba(53, 84, 209, 0.5)",
+                color: "rgba(255, 255, 255, 0.7)",
+              },
             }}
           >
-            Book Now
+            {isSubmitting ? "Booking..." : "Book Now"}
           </Button>
         )}
         {(mode === "dmc" || (Array.isArray(mode) && mode[0] === "dmc")) &&
           bookingType === "enquiry" && (
             <Button
               variant="outlined"
-              onClick={() => {
-                handleEnquirySubmit();
-              }}
+              onClick={handleEnquirySubmit}
+              disabled={isEnquiring}
               size="medium"
               sx={{
                 borderRadius: "6px",
@@ -2474,9 +2348,13 @@ export default function Index2() {
                   borderColor: "#3554D1",
                   backgroundColor: "rgba(53, 84, 209, 0.05)",
                 },
+                "&:disabled": {
+                  borderColor: "rgba(53, 84, 209, 0.3)",
+                  color: "rgba(53, 84, 209, 0.5)",
+                },
               }}
             >
-              Make an Enquiry
+              {isEnquiring ? "Enquiring..." : "Make an Enquiry"}
             </Button>
           )}
       </Box>

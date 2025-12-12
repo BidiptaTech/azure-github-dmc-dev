@@ -14,6 +14,7 @@ const SearchBar = ({ onLocationSelect, hasError, setError }) => {
 
   const selectedCityFromSlice = useSelector((state) => state.common.selectedCity);
   const cityData = useSelector((state) => state.city.city);
+  console.log("cityData from restaurants", cityData);
 
   const transformedCityData = cityData.map((city, index) => ({
     id: index + 1,

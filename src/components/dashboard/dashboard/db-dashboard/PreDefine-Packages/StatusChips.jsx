@@ -13,57 +13,58 @@ import {
 export const StatusChip = ({ status }) => {
   let color = "default";
   let icon = <CheckCircleOutline fontSize="small" />;
+  let displayText = "Pending";
   
-  // Handle numeric or string status values
-  const statusStr = typeof status === 'string' 
-      ? status.toLowerCase() 
-      : status === 1 
-          ? 'confirmed' 
-          : status === 2 
-              ? 'pending' 
-              : status === 3 
-                  ? 'cancelled' 
-                  : status === 4 
-                      ? 'completed' 
-                      : 'pending';
+  // Convert status to number if it's a string
+  const statusNum = typeof status === 'string' ? parseInt(status, 10) : status;
   
-  switch (statusStr) {
-    case "confirmed":
-    case 1:
+  // Handle numeric status values from API
+  switch (statusNum) {
+    case 1: // Confirm
       color = "success";
       icon = <CheckCircleOutline fontSize="small" />;
+      displayText = "Confirm";
       break;
-    case "pending":
-    case 2:
-      color = "warning";
-      icon = <DonutLarge fontSize="small" />;
-      break;
-    case "cancelled":
-    case 3:
-      color = "error";
-      icon = <Close fontSize="small" />;
-      break;
-    case "completed":
-    case 4:
+    case 2: // Definite
       color = "info";
       icon = <EventAvailable fontSize="small" />;
+      displayText = "Definite";
+      break;
+    case 3: // Actual
+      color = "primary";
+      icon = <DonutLarge fontSize="small" />;
+      displayText = "Actual";
+      break;
+    case 4: // Cancelled
+      color = "error";
+      icon = <Close fontSize="small" />;
+      displayText = "Cancelled";
+      break;
+    case 5: // Refund-pending
+      color = "warning";
+      icon = <AttachMoney fontSize="small" />;
+      displayText = "Refund-pending";
+      break;
+    case 6: // Refunded
+      color = "default";
+      icon = <AttachMoney fontSize="small" />;
+      displayText = "Refunded";
+      break;
+    case 7: // Cancel-confirm
+      color = "error";
+      icon = <Close fontSize="small" />;
+      displayText = "Cancel-confirm";
+      break;
+    case 8: // Completed
+      color = "success";
+      icon = <EventAvailable fontSize="small" />;
+      displayText = "Completed";
       break;
     default:
       color = "default";
+      icon = <DonutLarge fontSize="small" />;
+      displayText = "Pending";
   }
-  
-  // Convert status to display text
-  const displayText = typeof statusStr === 'number' 
-      ? statusStr === 1 
-          ? 'Confirmed' 
-          : statusStr === 2 
-              ? 'Pending' 
-              : statusStr === 3 
-                  ? 'Cancelled' 
-                  : statusStr === 4 
-                      ? 'Completed' 
-                      : 'Pending'
-      : statusStr.charAt(0).toUpperCase() + statusStr.slice(1);
   
   return (
     <Chip 

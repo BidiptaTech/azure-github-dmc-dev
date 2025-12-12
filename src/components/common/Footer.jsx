@@ -102,8 +102,8 @@ const Footer = () => {
                   src="public/Images/travclicklogo.jpeg"
                   alt="TravClicks Logo"
                   sx={{
-                    width: 300,
-                    height: 50,
+                    width: { xs: 200, sm: 250, md: 300 },
+                    height: { xs: 35, sm: 40, md: 50 },
                     objectFit: 'contain'
                   }}
                 />
@@ -114,7 +114,7 @@ const Footer = () => {
 
             {/* Contact Info */}
             <Grid item xs={12} md={9}>
-              <Grid container spacing={3}>
+              <Grid container spacing={{ xs: 2, sm: 3, md: 3 }}>
                 {contactInfo.map((item, index) => (
                   <Grid item xs={12} md={4} key={index}>
                     <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
@@ -166,7 +166,7 @@ const Footer = () => {
       {/* Main Footer Content */}
       <Box sx={{ py: 6 }}>
         <Container maxWidth="xl">
-          <Grid container spacing={4}>
+          <Grid container spacing={{ xs: 3, sm: 4, md: 4 }}>
             {/* About Gotur */}
             <Grid item xs={12} md={3}>
               <Typography variant="h6" sx={{ fontWeight: 'bold', mb: 3, color: 'white' }}>

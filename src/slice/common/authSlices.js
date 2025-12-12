@@ -1,127 +1,4 @@
-// import { createSlice } from "@reduxjs/toolkit";
-// import Cookies from "js-cookie";
 
-// const initialState = {
-//   isAuthenticated: localStorage.getItem("isAuthenticated") === "true",
-//   agentId: Cookies.get("AgentId") || null,
-//   tourId: null, // Add tourId to the authentication state
-// };
-
-// const authSlice = createSlice({
-//   name: "auth",
-//   initialState,
-//   reducers: {
-//     login: (state, action) => {
-//       state.isAuthenticated = true;
-//       localStorage.setItem("isAuthenticated", "true");
-
-//       if (action.payload?.agentId) {
-//         state.agentId = action.payload.agentId;
-//         Cookies.set("AgentId", action.payload.agentId);
-//       }
-//     },
-//     logout: (state) => {
-//       state.isAuthenticated = false;
-//       localStorage.setItem("isAuthenticated", "false");
-//       state.agentId = null;
-//       state.tourId = null;
-//       Cookies.remove("AgentId");
-//     },
-//     setTourIdd: (state, action) => {
-//       state.tourId = action.payload;
-//     },
-//   },
-// });
-
-// export const { login, logout, setTourIdd } = authSlice.actions;
-
-// export default authSlice.reducer;
-
-// authSlice.js
-
-// import { createSlice, createAsyncThunk } from "@reduxjs/toolkit";
-// import axios from "axios";
-// import Cookies from "js-cookie";
-
-// const initialState = {
-//   isAuthenticated: localStorage.getItem("isAuthenticated") === "true",
-//   agentId: Cookies.get("AgentId") || null,
-//   tourId: null,
-//   logoutStatus: 'idle',
-//   logoutError: null,
-// };
-
-// // Async thunk for logout
-// export const logoutUser = createAsyncThunk("auth/logoutUser", async (_, { rejectWithValue }) => {
-//   const token = Cookies.get("authToken");
-//   if (!token) {
-//     return rejectWithValue("No authentication token found.");
-//   }
-
-//   try {
-//     const response = await axios.post(
-//       "https://dmcdemo.coactivehub.com/backadm-dmc/api/v1/logout",
-//       {},
-//       {
-//         headers: {
-//           Authorization: `Bearer ${token}`,
-//         },
-//       }
-//     );
-
-//     if (response.data.success) {
-//       return response.data;
-//     } else {
-//       return rejectWithValue("Logout failed.");
-//     }
-//   } catch (error) {
-//     return rejectWithValue(error.response?.data?.message || "Logout request failed.");
-//   }
-// });
-
-// const authSlice = createSlice({
-//   name: "auth",
-//   initialState,
-//   reducers: {
-//     login: (state, action) => {
-//       state.isAuthenticated = true;
-//       localStorage.setItem("isAuthenticated", "true");
-//       if (action.payload?.agentId) {
-//         state.agentId = action.payload.agentId;
-//         Cookies.set("AgentId", action.payload.agentId);
-//       }
-//     },
-//     logout: (state) => {
-//       state.isAuthenticated = false;
-//       localStorage.setItem("isAuthenticated", "false");
-//       state.agentId = null;
-//       state.tourId = null;
-//       Cookies.remove("AgentId");
-//       Cookies.remove("authToken");
-//       localStorage.removeItem("authToken");
-//     },
-//     setTourIdd: (state, action) => {
-//       state.tourId = action.payload;
-//     },
-//   },
-//   extraReducers: (builder) => {
-//     builder
-//       .addCase(logoutUser.pending, (state) => {
-//         state.logoutStatus = 'loading';
-//         state.logoutError = null;
-//       })
-//       .addCase(logoutUser.fulfilled, (state) => {
-//         state.logoutStatus = 'succeeded';
-//       })
-//       .addCase(logoutUser.rejected, (state, action) => {
-//         state.logoutStatus = 'failed';
-//         state.logoutError = action.payload;
-//       });
-//   },
-// });
-
-// export const { login, logout, setTourIdd } = authSlice.actions;
-// export default authSlice.reducer;
 
 // authSlice.js
 import { createSlice, createAsyncThunk } from "@reduxjs/toolkit";
@@ -130,6 +7,7 @@ import Cookies from "js-cookie";
 
 import getUserCountry from "./getUserCountry";
 import { BASE_URL } from "@/services/api";
+import { setSelectedDmcId } from '../dmc/dmcSlice';
 
 // Function to get initial state from cookies
 const getInitialState = () => {
@@ -152,6 +30,10 @@ const getInitialState = () => {
   const usdTax = Cookies.get("usdTax") || null;
   const DmcLogo = Cookies.get("DmcLogo") || null;
   const DmcName = Cookies.get("DmcName") || null;
+  const dmcLogo = Cookies.get("dmcLogo") || null; // New field for dmc_logo
+  const agencyLogo = Cookies.get("agencyLogo") || null; // New field for agency_logo
+  const agentCompanyName = Cookies.get("agentCompanyName") || null; // New field for agent_company_name
+  const dmcCompanyName = Cookies.get("dmcCompanyName") || null; // New field for dmc_company_name
   const dialMaxLength = Cookies.get("dialMaxLength") || null;
   const dialMinLength = Cookies.get("dialMinLength") || null;
   const PriceHide = Cookies.get("PriceHide") ? String(Cookies.get("PriceHide")) : "0";
@@ -166,6 +48,17 @@ const getInitialState = () => {
     }
   } catch (error) {
     console.error("Error parsing user_country:", error);
+  }
+  
+  // Parse global_countries from cookies or localStorage
+  let global_countries = null;
+  try {
+    const storedGlobalCountries = Cookies.get("global_countries") || localStorage.getItem("global_countries");
+    if (storedGlobalCountries) {
+      global_countries = JSON.parse(storedGlobalCountries);
+    }
+  } catch (error) {
+    console.error("Error parsing global_countries:", error);
   }
   
   const zone_on = Cookies.get("zone_on") || null;
@@ -188,6 +81,10 @@ const getInitialState = () => {
     currencySymbol,
     DmcLogo,
     DmcName,
+    dmcLogo,
+    agencyLogo,
+    agentCompanyName,
+    dmcCompanyName,
     usdExchangeRate,
     usdCurrencyCode,
     usdCurrencySymbol,
@@ -200,6 +97,7 @@ const getInitialState = () => {
     PriceHide,
     userRole,
     user_country,
+    global_countries,
     zone_on,
   };
 };
@@ -213,7 +111,7 @@ export const loginUser = createAsyncThunk(
   async ({ email, password }, { rejectWithValue }) => {
     try {
       const { country, country_code } = await getUserCountry();
-      console.log("Country from getUserCountry:", country);
+      // console.log("Country from getUserCountry:", country);
       const response = await axios.post(
         `${BASE_URL}/login`,
         { email, password },
@@ -244,15 +142,20 @@ export const loginUser = createAsyncThunk(
           sgd_tax: sgdTax,
           agent_country_tax: currentTax,
           logo: DmcLogo,
+          agency_logo: agencyLogo,
+          agent_company_name: agentCompanyName,
           agent_country_max_length: dialMaxLength,
           agent_country_min_length: dialMinLength,
           price_hide: PriceHide,
           user_role: userRole, // Add user_role from API response
           user_country: user_country,
+          global_countries: global_countries, // Add global_countries from API response
           zone_on: zone_on,
+          dmc_id: dmcId, // Add dmc_id from API response
+          dmc_logo: dmcLogo, // Add dmc_logo from API response
+          dmc_company_name: dmcCompanyName, // Add dmc_company_name from API response
         } = response.data.user;
 
-        console.log("DMC Logo from response:", zone_on); // Log the logo URL
         const countryCode = country_code;
         // Convert currency symbol from Unicode to string without the semicolon
         const convertedCurrencySymbol = currencySymbol
@@ -408,20 +311,53 @@ export const loginUser = createAsyncThunk(
           secure: true,
           sameSite: "Strict",
         });
+        Cookies.set("global_countries", JSON.stringify(global_countries), {
+          expires: expiryDate,
+          secure: true,
+          sameSite: "Strict",
+        });
         Cookies.set("zone_on", String(zone_on), {
           expires: expiryDate,
           secure: true,
           sameSite: "Strict",
         });
 
+        // Store dmcId in cookies for non-Agent users
+        if (dmcId && userRole !== "Agent") {
+          Cookies.set("dmcId", dmcId.toString(), {
+            expires: expiryDate,
+            secure: true,
+            sameSite: "Strict",
+          });
+          // console.log('🎯 Auth Slice: Stored DMC ID in cookies for non-Agent user:', dmcId);
+        }
+
         // Also store in localStorage as a fallback
         if (user_country) {
           localStorage.setItem("user_country", JSON.stringify(user_country));
+        }
+        if (global_countries) {
+          localStorage.setItem("global_countries", JSON.stringify(global_countries));
         }
 
         // Store DMC Logo in cookies
         if (DmcLogo) {
           Cookies.set("DmcLogo", DmcLogo, {
+            expires: expiryDate,
+            secure: true,
+            sameSite: "Strict",
+          });
+        }
+        if (agencyLogo) {
+          Cookies.set("agencyLogo", agencyLogo, {
+            expires: expiryDate,
+            secure: true,
+            sameSite: "Strict",
+          });
+        }
+        
+        if (agentCompanyName) {
+          Cookies.set("agentCompanyName", agentCompanyName, {
             expires: expiryDate,
             secure: true,
             sameSite: "Strict",
@@ -434,6 +370,23 @@ export const loginUser = createAsyncThunk(
           secure: true,
           sameSite: "Strict",
         });
+
+        // Store new DMC fields in cookies
+        if (dmcLogo) {
+          Cookies.set("dmcLogo", dmcLogo, {
+            expires: expiryDate,
+            secure: true,
+            sameSite: "Strict",
+          });
+        }
+        
+        if (dmcCompanyName) {
+          Cookies.set("dmcCompanyName", dmcCompanyName, {
+            expires: expiryDate,
+            secure: true,
+            sameSite: "Strict",
+          });
+        }
 
         localStorage.setItem("isAuthenticated", "true");
 
@@ -459,9 +412,15 @@ export const loginUser = createAsyncThunk(
           dialMinLength,
           PriceHide: priceHideString,
           DmcLogo,
+          dmcLogo,
+          agencyLogo, // Add agencyLogo to return object
+          agentCompanyName, // Add agentCompanyName to return object
+          dmcCompanyName,
           userRole: userRole || "Agent",
           user_country,
+          global_countries,
           zone_on,
+          dmcId, // Add dmcId to return object
         };
       } else {
         return rejectWithValue(response.data.message || "Login failed");
@@ -513,13 +472,20 @@ const authSlice = createSlice({
   name: "auth",
   initialState,
   reducers: {
+    setPriceHide: (state, action) => {
+      state.PriceHide = action.payload;
+      console.log('PriceHide set to:', action.payload);
+    },
+    setZone_on: (state, action) => {
+      state.zone_on = action.payload;
+    },
     updateProfileData: (state, action) => {
       const { phone, image, agent_address } = action.payload;
-      console.log('updateProfileData called with:', { phone, image, agent_address });
-      console.log('Current state.profilePicture:', state.profilePicture);
+      // console.log('updateProfileData called with:', { phone, image, agent_address });
+      // console.log('Current state.profilePicture:', state.profilePicture);
       
       if (phone) {
-        console.log('Updating phone number from', state.phoneNo, 'to', phone);
+        // console.log('Updating phone number from', state.phoneNo, 'to', phone);
         state.phoneNo = phone;
         // Update cookie
         const expiryDate = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000); // 7 days
@@ -531,19 +497,21 @@ const authSlice = createSlice({
       }
       if (image) {
         const cleanImage = image.replace(/\\/g, '');
-        console.log('Updating profile picture from', state.profilePicture, 'to', cleanImage);
-        state.profilePicture = cleanImage;
+        // Cache-bust to force immediate refresh in UI
+        const cacheBusted = cleanImage + (cleanImage.includes('?') ? `&t=${Date.now()}` : `?t=${Date.now()}`);
+        // console.log('Updating profile picture from', state.profilePicture, 'to', cacheBusted);
+        state.profilePicture = cacheBusted;
         // Update cookie
         const expiryDate = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000); // 7 days
-        Cookies.set("profilePicture", cleanImage, {
+        Cookies.set("profilePicture", cacheBusted, {
           expires: expiryDate,
           secure: true,
           sameSite: "Strict",
         });
-        console.log('Profile picture updated in state:', state.profilePicture);
+        // console.log('Profile picture updated in state:', state.profilePicture);
       }
       if (agent_address !== undefined) {
-        console.log('Updating agent address from', state.agent_address, 'to', agent_address);
+        // console.log('Updating agent address from', state.agent_address, 'to', agent_address);
         state.agent_address = agent_address;
         // Update cookie
         const expiryDate = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000); // 7 days
@@ -571,7 +539,13 @@ const authSlice = createSlice({
       state.currencyCode = null; // Reset currencyCode
       state.currencySymbol = null; // Reset currencySymbol
       state.DmcName = null;
+      state.dmcLogo = null; // Reset dmcLogo in auth state
+      state.agencyLogo = null; // Reset agencyLogo in auth state
+      state.agentCompanyName = null; // Reset agentCompanyName in auth state
+      state.dmcCompanyName = null; // Reset dmcCompanyName in auth state
       state.userRole = null; // Reset user role
+      state.dmcId = null; // Reset dmcId in auth state
+      state.global_countries = null; // Reset global_countries in auth state
       Cookies.remove("authToken");
       Cookies.remove("AgentId");
       Cookies.remove("Username");
@@ -586,12 +560,21 @@ const authSlice = createSlice({
       Cookies.remove("dialMaxLength");
       Cookies.remove("dialMinLength");
       Cookies.remove("DmcName");
+      Cookies.remove("dmcLogo"); // Remove dmcLogo cookie on logout
+      Cookies.remove("agencyLogo"); // Remove agencyLogo cookie on logout
+      Cookies.remove("agentCompanyName"); // Remove agentCompanyName cookie on logout
+      Cookies.remove("dmcCompanyName"); // Remove dmcCompanyName cookie on logout
       Cookies.remove("PriceHide");
       Cookies.remove("userRole"); // Remove user role cookie
       Cookies.remove("user_country");
+      Cookies.remove("global_countries"); // Remove global_countries cookie on logout
       Cookies.remove("zone_on");
+      Cookies.remove("dmcId"); // Remove dmcId cookie on logout
       localStorage.removeItem("isAuthenticated");
       localStorage.removeItem("user_country");
+      localStorage.removeItem("global_countries"); // Remove global_countries from localStorage
+      localStorage.removeItem("selectedDmcId"); // Remove DMC ID from localStorage
+      localStorage.removeItem("selectedDmcData"); // Remove DMC data from localStorage
     },
     setTourIdd: (state, action) => {
       state.tourId = action.payload;
@@ -625,7 +608,7 @@ const authSlice = createSlice({
       state.currencySymbol = action.payload;
     },
     setDmcLogo: (state, action) => {
-      console.log("setDmcLogo", action.payload);
+      // console.log("setDmcLogo", action.payload);
       state.DmcLogo = action.payload;
     },
     setDmcName: (state, action) => {
@@ -698,8 +681,20 @@ const authSlice = createSlice({
         state.PriceHide = String(action.payload.PriceHide);
         state.userRole = action.payload.userRole;
         state.user_country = action.payload.user_country;
+        state.global_countries = action.payload.global_countries; // Store global_countries in auth state
         state.zone_on = action.payload.zone_on;
         state.DmcLogo = action.payload.DmcLogo;
+        state.dmcLogo = action.payload.dmcLogo; // Store dmcLogo in auth state
+        state.agencyLogo = action.payload.agencyLogo; // Store agencyLogo in auth state
+        state.agentCompanyName = action.payload.agentCompanyName; // Store agentCompanyName in auth state
+        state.dmcCompanyName = action.payload.dmcCompanyName; // Store dmcCompanyName in auth state
+        state.dmcId = action.payload.dmcId; // Store dmcId in auth state
+        
+        // For non-Agent users, set DMC ID in DMC slice
+        if (action.payload.dmcId && action.payload.userRole !== "Agent") {
+          //  console.log('🎯 Auth Slice: Setting DMC ID in DMC slice for non-Agent user:', action.payload.dmcId);
+          // Note: We can't dispatch from here, so we'll handle this in the component that calls loginUser
+        }
         
         // Store user_country as JSON string
         if (action.payload.user_country) {
@@ -710,6 +705,17 @@ const authSlice = createSlice({
             sameSite: "Strict",
           });
           localStorage.setItem("user_country", userCountryStr);
+        }
+        
+        // Store global_countries as JSON string
+        if (action.payload.global_countries) {
+          const globalCountriesStr = JSON.stringify(action.payload.global_countries);
+          Cookies.set("global_countries", globalCountriesStr, {
+            expires: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000),
+            secure: true,
+            sameSite: "Strict",
+          });
+          localStorage.setItem("global_countries", globalCountriesStr);
         }
         
         state.loginStatus = "succeeded";
@@ -732,7 +738,21 @@ const authSlice = createSlice({
       .addCase(logoutUser.rejected, (state, action) => {
         state.logoutStatus = "failed";
         state.logoutError = action.payload;
+      })
+      .addCase(setSelectedDmcId, (state, action) => {
+        const dmcData = action.payload.dmcData;
+        if (dmcData?.originalData) {
+          // Update authSlice state when dmcSlice changes
+          state.PriceHide = String(dmcData.originalData.price_hide || "0");
+          state.zone_on = dmcData.originalData.zone_on || null;
+          
+          console.log('AuthSlice updated from dmcSlice:', {
+            PriceHide: state.PriceHide,
+            zone_on: state.zone_on
+          });
+        }
       });
+      
   },
 });
 

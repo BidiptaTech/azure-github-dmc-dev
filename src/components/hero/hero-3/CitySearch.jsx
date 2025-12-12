@@ -36,8 +36,7 @@ const CitySearch = ({ selectedCountry, onCitySelect, initialValue = null }) => {
       // Use the endpoints.getCities function which already handles authentication
       const response = await endpoints.getCities(country.name);
       
-      // Log the raw API response for debugging
-      console.log('Raw API response:', response.data);
+     
       
       let formattedCities = [];
       
@@ -81,7 +80,7 @@ const CitySearch = ({ selectedCountry, onCitySelect, initialValue = null }) => {
         setError("Invalid response format from server");
       }
       
-      console.log('Formatted cities:', formattedCities);
+     
       setCityList(formattedCities);
       setSuggestions(formattedCities.slice(0, 5));
       // Don't show dropdown by default - only when user types
@@ -133,25 +132,28 @@ const CitySearch = ({ selectedCountry, onCitySelect, initialValue = null }) => {
 
   // Filter suggestions based on search input
   useEffect(() => {
-    if (!selectedItem) {
-      if (cityList.length > 0) {
-        if (searchValue) {
-          const filtered = cityList.filter(city => 
-            city.name.toLowerCase().includes(searchValue.toLowerCase())
-          );
-          setSuggestions(filtered);
-          // Only show dropdown if user has typed something
-          setIsDropdownVisible(filtered.length > 0 && searchValue.trim().length > 0);
-        } else {
-          const initialSuggestions = cityList.slice(0, 5);
-          setSuggestions(initialSuggestions);
-          // Don't show dropdown by default - only when user types
-          setIsDropdownVisible(false);
-        }
+    // Don't show dropdown if a city is already selected
+    if (selectedItem) {
+      setIsDropdownVisible(false);
+      return;
+    }
+    
+    if (cityList.length > 0) {
+      if (searchValue && searchValue.trim().length > 0) {
+        const filtered = cityList.filter(city => 
+          city.name.toLowerCase().includes(searchValue.toLowerCase())
+        );
+        setSuggestions(filtered);
+        setIsDropdownVisible(filtered.length > 0);
       } else {
-        setSuggestions([]);
+        // Show first 5 cities when search is empty
+        const initialSuggestions = cityList.slice(0, 5);
+        setSuggestions(initialSuggestions);
         setIsDropdownVisible(false);
       }
+    } else {
+      setSuggestions([]);
+      setIsDropdownVisible(false);
     }
   }, [cityList, searchValue, selectedItem]);
 
@@ -185,34 +187,46 @@ const CitySearch = ({ selectedCountry, onCitySelect, initialValue = null }) => {
   }, []);
 
   const handleOptionClick = (item) => {
+   
+    
+    // Close dropdown immediately
+    setIsDropdownVisible(false);
+    
+    // Set the selected city
     setSearchValue(item.name);
     setSelectedItem(item);
-    setIsDropdownVisible(false);
     
     // Call the onCitySelect callback if provided
     if (onCitySelect) {
+     
       onCitySelect(item);
+    } else {
+      alert('🏙️ CitySearch - No onCitySelect callback provided');
     }
     
-    // Remove focus
+    // Remove focus to prevent any further interactions
     if (inputRef.current) {
       inputRef.current.blur();
     }
+    
+    // Ensure dropdown stays closed with a small delay
+    setTimeout(() => {
+      setIsDropdownVisible(false);
+    }, 100);
   };
 
   const handleInputChange = (e) => {
-    // If a city is already selected, prevent typing
-    if (selectedItem) return;
-    
     setSearchValue(e.target.value);
     setHighlightedIndex(-1);
+    
+    // If user starts typing, clear selection to allow new search
+    if (selectedItem && e.target.value !== selectedItem.name) {
+      setSelectedItem(null);
+    }
   };
 
   const handleInputFocus = () => {
     // Don't show dropdown on focus - only when user types
-    if (!selectedItem && selectedCountry && searchValue.trim().length > 0) {
-      setIsDropdownVisible(true);
-    }
   };
 
   const handleClearSelection = (e) => {
@@ -261,9 +275,7 @@ const CitySearch = ({ selectedCountry, onCitySelect, initialValue = null }) => {
   return (
     <>
       <div className="searchMenu-loc px-30 lg:py-20 lg:px-0 js-form-dd js-liverSearch">
-        <div
-          onClick={() => !selectedItem && selectedCountry && searchValue.trim().length > 0 && setIsDropdownVisible(!isDropdownVisible)}
-        >
+        <div>
           <h4 className="text-15 fw-500 ls-2 lh-16">City</h4>
           <div className="text-15 text-light-1 ls-2 lh-16 position-relative">
             <input
@@ -276,7 +288,7 @@ const CitySearch = ({ selectedCountry, onCitySelect, initialValue = null }) => {
               onChange={handleInputChange}
               onFocus={handleInputFocus}
               onKeyDown={handleKeyDown}
-              readOnly={selectedItem !== null || !selectedCountry}
+              readOnly={!selectedCountry}
               disabled={!selectedCountry || loading}
             />
             {selectedItem && (

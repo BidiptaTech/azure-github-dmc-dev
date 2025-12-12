@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { useSelector, useDispatch } from 'react-redux';
 import { fetchCitiesByCountry } from '@/slice/common/citiesSlice';
-import { fetchEnquiryList } from '@/slice/common/enquiryListSlice';
+//import { fetchEnquiryList } from '@/slice/common/enquiryListSlice';
 
 const CitySelector = () => {
   const dispatch = useDispatch();
@@ -38,9 +38,9 @@ const CitySelector = () => {
     setSelectedCity(cityValue);
     
     // Fetch enquiry list data when both country and city are available
-    if (userCountry && cityValue) {
-      dispatch(fetchEnquiryList({ country: userCountry, city: cityValue }));
-    }
+    // if (userCountry && cityValue) {
+    //   dispatch(fetchEnquiryList({ country: userCountry, city: cityValue }));
+    // }
   };
 
   return (

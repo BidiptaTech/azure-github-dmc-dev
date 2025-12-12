@@ -18,7 +18,7 @@ export default function GalleryOne({ hotel }) {
   const bookingDetails = useSelector((state) => state.hoteldetails.bookingDetails);
   console.log("GalleryOne - Full booking details:", bookingDetails);
 
-  const { hotel_name, hotel_id, location, image, cancellation_charge, site_image } = useSelector(
+  const { hotel_name, hotel_id, location,address, image, cancellation_charge, site_image } = useSelector(
     (state) => state.hoteldetails.bookingDetails || {}
   );
   const locationData = useLocation();
@@ -83,14 +83,16 @@ export default function GalleryOne({ hotel }) {
         <button
           className="button px-15 py-8 bg-blue-1 text-white rounded absolute"
           style={{
-           
-            left: "20px",
-            zIndex: "10",
+            left: "80px",
+            // zIndex: "10",
             minHeight: "40px",
+            marginBottom: "40px",
+            marginTop: "-30px",
+            //position: "absolute",
           }}
           onClick={() => navigate("/dashboard/db-dashboard/view-hotel-search/:id")}
         >
-          ← 
+          ← Back To Listing
         </button>
           <div className="row y-gap-20 justify-between items-end">
             <div className="col-auto">
@@ -98,20 +100,20 @@ export default function GalleryOne({ hotel }) {
                 <div className="col-auto">
                   <h1 className="text-30 sm:text-25 fw-600">{hotel_name}</h1>
                 </div>
-                <div className="col-auto">
+                {/* <div className="col-auto">
                   <i className="icon-star text-10 text-yellow-1" />
                   <i className="icon-star text-10 text-yellow-1" />
                   <i className="icon-star text-10 text-yellow-1" />
                   <i className="icon-star text-10 text-yellow-1" />
                   <i className="icon-star text-10 text-yellow-1" />
-                </div>
+                </div> */}
               </div>
 
               <div className="row x-gap-20 y-gap-20 items-center">
                 <div className="col-auto">
                   <div className="d-flex items-center text-15 text-light-1">
                     <i className="icon-location-2 text-16 mr-5" />
-                    {location}
+                    {address}
                   </div>
                 </div>
               </div>

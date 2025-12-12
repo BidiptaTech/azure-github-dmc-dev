@@ -4,14 +4,17 @@ import axios from "axios";
 import Cookies from "js-cookie";
 import { logoutUser } from "../common/authSlices";
 import { BASE_URL } from "@/services/api";
+import { selectDmcId } from "../dmc/dmcSlice";
+import { updateServiceResponse } from "../common/stepperButtonSlice";
+import { setHaveBooking } from "../common/commonSlice";
+import { setTourId, updateStepStatus, statusUpdate, setType as setStepType } from "@/slice/common/stepsSlice";
+import { setTourIdd } from "@/slice/common/authSlices";
+import { setId } from "@/slice/hotel/hotelSlice";
 
-//import state from "sweetalert/typings/modules/state";
-//import { settourId } from "../../HotelSlices/stepsSlice";
-//import { format } from "date-fns";
 
 export const fetchVehicles = createAsyncThunk(
   "pickupDrop/fetchVehicles",
-  async (_, { rejectWithValue, getState }) => {
+  async (params1 = {}, { rejectWithValue, getState }) => {
     try {
       const state = getState(); // ✅ Get Redux state
       const { 
@@ -24,33 +27,23 @@ export const fetchVehicles = createAsyncThunk(
         selectionType 
       } = state.pickupDrop;
       
-      console.log("fetchVehicles - Selection Type:", selectionType);
-      console.log("fetchVehicles - Entry Port data:", {
-        PickupPlaceid,
-        DropoffPlaceid
-      });
-      console.log("fetchVehicles - Exit Port data:", {
-        PickupPlaceid1,
-        DropoffPlaceid1,
-        entrytime,
-        pickupdate
-      });
+      
 
       const authToken = Cookies.get("authToken");
       const AgentId = Cookies.get("AgentId");
 
       // ✅ Determine which date to use
       const travelDate = JSON.stringify({ 0: pickupdate });
-      console.log("fetchVehicles - Using travel date:", travelDate);
-
+      
+      const selectedDmcId = selectDmcId(state);
       // ✅ Build query parameters dynamically
       let params;
       
       // Ensure we're using the correct selection type
       if (selectionType === "Entry Port") {
-        console.log("fetchVehicles - Preparing Entry Port request parameters");
+       
         if (!PickupPlaceid) {
-          console.error("fetchVehicles - Missing Entry Port pickup location");
+         
           throw new Error("Pickup location is required");
         }
         
@@ -58,6 +51,9 @@ export const fetchVehicles = createAsyncThunk(
           pickup: JSON.stringify(PickupPlaceid),
           date: travelDate, // ✅ Include date
           time: JSON.stringify(entrytime),
+          dmc_id: selectedDmcId,
+          start: (params1 && params1.start) || undefined,
+          limit: (params1 && params1.limit) || undefined,
         };
         
         if (DropoffPlaceid) {
@@ -65,42 +61,42 @@ export const fetchVehicles = createAsyncThunk(
         }
       }
       else if (selectionType === "Exit Port") {
-        console.log("fetchVehicles - Preparing Exit Port request parameters");
+        
         // No need to parse JSON string as it's already an object
         const pickupCoords = PickupPlaceid1;
         
         if (!pickupCoords) {
-          console.error("fetchVehicles - Missing Exit Port pickup location");
+         
           throw new Error("Pickup location is required for Exit Port");
         }
         
-        console.log("Exit Port fetch vehicles - Using pickupCoords:", pickupCoords);
-        console.log("Exit Port fetch vehicles - Using date:", travelDate);
-        console.log("Exit Port fetch vehicles - Using time:", entrytime);
+       
         
         params = {
           pickup: JSON.stringify(pickupCoords),
           date: travelDate, // ✅ Include date
           time: JSON.stringify(entrytime),
+          dmc_id: selectedDmcId,
+          start: (params1 && params1.start) || undefined,
+          limit: (params1 && params1.limit) || undefined,
         };
         
         if (DropoffPlaceid1) {
           // No need to parse JSON string as it's already an object
           const dropoffCoords = DropoffPlaceid1;
           params.dropoff = JSON.stringify(dropoffCoords); // ✅ Add dropoff only if available
-          console.log("Exit Port fetch vehicles - Added dropoff coordinates:", dropoffCoords);
+          
         }
       } else {
-        console.error("fetchVehicles - Invalid selection type:", selectionType);
+        
         throw new Error(`Invalid selection type: ${selectionType}`);
       }
       
       // Log the final params and selection type before making the API call
-      console.log("fetchVehicles - Final API params:", params);
-      console.log("fetchVehicles - Selection type:", selectionType);
+     
       
       // ✅ Make API request with dynamic params
-      console.log("fetchVehicles - Making API request to /vehicles-list");
+     
       const response = await axios.get(`${BASE_URL}/vehicles-list`, {
         params, // Axios automatically adds available parameters
         headers: {
@@ -109,12 +105,12 @@ export const fetchVehicles = createAsyncThunk(
         },
       });
 
-      console.log(`fetchVehicles - API response for ${selectionType}:`, response.data);
+      
       return response.data;
     } catch (error) {
-      console.error("fetchVehicles - Error:", error);
+      
       if (error.response?.status === 401) {
-        console.log("Unauthorized! Dispatching logout...");
+       
         await dispatch(logoutUser()); // Ensure the logout process completes
       }
       return rejectWithValue(error.response?.data || error.message);
@@ -146,13 +142,16 @@ export const fetchVehicleDetails = createAsyncThunk(
       const authToken = Cookies.get("authToken");
       const agentID = state.editing?.agentId;
       const userRole = state.auth?.userRole;
-
+      const selectedDmcId = selectDmcId(state);
       // Corrected conditional statement
       let AgentId;
       if (
         userRole === "Sales Head(DMC)" ||
         userRole === "Sales Manager (DMC)" ||
-        userRole === "Assistant Manager (DMC)"
+        userRole === "Assistant Manager (DMC)" ||
+        userRole === "DMC Assistant Operational Manager" ||
+        userRole === "DMC Operational Manager" ||
+        userRole === "Operational Head(DMC)"
       ) {
         AgentId = agentID;
       } else {
@@ -162,11 +161,7 @@ export const fetchVehicleDetails = createAsyncThunk(
       // ✅ Determine which date to use
       const travelDate = JSON.stringify({ 0: pickupdate });
 
-      // if (pickupdate) {
-      //   travelDate = pickupdate;
-      // } else if (exitpickupdate) {
-      //   travelDate = exitpickupdate;
-      // }
+      
 
       // ✅ Build query parameters dynamically
       const params =
@@ -179,7 +174,7 @@ export const fetchVehicleDetails = createAsyncThunk(
               date: travelDate,
               time: JSON.stringify(entrytime),
               mode: selectedVehicle?.mode,
-              dmc_id: selectedVehicle?.dmcId,
+              dmc_id: selectedDmcId,
               pickup_type: picktype,
               drop_type: droptype,
               city: city,
@@ -187,13 +182,11 @@ export const fetchVehicleDetails = createAsyncThunk(
               type,
             }),
             ...(selectionType === "Exit Port" && {
-              pickup: JSON.stringify(PickupPlaceid1),
-              ...(DropoffPlaceid1 && {
-                dropoff: JSON.stringify(DropoffPlaceid1),
-              }),
+              from_zone_id: PickupPlaceid1,
+              to_zone_id: DropoffPlaceid1,
               vehicle_id: selectedVehicle1?.id, // ✅ Correct way to access id
               mode: selectedVehicle1?.mode, // ✅ Correct way to access mode
-              dmc_id: selectedVehicle1?.dmcId, // ✅ Correct way to access dmcId
+              dmc_id: selectedDmcId, // ✅ Correct way to access dmcId
               pickup_type: picktype,
               drop_type: droptype,
               date: travelDate,
@@ -212,7 +205,7 @@ export const fetchVehicleDetails = createAsyncThunk(
               time: JSON.stringify(entrytime),
               vehicle_id: selectedVehicle?.id, // ✅ Correct way to access id
               mode: selectedVehicle?.mode, // ✅ Correct way to access mode
-              dmc_id: selectedVehicle?.dmcId, // ✅ Correct way to access dmcId
+              dmc_id: selectedDmcId, // ✅ Correct way to access dmcId
               city: city,
               country: country,
             }),
@@ -223,7 +216,7 @@ export const fetchVehicleDetails = createAsyncThunk(
               }),
               vehicle_id: selectedVehicle1?.id, // ✅ Correct way to access id
               mode: selectedVehicle1?.mode, // ✅ Correct way to access mode
-              dmc_id: selectedVehicle1?.dmcId, // ✅ Correct way to access dmcId
+              dmc_id: selectedDmcId, // ✅ Correct way to access dmcId
               date: travelDate,
               time: JSON.stringify(entrytime),
               city: city,
@@ -243,7 +236,7 @@ export const fetchVehicleDetails = createAsyncThunk(
       return response.data;
     } catch (error) {
       if (error.response?.status === 401) {
-        console.log("Unauthorized! Dispatching logout...");
+        
         await dispatch(logoutUser()); // Ensure the logout process completes
       }
       return rejectWithValue(error.response?.data || error.message);
@@ -253,41 +246,27 @@ export const fetchVehicleDetails = createAsyncThunk(
 
 export const fetchPortCity = createAsyncThunk(
   "pickupDrop/fetchPortCity",
-  async ({ city, tourId, type }, { rejectWithValue, dispatch }) => {
+  async ({ city, type, country }, { rejectWithValue, dispatch }) => {
     try {
-      console.log("Fetching port city data with params:", { city, tourId });
-
+     
       const authToken = Cookies.get("authToken");
       const AgentId = Cookies.get("AgentId");
 
       if (!authToken || !AgentId) {
-        console.error("Missing auth token or agent ID");
+       
         throw new Error("Authorization required");
       }
 
       // Ensure tourId is properly formatted
-      if (tourId === undefined || tourId === null || tourId === "") {
-        console.error("Tour ID is missing or invalid:", tourId);
-        throw new Error("Tour ID is required");
-      }
-
-      // Ensure tourId is a number for the API
-      const numericTourId =
-        typeof tourId === "string" ? parseInt(tourId, 10) : tourId;
-
-      if (isNaN(numericTourId)) {
-        console.error("Tour ID is not a valid number:", tourId);
-        throw new Error("Tour ID must be a valid number");
-      }
-
+     
       // ✅ Build query parameters dynamically
       const params = {
         city: city,
-        tour_id: numericTourId, // Ensure it's a number
         type: type,
+        country: country,
       };
 
-      console.log("API Request params:", params);
+    
 
       // ✅ Make API request with dynamic params
       const response = await axios.get(`${BASE_URL}/get-ports`, {
@@ -299,19 +278,17 @@ export const fetchPortCity = createAsyncThunk(
         },
       });
 
-      console.log("Port city API response:", response.data);
+     
       return response.data;
     } catch (error) {
-      console.error("Error in fetchPortCity:", error);
+     
 
       if (error.response) {
-        console.error("API response error:", error.response.data);
-        console.error("API response status:", error.response.status);
-        console.error("API response headers:", error.response.headers);
+       
       }
 
       if (error.response?.status === 401) {
-        console.log("Unauthorized! Dispatching logout...");
+       
         await dispatch(logoutUser()); // Ensure the logout process completes
       }
 
@@ -333,7 +310,10 @@ export const fetchLocalZone = createAsyncThunk(
       if (
         userRole === "Sales Head(DMC)" ||
         userRole === "Sales Manager (DMC)" ||
-        userRole === "Assistant Manager (DMC)"
+        userRole === "Assistant Manager (DMC)" ||
+        userRole === "DMC Assistant Operational Manager" ||
+        userRole === "DMC Operational Manager" ||
+        userRole === "Operational Head(DMC)"
       ) {
         AgentId = agentID;
       } else {
@@ -355,12 +335,12 @@ export const fetchLocalZone = createAsyncThunk(
         },
       });
 
-      console.log("Local Zone Response:", response.data);
+     
 
       return response.data;
     } catch (error) {
       if (error.response?.status === 401) {
-        console.log("Unauthorized! Dispatching logout...");
+        
         dispatch(logoutUser());
       }
       return rejectWithValue(error.response?.data || error.message);
@@ -370,12 +350,14 @@ export const fetchLocalZone = createAsyncThunk(
 
 export const fetchZoneVehicles = createAsyncThunk(
   "pickupDrop/fetchZoneVehicles",
-  async (_, { rejectWithValue, getState }) => {
+  async (params1 = {}, { rejectWithValue, getState }) => {
     try {
       const state = getState(); // ✅ Get Redux state
       const {
         PickupPlaceid,
         DropoffPlaceid,
+        PickupPlaceid1,
+        DropoffPlaceid1,
         entrypickup,
         exitpickup,
         entrydropoff,
@@ -385,11 +367,25 @@ export const fetchZoneVehicles = createAsyncThunk(
         exittime,
         picktype,
         droptype,
-        selectedType,
+        selectionType,
       } = state.pickupDrop;
 
-      if (!PickupPlaceid) {
-        throw new Error("Pickup location is required");
+    
+
+      // Check for pickup location based on selection type
+      if (selectionType === "Entry Port") {
+        if (!PickupPlaceid) {
+          throw new Error("Pickup location is required");
+        }
+      } else if (selectionType === "Exit Port") {
+        if (!PickupPlaceid1) {
+          throw new Error("Pickup location is required");
+        }
+      } else {
+        // Fallback check for both if selectionType is not properly set
+        if (!PickupPlaceid && !PickupPlaceid1) {
+          throw new Error("Pickup location is required");
+        }
       }
 
       if (!droptype) {
@@ -398,13 +394,14 @@ export const fetchZoneVehicles = createAsyncThunk(
 
       const authToken = Cookies.get("authToken");
       const AgentId = Cookies.get("AgentId");
-
+      const selectedDmcId = selectDmcId(state);
+     
       // ✅ Format pickdate as JSON { "0": "YYYY-MM-DD" }
       const travelDate = JSON.stringify({ 0: pickupdate });
 
       // ✅ Build query parameters dynamically
       const params =
-        selectedType === "entry"
+        selectionType === "Entry Port"
           ? {
               pickupid: PickupPlaceid,
               dropoffid: DropoffPlaceid,
@@ -414,20 +411,25 @@ export const fetchZoneVehicles = createAsyncThunk(
               date: travelDate, // ✅ Include formatted date
               pickup_type: picktype,
               drop_type: droptype, // Set default to 'hotel' if droptype is missing
+              dmc_id: selectedDmcId,
+              start: (params1 && params1.start) || undefined,
+              limit: (params1 && params1.limit) || undefined,
             }
           : {
-              pickupid: PickupPlaceid,
-              dropoffid: DropoffPlaceid,
+              pickupid: PickupPlaceid1,
+              dropoffid: DropoffPlaceid1,
               PickUpLocation: exitpickup,
               DropOffLocation: exitdropoff,
               time: exittime,
               date: travelDate, // ✅ Include formatted date
               pickup_type: picktype,
               drop_type: droptype, // Set default to 'hotel' if droptype is missing
+              dmc_id: selectedDmcId,
+              start: (params1 && params1.start) || undefined,
+              limit: (params1 && params1.limit) || undefined,
             };
 
-      console.log("Zone API parameters:", params);
-
+      
       // ✅ Make API request with dynamic params
       const response = await axios.get(`${BASE_URL}/zone-vehicles`, {
         params,
@@ -477,7 +479,7 @@ export const submitPickupDrop = createAsyncThunk(
       const authToken = Cookies.get("authToken");
       const agentID = state.editing?.agentId;
       const userRole = state.auth?.userRole;
-
+      const selectedDmcId = selectDmcId(state);
       // Corrected conditional statement
       let AgentId;
       if (
@@ -494,16 +496,51 @@ export const submitPickupDrop = createAsyncThunk(
         throw new Error("Authorization and AgentId are missing.");
       }
 
-      // Create FormData instances
-      // const formData = new FormData();
+    
+      // Build tour meta to let backend create tour during booking
+      const bookings = state.bookings || {};
+      const auth = state.auth || {};
+
+      const countryCodeToName = {};
+      if (auth.user_country && Array.isArray(auth.user_country)) {
+        auth.user_country.forEach((country) => {
+          if (country && country.name && country.code) {
+            countryCodeToName[country.code] = country.name;
+            countryCodeToName[country.code.toLowerCase()] = country.name;
+          }
+        });
+      }
+
+      const searchLocation = bookings.searchLocation || [];
+      const destination = (Array.isArray(searchLocation) ? searchLocation : [searchLocation])
+        .map((loc) => countryCodeToName[loc] || loc)
+        .join(", ");
+      const check_in = bookings.checkIn || "";
+      const check_out = bookings.checkOut || "";
+      const bGuests = bookings.guests || {};
+      const adultMeta = bGuests.adults ?? 1;
+      const childMeta = bGuests.children ?? 0;
+      const infantMeta = bGuests.infant ?? 0;
+      const maleMeta = bGuests.maleCount ?? 0;
+      const femaleMeta = bGuests.femaleCount ?? 0;
+      const children_ages = (bGuests.childrenAges || []).join(", ");
+
       let formData = {};
       let formData1 = {};
-      console.log("abc", typeof details);
-      console.log(typeof details);
-
-      // Create JSON objects based on the provided conditions
-      //let json0 = {};
-      //let json1 = {};
+      
+      // Check if we have an existing tour_id from port state or global auth state
+      const globalTourId = state.auth?.tourId || state.steps?.id;
+      const effectiveTourId = tourid || globalTourId;
+      
+      // Extract numeric part from tour_id (e.g., "DMC-ORD2904" -> "2904")
+      let numericTourId = "";
+      if (effectiveTourId) {
+        const tourIdStr = String(effectiveTourId);
+        const match = tourIdStr.match(/\d+$/); // Extract trailing digits
+        numericTourId = match ? match[0] : tourIdStr;
+      }
+      
+      const hasTourId = numericTourId && Number(numericTourId) > 0;
 
       if (
         entrypickup &&
@@ -515,41 +552,27 @@ export const submitPickupDrop = createAsyncThunk(
         children !== null &&
         children !== undefined
       ) {
-        // const json0 = {
-        //   entrypickup,
-        //   entrydropoff,
-        //   pickupdate,
-        //   vehicletype,
-        //   traveller0,
-        // };
-
-        // const formattedData = [
-        //   {
-        //     entrypickup: json0.entrypickup,
-        //     entrydropoff: json0.entrydropoff,
-        //     pickupdate: json0.pickupdate,
-        //     vehicletype: json0.vehicletype,
-        //     traveller0: json0.traveller0,
-        //   },
-        // ];
-
-        // let dataString = JSON.stringify(formattedData);
-        // dataString = `\\${dataString.slice(0, 1)}${dataString.slice(
-        //   1,
-        //   -1
-        // )}\\${dataString.slice(-1)}`;
-        // // Append the data to formData
-        // formData.append("data", details);
-        // formData.append("type", type);
-        // formData.append("agent_id", AgentId);
-        // formData.append("tour_id", tourid);
+        
         formData = {
-          data: details,
+          data: details.map(item => ({ ...item, dmc_id: selectedDmcId })),
           type: type,
           agent_id: AgentId,
-          tour_id: tourid,
+          tour_id: hasTourId ? Number(numericTourId) : "",
           bookingType: bookingtype,
         };
+
+        // Only add tour meta if no tour_id exists
+        if (!hasTourId) {
+          formData.destination = destination;
+          formData.check_in = check_in;
+          formData.check_out = check_out;
+          formData.adult = adultMeta;
+          formData.child = childMeta;
+          formData.infant = infantMeta;
+          formData.male = maleMeta;
+          formData.female = femaleMeta;
+          formData.children_ages = children_ages;
+        }
       }
 
       if (
@@ -562,42 +585,30 @@ export const submitPickupDrop = createAsyncThunk(
         children !== null &&
         children !== undefined
       ) {
-        //   json1 = {
-        //     exitpickup,
-        //     exitdropoff,
-        //     exitpickupdate,
-        //     exittime,
-        //     vehicletype1,
-        //     traveller1,
-        //   };
-
-        //   // Append json1 to formData1
-        //   formData1.append("data", JSON.stringify(json1));
-        //   formData1.append("type", type1);
-        //   formData1.append("agent_id", AgentId);
-        //   formData1.append("tour_id", tourid);
-
+       
         formData1 = {
-          data: details1,
+          data: details1.map(item => ({ ...item, dmc_id: selectedDmcId })),
           type: type1,
           agent_id: AgentId,
-          tour_id: tourid,
+          tour_id: hasTourId ? Number(numericTourId) : "",
           bookingType: bookingtype,
         };
+
+        // Only add tour meta if no tour_id exists
+        if (!hasTourId) {
+          formData1.destination = destination;
+          formData1.check_in = check_in;
+          formData1.check_out = check_out;
+          formData1.adult = adultMeta;
+          formData1.child = childMeta;
+          formData1.infant = infantMeta;
+          formData1.male = maleMeta;
+          formData1.female = femaleMeta;
+          formData1.children_ages = children_ages;
+        }
       }
 
-      // console.log("formData:", formData);
-      // console.log("formData1:", formData1);
-      // console.log("entrypickup:", entrypickup);
-      // console.log("entrydropoff:", entrydropoff);
-      // console.log("pickupdate:", pickupdate);
-      // console.log("entrytime:", entrytime);
-      // console.log("adult:", adult);
-      // console.log("children:", children);
-
-      // console.log("exitpickup:", exitpickup);
-      // console.log("exitdropoff:", exitdropoff);
-      // console.log("exittime:", exittime);
+      
 
       // Determine which FormData to send
       let selectedFormData = null;
@@ -610,13 +621,10 @@ export const submitPickupDrop = createAsyncThunk(
       } else {
         throw new Error("No valid data to submit.");
       }
-      console.log("formselect", selectedFormData);
+      
 
-      // Debugging: Log selected FormData
-      // console.log("Selected FormData content:");
-      // for (let [key, value] of selectedFormData.entries()) {
-      //   console.log(`${key}: ${value}`);
-      // }
+      
+    
 
       // Actual API call
       const response = await axios.post(
@@ -631,7 +639,21 @@ export const submitPickupDrop = createAsyncThunk(
         }
       );
 
-      console.log("API Response:", response.data);
+      
+
+      // Extract and dispatch tour_id if this was the first booking (tour created)
+      const tourId = response.data?.order?.tour_id || response.data?.tour_id;
+      if (tourId) {
+        dispatch(setId(tourId));
+        dispatch(setTourId(tourId));
+        dispatch(setTourIdd(tourId));
+        console.log("Tour ID created and stored from port booking:", tourId);
+        
+        // Update step status to mark port as completed
+        dispatch(updateStepStatus({ key: 'port', status: 3 }));
+        dispatch(setStepType(null));
+        dispatch(statusUpdate());
+      }
 
       // Check if response has the expected structure
       if (!response.data || !response.data.service) {
@@ -641,7 +663,7 @@ export const submitPickupDrop = createAsyncThunk(
 
       // Extracting response data - CORRECTED to use service.data
       const responseData = response.data.service.data || [];
-      console.log("Response data array:", responseData);
+      
 
       if (!Array.isArray(responseData)) {
         console.error(
@@ -677,8 +699,7 @@ export const submitPickupDrop = createAsyncThunk(
         );
       });
 
-      console.log("Filtered Entry Port data:", EntryPortData);
-      console.log("Filtered Exit Port data:", ExitPortData);
+     
 
       // Since the API might return only one result based on the request type,
       // let's also consider the service type to determine what to dispatch
@@ -687,13 +708,13 @@ export const submitPickupDrop = createAsyncThunk(
         responseData.length > 0
       ) {
         dispatch(setEntryport(responseData));
-        console.log("Dispatched to Entry Port:", responseData);
+        
       } else if (
         response.data.service.type === "exit_port" &&
         responseData.length > 0
       ) {
         dispatch(setExitport(responseData));
-        console.log("Dispatched to Exit Port:", responseData);
+        
       } else {
         // Apply the original filter logic as fallback
         if (EntryPortData.length > 0) {
@@ -707,15 +728,10 @@ export const submitPickupDrop = createAsyncThunk(
 
       // Check the type in the response and assign to formData or formData1
       const data = response.data.order.data;
-      // const cleanedData = data.slice(1, -1); // Remove the first and last character (quotes)
-      // const decodedData = cleanedData
-      //   .replace(/\\"/g, '"')
-      //   .replace(/\\\//g, "/");
+     
       const responseType = response.data.order.type;
 
-      // Parse the 'data' field from the response
-      // const parsedData = JSON.parse(decodedData);
-      // console.log(parsedData);
+      
 
       if (responseType === "entry_port") {
         // Create an array to hold EntryPort data
@@ -747,7 +763,7 @@ export const submitPickupDrop = createAsyncThunk(
               break;
           }
         });
-        console.log("form", formData);
+      
 
         // Update the state with formData
         dispatch(updateFormData(formData));
@@ -781,11 +797,17 @@ export const submitPickupDrop = createAsyncThunk(
               break;
           }
         });
-        console.log("form1", formData1);
+        
 
         // Update the state with formData1
         dispatch(updateFormData1(formData1));
       }
+
+      // Update stepper button visibility based on booking response
+      dispatch(updateServiceResponse({ 
+        service: 'port', 
+        response: response.data 
+      }));
 
       return response.data;
     } catch (error) {
@@ -853,35 +875,35 @@ const pickupDropSlice = createSlice({
   reducers: {
     setentrypickup: (state, action) => {
       state.entrypickup = action.payload;
-      console.log("entrypickup", state.entrypickup);
+     
     },
     setentrydropoff: (state, action) => {
       state.entrydropoff = action.payload;
-      console.log("entrydropoff", state.entrydropoff);
+     
     },
     setexitpickup: (state, action) => {
       state.exitpickup = action.payload;
-      console.log("exitpickup", state.exitpickup);
+      
     },
     setexitdropoff: (state, action) => {
       state.exitdropoff = action.payload;
-      console.log("exitdropoff", state.exitdropoff);
+     
     },
     setPickupPlaceid: (state, action) => {
       state.PickupPlaceid = action.payload;
-      console.log("pickplaceid", state.PickupPlaceid);
+     
     },
     setDropoffPlaceid: (state, action) => {
       state.DropoffPlaceid = action.payload;
-      console.log("dropplaceid", state.DropoffPlaceid);
+   
     },
     setPickupPlaceid1: (state, action) => {
       state.PickupPlaceid1 = action.payload;
-      console.log("pickplaceid1", state.PickupPlaceid1);
+   
     },
     setDropoffPlaceid1: (state, action) => {
       state.DropoffPlaceid1 = action.payload;
-      console.log("dropplaceid1", state.DropoffPlaceid1);
+    
     },
     setpickupdate: (state, action) => {
       state.pickupdate = action.payload;
@@ -891,18 +913,18 @@ const pickupDropSlice = createSlice({
     },
     setentrytime: (state, action) => {
       state.entrytime = action.payload;
-      console.log("tt", state.entrytime);
+     
     },
     setexittime: (state, action) => {
       state.exittime = action.payload;
     },
     setadult: (state, action) => {
       state.adult = action.payload;
-      console.log("adult", state.adult);
+     
     },
     setchildren: (state, action) => {
       state.children = action.payload;
-      console.log("chil", state.children);
+      
     },
     setvehicletype1: (state, action) => {
       state.vehicletype1 = action.payload;
@@ -918,7 +940,7 @@ const pickupDropSlice = createSlice({
     // },
     setbookingtype1: (state, action) => {
       state.bookingtype = action.payload;
-      console.log("bookingtype", state.bookingtype);
+      
     },
     setentrydata: (state, action) => {
       if (!Array.isArray(state.details)) {
@@ -932,7 +954,7 @@ const pickupDropSlice = createSlice({
         state.details[0] = action.payload; // ✅ Insert if empty
       }
 
-      console.log("Updated form data at index 0:", state.details);
+     
     },
 
     setexitdata: (state, action) => {
@@ -944,15 +966,15 @@ const pickupDropSlice = createSlice({
       } else {
         state.details1[0] = action.payload; // ✅ Insert if empty
       }
-      console.log("form2", state.details1[0]);
+     
     },
     setResponse: (state, action) => {
       state.response = action.payload;
-      console.log("response125", state.response);
+      
     },
     setPriceMode: (state, action) => {
       state.pricemode = action.payload;
-      console.log("m", state.pricemode);
+      
     },
     setEntryport: (state, action) => {
       state.entryport = action.payload;
@@ -961,50 +983,34 @@ const pickupDropSlice = createSlice({
       state.exitport = action.payload;
     },
     updateFormData: (state, action) => {
-      // Update the formData array with entry-related variables
-      // state.formData = [
-      //   { "Pick Up Location": state.entrypickup },
-      //   { "Drop Off Location": state.entrydropoff },
-      //   { Date: state.pickupdate },
-      //   { Time: state.entrytime },
-      //   { Vehicle: state.vehicletype },
-      //   { Traveller: state.traveller0 },
-      // ];
+     
       state.formData = action.payload;
-      console.log("entryport updated", state.formData);
+      
     },
 
     updateFormData1: (state, action) => {
-      // Update the formData1 array with exit-related variables
-      // state.formData1 = [
-      //   { "Pick Up Location": state.exitpickup },
-      //   { "Drop Off Location": state.exitdropoff },
-      //   { Date: state.exitpickupdate },
-      //   { Time: state.exittime },
-      //   { Vehicle: state.vehicletype1 },
-      //   { Traveller: state.traveller1 },
-      // ];
+      
       state.formData1 = action.payload;
-      console.log("exitport updated", state.formData1);
+      
     },
     setSelectedVehicle: (state, action) => {
       state.selectedVehicle = action.payload;
-      console.log("mode array", state.selectedVehicle);
+      
     },
     setSelectedVehicle1: (state, action) => {
       state.selectedVehicle1 = action.payload;
     },
     setSelectionType: (state, action) => {
       state.selectionType = action.payload;
-      console.log("porttype", state.selectionType);
+      
     },
     setMode: (state, action) => {
       state.mode = { ...state.mode, ...action.payload }; // ✅ Merge new mode
-      console.log("Updated Mode:", state.mode);
+      
     },
     setSelectedPort: (state, action) => {
       state.selectedPort = action.payload;
-      console.log("selectedPort", state.selectedPort);
+      
     },
     resetVehicles: (state, action) => {
       state.vehicles = [];
@@ -1020,20 +1026,21 @@ const pickupDropSlice = createSlice({
       state.PickupPlaceid = "";
       state.DropoffPlaceid1 = "";
       state.PickupPlaceid1 = "";
+      state.error = null;
       //state.selectedVehicleId = null;
       state.status = "idle";
     },
     setPicktype: (state, action) => {
       state.picktype = action.payload;
-      console.log("picktype", state.picktype);
+     
     },
     setDroptype: (state, action) => {
       state.droptype = action.payload;
-      console.log("droptype", state.droptype);
+      
     },
     setPortZoneType: (state, action) => {
       state.portZoneType = action.payload;
-      console.log("portZoneType", state.portZoneType);
+     
     },
     setSelectedVehicleId: (state, action) => {
       state.selectedVehicleId = action.payload;
@@ -1053,19 +1060,56 @@ const pickupDropSlice = createSlice({
       })
       .addCase(fetchVehicles.fulfilled, (state, action) => {
         state.status = "succeeded";
-        if(state.selectionType === "Entry Port"){
-          state.vehicles = action.payload;
-          console.log("fetchVehicles - Updated Entry Port vehicles:", state.vehicles);
-        }
-        if(state.selectionType === "Exit Port"){
-          state.vehicles1 = action.payload;
-          console.log("fetchVehicles - Updated Exit Port vehicles:", state.vehicles1);
+        // Check if response is an error message
+        if (action.payload && typeof action.payload === 'object' && (action.payload.success === false)) {
+          
+          // Set empty array for vehicles based on selection type
+          if(state.selectionType === "Entry Port"){
+            state.vehicles = [];
+            state.error = action.payload.message;
+            
+          }
+          if(state.selectionType === "Exit Port"){
+            state.vehicles1 = [];
+            state.error = action.payload.message;
+            
+          }
+        } else {
+          // Normal success response - support infinite scrolling
+          const { start = 0 } = action.meta?.arg || {};
+          
+          if(state.selectionType === "Entry Port"){
+            if (start === 0) {
+              // First page - replace vehicles
+              state.vehicles = action.payload;
+             
+            } else {
+              // Subsequent pages - accumulate vehicles
+              const existingIds = new Set(state.vehicles.map(vehicle => vehicle.id));
+              const newVehicles = action.payload.filter(vehicle => !existingIds.has(vehicle.id));
+              state.vehicles = [...state.vehicles, ...newVehicles];
+              
+            }
+          }
+          if(state.selectionType === "Exit Port"){
+            if (start === 0) {
+              // First page - replace vehicles
+              state.vehicles1 = action.payload;
+              
+            } else {
+              // Subsequent pages - accumulate vehicles
+              const existingIds = new Set(state.vehicles1.map(vehicle => vehicle.id));
+              const newVehicles = action.payload.filter(vehicle => !existingIds.has(vehicle.id));
+              state.vehicles1 = [...state.vehicles1, ...newVehicles];
+             
+            }
+          }
         }
       })
       .addCase(fetchVehicles.rejected, (state, action) => {
         state.status = "failed";
-        state.error = action.payload; // Save the error in state
-        console.error("Error fetching attractions:", action.payload); // Log error details
+        state.error = action.payload.message; // Save the error in state
+       
       })
       // Handle fetchPortCity actions
       .addCase(fetchPortCity.pending, (state) => {
@@ -1075,12 +1119,12 @@ const pickupDropSlice = createSlice({
       .addCase(fetchPortCity.fulfilled, (state, action) => {
         state.portCityStatus = "succeeded";
         state.portCityData = action.payload;
-        console.log("Port City Data:", action.payload); // Log the fetched data
+       
       })
       .addCase(fetchPortCity.rejected, (state, action) => {
         state.portCityStatus = "failed";
         state.portCityError = action.payload;
-        console.error("Error fetching port city data:", action.payload);
+        
       });
 
     builder
@@ -1090,26 +1134,57 @@ const pickupDropSlice = createSlice({
       })
       .addCase(fetchZoneVehicles.fulfilled, (state, action) => {
         state.status = "succeeded";
-        if(state.selectionType === "Entry Port"){
-          state.vehicles = action.payload;
-          console.log("vehicle", state.vehicles);
+        if(action.payload && typeof action.payload === 'object' && (action.payload.success === false)){
+          
+          if(state.selectionType === "Entry Port"){
+            state.vehicles = [];
+            state.error = action.payload.message;
+            
+          }
+          if(state.selectionType === "Exit Port"){
+            state.vehicles1 = [];
+            state.error = action.payload.message;
+           
+          }
+        } else {
+          // Support infinite scrolling - check if it's initial load or subsequent load
+          const { start = 0 } = action.meta?.arg || {};
+          
+          if(state.selectionType === "Entry Port"){
+            if (start === 0) {
+              // First page - replace vehicles
+              state.vehicles = action.payload;
+             
+            } else {
+              // Subsequent pages - accumulate vehicles
+              const existingIds = new Set(state.vehicles.map(vehicle => vehicle.id));
+              const newVehicles = action.payload.filter(vehicle => !existingIds.has(vehicle.id));
+              state.vehicles = [...state.vehicles, ...newVehicles];
+             
+            }
+          }
+          if(state.selectionType === "Exit Port"){
+            if (start === 0) {
+              // First page - replace vehicles
+              state.vehicles1 = action.payload;
+             
+            } else {
+              // Subsequent pages - accumulate vehicles
+              const existingIds = new Set(state.vehicles1.map(vehicle => vehicle.id));
+              const newVehicles = action.payload.filter(vehicle => !existingIds.has(vehicle.id));
+              state.vehicles1 = [...state.vehicles1, ...newVehicles];
+              
+            }
+          }
         }
-        if(state.selectionType === "Exit Port"){
-          state.vehicles1 = action.payload;
-          console.log("vehicle1", state.vehicles1);
-        }
-        console.log("vehicles", state.vehicles);
+        
 
-        // ✅ Reset PickupPlaceid & DropoffPlaceid after API success
-        //state.PickupPlaceid = null;
-        //state.DropoffPlaceid = null;
-
-        //console.log("Fetched Attractions Data:", action.payload); // Log the fetched data
+       
       })
       .addCase(fetchZoneVehicles.rejected, (state, action) => {
         state.status = "failed";
-        state.error = action.payload; // Save the error in state
-        console.error("Error fetching attractions:", action.payload); // Log error details
+        state.error = action.payload.message; // Save the error in state
+        
       });
 
     builder
@@ -1125,6 +1200,7 @@ const pickupDropSlice = createSlice({
         state.loading = false;
         state.error = action.payload;
       });
+    
   },
 });
 

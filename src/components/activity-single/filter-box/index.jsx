@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useCallback } from "react";
 import GuestSearch from "./GuestSearch";
 import { Link, Navigate } from "react-router-dom";
 import HourPackage from "./HourlyPackage";
@@ -41,34 +41,34 @@ import { setDateService } from "@/slice/common/dateServicesSlice";
 
 const Index = () => {
   const pickUpLocation = useSelector((state) => state.tourguide.entrypickup);
-  console.log("entrypickkk", pickUpLocation);
+ 
 
   //const dropOffLocation = useSelector((state) => state.tourguide.entrydropoff);
   const selectedDate = useSelector((state) => state.tourguide.pickupdate);
   const PickupPlaceid = useSelector((state) => state.tourguide.PickupPlaceid);
   const DropoffPlaceid = useSelector((state) => state.tourguide.DropoffPlaceid);
+  const country = useSelector((state) => state.hotels.tourdetails.destination);
   const statemode = useSelector((state) => state.tourguide.mode);
   const dispatch = useDispatch();
   const location = useLocation();
   const navigate = useNavigate();
   const { guide } = location.state;
-  console.log("guidddfsde", guide);
-  console.log("night");
+ 
   const id = useSelector((state) => state.hotels.id);
 
   // Get default values for guests from Redux store
   // Fetch values from Redux
   const tourDetails = useSelector((state) => state.hotels?.tourdetails);
-  console.log("Tour details:", tourDetails);
+ 
 
   const adultsMax = tourDetails?.adult ?? 1; // Use optional chaining with fallback
-  console.log("Adults Max:", adultsMax);
+ 
 
   const childrenMax = tourDetails?.child ?? 0; // Use optional chaining with fallback
-  console.log("Children Max:", childrenMax);
+ 
 
   const mode = statemode[guide.guide.guide_id]?.mode || "default_mode"; // Set a default mode if not found
-  console.log("mode", mode);
+ 
 
   const [adults, setAdults] = useState(adultsMax);
   const [children, setChildren] = useState(childrenMax);
@@ -85,9 +85,7 @@ const Index = () => {
     adultsMax: "",
     childrenMax: "",
   });
-  useEffect(() => {
-    console.log(mappedData); // Log to check if the "hour" field is updated properly
-  }, [mappedData]);
+ 
 
   const [hour, sethours] = useState("");
   const [hourlyPrice, setHourlyPrice] = useState(0); // Stores selected hourly price
@@ -95,16 +93,16 @@ const Index = () => {
   const [isNight, setIsNight] = useState(false);
 
   // Function to update hour and price from HourPackage
-  const handleHourChange = (selectedHour, price) => {
+  const handleHourChange = useCallback((selectedHour, price) => {
     sethours(selectedHour);
     setHourlyPrice(price);
     // setMappedData((prevData) => ({
     //   ...prevData,
     //   hour: { label: selectedHour, price: price },
     // }));
-  };
+  }, []);
 
-  const handleGuestChange = (updatedAdults, updatedChildren) => {
+  const handleGuestChange = useCallback((updatedAdults, updatedChildren) => {
     setAdults(updatedAdults);
     setChildren(updatedChildren);
     // setMappedData((prevData) => ({
@@ -112,7 +110,7 @@ const Index = () => {
     //   adultsMax: updatedAdults,
     //   childrenMax: updatedChildren,
     // }));
-  };
+  }, []);
 
   const calculateTotalBill = () => {
     if (!entryytime || !hour || !guide)
@@ -357,111 +355,32 @@ const Index = () => {
       hours: hour,
       basePrice: basePrice,
       surcharge: surcharge,
-      totalPrice: totalPrice,
+      totalPrice: Math.ceil(totalPrice),
       Tax: guide.guide.tax_percentage,
       Night_Start_Time: guide.guide.night_start_time,
       Night_End_Time: guide.guide.night_end_time,
+      city: pickUpLocation,
+      country: country,
     };
-
+    console.log("guide details", details);
     dispatch(setData(details));
     navigate(`/dashboard/db-dashboard/CheckOut`, {
       state: { guide: guide },
     });
-    // setMappedData(data); // Update state with final values
-    // setIsModalOpen(true);
-    // console.log("Submitted Data:", data); // Debugging: Check final values before submission
+   
   };
 
-  // const handleFinalSubmit = async () => {
-  //   if (
-  //     !pickUpLocation ||
-  //     // !dropOffLocation ||
-  //     !selectedDate ||
-  //     !entryytime ||
-  //     adults === null ||
-  //     adults === undefined ||
-  //     children === null ||
-  //     children === undefined ||
-  //     !hour
-  //   ) {
-  //     toast.error("Failed to create booking. Please check your input.", {
-  //       position: "top-center",
-  //       autoClose: 3000,
-  //     });
-  //     return;
-  //   }
-
-  //   // Get calculated bill values
-  //   const { totalPrice } = calculateTotalBill();
-
-  // dispatch(setentrypickup(pickUpLocation));
-  // // dispatch(setentrydropoff(dropOffLocation));
-  // dispatch(setentrytime(entryytime));
-  // dispatch(setpickupdate(selectedDate));
-  // dispatch(setadult(adults));
-  // dispatch(sethour(hour));
-  // dispatch(setchildren(children));
-  // dispatch(setTotalPrice(totalPrice));
-  // dispatch(settourId(id));
-
-  //   const details = [
-  //     {
-  //       bookingDate: dayjs(selectedDate).format("YYYY-MM-DD"),
-  //       guide_id: guide.guide.guide_id,
-  //       guide_name: guide.guide.name,
-  //       DMC_Id: globalid,
-  //       Mode: mode,
-  //       entrypickup: pickUpLocation,
-  //       // entrydropoff: dropOffLocation,
-  //       PickupPlaceid: PickupPlaceid,
-  //       DropoffPlaceid: DropoffPlaceid,
-  //       pickupdate: selectedDate,
-  //       entrytime: entryytime,
-  //       adults: adults,
-  //       children: children,
-  //       hours: hour,
-  //       totalPrice: totalPrice,
-  //       Night_Start_Time: guide.night_start_time,
-  //       Night_End_Time: guide.night_end_time,
-  //     },
-  //   ];
-
-  //   dispatch(setData(details));
-
-  // try {
-  //   const response = await dispatch(guideslice()).unwrap();
-  //   if (response?.service?.date_service) {
-  //     dispatch(setDateService(response.service.date_service));
-  //     toast.success(response.message, {
-  //       position: "top-center",
-  //       autoClose: 3000,
-  //     });
-  //     handleModalClose();
-  //   }
-  // } catch (error) {
-  //   console.error("Error during submission:", error);
-  //   toast.error("Something went wrong. Please try again later.", {
-  //     position: "top-center",
-  //     autoClose: 3000,
-  //   });
-  // }
-  // };
-
-  // const handleModalClose = () => {
-  //   setIsModalOpen(false);
-  //   //setIsModalOpen1(false);
-  // };
-  console.log("bjbd", hour);
+  
   return (
     <>
       <div className="col-12">
         <div className="searchMenu-date px-20 py-10 border-light rounded-4 -right js-form-dd js-calendar">
           <div>
-            <h4 className="text-15 fw-500 ls-2 lh-16">Pick Up Time </h4>
+            {/* <h4 className="text-15 fw-500 ls-2 lh-16">Pick Up Time </h4> */}
             <Pickuptime entryytime={entryytime} setentryytime={setentryytime} />
           </div>
         </div>
-      </div>
+      </div>                             
 
       <div className="col-12">
         <div className="searchMenu-date px-20 py-10 border-light rounded-4 -right js-form-dd js-calendar">

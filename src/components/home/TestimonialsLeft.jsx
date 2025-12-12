@@ -21,8 +21,8 @@ const TestimonialsLeft = () => {
   return (
     <Box
       sx={{
-        width: '50%',
-        height: '100vh',
+        width: '100%',
+        height: '100%',
         background: 'linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%)',
         display: 'flex',
         alignItems: 'center',
@@ -33,7 +33,7 @@ const TestimonialsLeft = () => {
           position: 'absolute',
           top: 0,
           right: 0,
-          width: '100px',
+          width: { xs: '50px', md: '100px' },
           height: '100%',
           background: 'linear-gradient(135deg, transparent 0%, white 100%)',
           transform: 'skewX(-10deg)',

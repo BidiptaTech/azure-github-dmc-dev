@@ -53,6 +53,7 @@ const CustomTooltip = styled(({ className, ...props }) => (
 
 // Tooltip content component
 const TooltipContent = ({ vehicle }) => {
+  const PriceHide = useSelector((state) => state.auth.PriceHide);
   return (
     <Box>
       {/* Header Image Section */}
@@ -122,6 +123,8 @@ const TooltipContent = ({ vehicle }) => {
           <Typography variant="subtitle2" gutterBottom sx={{ fontWeight: 500 }}>
             Pricing Details
           </Typography>
+          {PriceHide !== "1" ? (
+          <>
           <Grid container spacing={2}>
             {/* DMC Prices */}
             {(vehicle.dmc_private_price > 0 || vehicle.dmc_sharable_price > 0) && (
@@ -190,6 +193,12 @@ const TooltipContent = ({ vehicle }) => {
               *Prices are subject to {vehicle.tax_percentage}% tax
             </Typography>
           )}
+          </>
+          ):(
+            <Typography variant="caption" gutterBottom sx={{ color: 'text.secondary', fontWeight: 500, fontSize: '0.75rem' }}>
+              Pricing hidden
+            </Typography>
+          )}
         </Box>
       </Box>
     </Box>
@@ -201,7 +210,7 @@ const Mode = ({ pricemode, setpricemode, vehicles }) => {
   // Return null if no vehicle data is available
   if (!vehicles) return null;
 
-  console.log("vehicles in Mode component:", vehicles);
+ 
   
   // Safely check which price modes are available in both possible data structures
   const hasPrivatePrice = 
@@ -212,8 +221,7 @@ const Mode = ({ pricemode, setpricemode, vehicles }) => {
     (vehicles.prices && vehicles.prices.sharablePrice > 0) || 
     (vehicles.shared_price && parseFloat(vehicles.shared_price) > 0);
   
-  console.log("hasPrivatePrice", hasPrivatePrice);
-  console.log("hasSharablePrice", hasSharablePrice);
+  
 
   // If no pricing options available, return null
   if (!hasPrivatePrice && !hasSharablePrice) return null;
@@ -262,10 +270,11 @@ const VehicleListDropdown = ({ selectedVehicle, onVehicleChange, entryPorts, tou
   const portZoneType = useSelector((state) => state.pickupDrop.portZoneType);
   const dispatch = useDispatch();
   const tourDetails = useSelector((state) => state.hotels?.tourdetails);
-  
+  const searchParams = useSelector((state) => state.tourPackages.searchCriteria);
   // Make sure we're only working with entry ports
   const validEntryPorts = entryPorts && entryPorts.filter(port => port.type === "entry_port");
-  console.log("Entry Vehicle - Filtered entryPorts:", validEntryPorts);
+  const tourStatus = useSelector((state) => state.tourPackages.tourStatus);
+  console.log("tourStatus5", tourStatus);
   
   // Redux state for locations and times
   const entryPickup = useSelector((state) => state.pickupDrop.entrypickup);
@@ -280,8 +289,8 @@ const VehicleListDropdown = ({ selectedVehicle, onVehicleChange, entryPorts, tou
   const existingServices = useSelector((state) => state.tourPackages.AllServices || []);
   
   // Use optional chaining for safe access to nested properties
-  const adultsMax = tourDetails?.data?.adult || tourDetails?.adult || 1;
-  const childrenMax = tourDetails?.data?.child || tourDetails?.child || 0;
+  const adultsMax = searchParams?.guests?.adults || 1;
+  const childrenMax = searchParams?.guests?.children || 0;
 
   // Component state
   const [seatingCapacity, setSeatingCapacity] = useState(0);
@@ -294,69 +303,105 @@ const VehicleListDropdown = ({ selectedVehicle, onVehicleChange, entryPorts, tou
   const [openSummaryModal, setOpenSummaryModal] = useState(false);
   const [summaryBookingIndex, setSummaryBookingIndex] = useState(null);
   
+  // Track deleted booking IDs to prevent re-initialization
+  const deletedBookingIdsRef = useRef(new Set());
+  
   // Initialize bookings from entryPorts data or default empty booking
   const initializeBookings = () => {
     if (validEntryPorts && validEntryPorts.length > 0) {
-      // Pre-populate with existing entry port data
-      return validEntryPorts.map((entryPort, index) => {
-        const entryData = entryPort.data?.[0];
-        if (!entryData) {
-          // Fallback to default booking if no data
-          return {
-            id: `entry-${Date.now()}-${index}`,
-            vehicle: null,
-            vehicleData: null,
-            priceMode: null,
-            isComplete: false,
-            adults: adultCount || 1,
-            children: childCount || 0
-          };
-        }
-        
-        // Find the corresponding vehicle from the vehicles list
-        const matchingVehicle = vehicles.find(v => v.id === entryData.vehicles_id);
-        
-        return {
-          id: entryData.id || `entry-${Date.now()}-${index}`,
-          vehicle: matchingVehicle || {
-            id: entryData.vehicles_id,
-            vehicle_name: entryData.vehicles_name || 'Unknown Vehicle',
-            vehicle_type: entryData.vehicle_type || '',
-            vehicle_model: entryData.vehicle_model || '',
-            model_year: entryData.model_year || '',
-            seating_capacity: entryData.seating_capacity || 1,
-            image: entryData.image || '',
-            city: entryData.city || '',
-            country: entryData.country || '',
-            dmc_id: entryData.dmc_id || ''
-          },
-          vehicleData: {
-            // Map the price mode to expected structure
-            private_price: entryData.type === 'private' ? entryData.totalPrice : 0,
-            shared_price: entryData.type === 'shared' ? entryData.totalPrice : 0,
-            prices: {
-              privatePrice: entryData.type === 'private' ? entryData.totalPrice : 0,
-              sharablePrice: entryData.type === 'shared' ? entryData.totalPrice : 0
-            }
-          },
-          priceMode: entryData.type === 'shared' ? 'Sharable' : 'Private',
-          isComplete: true, // Mark as complete since it's loaded data
-          adults: entryData.adults || 1,
-          children: entryData.children || 0,
-          mode: entryData.Mode || 'dmc',
-          dmcId: entryData.dmc_id || '',
-          entrypickup: entryData.entrypickup || '',
-          entrydropoff: entryData.entrydropoff || '',
-          bookingDate: entryData.bookingDate || '',
-          pickupdate: entryData.pickupdate || '',
-          entrytime: entryData.entrytime || '',
-          // Store original loaded data for reference, including booking_id
-          originalData: {
-            ...entryData,
-            booking_id: entryPort.booking_id // Preserve booking_id from service level
+      // Pre-populate with existing entry port data, but exclude deleted bookings
+      return validEntryPorts
+        .filter(entryPort => {
+          const entryData = entryPort.data?.[0];
+          if (!entryData) return false;
+          
+          // Check if this booking was deleted
+          const bookingId = entryData.id;
+          const bookingIdFromService = entryPort.booking_id;
+          
+          // Skip if this booking was deleted
+          if (deletedBookingIdsRef.current.has(bookingId) || 
+              deletedBookingIdsRef.current.has(bookingIdFromService)) {
+            
+            return false;
           }
-        };
-      });
+          
+          return true;
+        })
+        .map((entryPort, index) => {
+          const entryData = entryPort.data?.[0];
+          if (!entryData) {
+            // Fallback to default booking if no data
+            return {
+              id: `entry-${Date.now()}-${index}`,
+              vehicle: null,
+              vehicleData: null,
+              priceMode: null,
+              isComplete: false,
+              adults: adultCount || 1,
+              children: childCount || 0
+            };
+          }
+          
+          // Normalize data types to handle inconsistencies
+          const normalizedEntryData = {
+            ...entryData,
+            // Convert string numbers to actual numbers
+            adults: entryData.adults ? Number(entryData.adults) : 1,
+            children: entryData.children ? Number(entryData.children) : 0,
+            dmc_id: entryData.dmc_id ? String(entryData.dmc_id) : '',
+            vehicles_id: entryData.vehicles_id ? String(entryData.vehicles_id) : '',
+            totalPrice: entryData.totalPrice ? Number(entryData.totalPrice) : 0,
+            seating_capacity: Number(entryData.seatingCapacity ?? entryData.seating_capacity ?? 1),
+            distance: entryData.distance ? Number(entryData.distance) : 0,
+            // Normalize type for case insensitivity
+            type: entryData.type ? entryData.type.toLowerCase() : 'private'
+          };
+          
+          // Find the corresponding vehicle from the vehicles list
+          const matchingVehicle = vehicles.find(v => String(v.id) === String(normalizedEntryData.vehicles_id));
+          
+          return {
+            id: normalizedEntryData.id || `entry-${Date.now()}-${index}`,
+            vehicle: matchingVehicle || {
+              id: normalizedEntryData.vehicles_id,
+              vehicle_name: normalizedEntryData.vehicles_name || 'Unknown Vehicle',
+              vehicle_type: normalizedEntryData.vehicle_type || '',
+              vehicle_model: normalizedEntryData.vehicle_model || '',
+              model_year: normalizedEntryData.model_year || '',
+              seating_capacity: Number(normalizedEntryData.seating_capacity) || 1,
+              image: normalizedEntryData.image || '',
+              city: normalizedEntryData.city || '',
+              country: normalizedEntryData.country || '',
+              dmc_id: normalizedEntryData.dmc_id || ''
+            },
+            vehicleData: {
+              // Map the price mode to expected structure
+              private_price: normalizedEntryData.type === 'private' ? normalizedEntryData.totalPrice : 0,
+              shared_price: normalizedEntryData.type === 'shared' || normalizedEntryData.type === "sharable" ? normalizedEntryData.totalPrice : 0,
+              prices: {
+                privatePrice: normalizedEntryData.type === 'private' ? normalizedEntryData.totalPrice : 0,
+                sharablePrice: normalizedEntryData.type === 'shared' || normalizedEntryData.type === "sharable" ? normalizedEntryData.totalPrice : 0
+              }
+            },
+            priceMode: normalizedEntryData.type === 'shared' || normalizedEntryData.type === "sharable" ? 'Sharable' : 'Private',
+            isComplete: true, // Mark as complete since it's loaded data
+            adults: normalizedEntryData.adults || 1,
+            children: normalizedEntryData.children || 0,
+            mode: normalizedEntryData.Mode || 'dmc',
+            dmcId: normalizedEntryData.dmc_id || '',
+            entrypickup: normalizedEntryData.entrypickup || '',
+            entrydropoff: normalizedEntryData.entrydropoff || '',
+            bookingDate: normalizedEntryData.bookingDate || '',
+            pickupdate: normalizedEntryData.pickupdate || '',
+            entrytime: normalizedEntryData.entrytime || '',
+            // Store original loaded data for reference, including booking_id
+            originalData: {
+              ...normalizedEntryData,
+              booking_id: entryPort.booking_id // Preserve booking_id from service level
+            }
+          };
+        });
     }
     
     // Default empty booking when no entryPorts data
@@ -374,11 +419,22 @@ const VehicleListDropdown = ({ selectedVehicle, onVehicleChange, entryPorts, tou
   // Use a ref to store bookings to prevent them from being lost during re-renders
   const bookingsRef = useRef(initializeBookings());
 
-  // Debug log initial bookings
+  // Debug log initial bookings and reset deleted bookings when entryPorts change significantly
   useEffect(() => {
-    console.log("Entry Vehicle - Initial bookings state:", bookingsRef.current);
+
     if (validEntryPorts && validEntryPorts.length > 0) {
-      console.log("Entry Vehicle - Loading with existing entryPorts data");
+      
+      
+      // Reset deleted bookings when entryPorts change significantly (new tour)
+      // This prevents deleted bookings from persisting across different tours
+      const currentEntryPortIds = validEntryPorts.map(port => port.booking_id).filter(Boolean);
+      const hasSignificantChange = currentEntryPortIds.length > 0 && 
+        !currentEntryPortIds.some(id => deletedBookingIdsRef.current.has(id));
+      
+      if (hasSignificantChange) {
+       
+        deletedBookingIdsRef.current.clear();
+      }
     } else {
       console.log("Entry Vehicle - Loading with default empty booking");
     }
@@ -387,64 +443,7 @@ const VehicleListDropdown = ({ selectedVehicle, onVehicleChange, entryPorts, tou
   // Automatically store entryPorts data into Redux AllServices state when component receives props
   const hasDispatchedAllEntryPortsRef = useRef(false);
   const lastDispatchRef = useRef(null);
-  
-  // Function to dispatch ALL entry ports from entryPorts to Redux state (similar to exit ports)
-  const dispatchAllEntryPortsToRedux = useCallback(() => {
-    if (!validEntryPorts || !Array.isArray(validEntryPorts) || validEntryPorts.length === 0) {
-      console.log('No entryPorts data to dispatch to Redux');
-      return;
-    }
-
-    // Create a unique key for this dispatch to prevent duplicates
-    const dispatchKey = JSON.stringify(validEntryPorts.map(service => service.data?.[0]?.id));
-    
-    if (lastDispatchRef.current === dispatchKey) {
-      console.log('Skipping duplicate dispatch for all entry ports');
-      return;
-    }
-
-    console.log('Dispatching ALL entry ports to Redux (immediate):', validEntryPorts);
-    
-    // Get current services from Redux store at the time of dispatch
-    const currentServices = [...(existingServices || [])];
-    
-    // Filter out existing entry_port services to avoid duplicates
-    const filteredServices = currentServices.filter(service => service.type !== "entry_port");
-    
-    // Create new entry port service entries preserving booking_id
-    const entryPortServicesWithBookingId = validEntryPorts.map(entryPortService => {
-      // Create service object with booking_id preserved
-      const serviceObject = { ...entryPortService };
-
-      // Add booking_id if it exists in the original service
-      if (entryPortService.booking_id) {
-        serviceObject.booking_id = entryPortService.booking_id;
-        console.log(`Entry Vehicle - Preserving booking_id: ${entryPortService.booking_id} for service:`, serviceObject);
-      } else {
-        console.log('Entry Vehicle - No booking_id found in entryPortService:', entryPortService);
-      }
-
-      return serviceObject;
-    });
-    
-    // Add all entry ports to the filtered services array
-    const finalServices = [...filteredServices, ...entryPortServicesWithBookingId];
-    
-    console.log('Entry Vehicle - Automatically dispatching ALL entry ports to Redux:', finalServices);
-    dispatch(setAllServices(finalServices));
-    
-    // Update the last dispatch ref
-    lastDispatchRef.current = dispatchKey;
-    hasDispatchedAllEntryPortsRef.current = true;
-  }, [validEntryPorts, dispatch]); // Removed existingServices dependency
-  
-  // Dispatch ALL entry ports to Redux when validEntryPorts is available (only once)
-  useEffect(() => {
-    if (!hasDispatchedAllEntryPortsRef.current && validEntryPorts && Array.isArray(validEntryPorts) && validEntryPorts.length > 0) {
-      console.log('Dispatching ALL entry ports from entryPorts to Redux on mount');
-      dispatchAllEntryPortsToRedux();
-    }
-  }, [validEntryPorts, dispatchAllEntryPortsToRedux]);
+  const hasInitializedRef = useRef(false);
   
   // State to trigger re-renders when bookings change
   const [bookingsVersion, setBookingsVersion] = useState(0);
@@ -527,7 +526,17 @@ const VehicleListDropdown = ({ selectedVehicle, onVehicleChange, entryPorts, tou
       return;
     }
     
-    console.log("Entry Vehicle - Removing booking:", bookingToRemove);
+    
+    
+    // Add the booking ID to the deleted set to prevent re-initialization
+    if (bookingToRemove.id) {
+      deletedBookingIdsRef.current.add(bookingToRemove.id);
+    }
+    if (bookingToRemove.originalData?.booking_id) {
+      deletedBookingIdsRef.current.add(bookingToRemove.originalData.booking_id);
+    }
+    
+   
     
     // Remove from local state
     const updatedBookings = bookings.filter((_, index) => index !== indexToRemove);
@@ -589,19 +598,18 @@ const VehicleListDropdown = ({ selectedVehicle, onVehicleChange, entryPorts, tou
         
         // Only dispatch if there's an actual change
         if (filteredServices.length !== currentServices.length) {
-          console.log("Entry Vehicle - Removing booking from Redux:", bookingToRemove);
-          console.log("Entry Vehicle - Updated services:", filteredServices);
+         
           dispatch(setAllServices(filteredServices));
         }
       }
   };
   
   // Filter vehicles that have at least one pricing mode
-  const filteredVehicles = vehicles.filter(vehicle => {
+  const filteredVehicles = Array.isArray(vehicles) ? vehicles.filter(vehicle => {
     const hasDmcPrice = vehicle.dmc_private_price > 0 || vehicle.dmc_sharable_price > 0;
     const hasTravclicksPrice = vehicle.trav_private_price > 0 || vehicle.trav_sharable_price > 0;
     return hasDmcPrice || hasTravclicksPrice;
-  });
+  }) : [];
   
   // Find selected vehicle object for the primary booking
   const selectedVehicleObj = selectedVehicle ? 
@@ -610,15 +618,15 @@ const VehicleListDropdown = ({ selectedVehicle, onVehicleChange, entryPorts, tou
   // Function to dispatch initialized bookings to Redux state
   const dispatchInitializedBookingsToRedux = (bookings) => {
     // Skip if we've already dispatched the original entry ports
-    if (hasDispatchedAllEntryPortsRef.current) {
-      console.log("Entry Vehicle - Skipping dispatchInitializedBookingsToRedux because original data was already dispatched");
+    if (hasInitializedRef.current) {
+      
       return;
     }
     
     const completedBookings = bookings.filter(booking => booking.isComplete);
     
     if (completedBookings.length > 0) {
-      console.log("Entry Vehicle - Dispatching initialized bookings to Redux:", completedBookings);
+     
       
       // Format bookings for Redux state
       const bookingsForRedux = completedBookings.map(booking => {
@@ -723,7 +731,7 @@ const VehicleListDropdown = ({ selectedVehicle, onVehicleChange, entryPorts, tou
           bookingType: "enquiry"
         };
         
-        console.log(`Entry Vehicle - Service data with booking_id: ${booking.originalData?.booking_id}`, serviceObject);
+       
         
         return serviceObject;
       });
@@ -732,99 +740,113 @@ const VehicleListDropdown = ({ selectedVehicle, onVehicleChange, entryPorts, tou
       const filteredServices = existingServices.filter(service => service.type !== "entry_port");
       const finalServices = [...filteredServices, ...bookingsForRedux];
       
-      console.log("Entry Vehicle - Dispatching initialized services to Redux:", finalServices);
+      
       dispatch(setAllServices(finalServices));
     }
   };
 
   // Re-initialize bookings when entryPorts prop changes - simplified with stable dependencies
-  const hasInitializedRef = useRef(false);
+  
   useEffect(() => {
-    if (validEntryPorts && validEntryPorts.length > 0 && vehicles.length > 0 && !hasInitializedRef.current) {
-      console.log("Entry Vehicle - Detected entryPorts data, re-initializing bookings:", validEntryPorts);
+    if (validEntryPorts && validEntryPorts.length > 0 && Array.isArray(vehicles) && vehicles.length > 0 && !hasInitializedRef.current) {
       
-      // Re-initialize bookings with the latest entryPorts and vehicles data
-      const newBookings = validEntryPorts.map((entryPort, index) => {
-        const entryData = entryPort.data?.[0];
-        if (!entryData) {
-          return {
-            id: `entry-${Date.now()}-${index}`,
-            vehicle: null,
-            vehicleData: null,
-            priceMode: null,
-            isComplete: false,
-            adults: adultCount || 1,
-            children: childCount || 0
-          };
-        }
-        
-        // Normalize data types to handle inconsistencies
-        const normalizedEntryData = {
-          ...entryData,
-          // Convert string numbers to actual numbers
-          adults: entryData.adults ? Number(entryData.adults) : 1,
-          children: entryData.children ? Number(entryData.children) : 0,
-          dmc_id: entryData.dmc_id ? String(entryData.dmc_id) : '',
-          vehicles_id: entryData.vehicles_id ? String(entryData.vehicles_id) : '',
-          totalPrice: entryData.totalPrice ? Number(entryData.totalPrice) : 0,
-          distance: entryData.distance ? Number(entryData.distance) : 0,
-          // Normalize type for case insensitivity
-          type: entryData.type ? entryData.type.toLowerCase() : 'private'
-        };
-        
-        // Find the corresponding vehicle from the vehicles list
-        const matchingVehicle = vehicles.find(v => String(v.id) === String(normalizedEntryData.vehicles_id));
-        
-        const booking = {
-          id: normalizedEntryData.id || `entry-${Date.now()}-${index}`,
-          vehicle: matchingVehicle || {
-            id: normalizedEntryData.vehicles_id || '',
-            vehicle_name: normalizedEntryData.vehicles_name || 'Unknown Vehicle',
-            vehicle_type: normalizedEntryData.vehicle_type || '',
-            vehicle_model: normalizedEntryData.vehicle_model || '',
-            model_year: normalizedEntryData.model_year || '',
-            seating_capacity: normalizedEntryData.seating_capacity || 1,
-            image: normalizedEntryData.image || '',
-            city: normalizedEntryData.city || '',
-            country: normalizedEntryData.country || '',
-            dmc_id: normalizedEntryData.dmc_id || ''
-          },
-          vehicleData: {
-            private_price: normalizedEntryData.type === 'private' ? normalizedEntryData.totalPrice : 0,
-            shared_price: normalizedEntryData.type === 'shared' ? normalizedEntryData.totalPrice : 0,
-            prices: {
-              privatePrice: normalizedEntryData.type === 'private' ? normalizedEntryData.totalPrice : 0,
-              sharablePrice: normalizedEntryData.type === 'shared' ? normalizedEntryData.totalPrice : 0
-            },
-            $distanceInKM: normalizedEntryData.distance || null
-          },
-          priceMode: normalizedEntryData.type === 'shared' ? 'Sharable' : 'Private',
-          isComplete: true,
-          adults: normalizedEntryData.adults || 1,
-          children: normalizedEntryData.children || 0,
-          mode: normalizedEntryData.Mode || 'dmc',
-          dmcId: normalizedEntryData.dmc_id || '',
-          originalData: {
-            ...normalizedEntryData,
-            booking_id: entryPort.booking_id // Preserve booking_id from service level
+      
+      // Re-initialize bookings with the latest entryPorts and vehicles data, but exclude deleted bookings
+      const newBookings = validEntryPorts
+        .filter(entryPort => {
+          const entryData = entryPort.data?.[0];
+          if (!entryData) return false;
+          
+          // Check if this booking was deleted
+          const bookingId = entryData.id;
+          const bookingIdFromService = entryPort.booking_id;
+          
+          // Skip if this booking was deleted
+          if (deletedBookingIdsRef.current.has(bookingId) || 
+              deletedBookingIdsRef.current.has(bookingIdFromService)) {
+            
+            return false;
           }
-        };
-        
-        console.log(`Entry Vehicle - Initialized booking with booking_id: ${entryPort.booking_id}`, {
-          bookingId: booking.id,
-          serviceBookingId: entryPort.booking_id,
-          entryData: normalizedEntryData
+          
+          return true;
+        })
+        .map((entryPort, index) => {
+          const entryData = entryPort.data?.[0];
+          if (!entryData) {
+            return {
+              id: `entry-${Date.now()}-${index}`,
+              vehicle: null,
+              vehicleData: null,
+              priceMode: null,
+              isComplete: false,
+              adults: adultCount || 1,
+              children: childCount || 0
+            };
+          }
+          
+          // Normalize data types to handle inconsistencies
+          const normalizedEntryData = {
+            ...entryData,
+            // Convert string numbers to actual numbers
+            adults: entryData.adults ? Number(entryData.adults) : 1,
+            children: entryData.children ? Number(entryData.children) : 0,
+            dmc_id: entryData.dmc_id ? String(entryData.dmc_id) : '',
+            vehicles_id: entryData.vehicles_id ? String(entryData.vehicles_id) : '',
+            totalPrice: entryData.totalPrice ? Number(entryData.totalPrice) : 0,
+            distance: entryData.distance ? Number(entryData.distance) : 0,
+            // Normalize type for case insensitivity
+            type: entryData.type ? entryData.type.toLowerCase() : 'private'
+          };
+          
+          // Find the corresponding vehicle from the vehicles list
+          const matchingVehicle = vehicles.find(v => String(v.id) === String(normalizedEntryData.vehicles_id));
+          
+          const booking = {
+            id: normalizedEntryData.id || `entry-${Date.now()}-${index}`,
+            vehicle: matchingVehicle || {
+              id: normalizedEntryData.vehicles_id || '',
+              vehicle_name: normalizedEntryData.vehicles_name || 'Unknown Vehicle',
+              vehicle_type: normalizedEntryData.vehicle_type || '',
+              vehicle_model: normalizedEntryData.vehicle_model || '',
+              model_year: normalizedEntryData.model_year || '',
+              seating_capacity: normalizedEntryData.seating_capacity || 1,
+              image: normalizedEntryData.image || '',
+              city: normalizedEntryData.city || '',
+              country: normalizedEntryData.country || '',
+              dmc_id: normalizedEntryData.dmc_id || ''
+            },
+            vehicleData: {
+              private_price: normalizedEntryData.type === 'private' ? normalizedEntryData.totalPrice : 0,
+              shared_price: normalizedEntryData.type === 'shared' ? normalizedEntryData.totalPrice : 0,
+              prices: {
+                privatePrice: normalizedEntryData.type === 'private' ? normalizedEntryData.totalPrice : 0,
+                sharablePrice: normalizedEntryData.type === 'shared' ? normalizedEntryData.totalPrice : 0
+              },
+              $distanceInKM: normalizedEntryData.distance || null
+            },
+            priceMode: normalizedEntryData.type === 'shared' ? 'Sharable' : 'Private',
+            isComplete: true,
+            adults: normalizedEntryData.adults || 1,
+            children: normalizedEntryData.children || 0,
+            mode: normalizedEntryData.Mode || 'dmc',
+            dmcId: normalizedEntryData.dmc_id || '',
+            originalData: {
+              ...normalizedEntryData,
+              booking_id: entryPort.booking_id // Preserve booking_id from service level
+            }
+          };
+          
+          
+          
+          return booking;
         });
-        
-        return booking;
-      });
       
       // Store in local state
       bookingsRef.current = newBookings;
       setBookingsVersion(prev => prev + 1);
       hasInitializedRef.current = true;
       
-      console.log("Entry Vehicle - Initialized bookings from entryPorts:", newBookings);
+      
       
       // Also store in Redux state in the same format
       dispatchInitializedBookingsToRedux(newBookings);
@@ -849,6 +871,26 @@ const VehicleListDropdown = ({ selectedVehicle, onVehicleChange, entryPorts, tou
       handleVehicleSelect(selectedVehicleObj, 0);
     }
   }, [selectedVehicleObj, validEntryPorts]);
+
+  // Track if this is the first render
+  const isFirstRender = useRef(true);
+  
+  // Automatically call handleAddMoreBooking when vehicles are loaded from fresh search
+  useEffect(() => {
+    // Check if vehicles are loaded and we have valid vehicles
+    if (vehicles && Array.isArray(vehicles) && vehicles.length > 0) {
+      const currentBookings = getBookings();
+      
+      // Only call for fresh search (not initial render)
+      if (!isFirstRender.current || validEntryPorts.length > 0) {
+        
+        handleAddMoreBooking();
+      }
+      
+      // Mark first render as complete
+      isFirstRender.current = false;
+    }
+  }, [vehicles]);
   
   // Update completion status when relevant data changes - simplified
   const completionCheckValues = React.useMemo(() => ({
@@ -908,7 +950,7 @@ const VehicleListDropdown = ({ selectedVehicle, onVehicleChange, entryPorts, tou
       const isComplete = checkBookingCompletion(booking);
       
       if (isComplete !== booking.isComplete) {
-        console.log(`Entry Vehicle - Booking ${booking.id} completion status changed to:`, isComplete);
+        
         needsUpdate = true;
         return { ...booking, isComplete };
       }
@@ -935,7 +977,7 @@ const VehicleListDropdown = ({ selectedVehicle, onVehicleChange, entryPorts, tou
   const dispatchBookingToRedux = React.useCallback((bookingIndex, forceUpdate = false) => {
     // Skip if we've already dispatched the original entry ports and not forcing update
     if (hasDispatchedAllEntryPortsRef.current && !forceUpdate) {
-      console.log("Entry Vehicle - Skipping dispatchBookingToRedux because original data was already dispatched");
+      
       return;
     }
     
@@ -956,12 +998,12 @@ const VehicleListDropdown = ({ selectedVehicle, onVehicleChange, entryPorts, tou
       );
       
       if (existingBooking) {
-        console.log("Entry Vehicle - Booking already exists in Redux, skipping dispatch:", booking.id);
+        
         return;
       }
     }
     
-    console.log("Entry Vehicle - Directly dispatching booking to Redux:", booking);
+    
     
     const vehicle = booking.vehicle || {};
     const vehicleData = booking.vehicleData || {};
@@ -1057,7 +1099,7 @@ const VehicleListDropdown = ({ selectedVehicle, onVehicleChange, entryPorts, tou
       bookingData.booking_id = booking.originalData.booking_id;
     }
     
-    console.log("Entry Vehicle - Formatted booking data for Redux:", bookingData);
+    
     
     // Clone the existing services array
     const allCurrentServices = [...existingServices];
@@ -1085,12 +1127,12 @@ const VehicleListDropdown = ({ selectedVehicle, onVehicleChange, entryPorts, tou
       bookingType: "enquiry"
     };
     
-    console.log(`Entry Vehicle - Direct dispatch with booking_id: ${booking.originalData?.booking_id}`, newEntryPortService);
+    
     
     // Add the new Entry Port service to the filtered services array
     filteredServices.push(newEntryPortService);
     
-    console.log("Entry Vehicle - Dispatching updated services to Redux:", filteredServices);
+   
     
     // Dispatch the updated services
     dispatch(setAllServices(filteredServices));
@@ -1110,7 +1152,7 @@ const VehicleListDropdown = ({ selectedVehicle, onVehicleChange, entryPorts, tou
         );
         
         if (!existingBooking) {
-          console.log("Entry Vehicle - Auto-dispatching newly completed booking to Redux:", booking.id);
+          
           dispatchBookingToRedux(index);
         }
       }
@@ -1217,7 +1259,7 @@ const VehicleListDropdown = ({ selectedVehicle, onVehicleChange, entryPorts, tou
       );
       
       if (!existingBooking) {
-        console.log("Entry Vehicle - Booking not in Redux, dispatching before showing modal");
+       
         dispatchBookingToRedux(index);
       } else {
         console.log("Entry Vehicle - Booking already in Redux, showing modal directly");
@@ -1307,16 +1349,11 @@ const VehicleListDropdown = ({ selectedVehicle, onVehicleChange, entryPorts, tou
     // Get the booking date from original data or current date
     const bookingDate = booking.originalData?.bookingDate || booking.originalData?.pickupdate || (date ? date.format('YYYY-MM-DD') : null);
     
-    // Debug logging to check date formats
-    console.log('Entry Port date validation debug:', {
-      bookingId: booking.id || 'new-booking',
-      bookingDate: bookingDate,
-      tourDates: tourDates
-    });
+   
     
     // Handle edge cases
     if (!bookingDate) {
-      console.log('Missing bookingDate, skipping validation');
+      
       return false;
     }
     
@@ -1343,12 +1380,8 @@ const VehicleListDropdown = ({ selectedVehicle, onVehicleChange, entryPorts, tou
     // Check if the normalized booking date exists in tourDates
     const isDateValid = tourDates.includes(normalizedBookingDate);
     
-    console.log('Entry Port date validation result:', {
-      normalizedBookingDate: normalizedBookingDate,
-      isDateValid: isDateValid,
-      willShowError: !isDateValid
-    });
     
+   
     return !isDateValid;
   };
   
@@ -1361,6 +1394,8 @@ const VehicleListDropdown = ({ selectedVehicle, onVehicleChange, entryPorts, tou
       hasDispatchedAllEntryPortsRef.current = false;
       lastDispatchRef.current = null;
       hasInitializedRef.current = false;
+      // Clear deleted bookings set on unmount
+      deletedBookingIdsRef.current.clear();
     };
   }, []);
 
@@ -1423,7 +1458,7 @@ const VehicleListDropdown = ({ selectedVehicle, onVehicleChange, entryPorts, tou
                       />
                       {booking.isComplete && (
                         <Chip
-                          label="Ready for Booking"
+                          label="Booking Successfully Added"
                           color="success"
                           size="small"
                           variant="outlined"
@@ -1432,6 +1467,7 @@ const VehicleListDropdown = ({ selectedVehicle, onVehicleChange, entryPorts, tou
                     </Box>
                     
                     <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                      {(tourStatus !== "Confirmed" && tourStatus !== "Definite" && tourStatus !== "Actual") && (
                       <Tooltip title="Remove this service">
                         <IconButton 
                           size="small" 
@@ -1447,7 +1483,7 @@ const VehicleListDropdown = ({ selectedVehicle, onVehicleChange, entryPorts, tou
                           <DeleteIcon sx={{ fontSize: 18, color: '#f44336' }} />
                         </IconButton>
                       </Tooltip>
-                      
+                      )}
                       <Button
                         variant="outlined"
                         size="large"
@@ -1562,7 +1598,7 @@ const VehicleListDropdown = ({ selectedVehicle, onVehicleChange, entryPorts, tou
                       <Passenger 
                         adultsMax={adultsMax || 1} 
                         childrenMax={childrenMax || 0} 
-                        seatingCapacity={booking.vehicle?.seating_capacity || seatingCapacity || 1}
+                        seatingCapacity={Number(booking.vehicle?.seating_capacity) || Number(seatingCapacity) || 1}
                         initialAdults={Number(booking.adults) || 1}
                         initialChildren={Number(booking.children) || 0}
                         onAdultChange={(count) => handleAdultChange(index, count)}

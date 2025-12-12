@@ -20,7 +20,7 @@ import {
   setSelectbooking,
 } from "@/slice/localtour/Localslice";
 
-const AttractionRestaurantSearch = ({ onSelect, dayIndex = 0, onFocus, onBlur }) => {
+const AttractionRestaurantSearch = ({ onSelect, dayIndex = 0, onFocus, onBlur, disabled = false }) => {
   const theme = useTheme();
   const dispatch = useDispatch();
   const attractions = useSelector((state) => state.attractions.attractions);
@@ -73,8 +73,10 @@ const AttractionRestaurantSearch = ({ onSelect, dayIndex = 0, onFocus, onBlur })
 
   // Handle selection
   const handleSelect = (event, newValue) => {
-    if (!newValue || newValue.isHeader) {
-      setSelectedItem(null);
+    if (!newValue || newValue.isHeader || disabled) {
+      if (!newValue || newValue.isHeader) {
+        setSelectedItem(null);
+      }
       return;
     }
 
@@ -209,6 +211,7 @@ const AttractionRestaurantSearch = ({ onSelect, dayIndex = 0, onFocus, onBlur })
       getOptionDisabled={getOptionDisabled}
       isOptionEqualToValue={isOptionEqualToValue}
       noOptionsText="No hotels, attractions or restaurants found"
+      disabled={disabled}
       renderOption={renderOption}
       renderInput={(params) => (
         <TextField
@@ -240,6 +243,7 @@ const AttractionRestaurantSearch = ({ onSelect, dayIndex = 0, onFocus, onBlur })
                   borderColor: '#4caf50',
                   borderWidth: 2,
                 },
+                
               },
             },
           }}
@@ -249,6 +253,9 @@ const AttractionRestaurantSearch = ({ onSelect, dayIndex = 0, onFocus, onBlur })
             },
             '& .MuiInputLabel-root.Mui-focused': {
               color: '#4caf50',
+            },
+            '& .MuiOutlinedInput-root': {
+              height: '47px',
             },
           }}
         />

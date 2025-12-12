@@ -85,7 +85,7 @@ const AboutCompany = () => {
         <Grid container spacing={6} alignItems="center">
           {/* Left Side - Images */}
           <Grid item xs={12} md={6}>
-            <Box sx={{ position: 'relative', height: '600px' }}>
+            <Box sx={{ position: 'relative', height: { xs: '400px', sm: '500px', md: '600px' } }}>
               {/* Main Large Image - Jumping People */}
               <Grow in={true} timeout={1000}>
                 <Box
@@ -93,9 +93,9 @@ const AboutCompany = () => {
                     position: 'absolute',
                     top: 0,
                     left: 0,
-                    width: '75%',
-                    height: '70%',
-                    borderRadius: '25px',
+                    width: { xs: '100%', sm: '85%', md: '75%' },
+                    height: { xs: '60%', sm: '65%', md: '70%' },
+                    borderRadius: { xs: '15px', md: '25px' },
                     overflow: 'hidden',
                     boxShadow: '0 20px 40px rgba(0,0,0,0.15)',
                     zIndex: 3,
@@ -138,10 +138,10 @@ const AboutCompany = () => {
                         {/* <Typography variant="h4" sx={{ fontWeight: 'bold', mb: 2, fontSize: '3rem' }}>
                           🏃‍♂️🏃‍♀️
                         </Typography> */}
-                        <Typography variant="h6" sx={{ fontWeight: 'bold' }}>
+                        <Typography variant="h6" sx={{ fontWeight: 'bold', fontSize: { xs: '14px', sm: '16px', md: '18px' } }}>
                           Adventure Begins
                         </Typography>
-                        <Typography variant="body2" sx={{ opacity: 1, mt: 1, color: 'white' }}>
+                        <Typography variant="body2" sx={{ opacity: 1, mt: 1, color: 'white', fontSize: { xs: '12px', sm: '14px', md: '16px' } }}>
                           Join thousands of happy travelers
                         </Typography>
                       </Box>
@@ -157,13 +157,13 @@ const AboutCompany = () => {
                     position: 'absolute',
                     bottom: '5%',
                     right: '5%',
-                    width: '45%',
-                    height: '40%',
-                    borderRadius: '20px',
+                    width: { xs: '80%', sm: '60%', md: '45%' },
+                    height: { xs: '35%', sm: '38%', md: '40%' },
+                    borderRadius: { xs: '15px', md: '20px' },
                     overflow: 'hidden',
                     boxShadow: '0 15px 35px rgba(0,0,0,0.15)',
                     zIndex: 3,
-                    border: '4px solid white'
+                    border: { xs: '2px solid white', md: '4px solid white' }
                   }}
                 >
                   <Box
@@ -192,7 +192,7 @@ const AboutCompany = () => {
                         pb: 1
                       }}
                     >
-                      <Typography variant="body2" sx={{ color: 'white', fontWeight: 'bold', textShadow: '0 1px 3px rgba(0,0,0,0.5)' }}>
+                      <Typography variant="body2" sx={{ color: 'white', fontWeight: 'bold', textShadow: '0 1px 3px rgba(0,0,0,0.5)', fontSize: { xs: '10px', sm: '12px', md: '14px' } }}>
                         Peaceful Journeys
                       </Typography>
                     </Box>
@@ -205,27 +205,27 @@ const AboutCompany = () => {
                 <Box
                   sx={{
                     position: 'absolute',
-                    bottom: '25%',
-                    left: '10%',
+                    bottom: { xs: '15%', sm: '20%', md: '25%' },
+                    left: { xs: '5%', sm: '8%', md: '10%' },
                     bgcolor: '#4CAF50',
-                    borderRadius: '15px',
-                    px: 3,
-                    py: 2,
+                    borderRadius: { xs: '10px', md: '15px' },
+                    px: { xs: 2, sm: 2.5, md: 3 },
+                    py: { xs: 1.5, sm: 1.8, md: 2 },
                     color: 'white',
                     display: 'flex',
                     alignItems: 'center',
-                    gap: 1,
+                    gap: { xs: 0.5, md: 1 },
                     zIndex: 4,
                     boxShadow: '0 8px 25px rgba(76, 175, 80, 0.3)',
-                    transform: 'rotate(-5deg)'
+                    transform: { xs: 'rotate(-3deg)', md: 'rotate(-5deg)' }
                   }}
                 >
-                  <EmojiEvents sx={{ fontSize: 24 }} />
+                  <EmojiEvents sx={{ fontSize: { xs: 18, sm: 20, md: 24 } }} />
                   <Box>
-                    <Typography variant="h5" sx={{ fontWeight: 'bold', lineHeight: 1 }}>
+                    <Typography variant="h5" sx={{ fontWeight: 'bold', lineHeight: 1, fontSize: { xs: '16px', sm: '18px', md: '24px' } }}>
                       25
                     </Typography>
-                    <Typography variant="caption" sx={{ lineHeight: 1, fontSize: '10px' }}>
+                    <Typography variant="caption" sx={{ lineHeight: 1, fontSize: { xs: '8px', sm: '9px', md: '10px' } }}>
                       Years Of Experience
                     </Typography>
                   </Box>

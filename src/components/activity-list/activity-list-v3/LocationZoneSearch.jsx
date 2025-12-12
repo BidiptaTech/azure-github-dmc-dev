@@ -27,10 +27,10 @@ const SearchZone = ({
       setPickUpLocation(currentbooking?.hotelDetails?.hotel_id);
       setPickupLatLng(currentbooking?.hotelDetails?.hotel_name);
     } else if (picktype === "attraction") {
-      setPickUpLocation(currentbooking?.service_details?.id);
+      setPickUpLocation(currentbooking?.service_details?.attraction_id);
       setPickupLatLng(currentbooking?.service_details?.name);
     } else if (picktype === "restaurant") {
-      setPickUpLocation(currentbooking?.service_details?.id);
+      setPickUpLocation(currentbooking?.service_details?.restaurant_id);
       setPickupLatLng(currentbooking?.service_details?.name);
     }
   });

@@ -21,26 +21,8 @@ import Home from "./pages";
 import LandingPage from "./pages/landing";
 import Home_1 from "./pages/homes/home_1";
 import Home_2 from "./pages/homes/home_2";
-import BlogListV1 from "./pages/blogs/blog-list-v1";
-import BlogListV2 from "./pages/blogs/blog-list-v2";
-import BlogSingleDynamic from "./pages/blogs/blog-details";
 import NotFoundPage from "./pages/not-found";
-import About from "./pages/others/about";
-import BecomeExpert from "./pages/others/become-expert";
-import HelpCenter from "./pages/others/help-center";
-//import LogIn from "./pages/others/login";
-//import SignUp from "./pages/others/signup";
-import Terms from "./pages/others/terms";
-import Invoice from "./pages/others/invoice";
 import DBDashboard from "./pages/dashboard/dashboard/db-dashboard";
-import DBBooking from "./pages/dashboard/dashboard/db-booking";
-import DBWishlist from "./pages/dashboard/dashboard/db-wishlist";
-import DBSettings from "./pages/dashboard/dashboard/db-settings";
-import VendorAddHotel from "./pages/dashboard/vendor-dashboard/add-hotel";
-import VendorBooking from "./pages/dashboard/vendor-dashboard/booking";
-import BVVendorHotel from "./pages/dashboard/vendor-dashboard/hotels";
-import BDVendorRecovery from "./pages/dashboard/vendor-dashboard/recovery";
-import VendorDashboard from "./pages/dashboard/vendor-dashboard/dashboard";
 import HotelListPage1 from "./pages/hotel/hotel-list-v1";
 import HotelSingleV1Dynamic from "./pages/hotel/hotel-single-v1";
 import BookingPage from "./pages/hotel/booking-page";
@@ -55,22 +37,9 @@ import ActivityListPage1 from "./pages/activity/activity-list-v1";
 import ActivityListPage2 from "./pages/activity/activity-list-v2";
 import ActivityListPage3 from "./pages/activity/activity-list-v3";
 import ActivitySingleV1Dynamic from "./pages/activity/activity-single";
-// import RentalListPage1 from "./pages/rental/rental-list-v1";
-// import RentalListPage2 from "./pages/rental/rental-list-v2";
-// import RentalListPage3 from "./pages/rental/rental-list-v3";
-// import RentalSingleV1Dynamic from "./pages/rental/rental-single";
-import CarListPage1 from "./pages/car/car-list-v1";
-// import CarListPage2 from "./pages/car/car-list-v2";
-// import CarListPage3 from "./pages/car/car-list-v3";
-import CarSingleV1Dynamic from "./pages/car/car-single";
-// import CruiseListPage1 from "./pages/cruise/cruise-list-v1";
-// import CruiseListPage2 from "./pages/cruise/cruise-list-v2";
-// import CruiseListPage3 from "./pages/cruise/cruise-list-v3";
-// import CruiseSingleV1Dynamic from "./pages/cruise/cruise-single";
-// import FlightListPage1 from "./pages/flight/flight-list-v1";
-import Contact from "./pages/others/contact";
-// import Destinations from "./pages/others/destinations";
 import Login from "./pages/login/Login";
+import Register from "./pages/Register";
+import OTPVerification from "./pages/Register/verify";
 import loginUser from "./slice/common/authSlices";
 
 import ProtectedRoute from "./ProtectedRoutes/ProtectedRoute";
@@ -93,7 +62,8 @@ import TourPackages from "./pages/tour-packages/index";
 import PreDefinePackagesPage from "./pages/pre-define-packages/index";
 import Packages from "./pages/packages";
 import PackageDetails from "./pages/pre-define-packages/package-details";
-import ModalTestRoute from "./pages/others/modal-test";
+
+import BookingEnquiryPage from "./pages/booking-enquiry";
 
 const AUTO_LOGOUT_TIME = 7 * 24 * 60 * 60 * 1000; //Logout after 1 week
 
@@ -150,6 +120,8 @@ function App() {
           {/* <Route path="/"> */}
           {/* <Route path="/" element={<Navigate to="/" replace />} /> */}
           <Route path="/login" element={<Login onLogin={handleLogin} />} />
+          <Route path="/register" element={<Register />} />
+          <Route path="/verify-otp" element={<OTPVerification />} />
           {/* <Route index element={<Home />} /> */}
 
           {/* <Route path="home_2" element={<Home_2 />} />
@@ -162,16 +134,6 @@ function App() {
               <Route path="home_9" element={<Home_9 />} />
               <Route path="home_10" element={<Home_10 />} /> */}
 
-          {/* <Route path="blog-list-v1" element={<BlogListV1 />} />
-          <Route path="blog-list-v2" element={<BlogListV2 />} />
-          <Route path="blog-details/:id" element={<BlogSingleDynamic />} />
-
-          <Route path="404" element={<NotFoundPage />} />
-          <Route path="*" element={<NotFoundPage />} />
-
-          <Route path="about" element={<About />} />
-          <Route path="become-expert" element={<BecomeExpert />} />
-          <Route path="help-center" element={<HelpCenter />} /> */}
           {/* <Route path="signup" element={<SignUp />} />
               <Route path="login" element={<LogIn />} /> */}
           {/* <Route path="terms" element={<Terms />} />
@@ -197,8 +159,13 @@ function App() {
               <PackageDetails />
             </ProtectedRoute>
           } />
-          <Route path="/modal-test" element={
+          {/* <Route path="/modal-test" element={
             <ModalTestRoute />
+          } /> */}
+          <Route path="/booking-enquiry" element={
+            <ProtectedRoute>
+              <BookingEnquiryPage />
+            </ProtectedRoute>
           } />
           <Route path="dashboard">
             <Route
@@ -515,32 +482,6 @@ function App() {
                   </ProtectedRoute>
                 }
               />
-                
-             
-
-             
-
-              {/* <Route path="rental-list-v1" element={<RentalListPage1 />} />
-              <Route path="rental-list-v2" element={<RentalListPage2 />} />
-              <Route path="rental-list-v3" element={<RentalListPage3 />} />
-              <Route
-                path="rental-single/:id"
-                element={<RentalSingleV1Dynamic />}
-              /> */}
-              {/* <Route path="car-list-v1" element={<CarListPage1 />} /> */}
-              {/* <Route path="car-list-v2" element={<CarListPage2 />} />
-              <Route path="car-list-v3" element={<CarListPage3 />} /> */}
-              {/* <Route path="car-single/:id" element={<CarSingleV1Dynamic />} /> */}
-              {/* <Route path="cruise-list-v1" element={<CruiseListPage1 />} />
-              <Route path="cruise-list-v2" element={<CruiseListPage2 />} />
-              <Route path="cruise-list-v3" element={<CruiseListPage3 />} />
-              <Route
-                path="cruise-single/:id"
-                element={<CruiseSingleV1Dynamic />}
-              /> */}
-
-              {/* <Route path="flight-list-v1" element={<FlightListPage1 />} /> */}
-              {/* </Route> */}
             </Route>
           </Route>
         </Routes>

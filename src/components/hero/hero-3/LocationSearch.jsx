@@ -1,117 +1,143 @@
 import { useState, useRef, useEffect, useMemo } from "react";
-import { useSelector } from "react-redux";
+import { useSelector, useDispatch } from 'react-redux';
+import { fetchCitiesByCountry, clearCities } from "../../../slice/common/citiesSlice";
 
 const LocationSearch = ({ onLocationSelect, initialValue = null }) => {
+  const dispatch = useDispatch();
   const [searchValue, setSearchValue] = useState("");
   const [selectedItem, setSelectedItem] = useState(null);
-  const [isDropdownVisible, setIsDropdownVisible] = useState(false);
   const [highlightedIndex, setHighlightedIndex] = useState(-1);
   const [suggestions, setSuggestions] = useState([]);
-  
-  const dropdownRef = useRef(null);
+  const [isDropdownOpen, setIsDropdownOpen] = useState(false);
   const inputRef = useRef(null);
+  const listRef = useRef(null);
   
-  // Get user_country from Redux state
-  const user_country = useSelector((state) => state.auth.user_country);
+  // Get global countries from auth state (same as hero-2/LocationSearch)
+  const global_countries = useSelector((state) => state.auth.global_countries);
   
-  // Default countries if user_country isn't available
+  // Get selected DMC data from Redux store
+  const selectedDmcData = useSelector((state) => state.dmc.selectedDmcData);
+  
+  // Default countries if global_countries isn't available
   const defaultCountries = [
-    {
-      name: "India",
-      code: "IN",
-    },
-    {
-      name: "Singapore",
-      code: "SG",
-    },
-    {
-      name: "Malaysia",
-      code: "MY",
-    },
-    {
-      name: "Thailand",
-      code: "TH",
-    },
-    {
-      name: "Indonesia",
-      code: "ID",
-    },
+    { name: "India", code: "in" },
+    { name: "Singapore", code: "SG" },
+    { name: "UAE", code: "AE" },
+    { name: "Thailand", code: "TH" },
+    { name: "Switzerland", code: "CH" },
+    { name: "Maldives", code: "MV" },
+    { name: "Japan", code: "JP" },
+    { name: "France", code: "FR" },
+    { name: "Italy", code: "IT" },
+    { name: "Spain", code: "ES" },
   ];
 
-  // Process available countries from user_country - memoize to prevent recreating on every render
-  const locationSearchContent = useMemo(() => {
-    if (user_country && Array.isArray(user_country)) {
-      return user_country.map((country, index) => ({
-        name: country.name,
-        code: country.code,
-        key: `country-${index}`
-      }));
-    } else if (user_country && typeof user_country === 'string') {
-      return user_country.split(',').map((country, index) => ({ 
-          name: country.trim(),
-          code: country.trim().substring(0, 2).toUpperCase(), 
-          key: `country-${index}`
-        }));
-    } else {
-      return defaultCountries;
+  // Get countries from auth state (same pattern as hero-2/LocationSearch)
+  const availableCountries = useMemo(() => {
+    if (selectedDmcData && selectedDmcData.location && selectedDmcData.location !== 'Auto-selected') {
+      return [{ 
+        name: selectedDmcData.location,
+        code: selectedDmcData.location,
+        key: 'selected-dmc-country' 
+      }];
     }
-  }, [user_country]); // Only recalculate when user_country changes
+    return global_countries && Array.isArray(global_countries)
+      ? global_countries.map((country, index) => ({
+          name: country.name,
+          country_code: country.country_code,
+          code: country.code,    
+          key: `country-${index}`
+        }))
+      : defaultCountries;
+  }, [global_countries, selectedDmcData]);
+
+  // Filter and suggest countries based on search input (same as hero-2)
+  useEffect(() => {
+    if (searchValue && !selectedItem) {
+      const filtered = availableCountries.filter((country) =>
+        country.name.toLowerCase().includes(searchValue.toLowerCase())
+      );
+      setSuggestions(filtered);
+      setIsDropdownOpen(true);
+    } else if (selectedItem) {
+      // When item is selected, keep dropdown closed and show no suggestions
+      setSuggestions([]);
+      setIsDropdownOpen(false);
+    } else {
+      setSuggestions(availableCountries.slice(0, 5));
+      setIsDropdownOpen(false);
+    }
+  }, [searchValue, selectedItem, availableCountries]);
+
+  // Auto-select DMC country when selectedDmcData changes
+  useEffect(() => {
+    if (selectedDmcData && selectedDmcData.location && selectedDmcData.location !== 'Auto-selected') {
+      const dmcCountry = {
+        name: selectedDmcData.location,
+        code: selectedDmcData.location,
+        key: 'selected-dmc-country'
+      };
+      
+      const currentCountry = selectedItem?.name;
+      if (currentCountry !== dmcCountry.name) {
+        setSearchValue(dmcCountry.name);
+        setSelectedItem(dmcCountry);
+        setIsDropdownOpen(false);
+        
+        if (onLocationSelect) {
+          onLocationSelect(dmcCountry);
+        }
+      }
+    } else if (!selectedDmcData && selectedItem && selectedItem.key === 'selected-dmc-country') {
+      // Only clear if it was auto-selected from DMC data
+      setSelectedItem(null);
+      setSearchValue("");
+      setIsDropdownOpen(true);
+      dispatch(clearCities());
+      if (onLocationSelect) {
+        onLocationSelect(null);
+      }
+    }
+  }, [selectedDmcData, selectedItem, onLocationSelect, dispatch]);
 
   // Set initial value if provided
   useEffect(() => {
     if (initialValue && !selectedItem) {
-      const foundCountry = locationSearchContent.find(
+      const foundCountry = availableCountries.find(
         country => country.name === initialValue || country.code === initialValue
       );
       
       if (foundCountry) {
         setSelectedItem(foundCountry);
         setSearchValue(foundCountry.name);
+        setIsDropdownOpen(false);
       } else if (typeof initialValue === 'string') {
-        // If we can't find the country but have a string, use it as is
         setSelectedItem({ name: initialValue });
         setSearchValue(initialValue);
+        setIsDropdownOpen(false);
       }
     }
-  }, [initialValue, locationSearchContent]);
+  }, [initialValue, availableCountries, selectedItem]);
 
-  // Filter suggestions based on search input
-  useEffect(() => {
-    if (!selectedItem) {
-      if (searchValue && searchValue.trim().length > 0) {
-        const filtered = locationSearchContent.filter(country => 
-          country.name.toLowerCase().includes(searchValue.toLowerCase())
-        );
-        setSuggestions(filtered);
-        setIsDropdownVisible(filtered.length > 0);
-      } else {
-        // Don't show dropdown when search is empty
-        setSuggestions([]);
-        setIsDropdownVisible(false);
-      }
-    }
-  }, [searchValue, selectedItem, locationSearchContent]);
+
 
   // Ensure highlighted item is visible in scroll
   useEffect(() => {
-    if (dropdownRef.current && highlightedIndex !== -1 && isDropdownVisible) {
-      const activeItem = dropdownRef.current.children[highlightedIndex];
+    if (listRef.current && highlightedIndex !== -1 && isDropdownOpen) {
+      const activeItem = listRef.current.children[highlightedIndex];
       if (activeItem) {
         activeItem.scrollIntoView({ block: "nearest" });
       }
     }
-  }, [highlightedIndex, isDropdownVisible]);
+  }, [highlightedIndex, isDropdownOpen]);
 
   // Close dropdown when clicking outside
   useEffect(() => {
     function handleClickOutside(event) {
-      if (
-        dropdownRef.current && 
-        !dropdownRef.current.contains(event.target) && 
-        inputRef.current && 
-        !inputRef.current.contains(event.target)
-      ) {
-        setIsDropdownVisible(false);
+      if (listRef.current && 
+          !listRef.current.contains(event.target) && 
+          !inputRef.current.contains(event.target)) {
+        setIsDropdownOpen(false);
       }
     }
 
@@ -121,24 +147,31 @@ const LocationSearch = ({ onLocationSelect, initialValue = null }) => {
     };
   }, []);
 
-  const handleOptionClick = (item) => {
-    setSearchValue(item.name);
-    setSelectedItem(item);
-    setIsDropdownVisible(false);
-    
-    // Call the onLocationSelect callback if provided
-    if (onLocationSelect) {
-      onLocationSelect(item);
+  const handleCountrySelect = (country, event) => {
+    if (event) {
+      event.preventDefault();
+      event.stopPropagation();
     }
+
+    console.log('Country selected:', country);
+
+    // Update all state synchronously (React will batch these)
+    setSelectedItem(country);
+    setSearchValue(country.name);
+    setIsDropdownOpen(false);
+    setHighlightedIndex(-1);
     
-    // Remove focus
-    if (inputRef.current) {
-      inputRef.current.blur();
+    // Clear cities from Redux store when country changes
+    dispatch(clearCities());
+    
+    // Call the callback to notify parent component
+    if (onLocationSelect) {
+      onLocationSelect(country);
     }
   };
 
   const handleInputChange = (e) => {
-    // If a country is already selected, prevent typing
+    // If a country is already selected, prevent typing (same as hero-2)
     if (selectedItem) return;
     
     setSearchValue(e.target.value);
@@ -146,9 +179,9 @@ const LocationSearch = ({ onLocationSelect, initialValue = null }) => {
   };
 
   const handleInputFocus = () => {
-    // Don't show dropdown on focus - only when user types
-    if (!selectedItem && searchValue && searchValue.trim().length > 0) {
-      setIsDropdownVisible(true);
+    // Always allow focus so Escape/Backspace work even when selected
+    if (!selectedItem) {
+      setIsDropdownOpen(true);
     }
   };
 
@@ -156,7 +189,10 @@ const LocationSearch = ({ onLocationSelect, initialValue = null }) => {
     e.stopPropagation();
     setSelectedItem(null);
     setSearchValue("");
-    setIsDropdownVisible(false);
+    setIsDropdownOpen(true);
+    
+    // Clear cities from Redux store
+    dispatch(clearCities());
     
     // Inform parent component about cleared selection
     if (onLocationSelect) {
@@ -169,11 +205,12 @@ const LocationSearch = ({ onLocationSelect, initialValue = null }) => {
     }
   };
 
-  // Handle keyboard navigation
+  // Handle keyboard navigation (same as hero-2)
   const handleKeyDown = (e) => {
-    // If a location is already selected, only allow Escape or Backspace to clear
+    // If a country is already selected, only allow Escape or Backspace to clear
     if (selectedItem) {
       if (e.key === "Escape" || e.key === "Backspace") {
+        e.preventDefault();
         handleClearSelection(e);
       }
       return;
@@ -191,22 +228,20 @@ const LocationSearch = ({ onLocationSelect, initialValue = null }) => {
       );
     } else if (e.key === "Enter" && highlightedIndex !== -1) {
       e.preventDefault();
-      handleOptionClick(suggestions[highlightedIndex]);
+      handleCountrySelect(suggestions[highlightedIndex], e);
     }
   };
 
   return (
     <>
       <div className="searchMenu-loc px-30 lg:py-20 lg:px-0 js-form-dd js-liverSearch">
-        <div
-          onClick={() => !selectedItem && searchValue && searchValue.trim().length > 0 && setIsDropdownVisible(!isDropdownVisible)}
-        >
+        <div>
           <h4 className="text-15 fw-500 ls-2 lh-16">Country</h4>
           <div className="text-15 text-light-1 ls-2 lh-16 position-relative">
             <input
               ref={inputRef}
               autoComplete="off"
-              type="search"
+              type="text"
               placeholder="Where are you going?"
               className="js-search js-dd-focus pr-30"
               value={searchValue}
@@ -215,65 +250,58 @@ const LocationSearch = ({ onLocationSelect, initialValue = null }) => {
               onKeyDown={handleKeyDown}
               readOnly={selectedItem !== null}
             />
+            
             {selectedItem && (
               <button 
                 className="position-absolute end-0 top-50 translate-middle-y pe-3 border-0 bg-transparent cursor-pointer" 
                 onClick={handleClearSelection}
                 type="button"
+                style={{ zIndex: 10 }}
               >
                 <i className="icon-close text-10" />
               </button>
             )}
-          </div>
-        </div>
-
-        <div 
-          className={`shadow-2 dropdown-menu min-width-400 ${isDropdownVisible ? 'show' : ''}`}
-          style={{
-            position: 'absolute',
-            zIndex: 9999,
-            display: isDropdownVisible ? 'block' : 'none',
-            top: '100%',
-            left: 0,
-          }}
-        >
-          <div className="bg-white px-20 py-20 sm:px-0 sm:py-15 rounded-4">
-            <ul className="y-gap-5 js-results" ref={dropdownRef} tabIndex="-1">
-              {suggestions.length > 0 ? (
-                suggestions.map((item, index) => (
-                  <li
-                    className={`-link d-block col-12 text-left rounded-4 px-20 py-15 js-search-option mb-1 ${
-                      highlightedIndex === index ? "highlighted" : ""
-                    }`}
-                    key={item.key || item.code || index}
-                    role="button"
-                    onClick={() => handleOptionClick(item)}
+            
+            {isDropdownOpen && suggestions.length > 0 && (
+              <div className="shadow-2 dropdown-menu min-width-200 show">
+                <div className="px-20 py-20 bg-white rounded-4">
+                  <ul 
+                    className="y-gap-5 js-results" 
+                    ref={listRef}
+                    style={{
+                      maxHeight: '200px',
+                      overflowY: 'auto',
+                      scrollbarWidth: 'thin',
+                      scrollbarColor: '#ccc #f1f1f1'
+                    }}
                   >
-                    <div className="d-flex">
-                      <div className="icon-location-2 text-light-1 text-20 pt-4" />
-                      <div className="ml-10">
-                        <div className="text-15 lh-12 fw-500 js-search-option-target">
-                          {item.name}
+                    {suggestions.map((country, index) => (
+                      <li
+                        className={`-link d-block col-12 text-left rounded-4 px-10 py-10 js-search-option ${
+                          highlightedIndex === index ? "bg-light-2" : ""
+                        }`}
+                        key={country.key || `country-${index}`}
+                        role="button"
+                        onClick={(e) => handleCountrySelect(country, e)}
+                      >
+                        <div className="d-flex align-items-center">
+                          <div className="icon-location-2 text-light-1 text-16 mr-5" />
+                          <div>
+                            <div className="text-14 lh-12 fw-500 js-search-option-target">
+                              {country.name}
+                            </div>
+                          </div>
                         </div>
-                      </div>
-                    </div>
-                  </li>
-                ))
-              ) : (
-                <li className="d-block col-12 text-left rounded-4 px-20 py-15">
-                  <div className="text-15 lh-12">No locations found</div>
-                </li>
-              )}
-            </ul>
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              </div>
+            )}
           </div>
         </div>
       </div>
       
-      <style jsx>{`
-        .highlighted {
-          background-color: rgba(53, 84, 209, 0.05);
-        }
-      `}</style>
     </>
   );
 };

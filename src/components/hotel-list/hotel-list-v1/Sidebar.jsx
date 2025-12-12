@@ -12,17 +12,20 @@ import { useDispatch, useSelector } from "react-redux";
 import { useState, useEffect, useMemo } from "react";
 import { setFilter, clearFilters, setPriceMode, setPriceBounds } from "@/slice/hotel/CategorySlice";
 import PriceModeFilter from "../sidebar/PriceModeFilter";
-
+import { selectSelectedDmcLogo, selectSelectedDmcCompanyName } from "../../../slice/dmc/dmcSlice"; // Import DMC slice selectors
+import DmcFilter from "../sidebar/dmcFilter";
 
 const Sidebar = () => {
   const dispatch = useDispatch();
   const filters = useSelector((state) => state.category);
   const priceBounds = useSelector((state) => state.category.priceBounds); // Get price bounds from Redux
   const reduxPriceRange = useSelector((state) => state.category.priceRange); // Get price range from Redux
-  const dmcLogo = useSelector((state) => state.auth.DmcLogo);
-  const dmcName = useSelector((state) => state.auth.DmcName) || 'DMC';
+  // Get DMC logo and company name from DMC slice instead of auth slice
+  const dmcLogo = useSelector(selectSelectedDmcLogo);
+  const dmcCompanyName = useSelector(selectSelectedDmcCompanyName) || 'DMC';
   const hotels = useSelector((state) => state.hotels.hotels);
   const exchangeRate = useSelector((state) => state.auth.exchangeRate) || 1;
+  const haveBooking = useSelector((state) => state.common.haveBooking);
   
   // Flag to track if API data has been loaded
   const [apiDataLoaded, setApiDataLoaded] = useState(false);
@@ -40,6 +43,7 @@ const Sidebar = () => {
   
   // Component state for price range
   const [priceRange, setPriceRange] = useState(initialPriceRange);
+  const PriceHide = useSelector((state) => state.category.priceHide);
   
   // Set the showDmcOnly state based on priceMode
   const showDmcOnly = useMemo(() => {
@@ -330,7 +334,7 @@ const Sidebar = () => {
       </div> */}
       {/* End search box */}
       
-      <div className="sidebar__item pr-10">
+      {/* <div className="sidebar__item pr-10">
         <h5 className="text-18 fw-500 mb-10">Price Mode</h5>
         <div className="sidebar-checkbox">
           <PriceModeFilter 
@@ -338,7 +342,15 @@ const Sidebar = () => {
             onChange={handlePriceModeChange}
           />
         </div>
+      </div> */}
+      
+      <div className="sidebar__item -no-border">
+        <h5 className="text-18 fw-500 mb-10">DMC</h5>
+        <div className="sidebar-checkbox">
+          <DmcFilter />
+        </div>
       </div>
+      
       {/* End price mode filter */}
 
       {/* <div className="sidebar__item">
@@ -359,7 +371,7 @@ const Sidebar = () => {
       </div> */}
         {/* End Sidebar-checkbox */}
       {/* End popular filter */}
-
+      {/* {PriceHide === "0" && (
       <div className="sidebar__item pb-30 pr-10">
         <div className="d-flex justify-content-between align-items-center">
           <h5 className="text-18 fw-500 mb-0">Price Range</h5>
@@ -383,6 +395,7 @@ const Sidebar = () => {
           </div>
         </div>
       </div>
+      )} */}
       {/* End Nightly priceslider */}
 {/* 
       <div className="sidebar__item">

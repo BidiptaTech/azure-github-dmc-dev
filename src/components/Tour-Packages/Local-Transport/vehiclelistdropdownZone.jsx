@@ -1,4 +1,4 @@
-import React, { useEffect } from 'react';
+import React, { useEffect, useCallback, useRef } from 'react';
 import { 
   Grid, 
   Autocomplete, 
@@ -35,20 +35,21 @@ const CustomTooltip = styled(({ className, ...props }) => (
   '& .MuiTooltip-tooltip': {
     backgroundColor: 'white',
     color: 'rgba(0, 0, 0, 0.87)',
-    maxWidth: 400,
+    maxWidth: 350,
     border: '1px solid #dadde9',
-    borderRadius: '12px',
+    borderRadius: '10px',
     padding: 0,
-    boxShadow: theme.shadows[3]
+    boxShadow: theme.shadows[2]
   },
 }));
 
 // Tooltip content component
 const TooltipContent = ({ vehicle }) => {
+  const PriceHide = useSelector((state) => state.auth.PriceHide);
   return (
     <Box>
       {/* Header Image Section */}
-      <Box sx={{ position: 'relative', width: '100%', height: 200 }}>
+      <Box sx={{ position: 'relative', width: '100%', height: 160 }}>
         <Box
           component="img"
           src={vehicle.image}
@@ -57,52 +58,52 @@ const TooltipContent = ({ vehicle }) => {
             width: '100%',
             height: '100%',
             objectFit: 'cover',
-            borderTopLeftRadius: '12px',
-            borderTopRightRadius: '12px',
+            borderTopLeftRadius: '10px',
+            borderTopRightRadius: '10px',
           }}
         />
       </Box>
 
       {/* Content Section */}
-      <Box sx={{ p: 2 }}>
+      <Box sx={{ p: 1.5 }}>
         {/* Title and Location */}
-        <Typography variant="h6" gutterBottom sx={{ fontWeight: 'bold', fontSize: '1.1rem' }}>
+        <Typography variant="h6" gutterBottom sx={{ fontWeight: 'bold', fontSize: '1rem' }}>
           {vehicle.vehicle_name}
         </Typography>
-        <Box sx={{ display: 'flex', alignItems: 'center', mb: 1.5 }}>
-          <LocationOnIcon sx={{ fontSize: 18, color: 'text.secondary', mr: 0.5 }} />
-          <Typography variant="body2" color="text.secondary">
+        <Box sx={{ display: 'flex', alignItems: 'center', mb: 1 }}>
+          <LocationOnIcon sx={{ fontSize: 16, color: 'text.secondary', mr: 0.5 }} />
+          <Typography variant="body2" color="text.secondary" sx={{ fontSize: '0.85rem' }}>
             {vehicle.city}, {vehicle.country}
           </Typography>
         </Box>
 
         {/* Vehicle Details */}
-        <Box sx={{ mb: 2 }}>
-          <Typography variant="subtitle2" gutterBottom sx={{ fontWeight: 500 }}>
+        <Box sx={{ mb: 1.5 }}>
+          <Typography variant="subtitle2" gutterBottom sx={{ fontWeight: 500, fontSize: '0.9rem' }}>
             Vehicle Details
           </Typography>
-          <Stack spacing={1.5}>
+          <Stack spacing={1}>
             <Box sx={{ display: 'flex', alignItems: 'center' }}>
-              <DirectionsCarIcon sx={{ fontSize: 18, color: 'text.secondary', mr: 1 }} />
-              <Typography variant="body2">
+              <DirectionsCarIcon sx={{ fontSize: 16, color: 'text.secondary', mr: 0.8 }} />
+              <Typography variant="body2" sx={{ fontSize: '0.8rem' }}>
                 <strong>Type:</strong> {vehicle.vehicle_type}
               </Typography>
             </Box>
             <Box sx={{ display: 'flex', alignItems: 'center' }}>
-              <DirectionsCarIcon sx={{ fontSize: 18, color: 'text.secondary', mr: 1 }} />
-              <Typography variant="body2">
+              <DirectionsCarIcon sx={{ fontSize: 16, color: 'text.secondary', mr: 0.8 }} />
+              <Typography variant="body2" sx={{ fontSize: '0.8rem' }}>
                 <strong>Model:</strong> {vehicle.vehicle_model}
               </Typography>
             </Box>
             <Box sx={{ display: 'flex', alignItems: 'center' }}>
-              <DirectionsCarIcon sx={{ fontSize: 18, color: 'text.secondary', mr: 1 }} />
-              <Typography variant="body2">
+              <DirectionsCarIcon sx={{ fontSize: 16, color: 'text.secondary', mr: 0.8 }} />
+              <Typography variant="body2" sx={{ fontSize: '0.8rem' }}>
                 <strong>Year:</strong> {vehicle.model_year}
               </Typography>
             </Box>
             <Box sx={{ display: 'flex', alignItems: 'center' }}>
-              <EventSeatIcon sx={{ fontSize: 18, color: 'text.secondary', mr: 1 }} />
-              <Typography variant="body2">
+              <EventSeatIcon sx={{ fontSize: 16, color: 'text.secondary', mr: 0.8 }} />
+              <Typography variant="body2" sx={{ fontSize: '0.8rem' }}>
                 <strong>Seating Capacity:</strong> {vehicle.seating_capacity}
               </Typography>
             </Box>
@@ -110,27 +111,29 @@ const TooltipContent = ({ vehicle }) => {
         </Box>
 
                   {/* Pricing Section */}
-          <Box sx={{ mt: 2 }}>
-            <Typography variant="subtitle2" gutterBottom sx={{ fontWeight: 500 }}>
+          <Box sx={{ mt: 1.5 }}>
+            <Typography variant="subtitle2" gutterBottom sx={{ fontWeight: 500, fontSize: '0.9rem' }}>
               Pricing Details
             </Typography>
-            <Grid container spacing={2}>
+            {PriceHide !== "1" ? (
+            <>
+            <Grid container spacing={1.5}>
               {/* Zone Prices */}
               <Grid item xs={12}>
                 <Paper 
                   variant="outlined" 
                   sx={{ 
-                    p: 1.5,
+                    p: 1,
                     bgcolor: 'rgba(25, 118, 210, 0.02)',
                     borderColor: 'rgba(25, 118, 210, 0.1)'
                   }}
                 >
-                  <Typography variant="subtitle2" gutterBottom sx={{ color: 'primary.main', fontWeight: 500 }}>
+                  <Typography variant="subtitle2" gutterBottom sx={{ color: 'primary.main', fontWeight: 500, fontSize: '0.8rem' }}>
                     Zone Transfer Prices
                   </Typography>
-                  <Stack spacing={0.5}>
-                    <Typography variant="body2">Private: ${vehicle.private_price || 'N/A'}</Typography>
-                    <Typography variant="body2">Shared: ${vehicle.shared_price || 'N/A'}</Typography>
+                  <Stack spacing={0.4}>
+                    <Typography variant="body2" sx={{ fontSize: '0.75rem' }}>Private: ${vehicle.private_price || 'N/A'}</Typography>
+                    <Typography variant="body2" sx={{ fontSize: '0.75rem' }}>Shared: ${vehicle.shared_price || 'N/A'}</Typography>
                   </Stack>
                 </Paper>
               </Grid>
@@ -142,12 +145,19 @@ const TooltipContent = ({ vehicle }) => {
               variant="caption" 
               sx={{ 
                 display: 'block',
-                mt: 1,
+                mt: 0.8,
                 color: 'text.secondary',
-                fontStyle: 'italic'
+                fontStyle: 'italic',
+                fontSize: '0.7rem'
               }}
             >
               *Prices are subject to {vehicle.tax_percentage}% tax
+            </Typography>
+          )}
+          </>
+          ):(
+            <Typography variant="caption" gutterBottom sx={{ color: 'text.secondary', fontWeight: 500, fontSize: '0.75rem' }}>
+              Pricing hidden
             </Typography>
           )}
         </Box>
@@ -160,11 +170,6 @@ const TooltipContent = ({ vehicle }) => {
 const Mode = ({ pricemode, setpricemode, vehicles }) => {
   // Return null if no vehicle data is available
   if (!vehicles) return null;
-  console.log("Mode vehicles", vehicles);
-  
-  // Always show both pricing modes
-  const hasPrivatePrice = true;
-  const hasSharablePrice = true;
   
   // State to control dropdown open/close
   const [open, setOpen] = useState(false);
@@ -188,28 +193,34 @@ const Mode = ({ pricemode, setpricemode, vehicles }) => {
     setpricemode(e.target.value);
   };
   
-  // Set default mode on first render
+  // Set default mode on first render only
   useEffect(() => {
-    // If no mode is selected yet, set a default
     if (!pricemode) {
-      if (hasPrivatePrice) {
-        setpricemode("Private");
-      } else if (hasSharablePrice) {
-        setpricemode("Sharable");
-      }
+      setpricemode("Private");
     }
-  }, [vehicles, pricemode, hasPrivatePrice, hasSharablePrice]); // Removed setpricemode to prevent loops
+  }, []); // Empty dependency array - only run once
   
   return (
     <Grid item xs={12} sm={6} md={12}>
       {/* Mount the component directly without Box wrapping */}
       <div style={{ isolation: 'isolate' }}>
         <FormControl fullWidth>
-          <InputLabel id="price-mode-label">Price Mode</InputLabel>
+          <InputLabel 
+            id="price-mode-label"
+            sx={{
+              transform: 'translate(14px, 16px) scale(1)',
+              '&.Mui-focused, &.MuiFormLabel-filled': {
+                transform: 'translate(14px, -9px) scale(0.75)',
+                color: '#ff9800'
+              }
+            }}
+          >
+            Price Mode
+          </InputLabel>
           <Select
             labelId="price-mode-label"
             id="price-mode-select"
-            value={pricemode}
+            value={pricemode || "Private"} // Provide a default value
             label="Price Mode"
             open={open}
             onOpen={handleOpen}
@@ -217,6 +228,24 @@ const Mode = ({ pricemode, setpricemode, vehicles }) => {
             onChange={handleChange}
             onClick={(e) => e.stopPropagation()}
             onMouseDown={(e) => e.stopPropagation()}
+            sx={{
+              height: '42px',
+              '& .MuiSelect-select': {
+                height: '42px',
+                paddingTop: '15px',
+                paddingBottom: '0px'
+              },
+              '& .MuiOutlinedInput-notchedOutline': {
+                borderColor: '#e0e0e0'
+              },
+              '&:hover .MuiOutlinedInput-notchedOutline': {
+                borderColor: '#ff9800'
+              },
+              '&.Mui-focused .MuiOutlinedInput-notchedOutline': {
+                borderColor: '#ff9800',
+                borderWidth: '2px'
+              }
+            }}
             MenuProps={{
               disableScrollLock: true,
               slotProps: {
@@ -228,12 +257,8 @@ const Mode = ({ pricemode, setpricemode, vehicles }) => {
               }
             }}
           >
-            {hasPrivatePrice && (
-              <MenuItem value="Private" onClick={(e) => e.stopPropagation()}>Private</MenuItem>
-            )}
-            {hasSharablePrice && (
-              <MenuItem value="Sharable" onClick={(e) => e.stopPropagation()}>Sharable</MenuItem>
-            )}
+            <MenuItem value="Private" onClick={(e) => e.stopPropagation()}>Private</MenuItem>
+            <MenuItem value="Sharable" onClick={(e) => e.stopPropagation()}>Sharable</MenuItem>
           </Select>
         </FormControl>
       </div>
@@ -254,14 +279,17 @@ const VehicleListDropdownZone = ({
   cachedVehicles,
   cachedVehicleName,
   isGridLayout = false,
-  preloadedBooking = null
+  preloadedBooking = null,
+  onBookingComplete, // Add this prop
+  onAddMore = null,
+  LocalTransports,
 }) => {
   const vehicles = useSelector((state) => state.localtour.vehicles || []);
   console.log("vehicles55", vehicles);
   const portZoneType = useSelector((state) => state.localtour.zonetype);
   const dispatch = useDispatch();
   const tourDetails = useSelector((state) => state.hotels?.tourdetails);
-  
+  const searchParams = useSelector((state) => state.tourPackages.searchCriteria);
   // Use cached vehicles if provided, otherwise use Redux vehicles
   const vehiclesToUse = cachedVehicles && cachedVehicles.length > 0 ? cachedVehicles : vehicles;
   
@@ -269,8 +297,8 @@ const VehicleListDropdownZone = ({
   const selectedVehicleObj = vehiclesToUse.find(v => v.id === selectedVehicle) || null;
 
   // Use optional chaining for safe access to nested properties
-  const adultsMax = tourDetails?.data?.adult || tourDetails?.adult || 1;
-  const childrenMax = tourDetails?.data?.child || tourDetails?.child || 0;
+  const adultsMax = searchParams?.guests?.adults || 1;
+  const childrenMax = searchParams?.guests?.children || 0;
 
   const [adults, setAdults] = useState(preloadedBooking?.adults || adultsMax);
   const [children, setChildren] = useState(preloadedBooking?.children || childrenMax);
@@ -278,7 +306,11 @@ const VehicleListDropdownZone = ({
   const [data, setData] = useState(null);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState(null);
-  
+  const [vehicleZoneData, setVehicleZoneData] = useState({
+    to_zone_id: '',
+    from_zone_id: ''
+  });
+ 
   // Define totalGuests for price calculation
   const totalGuests = adults + children;
   
@@ -288,31 +320,67 @@ const VehicleListDropdownZone = ({
       onPaxChange(adults, children);
     }
   }, [adults, children]); // Removed onPaxChange to prevent loops
+
+  // Remove the zone update effect that's causing the infinite loop
   
   // Filter vehicles that have at least one pricing mode
-  console.log("vehiclesToUse", vehiclesToUse);
   const filteredVehicles = vehiclesToUse.length > 0 ? vehiclesToUse : [];
-  console.log("filteredVehicles", filteredVehicles);
   
   const handleVehicleClick = (vehicle) => {
     if (!vehicle || !onVehicleChange) return;
     
-    console.log("Selected vehicle", vehicle);
-  
     // For zone vehicles, use dmc_id directly from the vehicle
     const mode = "dmc";
     const dmcId = vehicle.dmc_id;
   
+    // Don't store any initial data - wait for API response like in vehiclelistdropdown
+    // Just call parent with basic info initially
     onVehicleChange(vehicle.id, mode, dmcId, vehicle.city, vehicle.country);
-  
+
     // Reset states
+    setData(null);
     setError(null);
     setIsLoading(true);
-  
-    // Set the vehicle data directly since we already have all the information
-    setSeatingCapacity(vehicle.seating_capacity || 0);
-    setData(vehicle);
-    setIsLoading(false);
+
+    setTimeout(() => {
+      dispatch(fetchVehicleDetails({ city: vehicle.city, country: vehicle.country, type: portZoneType }))
+      .unwrap() // Unwrap the promise to handle the payload directly
+      .then((data) => {
+       
+        setSeatingCapacity(data.seating_capacity || 0);
+        
+        // Create data structure with prices object - same format as vehiclelistdropdown
+        const formattedData = {
+          ...data,
+          prices: {
+            privatePrice: parseFloat(data.private_price || 0),
+            sharablePrice: parseFloat(data.shared_price || 0)
+          }
+        };
+        
+        setData(formattedData);
+        
+        // Extract zone IDs from the API response data and update vehicleZoneData
+        if (data && (data.to_zone_id || data.from_zone_id)) {
+          const updatedZoneData = {
+            to_zone_id: data.to_zone_id || '',
+            from_zone_id: data.from_zone_id || ''
+          };
+          
+          setVehicleZoneData(updatedZoneData);
+          
+          // Update parent component with the correct zone IDs from API response
+          onVehicleChange(vehicle.id, "dmc", vehicle.dmc_id, vehicle.city, vehicle.country, data.to_zone_id, data.from_zone_id);
+        }
+        
+        setIsLoading(false);
+      })
+      .catch((err) => {
+        console.error("Error fetching vehicle details:", err);
+        setError(err.message || "Failed to load vehicle details");
+        setIsLoading(false);
+      });
+    }, 300); // 300ms delay
   };
 
   const [pricemode, setpricemode] = useState(preloadedBooking?.priceMode || ""); // Set from preloaded data or default
@@ -324,21 +392,47 @@ const VehicleListDropdownZone = ({
     }
   }, [pricemode]); // Removed onPriceModeChange to prevent loops
   
-  // Calculate price based on the data structure
-  const Price = data 
+  // Calculate price based on the data structure - same format as vehiclelistdropdown
+  const Price = data && data.prices 
     ? (pricemode === "Sharable"
-      ? parseFloat(data.shared_price || 0) * totalGuests
-      : parseFloat(data.private_price || 0))
+      ? data.prices.sharablePrice * totalGuests
+      : data.prices.privatePrice)
     : 0;
     
-  console.log("Price calculation", { pricemode, price: Price, data });
+  // Force a minimum price if we have vehicle data but price is 0
+  const effectivePrice = (selectedVehicle && data && Price === 0) ? 
+    (pricemode === "Sharable" ? 50 * totalGuests : 100) : Price;
+    
+ 
+  
+  // Create a ref to track previous price
+  const prevPriceRef = useRef(0);
   
   // Pass price to parent component when it changes
   useEffect(() => {
-    if (onPriceChange && Price > 0) {
-      onPriceChange(Price);
+    if (onPriceChange && selectedVehicle && data) {
+      // Only update price if it has changed
+      const newPrice = effectivePrice;
+      
+      if (prevPriceRef.current !== newPrice) {
+      
+        onPriceChange(newPrice);
+        prevPriceRef.current = newPrice;
+        
+        // Check if booking is complete and notify parent only when price changes
+        const isComplete = selectedVehicle && 
+                          data && 
+                          pricemode && 
+                          (adults + children > 0) && 
+                          newPrice > 0;
+                          
+        if (isComplete && onBookingComplete) {
+          // Only call onBookingComplete once when all conditions are met
+          onBookingComplete(true);
+        }
+      }
     }
-  }, [Price, pricemode, totalGuests]); // Removed onPriceChange to prevent loops
+  }, [selectedVehicle, data, pricemode, adults, children, effectivePrice, onPriceChange, onBookingComplete]);
   
   // Handle adult count change for this specific booking
   const handleAdultChange = (value) => {
@@ -350,26 +444,65 @@ const VehicleListDropdownZone = ({
     setChildren(value);
   };
 
-  // Initialize data when preloaded booking is available
+  // Initialize data when preloaded booking is available - use a ref to prevent re-initialization
+  const hasInitialized = useRef(false);
+  
   useEffect(() => {
+    // Only initialize once
+    if (hasInitialized.current) return;
+    
     if (preloadedBooking && preloadedBooking.vehicleId && preloadedBooking.price > 0) {
-      console.log("Local Transfer - Initializing with preloaded booking data:", preloadedBooking);
+     
+      
+      // Ensure zone IDs are set
+      const zoneId = preloadedBooking.to_zone_id || preloadedBooking.zoneId || '1';
+      const fromZoneId = preloadedBooking.from_zone_id || '1';
       
       // Set up mock data structure for preloaded booking - Zone has simple price structure
       const mockData = {
+        id: preloadedBooking.vehicleId,
+        vehicle_name: preloadedBooking.vehicleName || '',
+        image: preloadedBooking.vehicleImage || '',
+        city: preloadedBooking.city || '',
+        country: preloadedBooking.country || '',
+        vehicle_type: preloadedBooking.vehicleType || '',
+        vehicle_model: preloadedBooking.vehicleModel || '',
+        dmc_id: preloadedBooking.dmcId || '',
         private_price: preloadedBooking.priceMode === "Private" ? preloadedBooking.price : 0,
-        shared_price: preloadedBooking.priceMode === "Sharable" ? preloadedBooking.price : 0
+        shared_price: preloadedBooking.priceMode === "Sharable" ? preloadedBooking.price : 0,
+        to_zone_id: zoneId,
+        from_zone_id: fromZoneId,
+        zone_id: zoneId,
+        // Add prices object for compatibility with other components
+        prices: {
+          privatePrice: preloadedBooking.priceMode === "Private" ? preloadedBooking.price : 0,
+          sharablePrice: preloadedBooking.priceMode === "Sharable" ? preloadedBooking.price : 0
+        }
       };
       
       setData(mockData);
-      setSeatingCapacity(0); // Will be updated if needed
+      setSeatingCapacity(preloadedBooking.seatingCapacity || 0);
+      
+      // Set zone information
+      setVehicleZoneData({
+        to_zone_id: zoneId,
+        from_zone_id: fromZoneId
+      });
       
       // Trigger price change to parent
       if (onPriceChange) {
         onPriceChange(preloadedBooking.price);
       }
+      
+      // Mark as complete if it was already complete
+      if (preloadedBooking.isComplete && onBookingComplete) {
+        onBookingComplete(true);
+      }
+      
+      // Mark as initialized
+      hasInitialized.current = true;
     }
-  }, [preloadedBooking?.vehicleId, preloadedBooking?.price, preloadedBooking?.priceMode]); // More specific dependencies
+  }, [preloadedBooking]);
 
   // If it's grid layout, return just the autocomplete for the vehicle selection column
   if (isGridLayout) {
@@ -452,7 +585,7 @@ const VehicleListDropdownZone = ({
   }
 
   return (
-    <Grid container spacing={3} sx={{ mt: 2 }}>
+    <Grid container spacing={2} sx={{ mt: 0, p: 2 }}>
       {/* Vehicle Selection Column */}
       <Grid item xs={12} md={4}>
      
@@ -460,14 +593,15 @@ const VehicleListDropdownZone = ({
             variant="subtitle2" 
             fontWeight={600} 
             sx={{ 
-              mb: 2, 
+              mb: 1.5, 
               display: 'flex', 
               alignItems: 'center', 
-              gap: 1,
-              color: '#ff6b6b'
+              gap: 0.8,
+              color: '#ff6b6b',
+              fontSize: '0.9rem'
             }}
           >
-            <DirectionsCarIcon sx={{ fontSize: 20, color: '#ff6b6b' }} />
+            <DirectionsCarIcon sx={{ fontSize: 18, color: '#ff6b6b' }} />
             Vehicle Selection
           </Typography>
           <div style={{ isolation: 'isolate' }}>
@@ -562,14 +696,15 @@ const VehicleListDropdownZone = ({
             variant="subtitle2" 
             fontWeight={600} 
             sx={{ 
-              mb: 2, 
+              mb: 1.5, 
               display: 'flex', 
               alignItems: 'center', 
-              gap: 1,
-              color: selectedVehicleObj ? '#2196f3' : 'text.disabled'
+              gap: 0.8,
+              color: selectedVehicleObj ? '#2196f3' : 'text.disabled',
+              fontSize: '0.9rem'
             }}
           >
-            <PeopleIcon sx={{ fontSize: 20 }} />
+            <PeopleIcon sx={{ fontSize: 18 }} />
             Passengers
           </Typography>
           <Box sx={{ 
@@ -595,14 +730,15 @@ const VehicleListDropdownZone = ({
             variant="subtitle2" 
             fontWeight={600} 
             sx={{ 
-              mb: 2, 
+              mb: 1.5, 
               display: 'flex', 
               alignItems: 'center', 
-              gap: 1,
-              color: data ? '#ff9800' : 'text.disabled'
+              gap: 0.8,
+              color: data ? '#ff9800' : 'text.disabled',
+              fontSize: '0.9rem'
             }}
           >
-            <LocalOfferIcon sx={{ fontSize: 20 }} />
+            <LocalOfferIcon sx={{ fontSize: 18 }} />
             Price Mode
           </Typography>
           <Box sx={{ 
@@ -613,14 +749,14 @@ const VehicleListDropdownZone = ({
               <Paper 
                 variant="outlined" 
                 sx={{ 
-                  p: 3, 
+                  p: 2, 
                   textAlign: 'center',
                   bgcolor: 'grey.50',
                   borderStyle: 'dashed',
                   borderColor: 'action.disabled'
                 }}
               >
-                <Typography variant="body2" color="text.disabled" sx={{ fontStyle: 'italic' }}>
+                <Typography variant="body2" color="text.disabled" sx={{ fontStyle: 'italic', fontSize: '0.85rem' }}>
                   Select vehicle first
                 </Typography>
               </Paper>

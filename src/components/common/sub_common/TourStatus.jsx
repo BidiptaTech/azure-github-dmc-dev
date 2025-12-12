@@ -31,31 +31,29 @@ export default function TourStatus() {
   const [portType, setPortType] = useState(""); // "entry" or "exit"
 
   const { checkIn, checkOut } = useSelector((state) => state.bookings);
-  const bookings = useSelector((state) => state.attractions.services || []);
-   console.log("Attraction bookings from Redux:", bookings);
+  console.log("TourStatus - checkIn:", checkIn, "checkOut:", checkOut);
+  const attractionServices = useSelector((state) => state.attractions.services || []);
+  // console.log("Attraction bookings from Redux:", attractionServices);
 
-  const restaurantBooking = useSelector(
+  const restaurantServices = useSelector(
     (state) => state.restaurants.services || []
   );
-  console.log('Restaurant bookings from Redux:', restaurantBooking);
+  // console.log('Restaurant bookings from Redux:', restaurantServices);
 
-  const travelPoint = useSelector(
+  const travelPointRaw = useSelector(
     (state) => state.localtour.pointtopoint || []
   );
-  // console.log("point 2 point", travelPoint);
-  const travelHourly = useSelector((state) => state.localtour.hourly || []);
-  // console.log("hourlyveh", travelHourly);
+  // console.log("point 2 point", travelPointRaw);
+  const travelHourlyRaw = useSelector((state) => state.localtour.hourly || []);
+  // console.log("hourlyveh", travelHourlyRaw);
 
-  const travelZone = useSelector((state) => state.localtour.Zonebook || []);
-  // console.log("travelzzzzzz", travelZone);
-  const travel = [...travelHourly, ...travelPoint, ...travelZone];
-  // console.log("travellll", travel);
-  const formData = useSelector((state) => state.pickupDrop.entryport || []);
-  const formData1 = useSelector((state) => state.pickupDrop.exitport || []);
-  const entryexit = [...formData, ...formData1];
-  const bookedguide = useSelector((state) => state.tourguide.bookedguide || []);
+  const travelZoneRaw = useSelector((state) => state.localtour.Zonebook || []);
+  // console.log("travelzzzzzz", travelZoneRaw);
+  const entryPortRaw = useSelector((state) => state.pickupDrop.entryport || []);
+  const exitPortRaw = useSelector((state) => state.pickupDrop.exitport || []);
+  const bookedGuideRaw = useSelector((state) => state.tourguide.bookedguide || []);
 
-  const dateService = useSelector((state) => state.dateService.services || []);
+  const dateServiceRaw = useSelector((state) => state.dateService.services || []);
   // console.log("dateService123", dateService);
   // const dateKey = Object.keys(dateService)[0];
   // console.log("dateKey", dateKey);
@@ -66,8 +64,29 @@ export default function TourStatus() {
 
   // Get hotel bookings from redux store
   //here i am gett all the data from response and store in a redux and send data to the hotel modal
-  const hotelBookings = useSelector((state) => state.hotels.hotelService || []);
+  const hotelBookingsRaw = useSelector((state) => state.hotels.hotelService || []);
   //  console.log(hotelBookings,"hotelBookings");
+
+  const haveBooking = useSelector((state) => state.common.haveBooking);
+  const globalTourId = useSelector(
+    (state) => state.auth?.tourId || state.steps?.id
+  );
+
+  const hasActiveTour = Boolean(haveBooking && globalTourId);
+
+  const bookings = hasActiveTour ? attractionServices : [];
+  const restaurantBooking = hasActiveTour ? restaurantServices : [];
+  const travelPoint = hasActiveTour ? travelPointRaw : [];
+  const travelHourly = hasActiveTour ? travelHourlyRaw : [];
+  const travelZone = hasActiveTour ? travelZoneRaw : [];
+  const travel = hasActiveTour
+    ? [...travelHourly, ...travelPoint, ...travelZone]
+    : [];
+  const formData = hasActiveTour ? entryPortRaw : [];
+  const formData1 = hasActiveTour ? exitPortRaw : [];
+  const bookedguide = hasActiveTour ? bookedGuideRaw : [];
+  const dateService = hasActiveTour ? dateServiceRaw : {};
+  const hotelBookings = hasActiveTour ? hotelBookingsRaw : [];
 
   useEffect(() => {
     let newDateServiceDates = new Set();
@@ -127,11 +146,12 @@ export default function TourStatus() {
     }
   }, [checkIn, checkOut]);
 
-  useEffect(() => {
-    if (status === "idle") {
-      dispatch(fetchBookingid());
-    }
-  }, [dispatch, status]);
+  // Removed auto-fetch of booking ID on mount since tour is now created during booking/enquiry
+  // useEffect(() => {
+  //   if (status === "idle") {
+  //     dispatch(fetchBookingid());
+  //   }
+  // }, [dispatch, status]);
 
   const formatDate = (date) => date.toISOString().split("T")[0];
 

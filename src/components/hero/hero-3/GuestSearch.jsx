@@ -1,9 +1,11 @@
 import React, { useState, useRef, useEffect } from "react";
+import { useSelector, useDispatch } from "react-redux";
 import PersonIcon from '@mui/icons-material/Person';
 import ChildCareIcon from '@mui/icons-material/ChildCare';
 import MaleIcon from '@mui/icons-material/Male';
 import FemaleIcon from '@mui/icons-material/Female';
 import BabyChangingStationIcon from '@mui/icons-material/BabyChangingStation';
+import * as commonActions from "../../../slice/common/commonSlice";
 
 const counters = [
   { name: "Adults", defaultValue: 1 },
@@ -237,25 +239,56 @@ const Counter = ({
       {/* Age Selection for Children */}
       {name === "Children" && count > 0 && (
         <div
-          className="children-ages-container custom-scroll"
+          style={{
+            maxHeight: "150px",
+            overflowY: "auto",
+            overflowX: "hidden",
+            width: "100%",
+            paddingRight: "10px",
+            marginTop: "15px",
+          }}
+          className="custom-scroll"
+          id="child-age-container"
         >
           {Array.from({ length: count }).map((_, i) => (
-            <div key={i} className="child-age-item">
-              <div className="age-label">
-                <ChildCareIcon className="custom-icon" /> Child {i + 1} Age
+            <div
+              key={i}
+              className="guest-select-item"
+              id={`child-age-item-${i}`}
+            >
+              <div className="col-auto">
+                <div className="text-15 lh-12 fw-500">
+                  <span className="icon-wrapper">
+                    <ChildCareIcon className="custom-icon" />
+                  </span>
+                  Child {i + 1} Age
+                </div>
               </div>
-              <select
-                className="age-select"
-                value={ages[i] || ""}
-                onChange={(e) => onAgeChange(i, e.target.value)}
-              >
-                <option value="">Select Age</option>
-                {Array.from({ length: 17 }).map((_, age) => (
-                  <option key={age + 1} value={age + 1}>
-                    {age + 1} year{age !== 0 ? "s" : ""}
-                  </option>
-                ))}
-              </select>
+              <div className="col-auto">
+                <select
+                  className="custom-select"
+                  value={ages[i] || ""}
+                  onChange={(e) => {
+                    onAgeChange(i, e.target.value);
+                    // Auto scroll to next item after selection
+                    if (i < count - 1) {
+                      setTimeout(() => {
+                        const nextItem = document.getElementById(`child-age-item-${i + 1}`);
+                        if (nextItem) {
+                          nextItem.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+                        }
+                      }, 100);
+                    }
+                  }}
+                >
+                  <option value="">Select Age</option>
+                  {[...Array(17)].map((_, age) => (
+                    <option key={age + 1} value={age + 1}>
+                      {age + 1} {age === 0 ? "year" : "years"}
+                    </option>
+                  ))}
+                </select>
+              </div>
             </div>
           ))}
         </div>
@@ -267,14 +300,17 @@ const Counter = ({
 };
 
 const GuestSearch = ({ onGuestChange, guestCounts: propGuestCounts }) => {
+  const dispatch = useDispatch();
+  const reduxGuestCounts = useSelector(commonActions.selectGuestCounts);
+  
   const [isDropdownVisible, setIsDropdownVisible] = useState(false);
   const [guestCounts, setGuestCounts] = useState({
-    Adults: propGuestCounts?.Adults || 1,
-    Children: propGuestCounts?.Children || 0,
-    Infants: propGuestCounts?.Infants || 0,
-    maleCount: propGuestCounts?.maleCount || 0,
-    femaleCount: propGuestCounts?.femaleCount || 0,
-    ages: propGuestCounts?.ages || []
+    Adults: propGuestCounts?.Adults || reduxGuestCounts?.Adults || 1,
+    Children: propGuestCounts?.Children || reduxGuestCounts?.Children || 0,
+    Infants: propGuestCounts?.Infants || reduxGuestCounts?.Infants || 0,
+    maleCount: propGuestCounts?.maleCount || reduxGuestCounts?.maleCount || 0,
+    femaleCount: propGuestCounts?.femaleCount || reduxGuestCounts?.femaleCount || 0,
+    ages: propGuestCounts?.ages || reduxGuestCounts?.ages || []
   });
   const dropdownRef = useRef(null);
   const buttonRef = useRef(null);
@@ -292,6 +328,18 @@ const GuestSearch = ({ onGuestChange, guestCounts: propGuestCounts }) => {
       });
     }
   }, [propGuestCounts]);
+
+  // Sync with Redux state changes
+  useEffect(() => {
+    if (reduxGuestCounts) {
+      setGuestCounts(reduxGuestCounts);
+      
+      // Notify parent component of the change
+      if (onGuestChange) {
+        onGuestChange(reduxGuestCounts);
+      }
+    }
+  }, [reduxGuestCounts, onGuestChange]);
 
   // Close dropdown when clicking outside
   useEffect(() => {
@@ -337,6 +385,9 @@ const GuestSearch = ({ onGuestChange, guestCounts: propGuestCounts }) => {
 
     setGuestCounts(updatedGuestCounts);
     
+    // Update Redux state
+    dispatch(commonActions.setGuestCounts(updatedGuestCounts));
+    
     // Call the onGuestChange prop function
     if (onGuestChange) {
       onGuestChange(updatedGuestCounts);
@@ -356,7 +407,7 @@ const GuestSearch = ({ onGuestChange, guestCounts: propGuestCounts }) => {
         // Female is always the remainder to make exactly totalAdults
         newFemaleCount = totalAdults - newMaleCount;
       } else {
-        // Set the new female count
+       
         newFemaleCount = Math.min(Math.max(0, count), totalAdults);
         // Male is always the remainder to make exactly totalAdults
         newMaleCount = totalAdults - newFemaleCount;
@@ -379,6 +430,9 @@ const GuestSearch = ({ onGuestChange, guestCounts: propGuestCounts }) => {
 
     setGuestCounts(updatedGuestCounts);
     
+    // Update Redux state
+    dispatch(commonActions.setGuestCounts(updatedGuestCounts));
+    
     // Call the onGuestChange prop function
     if (onGuestChange) {
       onGuestChange(updatedGuestCounts);
@@ -396,6 +450,9 @@ const GuestSearch = ({ onGuestChange, guestCounts: propGuestCounts }) => {
 
     setGuestCounts(updatedGuestCounts);
     
+    // Update Redux state
+    dispatch(commonActions.setGuestCounts(updatedGuestCounts));
+    
     // Call the onGuestChange prop function
     if (onGuestChange) {
       onGuestChange(updatedGuestCounts);
@@ -409,8 +466,8 @@ const GuestSearch = ({ onGuestChange, guestCounts: propGuestCounts }) => {
   // Get display text for guests
   const getGuestsDisplayText = () => {
     const adultText = `${guestCounts.Adults} ${guestCounts.Adults === 1 ? 'adult' : 'adults'}`;
-    const maleText = `${guestCounts.maleCount || 0}M`;
-    const femaleText = `${guestCounts.femaleCount || 0}F`;
+    const maleText = `${guestCounts.maleCount || 0} M`;
+    const femaleText = `${guestCounts.femaleCount || 0} F`;
     const childText = guestCounts.Children > 0 ? `${guestCounts.Children} ${guestCounts.Children === 1 ? 'child' : 'children'}` : '';
     const infantText = guestCounts.Infants > 0 ? `${guestCounts.Infants} ${guestCounts.Infants === 1 ? 'infant' : 'infants'}` : '';
     
@@ -435,8 +492,8 @@ const GuestSearch = ({ onGuestChange, guestCounts: propGuestCounts }) => {
         onClick={toggleDropdown}
         style={{ cursor: 'pointer' }}
       >
-        <h4 className="text-15 fw-500 ls-2 lh-16">Guest</h4>
-        <div className="text-15 text-light-1 ls-2 lh-16">
+        {/* <h4 className="text-15 fw-500 ls-2 lh-16">Guest</h4> */}
+        <div className="text-12 text-light-1 ls-2 lh-16">
           {getGuestsDisplayText()}
         </div>
       </div>
@@ -483,6 +540,80 @@ const GuestSearch = ({ onGuestChange, guestCounts: propGuestCounts }) => {
       </div>
 
       <style jsx>{`
+        .guest-select-item {
+          display: flex;
+          justify-content: space-between;
+          align-items: center;
+          padding: 12px 15px;
+          margin-bottom: 8px;
+          background: rgba(53, 84, 209, 0.05);
+          border-radius: 10px;
+          transition: all 0.3s ease;
+        }
+
+        .guest-select-item:hover {
+          background: rgba(53, 84, 209, 0.1);
+          transform: translateX(5px);
+        }
+
+        .icon-wrapper {
+          display: inline-flex;
+          align-items: center;
+          justify-content: center;
+          width: 24px;
+          height: 24px;
+          background: rgba(53, 84, 209, 0.1);
+          border-radius: 50%;
+          margin-right: 10px;
+          transition: all 0.3s ease;
+        }
+
+        .guest-select-item:hover .icon-wrapper {
+          background: rgba(53, 84, 209, 0.2);
+          transform: scale(1.1);
+        }
+
+        :global(.custom-icon) {
+          font-size: 16px;
+          color: #3554d1;
+        }
+        
+        :global(.male-icon) {
+          color: #2563eb;
+        }
+        
+        :global(.female-icon) {
+          color: #db2777;
+        }
+
+        .custom-select {
+          min-width: 140px;
+          padding: 8px 12px;
+          border: 2px solid #e9ecef;
+          border-radius: 8px;
+          background: white;
+          font-size: 14px;
+          color: #3554d1;
+          cursor: pointer;
+          transition: all 0.3s ease;
+          appearance: none;
+          background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' fill='%233554d1' viewBox='0 0 16 16'%3E%3Cpath d='M7.247 11.14L2.451 5.658C1.885 5.013 2.345 4 3.204 4h9.592a1 1 0 0 1 .753 1.659l-4.796 5.48a1 1 0 0 1-1.506 0z'/%3E%3C/svg%3E");
+          background-repeat: no-repeat;
+          background-position: right 12px center;
+          padding-right: 30px;
+        }
+
+        .custom-select:hover {
+          border-color: #3554d1;
+          box-shadow: 0 2px 4px rgba(53, 84, 209, 0.1);
+        }
+
+        .custom-select:focus {
+          outline: none;
+          border-color: #3554d1;
+          box-shadow: 0 0 0 3px rgba(53, 84, 209, 0.2);
+        }
+
         .gender-counters {
           background: rgba(53, 84, 209, 0.05);
           border-radius: 10px;
@@ -520,57 +651,6 @@ const GuestSearch = ({ onGuestChange, guestCounts: propGuestCounts }) => {
           0%, 100% { opacity: 0.8; }
           50% { opacity: 1; }
         }
-
-        :global(.custom-icon) {
-          font-size: 16px;
-          color: #3554d1;
-        }
-        
-        :global(.male-icon) {
-          color: #2563eb;
-        }
-        
-        :global(.female-icon) {
-          color: #db2777;
-        }
-        
-        .children-ages-container {
-          max-height: 180px;
-          overflow-y: auto;
-          margin-top: 15px;
-          padding-right: 5px;
-        }
-        
-        .child-age-item {
-          display: flex;
-          justify-content: space-between;
-          align-items: center;
-          padding: 10px;
-          background: rgba(53, 84, 209, 0.05);
-          border-radius: 8px;
-          margin-bottom: 8px;
-        }
-        
-        .age-label {
-          display: flex;
-          align-items: center;
-          font-size: 14px;
-          font-weight: 500;
-        }
-        
-        .age-label :global(.custom-icon) {
-          margin-right: 8px;
-          font-size: 16px;
-        }
-        
-        .age-select {
-          padding: 5px 10px;
-          border: 1px solid #ddd;
-          border-radius: 4px;
-          min-width: 100px;
-          font-size: 14px;
-          color: #333;
-        }
         
         button:disabled {
           opacity: 0.5;
@@ -583,16 +663,21 @@ const GuestSearch = ({ onGuestChange, guestCounts: propGuestCounts }) => {
         }
         
         .custom-scroll::-webkit-scrollbar {
-          width: 4px;
+          width: 6px;
         }
         
         .custom-scroll::-webkit-scrollbar-track {
           background: #f0f2f5;
+          border-radius: 10px;
         }
         
         .custom-scroll::-webkit-scrollbar-thumb {
           background: #3554d1;
-          border-radius: 4px;
+          border-radius: 10px;
+        }
+
+        .mr-10 {
+          margin-right: 10px;
         }
       `}</style>
     </div>

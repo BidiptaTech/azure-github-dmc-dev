@@ -155,10 +155,10 @@ const TimeSelection = ({ value, onChange, disabled }) => {
           opacity: disabled ? 0.5 : 1
         }}
       >
-        <CardContent sx={{ p: 2, '&:last-child': { pb: 2 } }}>
-          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-            <AccessTimeIcon sx={{ color: 'primary.main' }} />
-            <Typography>
+        <CardContent sx={{ p: 1.5, '&:last-child': { pb: 1.5 } }}>
+          <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.8 }}>
+            <AccessTimeIcon sx={{ color: 'primary.main', fontSize: 18 }} />
+            <Typography sx={{ fontSize: '0.8rem' }}>
               {value || 'Select Pick-up Time'}
             </Typography>
           </Box>
@@ -180,9 +180,9 @@ const TimeSelection = ({ value, onChange, disabled }) => {
         }}
         PaperProps={{
           sx: {
-            width: '350px',
+            width: '320px',
             mt: 1,
-            p: 3,
+            p: 2.5,
             overflow: 'visible',
             '&:before': {
               content: '""',
@@ -190,8 +190,8 @@ const TimeSelection = ({ value, onChange, disabled }) => {
               position: 'absolute',
               top: 0,
               left: 32,
-              width: 10,
-              height: 10,
+              width: 8,
+              height: 8,
               bgcolor: 'background.paper',
               transform: 'translateY(-50%) rotate(45deg)',
               zIndex: 0,
@@ -199,21 +199,21 @@ const TimeSelection = ({ value, onChange, disabled }) => {
           }
         }}
       >
-        <Typography variant="h6" sx={{ mb: 2, fontWeight: 600 }}>
+        <Typography variant="subtitle1" sx={{ mb: 1.5, fontWeight: 600, fontSize: '0.9rem' }}>
           Select Pick-up Time
         </Typography>
 
-        <Box sx={{ mb: 2, p: 1, bgcolor: 'rgba(254, 215, 215, 0.5)', borderRadius: 1 }}>
-          <Typography variant="subtitle2" sx={{ fontWeight: 500, display: 'flex', alignItems: 'center', mb: 0.5 }}>
-            <NightsStayIcon sx={{ mr: 1, fontSize: 18 }} />
+        <Box sx={{ mb: 1.5, p: 0.8, bgcolor: 'rgba(254, 215, 215, 0.5)', borderRadius: 0.8 }}>
+          <Typography variant="body2" sx={{ fontWeight: 500, display: 'flex', alignItems: 'center', mb: 0.4, fontSize: '0.8rem' }}>
+            <NightsStayIcon sx={{ mr: 0.8, fontSize: 16 }} />
             Night Hours: {formattedNightHours}
           </Typography>
-          <Typography variant="caption" color="error">
+          <Typography variant="caption" color="error" sx={{ fontSize: '0.7rem' }}>
             Night surcharge applies during these hours
           </Typography>
         </Box>
 
-        <Box sx={{ maxHeight: '400px', overflow: 'auto', pr: 1 }}>
+        <Box sx={{ maxHeight: '300px', overflow: 'auto', pr: 0.8 }}>
           {Array.from({ length: 24 }, (_, index) => {
             const hour = index % 12 === 0 ? 12 : index % 12;
             const period = index < 12 ? "AM" : "PM";
@@ -231,17 +231,17 @@ const TimeSelection = ({ value, onChange, disabled }) => {
                 isSelected={isSelected}
               >
                 <Box sx={{ display: 'flex', flexDirection: 'column', width: '100%' }}>
-                  <Box sx={{ display: 'flex', alignItems: 'center', mb: 0.5 }}>
+                  <Box sx={{ display: 'flex', alignItems: 'center', mb: 0.4 }}>
                     {isNight ? (
-                      <NightsStayIcon sx={{ mr: 1, fontSize: 20 }} />
+                      <NightsStayIcon sx={{ mr: 0.8, fontSize: 18 }} />
                     ) : (
-                      <WbSunnyIcon sx={{ mr: 1, fontSize: 20 }} />
+                      <WbSunnyIcon sx={{ mr: 0.8, fontSize: 18 }} />
                     )}
-                    <Typography variant="body1" sx={{ fontWeight: 500 }}>
+                    <Typography variant="body2" sx={{ fontWeight: 500, fontSize: '0.8rem' }}>
                       {timeLabel}
                     </Typography>
                   </Box>
-                  <Typography variant="caption" sx={{ color: isNight ? '#B45309' : '#1E40AF' }}>
+                  <Typography variant="caption" sx={{ color: isNight ? '#B45309' : '#1E40AF', fontSize: '0.7rem' }}>
                     {isNight ? '*Night surcharge applies' : '*Standard rate applies'}
                   </Typography>
                 </Box>

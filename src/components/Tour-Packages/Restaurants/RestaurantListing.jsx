@@ -30,11 +30,11 @@ const CustomTooltip = styled(({ className, ...props }) => (
   '& .MuiTooltip-tooltip': {
     backgroundColor: 'white',
     color: 'rgba(0, 0, 0, 0.87)',
-    maxWidth: 400,
+    maxWidth: 350,
     border: '1px solid #dadde9',
-    borderRadius: '12px',
+    borderRadius: '8px',
     padding: 0,
-    boxShadow: theme.shadows[3]
+    boxShadow: theme.shadows[2]
   },
 }));
 
@@ -46,10 +46,10 @@ const MealChip = ({ isAvailable, label }) => (
     sx={{
       backgroundColor: isAvailable ? 'rgba(76, 175, 80, 0.1)' : 'rgba(0, 0, 0, 0.08)',
       color: isAvailable ? '#2e7d32' : 'text.secondary',
-      fontSize: '0.75rem',
-      height: 24,
+      fontSize: '0.7rem',
+      height: 20,
       '& .MuiChip-label': {
-        px: 1,
+        px: 0.8,
       },
     }}
   />
@@ -58,6 +58,7 @@ const MealChip = ({ isAvailable, label }) => (
 // Tooltip content component
 const TooltipContent = ({ restaurant }) => {
   const mealAvailability = [];
+  const PriceHide = useSelector((state) => state.auth.PriceHide);
   if (restaurant.breakfast_available === 1) mealAvailability.push("Breakfast");
   if (restaurant.lunch_available === 1) mealAvailability.push("Lunch");
   if (restaurant.dinner_available === 1) mealAvailability.push("Dinner");
@@ -65,7 +66,7 @@ const TooltipContent = ({ restaurant }) => {
   return (
     <Box>
       {/* Header Image Section */}
-      <Box sx={{ position: 'relative', width: '100%', height: 200 }}>
+      <Box sx={{ position: 'relative', width: '100%', height: 160 }}>
         <Box
           component="img"
           src={restaurant.image || restaurant.site_images?.[0]}
@@ -74,22 +75,22 @@ const TooltipContent = ({ restaurant }) => {
             width: '100%',
             height: '100%',
             objectFit: 'cover',
-            borderTopLeftRadius: '12px',
-            borderTopRightRadius: '12px',
+            borderTopLeftRadius: '8px',
+            borderTopRightRadius: '8px',
           }}
         />
         {restaurant.site_images && restaurant.site_images.length > 1 && (
           <Box
             sx={{
               position: 'absolute',
-              top: 8,
-              right: 8,
+              top: 6,
+              right: 6,
               bgcolor: 'rgba(0, 0, 0, 0.6)',
               color: 'white',
-              px: 1,
-              py: 0.5,
-              borderRadius: 1,
-              fontSize: '0.75rem',
+              px: 0.8,
+              py: 0.4,
+              borderRadius: 0.8,
+              fontSize: '0.7rem',
             }}
           >
             +{restaurant.site_images.length - 1} photos
@@ -98,24 +99,24 @@ const TooltipContent = ({ restaurant }) => {
       </Box>
 
       {/* Content Section */}
-      <Box sx={{ p: 2 }}>
+      <Box sx={{ p: 1.5 }}>
         {/* Title and Location */}
-        <Typography variant="h6" gutterBottom sx={{ fontWeight: 'bold', fontSize: '1.1rem' }}>
+        <Typography variant="subtitle1" gutterBottom sx={{ fontWeight: 'bold', fontSize: '1rem', mb: 1 }}>
           {restaurant.restaurant_name}
         </Typography>
-        <Box sx={{ display: 'flex', alignItems: 'center', mb: 1.5 }}>
-          <LocationOnIcon sx={{ fontSize: 18, color: 'text.secondary', mr: 0.5 }} />
-          <Typography variant="body2" color="text.secondary">
+        <Box sx={{ display: 'flex', alignItems: 'center', mb: 1 }}>
+          <LocationOnIcon sx={{ fontSize: 16, color: 'text.secondary', mr: 0.5 }} />
+          <Typography variant="caption" color="text.secondary" sx={{ fontSize: '0.75rem' }}>
             {restaurant.city}, {restaurant.country}
           </Typography>
         </Box>
 
         {/* Meal Availability */}
-        <Box sx={{ mb: 2 }}>
-          <Typography variant="subtitle2" gutterBottom sx={{ fontWeight: 500 }}>
+        <Box sx={{ mb: 1.5 }}>
+          <Typography variant="body2" gutterBottom sx={{ fontWeight: 500, fontSize: '0.8rem', mb: 0.8 }}>
             Available Meals
           </Typography>
-          <Stack direction="row" spacing={1} flexWrap="wrap" useFlexGap>
+          <Stack direction="row" spacing={0.8} flexWrap="wrap" useFlexGap>
             <MealChip isAvailable={restaurant.breakfast_available === 1} label="Breakfast" />
             <MealChip isAvailable={restaurant.lunch_available === 1} label="Lunch" />
             <MealChip isAvailable={restaurant.dinner_available === 1} label="Dinner" />
@@ -124,31 +125,31 @@ const TooltipContent = ({ restaurant }) => {
 
         {/* Opening Hours */}
         {restaurant.opening_hours && (
-          <Box sx={{ mb: 2 }}>
-            <Typography variant="subtitle2" gutterBottom sx={{ fontWeight: 500 }}>
+          <Box sx={{ mb: 1.5 }}>
+            <Typography variant="body2" gutterBottom sx={{ fontWeight: 500, fontSize: '0.8rem', mb: 0.8 }}>
               Opening Hours
             </Typography>
-            <Stack spacing={0.5}>
+            <Stack spacing={0.3}>
               {restaurant.breakfast_available === 1 && (
                 <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                  <AccessTimeIcon sx={{ fontSize: 16, color: '#4caf50' }} />
-                  <Typography variant="body2" color="text.secondary">
+                  <AccessTimeIcon sx={{ fontSize: 14, color: '#4caf50' }} />
+                  <Typography variant="caption" color="text.secondary" sx={{ fontSize: '0.7rem' }}>
                     Breakfast: {restaurant.breakfast_open_time} - {restaurant.breakfast_close_time}
                   </Typography>
                 </Box>
               )}
               {restaurant.lunch_available === 1 && (
                 <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                  <AccessTimeIcon sx={{ fontSize: 16, color: '#4caf50' }} />
-                  <Typography variant="body2" color="text.secondary">
+                  <AccessTimeIcon sx={{ fontSize: 14, color: '#4caf50' }} />
+                  <Typography variant="caption" color="text.secondary" sx={{ fontSize: '0.7rem' }}>
                     Lunch: {restaurant.lunch_open_time} - {restaurant.lunch_close_time}
                   </Typography>
                 </Box>
               )}
               {restaurant.dinner_available === 1 && (
                 <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                  <AccessTimeIcon sx={{ fontSize: 16, color: '#4caf50' }} />
-                  <Typography variant="body2" color="text.secondary">
+                  <AccessTimeIcon sx={{ fontSize: 14, color: '#4caf50' }} />
+                  <Typography variant="caption" color="text.secondary" sx={{ fontSize: '0.7rem' }}>
                     Dinner: {restaurant.dinner_open_time} - {restaurant.dinner_close_time}
                   </Typography>
                 </Box>
@@ -158,26 +159,27 @@ const TooltipContent = ({ restaurant }) => {
         )}
 
         {/* Pricing Section */}
-        <Box sx={{ mt: 2 }}>
-          <Typography variant="subtitle2" gutterBottom sx={{ fontWeight: 500 }}>
+        <Box sx={{ mt: 1.5 }}>
+          <Typography variant="body2" gutterBottom sx={{ fontWeight: 500, fontSize: '0.8rem', mb: 1 }}>
             Pricing Details
           </Typography>
-          <Grid container spacing={2}>
+          {PriceHide !== "1" ? (
+          <Grid container spacing={1.5}>
             {/* DMC Prices */}
             {restaurant.dmc_id && (
               <Grid item xs={6}>
                 <Paper 
                   variant="outlined" 
                   sx={{ 
-                    p: 1.5,
+                    p: 1,
                     bgcolor: 'rgba(25, 118, 210, 0.02)',
                     borderColor: 'rgba(25, 118, 210, 0.1)'
                   }}
                 >
-                  <Typography variant="subtitle2" gutterBottom sx={{ color: '#4caf50', fontWeight: 500 }}>
+                  <Typography variant="caption" gutterBottom sx={{ color: '#4caf50', fontWeight: 500, fontSize: '0.75rem' }}>
                     DMC Prices
                   </Typography>
-                  <Typography variant="body2">Available</Typography>
+                  <Typography variant="caption" sx={{ fontSize: '0.7rem' }}>Available</Typography>
                 </Paper>
               </Grid>
             )}
@@ -188,29 +190,34 @@ const TooltipContent = ({ restaurant }) => {
                 <Paper 
                   variant="outlined" 
                   sx={{ 
-                    p: 1.5,
+                    p: 1,
                     bgcolor: 'rgba(76, 175, 80, 0.02)',
                     borderColor: 'rgba(76, 175, 80, 0.1)'
                   }}
                 >
-                  <Typography variant="subtitle2" gutterBottom sx={{ color: '#2e7d32', fontWeight: 500 }}>
+                  <Typography variant="caption" gutterBottom sx={{ color: '#2e7d32', fontWeight: 500, fontSize: '0.75rem' }}>
                     Travclicks Prices
                   </Typography>
-                  <Typography variant="body2">Available</Typography>
+                  <Typography variant="caption" sx={{ fontSize: '0.7rem' }}>Available</Typography>
                 </Paper>
               </Grid>
             )}
           </Grid>
-
+          ):(
+            <Typography variant="caption" gutterBottom sx={{ color: 'text.secondary', fontWeight: 500, fontSize: '0.75rem' }}>
+              Pricing hidden
+            </Typography>
+          )}
           {/* Tax Information */}
           {restaurant.tax_percentage && (
             <Typography 
               variant="caption" 
               sx={{ 
                 display: 'block',
-                mt: 1,
+                mt: 0.8,
                 color: 'text.secondary',
-                fontStyle: 'italic'
+                fontStyle: 'italic',
+                fontSize: '0.65rem'
               }}
             >
               *Prices are subject to {restaurant.tax_percentage}% tax
@@ -222,17 +229,37 @@ const TooltipContent = ({ restaurant }) => {
   );
 };
 
-const RestaurantListing = ({ restaurants, selectedRestaurant, onRestaurantChange }) => {
+const RestaurantListing = ({ restaurants, selectedRestaurant, onRestaurantChange, disabled = false, selectedRestaurantName }) => {
   const dispatch = useDispatch();
   const bookingMode = useSelector((state) => state.common.bookingMode);
   const dmcName = useSelector((state) => state.auth.DmcName) || "DMC";
   const status = useSelector((state) => state.restaurants.status);
+  //const isFromMainSearch = useSelector((state) => state.restaurants.isFromMainSearch);
 
-  // Debug logs
-  useEffect(() => {
-    console.log('RestaurantListing - Props:', { restaurants, selectedRestaurant });
-    console.log('RestaurantListing - Status:', status);
-  }, [restaurants, selectedRestaurant, status]);
+ 
+  
+  // Don't show any restaurants if coming from MainFilterSearchBox
+  // if (isFromMainSearch) {
+  //   return (
+  //     <Box sx={{ flex: 1 }}>
+  //       <TextField
+  //         label="Search Restaurant"
+  //         fullWidth
+  //         disabled
+  //         value=""
+  //         helperText="Please select a hotel first to view available restaurants"
+  //         sx={{
+  //           '& .MuiInputBase-input': {
+  //             fontSize: '0.8rem',
+  //             height: '12px',
+  //             paddingBottom: '10px',
+  //             paddingTop: '0px',
+  //           },
+  //         }}
+  //       />
+  //     </Box>
+  //   );
+  // }
 
   // Filter restaurants that have at least one pricing mode
   const filteredRestaurants = restaurants ? restaurants.filter(restaurant => {
@@ -243,7 +270,7 @@ const RestaurantListing = ({ restaurants, selectedRestaurant, onRestaurantChange
   }) : [];
 
   const handleRestaurantClick = (restaurant) => {
-    if (!restaurant) return;
+    if (!restaurant || disabled) return;
     
     console.log('Selected restaurant:', restaurant);
     
@@ -287,16 +314,43 @@ const RestaurantListing = ({ restaurants, selectedRestaurant, onRestaurantChange
     }
   };
 
+  // Create a display value for the autocomplete
+  const getDisplayValue = () => {
+    if (selectedRestaurantName) {
+      // If we have a restaurant name, create a display object
+      return {
+        id: selectedRestaurant,
+        restaurant_name: selectedRestaurantName,
+        // Add other required properties with default values
+        breakfast_available: 0,
+        lunch_available: 0,
+        dinner_available: 0,
+        dmc_id: null,
+        travclicks_dmc_id: null
+      };
+    }
+    return filteredRestaurants.find(r => r.id === selectedRestaurant) || null;
+  };
+
   return (
     <Box sx={{ flex: 1 }}>
       <Autocomplete
-        value={filteredRestaurants.find(r => r.id === selectedRestaurant) || null}
+        value={getDisplayValue()}
         onChange={(event, newValue) => {
           handleRestaurantClick(newValue);
         }}
         options={filteredRestaurants}
         getOptionLabel={(option) => option.restaurant_name || ''}
         noOptionsText="No restaurants with valid pricing available"
+        disabled={disabled}
+        sx={{
+          '& .MuiInputBase-input': {
+            fontSize: '0.8rem',
+            height: '12px',
+            paddingBottom: '10px',
+            paddingTop: '0px',
+          },
+        }}
         renderOption={(props, option) => {
           // Extract the key from props and remove it from the rest to avoid React warning
           const { key, ...otherProps } = props;
@@ -329,8 +383,8 @@ const RestaurantListing = ({ restaurants, selectedRestaurant, onRestaurantChange
                       size="small" 
                       label="DMC"
                       sx={{ 
-                        height: 20,
-                        fontSize: '0.7rem',
+                        height: 18,
+                        fontSize: '0.65rem',
                         bgcolor: 'rgba(76, 175, 80, 0.08)',
                         color: '#4caf50'
                       }}
@@ -341,8 +395,8 @@ const RestaurantListing = ({ restaurants, selectedRestaurant, onRestaurantChange
                       size="small" 
                       label="Travclicks"
                       sx={{ 
-                        height: 20,
-                        fontSize: '0.7rem',
+                        height: 18,
+                        fontSize: '0.65rem',
                         bgcolor: 'rgba(76, 175, 80, 0.08)',
                         color: '#2e7d32'
                       }}

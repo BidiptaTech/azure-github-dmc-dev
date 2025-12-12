@@ -102,6 +102,7 @@ import AutoStoriesIcon from "@mui/icons-material/AutoStories";
 import EmojiEventsIcon from "@mui/icons-material/EmojiEvents";
 import DoneIcon from "@mui/icons-material/Done";
 import api, { endpoints } from "../../../../../services/api";
+import { useSelector } from "react-redux";
 
 // Helper function to format dates in "Month DD, YYYY" format
 const formatDate = (dateString) => {
@@ -162,6 +163,18 @@ const fetchStaticPdf = async (url) => {
 
 
 
+// Preload an image and resolve when it's loaded; useful so html2canvas captures it
+const preloadImage = (src) => {
+  return new Promise((resolve) => {
+    if (!src) return resolve(false);
+    const img = new Image();
+    img.crossOrigin = "anonymous";
+    img.onload = () => resolve(true);
+    img.onerror = () => resolve(false);
+    img.src = src;
+  });
+};
+
 // Updated utility function to generate PDF from DOM element using jsPDF with improved page breaks
 const generateMainPdfBlob = async (element) => {
   return new Promise(async (resolve, reject) => {
@@ -172,10 +185,7 @@ const generateMainPdfBlob = async (element) => {
           "Invalid DOM element provided. Make sure contentRef.current is a valid HTML element."
         );
       }
-
-      // Debug log to check element dimensions
-      console.log("Element dimensions:", element.getBoundingClientRect());
-
+      
       // Add CSS class to improve PDF rendering - this forces sections to avoid page breaks
       const sections = element.querySelectorAll('.StyledCard');
       sections.forEach(section => {
@@ -214,9 +224,6 @@ const generateMainPdfBlob = async (element) => {
         letterRendering: true,
       });
 
-      // Debug log to check canvas dimensions
-      console.log("Canvas dimensions:", canvas.width, canvas.height);
-
       // Create PDF with A4 dimensions
       const pdf = new jsPDF({
         orientation: "portrait",
@@ -232,13 +239,8 @@ const generateMainPdfBlob = async (element) => {
       const imgWidth = pageWidth - 10; // Add small margin
       const imgHeight = (canvas.height * imgWidth) / canvas.width;
 
-      // Debug log for calculated dimensions
-      console.log("PDF dimensions:", pageWidth, pageHeight);
-      console.log("Image dimensions:", imgWidth, imgHeight);
-
-      // Calculate the number of pages needed
-      const pagesCount = Math.ceil(imgHeight / pageHeight);
-      console.log("Pages count:", pagesCount);
+      // Calculate how many pages we need based on the image height
+      const pagesCount = Math.ceil(imgHeight / (pageHeight - 10)); // 10mm margin for top and bottom
 
       // If it's a single page document
       if (pagesCount <= 1) {
@@ -292,17 +294,13 @@ const blobToArrayBuffer = async (blob) => {
 // Enhanced utility function to merge PDFs with improved error handling
 const mergePdfs = async (headerPdfBytes, contentPdfBytes, footerPdfBytes) => {
   try {
-    console.log("Starting PDF merge process...");
-    
     // Create a new PDF document
     const mergedPdf = await PDFDocument.create();
     
     // Load content PDF first (this is required)
     let contentPdf;
     try {
-      console.log("Loading content PDF...");
       contentPdf = await PDFDocument.load(contentPdfBytes);
-      console.log("Content PDF loaded successfully with", contentPdf.getPageCount(), "pages");
     } catch (contentError) {
       console.error("Error loading content PDF:", contentError);
       throw new Error("Failed to load content PDF. This is a required component.");
@@ -312,12 +310,10 @@ const mergePdfs = async (headerPdfBytes, contentPdfBytes, footerPdfBytes) => {
     let headerPdf = null;
     if (headerPdfBytes) {
       try {
-        console.log("Loading header PDF...");
         headerPdf = await PDFDocument.load(headerPdfBytes);
-        console.log("Header PDF loaded successfully with", headerPdf.getPageCount(), "pages");
       } catch (headerError) {
         console.warn("Error loading header PDF:", headerError.message);
-        console.log("Will proceed without header PDF");
+        // Removed: console.log("Will proceed without header PDF");
       }
     }
 
@@ -325,25 +321,21 @@ const mergePdfs = async (headerPdfBytes, contentPdfBytes, footerPdfBytes) => {
     let footerPdf = null;
     if (footerPdfBytes) {
       try {
-        console.log("Loading footer PDF...");
         footerPdf = await PDFDocument.load(footerPdfBytes);
-        console.log("Footer PDF loaded successfully with", footerPdf.getPageCount(), "pages");
       } catch (footerError) {
         console.warn("Error loading footer PDF:", footerError.message);
-        console.log("Will proceed without footer PDF");
+        // Removed: console.log("Will proceed without footer PDF");
       }
     }
 
     // Copy pages from header PDF
     if (headerPdf) {
       try {
-        console.log("Copying header pages...");
         const headerPages = await mergedPdf.copyPages(
           headerPdf,
           headerPdf.getPageIndices()
         );
         headerPages.forEach((page) => mergedPdf.addPage(page));
-        console.log("Added", headerPages.length, "header pages");
       } catch (headerCopyError) {
         console.warn("Error copying header pages:", headerCopyError.message);
       }
@@ -351,13 +343,11 @@ const mergePdfs = async (headerPdfBytes, contentPdfBytes, footerPdfBytes) => {
 
     // Copy pages from content PDF (required)
     try {
-      console.log("Copying content pages...");
       const contentPages = await mergedPdf.copyPages(
         contentPdf,
         contentPdf.getPageIndices()
       );
       contentPages.forEach((page) => mergedPdf.addPage(page));
-      console.log("Added", contentPages.length, "content pages");
     } catch (contentCopyError) {
       console.error("Error copying content pages:", contentCopyError);
       throw new Error("Failed to copy content pages to merged PDF");
@@ -366,30 +356,25 @@ const mergePdfs = async (headerPdfBytes, contentPdfBytes, footerPdfBytes) => {
     // Copy pages from footer PDF
     if (footerPdf) {
       try {
-        console.log("Copying footer pages...");
         const footerPages = await mergedPdf.copyPages(
           footerPdf,
           footerPdf.getPageIndices()
         );
         footerPages.forEach((page) => mergedPdf.addPage(page));
-        console.log("Added", footerPages.length, "footer pages");
       } catch (footerCopyError) {
         console.warn("Error copying footer pages:", footerCopyError.message);
       }
     }
 
     // Serialize the merged PDF with compression options
-    console.log("Saving merged PDF...");
     const mergedPdfBytes = await mergedPdf.save({
       useObjectStreams: true,
       addDefaultPage: false,
     });
-    console.log("PDF merge completed successfully");
     return mergedPdfBytes;
   } catch (error) {
     console.error("Fatal error in PDF merge process:", error);
     // Return just the content PDF as a fallback
-    console.log("Returning only content PDF as fallback due to merge failure");
     return contentPdfBytes;
   }
 };
@@ -488,8 +473,6 @@ const PrintModal = ({
   handleDownloadPDF,
   contentRef,
   viewDetailsStatus,
-  DmcLogo,
-  DmcName,
   displayId,
   bookings,
   modifiedPriceData,
@@ -497,12 +480,87 @@ const PrintModal = ({
   discountAmount,
   totalPrice,
   tourId,
+  pricehide,
 }) => {
-  console.log("PrintModal received bookings:", bookings);
-  console.log("PrintModal received modifiedPriceData:", modifiedPriceData);
-  console.log("MA", markupAmount);
-  console.log("DA", discountAmount);
+  // Get agent info from Redux store
+  const agencyLogo = useSelector((state) => state.auth.agencyLogo);
+  const agentCompanyName = useSelector((state) => state.auth.agentCompanyName);
+  const sgdTax = useSelector((state) => state.auth.sgdTax);
+  
+  // Get currency information from Redux store
+  const currencySymbol = useSelector((state) => state.auth.currencySymbol);
+  const currencyCode = useSelector((state) => state.auth.currencyCode);
+  const exchangeRate = useSelector((state) => state.auth.exchangeRate);
+  const usdExchangeRate = useSelector((state) => state.auth.usdExchangeRate);
+  const usdCurrencySymbol = useSelector((state) => state.auth.usdCurrencySymbol);
+  const usdCurrencyCode = useSelector((state) => state.auth.usdCurrencyCode);
 
+  // Ensure agency logo is embeddable in html2canvas by resolving to a CORS-safe data URL
+  const [resolvedAgencyLogo, setResolvedAgencyLogo] = useState(agencyLogo || "");
+  // Helper to resolve a URL to data URL with proxy fallbacks
+  const resolveUrlToDataUrl = async (url) => {
+    try {
+      const direct = await fetch(url, { mode: "cors", cache: "force-cache" }).catch(() => null);
+      if (direct && direct.ok) {
+        const blob = await direct.blob();
+        return await new Promise((res) => {
+          const reader = new FileReader();
+          reader.onloadend = () => res(reader.result);
+          reader.readAsDataURL(blob);
+        });
+      }
+    } catch (_) {}
+    // Try AllOrigins
+    try {
+      const proxy = await fetch(`https://api.allorigins.win/raw?url=${encodeURIComponent(url)}`);
+      if (proxy.ok) {
+        const blob = await proxy.blob();
+        return await new Promise((res) => {
+          const reader = new FileReader();
+          reader.onloadend = () => res(reader.result);
+          reader.readAsDataURL(blob);
+        });
+      }
+    } catch (_) {}
+    // Try corsproxy.io
+    try {
+      const proxy2 = await fetch(`https://corsproxy.io/?${encodeURIComponent(url)}`);
+      if (proxy2.ok) {
+        const blob = await proxy2.blob();
+        return await new Promise((res) => {
+          const reader = new FileReader();
+          reader.onloadend = () => res(reader.result);
+          reader.readAsDataURL(blob);
+        });
+      }
+    } catch (_) {}
+    return url; // fallback
+  };
+
+  useEffect(() => {
+    let isCancelled = false;
+    async function resolveLogo() {
+      try {
+        if (!agencyLogo || typeof agencyLogo !== "string") {
+          setResolvedAgencyLogo("");
+          return;
+        }
+        if (agencyLogo.startsWith("data:")) {
+          setResolvedAgencyLogo(agencyLogo);
+          return;
+        }
+        const dataUrl = await resolveUrlToDataUrl(agencyLogo);
+        if (!isCancelled) setResolvedAgencyLogo(dataUrl || agencyLogo);
+      } catch (_) {
+        if (!isCancelled) setResolvedAgencyLogo(agencyLogo);
+      }
+    }
+    resolveLogo();
+    return () => {
+      isCancelled = true;
+    };
+  }, [agencyLogo]);
+  
   // Store the data in local state to ensure it persists through re-renders
   const [localBookings, setLocalBookings] = useState(bookings || {});
   const [localModifiedPriceData, setLocalModifiedPriceData] =
@@ -513,11 +571,12 @@ const PrintModal = ({
   );
   const [localDisplayId, setLocalDisplayId] = useState(displayId);
   const [localTotalPrice, setLocalTotalPrice] = useState(totalPrice || 0);
-  
+  const [localPricehide, setLocalPricehide] = useState(pricehide);
   // Add loading state for PDF generation
   const [isGeneratingPdf, setIsGeneratingPdf] = useState(false);
   const [pdfProgress, setPdfProgress] = useState({ status: '', progress: 0 });
   const [pdfError, setPdfError] = useState(null);
+
 
   // Update local state when props change
   useEffect(() => {
@@ -539,6 +598,9 @@ const PrintModal = ({
     if (totalPrice !== undefined) {
       setLocalTotalPrice(totalPrice);
     }
+    if (pricehide !== undefined) {
+      setLocalPricehide(pricehide);
+    }
   }, [
     bookings,
     modifiedPriceData,
@@ -546,6 +608,8 @@ const PrintModal = ({
     discountAmount,
     displayId,
     totalPrice,
+    pricehide,
+   
   ]);
 
   // When modal becomes visible, ensure we have the most recent data
@@ -553,15 +617,15 @@ const PrintModal = ({
     if (isPrintModalVisible) {
       // Only update if we have data
       if (bookings && Object.keys(bookings).length > 0) {
-        console.log("Updating localBookings from bookings", bookings);
+        //console.log("Updating localBookings from bookings", bookings);
         setLocalBookings(bookings);
       }
 
       if (modifiedPriceData && Object.keys(modifiedPriceData).length > 0) {
-        console.log(
-          "Updating localModifiedPriceData from modifiedPriceData",
-          modifiedPriceData
-        );
+        // console.log(
+        //   "Updating localModifiedPriceData from modifiedPriceData",
+        //   modifiedPriceData
+        // );
         setLocalModifiedPriceData(modifiedPriceData);
       }
 
@@ -570,6 +634,7 @@ const PrintModal = ({
       if (discountAmount !== undefined) setLocalDiscountAmount(discountAmount);
       if (displayId) setLocalDisplayId(displayId);
       if (totalPrice !== undefined) setLocalTotalPrice(totalPrice);
+      if (pricehide !== undefined) setLocalPricehide(pricehide);
     }
   }, [
     isPrintModalVisible,
@@ -579,13 +644,11 @@ const PrintModal = ({
     discountAmount,
     displayId,
     totalPrice,
+    pricehide,
+   
   ]);
 
-  // Add a new useEffect to log state changes for debugging
-  useEffect(() => {
-    console.log("localBookings updated:", localBookings);
-    console.log("localModifiedPriceData updated:", localModifiedPriceData);
-  }, [localBookings, localModifiedPriceData]);
+
 
   // Create an internal reference to the content
   const internalContentRef = useRef(null);
@@ -600,7 +663,7 @@ const PrintModal = ({
     
     try {
       // Show progress message
-      console.log("PDF generation process started...");
+      // console.log("PDF generation process started...");
       
       // Check if internal content ref is valid
       if (!internalContentRef || !internalContentRef.current) {
@@ -611,12 +674,18 @@ const PrintModal = ({
       }
 
       // Prepare content for PDF generation
-      console.log("Preparing content for PDF generation...");
+      // console.log("Preparing content for PDF generation...");
       setPdfProgress({ status: 'Preparing content...', progress: 15 });
       prepareContentForPdf(internalContentRef.current);
 
+      // Ensure agency logo is loaded before capturing
+      if (resolvedAgencyLogo) {
+        setPdfProgress({ status: 'Loading agency logo...', progress: 28 });
+        await preloadImage(resolvedAgencyLogo);
+      }
+
       // Generate the main content PDF first
-      console.log("Generating content PDF from HTML...");
+      // console.log("Generating content PDF from HTML...");
       setPdfProgress({ status: 'Generating content PDF...', progress: 30 });
       const contentBlob = await generateMainPdfBlob(internalContentRef.current)
         .catch(error => {
@@ -626,7 +695,7 @@ const PrintModal = ({
           throw new Error("Failed to generate content PDF from HTML");
         });
       
-      console.log("Converting content blob to array buffer...");
+      // console.log("Converting content blob to array buffer...");
       setPdfProgress({ status: 'Processing content PDF...', progress: 50 });
       const contentPdfBytes = await blobToArrayBuffer(contentBlob)
         .catch(error => {
@@ -646,14 +715,14 @@ const PrintModal = ({
       try {
         // Get country from tour destination or default to Singapore
         const country = displayData?.tour?.destination || 'Singapore';
-        console.log("Getting PDF templates for country:", country);
+        // console.log("Getting PDF templates for country:", country);
         
         // Set a timeout for the API request
         const controller = new AbortController();
         const timeoutId = setTimeout(() => controller.abort(), 15000); // 15 second timeout
         
         // Fetch the PDF URLs from the API
-        console.log("Fetching PDF template URLs from API...");
+        // console.log("Fetching PDF template URLs from API...");
         const response = await api.get("/get-pdf", {
           headers: {
             'country': country,
@@ -669,11 +738,11 @@ const PrintModal = ({
         clearTimeout(timeoutId);
         
         const data = response.data;
-        console.log("✅ Received PDF template data:", data);
+        // console.log("✅ Received PDF template data:", data);
         
         if (data && data.header_pdf) {
           const headerUrl = data.header_pdf;
-          console.log("Header PDF URL from API:", headerUrl);
+          // console.log("Header PDF URL from API:", headerUrl);
           setPdfProgress({ status: 'Fetching header PDF...', progress: 65 });
           
           let headerFetchSuccess = false;
@@ -681,18 +750,18 @@ const PrintModal = ({
           // Attempt 1: Try direct fetch
           if (!headerFetchSuccess) {
             try {
-              console.log("Attempting direct fetch for header PDF...");
+              // console.log("Attempting direct fetch for header PDF...");
               const directResponse = await fetch(headerUrl, {
                 headers: { 'Accept': 'application/pdf' }
               });
               
               if (directResponse.ok) {
                 headerPdfBytes = await directResponse.arrayBuffer();
-                console.log("✅ Successfully downloaded header PDF directly");
+                // console.log("✅ Successfully downloaded header PDF directly");
                 headerFetchSuccess = true;
               }
             } catch (directError) {
-              console.log("❌ Direct header fetch failed:", directError.message);
+              // console.log("❌ Direct header fetch failed:", directError.message);
             }
           }
           
@@ -701,12 +770,12 @@ const PrintModal = ({
             try {
               const proxyUrl = `https://api.allorigins.win/raw?url=${encodeURIComponent(headerUrl)}`;
               
-              console.log("Fetching header PDF through CORS proxy...");
+              // console.log("Fetching header PDF through CORS proxy...");
               const headerResponse = await fetch(proxyUrl);
               
               if (headerResponse.ok) {
                 headerPdfBytes = await headerResponse.arrayBuffer();
-                console.log("✅ Successfully downloaded header PDF from API");
+                //console.log("✅ Successfully downloaded header PDF from API");
                 headerFetchSuccess = true;
               } else {
                 throw new Error(`Failed to fetch through proxy: ${headerResponse.statusText}`);
@@ -719,26 +788,26 @@ const PrintModal = ({
           // Attempt 3: Try alternative proxy
           if (!headerFetchSuccess) {
             try {
-              console.log("Attempting alternative proxy for header PDF...");
+              //console.log("Attempting alternative proxy for header PDF...");
               const altProxyUrl = `https://corsproxy.io/?${encodeURIComponent(headerUrl)}`;
               const altResponse = await fetch(altProxyUrl);
               
               if (altResponse.ok) {
                 headerPdfBytes = await altResponse.arrayBuffer();
-                console.log("✅ Successfully downloaded header PDF through alternative proxy");
+                //console.log("✅ Successfully downloaded header PDF through alternative proxy");
                 headerFetchSuccess = true;
               }
             } catch (altError) {
-              console.log("❌ Alternative proxy failed:", altError.message);
+              //console.log("❌ Alternative proxy failed:", altError.message);
             }
           }
           
           // Fallback to static PDF if all attempts failed
           if (!headerFetchSuccess) {
-            console.log("Falling back to static header PDF...");
+            //console.log("Falling back to static header PDF...");
             try {
               headerPdfBytes = await fetchStaticPdf("/pdf/Singapore.pdf");
-              console.log("✅ Static header PDF loaded successfully");
+              //console.log("✅ Static header PDF loaded successfully");
             } catch (staticError) {
               console.warn("❌ Could not load static header PDF either:", staticError.message);
             }
@@ -749,7 +818,7 @@ const PrintModal = ({
         
         if (data && data.footer_pdf) {
           const footerUrl = data.footer_pdf;
-          console.log("Footer PDF URL from API:", footerUrl);
+          //console.log("Footer PDF URL from API:", footerUrl);
           setPdfProgress({ status: 'Fetching footer PDF...', progress: 75 });
           
           let footerFetchSuccess = false;
@@ -757,18 +826,18 @@ const PrintModal = ({
           // Attempt 1: Try direct fetch first (same as header)
           if (!footerFetchSuccess) {
             try {
-              console.log("Attempting direct fetch for footer PDF...");
+              //console.log("Attempting direct fetch for footer PDF...");
               const directResponse = await fetch(footerUrl, {
                 headers: { 'Accept': 'application/pdf' }
               });
               
               if (directResponse.ok) {
                 footerPdfBytes = await directResponse.arrayBuffer();
-                console.log("✅ Successfully downloaded footer PDF directly");
+                //console.log("✅ Successfully downloaded footer PDF directly");
                 footerFetchSuccess = true;
               }
             } catch (directError) {
-              console.log("❌ Direct footer fetch failed:", directError.message);
+              //console.log("❌ Direct footer fetch failed:", directError.message);
             }
           }
           
@@ -777,44 +846,44 @@ const PrintModal = ({
             try {
               const proxyUrl = `https://api.allorigins.win/raw?url=${encodeURIComponent(footerUrl)}`;
               
-              console.log("Fetching footer PDF through CORS proxy...");
+              //console.log("Fetching footer PDF through CORS proxy...");
               const footerResponse = await fetch(proxyUrl);
               
               if (footerResponse.ok) {
                 footerPdfBytes = await footerResponse.arrayBuffer();
-                console.log("✅ Successfully downloaded footer PDF from API");
+                //console.log("✅ Successfully downloaded footer PDF from API");
                 footerFetchSuccess = true;
               } else {
                 throw new Error(`Failed to fetch through proxy: ${footerResponse.statusText}`);
               }
             } catch (proxyError) {
-              console.warn("❌ Error fetching footer PDF through proxy:", proxyError.message);
+              //console.warn("❌ Error fetching footer PDF through proxy:", proxyError.message);
             }
           }
           
           // Attempt 3: Try alternative proxy (same as header)
           if (!footerFetchSuccess) {
             try {
-              console.log("Attempting alternative proxy for footer PDF...");
+              //console.log("Attempting alternative proxy for footer PDF...");
               const altProxyUrl = `https://corsproxy.io/?${encodeURIComponent(footerUrl)}`;
               const altResponse = await fetch(altProxyUrl);
               
               if (altResponse.ok) {
                 footerPdfBytes = await altResponse.arrayBuffer();
-                console.log("✅ Successfully downloaded footer PDF through alternative proxy");
+                //console.log("✅ Successfully downloaded footer PDF through alternative proxy");
                 footerFetchSuccess = true;
               }
             } catch (altError) {
-              console.log("❌ Alternative proxy failed:", altError.message);
+              //console.log("❌ Alternative proxy failed:", altError.message);
             }
           }
           
           // Fallback to static PDF if all attempts failed (same as header)
           if (!footerFetchSuccess) {
-            console.log("Falling back to static footer PDF...");
+            //console.log("Falling back to static footer PDF...");
             try {
               footerPdfBytes = await fetchStaticPdf("/pdf/Maldives.pdf");
-              console.log("✅ Static footer PDF loaded successfully");
+              //console.log("✅ Static footer PDF loaded successfully");
             } catch (staticError) {
               console.warn("❌ Could not load static footer PDF either:", staticError.message);
             }
@@ -829,7 +898,7 @@ const PrintModal = ({
         if (!headerPdfBytes) {
           try {
             headerPdfBytes = await fetchStaticPdf("/pdf/Singapore.pdf");
-            console.log("Static header PDF loaded as fallback");
+            //console.log("Static header PDF loaded as fallback");
           } catch (headerError) {
             console.warn("Could not load header PDF:", headerError.message);
           }
@@ -838,7 +907,7 @@ const PrintModal = ({
         if (!footerPdfBytes) {
           try {
             footerPdfBytes = await fetchStaticPdf("/pdf/Maldives.pdf");
-            console.log("Static footer PDF loaded as fallback");
+            //console.log("Static footer PDF loaded as fallback");
           } catch (footerError) {
             console.warn("Could not load footer PDF:", footerError.message);
           }
@@ -849,7 +918,7 @@ const PrintModal = ({
       let finalPdfBytes = contentPdfBytes;
       
       if (headerPdfBytes || footerPdfBytes) {
-        console.log("Merging PDFs...");
+        //console.log("Merging PDFs...");
         setPdfProgress({ status: 'Merging PDFs...', progress: 85 });
         try {
           finalPdfBytes = await mergePdfs(
@@ -857,7 +926,7 @@ const PrintModal = ({
             contentPdfBytes,
             footerPdfBytes
           );
-          console.log("PDFs merged successfully");
+          //console.log("PDFs merged successfully");
           setPdfProgress({ status: 'PDFs merged successfully', progress: 95 });
         } catch (mergeError) {
           console.warn("Error merging PDFs, using content only:", mergeError.message);
@@ -869,7 +938,7 @@ const PrintModal = ({
       }
       
       // Download the PDF
-      console.log("Downloading PDF...");
+      //console.log("Downloading PDF...");
       setPdfProgress({ status: 'Initiating download...', progress: 99 });
       
       try {
@@ -877,7 +946,7 @@ const PrintModal = ({
           finalPdfBytes,
           `tour_details_${localDisplayId || displayId || "booking"}.pdf`
         );
-        console.log("PDF download initiated");
+        //console.log("PDF download initiated");
         setPdfProgress({ status: 'Download complete!', progress: 100 });
         
         // Reset states after a short delay to show completed progress
@@ -912,11 +981,11 @@ const PrintModal = ({
 
       // Fallback to original PDF generation if our method fails
       if (handleDownloadPDF) {
-        console.log("Falling back to original PDF generation method");
+        //  console.log("Falling back to original PDF generation method");
         try {
           handleDownloadPDF();
         } catch (fallbackError) {
-          console.error("Fallback PDF generation also failed:", fallbackError);
+          // console.error("Fallback PDF generation also failed:", fallbackError);
         }
       }
     }
@@ -942,7 +1011,7 @@ const PrintModal = ({
 
   // Extract the data we'll be displaying
   const displayData = getDataSafely();
-  console.log("displayData", displayData);
+
 
   return (
     <Modal
@@ -1044,11 +1113,12 @@ const PrintModal = ({
             }}
           >
             <Box sx={{ textAlign: "center", mb: 4 }}>
-              {DmcLogo && (
+              {agencyLogo && (
                 <Box sx={{ mb: 2, display: "flex", justifyContent: "center" }}>
                   <Avatar
-                    src={DmcLogo}
-                    alt={DmcName || "DMC Logo"}
+                    src={resolvedAgencyLogo || agencyLogo}
+                    alt={agentCompanyName || "Agent Logo"}
+                    imgProps={{ crossOrigin: "anonymous" }}
                     sx={{ width: 80, height: 80, border: "2px solid #1976d2" }}
                   />
                 </Box>
@@ -1095,11 +1165,11 @@ const PrintModal = ({
                     <IconWrapper>
                       <AccountCircleIcon fontSize="small" />
                       <Typography variant="subtitle1">
-                        <strong>DMC Name:</strong>
+                        <strong>Agency Name:</strong>
                       </Typography>
                     </IconWrapper>
                     <Typography variant="h6" sx={{ ml: 3, color: "#1976d2" }}>
-                      {DmcName || "Sample DMC"}
+                      {agentCompanyName || "Travel Agency"}
                     </Typography>
                   </Grid>
                   <Grid item xs={12} md={4}>
@@ -1528,6 +1598,7 @@ const PrintModal = ({
                                 </Box>
                               </Grid>
                               <Grid item xs={12} sm={6} md={3}>
+                                    {localPricehide === "0" && (
                                 <Box
                                   sx={{
                                     display: "flex",
@@ -1554,6 +1625,7 @@ const PrintModal = ({
                                   >
                                     Total Price
                                   </Typography>
+                              
                                   <Typography
                                     variant="body1"
                                     sx={{
@@ -1563,7 +1635,10 @@ const PrintModal = ({
                                   >
                                     SGD {hotel.totalPrice || "N/A"}
                                   </Typography>
+                                
                                 </Box>
+                                  )}
+
                               </Grid>
                             </Grid>
                           </Paper>
@@ -2457,6 +2532,8 @@ const PrintModal = ({
                                         </Grid>
 
                                         <Grid item xs={12} sm={6}>
+                                        {localPricehide === "0" && (
+
                                           <Box
                                             sx={{
                                               display: "flex",
@@ -2477,8 +2554,12 @@ const PrintModal = ({
                                               <Typography variant="body1">
                                                 SGD {port.totalPrice || "N/A"}
                                               </Typography>
+                                            
                                             </Box>
+
                                           </Box>
+                                          )}
+
                                         </Grid>
                                       </Grid>
                                     </Paper>
@@ -2920,6 +3001,8 @@ const PrintModal = ({
                                         </Grid>
 
                                         <Grid item xs={12} sm={6}>
+                                        {localPricehide === "0" && (
+
                                           <Box
                                             sx={{
                                               display: "flex",
@@ -2942,6 +3025,8 @@ const PrintModal = ({
                                               </Typography>
                                             </Box>
                                           </Box>
+                                          )}
+
                                         </Grid>
                                       </Grid>
                                     </Paper>
@@ -3202,6 +3287,8 @@ const PrintModal = ({
                                     )}
 
                                     <Grid item xs={12} sm={6}>
+                                    {localPricehide === "0" && (
+
                                       <Box
                                         sx={{
                                           display: "flex",
@@ -3227,6 +3314,8 @@ const PrintModal = ({
                                           </Typography>
                                         </Box>
                                       </Box>
+                                          )}
+
                                     </Grid>
                                   </Grid>
                                 </Paper>
@@ -3863,6 +3952,8 @@ const PrintModal = ({
                                   </Grid>
 
                                   <Grid item xs={12} sm={6}>
+                                  {localPricehide === "0" && (
+
                                     <Box
                                       sx={{
                                         display: "flex",
@@ -3888,6 +3979,8 @@ const PrintModal = ({
                                         </Typography>
                                       </Box>
                                     </Box>
+                                        )}
+
                                   </Grid>
 
                                   {/* {guide.Tax && parseFloat(guide.Tax) > 0 && (
@@ -4147,6 +4240,8 @@ const PrintModal = ({
                                     </Grid>
 
                                     <Grid item xs={12} sm={6}>
+                                    {localPricehide === "0" && (
+
                                       <Box
                                         sx={{
                                           display: "flex",
@@ -4175,6 +4270,8 @@ const PrintModal = ({
                                           </Typography>
                                         </Box>
                                       </Box>
+                                          )}
+
                                     </Grid>
                                   </Grid>
                                 </Paper>
@@ -4947,6 +5044,8 @@ const PrintModal = ({
                                     )} */}
 
                                     <Grid item xs={12} sm={6} md={3}>
+                                    {localPricehide === "0" && (
+
                                       <Box
                                         sx={{
                                           p: 1.5,
@@ -4972,6 +5071,8 @@ const PrintModal = ({
                                           SGD {transfer.totalPrice || "N/A"}
                                         </Typography>
                                       </Box>
+                                        )}
+
                                     </Grid>
                                   </Grid>
                                 </Paper>
@@ -5151,10 +5252,10 @@ const PrintModal = ({
                               <strong>Base Price:</strong>
                             </Typography>
                             <Typography>
-                              SGD {localTotalPrice || totalPrice || 1500}
+                              SGD {(localTotalPrice || totalPrice || 0) + (localMarkupAmount || 0)}
                             </Typography>
                           </Box>
-                          <Box
+                          {/* <Box
                             sx={{
                               display: "flex",
                               justifyContent: "space-between",
@@ -5166,8 +5267,8 @@ const PrintModal = ({
                               <strong>Taxes & Fees:</strong>
                             </Typography>
                             <Typography>-</Typography>
-                          </Box>
-                          {(localMarkupAmount > 0 || markupAmount > 0) && (
+                          </Box> */}
+                          {/* {(localMarkupAmount > 0 || markupAmount > 0) && (
                             <Box
                               sx={{
                                 display: "flex",
@@ -5184,7 +5285,7 @@ const PrintModal = ({
                                 SGD {localMarkupAmount || markupAmount}
                               </Typography>
                             </Box>
-                          )}
+                          )} */}
                           {(localDiscountAmount > 0 || discountAmount > 0) && (
                             <Box
                               sx={{
@@ -5198,7 +5299,7 @@ const PrintModal = ({
                                 <strong>Discount:</strong>
                               </Typography>
                               <Typography color="error">
-                                -SGD {localDiscountAmount || discountAmount}
+                                SGD {localDiscountAmount || discountAmount}
                               </Typography>
                             </Box>
                           )}
@@ -5216,15 +5317,55 @@ const PrintModal = ({
                             <Typography variant="h6">
                               <strong>Total Price:</strong>
                             </Typography>
-                            <Typography
-                              variant="h6"
-                              sx={{ color: "#2e7d32", fontWeight: "bold" }}
-                            >
-                              SGD{" "}
-                              {(localTotalPrice || totalPrice || 1700) +
-                                (localMarkupAmount || markupAmount || 0) -
-                                (localDiscountAmount || discountAmount || 0)}
-                            </Typography>
+                            <Box sx={{ textAlign: "right" }}>
+                              {(() => {
+                                const baseTotal = (localTotalPrice || totalPrice || 0) +
+                                  (localMarkupAmount || markupAmount || 0) -
+                                  (localDiscountAmount || discountAmount || 0);
+                                const sgdWithTax = Math.ceil(baseTotal + (baseTotal * (sgdTax || 0)) / 100);
+                                const usdWithTax = Math.ceil((baseTotal * usdExchangeRate) + ((baseTotal * usdExchangeRate) * (sgdTax || 0)) / 100);
+                                const convertedWithTax = Math.ceil((baseTotal * exchangeRate) + ((baseTotal * exchangeRate) * (sgdTax || 0)) / 100);
+                                
+                                const formatPrice = (price) => {
+                                  if (typeof price !== 'number') return '0.00';
+                                  return price.toLocaleString('en-US', {
+                                    minimumFractionDigits: 2,
+                                    maximumFractionDigits: 2
+                                  });
+                                };
+                                
+                                return (
+                                  <>
+                                    <Typography
+                                      variant="h6"
+                                      sx={{ color: "#2e7d32", fontWeight: "bold" }}
+                                    >
+                                      {currencyCode} {formatPrice(convertedWithTax)}
+                                    </Typography>
+                                    <Typography
+                                      variant="body2"
+                                      sx={{ color: "#666", mt: 0.5 }}
+                                    >
+                                      {usdCurrencyCode} {formatPrice(usdWithTax)}
+                                    </Typography>
+                                    <Typography
+                                      variant="body2"
+                                      sx={{ color: "#666" }}
+                                    >
+                                      SGD {formatPrice(sgdWithTax)}
+                                    </Typography>
+                                    {sgdTax > 0 && (
+                                      <Typography
+                                        variant="caption"
+                                        sx={{ fontSize: "0.75rem", color: "#5E35B1", fontWeight: 600, display: "block", mt: 0.5 }}
+                                      >
+                                        (incl. {sgdTax}% tax)
+                                      </Typography>
+                                    )}
+                                  </>
+                                );
+                              })()}
+                            </Box>
                           </Box>
                         </Stack>
                       </Grid>
@@ -5238,7 +5379,7 @@ const PrintModal = ({
                           justifyContent: "center",
                         }}
                       >
-                        <Box
+                        {/* <Box
                           sx={{
                             width: "100%",
                             p: 3,
@@ -5261,7 +5402,7 @@ const PrintModal = ({
                             Your tour package is confirmed and ready for your
                             adventure!
                           </Typography>
-                        </Box>
+                        </Box> */}
                       </Grid>
                     </Grid>
                   </CardContent>
@@ -5277,14 +5418,13 @@ const PrintModal = ({
                   }}
                 >
                   <Typography variant="body2" color="textSecondary">
-                    Thank you for booking with us! For any assistance, please
-                    contact our customer support.
+                    Thank you for booking with {agentCompanyName || "us"}!
                   </Typography>
                   <Typography
                     variant="body2"
                     sx={{ mt: 1, fontWeight: "medium", color: "#1976d2" }}
                   >
-                    support@yourtravelagency.com | +1 (123) 456-7890
+                    {agentCompanyName || "Travel Agency"}
                   </Typography>
                 </Box>
               </CardContent>

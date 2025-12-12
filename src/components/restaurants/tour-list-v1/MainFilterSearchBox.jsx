@@ -5,6 +5,7 @@ import GuestSearch from "../common/GuestSearch";
 import LocationSearch from "../common/LocationSearch";
 import { setSearchParams,fetchRestaurants } from "../../../slice/restaurant/RestaurantsSlice";
 import { setSelectedCity } from "@/slice/common/commonSlice";
+import { triggerSearch, clearTriggerSearch } from "@/slice/common/stepsSlice";
 
 const MainFilterSearchBox = () => {
   const dispatch = useDispatch();
@@ -88,8 +89,22 @@ const handleSearch = () => {
     adults: guestCounts.Adults,
     children: guestCounts.Children,
     tour_id: tourdetails?.tour_id,
+    start: 0,
+    limit: 5,
   }));
 };
+
+  // Listen for triggerSearch from Redux and call handleSearch when restaurant step is triggered
+  const searchTrigger = useSelector((state) => state.steps.triggerSearch);
+  
+  useEffect(() => {
+    if (searchTrigger === 'restaurent') {
+      console.log('🔍 Restaurant MainFilterSearchBox - Trigger search received, calling handleSearch');
+      handleSearch();
+      // Clear the trigger after handling
+      dispatch(clearTriggerSearch());
+    }
+  }, [searchTrigger, dispatch]);
 
   return (
     <div className="mainSearch -col-3-big bg-white px-10 py-10 lg:px-20 lg:pt-5 lg:pb-20 rounded-4 mt-30">

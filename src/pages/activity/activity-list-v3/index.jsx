@@ -30,6 +30,9 @@ import {
   setSelectedVehicle,
   setMode,
   fetchVehicleDetails,
+  setSelectedPort,
+  fetchVehicles,
+  fetchZoneVehicles,
 } from "@/slice/localtour/Localslice";
 
 import MetaComponent from "@/components/common/MetaComponent";
@@ -82,6 +85,8 @@ const getRowBackgroundColor = (serviceType) => {
       return "rgba(33, 150, 243, 0.06)"; // Professional light blue
     case "Attraction":
       return "rgba(76, 175, 80, 0.06)"; // Professional light green
+    case "Attraction Package":
+      return "rgba(175, 76, 114, 0.06)"; // Professional light green
     case "Restaurant":
       return "rgba(244, 67, 54, 0.06)"; // Professional light red
     case "Entry Port":
@@ -108,6 +113,8 @@ const getRowBorderColor = (serviceType) => {
       return "#2196F3"; // Blue
     case "Attraction":
       return "#4CAF50"; // Green
+    case "Attraction Package":
+      return "#7E57C2"; // Green
     case "Restaurant":
       return "#F44336"; // Red
     case "Entry Port":
@@ -136,6 +143,13 @@ const getServiceTypeIcon = (serviceType) => {
       return (
         <ConfirmationNumberIcon
           className="text-green-1"
+          style={{ fontSize: 22 }}
+        />
+      );
+    case "Attraction Package":
+      return (
+        <ConfirmationNumberIcon
+          className="text-purple-1"
           style={{ fontSize: 22 }}
         />
       );
@@ -185,7 +199,10 @@ const ActivityListPage3 = () => {
   const vehicles = useSelector((state) => state.localtour.vehicles);
   console.log("vehicles69", vehicles);
   const status = useSelector((state) => state.localtour.status);
-
+  const PriceHide = useSelector((state) => state.auth.PriceHide);
+  const rawZoneOn = useSelector((state) => state.auth.zone_on);
+  const zone_on = rawZoneOn !== null ? Number(rawZoneOn) : null;
+console.log("zone_on5", zone_on);
   // Add this to check if vehicles is an array or an error object
   const isVehiclesArray = Array.isArray(vehicles);
   const vehiclesError = !isVehiclesArray && vehicles?.message;
@@ -199,6 +216,8 @@ const ActivityListPage3 = () => {
   const id = useSelector((state) => state.hotels.id);
   const [currentPage, setCurrentPage] = useState(1);
   const itemsPerPage = 5; // Adjust as needed
+  const [hasMore, setHasMore] = useState(true);
+  const [isLoadingMore, setIsLoadingMore] = useState(false);
   //const [sortOrder, setSortOrder] = useState("asc");
   const [sortedVehicles, setSortedVehicles] = useState([]);
   //const [filteredVehicles, setFilteredVehicles] = useState([]);
@@ -218,9 +237,11 @@ const ActivityListPage3 = () => {
         (viewDetails?.guide && viewDetails.guide.length > 0) ||
         (viewDetails?.travel_hourly && viewDetails.travel_hourly.length > 0) ||
         (viewDetails?.entry_port && viewDetails.entry_port.length > 0) ||
-        (viewDetails?.exit_port && viewDetails.exit_port.length > 0)) &&
+        (viewDetails?.exit_port && viewDetails.exit_port.length > 0) ||
+        (viewDetails?.local_transport && viewDetails.local_transport.length > 0)) &&
       (!viewDetails?.hotel || viewDetails?.hotel?.length === 0) &&
       (!viewDetails?.attraction || viewDetails?.attraction?.length === 0) &&
+      (!viewDetails?.attraction_package || viewDetails?.attraction_package?.length === 0) &&
       (!viewDetails?.restaurant || viewDetails?.restaurant?.length === 0);
 
     // console.log("DEBUG - Simplified Button Check:", {
@@ -264,21 +285,62 @@ const ActivityListPage3 = () => {
   const showAddTransferButton = shouldShowAddTransferButton();
 
   console.log("viewDetails", viewDetails);
-  const [showBookingTable, setShowBookingTable] = useState(true);
+
+  const bookingCount = useMemo(() => {
+    if (!viewDetails) return 0;
+
+    const serviceKeys = [
+      "hotel",
+      "attraction",
+      "attraction_package",
+      "restaurant",
+      "guide",
+      "travel_point",
+      "travel_hourly",
+      "local_transport",
+      "entry_port",
+      "exit_port",
+    ];
+
+    return serviceKeys.reduce((total, key) => {
+      const items = viewDetails[key];
+      if (Array.isArray(items)) {
+        return total + items.length;
+      }
+      return total;
+    }, 0);
+  }, [viewDetails]);
+
+  const hasBookings = bookingCount > 0;
+
+  const [showBookingTable, setShowBookingTable] = useState(hasBookings);
+  const [lastBookingCount, setLastBookingCount] = useState(bookingCount);
   const [selectedBooking, setSelectedBooking] = useState(null);
   const zoneType = useSelector((state) => state.localtour.zonetype);
 
   useEffect(() => {
     dispatch(fetchViewDetails({ tour_id: id }));
   }, [id]);
+
+  useEffect(() => {
+    if (!hasBookings) {
+      setShowBookingTable(false);
+      setLastBookingCount(0);
+      return;
+    }
+
+    if (bookingCount !== lastBookingCount) {
+      setShowBookingTable(true);
+      setLastBookingCount(bookingCount);
+    }
+  }, [hasBookings, bookingCount, lastBookingCount]);
+
   useEffect(() => {
     if (
       viewDetails === null ||
       (Array.isArray(viewDetails) && viewDetails.length === 0)
     ) {
       setShowBookingTable(false);
-    } else {
-      setShowBookingTable(true);
     }
   }, [viewDetails]);
 
@@ -346,7 +408,19 @@ const ActivityListPage3 = () => {
         });
       });
     }
-
+    if (viewDetails.attraction_package) {
+      viewDetails.attraction_package.forEach((attraction_package) => {
+        const date = attraction_package.bookingDate;
+        if (!bookingsByDate[date]) bookingsByDate[date] = [];
+        bookingsByDate[date].push({
+          ...attraction_package,
+          serviceType: "Attraction Package",
+          serviceName: attraction_package.AttractionName || "Unknown Attraction Package",
+          serviceImage: attraction_package.service_details?.master_image || "",
+          price: attraction_package.totalPrice,
+        });
+      });
+    }
     // Process restaurant bookings
     if (viewDetails.restaurant) {
       viewDetails.restaurant.forEach((restaurant) => {
@@ -441,9 +515,13 @@ const ActivityListPage3 = () => {
   };
 
   const handleBookTransfer = (booking, id, type) => {
+    if(zone_on === 1){
+      console.log("zone_on567", zone_on);
     dispatch(fetchLocalZone({ id, type }));
     dispatch(setSelectbooking(booking));
     dispatch(setPicktype(type));
+    dispatch(setSelectedPort("Local Transfer"));
+    }
     setShowBookingTable(false);
   };
 
@@ -576,6 +654,77 @@ const ActivityListPage3 = () => {
   const handleModeChange = (id, newMode, dmcId) => {
     dispatch(setMode({ [id]: { mode: newMode, dmcId } })); // ✅ Update Redux mode for specific vehicle
   };
+
+  // Reset current page when vehicles are cleared (new search)
+  useEffect(() => {
+    if (vehicles.length === 0) {
+      setCurrentPage(1);
+      setHasMore(true);
+    }
+  }, [vehicles.length]);
+
+  // Scroll detection for infinite scroll
+  useEffect(() => {
+    const handleScroll = () => {
+      if (
+        window.innerHeight + document.documentElement.scrollTop >=
+        document.documentElement.offsetHeight - 1000 && // Load more when 1000px from bottom
+        !isLoadingMore &&
+        hasMore &&
+        status !== "loading" &&
+        vehicles.length > 0 // Only load more if we have vehicles
+      ) {
+        setCurrentPage(prev => prev + 1);
+      }
+    };
+
+    window.addEventListener('scroll', handleScroll);
+    return () => window.removeEventListener('scroll', handleScroll);
+  }, [isLoadingMore, hasMore, status, vehicles.length]);
+
+  // Load more effect for infinite scroll
+  useEffect(() => {
+    if (currentPage > 1 && vehicles.length > 0) {
+      setIsLoadingMore(true);
+      // Dispatch action to fetch more vehicles based on selection type
+      const start = (currentPage - 1) * itemsPerPage;
+      
+      if (selectedPort === "Local Transfer") {
+        // For zone vehicles, use fetchZoneVehicles
+        dispatch(fetchZoneVehicles({ start, limit: itemsPerPage })).then((result) => {
+          setIsLoadingMore(false);
+          // Check if we have more data based on the response
+          if (result.payload && Array.isArray(result.payload)) {
+            if (result.payload.length < itemsPerPage) {
+              setHasMore(false);
+            }
+          } else {
+            setHasMore(false);
+          }
+        }).catch(() => {
+          setIsLoadingMore(false);
+          setHasMore(false);
+        });
+      } else {
+        // For regular vehicles, use fetchVehicles
+        dispatch(fetchVehicles({ start, limit: itemsPerPage })).then((result) => {
+          setIsLoadingMore(false);
+          // Check if we have more data based on the response
+          if (result.payload && Array.isArray(result.payload)) {
+            if (result.payload.length < itemsPerPage) {
+              setHasMore(false);
+            }
+          } else {
+            setHasMore(false);
+          }
+        }).catch(() => {
+          setIsLoadingMore(false);
+          setHasMore(false);
+        });
+      }
+    }
+  }, [currentPage, vehicles.length, itemsPerPage, dispatch, selectedPort]);
+
   const displayedVehicles = filteredVehicles.filter((vehicle) => {
     const dmcPrice = vehicle.dmc_sharable_price
       ? parseFloat(vehicle.dmc_sharable_price) * exchangeRate
@@ -613,7 +762,7 @@ const ActivityListPage3 = () => {
         <TourStatus />
       </div>
 
-      {showBookingTable && viewDetails ? (
+      {showBookingTable && hasBookings ? (
         <section className="layout-pt-md layout-pb-md">
           <div className="container-xxl">
             {/* Add debug panel */}
@@ -781,6 +930,35 @@ const ActivityListPage3 = () => {
                                   </div>
                                 )}
                                 {booking.serviceType === "Attraction" && (
+                                  <div className="d-flex flex-column">
+                                    <div className="d-flex items-center mb-10">
+                                      <PersonIcon
+                                        className="text-green-1 mr-10"
+                                        style={{ fontSize: 20 }}
+                                      />
+                                      <span className="fw-500 mr-5">
+                                        Guests:
+                                      </span>
+                                      <span className="text-15">
+                                        Adults: {booking.adultCount}, Children:{" "}
+                                        {booking.childCount}
+                                      </span>
+                                    </div>
+                                    <div className="d-flex items-center">
+                                      <ConfirmationNumberIcon
+                                        className="text-green-1 mr-10"
+                                        style={{ fontSize: 20 }}
+                                      />
+                                      <span className="fw-500 mr-5">
+                                        Ticket:
+                                      </span>{" "}
+                                      <span className="text-15">
+                                        {booking.ticketName}
+                                      </span>
+                                    </div>
+                                  </div>
+                                )}
+                                {booking.serviceType === "Attraction Package" && (
                                   <div className="d-flex flex-column">
                                     <div className="d-flex items-center mb-10">
                                       <PersonIcon
@@ -1142,6 +1320,36 @@ const ActivityListPage3 = () => {
                                         })}
                                   </div>
                                 )}
+                                {booking.serviceType === "Attraction Package" && (
+                                 <div>
+                                 {booking.visitTime &&
+                                   booking.visitTime
+                                     .split("-")
+                                     .map((time, i) => {
+                                       // Convert 24hr format to AM/PM
+                                       const [hours, minutes] =
+                                         time.split(":");
+                                       const h = parseInt(hours, 10);
+                                       const ampm = h >= 12 ? "PM" : "AM";
+                                       const hour = h % 12 || 12; // Convert 0 to 12 for 12 AM
+                                       return (
+                                         <div
+                                           className="d-flex items-center mt-10"
+                                           key={i}
+                                         >
+                                           <AccessTimeIcon
+                                             className="text-green-1 mr-10"
+                                             style={{ fontSize: 20 }}
+                                           />
+                                           <span className="text-15">
+                                             {i === 0 ? "From: " : "To: "}
+                                             {hour}:{minutes} {ampm}
+                                           </span>
+                                         </div>
+                                       );
+                                     })}
+                               </div>
+                                )}
                                 {booking.serviceType === "Restaurant" && (
                                   <div className="d-flex items-center">
                                     <AccessTimeIcon
@@ -1233,13 +1441,14 @@ const ActivityListPage3 = () => {
                                       justifyContent: "center",
                                     }}
                                   >
-                                    ${booking.price}
+                                    {PriceHide === "0" ? `$${booking.price}` : "Price Hidden"}
                                   </span>
                                 </div>
                               </td>
                               <td className="px-20 py-15">
                                 {(booking.serviceType === "Hotel" ||
                                   booking.serviceType === "Attraction" ||
+                                  booking.serviceType === "Attraction Package" ||
                                   booking.serviceType === "Restaurant") && (
                                   <button
                                     className="button -md -dark-1 bg-blue-1 text-white d-flex items-center justify-center"
@@ -1250,6 +1459,7 @@ const ActivityListPage3 = () => {
                                           booking.hotelDetails.hotel_id,
                                           "hotel"
                                         );
+                                        //dispatch(setSelectedPort("Local Transfer"));
                                       } else if (
                                         booking.serviceType === "Attraction"
                                       ) {
@@ -1258,6 +1468,16 @@ const ActivityListPage3 = () => {
                                           booking.service_details.attraction_id,
                                           "attraction"
                                         );
+                                       // dispatch(setSelectedPort("Local Transfer"));
+                                      } else if (
+                                        booking.serviceType === "Attraction Package"
+                                      ) {
+                                        handleBookTransfer(
+                                          booking,
+                                          booking.package_attraction_id,
+                                          "attraction_package"
+                                        );
+                                       // dispatch(setSelectedPort("Local Transfer"));
                                       } else if (
                                         booking.serviceType === "Restaurant"
                                       ) {
@@ -1266,6 +1486,7 @@ const ActivityListPage3 = () => {
                                           booking.service_details.restaurant_id,
                                           "restaurant"
                                         );
+                                       // dispatch(setSelectedPort("Local Transfer"));
                                       }
                                     }}
                                     style={{
@@ -1325,10 +1546,10 @@ const ActivityListPage3 = () => {
           <section className="pt-40 pb-40 bg-light-2">
             <div
               className={
-                selectedPort === "Hourly" ? "container" : "container-xxl"
+                selectedPort === "Hourly" ? "container" : "container-xxl padding-left-right-5"
               }
             >
-              <div className="row">
+              <div className="row" style={{ padding: "20px" }}>
                 <div className="col-12">
                   <div className="text-center">
                     <h1 className="text-30 fw-600">Local Tour</h1>
@@ -1341,8 +1562,8 @@ const ActivityListPage3 = () => {
             </div>
           </section>
           <section className="layout-pt-md layout-pb-lg">
-            <div className="container-xxl">
-              <div className="row y-gap-30">
+            <div className="container-xxl padding-left-right-5`">
+              <div className="row y-gap-30" style={{ padding: "20px" }}>
                 <div className="col-xl-3  d-xl-block">
                   <aside className="sidebar y-gap-40 xl:d-none">
                     <Sidebar
@@ -1408,13 +1629,12 @@ const ActivityListPage3 = () => {
                     <ActivityProperties1
                       vehicles={filteredVehicles}
                       status={status}
-                      currentPage={currentPage}
-                      itemsPerPage={itemsPerPage}
-                      onPageChange={handlePageChange}
                       onVehicleClick={handleVehicleClick}
                       selectedModes={mode} // ✅ Pass selected modes
                       setSelectedModes={handleModeChange} // ✅ Allow child to update mode
                       priceMode={priceMode}
+                      hasMore={hasMore}
+                      isLoadingMore={isLoadingMore}
                     />
                   </div>
                   {/* End .row */}

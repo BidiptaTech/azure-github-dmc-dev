@@ -18,7 +18,7 @@ const AccommodationDetails = ({ packageData }) => {
   }
   
   // Only show the first hotel
-  const hotel = hotels[0];
+  const hotel = hotels?.[0];
   
   return (
     <>

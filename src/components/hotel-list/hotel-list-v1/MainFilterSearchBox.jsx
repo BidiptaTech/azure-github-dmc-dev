@@ -11,7 +11,8 @@ import {
 import { useLocation, useNavigate } from "react-router-dom";
 import { useEffect, useRef, useState } from "react";
 import { DateObject } from "react-multi-date-picker";
-import { setSelectedCity } from "@/slice/common/commonSlice";
+import { setSelectedCity, setHaveBooking } from "@/slice/common/commonSlice";
+import { triggerSearch, clearTriggerSearch } from "@/slice/common/stepsSlice";
 
 const MainFilterSearchBox = () => {
   const dispatch = useDispatch();
@@ -103,6 +104,7 @@ const MainFilterSearchBox = () => {
   const defaultChildren = tourDetails?.child || 0;
 
   const handleSearch = () => {
+    //dispatch(setHaveBooking(false));
     dispatch(setSelectedCity(selectedLocation));
     dispatch(resetHotels());
 
@@ -194,6 +196,18 @@ const MainFilterSearchBox = () => {
       previousSearchLocation.current = true;
     }
   }, [dispatch]); // Only run once on component mount
+
+  // Listen for triggerSearch from Redux and call handleSearch when hotel step is triggered
+  const searchTrigger = useSelector((state) => state.steps.triggerSearch);
+  
+  useEffect(() => {
+    if (searchTrigger === 'hotel') {
+      console.log('🔍 Hotel MainFilterSearchBox - Trigger search received, calling handleSearch');
+      handleSearch();
+      // Clear the trigger after handling
+      dispatch(clearTriggerSearch());
+    }
+  }, [searchTrigger, dispatch]);
 
   return (
     <>

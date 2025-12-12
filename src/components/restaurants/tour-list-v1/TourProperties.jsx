@@ -1,8 +1,10 @@
 import React, { useEffect, useState, useRef } from "react";
 import { Swiper } from "swiper/react";
-import { Navigation, Pagination } from "swiper";
+import { Navigation, Pagination as SwiperPagination } from "swiper";
 import { useSelector, useDispatch } from "react-redux";
 import { useNavigate } from "react-router-dom";
+import moment from "moment";
+import { debounce } from "lodash";
 import {
   selectRestaurants,
   fetchRestaurants,
@@ -12,6 +14,7 @@ import {
   setHighestTotalPrice,
 } from "../../../slice/restaurant/RestaurantsSlice";
 import { selectBookingType, setBookingMode } from "../../../slice/common/commonSlice";
+import { selectSelectedDmcLogo, selectSelectedDmcCompanyName } from "../../../slice/dmc/dmcSlice"; // Import DMC slice selectors
 import TopHeaderFilter from "@/components/restaurants/tour-list-v1/TopHeaderFilter";
 import {
   Box,
@@ -24,68 +27,309 @@ import {
   Avatar,
 } from "@mui/material";
 
-// Create a Skeleton component
+// Skeleton Components
+const SkeletonBox = ({ width, height, borderRadius = "4px", marginBottom = "8px", delay = "0s", variant = "default" }) => {
+  const getGradient = () => {
+    switch (variant) {
+      case "image":
+        return "linear-gradient(90deg, #f0f0f0 25%, #e0e0e0 50%, #f0f0f0 75%)";
+      case "text":
+        return "linear-gradient(90deg, #f5f5f5 25%, #e8e8e8 50%, #f5f5f5 75%)";
+      case "button":
+        return "linear-gradient(90deg, #e3f2fd 25%, #bbdefb 50%, #e3f2fd 75%)";
+      case "price":
+        return "linear-gradient(90deg, #f3e5f5 25%, #e1bee7 50%, #f3e5f5 75%)";
+      default:
+        return "linear-gradient(90deg, #f0f0f0 25%, #e0e0e0 50%, #f0f0f0 75%)";
+    }
+  };
+
+  return (
+    <div
+      style={{
+        width,
+        height,
+        borderRadius,
+        marginBottom,
+        background: getGradient(),
+        backgroundSize: "200% 100%",
+        animation: `skeleton-loading 1.5s ease-in-out infinite ${delay}`,
+      }}
+    />
+  );
+};
+
 const RestaurantSkeleton = () => (
   <div className="col-12">
     <div className="border-top-light pt-30">
       <div className="row x-gap-20 y-gap-20">
         <div className="col-md-auto">
           <div className="cardImage ratio ratio-1:1 w-250 md:w-1/1 rounded-4">
-            <div style={{ 
-              background: '#f0f0f0',
-              height: '200px',
-              animation: 'pulse 1.5s infinite'
-            }} />
+            <div className="cardImage__content custom_inside-slider">
+              <SkeletonBox
+                height="200px"
+                borderRadius="8px"
+                marginBottom="0"
+                variant="image"
+                delay="0s"
+              />
+            </div>
           </div>
         </div>
         <div className="col-md">
-          <div style={{ 
-            background: '#f0f0f0',
-            height: '24px',
-            width: '70%',
-            marginBottom: '10px',
-            animation: 'pulse 1.5s infinite'
-          }} />
-          <div style={{ 
-            background: '#f0f0f0',
-            height: '18px',
-            width: '40%',
-            marginBottom: '10px',
-            animation: 'pulse 1.5s infinite'
-          }} />
-          <div style={{ 
-            background: '#f0f0f0',
-            height: '18px',
-            width: '60%',
-            animation: 'pulse 1.5s infinite'
-          }} />
+          <SkeletonBox
+            width="70%"
+            height="24px"
+            marginBottom="10px"
+            variant="text"
+            delay="0.1s"
+          />
+          <SkeletonBox
+            width="40%"
+            height="18px"
+            marginBottom="10px"
+            variant="text"
+            delay="0.2s"
+          />
+          <SkeletonBox
+            width="60%"
+            height="18px"
+            marginBottom="0"
+            variant="text"
+            delay="0.3s"
+          />
         </div>
-        <div className="col-md-auto">
-          <div style={{ 
-            background: '#f0f0f0',
-            height: '150px',
-            width: '160px',
-            marginBottom: '10px',
-            animation: 'pulse 1.5s infinite'
-          }} />
-          <div style={{ 
-            background: '#f0f0f0',
-            height: '40px',
-            width: '160px',
-            animation: 'pulse 1.5s infinite'
-          }} />
+        <div className="col-md-auto text-right md:text-left">
+          <Box sx={{ mt: 1, fontSize: "14px" }}>
+            <div className="skeleton-price-card" style={{
+              textAlign: "left",
+              border: "2px solid #ccc",
+              borderRadius: "12px",
+              padding: "16px",
+              margin: "8px",
+              width: "180px",
+              minHeight: "180px",
+              height: "auto",
+              background: "linear-gradient(135deg, #fafafa 0%, #f5f5f5 100%)",
+              boxShadow: "0 2px 8px rgba(0,0,0,0.05)",
+              display: "flex",
+              flexDirection: "column",
+              alignItems: "flex-start",
+            }}>
+              <SkeletonBox
+                width="100%"
+                height="20px"
+                marginBottom="8px"
+                variant="price"
+                delay="0.2s"
+              />
+              <SkeletonBox
+                width="80%"
+                height="16px"
+                marginBottom="8px"
+                variant="price"
+                delay="0.3s"
+              />
+              <SkeletonBox
+                width="90%"
+                height="16px"
+                marginBottom="8px"
+                variant="price"
+                delay="0.4s"
+              />
+              <SkeletonBox
+                width="70%"
+                height="16px"
+                marginBottom="8px"
+                variant="price"
+                delay="0.5s"
+              />
+            </div>
+          </Box>
+          <SkeletonBox
+            width="160px"
+            height="40px"
+            borderRadius="6px"
+            marginBottom="0"
+            variant="button"
+            delay="0.6s"
+          />
         </div>
       </div>
     </div>
   </div>
 );
 
-// Add CSS for skeleton animation
+const CompactRestaurantSkeleton = () => (
+  <div className="col-12">
+    <div className="border-top-light pt-30">
+      <div className="row x-gap-20 y-gap-20">
+        <div className="col-md-auto">
+          <div className="cardImage ratio ratio-1:1 w-250 md:w-1/1 rounded-4">
+            <div className="cardImage__content custom_inside-slider">
+              <SkeletonBox
+                height="200px"
+                borderRadius="8px"
+                marginBottom="0"
+                variant="image"
+                delay="0s"
+              />
+            </div>
+          </div>
+        </div>
+        <div className="col-md">
+          <SkeletonBox
+            width="70%"
+            height="24px"
+            marginBottom="10px"
+            variant="text"
+            delay="0.1s"
+          />
+          <SkeletonBox
+            width="40%"
+            height="18px"
+            marginBottom="10px"
+            variant="text"
+            delay="0.2s"
+          />
+          <SkeletonBox
+            width="60%"
+            height="18px"
+            marginBottom="0"
+            variant="text"
+            delay="0.3s"
+          />
+        </div>
+        <div className="col-md-auto text-right md:text-left">
+          <Box sx={{ mt: 1, fontSize: "14px" }}>
+            <div className="skeleton-price-card" style={{
+              textAlign: "left",
+              border: "2px solid #ccc",
+              borderRadius: "12px",
+              padding: "16px",
+              margin: "8px",
+              width: "180px",
+              minHeight: "180px",
+              height: "auto",
+              background: "linear-gradient(135deg, #fafafa 0%, #f5f5f5 100%)",
+              boxShadow: "0 2px 8px rgba(0,0,0,0.05)",
+              display: "flex",
+              flexDirection: "column",
+              alignItems: "flex-start",
+            }}>
+              <SkeletonBox
+                width="100%"
+                height="20px"
+                marginBottom="8px"
+                variant="price"
+                delay="0.2s"
+              />
+              <SkeletonBox
+                width="80%"
+                height="16px"
+                marginBottom="8px"
+                variant="price"
+                delay="0.3s"
+              />
+              <SkeletonBox
+                width="90%"
+                height="16px"
+                marginBottom="8px"
+                variant="price"
+                delay="0.4s"
+              />
+              <SkeletonBox
+                width="70%"
+                height="16px"
+                marginBottom="8px"
+                variant="price"
+                delay="0.5s"
+              />
+            </div>
+          </Box>
+          <SkeletonBox
+            width="160px"
+            height="40px"
+            borderRadius="6px"
+            marginBottom="0"
+            variant="button"
+            delay="0.6s"
+          />
+        </div>
+      </div>
+    </div>
+  </div>
+);
+
+const LoadingMoreSkeleton = () => (
+  <div className="text-center py-20">
+    <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '16px' }}>
+      <div style={{ 
+        width: '40px', 
+        height: '40px', 
+        border: '4px solid #f3f3f3', 
+        borderTop: '4px solid #3498db', 
+        borderRadius: '50%',
+        animation: 'skeleton-spin 1s linear infinite'
+      }} />
+      <Typography variant="body2" sx={{ color: '#666', fontSize: '14px' }}>
+        Loading more restaurants...
+      </Typography>
+    </div>
+    <CompactRestaurantSkeleton />
+    <CompactRestaurantSkeleton />
+  </div>
+);
+
+const SearchLoadingSkeleton = () => (
+  <>
+    {Array(5).fill(null).map((_, index) => (
+      <RestaurantSkeleton key={index} />
+    ))}
+  </>
+);
+
+const InitialLoadSkeleton = () => (
+  <>
+    {Array(3).fill(null).map((_, index) => (
+      <RestaurantSkeleton key={index} />
+    ))}
+  </>
+);
+
+// Enhanced CSS for skeleton animations
 const skeletonStyles = `
-  @keyframes pulse {
+  @keyframes skeleton-loading {
+    0% { background-position: -200% 0; }
+    100% { background-position: 200% 0; }
+  }
+  
+  @keyframes skeleton-shimmer {
     0% { opacity: 0.6; }
     50% { opacity: 1; }
     100% { opacity: 0.6; }
+  }
+  
+  @keyframes skeleton-spin {
+    0% { transform: rotate(0deg); }
+    100% { transform: rotate(360deg); }
+  }
+  
+  @keyframes skeleton-card-shimmer {
+    0% { box-shadow: 0 2px 8px rgba(0,0,0,0.05); }
+    50% { box-shadow: 0 4px 16px rgba(0,0,0,0.1); }
+    100% { box-shadow: 0 2px 8px rgba(0,0,0,0.05); }
+  }
+  
+  .skeleton-price-card {
+    animation: skeleton-card-shimmer 2s ease-in-out infinite;
+  }
+  
+  @media (max-width: 768px) {
+    .skeleton-price-card {
+      width: 160px !important;
+      min-height: 160px !important;
+    }
   }
 `;
 
@@ -95,16 +339,36 @@ const TourProperties = () => {
   const filters = useSelector(selectFilters);
   const restaurants = useSelector(selectRestaurants);
   const modeMap = useSelector((state) => state.restaurants.modeMap);
+  const isFromMainSearch = useSelector((state) => state.restaurants.isFromMainSearch);
   const [sortOrder, setSortOrder] = useState("asc");
   const [sortedRestaurants, setSortedRestaurants] = useState([]);
   const [isLoading, setIsLoading] = useState(true);
   const [isSearching, setIsSearching] = useState(false);
-  const dmcLogo = useSelector((state) => state.auth.DmcLogo);
-  const dmcName = useSelector((state) => state.auth.DmcName) || 'DMC';
+  
+  // Infinite scroll states
+  const [currentPage, setCurrentPage] = useState(1);
+  const [hasMore, setHasMore] = useState(true);
+  const [isLoadingMore, setIsLoadingMore] = useState(false);
+  
+  // Get DMC logo and company name from DMC slice instead of auth slice
+  const dmcLogo = useSelector(selectSelectedDmcLogo);
+  const dmcCompanyName = useSelector(selectSelectedDmcCompanyName) || 'DMC';
   const [selectedModes, setSelectedModes] = useState({});
   const bookingType = useSelector(selectBookingType);
   // Add this to track the restaurant loading status from Redux
   const restaurantStatus = useSelector((state) => state.restaurants.status);
+  
+  // Get search parameters from Redux for infinite scroll
+  const searchParamsFromRedux = useSelector((state) => state.restaurants.searchParams);
+  
+  // Get tour_id from global auth state and extract numeric part
+  const globalTourId = useSelector((state) => state.auth?.tourId || state.steps?.id);
+  const numericTourId = React.useMemo(() => {
+    if (!globalTourId) return null;
+    const tourIdStr = String(globalTourId);
+    const match = tourIdStr.match(/\d+$/); // Extract trailing digits
+    return match ? Number(match[0]) : null;
+  }, [globalTourId]);
   
   // Add currency information selectors
   const currencySymbol = useSelector((state) => state.auth.currencySymbol);
@@ -117,46 +381,187 @@ const TourProperties = () => {
   const PriceHide = useSelector((state) => state.auth.PriceHide);
   
 
+  // Initial load effect - only runs once on mount
+  // useEffect(() => {
+  //   // Only fetch if we have search parameters and not from main search
+  //   if (searchParamsFromRedux?.location?.address && !isFromMainSearch) {
+  //     const itemsPerPage = 5; // Define items per page constant
+      
+  //     // Show loading state
+  //     setIsLoading(true);
+      
+  //     dispatch(fetchRestaurants({
+  //       city: searchParamsFromRedux.location.address,
+  //       date: searchParamsFromRedux.date,
+  //       adults: searchParamsFromRedux.adults,
+  //       children: searchParamsFromRedux.children,
+  //       tour_id: searchParamsFromRedux.tour_id,
+  //       start: 0,
+  //       limit: itemsPerPage,
+  //     })).then((response) => {
+  //       // Check if we have more data to load
+  //       if (!response.payload || response.payload.length < itemsPerPage) {
+  //         setHasMore(false);
+  //       } else {
+  //         // If we got exactly itemsPerPage items, there might be more
+  //         setHasMore(response.payload.length === itemsPerPage);
+  //       }
+        
+  //       response.payload?.forEach((restaurant) => {
+  //         const hasValidDmcPrice = 
+  //           restaurant.dmc_breakfast_price > 0 || 
+  //           restaurant.dmc_lunch_price > 0 || 
+  //           restaurant.dmc_dinner_price > 0;
+  //         const hasValidTravClicksPrice = 
+  //           restaurant.travClicks_breakfast_price > 0 || 
+  //           restaurant.travClicks_lunch_price > 0 || 
+  //           restaurant.travClicks_dinner_price > 0;
+
+  //         // Set initial mode based on available prices
+  //         let initialMode;
+  //         if (hasValidDmcPrice) {
+  //           initialMode = "dmc";
+  //         } else if (hasValidTravClicksPrice) {
+  //           initialMode = "travclicks";
+  //         } else {
+  //           initialMode = "dmc"; // fallback
+  //         }
+
+  //         // Always dispatch the updateModeMap action with the determined mode
+  //         dispatch(
+  //           updateModeMap({
+  //             restaurantId: restaurant.id,
+  //             mode: initialMode,
+  //             prices: {
+  //               breakfast: getPrice(restaurant, initialMode, "breakfast"),
+  //               lunch: getPrice(restaurant, initialMode, "lunch"),
+  //               dinner: getPrice(restaurant, initialMode, "dinner"),
+  //             },
+  //           })
+  //         );
+  //       });
+  //     }).catch((error) => {
+  //       // Handle error
+  //       console.error("Error loading restaurants:", error);
+  //       setHasMore(false);
+  //     });
+  //   }
+  // }, [searchParamsFromRedux?.location?.address, isFromMainSearch, dispatch]);
+
+  // Infinite scroll effect - load more restaurants when scrolling with debounce
   useEffect(() => {
-    dispatch(fetchRestaurants()).then((response) => {
-      response.payload?.forEach((restaurant) => {
-        const hasValidDmcPrice = 
-          restaurant.dmc_breakfast_price > 0 || 
-          restaurant.dmc_lunch_price > 0 || 
-          restaurant.dmc_dinner_price > 0;
-        const hasValidTravClicksPrice = 
-          restaurant.travClicks_breakfast_price > 0 || 
-          restaurant.travClicks_lunch_price > 0 || 
-          restaurant.travClicks_dinner_price > 0;
+    const handleScroll = () => {
+      const scrollPosition = window.innerHeight + document.documentElement.scrollTop;
+      const scrollThreshold = document.documentElement.offsetHeight - 800; // Trigger earlier for better UX
+      
+      if (
+        scrollPosition >= scrollThreshold &&
+        hasMore &&
+        !isLoadingMore &&
+        searchParamsFromRedux?.location?.address && // Only enable infinite scroll if not from main search
+        restaurantStatus !== 'loading' // Don't trigger if already loading
+      ) {
+        // Log for debugging
+        const itemsPerPage = 5; // Same as defined in other effects
+        // console.log(`Triggering restaurant infinite scroll load: page ${currentPage + 1}, start: ${currentPage * itemsPerPage}`);
+        
+        //setIsLoadingMore(true);
+        setCurrentPage(prev => prev + 1);
+      }
+    };
 
-        // Set initial mode based on available prices
-        let initialMode;
-        if (hasValidDmcPrice) {
-          initialMode = "dmc";
-        } else if (hasValidTravClicksPrice) {
-          initialMode = "travclicks";
+    // Debounce the scroll handler to prevent too many calls
+    const debouncedHandleScroll = debounce(handleScroll, 100);
+
+    window.addEventListener('scroll', debouncedHandleScroll);
+    return () => {
+      window.removeEventListener('scroll', debouncedHandleScroll);
+      debouncedHandleScroll.cancel(); // Clean up debounce
+    };
+  }, [hasMore, isLoadingMore, searchParamsFromRedux?.location?.address, isFromMainSearch, restaurantStatus, currentPage]);
+
+  // Effect to load more restaurants when currentPage changes
+  useEffect(() => {
+    if (currentPage > 1 && restaurants.length > 0) {
+      const itemsPerPage = 5; // Define items per page constant
+      const start = (currentPage - 1) * itemsPerPage;
+      setIsLoadingMore(true);
+      dispatch(fetchRestaurants({
+        city: searchParamsFromRedux.location.address,
+        date: searchParamsFromRedux.date,
+        adults: searchParamsFromRedux.adults,
+        children: searchParamsFromRedux.children,
+        tour_id: numericTourId || searchParamsFromRedux.tour_id, // Use numeric tour_id
+        start: start,
+        limit: itemsPerPage,
+      })).then((response) => {
+        setIsLoadingMore(false);
+        
+        // If we get less than itemsPerPage items, we've reached the end
+        if (!response.payload || response.payload.length < itemsPerPage) {
+          setHasMore(false);
         } else {
-          initialMode = "dmc"; // fallback
+          // Check if we got exactly itemsPerPage items, which means there might be more
+          setHasMore(response.payload.length === itemsPerPage);
         }
+        
+        // Update mode map for new restaurants
+        response.payload?.forEach((restaurant) => {
+          const hasValidDmcPrice = 
+            restaurant.dmc_breakfast_price > 0 || 
+            restaurant.dmc_lunch_price > 0 || 
+            restaurant.dmc_dinner_price > 0;
+          const hasValidTravClicksPrice = 
+            restaurant.travClicks_breakfast_price > 0 || 
+            restaurant.travClicks_lunch_price > 0 || 
+            restaurant.travClicks_dinner_price > 0;
 
-        // Always dispatch the updateModeMap action with the determined mode
-        dispatch(
-          updateModeMap({
-            restaurantId: restaurant.id,
-            mode: initialMode,
-            prices: {
-              breakfast: getPrice(restaurant, initialMode, "breakfast"),
-              lunch: getPrice(restaurant, initialMode, "lunch"),
-              dinner: getPrice(restaurant, initialMode, "dinner"),
-            },
-          })
-        );
+          let initialMode;
+          if (hasValidDmcPrice) {
+            initialMode = "dmc";
+          } else if (hasValidTravClicksPrice) {
+            initialMode = "travclicks";
+          } else {
+            initialMode = "dmc";
+          }
+
+          dispatch(
+            updateModeMap({
+              restaurantId: restaurant.id,
+              mode: initialMode,
+              prices: {
+                breakfast: getPrice(restaurant, initialMode, "breakfast"),
+                lunch: getPrice(restaurant, initialMode, "lunch"),
+                dinner: getPrice(restaurant, initialMode, "dinner"),
+              },
+            })
+          );
+        });
+      }).catch((error) => {
+        // Handle error and reset loading state
+        console.error("Error loading more restaurants:", error);
+        setIsLoadingMore(false);
       });
-    });
-  }, []);
+    }
+  }, [currentPage, searchParamsFromRedux, dispatch, isFromMainSearch]);
+
+  // Reset pagination when restaurants array becomes empty (new search) or when isFromMainSearch changes
+  useEffect(() => {
+    if (restaurants.length === 0) {
+      setCurrentPage(1);
+      setHasMore(true); // Only set hasMore to true if not from main search
+    }
+  }, [restaurants.length]);
 
   // Update the useEffect to handle search loading based on Redux state
   useEffect(() => {
+    // If from main search, don't show loading states
+    // if (isFromMainSearch) {
+    //   setIsLoading(false);
+    //   setIsSearching(false);
+    //   return;
+    // }
+
     if (restaurantStatus === 'loading') {
       // Show skeleton loader when restaurants are loading
       setIsLoading(true);
@@ -178,7 +583,7 @@ const TourProperties = () => {
       
       return () => clearTimeout(timer);
     }
-  }, [restaurantStatus]);
+  }, [restaurantStatus, isFromMainSearch]);
 
   // Modify the useEffect for initial loading to only run once
   useEffect(() => {
@@ -366,17 +771,14 @@ const TourProperties = () => {
     // Add this line to update the bookingMode in Redux
     dispatch(setBookingMode(currentMode));
     
-    // Always use dmc_id = 15 when mode is travclicks
-    const dmc_id = currentMode === "travclicks" ? 15 : item.dmc_id;
-    
+    // The slice will automatically use the selected DMC ID from Redux
     // console.log('Selected mode:', currentMode);
-    // console.log('Selected dmc_id:', dmc_id);
 
     dispatch(
       fetchRestaurantsDetails({ 
         restaurantId: item.id, 
-        price_mode: currentMode, 
-        dmc_id: dmc_id 
+        price_mode: currentMode
+        // dmc_id will be automatically handled by the slice using Redux state
       })
     );
     
@@ -419,10 +821,7 @@ const TourProperties = () => {
           <style>{skeletonStyles}</style>
           <TopHeaderFilter onSort={handleSort} />
           <br />
-          {/* Show skeleton loading */}
-          {Array(5).fill(null).map((_, index) => (
-            <RestaurantSkeleton key={index} />
-          ))}
+          <SearchLoadingSkeleton />
         </>
       );
     }
@@ -442,9 +841,11 @@ const TourProperties = () => {
             />
           </div>
           <h5 className="MuiTypography-root MuiTypography-h5 css-hu3rhi-MuiTypography-root">
-            {filters.searchParams?.location 
-              ? `No restaurants found in ${filters.searchParams.location.address}. Please try a different location.`
-              : "Please provide restaurants location and date of journey and search..."}
+            {isFromMainSearch
+              ? "Please select a hotel first to view available restaurants"
+              : searchParamsFromRedux?.location?.address 
+                ? `No restaurants found in ${searchParamsFromRedux.location.address}. Please try a different location.`
+                : "Please provide restaurants location and date of journey and search..."}
           </h5>
         </div>
       </div>
@@ -458,9 +859,7 @@ const TourProperties = () => {
       <br />
       
       {isLoading ? (
-        Array(5).fill(null).map((_, index) => (
-          <RestaurantSkeleton key={index} />
-        ))
+        <InitialLoadSkeleton />
       ) : sortedRestaurants.length > 0 ? (
         <>
           {sortedRestaurants.map((item) => {
@@ -490,7 +889,7 @@ const TourProperties = () => {
                         <div className="cardImage__content custom_inside-slider">
                           <Swiper
                             className="mySwiper"
-                            modules={[Pagination, Navigation]}
+                            modules={[SwiperPagination, Navigation]}
                             pagination={{ clickable: true }}
                             navigation={true}
                           >
@@ -592,7 +991,7 @@ const TourProperties = () => {
                                         {dmcLogo && (
                                           <Avatar
                                             src={dmcLogo}
-                                            alt={`${dmcName} Logo`}
+                                            alt={`${dmcCompanyName} Logo`}
                                             sx={{ 
                                               width: 14,
                                               height: 14,
@@ -609,7 +1008,7 @@ const TourProperties = () => {
                                             fontSize: '0.7rem'
                                           }}
                                         >
-                                          {`${dmcName}'s Mode`}
+                                          {`${dmcCompanyName}'s Mode`}
                                         </Typography>
                                       </Box>
                                     </Box>
@@ -757,7 +1156,7 @@ const TourProperties = () => {
                                           {dmcLogo && (
                                             <Avatar
                                               src={dmcLogo}
-                                              alt={`${dmcName} Logo`}
+                                              alt={`${dmcCompanyName} Logo`}
                                               sx={{ 
                                                 width: 14,
                                                 height: 14,
@@ -774,7 +1173,7 @@ const TourProperties = () => {
                                               fontSize: '0.7rem'
                                             }}
                                           >
-                                            {`${dmcName}'s Mode`}
+                                            {`${dmcCompanyName}'s Mode`}
                                           </Typography>
                                         </Box>
                                       </Box>
@@ -1018,6 +1417,30 @@ const TourProperties = () => {
               </div>
             );
           })}
+          
+          {/* Loading more skeleton */}
+          {isLoadingMore && <LoadingMoreSkeleton />}
+          
+          {/* End of results indicator */}
+          {!hasMore && sortedRestaurants.length > 0 && (
+            <div className="text-center py-20">
+              <Typography
+                variant="body2"
+                sx={{
+                  color: '#6c757d',
+                  fontSize: '14px',
+                  fontWeight: 500,
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  gap: 1
+                }}
+              >
+                <span style={{ fontSize: '16px' }}>✓</span>
+                End of results • {sortedRestaurants.length} restaurants found
+              </Typography>
+            </div>
+          )}
         </>
       ) : (
         // Show a proper "no results" message after loading is complete
@@ -1037,8 +1460,8 @@ const TourProperties = () => {
             <h5 className="MuiTypography-root MuiTypography-h5 css-hu3rhi-MuiTypography-root">
               {bookingType === 'enquiry' 
                 ? "No restaurants available for enquiry. Please try a different selection."
-                : filters.searchParams?.location 
-                  ? `No restaurants found in ${filters.searchParams.location.address}. Please try a different location.`
+                : searchParamsFromRedux?.location?.address 
+                  ? `No restaurants found in ${searchParamsFromRedux.location.address}. Please try a different location.`
                   : "No restaurants found. Please try a different search."}
             </h5>
           </div>

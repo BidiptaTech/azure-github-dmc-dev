@@ -3,18 +3,24 @@ import axios from "axios";
 import Cookies from "js-cookie";
 import { logoutUser } from "../common/authSlices";
 import { BASE_URL } from "@/services/api";
+import { selectDmcId } from "../dmc/dmcSlice";
 import PickUpLocation from "@/components/hero/hero-8/PickUpLocation";
 import DropOffLocation from "@/components/hero/hero-8/DropOffLocation";
+import { setHaveBooking } from "@/slice/common/commonSlice";
+import { setTourId, updateStepStatus, statusUpdate, setType as setStepType } from "@/slice/common/stepsSlice";
+import { setTourIdd } from "@/slice/common/authSlices";
+import { setId } from "@/slice/hotel/hotelSlice";
 // import { pick } from "lodash";
 // import state from "sweetalert/typings/modules/state";
 //import { format } from "date-fns";
 export const fetchVehicles = createAsyncThunk(
   "localtour/fetchVehicles",
-  async (_, { rejectWithValue, getState }) => {
+  async (params1 = {}, { rejectWithValue, getState }) => {
     try {
       const state = getState(); // ✅ Get Redux state
       const { PickupPlaceid, DropoffPlaceid, pickdate, entrytime } =
         state.localtour;
+      const selectedDmcId = selectDmcId(state);
 
       if (!PickupPlaceid) {
         throw new Error("Pickup location is required");
@@ -31,6 +37,9 @@ export const fetchVehicles = createAsyncThunk(
         pickup: JSON.stringify(PickupPlaceid),
         time: JSON.stringify(entrytime),
         date: travelDate, // ✅ Include formatted date
+        dmc_id: selectedDmcId,
+        start: (params1 && params1.start) || undefined,
+        limit: (params1 && params1.limit) || undefined,
       };
 
       if (DropoffPlaceid) {
@@ -58,7 +67,7 @@ export const fetchVehicles = createAsyncThunk(
 );
 export const fetchZoneVehicles = createAsyncThunk(
   "localtour/fetchZoneVehicles",
-  async (_, { rejectWithValue, getState }) => {
+  async (params1 = {}, { rejectWithValue, getState }) => {
     try {
       const state = getState(); // ✅ Get Redux state
       const {
@@ -82,7 +91,7 @@ export const fetchZoneVehicles = createAsyncThunk(
 
       const authToken = Cookies.get("authToken");
       const AgentId = Cookies.get("AgentId");
-
+      const selectedDmcId = selectDmcId(state);
       // ✅ Format pickdate as JSON { "0": "YYYY-MM-DD" }
       const travelDate = JSON.stringify({ 0: pickdate });
 
@@ -96,9 +105,12 @@ export const fetchZoneVehicles = createAsyncThunk(
         date: travelDate, // ✅ Include formatted date
         pickup_type: picktype,
         drop_type: droptype, // Set default to 'hotel' if droptype is missing
+        dmc_id: selectedDmcId,
+        start: (params1 && params1.start) || undefined,
+        limit: (params1 && params1.limit) || undefined,
       };
 
-      console.log("Zone API parameters:", params);
+     
 
       // ✅ Make API request with dynamic params
       const response = await axios.get(`${BASE_URL}/zone-vehicles`, {
@@ -136,7 +148,7 @@ export const fetchVehicleDetails = createAsyncThunk(
         picktype,
         droptype,
       } = state.localtour;
-
+      const selectedDmcId = selectDmcId(state);
       // ✅ Validate required fields
       // if (!PickupZoneid || !PickupPlaceid)
       //   throw new Error("Pickup location is required");
@@ -149,7 +161,10 @@ export const fetchVehicleDetails = createAsyncThunk(
       if (
         userRole === "Sales Head(DMC)" ||
         userRole === "Sales Manager (DMC)" ||
-        userRole === "Assistant Manager (DMC)"
+        userRole === "Assistant Manager (DMC)" ||
+        userRole === "DMC Assistant Operational Manager" ||
+        userRole === "DMC Operational Manager" ||
+        userRole === "Operational Head(DMC)"
       ) {
         AgentId = agentID;
       } else {
@@ -167,12 +182,12 @@ export const fetchVehicleDetails = createAsyncThunk(
               date: travelDate,
               time: JSON.stringify(entrytime),
               mode: selectedVehicle?.mode,
-              dmc_id: selectedVehicle?.dmcId,
+              dmc_id: selectedDmcId,
               pickup_type: picktype,
               drop_type: droptype,
               city,
               country,
-              type,
+              type
             }
           : {
               pickup: JSON.stringify(PickupPlaceid),
@@ -180,7 +195,7 @@ export const fetchVehicleDetails = createAsyncThunk(
               time: JSON.stringify(entrytime),
               vehicle_id: selectedVehicle?.id,
               mode: selectedVehicle?.mode,
-              dmc_id: selectedVehicle?.dmcId,
+              dmc_id: selectedDmcId,
               city,
               country,
               type,
@@ -237,38 +252,24 @@ export const Localtourslice = createAsyncThunk(
         details1,
         tourid,
       } = state.localtour;
-      console.log("State values before FormData population:");
-      console.log({
-        entrypickup,
-        entrydropoff,
-        pickdate,
-        entrytime,
-        adult,
-        children,
-      });
-      console.log({
-        exitpickup,
-        pickdate,
-        entrytime1,
-        hours,
-        vehicletype1,
-        traveller1,
-      });
+     
 
-      console.log("xyz", typeof details);
-      console.log(typeof details);
+     
 
       const authToken = Cookies.get("authToken");
       // Corrected conditional statement
       const agentID = state.editing?.agentId;
       const userRole = state.auth?.userRole;
-
+      const selectedDmcId = selectDmcId(state);
       // Corrected conditional statement
       let AgentId;
       if (
         userRole === "Sales Head(DMC)" ||
         userRole === "Sales Manager (DMC)" ||
-        userRole === "Assistant Manager (DMC)"
+        userRole === "Assistant Manager (DMC)" ||
+        userRole === "DMC Assistant Operational Manager" ||
+        userRole === "DMC Operational Manager" ||
+        userRole === "Operational Head(DMC)"
       ) {
         AgentId = agentID;
       } else {
@@ -279,13 +280,53 @@ export const Localtourslice = createAsyncThunk(
         throw new Error("Authorization and AgentId are missing.");
       }
 
+      // Check if we have an existing tour_id from local state or global auth state
+      const globalTourId = state.auth?.tourId || state.steps?.id;
+      const effectiveTourId = tourid || globalTourId;
+      
+      // Extract numeric part from tour_id (e.g., "DMC-ORD2904" -> "2904")
+      let numericTourId = "";
+      if (effectiveTourId) {
+        const tourIdStr = String(effectiveTourId);
+        const match = tourIdStr.match(/\d+$/); // Extract trailing digits
+        numericTourId = match ? match[0] : tourIdStr;
+      }
+      
+      const hasTourId = numericTourId && Number(numericTourId) > 0;
+
+      // Build tour meta to let backend create tour during booking
+      const bookings = state.bookings || {};
+      const auth = state.auth || {};
+
+      const countryCodeToName = {};
+      if (auth.user_country && Array.isArray(auth.user_country)) {
+        auth.user_country.forEach((country) => {
+          if (country && country.name && country.code) {
+            countryCodeToName[country.code] = country.name;
+            countryCodeToName[country.code.toLowerCase()] = country.name;
+          }
+        });
+      }
+
+      const searchLocation = bookings.searchLocation || [];
+      const destination = (Array.isArray(searchLocation) ? searchLocation : [searchLocation])
+        .map((loc) => countryCodeToName[loc] || loc)
+        .join(", ");
+      const check_in = bookings.checkIn || "";
+      const check_out = bookings.checkOut || "";
+      const bGuests = bookings.guests || {};
+      const adultMeta = bGuests.adults ?? 1;
+      const childMeta = bGuests.children ?? 0;
+      const infantMeta = bGuests.infant ?? 0;
+      const maleMeta = bGuests.maleCount ?? 0;
+      const femaleMeta = bGuests.femaleCount ?? 0;
+      const children_ages = (bGuests.childrenAges || []).join(", ");
+
       // Create FormData instances
       let formData = {};
       let formData1 = {};
 
-      // Create JSON objects based on the provided conditions
-      // let json0 = {};
-      // let json1 = {};
+     
 
       // Populate FormData if entrypickup and related fields exist
       if (
@@ -298,25 +339,27 @@ export const Localtourslice = createAsyncThunk(
         children !== null &&
         children !== undefined
       ) {
-        // json0 = {
-        //   entrypickup,
-        //   entrydropoff,
-        //   pickupdate,
-        //   entrytime,
-        //   vehicletype,
-        //   traveller0,
-        // };
-        // formData.append("data", details);
-        // formData.append("type", type);
-        // formData.append("agent_id", AgentId);
-        // formData.append("tour_id", tourid);
+      
         formData = {
-          data: details,
+          data: details.map(item => ({ ...item, dmc_id: selectedDmcId })),
           type: selectedType === "travelpointzone" ? type2 : type,
           agent_id: AgentId,
-          tour_id: tourid,
+          tour_id: hasTourId ? Number(numericTourId) : "",
           bookingType: bookingtype,
         };
+
+        // Only add tour meta if no tour_id exists
+        if (!hasTourId) {
+          formData.destination = destination;
+          formData.check_in = check_in;
+          formData.check_out = check_out;
+          formData.adult = adultMeta;
+          formData.child = childMeta;
+          formData.infant = infantMeta;
+          formData.male = maleMeta;
+          formData.female = femaleMeta;
+          formData.children_ages = children_ages;
+        }
       }
 
       if (
@@ -329,28 +372,29 @@ export const Localtourslice = createAsyncThunk(
         children !== null &&
         children !== undefined
       ) {
-        // json1 = {
-        //   exitpickup,
-        //   exitpickupdate,
-        //   entrytime1,
-        //   hours,
-        //   vehicletype1,
-        //   traveller1,
-        // };
-        // formData1.append("data", details1);
-        // formData1.append("type", type1);
-        // formData1.append("agent_id", AgentId);
-        // formData1.append("tour_id", tourid);
+       
         formData1 = {
-          data: details1,
+          data: details1.map(item => ({ ...item, dmc_id: selectedDmcId })),
           type: type1,
           agent_id: AgentId,
-          tour_id: tourid,
+          tour_id: hasTourId ? Number(numericTourId) : "",
           bookingType: bookingtype,
         };
+
+        // Only add tour meta if no tour_id exists
+        if (!hasTourId) {
+          formData1.destination = destination;
+          formData1.check_in = check_in;
+          formData1.check_out = check_out;
+          formData1.adult = adultMeta;
+          formData1.child = childMeta;
+          formData1.infant = infantMeta;
+          formData1.male = maleMeta;
+          formData1.female = femaleMeta;
+          formData1.children_ages = children_ages;
+        }
       }
-      console.log("formdata", formData);
-      console.log("formdata1", formData1);
+      
       let selectedFormData = null;
       if (selectedType === "travelpoint" && "data" in formData) {
         selectedFormData = formData;
@@ -376,16 +420,9 @@ export const Localtourslice = createAsyncThunk(
       } else {
         throw new Error("No valid data to submit.");
       }
-      console.log("formselectLocal", selectedFormData);
+     
 
-      // Debugging: Log selected FormData
-      // console.log("Selected FormData content:");
-      // for (let [key, value] of selectedFormData.entries()) {
-      //   console.log(`${key}: ${value}`);
-      // }
-
-      // Skip API call for debugging
-      //return { message: "Debugging FormData complete, no API call made." };
+     
 
       // Uncomment the code below for the actual API call
 
@@ -403,6 +440,20 @@ export const Localtourslice = createAsyncThunk(
 
       console.log("API Response:", response.data);
 
+      // Extract and dispatch tour_id if this was the first booking (tour created)
+      const tourId = response.data?.order?.tour_id || response.data?.tour_id;
+      if (tourId) {
+        dispatch(setId(tourId));
+        dispatch(setTourId(tourId));
+        dispatch(setTourIdd(tourId));
+        console.log("Tour ID created and stored from local transport booking:", tourId);
+        
+        // Update step status to mark travel as completed
+        dispatch(updateStepStatus({ key: 'travel', status: 3 }));
+        dispatch(setStepType(null));
+        dispatch(statusUpdate());
+      }
+
       // Check if response has the expected structure
       if (!response.data || !response.data.service) {
         console.error("Invalid response structure:", response.data);
@@ -411,8 +462,7 @@ export const Localtourslice = createAsyncThunk(
 
       // Extracting response data - CORRECTED to use service.data
       const responseData = response.data.service.data || [];
-      console.log("Response data array:", responseData);
-
+     
       // Check if responseData exists and is an array
       if (!Array.isArray(responseData)) {
         console.error(
@@ -424,8 +474,7 @@ export const Localtourslice = createAsyncThunk(
         const travelPointData = [];
         const travelHourlyData = [];
 
-        console.log("Filtered travel_point data:", travelPointData);
-        console.log("Filtered travel_hourly data:", travelHourlyData);
+     
 
         // Return the response anyway for error handling
         return response.data;
@@ -504,9 +553,7 @@ export const Localtourslice = createAsyncThunk(
         return false; // Default to false for safety
       });
 
-      console.log("Filtered travel_point data:", travelPointData);
-      console.log("Filtered travel_hourly data:", travelHourlyData);
-      console.log("FIltered zone data", travelZoneData);
+    
 
       // Use the service type as fallback
       if (
@@ -514,13 +561,13 @@ export const Localtourslice = createAsyncThunk(
         responseData.length > 0
       ) {
         dispatch(setPointToPoint(responseData));
-        console.log("Dispatched to Point to Point based on service type");
+        
       } else if (
         response.data.service.type === "travel_hourly" &&
         responseData.length > 0
       ) {
         dispatch(setHourly(responseData));
-        console.log("Dispatched to Hourly based on service type");
+     
       } else if (
         response.data.service.type === "local_transport" &&
         responseData.length > 0
@@ -641,6 +688,7 @@ const LocalSlice = createSlice({
     pricemode: "",
     bookingtype: "",
     selectedPort: "",
+    port: "",
     zone: [],
     picktype: "",
     droptype: "",
@@ -671,7 +719,7 @@ const LocalSlice = createSlice({
     //   },
     setpickupdate: (state, action) => {
       state.pickupdate = action.payload;
-      console.log("Updated pickupdate:", state.pickupdate); // Log AFTER state update
+    
     },
     setpickdate: (state, action) => {
       // Check if payload is a Moment object and convert to string if it is
@@ -680,58 +728,58 @@ const LocalSlice = createSlice({
       } else {
         state.pickdate = action.payload;
       }
-      console.log("abcd", state.pickdate);
+  
     },
 
     setexitpickupdate: (state, action) => {
       state.exitpickupdate = action.payload;
-      console.log("ldrop", state.exitpickupdate);
+ 
     },
     setentrytime: (state, action) => {
       state.entrytime = action.payload;
-      console.log("entrytime00", state.entrytime);
+   
     },
     setPickupPlaceid: (state, action) => {
       state.PickupPlaceid = action.payload;
-      console.log("pickplaceid", state.PickupPlaceid);
+      
     },
     setDropoffPlaceid: (state, action) => {
       state.DropoffPlaceid = action.payload;
-      console.log("dropplaceid", state.DropoffPlaceid);
+     
     },
     setPickupZoneid: (state, action) => {
       state.PickupZoneid = action.payload;
-      console.log("pickplaceid", state.PickupPlaceid);
+      
     },
     setDropoffZoneid: (state, action) => {
       state.DropoffZoneid = action.payload;
-      console.log("dropplaceid", state.DropoffPlaceid);
+     
     },
     setPriceMode1: (state, action) => {
       state.pricemode = action.payload;
-      console.log("m", state.pricemode);
+     
     },
     setbookingtype3: (state, action) => {
       state.bookingtype = action.payload;
-      console.log("bookingtype", state.bookingtype);
+     
     },
     // setexittime: (state, action) => {
     //   state.exittime = action.payload;
     // },
     setentrytime1: (state, action) => {
       state.entrytime1 = action.payload;
-      console.log("entrytime11", state.entrytime1);
+      
     },
     sethour: (state, action) => {
       state.hours = action.payload;
     },
     setadult: (state, action) => {
       state.adult = action.payload;
-      console.log("adult", state.adult);
+    
     },
     setchildren: (state, action) => {
       state.children = action.payload;
-      console.log("chil", state.children);
+     
     },
     setAdultCount: (state, action) => {
       state.adultCount = action.payload;
@@ -770,38 +818,42 @@ const LocalSlice = createSlice({
       } else {
         state.details1[0] = action.payload; // ✅ Insert if empty
       }
-      console.log("xyx", state.details1);
+     
     },
     setPointToPoint: (state, action) => {
       // Append new form data to the existing pointtopoint array
       state.pointtopoint = action.payload;
-      console.log("p2p", state.pointtopoint);
+     
     },
     setHourly: (state, action) => {
       // Append new form data to the existing hourly array
       state.hourly = action.payload;
-      console.log(("hour", state.hourly));
+     
     },
     setZone: (state, action) => {
       // Append new form data to the existing pointtopoint array
       state.Zonebook = action.payload;
-      console.log("z2z", state.Zonebook);
+     
     },
     setSelectionType: (state, action) => {
       state.selectionType = action.payload;
-      console.log("type", state.selectionType);
+      
     },
     setMode: (state, action) => {
       state.mode = { ...state.mode, ...action.payload }; // ✅ Merge new mode
-      console.log("Updated Mode:", state.mode);
+      
     },
     setSelectedVehicle: (state, action) => {
       state.selectedVehicle = action.payload;
-      console.log("mode array", state.selectedVehicle);
+      
     },
     setSelectedPort: (state, action) => {
       state.selectedPort = action.payload;
       console.log("selectedPort", state.selectedPort);
+    },
+    setPort: (state, action) => {
+      state.port = action.payload;
+      
     },
     resetVehicles1: (state, action) => {
       state.vehicles = [];
@@ -813,7 +865,7 @@ const LocalSlice = createSlice({
       state.entrytime = "";
       state.DropoffPlaceid = "";
       state.PickupPlaceid = "";
-      state.zone = [];
+    
       state.PickupZoneid = "";
       state.DropoffZoneid = "";
       //state.selectedVehicleId = null;
@@ -852,19 +904,33 @@ const LocalSlice = createSlice({
       })
       .addCase(fetchVehicles.fulfilled, (state, action) => {
         state.status = "succeeded";
-        state.vehicles = action.payload;
-        console.log("vehicles", state.vehicles);
-
-        // ✅ Reset PickupPlaceid & DropoffPlaceid after API success
-        //state.PickupPlaceid = null;
-        //state.DropoffPlaceid = null;
-
-        //console.log("Fetched Attractions Data:", action.payload); // Log the fetched data
+        if(action.payload && typeof action.payload === 'object' && action.payload.success === false){
+         
+          state.vehicles = [];
+          state.error = action.payload.message;
+         
+        } else {
+          // Support infinite scrolling - check if it's initial load or subsequent load
+          const { start = 0 } = action.meta?.arg || {};
+          
+          if (start === 0) {
+            // First page - replace vehicles
+            state.vehicles = action.payload;
+           
+          } else {
+            // Subsequent pages - accumulate vehicles
+            const existingIds = new Set(state.vehicles.map(vehicle => vehicle.id));
+            const newVehicles = action.payload.filter(vehicle => !existingIds.has(vehicle.id));
+            state.vehicles = [...state.vehicles, ...newVehicles];
+           
+          }
+        }
+       
       })
       .addCase(fetchVehicles.rejected, (state, action) => {
         state.status = "failed";
-        state.error = action.payload; // Save the error in state
-        console.error("Error fetching attractions:", action.payload); // Log error details
+        state.error = action.payload.message; // Save the error in state
+        
       });
 
     builder
@@ -874,19 +940,34 @@ const LocalSlice = createSlice({
       })
       .addCase(fetchZoneVehicles.fulfilled, (state, action) => {
         state.status = "succeeded";
-        state.vehicles = action.payload;
-        console.log("vehicles", state.vehicles);
+        if(action.payload && typeof action.payload === 'object' && action.payload.success === false){
+         
+          state.vehicles = [];
+          state.error = action.payload.message;
+       
+        } else {
+          // Support infinite scrolling - check if it's initial load or subsequent load
+          const { start = 0 } = action.meta?.arg || {};
+          
+          if (start === 0) {
+            // First page - replace vehicles
+            state.vehicles = action.payload;
+           
+          } else {
+            // Subsequent pages - accumulate vehicles
+            const existingIds = new Set(state.vehicles.map(vehicle => vehicle.id));
+            const newVehicles = action.payload.filter(vehicle => !existingIds.has(vehicle.id));
+            state.vehicles = [...state.vehicles, ...newVehicles];
+           
+          }
+        }
 
-        // ✅ Reset PickupPlaceid & DropoffPlaceid after API success
-        //state.PickupPlaceid = null;
-        //state.DropoffPlaceid = null;
-
-        //console.log("Fetched Attractions Data:", action.payload); // Log the fetched data
+       
       })
       .addCase(fetchZoneVehicles.rejected, (state, action) => {
         state.status = "failed";
-        state.error = action.payload; // Save the error in state
-        console.error("Error fetching attractions:", action.payload); // Log error details
+        state.error = action.payload.message; // Save the error in state
+       
       });
 
     // ... (other extraReducers)
@@ -904,6 +985,7 @@ const LocalSlice = createSlice({
         state.loading = false;
         state.error = action.payload;
       });
+    
   },
 });
 
@@ -939,6 +1021,7 @@ export const {
   resetVehicles1,
   setbookingtype3,
   setSelectedPort,
+  setPort,
   setPicktype,
   setDroptype,
   setSelectbooking,

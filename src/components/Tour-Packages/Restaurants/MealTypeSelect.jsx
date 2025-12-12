@@ -56,22 +56,40 @@ const MealTypeSelect = ({ value, onChange, restaurantDetails, disabled }) => {
   };
 
   return (
-    <FormControl fullWidth disabled={disabled}>
-      <InputLabel>Meal Type</InputLabel>
+    <FormControl fullWidth disabled={disabled} size="small">
+      <InputLabel sx={{ fontSize: '0.8rem' }}>Meal Type</InputLabel>
       <Select
         value={value}
         label="Meal Type"
         onChange={onChange}
+        sx={{
+          height: '42px',
+          '& .MuiSelect-select': {
+            fontSize: '0.8rem'
+          }
+        }}
+        renderValue={(selected) => {
+          if (!selected) return <em>Select meal type</em>;
+          return (
+            <Box sx={{ display: 'flex', alignItems: 'center' }}>
+              {getMealIcon(selected)}
+              <Typography sx={{ ml: 1, fontSize: '0.8rem' }}>{selected}</Typography>
+            </Box>
+          );
+        }}
       >
+        <MenuItem value="" sx={{ fontSize: '0.8rem' }}>
+          <em>Select meal type</em>
+        </MenuItem>
         {Object.entries(availableMealTypes).map(([type, isAvailable]) => {
           if (!isAvailable) return null;
           const timeSlot = getTimeSlot(type);
           return (
-            <MenuItem key={type} value={type}>
+            <MenuItem key={type} value={type} sx={{ fontSize: '0.8rem' }}>
               <Box sx={{ display: 'flex', alignItems: 'center', width: '100%' }}>
-                <Box sx={{ display: 'flex', alignItems: 'center', mr: 2 }}>
+                <Box sx={{ display: 'flex', alignItems: 'center', mr: 1.5 }}>
                   {getMealIcon(type)}
-                  <Typography sx={{ ml: 1 }}>{type}</Typography>
+                  <Typography sx={{ ml: 1, fontSize: '0.8rem' }}>{type}</Typography>
                 </Box>
                 {timeSlot && (
                   <Chip
@@ -81,6 +99,8 @@ const MealTypeSelect = ({ value, onChange, restaurantDetails, disabled }) => {
                       ml: 'auto',
                       bgcolor: 'rgba(76, 175, 80, 0.08)',
                       color: '#4caf50',
+                      fontSize: '0.7rem',
+                      height: '18px'
                     }}
                   />
                 )}

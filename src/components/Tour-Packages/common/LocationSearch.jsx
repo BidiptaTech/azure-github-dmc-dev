@@ -104,18 +104,15 @@ const LocationSearch = ({ onLocationSelect, defaultDestination, defaultCity }) =
       setCitySuggestions(formattedCities);
 
       // Auto-select city if defaultCity is provided
-      if (defaultCity && formattedCities.length > 0 && !selectedCity) {
+      if (formattedCities.length > 0 && !selectedCity) {
         console.log('Auto-selecting city from packageData:', defaultCity);
         
         // Find matching city by name (case-insensitive)
-        const matchingCity = formattedCities.find(city => 
-          city.name.toLowerCase() === defaultCity.toLowerCase()
-        );
+        // const matchingCity = formattedCities.find(city => 
+        //   city.name.toLowerCase() === defaultCity.toLowerCase()
+        // );
         
-        if (matchingCity) {
-          console.log('Found matching city:', matchingCity);
-          setSearchValueCity(matchingCity.name);
-          setSelectedCity(matchingCity);
+
           setIsCityDropdownOpen(false);
           setIsFromPackageData(true);
           
@@ -123,14 +120,12 @@ const LocationSearch = ({ onLocationSelect, defaultDestination, defaultCity }) =
           if (onLocationSelect) {
             onLocationSelect({
               country: country.name,
-              countryCode: country.code,
-              city: matchingCity.name,
-              cityCode: matchingCity.code
+              countryCode: country.code
             });
           }
-        } else {
-          console.log('No matching city found for defaultCity:', defaultCity);
-        }
+        // } else {
+        //   console.log('No matching city found for defaultCity:', defaultCity);
+        // }
       }
     } catch (error) {
       console.error("Error fetching cities:", error);
@@ -528,7 +523,7 @@ const LocationSearch = ({ onLocationSelect, defaultDestination, defaultCity }) =
           </div>
         </div>
         
-        <div className="w-50" style={{ width: '50%' }}>
+        {/* <div className="w-50" style={{ width: '50%' }}>
           <div className="text-15 text-light-1 ls-2 lh-16 position-relative" style={{
             fontSize: '15px',
             color: '#666',
@@ -656,7 +651,7 @@ const LocationSearch = ({ onLocationSelect, defaultDestination, defaultCity }) =
               </div>
             )}
           </div>
-        </div>
+        </div> */}
       </div>
     </div>
   );

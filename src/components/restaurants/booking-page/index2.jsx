@@ -53,6 +53,8 @@ import DirectionsCarIcon from '@mui/icons-material/DirectionsCar';
 import AirportShuttleIcon from '@mui/icons-material/AirportShuttle';
 import LocalTaxiIcon from '@mui/icons-material/LocalTaxi';
 import GroupIcon from '@mui/icons-material/Group';
+import { selectSelectedDmcLogo, selectSelectedDmcCompanyName } from "../../../slice/dmc/dmcSlice";
+import { setHaveBooking } from "@/slice/common/commonSlice";
 
 const RoomCard = styled(Card)(({ theme }) => ({
   background: "white",
@@ -132,8 +134,8 @@ export default function Index2() {
   //  console.log('selectedRestaurant 13333333333',selectedRestaurant.id);
   
   const tourdetails = useSelector((state) => state.hotels.tourdetails);
-  const { DmcName, DmcLogo } = useSelector((state) => state.auth);
-
+  const dmcLogo = useSelector(selectSelectedDmcLogo);
+  const dmcCompanyName = useSelector(selectSelectedDmcCompanyName) || "DMC";
 
 
   const [showMoreIndex, setShowMoreIndex] = useState(null);
@@ -322,7 +324,6 @@ const truncateToWords = (text, wordLimit) => {
             transport: restaurantBookings?.[0]?.data?.[0]?.transport || null,
             transportPrice: transportPrice,
              priceTypes: restaurantBookings?.[0]?.data?.[0]?.priceTypes,
-             dmc_id: selectedRestaurant?.meals?.[0]?.dmc_id,
              bookingType: "booking",
            },
          ],
@@ -336,6 +337,7 @@ const truncateToWords = (text, wordLimit) => {
        if (response?.service?.date_service) {
          dispatch(setDateService(response.service.date_service));
          dispatch(setRestaurantsService(response.service.data));
+         dispatch(setHaveBooking(true));
          toast.success("Booking successful!", {
            position: "top-center",
            autoClose: 3000,
@@ -429,7 +431,6 @@ const truncateToWords = (text, wordLimit) => {
              transport: restaurantBookings?.[0]?.data?.[0]?.transport || null,
              transportPrice: transportPrice,
              priceTypes: restaurantBookings?.[0]?.data?.[0]?.priceTypes,
-             dmc_id: selectedRestaurant?.meals?.[0]?.dmc_id,
              bookingType: "enquiry",
            },
          ],
@@ -452,6 +453,7 @@ const truncateToWords = (text, wordLimit) => {
        dispatch(setDateService(response.service.date_service));
        dispatch(setRestaurantsService(response.service.data));
        
+       dispatch(setHaveBooking(true));
        toast.success("Enquiry submitted successfully!", {
          position: "top-center",
          autoClose: 3000,
@@ -1334,10 +1336,10 @@ const truncateToWords = (text, wordLimit) => {
                               gap: 0.8,
                             }}
                           >
-                            {DmcLogo ? (
+                            {dmcLogo ? (
                               <Avatar
-                                src={DmcLogo}
-                                alt="DMC Logo"
+                                src={dmcLogo}
+                                alt={`${dmcCompanyName} Logo`}
                                 sx={{ width: 24, height: 24 }}
                               />
                             ) : (
@@ -1350,7 +1352,7 @@ const truncateToWords = (text, wordLimit) => {
                                   fontSize: "12px",
                                 }}
                               >
-                                {DmcName?.charAt(0) || "D"}
+                                {dmcCompanyName?.charAt(0) || "D"}
                               </Avatar>
                             )}
                             <Typography
@@ -1359,7 +1361,7 @@ const truncateToWords = (text, wordLimit) => {
                               color="#E65100"
                               sx={{ }}
                             >
-                              {`${DmcName || "DMC"}'s Mode`}
+                              {`${dmcCompanyName}'s Mode`}
                             </Typography>
                           </Box>
                         ) : (
@@ -1422,7 +1424,7 @@ const truncateToWords = (text, wordLimit) => {
                               Final Price
                             </Typography>
 
-                            <Chip
+                            {/* <Chip
                               size="small"
                               label="Tax for display only"
                               color="warning"
@@ -1434,7 +1436,7 @@ const truncateToWords = (text, wordLimit) => {
                                 color: "white",
                                 borderColor: "rgba(255, 255, 255, 0.3)",
                               }}
-                            />
+                            /> */}
                           </Box>
 
                           {(() => {
@@ -1494,11 +1496,11 @@ const truncateToWords = (text, wordLimit) => {
                                         Meal Price
                                       </Typography>
                                         <Typography sx={{ fontSize: '0.85rem', color: 'rgba(255, 255, 255, 0.9)' }}>
-                                        {currencyCode} {formatPrice(mealPrice * exchangeRate)}
+                                        {currencyCode} {formatPrice(Math.ceil(mealPrice * exchangeRate))}
                                         </Typography>
                                     </Box>
 
-                                    {transportPrice > 0 && (
+                                    {/* {transportPrice > 0 && (
                                       <Box sx={{ 
                                         display: 'flex', 
                                         justifyContent: 'space-between', 
@@ -1512,10 +1514,10 @@ const truncateToWords = (text, wordLimit) => {
                                           {currencyCode} {formatPrice(transportPrice * exchangeRate)}
                                         </Typography>
                                       </Box>
-                                    )}
+                                    )} */}
                                       
                                     {/* Base price (what's sent to the server) */}
-                                      <Box sx={{ 
+                                      {/* <Box sx={{ 
                                         display: 'flex', 
                                         justifyContent: 'space-between', 
                                         alignItems: 'center',
@@ -1529,10 +1531,10 @@ const truncateToWords = (text, wordLimit) => {
                                       <Typography sx={{ fontSize: '0.85rem', color: 'rgba(255, 255, 255, 0.9)', fontWeight: 500 }}>
                                         {currencyCode} {formatPrice(convertedPrice)}
                                         </Typography>
-                                      </Box>
+                                      </Box> */}
                                       
                                     {/* Tax amount - display only */}
-                                      <Box sx={{ 
+                                      {/* <Box sx={{ 
                                         display: 'flex', 
                                         justifyContent: 'space-between', 
                                         alignItems: 'center',
@@ -1544,10 +1546,10 @@ const truncateToWords = (text, wordLimit) => {
                                       <Typography sx={{ fontSize: '0.85rem', color: 'rgba(255, 255, 255, 0.8)' }}>
                                         {currencyCode} {formatPrice(taxAmount)}
                                         </Typography>
-                                      </Box>
+                                      </Box> */}
                                       
                                     {/* Total with tax (for display only) */}
-                                      <Box sx={{ 
+                                      {/* <Box sx={{ 
                                         display: 'flex', 
                                         justifyContent: 'space-between', 
                                         alignItems: 'center',
@@ -1562,7 +1564,7 @@ const truncateToWords = (text, wordLimit) => {
                                       <Typography sx={{ fontSize: '1rem', color: 'white', fontWeight: 'bold' }}>
                                         {currencyCode} {formatPrice(grandTotal)}
                                         </Typography>
-                                    </Box>
+                                    </Box> */}
                                     
                                     {/* USD Equivalent - always show if not USD */}
                                     {currencyCode !== 'USD' && (
@@ -1574,10 +1576,10 @@ const truncateToWords = (text, wordLimit) => {
                                         mt: 0.5,
                                           }}>
                                         <Typography sx={{ fontSize: '0.8rem', color: 'rgba(255, 255, 255, 0.7)' }}>
-                                          USD Total (with {usdTax}% tax)
+                                          USD Total 
                                               </Typography>
                                         <Typography sx={{ fontSize: '0.85rem', color: 'rgba(255, 255, 255, 0.8)' }}>
-                                          USD {formatPrice(usdPrice + usdTaxAmount)}
+                                          USD {formatPrice(Math.ceil(usdPrice))}
                                             </Typography>
                                           </Box>
                                         )}
@@ -1591,10 +1593,10 @@ const truncateToWords = (text, wordLimit) => {
                                             py: 0.5,
                                           }}>
                                         <Typography sx={{ fontSize: '0.8rem', color: 'rgba(255, 255, 255, 0.7)' }}>
-                                          SGD Total (with {sgdTax}% tax)
+                                          SGD Total 
                                               </Typography>
                                         <Typography sx={{ fontSize: '0.85rem', color: 'rgba(255, 255, 255, 0.8)' }}>
-                                          SGD {formatPrice(sgdPrice + sgdTaxAmount)}
+                                          SGD {formatPrice(Math.ceil(sgdPrice))}
                                             </Typography>
                                       </Box>
                                     )}

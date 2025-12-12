@@ -1,9 +1,11 @@
 import { Checkbox, FormControl, FormControlLabel, Typography, Box, Avatar } from '@mui/material';
 import { useSelector } from 'react-redux';
+import { selectSelectedDmcLogo, selectSelectedDmcCompanyName } from "../../../slice/dmc/dmcSlice"; // Import DMC slice selectors
 
 const PriceModeFilter = ({ showDmcOnly, onChange }) => {
-  const dmcLogo = useSelector((state) => state.auth.DmcLogo);
-  const dmcName = useSelector((state) => state.auth.DmcName) || 'DMC';
+  // Get DMC logo and company name from DMC slice instead of auth slice
+  const dmcLogo = useSelector(selectSelectedDmcLogo);
+  const dmcCompanyName = useSelector(selectSelectedDmcCompanyName) || 'DMC';
 
   return (
     <FormControl>
@@ -24,7 +26,7 @@ const PriceModeFilter = ({ showDmcOnly, onChange }) => {
             {dmcLogo && (
               <Avatar 
                 src={dmcLogo} 
-                alt={`${dmcName} Logo`} 
+                alt={`${dmcCompanyName} Logo`} 
                 sx={{ 
                   width: '16px', 
                   height: '16px', 
@@ -33,16 +35,16 @@ const PriceModeFilter = ({ showDmcOnly, onChange }) => {
               />
             )}
             <Typography variant="body2">
-              {`${dmcName}'s Mode`}
+              {`${dmcCompanyName}'s Mode`}
             </Typography>
           </Box>
         }
       />
-      <Typography variant="caption" sx={{ ml: 4, color: 'text.secondary' }}>
+      {/* <Typography variant="caption" sx={{ ml: 4, color: 'text.secondary' }}>
         {showDmcOnly 
-          ? `Only show hotels available in ${dmcName}'s mode` 
-          : `Show all available hotels`}
-      </Typography>
+          ? ` ${dmcCompanyName}'s mode` 
+          : ``}
+      </Typography> */}
     </FormControl>
   );
 };

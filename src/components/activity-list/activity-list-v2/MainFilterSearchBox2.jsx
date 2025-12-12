@@ -1,6 +1,7 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useCallback } from "react";
 import { useDispatch, useSelector } from "react-redux";
 import LocationSearch from "./PortLocation";
+import { triggerSearch, clearTriggerSearch } from "@/slice/common/stepsSlice";
 import {
   fetchVehicles,
   setentrypickup,
@@ -22,6 +23,8 @@ import {
   setDroptype,
   fetchZoneVehicles,
   setPortZoneType,
+  setPickupPlaceid1,
+  setDropoffPlaceid1,
 } from "@/slice/port/pickupDropSlice";
 import { Typography } from "@mui/material";
 import DateSearch1 from "../common/DateSearch1";
@@ -32,6 +35,7 @@ import Pickuptime1 from "@/components/activity-single/filter-box2/Pickuptime1";
 import PortCity from "./PortCity";
 
 const MainFilterSearchBox2 = ({ Location }) => {
+  console.log('🔍 Port MainFilterSearchBox2 - Component rendered/mounted');
   const dispatch = useDispatch();
 
   // State for storing the pickup and dropoff locations
@@ -44,7 +48,8 @@ const MainFilterSearchBox2 = ({ Location }) => {
   //const [selectedPort, setSelectedPort] = useState("Entry Port"); // Default selection
   const selectedPort = useSelector((state) => state.pickupDrop.selectedPort);
   const TourId = useSelector((state) => state.hotels.id);
-  console.log("TourId", TourId);
+  const country = useSelector((state) => state.hotels.tourdetails.destination);
+  console.log("country", country);
 
   // Check port city API status
   const portCityStatus = useSelector(
@@ -67,7 +72,7 @@ const MainFilterSearchBox2 = ({ Location }) => {
   const [cityError, setCityError] = useState(false);
   const [type, setType] = useState("");
   const [pickdropType, setPickdropType] = useState("");
-  console.log("pickdropType", pickdropType);
+ 
 
   const [id, setId] = useState("");
   // Track if locations were selected from autocomplete
@@ -81,9 +86,9 @@ const MainFilterSearchBox2 = ({ Location }) => {
   const [time, setTime] = useState(false);
   const [time1, setTime1] = useState(false);
   const [pickid, setpickId] = useState("");
-  console.log("pickiddd", pickid);
+ 
   const [dropid, setdropId] = useState("");
-  console.log("dropiddd", dropid);
+
   // State for selected city
   const [selectedCity, setSelectedCity] = useState(null);
 
@@ -116,20 +121,18 @@ const MainFilterSearchBox2 = ({ Location }) => {
 
   // Effect to call fetchPortCity when a city is selected
   useEffect(() => {
-    if (selectedCity && TourId && listType) {
-      console.log("Selected city:", selectedCity);
-      console.log("Tour ID:", TourId, "Type:", typeof TourId);
+    if (selectedCity && listType) {
+      
 
-      // Ensure TourId is passed correctly as a number
       dispatch(
         fetchPortCity({
+          country: country,
           city: selectedCity.name,
-          tourId: parseInt(TourId),
           type: listType,
         })
       )
         .then((result) => {
-          console.log("fetchPortCity dispatch result:", result);
+         
           if (result.error) {
             console.error("API Error:", result.error);
             setIsPickupLocationEnabled(false);
@@ -143,11 +146,8 @@ const MainFilterSearchBox2 = ({ Location }) => {
           setIsPickupLocationEnabled(false);
         });
     } else {
-      console.log("Not calling fetchPortCity, missing:", {
-        hasCity: !!selectedCity,
-        hasTourId: !!TourId,
-        tourIdValue: TourId,
-      });
+     
+      
       setIsPickupLocationEnabled(false);
     }
   }, [selectedCity, TourId, dispatch]);
@@ -163,7 +163,7 @@ const MainFilterSearchBox2 = ({ Location }) => {
           })
         )
           .then((result) => {
-            console.log("fetchlocalzone dispatch result:", result);
+            
             if (result.error) {
               console.error("API Error:", result.error);
               setIsDropoffLocationEnabled(false);
@@ -177,12 +177,8 @@ const MainFilterSearchBox2 = ({ Location }) => {
             setIsDropoffLocationEnabled(false);
           });
       } else {
-        console.log(
-          "Not calling fetchPortCity, missing:",
-          pickUpLocation,
-          type,
-          id
-        );
+       
+        
         setIsDropoffLocationEnabled(false);
       }
     } else {
@@ -195,7 +191,7 @@ const MainFilterSearchBox2 = ({ Location }) => {
           })
         )
           .then((result) => {
-            console.log("fetchlocalzone dispatch result:", result);
+           
             if (result.error) {
               console.error("API Error:", result.error);
               setIsDropoffLocationEnabled(false);
@@ -209,12 +205,7 @@ const MainFilterSearchBox2 = ({ Location }) => {
             setIsDropoffLocationEnabled(false);
           });
       } else {
-        console.log(
-          "Not calling fetchPortCity, missing:",
-          pickUpLocation,
-          type,
-          id
-        );
+        
         setIsDropoffLocationEnabled(false);
       }
     }
@@ -222,8 +213,7 @@ const MainFilterSearchBox2 = ({ Location }) => {
 
   // Effect to handle port city API response
   useEffect(() => {
-    console.log("Port city status:", portCityStatus);
-    console.log("Port city data:", portCityData);
+   
 
     // Update pickup location enabled state based on API response
     if (portCityStatus === "succeeded" && portCityData) {
@@ -233,7 +223,7 @@ const MainFilterSearchBox2 = ({ Location }) => {
 
   // Effect to handle local zone API response
   useEffect(() => {
-    console.log("Local zone status:", localZoneStatus);
+   
 
     // Update dropoff location enabled state based on API response
     if (localZoneStatus === "succeeded") {
@@ -271,19 +261,27 @@ const MainFilterSearchBox2 = ({ Location }) => {
   ]);
 
   // Handler for the button search click event
-  const buttonsearch = () => {
+  const buttonsearch = useCallback(() => {
+    console.log('🔍 Port MainFilterSearchBox2 - buttonsearch called');
+    console.log('🔍 Port MainFilterSearchBox2 - selectedPort:', selectedPort);
+    console.log('🔍 Port MainFilterSearchBox2 - selectedCity:', selectedCity);
+    console.log('🔍 Port MainFilterSearchBox2 - pickUpLocation:', pickUpLocation);
+    console.log('🔍 Port MainFilterSearchBox2 - exitpickUpLocation:', exitpickUpLocation);
+    
     // Set validation triggered to true when search button is clicked
     setValidationTriggered(true);
 
     // Check if city is selected
     if (!selectedCity) {
       setCityError(true);
+      console.log('🔍 Port MainFilterSearchBox2 - City not selected, returning');
       return;
     }
 
     // Check if all required fields are filled
     if (!isSearchButtonEnabled) {
       // Display validation errors but don't proceed with API call
+      console.log('🔍 Port MainFilterSearchBox2 - Search button not enabled, returning');
       return;
     }
 
@@ -302,9 +300,12 @@ const MainFilterSearchBox2 = ({ Location }) => {
 
       // Only fetch vehicles if both locations are valid
       if (pickid && dropid) {
+        console.log('🔍 Port MainFilterSearchBox2 - Fetching zone vehicles for Entry Port');
         setTimeout(() => {
-          dispatch(fetchZoneVehicles());
+          dispatch(fetchZoneVehicles({ start: 0, limit: 5 }));
         }, 500);
+      } else {
+        console.log('🔍 Port MainFilterSearchBox2 - Entry Port search skipped - pickid:', pickid, 'dropid:', dropid);
       }
     } else if (selectedPort === "Exit Port") {
       dispatch(setexitpickup(exitpickUpLocation));
@@ -313,23 +314,61 @@ const MainFilterSearchBox2 = ({ Location }) => {
       //dispatch(setexittime(entryytime1));
       dispatch(setpickupdate(selectedDate1));
       dispatch(setSelectionType(selectedPort));
-      dispatch(setPickupPlaceid(pickid));
-      dispatch(setDropoffPlaceid(dropid));
+      dispatch(setPickupPlaceid1(pickid));
+      dispatch(setDropoffPlaceid1(dropid));
       dispatch(setPicktype(pickdropType));
       dispatch(setDroptype("port"));
 
       // Only fetch vehicles if both locations are valid
       if (pickid && dropid) {
+        console.log('🔍 Port MainFilterSearchBox2 - Fetching zone vehicles for Exit Port');
         setTimeout(() => {
-          dispatch(fetchZoneVehicles());
+          dispatch(fetchZoneVehicles({ start: 0, limit: 5 }));
         }, 500);
+      } else {
+        console.log('🔍 Port MainFilterSearchBox2 - Exit Port search skipped - pickid:', pickid, 'dropid:', dropid);
       }
+    } else {
+      console.log('🔍 Port MainFilterSearchBox2 - No port selected');
     }
-  };
+  }, [
+    selectedPort,
+    selectedCity,
+    pickUpLocation,
+    exitpickUpLocation,
+    selectedDate,
+    selectedDate1,
+    entryytime,
+    entryytime1,
+    pickid,
+    dropid,
+    pickdropType,
+    isSearchButtonEnabled,
+    dispatch
+  ]);
+
+  // Listen for triggerSearch from Redux and call buttonsearch when port step is triggered
+  const searchTrigger = useSelector((state) => {
+    const trigger = state.steps.triggerSearch;
+    console.log('🔍 Port MainFilterSearchBox2 - Selector called, searchTrigger:', trigger);
+    return trigger;
+  });
+  
+  useEffect(() => {
+    console.log('🔍 Port MainFilterSearchBox2 - useEffect triggered, searchTrigger:', searchTrigger);
+    console.log('🔍 Port MainFilterSearchBox2 - Component is mounted and listening for triggers');
+    
+    if (searchTrigger === 'port') {
+      console.log('🔍 Port MainFilterSearchBox2 - Trigger search received for port, calling buttonsearch');
+      buttonsearch();
+      // Clear the trigger after handling
+      dispatch(clearTriggerSearch());
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [searchTrigger, dispatch]);
 
   // Handle location selection from PortCity
   const handleCitySelect = (city) => {
-    console.log("City selected:", city);
     setSelectedCity(city);
     if (city) {
       setCityError(false);
@@ -338,7 +377,7 @@ const MainFilterSearchBox2 = ({ Location }) => {
 
   return (
     <>
-      <div className="mainSearch -col-2 bg-white px-10 py-10 lg:px-20 lg:pt-5 lg:pb-20 rounded-4 mt-30">
+      <div className="mainSearch -col-2 bg-white px-10 py-10 lg:px-20 lg:pt-5 lg:pb-20 rounded-4 mt-10">
         <div className="single-row-container">
           {/* Port Selection */}
           <div className="search-item port-selection mb-10">
@@ -580,7 +619,7 @@ const MainFilterSearchBox2 = ({ Location }) => {
       <style jsx>{`
         .single-row-container {
           display: grid;
-          grid-template-columns: 140px 2fr 2fr 2fr 2fr 1fr 140px;
+          grid-template-columns: 140px 160px 2fr 2fr 2fr 1fr 140px;
           flex-wrap: nowrap;
           width: 100%;
           gap: 5px;
@@ -596,7 +635,7 @@ const MainFilterSearchBox2 = ({ Location }) => {
         }
 
         .city-selection {
-          width: 200px;
+          width: 100px;
         }
 
         .location-search {
@@ -630,47 +669,121 @@ const MainFilterSearchBox2 = ({ Location }) => {
         }
 
         /* Responsive styles */
-        @media (max-width: 1200px) {
+        @media (max-width: 1400px) {
           .single-row-container {
-            flex-wrap: wrap;
-            gap: 15px;
+            grid-template-columns: 120px 1fr 1.5fr 1.5fr 1.5fr 1fr 120px;
+            gap: 8px;
           }
 
-          .port-selection,
+          .port-selection {
+            width: 120px;
+          }
+
+          .time-selection {
+            width: 120px;
+          }
+
+          .date-selection {
+            width: 140px;
+          }
+
+          .search-button {
+            width: 120px;
+          }
+        }
+
+        @media (max-width: 1200px) {
+          .single-row-container {
+            grid-template-columns: 1fr 1fr;
+            gap: 20px;
+            align-items: stretch;
+          }
+
+          .port-selection {
+            width: 100%;
+            grid-column: span 1;
+          }
+
           .city-selection {
-            width: calc(50% - 10px);
+            width: 100%;
+            grid-column: span 1;
           }
 
           .location-search {
-            width: calc(50% - 10px);
-            min-width: calc(50% - 10px);
+            width: 100%;
+            grid-column: span 2;
+            min-width: 100%;
           }
 
-          .time-selection,
+          .pickup-location,
+          .dropoff-location {
+            min-width: 100%;
+          }
+
+          .time-selection {
+            width: 100%;
+            grid-column: span 1;
+          }
+
           .date-selection {
-            width: calc(50% - 10px);
+            width: 100%;
+            grid-column: span 1;
           }
 
           .search-button {
             width: 100%;
+            grid-column: span 2;
             margin-top: 15px;
+            justify-content: center;
+          }
+
+          .search-button button {
+            max-width: 300px;
           }
         }
 
-        @media (max-width: 767px) {
+        @media (max-width: 900px) {
           .single-row-container {
-            flex-direction: column;
+            grid-template-columns: 1fr;
             gap: 15px;
           }
 
-          .search-item,
           .port-selection,
           .city-selection,
           .location-search,
           .time-selection,
           .date-selection,
           .search-button {
+            grid-column: span 1;
             width: 100%;
+          }
+
+          .location-search {
+            margin-bottom: 10px;
+          }
+
+          .search-button {
+            margin-top: 10px;
+          }
+        }
+
+        @media (max-width: 767px) {
+          .single-row-container {
+            gap: 15px;
+          }
+
+          .search-item {
+            margin-bottom: 10px;
+          }
+
+          .location-search {
+            margin-bottom: 8px;
+          }
+
+          .search-button button {
+            max-width: 100%;
+            height: 45px;
+            font-size: 14px;
           }
         }
 
@@ -679,12 +792,42 @@ const MainFilterSearchBox2 = ({ Location }) => {
             padding: 10px !important;
           }
 
+          .single-row-container {
+            gap: 10px;
+          }
+
           .text-15 {
             font-size: 14px;
           }
 
+          .search-button button {
+            height: 40px;
+            font-size: 13px;
+            padding: 8px 20px;
+          }
+
+          .port-selection select,
+          .location-search input,
+          .time-selection input,
+          .date-selection input {
+            font-size: 14px;
+            padding: 8px 12px;
+          }
+        }
+
+        @media (max-width: 360px) {
+          .mainSearch {
+            padding: 8px !important;
+          }
+
           .single-row-container {
-            gap: 10px;
+            gap: 8px;
+          }
+
+          .search-button button {
+            height: 38px;
+            font-size: 12px;
+            padding: 6px 16px;
           }
         }
       `}</style>

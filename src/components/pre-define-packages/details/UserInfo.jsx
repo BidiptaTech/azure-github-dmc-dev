@@ -37,13 +37,15 @@ import FlightTakeoffIcon from '@mui/icons-material/FlightTakeoff';
 import CalendarTodayIcon from '@mui/icons-material/CalendarToday';
 // import CalendarTodayIcon from '@mui/icons-material/CalendarToday';
 import { useDispatch, useSelector } from 'react-redux';
+import { useNavigate } from 'react-router-dom';
 import { bookPackage, resetBookingStatus } from '../../../slice/tour-packages/prePackagesSlice';
 
 
 
 const UserInfo = ({ open, onClose, onSubmit, bookingData }) => {
   const dispatch = useDispatch();
-  const { bookingLoading, bookingSuccess, bookingError } = useSelector(state => state.prePackages);
+  const navigate = useNavigate();
+  const { bookingLoading, bookingSuccess, bookingError, bookingData: bookingResponse } = useSelector(state => state.prePackages);
   
   // Get search params to access the selected date
   const searchParams = useSelector(state => state.prePackages.searchParams);
@@ -81,6 +83,9 @@ const selectedDate = searchParams?.date ?
     message: '',
     severity: 'success'
   });
+  
+  // State for submit button disable functionality
+  const [isSubmitDisabled, setIsSubmitDisabled] = useState(false);
   
   const [formData, setFormData] = useState({
     fullName: '',
@@ -143,19 +148,23 @@ const selectedDate = searchParams?.date ?
   // Handle booking success
   useEffect(() => {
     if (bookingSuccess) {
+      const successMessage = bookingResponse?.message || 'Booking successful!';
+      
       setSnackbar({
         open: true,
-        message: 'Booking successful!',
+        message: successMessage,
         severity: 'success'
       });
       
-      // Close the modal after successful booking with a slight delay
+      // Close the modal after successful booking with a delay to match the alert duration
       setTimeout(() => {
-        onSubmit({ ...bookingData, user_info: formData });
+        onSubmit({ ...bookingData, user_info: formData, bookingResponse });
         onClose();
-      }, 1500);
+        // Navigate to dashboard pre-define-packages after successful booking
+        navigate('/dashboard/pre-define-packages');
+      }, 5000);
     }
-  }, [bookingSuccess, bookingData, formData, onSubmit, onClose]);
+  }, [bookingSuccess, bookingResponse, bookingData, formData, onSubmit, onClose, navigate]);
   
   // Handle booking error
   useEffect(() => {
@@ -165,6 +174,9 @@ const selectedDate = searchParams?.date ?
         message: bookingError || 'Failed to book package. Please try again.',
         severity: 'error'
       });
+      
+      // Keep the modal open when there's an error so user can retry
+      // Don't close the modal automatically on error
     }
   }, [bookingError]);
 
@@ -242,6 +254,9 @@ const selectedDate = searchParams?.date ?
 
   const handleSubmit = () => {
     if (validateForm()) {
+      // Disable the submit button for 6 seconds
+      setIsSubmitDisabled(true);
+      
       // Determine the correct agent_id to use
       // If the user is an Agent, use their own agentId; otherwise use the one from searchParams
       const effectiveAgentId = userRole === 'Agent' ? agentId : searchParams?.agent_id || null;
@@ -264,7 +279,12 @@ const selectedDate = searchParams?.date ?
       dispatch(bookPackage(finalBookingData));
       
       // Log the complete booking data to console for debugging
-      console.log('Complete booking data with agent_id:', finalBookingData);
+      // console.log('Complete booking data with agent_id:', finalBookingData);
+      
+      // Re-enable the button after 6 seconds
+      setTimeout(() => {
+        setIsSubmitDisabled(false);
+      }, 6000);
     }
   };
   
@@ -323,8 +343,36 @@ const selectedDate = searchParams?.date ?
             }}
           >
             {bookingError && (
-              <Alert severity="error" sx={{ mb: 2 }}>
-                {bookingError}
+              <Alert 
+                severity="error" 
+                sx={{ 
+                  mb: 2,
+                  '& .MuiAlert-message': {
+                    fontWeight: 500
+                  }
+                }}
+                action={
+                  <Button 
+                    color="inherit" 
+                    size="small" 
+                    onClick={() => {
+                      // Clear the error and allow retry
+                      dispatch(resetBookingStatus());
+                    }}
+                  >
+                    Retry
+                  </Button>
+                }
+              >
+                <Typography variant="subtitle2" fontWeight="bold" gutterBottom>
+                  Booking Failed
+                </Typography>
+                <Typography variant="body2">
+                  {bookingError}
+                </Typography>
+                <Typography variant="caption" sx={{ mt: 1, display: 'block' }}>
+                  Please check your information and try again, or contact support if the problem persists.
+                </Typography>
               </Alert>
             )}
             
@@ -614,17 +662,21 @@ const selectedDate = searchParams?.date ?
           <Button 
             onClick={handleSubmit} 
             variant="contained" 
-            color="primary"
-            disabled={bookingLoading}
+            color={bookingError ? "error" : "primary"}
+            disabled={bookingLoading || isSubmitDisabled}
             sx={{ 
               px: 4, 
               py: 1.2,
-              background: 'linear-gradient(45deg, #3f51b5 30%, #2196f3 90%)',
-              boxShadow: '0 3px 5px 2px rgba(33, 150, 243, .3)',
+              background: bookingError ? 
+                'linear-gradient(45deg, #f44336 30%, #d32f2f 90%)' :
+                'linear-gradient(45deg, #3f51b5 30%, #2196f3 90%)',
+              boxShadow: bookingError ? 
+                '0 3px 5px 2px rgba(244, 67, 54, .3)' :
+                '0 3px 5px 2px rgba(33, 150, 243, .3)',
             }}
             endIcon={bookingLoading ? <CircularProgress size={20} color="inherit" /> : <CheckCircleIcon />}
           >
-            {bookingLoading ? 'Processing...' : 'Complete Booking'}
+            {bookingLoading ? 'Processing...' : bookingError ? 'Try Again' : 'Complete Booking'}
           </Button>
         </DialogActions>
       </Dialog>

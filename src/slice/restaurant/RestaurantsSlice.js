@@ -2,33 +2,55 @@ import { createSlice, createAsyncThunk } from "@reduxjs/toolkit";
 import axios from "axios";
 import Cookies from "js-cookie";
 import { BASE_URL } from "@/services/api";
+import { selectDmcId } from "../dmc/dmcSlice";
+import { updateServiceResponse } from "../common/stepperButtonSlice";
+import { setTourId, updateStepStatus, statusUpdate, setType as setStepType } from "@/slice/common/stepsSlice";
+import { setTourIdd } from "@/slice/common/authSlices";
+import { setId } from "@/slice/hotel/hotelSlice";
+// We no longer pre-create tours; include tour meta in booking payload
 
 export const fetchRestaurants = createAsyncThunk(
   "restaurants/fetchRestaurants",
   async (
-    { city, date, adults, children, tour_id, fromMainSearch },
-    { rejectWithValue, dispatch }
+    { city, country, date, adults, children, tour_id, fromMainSearch, start, limit },
+    { rejectWithValue, dispatch, getState }
   ) => {
     try {
       // If the search is coming from MainFilterSearchBox, return empty array
-      if (fromMainSearch) {
-        return [];
-      }
-
-      // Store the search parameters in Redux
-      dispatch(setSearchParams({
-        location: city,
-        date: date,
-        adults: adults,
-        children: children
-      }));
+      // if (fromMainSearch) {
+      //   return [];
+      // }
 
       const authToken = Cookies.get("authToken");
       const AgentId = Cookies.get("AgentId");
 
+      // Get selected DMC ID from Redux state
+      const state = getState();
+      const selectedDmcId = selectDmcId(state);
+      // console.log('🎯 RestaurantsSlice - Fetching restaurants with DMC ID:', selectedDmcId);
+
       const queryParams = new URLSearchParams();
 
-      if (city) queryParams.append("city", city);
+      // Parse city if it contains both city and country in format "City, (Country)"
+      let cityName = city;
+      let countryName = country;
+      
+      if (city && city.includes(",")) {
+        // Split "Singapore, (Singapore)" into city and country
+        const parts = city.split(",").map(p => p.trim());
+        cityName = parts[0]; // "Singapore"
+        if (parts[1]) {
+          countryName = parts[1].replace(/[()]/g, "").trim(); // Remove parentheses
+        }
+      }
+      
+      // If country is still not set, use cityName as country
+      if (!countryName && cityName) {
+        countryName = cityName;
+      }
+
+      if (cityName) queryParams.append("city", cityName);
+      if (countryName) queryParams.append("country", countryName);
 
       // Format date as expected by the backend
       if (date && date !== "") {
@@ -38,7 +60,18 @@ export const fetchRestaurants = createAsyncThunk(
 
       if (adults) queryParams.append("adults", adults);
       if (children) queryParams.append("children", children);
-      if (tour_id) queryParams.append("tour_id", tour_id);
+      
+      // Always send tour_id field (empty string if not available)
+      queryParams.append("tour_id", tour_id || "");
+      
+      // Add pagination parameters
+      if (start) queryParams.append("start", start);
+      if (limit) queryParams.append("limit", limit);
+      
+      // Add DMC ID to query parameters if available
+      if (selectedDmcId) {
+        queryParams.append("dmc_id", selectedDmcId);
+      }
 
       // console.log('Query params:', queryParams.toString());
       const response = await axios.get(
@@ -51,7 +84,7 @@ export const fetchRestaurants = createAsyncThunk(
         }
       );
 
-      console.log('Restaurant API response:', response.data);
+      // console.log('Restaurant API response:', response.data);
       return response.data;
     } catch (error) {
       console.error("Error fetching restaurants:", error);
@@ -64,18 +97,26 @@ export const fetchRestaurantsDetails = createAsyncThunk(
   "restaurants/fetchRestaurantsDetails",
   async (
     { restaurantId, price_mode, dmc_id },
-    { rejectWithValue, dispatch }
+    { rejectWithValue, dispatch, getState }
   ) => {
     try {
       const authToken = Cookies.get("authToken");
       const AgentId = Cookies.get("AgentId");
 
+      // Get selected DMC ID from Redux state
+      const state = getState();
+      const selectedDmcId = selectDmcId(state);
+      
+      // Use selected DMC ID from Redux if available, otherwise use the passed dmc_id
+      const finalDmcId = selectedDmcId || dmc_id;
+      
       // Construct the API URL with the mode and dmc_id parameters
       const mode = price_mode || "dmc";
-      console.log('Fetching restaurant details with params:', { restaurantId, mode, dmc_id });
+      // console.log('Fetching restaurant details with params:', { restaurantId, mode, dmc_id: finalDmcId });
+      // console.log('Selected DMC ID from Redux:', selectedDmcId);
       
       const response = await axios.get(
-        `${BASE_URL}/restaurant-details?restaurantId=${restaurantId}&mode=${mode}&dmc_id=${dmc_id}`,
+        `${BASE_URL}/restaurant-details?restaurantId=${restaurantId}&mode=${mode}&dmc_id=${finalDmcId}`,
         {
           headers: {
             Authorization: `Bearer ${authToken}`,
@@ -84,7 +125,7 @@ export const fetchRestaurantsDetails = createAsyncThunk(
         }
       );
 
-      console.log("Fetched Restaurant Details Response:", response.data);
+      // console.log("Fetched Restaurant Details Response:", response.data);
       return response.data;
     } catch (error) {
       console.error("Error fetching restaurant details:", error);
@@ -106,12 +147,87 @@ export const createBooking = createAsyncThunk(
       const agentID = state.editing?.agentId;
       const userRole = state.auth?.userRole;
 
+      // Get selected DMC ID from Redux state
+      const selectedDmcId = selectDmcId(state);
+      // console.log('🎯 RestaurantsSlice - Selected DMC ID from Redux:', selectedDmcId);
+
+      // Build tour meta to let backend create tour during booking
+      const bookings = state.bookings || {};
+      const auth = state.auth || {};
+
+      const countryCodeToName = {};
+      if (auth.user_country && Array.isArray(auth.user_country)) {
+        auth.user_country.forEach((country) => {
+          if (country && country.name && country.code) {
+            countryCodeToName[country.code] = country.name;
+            countryCodeToName[country.code.toLowerCase()] = country.name;
+          }
+        });
+      }
+
+      const searchLocation = bookings.searchLocation || [];
+      const destination = (Array.isArray(searchLocation) ? searchLocation : [searchLocation])
+        .map((loc) => countryCodeToName[loc] || loc)
+        .join(", ");
+      const check_in = bookings.checkIn || "";
+      const check_out = bookings.checkOut || "";
+      const bGuests = bookings.guests || {};
+      const adult = bGuests.adults ?? 1;
+      const child = bGuests.children ?? 0;
+      const infant = bGuests.infant ?? 0;
+      const male = bGuests.maleCount ?? 0;
+      const female = bGuests.femaleCount ?? 0;
+      const children_ages = (bGuests.childrenAges || []).join(", ");
+
+      // Check if we have an existing tour_id from booking details or global auth state
+      const localTourId = bookingDetails?.tour_id;
+      const globalTourId = state.auth?.tourId || state.steps?.id;
+      const effectiveTourId = localTourId || globalTourId;
+      
+      // Extract numeric part from tour_id (e.g., "DMC-ORD2904" -> "2904")
+      let numericTourId = "";
+      if (effectiveTourId) {
+        const tourIdStr = String(effectiveTourId);
+        const match = tourIdStr.match(/\d+$/); // Extract trailing digits
+        numericTourId = match ? match[0] : tourIdStr;
+      }
+      
+      const hasTourId = numericTourId && Number(numericTourId) > 0;
+
+      // Add selected DMC ID to booking details
+      const updatedBookingDetails = {
+        ...bookingDetails,
+        tour_id: hasTourId ? Number(numericTourId) : "",
+        data: bookingDetails.data.map(item => ({
+          ...item,
+          dmc_id: selectedDmcId // Use selected DMC ID from Redux store
+        }))
+      };
+
+      // Only add tour meta if no tour_id exists
+      if (!hasTourId) {
+        updatedBookingDetails.destination = destination;
+        updatedBookingDetails.check_in = check_in;
+        updatedBookingDetails.check_out = check_out;
+        updatedBookingDetails.adult = adult;
+        updatedBookingDetails.child = child;
+        updatedBookingDetails.infant = infant;
+        updatedBookingDetails.male = male;
+        updatedBookingDetails.female = female;
+        updatedBookingDetails.children_ages = children_ages;
+      }
+
+      // console.log('🚀 RestaurantsSlice - Booking with DMC ID:', selectedDmcId);
+
       // Corrected conditional statement
       let AgentId;
       if (
         userRole === "Sales Head(DMC)" ||
         userRole === "Sales Manager (DMC)" ||
-        userRole === "Assistant Manager (DMC)"
+        userRole === "Assistant Manager (DMC)" ||
+        userRole === "DMC Assistant Operational Manager" ||
+        userRole === "DMC Operational Manager" ||
+        userRole === "Operational Head(DMC)"
       ) {
         AgentId = agentID;
       } else {
@@ -120,7 +236,7 @@ export const createBooking = createAsyncThunk(
 
       const response = await axios.post(
         `${BASE_URL}/create-booking`,
-        bookingDetails,
+        updatedBookingDetails,
         {
           headers: {
             Authorization: `Bearer ${authToken}`,
@@ -146,6 +262,26 @@ export const createBooking = createAsyncThunk(
 
         dispatch(storeUserInfo(userInfo));
       }
+
+      // Extract and dispatch tour_id if this was the first booking (tour created)
+      const tourId = response.data?.order?.tour_id || response.data?.tour_id;
+      if (tourId) {
+        dispatch(setId(tourId));
+        dispatch(setTourId(tourId));
+        dispatch(setTourIdd(tourId));
+        console.log("Tour ID created and stored from restaurant booking:", tourId);
+        
+        // Update step status to mark restaurant as completed
+        dispatch(updateStepStatus({ key: 'restaurent', status: 3 }));
+        dispatch(setStepType(null));
+        dispatch(statusUpdate());
+      }
+
+      // Update stepper button visibility based on booking response
+      dispatch(updateServiceResponse({ 
+        service: 'restaurent', 
+        response: response.data 
+      }));
 
       return response.data;
     } catch (error) {
@@ -182,6 +318,7 @@ const initialState = {
   restaurantBookings: [],
   // Initialize userInfo from localStorage
   userInfo: null,
+  isFromMainSearch: false, // Add flag to track if search came from MainFilterSearchBox
 };
 
 const restaurantsSlice = createSlice({
@@ -220,11 +357,11 @@ const restaurantsSlice = createSlice({
       state.services = action.payload; // Update the state with the new data
     },
     setSearchParams(state, action) {
-      state.searchParams = {
-        ...state.searchParams,
+      const serializedPayload = {
         ...action.payload,
         date: action.payload.date || "",
       };
+      state.searchParams = serializedPayload;
     },
     updateModeMap: (state, action) => {
       const { restaurantId, mode = "dmc", prices } = action.payload;
@@ -251,6 +388,12 @@ const restaurantsSlice = createSlice({
       state.restaurants = [];
       // Don't clear searchParams as we want to keep the last search criteria
     },
+    setIsFromMainSearch: (state, action) => {
+      state.isFromMainSearch = action.payload;
+    },
+    resetIsFromMainSearch: (state) => {
+      state.isFromMainSearch = false;
+    },
   },
   extraReducers: (builder) => {
     builder
@@ -261,13 +404,37 @@ const restaurantsSlice = createSlice({
       })
       .addCase(fetchRestaurants.fulfilled, (state, action) => {
         state.status = "succeeded";
-        // Check if the response is empty or undefined
-        if (!action.payload || action.payload.length === 0) {
-          console.log('No restaurants found in response');
+        
+        // Check if this is from MainFilterSearchBox (fromMainSearch: true)
+        const isFromMainSearch = action.meta.arg.fromMainSearch;
+        
+        // If fromMainSearch is true, always clear the data
+        if (isFromMainSearch) {
           state.restaurants = [];
-        } else {
-          console.log('Setting restaurants in state:', action.payload);
+          state.isFromMainSearch = true; // Set the flag
+          return;
+        }
+        
+        // Get pagination parameters
+        const { start = 0 } = action.meta.arg;
+        const isFirstPage = start === 0;
+        
+        // Handle the response
+        if (!action.payload) {
+          // If payload is null/undefined, treat as empty array
+          action.payload = [];
+        }
+        
+        if (isFirstPage) {
+          // First page: replace existing data
           state.restaurants = action.payload;
+        } else {
+          // Subsequent pages: append to existing data
+          if (Array.isArray(action.payload)) {
+            const existingIds = new Set(state.restaurants.map(restaurant => restaurant.id));
+            const newRestaurants = action.payload.filter(restaurant => !existingIds.has(restaurant.id));
+            state.restaurants = [...state.restaurants, ...newRestaurants];
+          }
         }
       })
       .addCase(fetchRestaurants.rejected, (state, action) => {
@@ -359,6 +526,8 @@ export const {
   addRestaurantBooking,
   storeUserInfo,
   clearRestaurants,
+  setIsFromMainSearch,
+  resetIsFromMainSearch,
 } = restaurantsSlice.actions;
 
 // Selectors

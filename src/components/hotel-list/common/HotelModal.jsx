@@ -36,6 +36,7 @@ import TimerIcon from "@mui/icons-material/Timer";
 import CancelOutlinedIcon from "@mui/icons-material/CancelOutlined";
 import { useSelector } from "react-redux";
 import HotelBookingModal from "@/components/dashboard/dashboard/db-dashboard/components/HotelBookingModal";
+import { selectSelectedDmcLogo, selectSelectedDmcCompanyName } from "../../../slice/dmc/dmcSlice"; // Import DMC slice selectors
 
 export default function HotelModal({ open, onClose, bookings = [], date }) {
   const [selectedBooking, setSelectedBooking] = useState(null);
@@ -46,14 +47,15 @@ export default function HotelModal({ open, onClose, bookings = [], date }) {
   const currencyCode = useSelector((state) => state.auth.currencyCode);
   const exchangeRate = useSelector((state) => state.auth.exchangeRate);
   const usdExchangeRate = useSelector((state) => state.auth.usdExchangeRate);
-  const dmcName = useSelector((state) => state.auth.DmcName) || 'DMC';
-  const DmcLogo = useSelector((state) => state.auth.DmcLogo);
+  // Get DMC logo and company name from DMC slice instead of auth slice
+  const dmcLogo = useSelector(selectSelectedDmcLogo);
+  const dmcCompanyName = useSelector(selectSelectedDmcCompanyName) || 'DMC';
   const PriceHide = useSelector((state) => state.auth.PriceHide);
   
-  // Get tax percentages from auth slice
-  const currentTax = useSelector((state) => state.auth.currentTax || 0);
-  const sgdTax = useSelector((state) => state.auth.sgdTax || 0);
-  const usdTax = useSelector((state) => state.auth.usdTax || 0);
+  // Get tax percentages from auth slice (COMMENTED OUT - TAX NOT APPLIED)
+  // const currentTax = useSelector((state) => state.auth.currentTax || 0);
+  // const sgdTax = useSelector((state) => state.auth.sgdTax || 0);
+  // const usdTax = useSelector((state) => state.auth.usdTax || 0);
 
   const formatDate = (inputDate) => {
     if (!inputDate) return "N/A";
@@ -534,15 +536,11 @@ export default function HotelModal({ open, onClose, bookings = [], date }) {
                               size="medium"
                               icon={<PriceCheckIcon style={{ fontSize: '16px' }} />}
                               label={(() => {
-                                // Calculate price with tax using sgdTax from auth slice
+                                // Calculate price without tax
                                 const basePrice = parseFloat(booking.totalPrice) || 0;
                                 const sgdPrice = Math.ceil(basePrice);
-                                const sgdTaxAmount = Math.ceil((sgdPrice * sgdTax) / 100);
-                                const sgdGrandTotal = sgdPrice + sgdTaxAmount;
                                 
-                                return sgdTax > 0 
-                                  ? `SGD ${formatPrice(sgdGrandTotal)}`
-                                  : `SGD ${formatPrice(sgdPrice)}`;
+                                return `SGD ${formatPrice(sgdPrice)}`;
                               })()}
                               sx={{
                                 fontWeight: "bold",
@@ -558,20 +556,6 @@ export default function HotelModal({ open, onClose, bookings = [], date }) {
                                 }
                               }}
                             />
-                            {sgdTax > 0 && (
-                              <Typography 
-                                variant="caption" 
-                                display="block" 
-                                sx={{ 
-                                  color: '#5E35B1', 
-                                  fontSize: '0.75rem',
-                                  mt: 0.5,
-                                  fontWeight: 'medium'
-                                }}
-                              >
-                                (incl. {sgdTax}% tax)
-                              </Typography>
-                            )}
                         </TableCell>
                         ):(
                           <TableCell>
@@ -599,10 +583,10 @@ export default function HotelModal({ open, onClose, bookings = [], date }) {
                               />
                           ) : booking.priceMode === "dmc" ? (
                               <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.8 }}>
-                                {DmcLogo ? (
+                                {dmcLogo ? (
                                   <Avatar
-                                  src={DmcLogo} 
-                                  alt="DMC Logo" 
+                                  src={dmcLogo} 
+                                  alt={`${dmcCompanyName} Logo`} 
                                     sx={{ width: 24, height: 24 }}
                                   />
                                 ) : (
@@ -615,11 +599,11 @@ export default function HotelModal({ open, onClose, bookings = [], date }) {
                                       fontSize: '12px'
                                     }}
                                   >
-                                    {dmcName?.charAt(0) || "D"}
+                                    {dmcCompanyName?.charAt(0) || "D"}
                                   </Avatar>
                                 )}
                                 <Typography variant="body1" fontWeight="medium" color="#E65100">
-                                  {dmcName || "DMC"}
+                                  {dmcCompanyName}
                                 </Typography>
                               </Box>
                             ) : (

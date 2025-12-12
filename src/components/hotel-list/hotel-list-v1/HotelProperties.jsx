@@ -30,6 +30,7 @@ import {
   Box,
   Chip,
   Tooltip,
+  Avatar,
 } from "@mui/material";
 import CheckIcon from "@mui/icons-material/Check";
 
@@ -42,6 +43,7 @@ import { Swiper, SwiperSlide } from "swiper/react";
 import { Navigation, Pagination } from "swiper";
 import { setPriceMode, setPriceModeId } from "@/slice/hotel/CategorySlice";
 import travClikImage from "../../../../public/Images/hotel/travclick.jpg";
+import { selectSelectedDmcLogo, selectSelectedDmcCompanyName } from "../../../slice/dmc/dmcSlice"; // Import DMC slice selectors
 
 export default function HotelProperties() {
   const amenities = ["Breakfast", "WiFi", "Parking", "Swimming Pool"];
@@ -59,8 +61,9 @@ export default function HotelProperties() {
     (state) => state.auth.usdCurrencySymbol
   );
   const usdCurrencyCode = useSelector((state) => state.auth.usdCurrencyCode);
-  const dmcLogo = useSelector((state) => state.auth.DmcLogo);
-  const DmcName = useSelector((state) => state.auth.DmcName);
+  // Get DMC logo and company name from DMC slice instead of auth slice
+  const dmcLogo = useSelector(selectSelectedDmcLogo);
+  const dmcCompanyName = useSelector(selectSelectedDmcCompanyName) || 'DMC';
   // Add PriceHide selector
   const PriceHide = useSelector((state) => state.auth.PriceHide);
   //console.log(DmcName,"dmcName");
@@ -152,64 +155,83 @@ export default function HotelProperties() {
 
       // Ensure data has not been fetched and prevent fetching if the limit has been reached
       if (!isDataFetched && hotels.length < start + limit) {
+        console.log(`Fetching hotels with start=${start}, limit=${limit}, hasMore=${hasMore}`);
+        
         dispatch(fetchHotels({ start, limit }))
-          .then(() => {
+          .unwrap() // Use unwrap to handle the promise correctly
+          .then((data) => {
             setLoading(false);
-            dispatch({
-              type: "hotels",
-              payload: { start: start + limit }, // Properly increment the start value
-            });
+            
+            // Check if we got back any data
+            const gotResults = Array.isArray(data) && data.length > 0;
+            
+            if (gotResults) {
+              console.log(`Successfully fetched ${data.length} hotels`);
+              // Only update start if we received data
+              dispatch({
+                type: "hotels/updatePaginationState",
+                payload: { 
+                  start: start + data.length,
+                  // Set hasMore to false if we got fewer items than requested
+                  hasMore: data.length === limit
+                }
+              });
+            } else {
+              console.log("No more hotels available, stopping pagination");
+              dispatch({
+                type: "hotels/updatePaginationState",
+                payload: { hasMore: false }
+              });
+            }
           })
           .catch((error) => {
             setLoading(false);
-            //console.error("API Error:", error); // Log errors to track issues
+            console.log("Error fetching hotels:", error.message);
+            
+            // If we get a 404, mark hasMore as false to prevent more requests
+            if (error.message?.includes('404')) {
+              console.log("Received 404 error - no more hotels available");
+              dispatch({
+                type: "hotels/updatePaginationState",
+                payload: { hasMore: false }
+              });
+            }
           });
-        // } else {
-        //   setLoading(false);
-        // }
+      } else {
+        setLoading(false);
       }
     }
   }, [status, hasMore, loading, start, hotels, limit, dispatch]);
 
   // Infinite scroll logic
   const handleScroll = debounce(() => {
+    // Don't do anything if we already know there are no more hotels
+    if (!hasMore) {
+      console.log("No more hotels to fetch, skipping scroll handler");
+      return;
+    }
+    
+    // Don't do anything if we're currently loading
+    if (loading) {
+      return;
+    }
+    
     const displayedItems = hotels.length; // Total currently fetched items
-    const triggerThreshold = Math.floor(displayedItems / 2); // Half of displayed items
-    // const heightThreshold = window.innerHeight + window.scrollY;
-    // const earlyTriggerOffset = window.innerHeight * 0.6; // 30% of viewport height
-    const remainingItems = hasMore ? displayedItems % limit : 0; // Remaining items to load
-
-    // Trigger fetch when halfway through displayed items or nearing the end
-    if (
-      (displayedItems >= triggerThreshold && !loading) ||
-      (remainingItems <= limit && !loading)
-      // (heightThreshold >=
-      //   document.documentElement.scrollHeight - earlyTriggerOffset &&
-      //   !loading &&
-      //   hasMore)
-    ) {
+    
+    // Only trigger fetch when we have some items and we're not already loading
+    if (displayedItems > 0 && !loading) {
+      console.log("Scroll triggered, fetching more hotels");
       fetchData(); // Fetch more data
     }
-  }, [hotels.length, loading, hasMore, fetchData, limit]);
+  }, [hotels.length, loading, hasMore, fetchData]);
 
   useEffect(() => {
-    if (status === "succeeded") {
+    if (status === "succeeded" && hasMore) {
+      // Only trigger scroll handler if we have more hotels to fetch
+      console.log("Status changed to succeeded, checking for more hotels");
       handleScroll();
-      // .then(() => {
-      //   setLoading(false);
-      //   dispatch({
-      //     type: "hotels",
-      //     payload: { start: start + limit },
-      //   });
-      // })
-      // .catch((error) => {
-      //   console.error("Error in fetchHotels:", error);
-      // });
     }
-    // } else {
-    //   setLoading(false);
-    // }
-  }, [dispatch, status, handleScroll]);
+  }, [dispatch, status, handleScroll, hasMore]);
 
   useEffect(() => {
     if (status === "loading") {
@@ -283,14 +305,83 @@ export default function HotelProperties() {
   // };
   //console.log(filteredHotels,"filteredHotels");
 
-  console.log(hotels, "hotels");
+  // Log all hotels to help debug filtering issues
+  useEffect(() => {
+    if (hotels && hotels.length > 0) {
+      console.log("All hotels from API:", hotels.map(h => ({
+        id: h.id,
+        name: h.hotel_name,
+        dmc_price: h.dmc_price,
+        travclicks_price: h.travclicks_price
+      })));
+      
+      // Check specifically for St. Regis
+      const stRegis = hotels.find(h => 
+        h.hotel_name && h.hotel_name.toLowerCase().includes('regis'));
+      
+      if (stRegis) {
+        console.log("FOUND ST. REGIS:", {
+          id: stRegis.id,
+          name: stRegis.hotel_name,
+          price: stRegis.dmc_price,
+          location: stRegis.location
+        });
+      } else {
+        console.log("ST. REGIS NOT FOUND IN API RESPONSE!");
+      }
+    }
+  }, [hotels]);
 
+  // Will log the filtered hotels count after filtering is done
+
+  // TEMPORARY DEBUG VERSION - SHOW ALL HOTELS WITHOUT FILTERING
+  console.log("*** DEBUG MODE: All hotels will be shown without price filtering ***");
+  
+  // Instead of filtering, just map all hotels to see them
+  const allHotelsWithPrices = hotels.map(hotel => {
+    const dmcPrice = typeof hotel.dmc_price === 'string' 
+      ? parseFloat(hotel.dmc_price) 
+      : (hotel.dmc_price || 0);
+      
+    const travclicksPrice = typeof hotel.travclicks_price === 'string'
+      ? parseFloat(hotel.travclicks_price)
+      : (hotel.travclicks_price || 0);
+      
+    console.log(`DEBUG: Hotel ${hotel.hotel_name}, DMC price: ${dmcPrice}, Travclicks price: ${travclicksPrice}`);
+    
+    return {
+      ...hotel,
+      parsed_dmc_price: dmcPrice,
+      parsed_travclicks_price: travclicksPrice
+    };
+  });
+  
+  // This will show ALL hotels in the console for debugging
+  console.log("All hotels before filtering:", allHotelsWithPrices);
+  
+  // For this debug version, don't filter at all - just show all hotels
   const filteredHotels = hotels.filter((hotel) => {
+    // Show every hotel, regardless of price
+    return true;
+    
+    /* Original filtering code - commented out for debugging
+    console.log(`Filtering hotel: ${hotel.hotel_name}, DMC price: ${hotel.dmc_price}, Travclicks price: ${hotel.travclicks_price}`);
+    
+    // Make sure we have numerical prices to work with
+    const dmcPrice = typeof hotel.dmc_price === 'string' 
+      ? parseFloat(hotel.dmc_price) 
+      : (hotel.dmc_price || 0);
+      
+    const travclicksPrice = typeof hotel.travclicks_price === 'string'
+      ? parseFloat(hotel.travclicks_price)
+      : (hotel.travclicks_price || 0);
+      
     // Remove hotels where both prices are not available
     if (
-      (hotel.dmc_price <= 0 && hotel.travclicks_price <= 0) ||
-      (bookingType === "enquiry" && hotel.dmc_price <= 0)
+      (dmcPrice <= 0 && travclicksPrice <= 0) ||
+      (bookingType === "enquiry" && dmcPrice <= 0)
     ) {
+      console.log(`Filtered out ${hotel.hotel_name}: No valid prices available`);
       return false; // Filter out hotels with no prices
     }
 
@@ -305,16 +396,25 @@ export default function HotelProperties() {
     // If DMC checkbox is checked (globalPriceMode is DMC-only)
     if (isDmcOnlyMode) {
       // Show the hotel only if DMC price is available
-      hasValidPrice = hotel.dmc_price > 0; // Only show hotels with DMC price
+      hasValidPrice = dmcPrice > 0; // Only show hotels with DMC price
     } else {
       // If DMC checkbox is unchecked (globalPriceMode includes both)
       // Show hotels with either DMC or Travclick price > 0
-      hasValidPrice = hotel.dmc_price > 0 || hotel.travclicks_price > 0; // Show hotels with either price
+      hasValidPrice = dmcPrice > 0 || travclicksPrice > 0; // Show hotels with either price
     }
 
     // If hotel doesn't pass the price mode filter, return false immediately
-    if (!hasValidPrice) return false;
+    if (!hasValidPrice) {
+      console.log(`Filtered out ${hotel.hotel_name}: Failed price mode filter`);
+      return false;
+    }
+    */
 
+    // PRICE RANGE FILTER TEMPORARILY COMMENTED OUT TO DEBUG HOTEL DISPLAY
+    // Commenting out all price range filtering to check if hotels appear
+    console.log(`PRICE FILTER DISABLED - Hotel ${hotel.hotel_name} will be shown regardless of price`);
+    
+    /*
     // Price Range Filter
     if (
       filters.priceRange &&
@@ -324,31 +424,47 @@ export default function HotelProperties() {
     ) {
       // Get the appropriate price based on selected mode and availability
       let hotelPrice = 0;
+      
+      // First make sure we have a valid price to work with
       if (isDmcOnlyMode && hotel.dmc_price > 0) {
         // Use DMC price when in DMC-only mode
-        hotelPrice = parseFloat(hotel.dmc_price);
+        hotelPrice = typeof hotel.dmc_price === 'string' 
+          ? parseFloat(hotel.dmc_price) 
+          : hotel.dmc_price;
       } else {
         // Otherwise use the lower of available prices (or whichever is available)
         const dmcPrice =
-          hotel.dmc_price > 0 ? parseFloat(hotel.dmc_price) : Number.MAX_VALUE;
+          hotel.dmc_price > 0 
+            ? (typeof hotel.dmc_price === 'string' ? parseFloat(hotel.dmc_price) : hotel.dmc_price)
+            : Number.MAX_VALUE;
+            
         const travclicksPrice =
           hotel.travclicks_price > 0
-            ? parseFloat(hotel.travclicks_price)
+            ? (typeof hotel.travclicks_price === 'string' ? parseFloat(hotel.travclicks_price) : hotel.travclicks_price)
             : Number.MAX_VALUE;
+            
         hotelPrice = Math.min(dmcPrice, travclicksPrice);
       }
 
       // Apply exchange rate if needed
       const convertedPrice = hotelPrice * exchangeRate;
+      
+      // Log the price details for debugging
+      console.log(`Hotel ${hotel.hotel_name} - Price: ${hotelPrice}, Converted: ${convertedPrice}, Range: ${filters.priceRange.min} - ${filters.priceRange.max}`);
 
-      // Check if price is within range
+      // Check if price is within range - use inclusive comparisons
       if (
         convertedPrice < filters.priceRange.min ||
         convertedPrice > filters.priceRange.max
       ) {
+        console.log(`Hotel ${hotel.hotel_name} filtered out: price ${convertedPrice} outside range ${filters.priceRange.min} - ${filters.priceRange.max}`);
         return false; // Filter out hotels outside price range
       }
+      
+      // Log if the hotel passed the price filter
+      console.log(`Hotel ${hotel.hotel_name} passed price filter`);
     }
+    */
 
     // If hotel passes all filters, return true
     return true;
@@ -396,6 +512,17 @@ export default function HotelProperties() {
 
   // const sortedFilteredHotels = sortHotels(filteredHotels);
   //console.log("sorthotel", sortedFilteredHotels);
+  
+  // Log the final filtered hotels count
+  useEffect(() => {
+    console.log(`Final hotels count: ${hotels.length} total, ${filteredHotels.length} after filtering`);
+    if (filteredHotels.length > 0) {
+      console.log("Filtered hotels:", filteredHotels.map(h => ({
+        name: h.hotel_name,
+        dmc_price: h.dmc_price
+      })));
+    }
+  }, [filteredHotels.length, hotels.length]);
 
   // const totalItems = sortedFilteredHotels.length;
   // const totalPages = Math.ceil(totalItems / itemsPerPage);
@@ -465,6 +592,7 @@ export default function HotelProperties() {
           tour_id,
           priceMode: selectedMode, // Keep this as string for API compatibility
           priceModeId: priceModeId,
+          dmc_id: selectedHotel.dmc_id,
         })
       );
 
@@ -524,225 +652,23 @@ export default function HotelProperties() {
             className="no-hotels-message"
             style={{ textAlign: "center", marginTop: "2rem" }}
           >
-            <Box
-              sx={{
-                display: "flex",
-                flexDirection: "column",
-                alignItems: "center",
-                justifyContent: "center",
-                padding: "3rem",
-                border: "1px solid #e0e0e0",
-                borderRadius: "16px",
-                backgroundColor: "#ffffff",
-                boxShadow: "0 8px 32px rgba(0, 0, 0, 0.1)",
-                maxWidth: "600px",
-                margin: "0 auto",
-                position: "relative",
-                overflow: "hidden",
-                "&::before": {
-                  content: '""',
-                  position: "absolute",
-                  top: 0,
-                  left: 0,
-                  right: 0,
-                  bottom: 0,
-                  background:
-                    "linear-gradient(45deg, #f3f4f6 25%, transparent 25%, transparent 50%, #f3f4f6 50%, #f3f4f6 75%, transparent 75%, transparent)",
-                  backgroundSize: "40px 40px",
-                  opacity: 0.1,
-                  animation: "shimmer 2s infinite linear",
-                },
-                "@keyframes shimmer": {
-                  "0%": {
-                    backgroundPosition: "0 0",
-                  },
-                  "100%": {
-                    backgroundPosition: "40px 0",
-                  },
-                },
-              }}
-            >
-              {/* Animated Hotel Icon */}
-              <Box
-                sx={{
-                  position: "relative",
-                  width: "120px",
-                  height: "120px",
-                  marginBottom: "2rem",
-                  animation: "float 3s ease-in-out infinite",
-                  "@keyframes float": {
-                    "0%": {
-                      transform: "translateY(0px)",
-                    },
-                    "50%": {
-                      transform: "translateY(-20px)",
-                    },
-                    "100%": {
-                      transform: "translateY(0px)",
-                    },
-                  },
-                }}
-              >
-                <Box
-                  sx={{
-                    position: "absolute",
-                    top: "50%",
-                    left: "50%",
-                    transform: "translate(-50%, -50%)",
-                    fontSize: "4rem",
-                    color: "#3554D1",
-                    filter: "drop-shadow(0 4px 6px rgba(0, 0, 0, 0.1))",
-                  }}
-                >
-                  🏨
-                </Box>
-                {/* Decorative circles */}
-                <Box
-                  sx={{
-                    position: "absolute",
-                    top: "50%",
-                    left: "50%",
-                    transform: "translate(-50%, -50%)",
-                    width: "100%",
-                    height: "100%",
-                    border: "2px solid #3554D1",
-                    borderRadius: "50%",
-                    opacity: 0.2,
-                    animation: "pulse 2s ease-in-out infinite",
-                    "@keyframes pulse": {
-                      "0%": {
-                        transform: "translate(-50%, -50%) scale(1)",
-                        opacity: 0.2,
-                      },
-                      "50%": {
-                        transform: "translate(-50%, -50%) scale(1.2)",
-                        opacity: 0.1,
-                      },
-                      "100%": {
-                        transform: "translate(-50%, -50%) scale(1)",
-                        opacity: 0.2,
-                      },
-                    },
-                  }}
+            <div className="MuiBox-root css-t4lhjn">
+              <div className="MuiBox-root css-d0j5jx">
+                <img
+                  src="/icons/hotel1.jpg"
+                  alt="Travel Icon"
+                  className="your-icon-class"
+                  style={{ width: "200px", height: "200px" }}
                 />
-              </Box>
-
-              {/* Main Content */}
-              <Typography
-                variant="h4"
-                sx={{
-                  fontWeight: "bold",
-                  color: "#1a1a1a",
-                  marginBottom: "1rem",
-                  animation: "fadeInUp 0.6s ease-out",
-                  "@keyframes fadeInUp": {
-                    "0%": {
-                      opacity: 0,
-                      transform: "translateY(20px)",
-                    },
-                    "100%": {
-                      opacity: 1,
-                      transform: "translateY(0)",
-                    },
-                  },
-                }}
-              >
-                No Hotels Found
-              </Typography>
-
-              <Typography
-                variant="body1"
-                sx={{
-                  color: "#666",
-                  marginBottom: "2rem",
-                  maxWidth: "400px",
-                  animation: "fadeInUp 0.6s ease-out 0.2s both",
-                }}
-              >
-                We couldn't find any hotels matching your search criteria. Try
-                adjusting your filters or search parameters to find what you're
-                looking for.
-              </Typography>
-
-              {/* Action Buttons */}
-              <Box
-                sx={{
-                  display: "flex",
-                  gap: "1rem",
-                  animation: "fadeInUp 0.6s ease-out 0.4s both",
-                }}
-              >
-                <button
-                  className="button -dark-1 py-10 px-20 rounded-1 bg-blue-1 text-white"
-                  onClick={() => window.location.reload()}
-                  style={{
-                    transition: "all 0.3s ease",
-                    border: "none",
-                    cursor: "pointer",
-                    "&:hover": {
-                      transform: "translateY(-2px)",
-                      boxShadow: "0 4px 12px rgba(53, 84, 209, 0.2)",
-                    },
-                  }}
-                >
-                  Reset Search
-                </button>
-                <button
-                  className="button -dark-1 py-10 px-20 rounded-1 bg-white text-blue-1 border-blue-1"
-                  onClick={() => {
-                    // Add your filter reset logic here
-                    dispatch({ type: "category/resetFilters" });
-                  }}
-                  style={{
-                    transition: "all 0.3s ease",
-                    border: "1px solid #3554D1",
-                    cursor: "pointer",
-                    "&:hover": {
-                      transform: "translateY(-2px)",
-                      boxShadow: "0 4px 12px rgba(53, 84, 209, 0.1)",
-                    },
-                  }}
-                >
-                  Clear Filters
-                </button>
-              </Box>
-
-              {/* Decorative Elements */}
-              <Box
-                sx={{
-                  position: "absolute",
-                  top: "20px",
-                  right: "20px",
-                  width: "60px",
-                  height: "60px",
-                  background: "linear-gradient(45deg, #3554D1, #4a6ee0)",
-                  borderRadius: "50%",
-                  opacity: 0.1,
-                  animation: "rotate 10s linear infinite",
-                  "@keyframes rotate": {
-                    "0%": {
-                      transform: "rotate(0deg)",
-                    },
-                    "100%": {
-                      transform: "rotate(360deg)",
-                    },
-                  },
-                }}
-              />
-              <Box
-                sx={{
-                  position: "absolute",
-                  bottom: "20px",
-                  left: "20px",
-                  width: "40px",
-                  height: "40px",
-                  background: "linear-gradient(45deg, #4a6ee0, #3554D1)",
-                  borderRadius: "50%",
-                  opacity: 0.1,
-                  animation: "rotate 8s linear infinite reverse",
-                }}
-              />
-            </Box>
+              </div>
+              <h5 className="MuiTypography-root MuiTypography-h5 css-hu3rhi-MuiTypography-root">
+                {bookingType === "enquiry"
+                  ? "No hotels available for enquiry. Please try a different selection."
+                  : filters.searchParams?.location
+                  ? `No hotels found in ${filters.searchParams.location.address}. Please try a different location.`
+                  : "Please provide hotel location and date of journey and search..."}
+              </h5>
+            </div>
           </div>
         ) : (
           filteredHotels.slice(0, 7).map((item, index) => {
@@ -951,82 +877,95 @@ export default function HotelProperties() {
                                   {/* Show DMC mode if dmc_price is greater than 0 */}
                                   {item?.dmc_price > 0 && (
                                     <Box
+                                      onClick={(e) => {
+                                        e.preventDefault();
+                                        e.stopPropagation();
+                                        handlePriceModeChange(item.id, "dmc");
+                                      }}
                                       sx={{
                                         textAlign: "left",
-                                        border: "1px solid #e0e0e0",
-                                        borderRadius: "8px",
-                                        p: 0.75,
-                                        m: 0.5,
-                                        minWidth: "150px",
-                                        maxWidth: "150px",
-                                        transition: "all 0.2s ease-in-out",
+                                        border: "2px solid #ccc",
+                                        borderRadius: "12px",
+                                        p: 1,
+                                        m: 1,
+                                        width: "180px",
+                                        minHeight: "180px",
+                                        height: "auto",
                                         bgcolor:
                                           selectedPriceModes[item.id] === "dmc"
-                                            ? "#f0f7ff"
+                                            ? "#e6f2ff"
                                             : "#fff",
-                                        boxShadow:
-                                          selectedPriceModes[item.id] === "dmc"
-                                            ? "0 2px 5px rgba(0,0,0,0.1)"
-                                            : "none",
                                         transform:
                                           selectedPriceModes[item.id] === "dmc"
-                                            ? "scale(1.02)"
+                                            ? "scale(1.05)"
                                             : "scale(1)",
+                                        cursor: "pointer",
+                                        "&:hover": {
+                                          bgcolor: "#f5f5f5",
+                                        },
+                                        position: "relative",
+                                        zIndex: 1,
                                         display: "flex",
                                         flexDirection: "column",
-                                        justifyContent: "center",
-                                        borderColor:
-                                          selectedPriceModes[item.id] === "dmc"
-                                            ? "#3554D1"
-                                            : "#e0e0e0",
+                                        alignItems: "flex-start",
                                       }}
                                     >
-                                      <FormControlLabel
-                                        value="dmc"
-                                        control={
-                                          <Radio
-                                            name={`radio-${item.id}`}
-                                            checked={
-                                              selectedPriceModes[item.id] ===
-                                              "dmc"
-                                            }
-                                            onChange={() =>
-                                              handlePriceModeChange(
-                                                item.id,
-                                                "dmc"
-                                              )
-                                            }
-                                            size="small"
-                                          />
-                                        }
-                                        label={
-                                          <Box
-                                            display="flex"
-                                            alignItems="center"
-                                            sx={{ fontSize: "13px" }}
-                                          >
-                                            <img
+                                      <Box
+                                        sx={{
+                                          width: "100%",
+                                          display: "flex",
+                                          alignItems: "center",
+                                          cursor: "pointer",
+                                        }}
+                                        onClick={(e) => {
+                                          e.preventDefault();
+                                          e.stopPropagation();
+                                          handlePriceModeChange(item.id, "dmc");
+                                        }}
+                                      >
+                                        <Radio
+                                          checked={selectedPriceModes[item.id] === "dmc"}
+                                          onChange={(e) => {
+                                            e.preventDefault();
+                                            e.stopPropagation();
+                                            handlePriceModeChange(item.id, "dmc");
+                                          }}
+                                          value="dmc"
+                                          sx={{ p: 0, mr: 1, size: "small" }}
+                                          size="small"
+                                        />
+                                        <Box
+                                          sx={{
+                                            display: "flex",
+                                            alignItems: "center",
+                                            fontSize: "0.8rem",
+                                            maxWidth: "120px",
+                                            overflow: "hidden",
+                                          }}
+                                        >
+                                          {dmcLogo && (
+                                            <Avatar
                                               src={dmcLogo}
-                                              alt="DMC Logo"
-                                              style={{
-                                                width: "14px",
-                                                height: "14px",
+                                              alt={`${dmcCompanyName} Logo`}
+                                              sx={{
+                                                width: 16,
+                                                height: 16,
                                                 marginRight: "4px",
-                                                objectFit: "contain",
-                                              }}
-                                              onError={(e) => {
-                                                console.error(
-                                                  "Error loading logo:",
-                                                  e
-                                                );
-                                                e.target.style.display = "none";
+                                                flexShrink: 0,
                                               }}
                                             />
-                                            {DmcName}
-                                          </Box>
-                                        }
-                                        sx={{ margin: 0, padding: 0 }}
-                                      />
+                                          )}
+                                          <Typography
+                                            sx={{
+                                              whiteSpace: "nowrap",
+                                              overflow: "hidden",
+                                              textOverflow: "ellipsis",
+                                            }}
+                                          >
+                                            {`${dmcCompanyName}'s Mode`}
+                                          </Typography>
+                                        </Box>
+                                      </Box>
                                       {PriceHide === "0" && (
                                         <Box
                                           sx={{
@@ -1082,83 +1021,67 @@ export default function HotelProperties() {
                                     (bookingType === "booking" ||
                                       bookingType === "null") && (
                                       <Box
+                                        onClick={(e) => {
+                                          e.preventDefault();
+                                          e.stopPropagation();
+                                          handlePriceModeChange(item.id, "travclicks");
+                                        }}
                                         sx={{
                                           textAlign: "left",
-                                          border: "1px solid #e0e0e0",
-                                          borderRadius: "8px",
-                                          p: 0.75,
-                                          m: 0.5,
-                                          minWidth: "150px",
-                                          maxWidth: "150px",
-                                          transition: "all 0.2s ease-in-out",
+                                          border: "2px solid #ccc",
+                                          borderRadius: "12px",
+                                          p: 1,
+                                          m: 1,
+                                          width: "180px",
+                                          minHeight: "180px",
+                                          height: "auto",
                                           bgcolor:
                                             selectedPriceModes[item.id] ===
                                             "travclicks"
-                                              ? "#f0f7ff"
+                                              ? "#e6f2ff"
                                               : "#fff",
-                                          boxShadow:
-                                            selectedPriceModes[item.id] ===
-                                            "travclicks"
-                                              ? "0 2px 5px rgba(0,0,0,0.1)"
-                                              : "none",
                                           transform:
                                             selectedPriceModes[item.id] ===
                                             "travclicks"
-                                              ? "scale(1.02)"
+                                              ? "scale(1.05)"
                                               : "scale(1)",
+                                          cursor: "pointer",
+                                          "&:hover": {
+                                            bgcolor: "#f5f5f5",
+                                          },
+                                          position: "relative",
+                                          zIndex: 1,
                                           display: "flex",
                                           flexDirection: "column",
-                                          justifyContent: "center",
-                                          borderColor:
-                                            selectedPriceModes[item.id] ===
-                                            "travclicks"
-                                              ? "#3554D1"
-                                              : "#e0e0e0",
+                                          alignItems: "flex-start",
                                         }}
                                       >
-                                        <FormControlLabel
-                                          value="travclicks"
-                                          control={
-                                            <Radio
-                                              name={`radio-${item.id}`}
-                                              checked={
-                                                selectedPriceModes[item.id] ===
-                                                "travclicks"
-                                              }
-                                              onChange={() =>
-                                                handlePriceModeChange(
-                                                  item.id,
-                                                  "travclicks"
-                                                )
-                                              }
-                                              size="small"
-                                            />
-                                          }
-                                          label={
-                                            <Box
-                                              display="flex"
-                                              alignItems="center"
-                                              sx={{ fontSize: "13px" }}
-                                            >
-                                              <img
-                                                src={travClikImage}
-                                                alt="Travclicks"
-                                                style={{
-                                                  width: "14px",
-                                                  height: "14px",
-                                                  marginRight: "4px",
-                                                  objectFit: "contain",
-                                                }}
-                                                onError={(e) => {
-                                                  e.target.style.display =
-                                                    "none";
-                                                }}
-                                              />
-                                              Travclicks
-                                            </Box>
-                                          }
-                                          sx={{ margin: 0, padding: 0 }}
-                                        />
+                                        <Box
+                                          sx={{
+                                            width: "100%",
+                                            display: "flex",
+                                            alignItems: "center",
+                                            cursor: "pointer",
+                                          }}
+                                          onClick={(e) => {
+                                            e.preventDefault();
+                                            e.stopPropagation();
+                                            handlePriceModeChange(item.id, "travclicks");
+                                          }}
+                                        >
+                                          <Radio
+                                            checked={selectedPriceModes[item.id] === "travclicks"}
+                                            onChange={(e) => {
+                                              e.preventDefault();
+                                              e.stopPropagation();
+                                              handlePriceModeChange(item.id, "travclicks");
+                                            }}
+                                            value="travclicks"
+                                            sx={{ p: 0, mr: 1, size: "small" }}
+                                            size="small"
+                                          />
+                                          <Typography>Travclicks</Typography>
+                                        </Box>
                                         {PriceHide === "0" && (
                                           <Box
                                             sx={{

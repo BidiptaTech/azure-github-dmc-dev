@@ -94,9 +94,14 @@ const Pickuptime = ({ entryytime, setentryytime }) => {
   const parseTimeToHour = (timeStr) => {
     if (!timeStr) return 0;
 
+    // Convert to string if it's a number
+    const timeString = String(timeStr);
+    
+   
+
     // Check if time is in HH:MM AM/PM format
-    if (timeStr.includes("AM") || timeStr.includes("PM")) {
-      const [timePart, period] = timeStr.split(" ");
+    if (timeString.includes("AM") || timeString.includes("PM")) {
+      const [timePart, period] = timeString.split(" ");
       let [hours, minutes] = timePart.split(":");
       hours = parseInt(hours, 10);
 
@@ -107,12 +112,22 @@ const Pickuptime = ({ entryytime, setentryytime }) => {
         hours = 0;
       }
 
+      console.log(`AM/PM format parsed: ${timeStr} -> ${hours}`);
       return hours;
     }
 
-    // If it's already in 24-hour format (HH:MM)
-    const [hours] = timeStr.split(":");
-    return parseInt(hours, 10);
+    // If it's already in 24-hour format (HH:MM) or just a number
+    if (timeString.includes(":")) {
+      const [hours] = timeString.split(":");
+      const result = parseInt(hours, 10);
+      console.log(`HH:MM format parsed: ${timeStr} -> ${result}`);
+      return result;
+    } else {
+      // If it's just a number (like 11), return it directly
+      const result = parseInt(timeString, 10);
+      console.log(`Number format parsed: ${timeStr} -> ${result}`);
+      return result;
+    }
   };
 
   const nightStartHour = parseTimeToHour(nightStartTime);
@@ -147,9 +162,24 @@ const Pickuptime = ({ entryytime, setentryytime }) => {
       let startHour = startTime ? parseTimeToHour(startTime) : 0;
       let endHour = endTime ? parseTimeToHour(endTime) : 0;
 
-      // Block all hours in this time range
-      for (let i = startHour; i < endHour; i++) {
-        blockedTimes.add(i);
+      console.log(`Booking: start_time=${startTime} (${typeof startTime}) -> startHour=${startHour}`);
+      console.log(`Booking: end_time=${endTime} (${typeof endTime}) -> endHour=${endHour}`);
+
+      // Handle overnight bookings (e.g., 11 PM to 4 AM)
+      if (startHour > endHour) {
+        // Block hours from start to midnight (24)
+        for (let i = startHour; i < 24; i++) {
+          blockedTimes.add(i);
+        }
+        // Block hours from midnight (0) to end
+        for (let i = 0; i < endHour; i++) {
+          blockedTimes.add(i);
+        }
+      } else {
+        // Block all hours in this time range
+        for (let i = startHour; i < endHour; i++) {
+          blockedTimes.add(i);
+        }
       }
     });
   }

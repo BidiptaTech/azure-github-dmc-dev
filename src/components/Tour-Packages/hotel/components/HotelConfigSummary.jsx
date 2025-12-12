@@ -37,12 +37,12 @@ const HotelConfigSummary = ({
   tourDateRange 
 }) => {
   const [expandedAccordions, setExpandedAccordions] = useState(new Set());
-  
+  const PriceHide = useSelector((state) => state.auth.PriceHide);   
   // Get tour dates from Redux state to check for date conflicts
   const searchCriteria = useSelector(state => state.tourPackages?.searchCriteria);
   const tourDates = searchCriteria?.dates || [];
-
-  // Calculate overall booking status
+  const tourStatus = useSelector((state) => state.tourPackages.tourStatus);
+  // Enhanced booking status calculation with validation logic
   const bookingStatus = React.useMemo(() => {
     if (!hotelConfigurations || hotelConfigurations.length === 0) {
       return { 
@@ -50,7 +50,28 @@ const HotelConfigSummary = ({
         message: 'No hotels added yet',
         completedRooms: 0,
         totalRooms: 0,
-        progress: 0
+        progress: 0,
+        canAddNewHotel: true,
+        incompleteHotels: [],
+        showStatusSection: false // Don't show status section when empty
+      };
+    }
+
+    // Check if there are any meaningful hotel configurations (with actual hotel selections)
+    const meaningfulConfigurations = hotelConfigurations.filter(config => config.hotelId);
+    
+    // If no hotels have been actually selected yet, treat as empty state
+    // This handles the case where hotel component always maintains at least one empty placeholder
+    if (meaningfulConfigurations.length === 0) {
+      return { 
+        status: 'empty', 
+        message: 'No hotels selected yet',
+        completedRooms: 0,
+        totalRooms: 0,
+        progress: 0,
+        canAddNewHotel: true,
+        incompleteHotels: [],
+        showStatusSection: false // Don't show status section until a hotel is selected
       };
     }
 
@@ -59,15 +80,42 @@ const HotelConfigSummary = ({
       config.hotelId && config.roomTypeId && config.bedTypeId
     ).length;
     
+    // Find incomplete hotels (those without hotelId - not selected yet)
+    const incompleteHotels = hotelConfigurations
+      .map((config, index) => ({ ...config, index }))
+      .filter(config => !config.hotelId);
+    
+    // Find partially configured hotels (selected hotel but missing room/bed)
+    const partiallyConfigured = hotelConfigurations.filter(config => 
+      config.hotelId && (!config.roomTypeId || !config.bedTypeId)
+    );
+    
     const progress = totalRooms > 0 ? (completedRooms / totalRooms) * 100 : 0;
+    
+    // Can only add new hotel if there are no incomplete hotels
+    const canAddNewHotel = incompleteHotels.length === 0;
 
-    if (completedRooms === 0) {
+    if (incompleteHotels.length > 0) {
       return { 
-        status: 'started', 
-        message: 'Hotel booking in progress',
+        status: 'incomplete', 
+        message: `${incompleteHotels.length} hotel${incompleteHotels.length > 1 ? 's' : ''} need${incompleteHotels.length === 1 ? 's' : ''} to be selected first`,
         completedRooms,
         totalRooms,
-        progress
+        progress,
+        canAddNewHotel,
+        incompleteHotels,
+        showStatusSection: true // Show status section when there are meaningful configurations
+      };
+    } else if (completedRooms === 0) {
+      return { 
+        status: 'started', 
+        message: 'Hotels selected, configure rooms and beds',
+        completedRooms,
+        totalRooms,
+        progress,
+        canAddNewHotel,
+        incompleteHotels,
+        showStatusSection: true
       };
     } else if (completedRooms === totalRooms) {
       return { 
@@ -75,35 +123,68 @@ const HotelConfigSummary = ({
         message: 'All hotels fully configured',
         completedRooms,
         totalRooms,
-        progress
+        progress,
+        canAddNewHotel,
+        incompleteHotels,
+        showStatusSection: true
       };
     } else {
       return { 
         status: 'partial', 
-        message: 'Some hotels need configuration',
+        message: 'Some rooms need configuration',
         completedRooms,
         totalRooms,
-        progress
+        progress,
+        canAddNewHotel,
+        incompleteHotels,
+        showStatusSection: true
       };
     }
   }, [hotelConfigurations]);
 
-  // Group configurations by hotel ID
+  // Group configurations by hotel ID - Enhanced to handle incomplete configurations
   const groupedConfigurations = React.useMemo(() => {
     const grouped = {};
+    const unconfiguredHotels = [];
+    
+    // Only process configurations if there are meaningful hotel selections
+    const meaningfulConfigurations = hotelConfigurations.filter(config => config.hotelId);
+    
+    // If no meaningful configurations, return empty object (will show empty state)
+    if (meaningfulConfigurations.length === 0) {
+      return {};
+    }
     
     hotelConfigurations.forEach((config, index) => {
       if (config.hotelId) {
+        // Configured hotels with valid hotelId
         if (!grouped[config.hotelId]) {
           grouped[config.hotelId] = {
             hotelDetails: config.hotelDetails || {},
-            configurations: []
+            configurations: [],
+            isConfigured: true
           };
         }
         grouped[config.hotelId].configurations.push({
           ...config,
           originalIndex: index
         });
+      } else {
+        // Only show unconfigured hotels if there are also configured ones
+        // This prevents showing empty placeholder when no hotels selected yet
+        if (meaningfulConfigurations.length > 0) {
+          const unconfiguredGroupKey = `unconfigured_${index}`;
+          grouped[unconfiguredGroupKey] = {
+            hotelDetails: { hotel_name: `Hotel ${unconfiguredHotels.length + 1} (Not Selected)` },
+            configurations: [{
+              ...config,
+              originalIndex: index
+            }],
+            isConfigured: false,
+            isUnconfigured: true
+          };
+          unconfiguredHotels.push(config);
+        }
       }
     });
     
@@ -134,11 +215,11 @@ const HotelConfigSummary = ({
       <Paper 
         elevation={0} 
         sx={{ 
-          p: 2.5,
+          p: 1.5,
           textAlign: 'center', 
           background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
           color: 'white',
-          borderRadius: 2,
+          borderRadius: 1.5,
           position: 'relative',
           overflow: 'hidden'
         }}
@@ -147,10 +228,10 @@ const HotelConfigSummary = ({
         <Box
           sx={{
             position: 'absolute',
-            top: -30,
-            right: -30,
-            width: 120,
-            height: 120,
+            top: -20,
+            right: -20,
+            width: 80,
+            height: 80,
             borderRadius: '50%',
             background: 'rgba(255, 255, 255, 0.1)',
             zIndex: 0
@@ -158,8 +239,8 @@ const HotelConfigSummary = ({
         />
         
         <Box sx={{ position: 'relative', zIndex: 1 }}>
-          <HotelIcon sx={{ fontSize: 48, mb: 1.5, opacity: 0.9 }} />
-          <Typography variant="h5" gutterBottom sx={{ fontWeight: 600 }}>
+          <HotelIcon sx={{ fontSize: 36, mb: 1, opacity: 0.9 }} />
+          <Typography variant="h6" gutterBottom sx={{ fontWeight: 600, fontSize: '1.1rem' }}>
             Let's Book Your Hotels! 🏨
           </Typography>
           
@@ -167,20 +248,17 @@ const HotelConfigSummary = ({
           {tourDateRange && tourDateRange.startDate && tourDateRange.endDate && (
             <Paper 
               sx={{ 
-                p: 1.5,
-                mb: 2,
+                p: 0.5,
+                mb: 1,
                 bgcolor: 'rgba(255, 255, 255, 0.15)', 
                 backdropFilter: 'blur(10px)',
-                borderRadius: 2,
+                borderRadius: 1.5,
                 display: 'inline-block'
               }}
             >
-              <Typography variant="caption" sx={{ display: 'flex', alignItems: 'center', color: 'white' }}>
-                <CalendarTodayIcon sx={{ mr: 1, fontSize: 16 }} />
-                Tour Dates: {new Date(tourDateRange.startDate).toLocaleDateString()} - {new Date(tourDateRange.endDate).toLocaleDateString()}
-              </Typography>
-              <Typography variant="caption" sx={{ display: 'block', color: 'rgba(255,255,255,0.8)', mt: 0.5 }}>
-                Hotels will use these dates by default until you select specific nights
+              <Typography variant="caption" sx={{ display: 'flex', alignItems: 'center', color: 'white', fontSize: '0.65rem', lineHeight: 1.2 }}>
+                <CalendarTodayIcon sx={{ mr: 0.5, fontSize: 12 }} />
+                Tour Dates: {new Date(tourDateRange.startDate).toLocaleDateString()} - {new Date(tourDateRange.endDate).toLocaleDateString()} | Hotels will use these dates by default until you select specific nights
               </Typography>
             </Paper>
           )}
@@ -189,8 +267,8 @@ const HotelConfigSummary = ({
     );
   }
 
-  // Status indicator component
-  const StatusIndicator = ({ status, progress, completedRooms, totalRooms }) => {
+  // Enhanced Status indicator component with validation info
+  const StatusIndicator = ({ status, progress, completedRooms, totalRooms, message, canAddNewHotel, incompleteHotels }) => {
     const getStatusConfig = () => {
       switch (status) {
         case 'complete':
@@ -199,6 +277,13 @@ const HotelConfigSummary = ({
             color: 'success',
             bgcolor: '#e8f5e8',
             borderColor: '#4caf50'
+          };
+        case 'incomplete':
+          return {
+            icon: <ErrorOutlineIcon />,
+            color: 'error',
+            bgcolor: '#ffebee',
+            borderColor: '#f44336'
           };
         case 'partial':
           return {
@@ -221,44 +306,53 @@ const HotelConfigSummary = ({
 
     return (
       <Paper 
-        elevation={2}
+        elevation={1}
         sx={{ 
-          p: 3, 
-          mb: 3, 
+          p: 1.5, 
+          mb: 1.5, 
           bgcolor: config.bgcolor,
-          border: `2px solid ${config.borderColor}`,
-          borderRadius: 2
+          border: `1px solid ${config.borderColor}`,
+          borderRadius: 1.5
         }}
       >
-        <Box sx={{ display: 'flex', alignItems: 'center', mb: 2 }}>
-          <Avatar sx={{ bgcolor: config.borderColor, mr: 2 }}>
+        <Box sx={{ display: 'flex', alignItems: 'center', mb: 1 }}>
+          <Avatar sx={{ bgcolor: config.borderColor, mr: 1, width: 28, height: 28 }}>
             {config.icon}
           </Avatar>
           <Box sx={{ flex: 1 }}>
-            <Typography variant="h6" sx={{ color: config.borderColor, fontWeight: 600 }}>
+            <Typography variant="subtitle1" sx={{ color: config.borderColor, fontWeight: 600, fontSize: '0.8rem' }}>
               Hotel Booking Status
             </Typography>
-            <Typography variant="body2" color="text.secondary">
-              {completedRooms} of {totalRooms} rooms configured
+            <Typography variant="caption" color="text.secondary" sx={{ fontSize: '0.7rem' }}>
+              {message}
             </Typography>
           </Box>
           <Chip 
             label={`${Math.round(progress)}% Complete`}
             color={config.color}
             variant="filled"
-            sx={{ fontWeight: 600 }}
+            sx={{ fontWeight: 600, fontSize: '0.65rem', height: '20px' }}
           />
         </Box>
+        
+        {/* Show incomplete hotel warning */}
+        {incompleteHotels && incompleteHotels.length > 0 && (
+          <Alert severity="warning" sx={{ mb: 1, py: 0.4 }}>
+            <Typography variant="caption" sx={{ fontSize: '0.7rem' }}>
+              <strong>Action Required:</strong> Please select a hotel for Room {incompleteHotels[0].index + 1} before adding more hotels.
+            </Typography>
+          </Alert>
+        )}
         
         <LinearProgress 
           variant="determinate" 
           value={progress} 
           sx={{ 
-            height: 8, 
-            borderRadius: 4,
+            height: 6, 
+            borderRadius: 3,
             bgcolor: 'rgba(0,0,0,0.1)',
             '& .MuiLinearProgress-bar': {
-              borderRadius: 4
+              borderRadius: 3
             }
           }}
         />
@@ -266,62 +360,89 @@ const HotelConfigSummary = ({
     );
   };
 
-  // Quick action buttons
-  const QuickActions = () => (
-    <Paper elevation={1} sx={{ p: 3, mb: 3, borderRadius: 2, bgcolor: '#f8f9fa' }}>
-      <Typography variant="h6" gutterBottom sx={{ display: 'flex', alignItems: 'center', color: 'primary.main' }}>
-        <EditIcon sx={{ mr: 1 }} />
+  // Enhanced Quick action buttons with validation
+  const QuickActions = ({ canAddNewHotel, incompleteHotels }) => (
+    <Paper elevation={1} sx={{ p: 1.5, mb: 1.5, borderRadius: 1.5, bgcolor: '#f8f9fa' }}>
+      <Typography variant="subtitle1" gutterBottom sx={{ display: 'flex', alignItems: 'center', color: 'primary.main', fontSize: '0.8rem' }}>
+        <EditIcon sx={{ mr: 0.6, fontSize: '1rem' }} />
         Quick Actions
       </Typography>
       
-      <Grid container spacing={2}>
+      <Grid container spacing={1}>
         <Grid item xs={12} sm={6}>
           <Button
             fullWidth
             variant="outlined"
-            size="large"
+            size="small"
             startIcon={<AddIcon />}
             onClick={onAddMoreRooms}
-            disabled={!onAddMoreRooms}
+            disabled={!onAddMoreRooms || !canAddNewHotel}
             sx={{ 
-              py: 1.5,
+              py: 0.8,
               justifyContent: 'flex-start',
               textTransform: 'none',
-              fontWeight: 500
+              fontWeight: 500,
+              fontSize: '0.75rem',
+              opacity: !canAddNewHotel ? 0.6 : 1
             }}
           >
-            <Box sx={{ textAlign: 'left', ml: 1 }}>
-              <Typography variant="subtitle2">Add More Rooms</Typography>
-              <Typography variant="caption" color="text.secondary">
-                Same hotel, additional rooms
+            <Box sx={{ textAlign: 'left', ml: 0.6 }}>
+              <Typography variant="subtitle2" sx={{ fontSize: '0.75rem' }}>Add More Rooms</Typography>
+              <Typography variant="caption" color="text.secondary" sx={{ fontSize: '0.65rem' }}>
+                {!canAddNewHotel ? 'Select hotel first' : 'Same hotel, additional rooms'}
               </Typography>
             </Box>
           </Button>
         </Grid>
         
         <Grid item xs={12} sm={6}>
-          <Button
-            fullWidth
-            variant="contained"
-            size="large"
-            startIcon={<AddBusinessIcon />}
-            onClick={onAddNewHotel}
-            sx={{ 
-              py: 1.5,
-              justifyContent: 'flex-start',
-              textTransform: 'none',
-              fontWeight: 500
-            }}
+          <Tooltip 
+            title={!canAddNewHotel ? `Please select a hotel for the current configuration first` : 'Add a different hotel'}
+            arrow
           >
-            <Box sx={{ textAlign: 'left', ml: 1 }}>
-              <Typography variant="subtitle2" color="white">Add Different Hotel</Typography>
-              <Typography variant="caption" sx={{ color: 'rgba(255,255,255,0.8)' }}>
-                New hotel location
-              </Typography>
-            </Box>
-          </Button>
+            <span>
+              <Button
+                fullWidth
+                variant={canAddNewHotel ? "contained" : "outlined"}
+                size="small"
+                startIcon={canAddNewHotel ? <AddBusinessIcon /> : <WarningIcon />}
+                onClick={canAddNewHotel ? onAddNewHotel : null}
+                disabled={!canAddNewHotel}
+                color={canAddNewHotel ? "primary" : "warning"}
+                sx={{ 
+                  py: 0.8,
+                  justifyContent: 'flex-start',
+                  textTransform: 'none',
+                  fontWeight: 500,
+                  fontSize: '0.75rem',
+                  opacity: !canAddNewHotel ? 0.7 : 1
+                }}
+              >
+                <Box sx={{ textAlign: 'left', ml: 0.6 }}>
+                  <Typography variant="subtitle2" color={canAddNewHotel ? "white" : "warning.main"} sx={{ fontSize: '0.75rem' }}>
+                    {canAddNewHotel ? 'Add Different Hotel' : 'Complete Current Hotel'}
+                  </Typography>
+                  <Typography variant="caption" sx={{ 
+                    color: canAddNewHotel ? 'rgba(255,255,255,0.8)' : 'rgba(237, 108, 2, 0.7)', 
+                    fontSize: '0.65rem' 
+                  }}>
+                    {canAddNewHotel ? 'New hotel location' : 'Select hotel first'}
+                  </Typography>
+                </Box>
+              </Button>
+            </span>
+          </Tooltip>
         </Grid>
       </Grid>
+      
+      {/* Show validation message */}
+      {!canAddNewHotel && incompleteHotels && incompleteHotels.length > 0 && (
+        <Alert severity="info" sx={{ mt: 1, py: 0.4 }}>
+          <Typography variant="caption" sx={{ fontSize: '0.7rem' }}>
+            💡 <strong>Tip:</strong> Click on "Room {incompleteHotels[0].index + 1}" below to select a hotel, then you can add more hotels or rooms.
+          </Typography>
+        </Alert>
+      )}
     </Paper>
   );
 
@@ -388,12 +509,10 @@ const HotelConfigSummary = ({
     // Hotel nights should be the same for all rooms in the same hotel, so take from first room
     const hotelNights = configurations.length > 0 ? (configurations[0].nights || 0) : 0;
     const totalGuests = configurations.reduce((sum, config) => sum + (config.selectedGuests || 0), 0);
-    const totalMealPlanCost = configurations.reduce((sum, config) => {
-      const mealPlanCost = (config.guestMealPlans || []).reduce((mealSum, mealPlanData) => {
-        const price = mealPlanData?.price || 0;
-        return mealSum + price;
-      }, 0);
-      return sum + mealPlanCost;
+    const totalRoomCost = configurations.reduce((sum, config) => {
+      // Use total price (room + meals) for hotel summary
+      const roomTotalPrice = config.mealPlanDetails?.totalPrice || 0;
+      return sum + roomTotalPrice;
     }, 0);
     
     const dateRanges = configurations
@@ -426,7 +545,7 @@ const HotelConfigSummary = ({
       totalRooms: configurations.length,
       hotelNights, 
       totalGuests, 
-      totalMealPlanCost, 
+      totalRoomCost, // Updated variable name to reflect total room cost (room + meals)
       dateRanges,
       overallCheckIn,
       overallCheckOut,
@@ -495,26 +614,38 @@ const HotelConfigSummary = ({
 
   return (
     <Box sx={{ mb: 2 }}>
-      {/* Status Overview */}
-      <StatusIndicator 
-        status={bookingStatus.status}
-        progress={bookingStatus.progress}
-        completedRooms={bookingStatus.completedRooms}
-        totalRooms={bookingStatus.totalRooms}
-      />
+      {/* Only show status and configuration sections when user has started hotel selection */}
+      {bookingStatus.showStatusSection && (
+        <>
+          {/* Status Overview */}
+          <StatusIndicator 
+            status={bookingStatus.status}
+            progress={bookingStatus.progress}
+            completedRooms={bookingStatus.completedRooms}
+            totalRooms={bookingStatus.totalRooms}
+            message={bookingStatus.message}
+            canAddNewHotel={bookingStatus.canAddNewHotel}
+            incompleteHotels={bookingStatus.incompleteHotels}
+          />
 
-      {/* Quick Actions */}
-      <QuickActions />
+          {/* Quick Actions */}
+          <QuickActions 
+            canAddNewHotel={bookingStatus.canAddNewHotel}
+            incompleteHotels={bookingStatus.incompleteHotels}
+          />
 
-      {/* Hotel Configurations */}
-      <Typography variant="h6" gutterBottom sx={{ display: 'flex', alignItems: 'center', mb: 1.5 }}>
-        <HotelIcon sx={{ mr: 1, color: 'primary.main' }} />
-        Your Hotel Bookings ({Object.keys(groupedConfigurations).length})
-      </Typography>
+          {/* Hotel Configurations Header */}
+          <Typography variant="h6" gutterBottom sx={{ display: 'flex', alignItems: 'center', mb: 1 }}>
+            <HotelIcon sx={{ mr: 0.8, color: 'primary.main', fontSize: '1.2rem' }} />
+            Your Hotel Bookings ({Object.keys(groupedConfigurations).length})
+          </Typography>
+        </>
+      )}
       
       {Object.entries(groupedConfigurations).map(([hotelId, hotelGroup]) => {
         const hotel = hotelGroup.hotelDetails;
         const configurations = hotelGroup.configurations;
+        const isUnconfigured = hotelGroup.isUnconfigured;
         const hotelSummary = getHotelSummary(configurations);
         
         const hotelDateValidation = isHotelDateInRange(
@@ -542,28 +673,53 @@ const HotelConfigSummary = ({
         const isExpanded = expandedAccordions.has(hotelId);
         
         return (
-          <Accordion 
+                     <Accordion 
             key={hotelId}
             expanded={isExpanded}
             onChange={() => handleAccordionChange(hotelId)}
-            elevation={isActiveHotel ? 4 : 1}
+            elevation={isActiveHotel ? 2 : 1}
             sx={{ 
-              mb: 2,
-              border: hasDateConflicts ? '2px solid #f44336' : isActiveHotel ? '2px solid #3554D1' : hasDateIssues ? '2px solid #ff9800' : '1px solid rgba(0, 0, 0, 0.12)',
-              borderRadius: 2,
-              background: hasDateConflicts
-                ? 'linear-gradient(135deg, rgba(244, 67, 54, 0.05) 0%, rgba(244, 67, 54, 0.02) 100%)'
-                : isActiveHotel 
-                  ? 'linear-gradient(135deg, rgba(53, 84, 209, 0.05) 0%, rgba(53, 84, 209, 0.02) 100%)'
-                  : 'white',
+              mb: 1,
+              border: isUnconfigured
+                ? '2px dashed #f44336'
+                : hasDateConflicts 
+                  ? '1px solid #f44336' 
+                  : isActiveHotel 
+                    ? '1px solid #3554D1' 
+                    : hasDateIssues 
+                      ? '1px solid #ff9800' 
+                      : '1px solid rgba(0, 0, 0, 0.12)',
+              borderRadius: 1.5,
+              background: isUnconfigured
+                ? 'linear-gradient(135deg, rgba(244, 67, 54, 0.08) 0%, rgba(244, 67, 54, 0.03) 100%)'
+                : hasDateConflicts
+                  ? 'linear-gradient(135deg, rgba(244, 67, 54, 0.05) 0%, rgba(244, 67, 54, 0.02) 100%)'
+                  : isActiveHotel 
+                    ? 'linear-gradient(135deg, rgba(53, 84, 209, 0.05) 0%, rgba(53, 84, 209, 0.02) 100%)'
+                    : 'white',
               transition: 'all 0.3s ease',
               '&:before': {
                 display: 'none' // Remove default MUI accordion border
               }
             }}
           >
+            {/* Unconfigured Hotel Alert */}
+            {isUnconfigured && (
+              <Alert 
+                severity="error" 
+                icon={<ErrorOutlineIcon />}
+                sx={{ borderRadius: '8px 8px 0 0', border: 'none', bgcolor: '#ffebee' }}
+              >
+                <Typography variant="body2">
+                  <strong>Hotel Selection Required:</strong> Please select a hotel for this room configuration.
+                  <br />
+                  <em>Click on the room below and choose your preferred hotel to continue.</em>
+                </Typography>
+              </Alert>
+            )}
+            
             {/* Date Range Warning */}
-            {(hasDateIssues || hasDateConflicts) && (
+            {!isUnconfigured && (hasDateIssues || hasDateConflicts) && (
               <Alert 
                 severity={hasDateConflicts ? "error" : "warning"} 
                 icon={<WarningIcon />}
@@ -587,309 +743,419 @@ const HotelConfigSummary = ({
               </Alert>
             )}
             
-            <AccordionSummary
+             <AccordionSummary
               expandIcon={
-                <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
-                  {hasDateConflicts && <ErrorOutlineIcon sx={{ color: 'error.main', fontSize: 18 }} />}
-                  {hasDateIssues && !hasDateConflicts && <WarningIcon sx={{ color: 'warning.main', fontSize: 18 }} />}
-                  {isActiveHotel && <EditIcon sx={{ color: 'primary.main', fontSize: 16 }} />}
+                <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.4 }}>
+                  {isUnconfigured && <ErrorOutlineIcon sx={{ color: 'error.main', fontSize: 14 }} />}
+                  {!isUnconfigured && hasDateConflicts && <ErrorOutlineIcon sx={{ color: 'error.main', fontSize: 14 }} />}
+                  {!isUnconfigured && hasDateIssues && !hasDateConflicts && <WarningIcon sx={{ color: 'warning.main', fontSize: 14 }} />}
+                  {isActiveHotel && <EditIcon sx={{ color: 'primary.main', fontSize: 12 }} />}
                   <ExpandMoreIcon />
                 </Box>
               }
-              sx={{ 
-                p: 2,
-                minHeight: '64px',
-                '& .MuiAccordionSummary-content': { 
-                  margin: 0,
-                  '&.Mui-expanded': { margin: 0 }
-                },
-                '&:hover': {
-                  bgcolor: 'rgba(0, 0, 0, 0.02)'
-                }
-              }}
-            >
-              {/* Hotel Header - Compact Summary */}
-              <Box sx={{ display: 'flex', alignItems: 'center', flex: 1, pr: 2 }}>
+               sx={{ 
+                 p: 1,
+                 minHeight: '40px',
+                 '& .MuiAccordionSummary-content': { 
+                   margin: 0,
+                   '&.Mui-expanded': { margin: 0 }
+                 },
+                 '&:hover': {
+                   bgcolor: 'rgba(0, 0, 0, 0.02)'
+                 }
+               }}
+             >
+                             {/* Hotel Header - Compact Summary */}
+              <Box sx={{ display: 'flex', alignItems: 'center', flex: 1, pr: 1 }}>
                 <Avatar 
                   sx={{
-                    bgcolor: hasDateConflicts ? '#f44336' : hasDateIssues ? '#ff9800' : '#3554D1', 
-                    width: 40,
-                    height: 40,
-                    mr: 1.5
+                    bgcolor: isUnconfigured 
+                      ? '#f44336' 
+                      : hasDateConflicts 
+                        ? '#f44336' 
+                        : hasDateIssues 
+                          ? '#ff9800' 
+                          : '#3554D1', 
+                    width: 28,
+                    height: 28,
+                    mr: 0.8,
+                    border: isUnconfigured ? '2px solid #f44336' : 'none'
                   }}
                 >
-                  <HotelIcon fontSize="small" />
+                  {isUnconfigured ? <ErrorOutlineIcon fontSize="small" /> : <HotelIcon fontSize="small" />}
                 </Avatar>
-                
-                <Box sx={{ flex: 1 }}>
-                  <Box sx={{ display: 'flex', alignItems: 'center', flexWrap: 'wrap', gap: 1 }}>
-                    <Typography variant="h6" sx={{ fontWeight: 600 }}>
-                      {hotel.hotel_name || hotel.name || 'Hotel'}
-                    </Typography>
-                    
-                    {isActiveHotel && (
-                      <Chip label="Editing" size="small" color="primary" />
-                    )}
-                    
-                    {hasDateConflicts && (
-                      <Chip 
-                        label="Date Issue" 
-                        size="small" 
-                        color="error" 
-                        icon={<ErrorOutlineIcon />}
-                      />
-                    )}
-                    
-                    {hasDateIssues && !hasDateConflicts && (
-                      <Chip label="Issue" size="small" color="warning" />
-                    )}
-                    
-                    <Chip 
-                      label={`${Math.round(hotelProgress)}% Complete`}
-                      size="small" 
-                      color={hotelProgress === 100 ? 'success' : hotelProgress > 0 ? 'warning' : 'default'}
-                    />
-                  </Box>
-                  
-                  <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 0.5, mt: 0.5 }}>
-                    <Chip 
-                      size="small" 
-                      label={`${totalRooms} Room${totalRooms !== 1 ? 's' : ''}`}
-                      variant="outlined"
-                      color="primary"
-                    />
-                    {hotelSummary.hotelNights > 0 ? (
-                      <Chip 
-                        size="small" 
-                        label={`${hotelSummary.hotelNights} Night${hotelSummary.hotelNights !== 1 ? 's' : ''}`}
-                        variant="outlined"
-                        color="secondary"
-                      />
-                    ) : hotelSummary.isUsingTourDates ? (
-                      <Chip 
-                        size="small" 
-                        label="Tour Dates"
-                        variant="outlined"
-                        color="warning"
-                        sx={{ fontStyle: 'italic' }}
-                      />
-                    ) : null}
-                    <Chip 
-                      size="small" 
-                      label={`${hotelSummary.totalGuests} Guest${hotelSummary.totalGuests !== 1 ? 's' : ''}`}
-                      variant="outlined"
-                      color="info"
-                    />
-                  </Box>
-                </Box>
-                
-                {/* Price Display - Compact */}
-                {hotelSummary.totalMealPlanCost > 0 && (
+                 
+                 <Box sx={{ flex: 1 }}>
+                   <Box sx={{ display: 'flex', alignItems: 'center', flexWrap: 'wrap', gap: 0.6 }}>
+                     <Typography variant="subtitle1" sx={{ fontWeight: 600, fontSize: '0.8rem' }}>
+                       {hotel.hotel_name || hotel.name || 'Hotel'}
+                     </Typography>
+                     
+                     {isActiveHotel && (
+                       <Chip label="Editing" size="small" color="primary" sx={{ fontSize: '0.65rem', height: '20px' }} />
+                     )}
+                     
+                     {isUnconfigured && (
+                       <Chip 
+                         label="Select Hotel" 
+                         size="small" 
+                         color="error" 
+                         icon={<ErrorOutlineIcon />}
+                         sx={{ fontSize: '0.65rem', height: '20px', animation: 'pulse 1.5s infinite' }}
+                       />
+                     )}
+                     
+                     {!isUnconfigured && hasDateConflicts && (
+                       <Chip 
+                         label="Date Issue" 
+                         size="small" 
+                         color="error" 
+                         icon={<ErrorOutlineIcon />}
+                         sx={{ fontSize: '0.65rem', height: '20px' }}
+                       />
+                     )}
+                     
+                     {!isUnconfigured && hasDateIssues && !hasDateConflicts && (
+                       <Chip label="Issue" size="small" color="warning" sx={{ fontSize: '0.65rem', height: '20px' }} />
+                     )}
+                     
+                     {!isUnconfigured && (
+                       <Chip 
+                         label={`${Math.round(hotelProgress)}% Complete`}
+                         size="small" 
+                         color={hotelProgress === 100 ? 'success' : hotelProgress > 0 ? 'warning' : 'default'}
+                         sx={{ fontSize: '0.65rem', height: '20px' }}
+                       />
+                     )}
+                   </Box>
+                   
+                   <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 0.4, mt: 0.4 }}>
+                     <Chip 
+                       size="small" 
+                       label={`${totalRooms} Room${totalRooms !== 1 ? 's' : ''}`}
+                       variant="outlined"
+                       color="primary"
+                       sx={{ fontSize: '0.65rem', height: '20px' }}
+                     />
+                     {hotelSummary.hotelNights > 0 ? (
+                       <Chip 
+                         size="small" 
+                         label={`${hotelSummary.hotelNights} Night${hotelSummary.hotelNights !== 1 ? 's' : ''}`}
+                         variant="outlined"
+                         color="secondary"
+                         sx={{ fontSize: '0.65rem', height: '20px' }}
+                       />
+                     ) : hotelSummary.isUsingTourDates ? (
+                       <Chip 
+                         size="small" 
+                         label="Tour Dates"
+                         variant="outlined"
+                         color="warning"
+                         sx={{ fontStyle: 'italic', fontSize: '0.65rem', height: '20px' }}
+                       />
+                     ) : null}
+                     <Chip 
+                       size="small" 
+                       label={`${hotelSummary.totalGuests} Guest${hotelSummary.totalGuests !== 1 ? 's' : ''}`}
+                       variant="outlined"
+                       color="info"
+                       sx={{ fontSize: '0.65rem', height: '20px' }}
+                     />
+                   </Box>
+                 </Box>
+                 
+                                 {/* Price Display - Compact */}
+               {isUnconfigured ? (
                   <Chip
-                    label={`$${hotelSummary.totalMealPlanCost.toFixed(2)}`}
+                    label="Select Hotel First"
+                    size="small"
+                    color="error"
+                    variant="outlined"
+                    sx={{ fontWeight: 600, fontSize: '0.65rem', height: '20px' }}
+                  />
+                ) : hotelSummary.totalRoomCost > 0 && PriceHide === "0" ? (
+                  <Chip
+                    label={`$${hotelSummary.totalRoomCost.toFixed(2)}`}
                     size="small"
                     color="success"
                     variant="filled"
-                    sx={{ fontWeight: 600 }}
+                    sx={{ fontWeight: 600, fontSize: '0.65rem', height: '20px' }}
+                  />
+                ) : (
+                  <Chip
+                    label="Price hide"
+                    size="small"
+                    color="success"
+                    variant="filled"
+                    sx={{ fontWeight: 600, fontSize: '0.65rem', height: '20px' }}
                   />
                 )}
-              </Box>
+               </Box>
             </AccordionSummary>
 
-            <AccordionDetails sx={{ p: 1 }}>
-              {/* Full Hotel Details */}
-              <Box sx={{ p: 2 }}>
-                <Typography variant="body2" color="text.secondary" gutterBottom>
-                  📍 {hotel.address || hotel.location || 'Hotel Location'}
-                </Typography>
-                
-                {hotelSummary.overallCheckIn && hotelSummary.overallCheckOut && (
-                  <Typography variant="body2" color="text.secondary" gutterBottom>
-                    📅 {hotelSummary.overallCheckIn} - {hotelSummary.overallCheckOut}
-                    {hotelSummary.isUsingTourDates && (
-                      <Typography component="span" variant="caption" sx={{ 
-                        ml: 1, 
-                        color: 'warning.main', 
-                        fontStyle: 'italic' 
-                      }}>
-                        (Tour dates - select nights to customize)
-                      </Typography>
-                    )}
-                  </Typography>
-                )}
-              </Box>
+                         <AccordionDetails sx={{ p: 1 }}>
+               {/* Full Hotel Details */}
+               <Box sx={{ p: 1.5 }}>
+                 <Typography variant="body2" color="text.secondary" gutterBottom sx={{ fontSize: '0.8rem' }}>
+                   📍 {hotel.address || hotel.location || 'Hotel Location'}
+                 </Typography>
+                 
+                 {hotelSummary.overallCheckIn && hotelSummary.overallCheckOut && (
+                   <Typography variant="body2" color="text.secondary" gutterBottom sx={{ fontSize: '0.8rem' }}>
+                     📅 {hotelSummary.overallCheckIn} - {hotelSummary.overallCheckOut}
+                     {hotelSummary.isUsingTourDates && (
+                       <Typography component="span" variant="caption" sx={{ 
+                         ml: 0.8, 
+                         color: 'warning.main', 
+                         fontStyle: 'italic',
+                         fontSize: '0.7rem'
+                       }}>
+                         (Tour dates - select nights to customize)
+                       </Typography>
+                     )}
+                   </Typography>
+                 )}
+               </Box>
 
-              {/* Room Cards */}
-              <Typography variant="subtitle1" gutterBottom sx={{ fontWeight: 600, mb: 1.5 }}>
-                Room Configurations
-              </Typography>
+               {/* Room Cards */}
+               <Typography variant="subtitle1" gutterBottom sx={{ fontWeight: 600, mb: 1, fontSize: '0.85rem' }}>
+                 Room Configurations
+               </Typography>
 
-              <Grid container spacing={1.5}>
+               <Grid container spacing={1}>
                 {configurations.map((config, configIndex) => {
                   const isActive = config.originalIndex === activeHotelIndex;
                   const isComplete = config.hotelId && config.roomTypeId && config.bedTypeId;
 
                   return (
                     <Grid item xs={12} sm={6} md={4} key={config.id}>
-                      <Card
-                        elevation={isActive ? 3 : 1}
-                        sx={{
-                          cursor: 'pointer',
-                          border: isActive ? '2px solid #3554D1' : '1px solid rgba(0, 0, 0, 0.12)',
-                          borderRadius: 2,
-                          transition: 'all 0.2s ease',
-                          background: isActive 
-                            ? 'linear-gradient(135deg, rgba(53, 84, 209, 0.08) 0%, rgba(53, 84, 209, 0.02) 100%)'
-                            : 'white',
-                          '&:hover': {
-                            transform: 'translateY(-2px)',
-                            boxShadow: 4
-                          }
-                        }}
-                        onClick={() => selectHotelConfiguration(config.originalIndex)}
-                      >
-                        <CardContent sx={{ p: 1.5 }}>
-                          {/* Room Header */}
-                          <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 1.5 }}>
-                            <Box sx={{ display: 'flex', alignItems: 'center' }}>
-                              <Avatar sx={{ 
-                                bgcolor: isComplete ? '#4caf50' : '#ff9800', 
-                                width: 32, 
-                                height: 32, 
-                                mr: 1 
-                              }}>
-                                {isComplete ? <CheckCircleIcon fontSize="small" /> : <PendingIcon fontSize="small" />}
-                              </Avatar>
-                              <Typography variant="subtitle2" sx={{ fontWeight: 600 }}>
-                                Room {configIndex + 1}
-                              </Typography>
-                            </Box>
-                            
-                            <IconButton
-                              size="small"
-                              color="error"
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                removeHotelConfiguration(config.originalIndex);
-                              }}
-                            >
-                              <DeleteIcon fontSize="small" />
-                            </IconButton>
-                          </Box>
+                                             <Card
+                         elevation={isActive ? 3 : 1}
+                         sx={{
+                           cursor: 'pointer',
+                           border: isActive ? '2px solid #3554D1' : '1px solid rgba(0, 0, 0, 0.12)',
+                           borderRadius: 1.5,
+                           transition: 'all 0.2s ease',
+                           background: isActive 
+                             ? 'linear-gradient(135deg, rgba(53, 84, 209, 0.08) 0%, rgba(53, 84, 209, 0.02) 100%)'
+                             : 'white',
+                           '&:hover': {
+                             transform: 'translateY(-1px)',
+                             boxShadow: 3
+                           }
+                         }}
+                         onClick={() => selectHotelConfiguration(config.originalIndex)}
+                       >
+                         <CardContent sx={{ p: 0.8 }}>
+                           {/* Room Header */}
+                           <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 0.8 }}>
+                             <Box sx={{ display: 'flex', alignItems: 'center' }}>
+                               <Avatar sx={{ 
+                                 bgcolor: isComplete ? '#4caf50' : '#ff9800', 
+                                 width: 24, 
+                                 height: 24, 
+                                 mr: 0.6 
+                               }}>
+                                 {isComplete ? <CheckCircleIcon fontSize="small" /> : <PendingIcon fontSize="small" />}
+                               </Avatar>
+                               <Typography variant="caption" sx={{ fontWeight: 600, fontSize: '0.75rem' }}>
+                                 Room {configIndex + 1}
+                               </Typography>
+                             </Box>
+                             {(tourStatus !== "Confirmed" && tourStatus !== "Definite" && tourStatus !== "Actual") && (
+                             <IconButton
+                               size="small"
+                               color="error"
+                               onClick={(e) => {
+                                 e.stopPropagation();
+                                 removeHotelConfiguration(config.originalIndex);
+                               }}
+                               sx={{ width: 24, height: 24 }}
+                             >
+                               <DeleteIcon fontSize="small" />
+                             </IconButton>
+                             )}
+                           </Box>
 
-                          {/* Room Details */}
-                          <Box sx={{ mb: 1.5 }}>
-                            <Typography variant="body2" color="text.secondary" gutterBottom>
-                              <strong>Room:</strong> {config.roomTypeName || 'Not selected'}
-                            </Typography>
-                            <Typography variant="body2" color="text.secondary" gutterBottom>
-                              <strong>Bed:</strong> {config.bedTypeName || 'Not selected'}
-                            </Typography>
-                            <Typography variant="body2" color="text.secondary" gutterBottom>
-                              <strong>Guests:</strong> {config.selectedGuests || 0} • <strong>Nights:</strong> {config.nights || 0}
-                            </Typography>
-                            
-                            {/* Selected Meal Plans */}
-                            <Box sx={{ mt: 1 }}>
+                                                     {/* Room Details */}
+                           <Box sx={{ mb: 0.8 }}>
+                             <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mb: 0.4, fontSize: '0.65rem' }}>
+                               <strong>Room:</strong> {config.roomTypeName || 'Not selected'}
+                             </Typography>
+                             <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mb: 0.4, fontSize: '0.65rem' }}>
+                               <strong>Bed:</strong> {config.bedTypeName || 'Not selected'}
+                             </Typography>
+                             <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mb: 0.4, fontSize: '0.65rem' }}>
+                               <strong>Guests:</strong> {config.selectedGuests || 0} • <strong>Nights:</strong> {config.nights || 0}
+                             </Typography>
+                             
+                                                         {/* Room Meal Plan */}
+                            <Box sx={{ mt: 0.6 }}>
                               <Typography variant="caption" sx={{ 
                                 fontWeight: 600, 
                                 color: 'primary.main',
                                 display: 'flex',
-                                alignItems: 'center'
+                                alignItems: 'center',
+                                fontSize: '0.65rem'
                               }}>
-                                <RestaurantMenuIcon sx={{ fontSize: 14, mr: 0.5 }} />
-                                Meal Plans:
+                                <RestaurantMenuIcon sx={{ fontSize: 10, mr: 0.3 }} />
+                                Room Meal Plan:
                               </Typography>
                               
-                              {config.guestMealPlans && config.guestMealPlans.length > 0 ? (
-                                <Box sx={{ mt: 0.5 }}>
-                                  <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.25, mb: 0.5 }}>
-                                    {config.guestMealPlans.map((mealPlan, mealIndex) => (
-                                      <Box key={mealIndex} sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-                                        <Typography variant="caption" sx={{ 
-                                          color: 'text.secondary',
-                                          fontSize: '0.7rem'
-                                        }}>
-                                          Guest {mealIndex + 1}: {mealPlan?.name || 'Room Only'}
-                                        </Typography>
-                                        {mealPlan?.price > 0 && (
-                                          <Typography variant="caption" sx={{ 
-                                            color: 'success.main',
-                                            fontSize: '0.65rem',
-                                            fontWeight: 600
-                                          }}>
-                                            ${mealPlan.price.toFixed(2)}
-                                          </Typography>
-                                        )}
-                                      </Box>
-                                    ))}
+                              {config.selectedMealPlan && config.mealPlanDetails ? (
+                                <Box sx={{ mt: 0.4 }}>
+                                  <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 0.4 }}>
+                                    <Typography variant="caption" sx={{ 
+                                      color: 'text.secondary',
+                                      fontSize: '0.65rem',
+                                      flex: 1
+                                    }}>
+                                      {config.mealPlanDetails.title || 'Room Only'}
+                                    </Typography>
+                                    {config.mealPlanDetails.totalPrice > 0 && PriceHide === "0" ? (
+                                      <Typography variant="caption" sx={{ 
+                                        color: 'success.main',
+                                        fontSize: '0.6rem',
+                                        fontWeight: 600
+                                      }}>
+                                        ${config.mealPlanDetails.totalPrice.toFixed(2)}
+                                      </Typography>
+                                    ) : PriceHide !== "0" ? (
+                                      <Typography variant="caption" sx={{ 
+                                        color: 'success.main',
+                                        fontSize: '0.6rem',
+                                        fontWeight: 600
+                                      }}>
+                                        Price hidden
+                                      </Typography>
+                                    ) : null}
                                   </Box>
                                   
-                                  {/* Room Meal Total */}
-                                  {(() => {
-                                    const roomMealTotal = config.guestMealPlans.reduce((sum, meal) => sum + (meal?.price || 0), 0);
-                                    return roomMealTotal > 0 && (
-                                      <Box sx={{ 
-                                        pt: 0.5, 
-                                        borderTop: '1px dashed rgba(76, 175, 80, 0.3)',
-                                        display: 'flex', 
-                                        justifyContent: 'space-between',
-                                        alignItems: 'center'
+                                  {/* Guest Count & Per Person Price Info */}
+                                  {config.selectedGuests > 1 && config.mealPlanDetails.totalPrice > 0 && (
+                                    <Box sx={{ 
+                                      pt: 0.4, 
+                                      borderTop: '1px dashed rgba(76, 175, 80, 0.3)',
+                                      display: 'flex', 
+                                      justifyContent: 'space-between',
+                                      alignItems: 'center'
+                                    }}>
+                                      <Typography variant="caption" sx={{ 
+                                        fontSize: '0.6rem',
+                                        color: 'text.secondary'
                                       }}>
+                                        For {config.selectedGuests} guests:
+                                      </Typography>
+                                      {PriceHide === "0" && (
                                         <Typography variant="caption" sx={{ 
-                                          fontWeight: 600,
-                                          fontSize: '0.7rem',
+                                          fontSize: '0.6rem',
                                           color: 'success.main'
                                         }}>
-                                          Room Total:
+                                          ${(config.mealPlanDetails.totalPrice / config.selectedGuests).toFixed(2)} per guest
                                         </Typography>
+                                      )}
+                                    </Box>
+                                  )}
+                                  
+                                  {/* Meal Plan Breakdown */}
+                                  {config.mealPlanDetails.price > 0 && PriceHide === "0" && (
+                                    <Box sx={{ 
+                                      pt: 0.4, 
+                                      mt: 0.4,
+                                      borderTop: '1px dashed rgba(76, 175, 80, 0.2)',
+                                      display: 'flex', 
+                                      justifyContent: 'space-between',
+                                      alignItems: 'center'
+                                    }}>
+                                      <Typography variant="caption" sx={{ 
+                                        fontSize: '0.6rem',
+                                        color: 'text.secondary'
+                                      }}>
+                                        Meals only:
+                                      </Typography>
+                                      <Typography variant="caption" sx={{ 
+                                        fontSize: '0.6rem',
+                                        color: 'text.secondary'
+                                      }}>
+                                        ${config.mealPlanDetails.price.toFixed(2)}
+                                      </Typography>
+                                    </Box>
+                                  )}
+                                  
+                                  {/* Room + Meal Total */}
+                                  {config.mealPlanDetails.totalPrice > 0 && (
+                                    <Box sx={{ 
+                                      pt: 0.4, 
+                                      mt: 0.4,
+                                      borderTop: '1px solid rgba(76, 175, 80, 0.3)',
+                                      display: 'flex', 
+                                      justifyContent: 'space-between',
+                                      alignItems: 'center'
+                                    }}>
+                                      <Typography variant="caption" sx={{ 
+                                        fontWeight: 600,
+                                        fontSize: '0.65rem',
+                                        color: 'success.main'
+                                      }}>
+                                        Room + Meal Total:
+                                      </Typography>
+                                      {PriceHide === "0" ? (
                                         <Chip 
-                                          label={`$${roomMealTotal.toFixed(2)}`}
+                                          label={`$${config.mealPlanDetails.totalPrice.toFixed(2)}`}
                                           size="small" 
                                           color="success"
                                           variant="filled"
                                           sx={{ 
-                                            height: 18, 
-                                            fontSize: '0.65rem',
+                                            height: 16, 
+                                            fontSize: '0.6rem',
                                             fontWeight: 600
                                           }}
                                         />
-                                      </Box>
-                                    );
-                                  })()}
+                                      ) : (
+                                        <Chip 
+                                          label="Price hidden"
+                                          size="small"
+                                          color="success"
+                                          variant="filled"
+                                          sx={{ fontWeight: 600, fontSize: '0.6rem', height: '16px' }}
+                                        />
+                                      )}
+                                    </Box>
+                                  )}
                                 </Box>
                               ) : (
-                                <Box sx={{ mt: 0.5 }}>
+                                <Box sx={{ mt: 0.4 }}>
                                   <Typography variant="caption" sx={{ 
                                     color: 'warning.main',
-                                    fontSize: '0.7rem',
+                                    fontSize: '0.65rem',
                                     fontStyle: 'italic'
                                   }}>
-                                    No meal plans selected yet
+                                    No meal plan selected yet
                                   </Typography>
                                 </Box>
                               )}
                             </Box>
-                          </Box>
+                           </Box>
 
-                          {/* Action Indicator */}
-                          <Box sx={{ textAlign: 'center' }}>
-                            {isActive ? (
-                              <Chip 
-                                label="Currently Editing" 
-                                size="small" 
-                                color="primary" 
-                                variant="filled"
-                              />
-                            ) : (
-                              <Chip 
-                                label="Click to Edit" 
-                                size="small" 
-                                variant="outlined"
-                                sx={{ '&:hover': { bgcolor: 'primary.main', color: 'white' } }}
-                              />
-                            )}
-                          </Box>
+                                                     {/* Action Indicator */}
+                           <Box sx={{ textAlign: 'center' }}>
+                             {isActive ? (
+                               <Chip 
+                                 label="Currently Editing" 
+                                 size="small" 
+                                 color="primary" 
+                                 variant="filled"
+                                 sx={{ fontSize: '0.65rem', height: '20px' }}
+                               />
+                             ) : (
+                               <Chip 
+                                 label="Click to Edit" 
+                                 size="small" 
+                                 variant="outlined"
+                                 sx={{ fontSize: '0.65rem', height: '20px', '&:hover': { bgcolor: 'primary.main', color: 'white' } }}
+                               />
+                             )}
+                           </Box>
                         </CardContent>
                       </Card>
                     </Grid>
@@ -897,43 +1163,67 @@ const HotelConfigSummary = ({
                 })}
               </Grid>
 
-              {/* Hotel-specific Actions */}
-              <Box sx={{ mt: 2, pt: 1.5, borderTop: '1px dashed rgba(0, 0, 0, 0.12)' }}>
-                <Grid container spacing={2}>
-                  <Grid item xs={12} sm={6}>
-                    <Button
-                      fullWidth
-                      variant="outlined"
-                      startIcon={<AddIcon />}
-                      onClick={() => onAddMoreRooms && onAddMoreRooms()}
-                      sx={{ textTransform: 'none' }}
-                    >
-                      Add More Rooms to This Hotel
-                    </Button>
-                  </Grid>
-                  <Grid item xs={12} sm={6}>
-                    <Button
-                      fullWidth
-                      variant="text"
-                      color="error"
-                      startIcon={<DeleteIcon />}
-                      onClick={() => {
-                        // Remove all rooms of this hotel
-                        configurations.forEach(config => {
-                          removeHotelConfiguration(config.originalIndex);
-                        });
-                      }}
-                      sx={{ textTransform: 'none' }}
-                    >
-                      Remove This Hotel
-                    </Button>
-                  </Grid>
-                </Grid>
-              </Box>
+                             {/* Hotel-specific Actions */}
+               <Box sx={{ mt: 1, pt: 0.8, borderTop: '1px dashed rgba(0, 0, 0, 0.12)' }}>
+                 <Grid container spacing={1}>
+                   <Grid item xs={12} sm={6}>
+                     <Button
+                       fullWidth
+                       variant="outlined"
+                       size="small"
+                       startIcon={<AddIcon />}
+                       disabled={isUnconfigured || !configurations[0]?.hotelId}
+                       onClick={() => {
+                         // Get the hotelId from the first configuration in this hotel group
+                         const targetHotelId = configurations.length > 0 && configurations[0].hotelId 
+                           ? configurations[0].hotelId 
+                           : null;
+                         if (targetHotelId && onAddMoreRooms) {
+                           onAddMoreRooms(targetHotelId);
+                         } else if (onAddMoreRooms) {
+                           onAddMoreRooms();
+                         }
+                       }}
+                       sx={{ textTransform: 'none', fontSize: '0.7rem', py: 0.6 }}
+                     >
+                       Add More Rooms to This Hotel
+                     </Button>
+                   </Grid>
+                   <Grid item xs={12} sm={6}>
+                    {(tourStatus !== "Confirmed" && tourStatus !== "Definite" && tourStatus !== "Actual") && (
+                     <Button
+                       fullWidth
+                       variant="text"
+                       size="small"
+                       color="error"
+                       startIcon={<DeleteIcon />}
+                       onClick={() => {
+                         // Remove all rooms of this hotel
+                         configurations.forEach(config => {
+                           removeHotelConfiguration(config.originalIndex);
+                         });
+                       }}
+                       sx={{ textTransform: 'none', fontSize: '0.7rem', py: 0.6 }}
+                     >
+                       Remove This Hotel
+                     </Button>
+                     )}
+                   </Grid>
+                 </Grid>
+               </Box>
             </AccordionDetails>
           </Accordion>
         );
       })}
+      
+      {/* Show hotel configurations only when there are any */}
+      {!bookingStatus.showStatusSection && Object.keys(groupedConfigurations).length === 0 && (
+        <Box sx={{ textAlign: 'center', py: 2 }}>
+          <Typography variant="body2" color="text.secondary" sx={{ fontSize: '0.9rem' }}>
+            🏨 No hotels selected yet. Hotels are optional - you can add them anytime during your tour planning.
+          </Typography>
+        </Box>
+      )}
     </Box>
   );
 };
