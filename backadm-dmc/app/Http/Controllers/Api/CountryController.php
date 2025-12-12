@@ -250,4 +250,33 @@ class CountryController extends Controller
         return response()->json(['dmc_count' => $dmc_count, 'dmc_id' => $dmc_id, 'dmc_logo' => $dmc_logo, 
         'dmc_company_name' => $dmc_company_name, 'dmc_name' => $dmc_name]);
     }
+
+    public function cityCountry(Request $request){
+        $search = $request->input('search', ''); // Get three letters from request
+        
+        if (strlen($search) < 3) {
+            return response()->json(['error' => 'Please provide at least 3 characters'], 400);
+        }
+        
+        // Query cities using LIKE operator (case-insensitive)
+        $cities = City::whereRaw('LOWER(name) LIKE LOWER(?)', [$search . '%'])
+            ->get();
+        
+        // Format results as "city, country" with city_id
+        $formattedResults = $cities->map(function($city) {
+            $countryName = $city->country ?? '';
+            
+            return [
+                'city_id' => $city->city_id ?? $city->id,
+                'city' => $city->name,
+                'country' => $countryName,
+                'formatted' => $city->name . ', ' . $countryName
+            ];
+        });
+        
+        return response()->json([
+            'results' => $formattedResults,
+            'count' => $formattedResults->count()
+        ]);
+    }
 }
