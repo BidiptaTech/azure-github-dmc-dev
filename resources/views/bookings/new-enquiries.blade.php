@@ -6,6 +6,53 @@
 <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/sweetalert2@11.7.32/dist/sweetalert2.min.css">
 <!-- Add SweetAlert2 JS -->
 <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11.7.32/dist/sweetalert2.all.min.js"></script>
+<!-- Select2 CSS -->
+<link href="https://cdn.jsdelivr.net/npm/select2@4.0.13/dist/css/select2.min.css" rel="stylesheet" />
+<style>
+    /* Select2 Bootstrap Integration */
+    .select2-container--default .select2-selection--single {
+        height: 50px;
+        border: 1px solid #d9dee3;
+        border-radius: 0.375rem;
+    }
+    .select2-container--default .select2-selection--single .select2-selection__rendered {
+        line-height: 50px;
+        padding-left: 12px;
+        padding-right: 50px; /* Space for clear button and arrow */
+    }
+    .select2-container--default .select2-selection--single .select2-selection__arrow {
+        height: 48px;
+        right: 10px;
+    }
+    /* Style and position the clear button (X icon) */
+    .select2-container--default .select2-selection--single .select2-selection__clear {
+        position: absolute;
+        right: 35px; /* Position it before the dropdown arrow */
+        top: 50%;
+        transform: translateY(-50%);
+        cursor: pointer;
+        font-size: 18px;
+        font-weight: bold;
+        color: #999;
+        line-height: 1;
+        padding: 0;
+        width: 20px;
+        height: 20px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+    }
+    .select2-container--default .select2-selection--single .select2-selection__clear:hover {
+        color: #333;
+    }
+    .select2-container--default .select2-results__option--highlighted[aria-selected] {
+        background-color: #696cff;
+    }
+    .select2-dropdown {
+        border: 1px solid #d9dee3;
+        border-radius: 0.375rem;
+    }
+</style>
 
 @section('content')
 @php
@@ -38,6 +85,32 @@
         }
     }
 @endphp
+@if(session('success'))
+    <script>
+        document.addEventListener('DOMContentLoaded', function () {
+            Swal.fire({
+                icon: 'success',
+                title: 'Success',
+                text: {!! json_encode(session('success')) !!},
+                timer: 2500,
+                showConfirmButton: false
+            });
+        });
+    </script>
+@endif
+@if(session('error'))
+    <script>
+        document.addEventListener('DOMContentLoaded', function () {
+            Swal.fire({
+                icon: 'error',
+                title: 'Oops',
+                text: {!! json_encode(session('error')) !!},
+                timer: 3000,
+                showConfirmButton: false
+            });
+        });
+    </script>
+@endif
 <div class="container-xxl flex-grow-1 container-p-y">
     <!-- Header -->
     <div class="d-flex justify-content-between align-items-center mb-4">
@@ -722,7 +795,7 @@
                 <div class="modal-footer justify-content-between flex-wrap gap-2">
                     <div class="d-flex gap-2">
                         <button type="button" class="btn btn-outline-danger" id="agentNegotiationCancelBtn" onclick="submitAgentNegotiation('cancel')">
-                            Cancel
+                            Cancel Tour
                         </button>
                         <button type="button" class="btn btn-outline-success" id="agentNegotiationConfirmBtn" onclick="submitAgentNegotiation('confirm')">
                             Confirm
@@ -3779,8 +3852,17 @@ function resetFilters() {
     const endDateInput = document.getElementById('endDateFilter');
 
     if (searchInput) searchInput.value = '';
-    if (countrySelect) countrySelect.value = '';
-    if (agentSelect) agentSelect.value = '';
+    // Reset Select2 dropdowns properly
+    if (countrySelect && $('#countryFilter').hasClass('select2-hidden-accessible')) {
+        $('#countryFilter').val('').trigger('change');
+    } else if (countrySelect) {
+        countrySelect.value = '';
+    }
+    if (agentSelect && $('#agentFilter').hasClass('select2-hidden-accessible')) {
+        $('#agentFilter').val('').trigger('change');
+    } else if (agentSelect) {
+        agentSelect.value = '';
+    }
     if (startDateInput) {
         startDateInput.value = '';
     }
@@ -4094,16 +4176,41 @@ function testServices() {
 </script>
 @endsection
 @section('scripts')
+<!-- Select2 JS -->
+<script src="https://cdn.jsdelivr.net/npm/select2@4.0.13/dist/js/select2.min.js"></script>
 <script src="{{ env('APP_URL') . '/assets/vendor/libs/datatables-bs5/datatables-bootstrap5.js' }}"></script>
 <script>
     // Wait for all scripts to load before initializing
     $(document).ready(function() {
         // Small delay to ensure all scripts are loaded
         setTimeout(function() {
+            initializeSelect2();
             initializeDataTable();
             filterTable();
         }, 200);
     });
+    
+    function initializeSelect2() {
+        // Initialize Select2 for Country filter
+        $('#countryFilter').select2({
+            placeholder: 'All Countries',
+            allowClear: true,
+            width: '100%'
+        });
+        
+        // Initialize Select2 for Agent filter
+        $('#agentFilter').select2({
+            placeholder: 'All Agents',
+            allowClear: true,
+            width: '100%'
+        });
+        
+        // Trigger filterTable when Select2 values change (including when cleared)
+        $('#countryFilter, #agentFilter').on('change', function() {
+            // When cleared, the value will be empty string, which shows all results
+            filterTable();
+        });
+    }
     var table;
     function initializeDataTable() {
         // Check if DataTable is already initialized
