@@ -15,7 +15,7 @@ export const StatusChip = ({ status }) => {
   let icon = <CheckCircleOutline fontSize="small" />;
   let displayText = "Pending";
   
-  // Convert status to number if it's a string
+  // Convert status to number if it's a string.....
   const statusNum = typeof status === 'string' ? parseInt(status, 10) : status;
   
   // Handle numeric status values from API
