@@ -48,7 +48,7 @@ const customerInfoSlice = createSlice({
         zip: userData.zip || "",
         specialRequests: userData.specialRequests || "",
       };
-      console.log("state.userInfo", state.userInfo);
+      // console.log("state.userInfo", state.userInfo);
       state.isCustomerInfoFilled = true;
       //localStorage.setItem('userInfo', JSON.stringify(state.userInfo));
     },

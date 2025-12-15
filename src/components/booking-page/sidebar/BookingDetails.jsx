@@ -151,9 +151,27 @@ console.log(bookingDate,"booking date");
   // console.log(ucheckIn,ucheckOut,"chekouttttt");
   
   // Get hotel details from Redux store with optional chaining
-  const { hotel_name,hotel_id, location, image, cancellation_charge,site_image } = useSelector(
+  const bookingDetails = useSelector(
     (state) => state.hoteldetails.bookingDetails || {}
   );
+  
+  // Extract hotel details with fallback for location
+  const { 
+    hotel_name, 
+    hotel_id, 
+    image, 
+    cancellation_charge, 
+    site_image,
+    location: locationFromDetails,
+    address,
+    city,
+    country
+  } = bookingDetails;
+  
+  // Try to get location from multiple possible fields
+  const location = locationFromDetails || address || 
+    (city && country ? `${city}, ${country}` : city || country || '');
+  
  // console.log(hotel_name, location, image, cancellation_charge,"hotel details final");
 
   const cancellationString =
@@ -394,107 +412,88 @@ console.log(bookingDate,"booking date");
                             <Box 
                               key={mealDetails.type} 
                               sx={{ 
-                                display: 'flex', 
-                                alignItems: 'center',
-                                mb: 1,
+                                mb: 1.5,
                                 backgroundColor: '#F8FAFF',
-                                p: 1,
                                 borderRadius: '8px',
-                                border: '1px solid rgba(53, 84, 209, 0.1)'
+                                border: '1px solid rgba(53, 84, 209, 0.1)',
+                                overflow: 'hidden'
                               }}
                             >
-                              <Box sx={{ display: 'flex', alignItems: 'center', flex: 1 }}>
-                                {/* Restaurant icon with meal count badge */}
-                                
-                                <Box sx={{ position: 'relative', mr: 2 }}>
-                                  {/* Status badge above restaurant icon */}
-                                  <Box 
+                              <Box sx={{ 
+                                display: 'flex',
+                                alignItems: 'center',
+                                p: 1.5,
+                                pl: 2
+                              }}>
+                                {/* Left side - Check icon and meal type */}
+                                <Box sx={{ 
+                                  display: 'flex', 
+                                  alignItems: 'center',
+                                  flex: 1
+                                }}>
+                                  <CheckCircleIcon 
                                     sx={{ 
-                                      position: 'absolute', 
-                                      top: -15, 
-                                      right: -10, 
-                                      zIndex: 1,
-                                      backgroundColor: mealDetails.type.toLowerCase() === "room only" ? '#FFF2F0' : '#F6FFED',
-                                      borderRadius: '50%',
-                                      width: 20,
-                                      height: 20,
-                                      display: 'flex',
-                                      justifyContent: 'center',
-                                      alignItems: 'center',
-                                      border: `1px solid ${mealDetails.type.toLowerCase() === "room only" ? '#FFCCC7' : '#B7EB8F'}`
+                                      color: '#52C41A', 
+                                      fontSize: '1.2rem',
+                                      mr: 1.5
                                     }}
-                                  >
-                                    {mealDetails.type.toLowerCase() === "room only" ? (
-                                      <DoNotDisturbIcon 
-                                        sx={{ 
-                                          color: '#FF4D4F', 
-                                          fontSize: '0.8rem',
-                                        }}
-                                      />
-                                    ) : (
-                                      <CheckCircleIcon 
-                                        sx={{ 
-                                          color: '#52C41A', 
-                                          fontSize: '0.8rem',
-                                        }}
-                                      />
-                                    )}
-                                  </Box>
-                                  
-                                  <RestaurantIcon sx={{ color: '#3554D1', fontSize: '1.5rem',  }} />
-                                </Box>
-                                
-                                <Badge 
-                                  badgeContent={mealDetails.count} 
-                                  color="primary"
-                                  sx={{ 
-                                    '& .MuiBadge-badge': { 
-                                      fontSize: '0.7rem', 
-                                      height: '20px', 
-                                      minWidth: '20px' 
-                                    } 
-                                  }}
-                                >
-                                <Typography variant="body1" sx={{ ml: 1}}>
-                                  {mealDetails.type}
-                                </Typography>
-                                </Badge>
-                              </Box>
-                              
-                              {/* Person count display - this is for the head_count per meal type */}
-                              {/* <Box sx={{ display: 'flex', alignItems: 'center', mr: 2 }}>
-                              
-                                {Array.from({ length: Math.min(bed.head_count, 3) }).map((_, i) => (
-                                  <PersonIcon 
-                                    key={`person-${mealDetails.type}-${i}`} 
+                                  />
+                                  <RestaurantIcon 
                                     sx={{ 
                                       color: '#3554D1', 
                                       fontSize: '1.2rem',
-                                      mr: 0.5 
+                                      mr: 1.5
                                     }} 
                                   />
-                                ))}
-                                {bed.head_count > 3 && (
-                                  <Typography variant="caption" sx={{ color: '#3554D1', fontWeight: 'bold' }}>
-                                    +{bed.head_count - 3}
+                                  <Typography 
+                                    variant="body1" 
+                                    sx={{ 
+                                      fontWeight: 500,
+                                      color: '#333',
+                                      fontSize: '0.95rem'
+                                    }}
+                                  >
+                                    {mealDetails.type}
                                   </Typography>
-                                )}
-                              </Box> */}
+                                </Box>
+                              </Box>
                               
-                              <Box sx={{ textAlign: 'right' }}>
-                                {/* Show unit price */}
-                                {/* <Typography variant="body2" sx={{ color: 'text.secondary' }}>
-                                  {currencyCode} {formatPrice(convertedMealPrice)} × {mealCount}
-                                </Typography>
-                                 */}
-                                {/* Show total price for this meal type */}
-                                <Typography variant="body1" sx={{ fontWeight: 500, color: '#3554D1' }}>
+                              {/* Price section - Right aligned */}
+                              <Box sx={{ 
+                                borderTop: '1px solid rgba(53, 84, 209, 0.08)',
+                                p: 1.5,
+                                textAlign: 'right',
+                                bgcolor: 'rgba(53, 84, 209, 0.02)'
+                              }}>
+                                <Typography 
+                                  variant="body1" 
+                                  sx={{ 
+                                    fontWeight: 600, 
+                                    color: '#3554D1',
+                                    fontSize: '0.95rem'
+                                  }}
+                                >
                                   {currencyCode} {formatPrice(convertedTotalMealPrice)}/night
                                 </Typography>
-                                <Typography variant="caption" sx={{ display: 'block', color: 'text.secondary' }}>
+                                <Typography 
+                                  variant="caption" 
+                                  sx={{ 
+                                    display: 'block', 
+                                    color: 'text.secondary',
+                                    fontSize: '0.75rem',
+                                    mt: 0.5
+                                  }}
+                                >
                                   {usdCurrencyCode} {formatPrice(usdTotalMealPrice)}/night
                                 </Typography>
-                                <Typography variant="caption" sx={{ display: 'block', color: 'text.secondary' }}>
+                                <Typography 
+                                  variant="caption" 
+                                  sx={{ 
+                                    display: 'block', 
+                                    color: 'text.secondary',
+                                    fontSize: '0.75rem'
+                                  }}
+                                >
                                   SGD {formatPrice(totalMealPrice)}/night
                                 </Typography>
                               </Box>

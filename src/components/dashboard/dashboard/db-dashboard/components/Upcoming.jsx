@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useMemo, useRef } from "react";
+import "./ResponsiveTable.css";
 
 import { useSelector, useDispatch } from "react-redux";
 import { useNavigate } from "react-router-dom";
@@ -40,11 +41,15 @@ import { fetchEditid, setTourId1, deleteTour } from "@/slice/common/EditSlice";
 import Snackbar from "@mui/material/Snackbar";
 import MuiAlert from "@mui/material/Alert";
 import { setDateService } from "@/slice/common/dateServicesSlice";
-import { fetchLists } from "@/slice/common/TourlistSlice";
+import { fetchLists, setTourType } from "@/slice/common/TourlistSlice";
 import Pagination from "../../common/Pagination";
-import { setBookingType } from "../../../../../slice/common/commonSlice";
+import { setBookingType, setHaveBooking } from "../../../../../slice/common/commonSlice";
 import dayjs from "dayjs";
-import { Button, InputAdornment, TextField, Typography, Tooltip, IconButton } from "@mui/material";
+import customParseFormat from "dayjs/plugin/customParseFormat";
+
+dayjs.extend(customParseFormat);
+import { Button, InputAdornment, TextField, Typography, IconButton, Tooltip } from "@mui/material";
+import CustomPaymentTooltip from "./CustomTooltip";
 import { Visibility, Edit, AttachMoney } from "@mui/icons-material";
 import { toast } from "react-toastify";
 import Cookies from "js-cookie";
@@ -64,6 +69,10 @@ const Alert = React.forwardRef(function Alert(props, ref) {
 
 // Color functions for booking status styling
 const getBackgroundColor = (tour_status) => {
+  if (tour_status?.toLowerCase().startsWith("cancel")) {
+    return "rgba(200, 50, 40, 0.06)"; // Professional light darker red
+  }
+  
   switch (tour_status) {
     case "Confirmed":
       return "rgba(33, 150, 243, 0.06)"; // Professional light blue
@@ -71,6 +80,10 @@ const getBackgroundColor = (tour_status) => {
       return "rgba(76, 175, 80, 0.06)"; // Professional light green
     case "Actual":
       return "rgba(60, 140, 65, 0.06)"; // Professional light green
+    case "Refund - Pending":
+      return "rgba(255, 103, 2, 0.66)"; // Professional light deep orange
+    case "Refunded":
+      return "rgba(0, 136, 7, 0.66)"; // Professional light deep orange
     case "Pending":
       return "rgba(244, 67, 54, 0.06)"; // Professional light red
     case "Tentative":
@@ -81,15 +94,20 @@ const getBackgroundColor = (tour_status) => {
       return "rgba(255, 87, 34, 0.06)"; // Professional light deep orange
     case "Closed":
       return "rgb(237,237,237)"; // Professional light gray
-    case "Cancelled":
-      return "rgba(200, 50, 40, 0.06)"; // Professional light darker red
+    case "On Hold":
+      return "#000000"; // Professional light orange
     default:
-      return "transparent";
+      return "#a9a9a9";
   }
 };
 
+
 // Text color function for booking status styling
 const getTextColor = (tour_status) => {
+  if (tour_status?.toLowerCase().startsWith("cancel")) {
+    return "#F44336"; // Red
+  }
+  
   switch (tour_status) {
     case "Confirmed":
       return "#2196F3"; // Blue
@@ -99,8 +117,10 @@ const getTextColor = (tour_status) => {
       return "#4CAF50"; // Green
     case "Pending":
       return "#F44336"; // Red
-    case "Cancelled":
-      return "#F44336"; // Red
+    case "Refund - Pending":
+      return "#FFFFFF"; // Deep Orange
+    case "Refunded":
+      return "#FFFFFF"; // Deep Orange
     case "Tentative":
       return "#7E57C2"; // Violet
     case "New Enquiry":
@@ -109,8 +129,10 @@ const getTextColor = (tour_status) => {
       return "#FF5722"; // Deep Orange
     case "Closed":
       return "#000000"; // Black
+    case "On Hold":
+      return "#FFFFFF"; // Black
     default:
-      return "#CCCCCC"; // Default gray
+      return "#ffffff"; // Default gray
   }
 };
 
@@ -188,7 +210,18 @@ const formatDate1 = (dateString) => {
   return `${formattedDay}/${formattedMonth}/${formattedYear}`;
 };
 
-export default function Pending() {
+// Truncate long customer names with word-aware cutoff
+const truncateName = (name, maxLength = 10) => {
+  if (!name) return "N/A";
+  const trimmed = String(name).trim();
+  if (trimmed.length <= maxLength) return trimmed;
+  const slice = trimmed.slice(0, maxLength);
+  const lastSpaceIndex = slice.lastIndexOf(" ");
+  const base = lastSpaceIndex > 0 ? slice.slice(0, lastSpaceIndex) : slice;
+  return `${base.trim()}...`;
+};
+
+export default function Pending({ filters = {} }) {
   const [page, setPage] = useState(0);
   const [rowsPerPage, setRowsPerPage] = useState(5);
   const [isModalVisible, setIsModalVisible] = useState(false);
@@ -200,6 +233,13 @@ export default function Pending() {
   const { bookings = {}, status: viewDetailsStatus } = useSelector(
     (state) => state.viewDetails
   );
+  
+  // Extract price_hide from the fetched bookings data
+  const priceHideFromBookings = bookings?.tour?.price_hide;
+  
+  // Debug logging
+  // console.log("priceHideFromBookings:", priceHideFromBookings);
+  // console.log("bookings.tour:", bookings?.tour);
   const [enquiryAmount, setEnquiryAmount] = useState(() => {
     // Initialize with current total price if data is available
     if (bookings && Object.keys(bookings).length > 0) {
@@ -214,6 +254,8 @@ export default function Pending() {
         ...(bookings.guide || bookings.data?.guide || []),
         ...(bookings.restaurant || bookings.data?.restaurant || []),
         ...(bookings.travel_point || bookings.data?.travel_point || []),
+        ...(bookings.travel_hourly || bookings.data?.travel_hourly || []),
+        ...(bookings.local_transport || bookings.data?.local_transport || []),
       ];
 
       services.forEach((item) => {
@@ -237,11 +279,13 @@ export default function Pending() {
   const [modifiedPriceData, setModifiedPriceData] = useState(null);
   const [bookingType1, setBookingType1] = useState(null);
   const [displayId, setDisplayId] = useState(null);
+  const [pricehide, setPricehide] = useState(null);
   const { DmcName, DmcLogo } = useSelector((state) => state.auth);
   // Add these state declarations at the top of the component where other state variables are defined
   const [enquiryHistory, setEnquiryHistory] = useState([]);
   const [loadingEnquiryHistory, setLoadingEnquiryHistory] = useState(false);
   const userRole = useSelector((state) => state.auth.userRole);
+  const sgdTax = useSelector((state) => state.auth.sgdTax);
 
   // Add a new state to track the current action type
   const [enquiryActionType, setEnquiryActionType] = useState("enquiry");
@@ -305,7 +349,7 @@ export default function Pending() {
 
       return false;
     } catch (error) {
-      console.error("Error checking enquiry status:", error);
+      //console.error("Error checking enquiry status:", error);
       return false;
     }
   };
@@ -326,17 +370,124 @@ export default function Pending() {
   useEffect(() => {
     // Trigger fetchLists only when navigating to "/dashboard"
     if (location.pathname === "/dashboard/db-dashboard") {
-      dispatch(fetchLists());
+      dispatch(setTourType("ongoing"));
+      dispatch(fetchLists({ reset: true, type: "ongoing" }));
+      
+      //console.log('Initial data fetch with type: ongoing');
     }
   }, [location.pathname, dispatch]); // Depend on the pathname // Dependency on location.pathname
 
   // if (status === "loading") return <p>Loading...</p>;
   // if (status === "failed") return <p>Error: {error}</p>;
   const [sortedLists, setSortedLists] = useState([]); // State for sorted data
-  // Update sortedLists when lists change
+  const totalPages = Math.ceil(sortedLists.length / rowsPerPage);
+  // Filter function
+  const filterData = (data) => {
+    if (!filters || Object.keys(filters).length === 0) return data;
+    
+    return data.filter(item => {
+      // Booking ID filter
+      if (filters.searchId && !item.display_id?.toLowerCase().includes(filters.searchId.toLowerCase())) {
+        return false;
+      }
+      
+      // Customer name filter
+      if (filters.customerName && !item.customer_name?.toLowerCase().includes(filters.customerName.toLowerCase())) {
+        return false;
+      }
+      
+      // Country filter
+      if (filters.country) {
+        const destination = item.destination || '';
+        const countryMatch = destination.toLowerCase().includes(filters.country.toLowerCase());
+        if (!countryMatch) return false;
+      }
+      
+      
+      // Check-in date filter
+      if (filters.checkInDate) {
+        const checkInDate = item.check_in_time;
+        if (checkInDate) {
+          const [day, month, year] = checkInDate.split('/');
+          const itemDate = new Date(`${year}-${month}-${day}`);
+          const filterDate = new Date(filters.checkInDate);
+          if (itemDate.toDateString() !== filterDate.toDateString()) {
+            return false;
+          }
+        }
+      }
+      
+      // Check-out date filter
+      if (filters.checkOutDate) {
+        const checkOutDate = item.check_out_time;
+        if (checkOutDate) {
+          const [day, month, year] = checkOutDate.split('/');
+          const itemDate = new Date(`${year}-${month}-${day}`);
+          const filterDate = new Date(filters.checkOutDate);
+          if (itemDate.toDateString() !== filterDate.toDateString()) {
+            return false;
+          }
+        }
+      }
+      
+      // Status filter
+      if (filters.status) {
+        if (filters.status === "Cancel") {
+          // For "Cancel" status, check if tour_status starts with "cancel" (case insensitive)
+          if (!item.tour_status?.toLowerCase().startsWith("cancel")) {
+            return false;
+          }
+        } else {
+          // For other statuses, exact match
+          if (item.tour_status !== filters.status) {
+            return false;
+          }
+        }
+      }
+      
+      
+      return true;
+    });
+  };
+
+  // Update sortedLists when lists or filters change
   useEffect(() => {
-    setSortedLists(Array.isArray(upcomingTours) ? upcomingTours : []); // Safely check if lists is an array
-  }, [upcomingTours]);
+    const newLists = Array.isArray(upcomingTours) ? upcomingTours : [];
+    const filteredLists = filterData(newLists);
+    setSortedLists(filteredLists);
+    
+    console.log('Lists updated in Upcoming.jsx:', {
+      listsLength: newLists.length,
+      filteredLength: filteredLists.length,
+      totalPages: Math.ceil(filteredLists.length / rowsPerPage),
+      currentPage: page + 1
+    });
+  }, [upcomingTours, rowsPerPage, page, filters]);
+  
+  // Auto-fetch more data when reaching the last page
+  useEffect(() => {
+    if (page > 0 && sortedLists.length > 0) {
+      const currentPageEnd = (page + 1) * rowsPerPage;
+      const dataAvailable = sortedLists.length;
+      
+      // If we're on the last page or near the end of available data, fetch more
+      if (page + 1 === totalPages || currentPageEnd >= dataAvailable - rowsPerPage) {
+        const nextStart = Math.ceil(dataAvailable / 30) * 30; // Align to the next 30-item chunk
+        
+        // console.log('Auto-fetching more data in Upcoming:', {
+        //   currentPage: page + 1,
+        //   totalPages,
+        //   dataAvailable,
+        //   nextStart,
+        //   type: "ongoing"
+        // });
+        
+        // Make sure we're using the correct type
+        const currentType = "ongoing"; // For Upcoming.jsx, we always use "ongoing"
+        dispatch(fetchLists({ start: nextStart, limit: 30, type: currentType, reset: false }));
+      }
+    }
+  }, [page, sortedLists.length, rowsPerPage, dispatch, totalPages]);
 
   const steps = useMemo(
     () => [
@@ -375,7 +526,7 @@ export default function Pending() {
     [tourId] // Recalculate only when tourId changes
   );
 
-  const handleSort = () => {
+  const handleSort = () => {  
     const sortedData = [...sortedLists].sort((a, b) => {
       const numA = parseInt(a.display_id.match(/\d+$/)[0], 10);
       const numB = parseInt(b.display_id.match(/\d+$/)[0], 10);
@@ -390,7 +541,7 @@ export default function Pending() {
   // New function to handle enquiry directly from the list
   const handleDirectEnquiry = async (list) => {
     try {
-      console.log("Direct enquiry started for tour:", list.id);
+      //console.log("Direct enquiry started for tour:", list.id);
 
       // Set necessary state variables
       setBookingType1(list.booking_type);
@@ -410,6 +561,8 @@ export default function Pending() {
         ...(bookings.guide || bookings.data?.guide || []),
         ...(bookings.restaurant || bookings.data?.restaurant || []),
         ...(bookings.travel_point || bookings.data?.travel_point || []),
+        ...(bookings.travel_hourly || bookings.data?.travel_hourly || []),
+        ...(bookings.local_transport || bookings.data?.local_transport || []),
       ];
 
       services.forEach((item) => {
@@ -457,9 +610,9 @@ export default function Pending() {
           );
 
           if (hasProcessedStatus) {
-            toast.info(
-              "This enquiry has already been processed (Booked or Cancelled)"
-            );
+            setSnackbarMessage("This enquiry has already been processed (Booked or Cancelled)");
+            setSnackbarSeverity("info");
+            setOpenSnackbar(true);
             return;
           }
 
@@ -484,11 +637,13 @@ export default function Pending() {
       }
 
       // Finally, open the enquiry modal
-      console.log("Opening enquiry modal directly");
+    //  console.log("Opening enquiry modal directly");
       setIsEnquiryModalVisible(true);
     } catch (error) {
-      console.error("Error preparing enquiry:", error);
-      toast.error("Could not prepare the enquiry. Please try again.");
+      //console.error("Error preparing enquiry:", error);
+      setSnackbarMessage("Could not prepare the enquiry. Please try again.");
+      setSnackbarSeverity("error");
+      setOpenSnackbar(true);
     }
   };
 
@@ -580,8 +735,7 @@ export default function Pending() {
     page * rowsPerPage + rowsPerPage
   );
 
-  // Calculate total pages
-  const totalPages = Math.ceil(sortedLists.length / rowsPerPage);
+
 
   const handleCloseSnackbar = (event, reason) => {
     if (reason === "clickaway") {
@@ -599,7 +753,7 @@ export default function Pending() {
     setSnackbarMessage("Submitting Id...");
     setSnackbarSeverity("info");
     setOpenSnackbar(true);
-
+    dispatch(setHaveBooking(false));
     // Dispatch necessary actions
     dispatch(setId(list.id));
     dispatch(setTourId(list.id));
@@ -617,7 +771,7 @@ export default function Pending() {
     dispatch(fetchEditid())
       .unwrap()
       .then((response) => {
-        console.log("Full Response Data:", response);
+        //console.log("Full Response Data:", response);
 
         // Extract data from the nested structure
         const data = response.data;
@@ -627,8 +781,10 @@ export default function Pending() {
         // Handle customer info if it exists
         // FIX: Check if customerInfo is an object (not an array)
         if (data.customerInfo && typeof data.customerInfo === "object") {
-          console.log("Processing customer info:", data.customerInfo);
-
+          //console.log("Processing customer info:", data.customerInfo);
+          if(data.customerInfo.fullName) {
+            dispatch(setHaveBooking(true));
+          }
           // Directly use the customerInfo object
           dispatch(
             customerInfoSetUserInfo({
@@ -654,23 +810,23 @@ export default function Pending() {
         const destination = data.destination;
 
         if (!id || !destination) {
-          console.error("Tour ID or destination not found in response.");
+          //console.error("Tour ID or destination not found in response.");
           throw new Error("Invalid response data.");
         }
 
-        console.log("date service", data.service?.date_service);
+        //console.log("date service", data.service?.date_service);
         if (data.service?.date_service) {
           dispatch(setDateService(data.service.date_service));
         }
 
-        console.log("Step:", data.step);
+        //console.log("Step:", data.step);
         if (data.step) {
           dispatch(updateStepStatus({ key: data.step, status: 2 }));
           dispatch(setType(null));
 
           const matchedStep = steps.find((step) => step.key === data.step);
           if (matchedStep) {
-            console.log("Navigating to:", matchedStep.path);
+            //console.log("Navigating to:", matchedStep.path);
             navigate(matchedStep.path, { state: { tourDetails: data } });
             dispatch(statusUpdate()).unwrap();
           } else {
@@ -678,12 +834,12 @@ export default function Pending() {
           }
         }
 
-        console.log(
-          "CheckInTime:",
-          data.CheckInTime,
-          "CheckOutTime:",
-          data.CheckOutTime
-        );
+        // console.log(
+        //   "CheckInTime:",
+        //   data.CheckInTime,
+        //   "CheckOutTime:",
+        //   data.CheckOutTime
+        // );
         if (data.CheckInTime && data.CheckOutTime) {
           dispatch(setCheckIn(formatDate1(data.CheckInTime)));
           dispatch(setCheckOut(formatDate1(data.CheckOutTime)));
@@ -694,19 +850,19 @@ export default function Pending() {
         dispatch(setTourId(id));
 
         if (destination) {
-          console.log("Destination (Raw):", destination);
+          //console.log("Destination (Raw):", destination);
 
           const destinationArray = Array.isArray(destination)
             ? destination
             : destination.split(",").map((code) => code.trim());
 
-          console.log("Formatted destination array:", destinationArray);
+          //console.log("Formatted destination array:", destinationArray);
 
           const countryCodeArray = destinationArray
             .map((name) => reverseCountryMap[name])
             .filter(Boolean);
 
-          console.log("Country code array:", countryCodeArray);
+          //console.log("Country code array:", countryCodeArray);
 
           dispatch(setSearchLocation(countryCodeArray));
 
@@ -730,14 +886,14 @@ export default function Pending() {
           console.warn("Destination is missing");
         }
 
-        console.log("Setting tour details:", {
-          ...data,
-          country: destination,
-          service_details: {
-            ...data.service,
-            country: destination,
-          },
-        });
+        //   console.log("Setting tour details:", {
+        //   ...data,
+        //   country: destination,
+        //   service_details: {
+        //     ...data.service,
+        //     country: destination,
+        //   },
+        // });
 
         dispatch(
           settourdetails({
@@ -755,7 +911,7 @@ export default function Pending() {
         setOpenSnackbar(true);
       })
       .catch((error) => {
-        console.error("Error fetching booking:", error);
+        //console.error("Error fetching booking:", error);
         setSnackbarMessage(
           error?.message || "Something went wrong. Please try again."
         );
@@ -777,7 +933,7 @@ export default function Pending() {
     setTId(tourId);
 
     // Log the booking data for debugging
-    console.log("Fetching tour details for:", tourId);
+    //console.log("Fetching tour details for:", tourId);
 
     // Reset enquiry processed state when viewing a new tour
     setEnquiryProcessed(false);
@@ -787,15 +943,15 @@ export default function Pending() {
     setEnquiryStatusProcessed(isProcessed);
     // Add a timeout to log bookings data after it's loaded
     setTimeout(() => {
-      console.log("BOOKINGS DATA:", bookings);
+      //console.log("BOOKINGS DATA:", bookings);
     }, 2000);
   };
 
   const handleDelete = async (tourId) => {
-    console.log("Received tourId:", tourId); // ✅ Should print actual ID
+    //console.log("Received tourId:", tourId); // ✅ Should print actual ID
 
     if (!tourId) {
-      console.error("❌ tourId is missing!");
+      //console.error("❌ tourId is missing!");
       return;
     }
 
@@ -811,13 +967,13 @@ export default function Pending() {
         await dispatch(deleteTour(tourId)).unwrap(); // Pass tourId here ✅
         swal("Deleted!", "Your tour has been deleted!", "success");
       } catch (err) {
-        console.error("❌ Error deleting tour:", err);
+        //console.error("❌ Error deleting tour:", err);
         swal("Error!", "Failed to delete the tour.", "error");
       }
     } else {
       swal("Cancelled", "Your tour is safe!", "info");
     }
-    dispatch(fetchLists());
+    dispatch(fetchLists({ reset: true }));
   };
 
   const handleCloseModal = () => {
@@ -844,11 +1000,15 @@ export default function Pending() {
       modifiedData.exit_port || modifiedData.data?.exit_port || [];
     const travelPoints =
       modifiedData.travel_point || modifiedData.data?.travel_point || [];
+    const travelHourly =
+      modifiedData.travel_hourly || modifiedData.data?.travel_hourly || [];
     const attractions =
       modifiedData.attraction || modifiedData.data?.attraction || [];
     const guides = modifiedData.guide || modifiedData.data?.guide || [];
     const restaurants =
       modifiedData.restaurant || modifiedData.data?.restaurant || [];
+    const localTransports =
+      modifiedData.local_transport || modifiedData.data?.local_transport || [];
 
     // Calculate total original price
     hotels.forEach((hotel) => {
@@ -892,6 +1052,20 @@ export default function Pending() {
         totalOriginalPrice += parseFloat(restaurant.totalPrice);
       }
     });
+    
+    // Add travel_hourly to total price
+    travelHourly.forEach((travel) => {
+      if (travel.totalPrice) {
+        totalOriginalPrice += parseFloat(travel.totalPrice);
+      }
+    });
+    
+    // Add local_transport to total price
+    localTransports.forEach((transport) => {
+      if (transport.totalPrice) {
+        totalOriginalPrice += parseFloat(transport.totalPrice);
+      }
+    });
 
     // If total price is 0, we can't calculate distribution ratios
     if (totalOriginalPrice === 0) {
@@ -909,9 +1083,11 @@ export default function Pending() {
       ...entryPorts,
       ...exitPorts,
       ...travelPoints,
+      ...travelHourly,
       ...attractions,
       ...guides,
       ...restaurants,
+      ...localTransports,
     ].filter((item) => item.totalPrice);
 
     // Sort items by price to distribute remaining amounts to higher priced items first
@@ -1115,6 +1291,72 @@ export default function Pending() {
         delete attraction.calculatedDiscount;
       }
     });
+    
+    // Process travel hourly
+    travelHourly.forEach((travel) => {
+      if (travel.totalPrice) {
+        // Store original price
+        travel.basePrice = travel.totalPrice;
+
+        // Use the pre-calculated markup amount that ensures total matches exactly
+        const travelMarkupAmount = travel.calculatedMarkup || 0;
+
+        // Apply markup to get the new base price
+        const markedUpPrice =
+          parseFloat(travel.totalPrice) + travelMarkupAmount;
+        travel.markedUpPrice = markedUpPrice.toString();
+
+        // Use the pre-calculated discount amount that ensures total matches exactly
+        const travelDiscountAmount = travel.calculatedDiscount || 0;
+
+        // Apply discount on the marked-up price
+        travel.totalPrice = (markedUpPrice - travelDiscountAmount).toString();
+
+        // Store markup and discount amounts
+        travel.markupAmount = travelMarkupAmount.toString();
+        if (discount > 0) {
+          travel.discountAmount = travelDiscountAmount.toString();
+        }
+
+        // Remove the temporary calculation properties
+        delete travel.calculatedMarkup;
+        delete travel.calculatedDiscount;
+      }
+    });
+    
+    // Process local transport
+    localTransports.forEach((transport) => {
+      if (transport.totalPrice) {
+        // Store original price
+        transport.basePrice = transport.totalPrice;
+
+        // Use the pre-calculated markup amount that ensures total matches exactly
+        const transportMarkupAmount = transport.calculatedMarkup || 0;
+
+        // Apply markup to get the new base price
+        const markedUpPrice =
+          parseFloat(transport.totalPrice) + transportMarkupAmount;
+        transport.markedUpPrice = markedUpPrice.toString();
+
+        // Use the pre-calculated discount amount that ensures total matches exactly
+        const transportDiscountAmount = transport.calculatedDiscount || 0;
+
+        // Apply discount on the marked-up price
+        transport.totalPrice = (
+          markedUpPrice - transportDiscountAmount
+        ).toString();
+
+        // Store markup and discount amounts
+        transport.markupAmount = transportMarkupAmount.toString();
+        if (discount > 0) {
+          transport.discountAmount = transportDiscountAmount.toString();
+        }
+
+        // Remove the temporary calculation properties
+        delete transport.calculatedMarkup;
+        delete transport.calculatedDiscount;
+      }
+    });
 
     // Process guides
     guides.forEach((guide) => {
@@ -1212,6 +1454,8 @@ export default function Pending() {
         ...(bookings.guide || bookings.data?.guide || []),
         ...(bookings.restaurant || bookings.data?.restaurant || []),
         ...(bookings.travel_point || bookings.data?.travel_point || []),
+        ...(bookings.travel_hourly || bookings.data?.travel_hourly || []),
+        ...(bookings.local_transport || bookings.data?.local_transport || []),
       ];
 
       services.forEach((item) => {
@@ -1365,8 +1609,7 @@ export default function Pending() {
 
         // Save the completed PDF
         pdf.save(
-          `Tour_Details_${
-            bookings.display_id || bookings.data?.display_id || "booking"
+          `Tour_Details_${bookings.display_id || bookings.data?.display_id || "booking"
           }.pdf`
         );
 
@@ -1396,7 +1639,7 @@ export default function Pending() {
 
   const handleOpenEnquiryModal = async () => {
     // Add debug logging
-    console.log("handleOpenEnquiryModal called with tourId:", tourId);
+    //    console.log("handleOpenEnquiryModal called with tourId:", tourId);
 
     // Calculate total original price to set as default enquiry amount
     let totalOriginalPrice = 0;
@@ -1432,8 +1675,8 @@ export default function Pending() {
     setEnquiryAmount(Math.ceil(totalOriginalPrice));
 
     // Log current state for debugging
-    console.log("Current tourId state:", tourId);
-    console.log("Current bookings data:", bookings);
+    //console.log("Current tourId state:", tourId);
+    //console.log("Current bookings data:", bookings);
 
     // Fetch enquiry history data
     try {
@@ -1463,10 +1706,10 @@ export default function Pending() {
         }
       }
 
-      console.log("Using tour_id for enquiry:", currentTourId);
+      //console.log("Using tour_id for enquiry:", currentTourId);
 
       if (!currentTourId) {
-        console.error("No tour_id available for fetching enquiry history");
+        //console.error("No tour_id available for fetching enquiry history");
         setEnquiryHistory([]);
         setLoadingEnquiryHistory(false);
         return;
@@ -1483,7 +1726,7 @@ export default function Pending() {
         },
       });
 
-      console.log("Enquiry history response:", response.data);
+      //console.log("Enquiry history response:", response.data);
 
       if (response.data && response.data.data) {
         // For single object response, convert to array
@@ -1492,7 +1735,7 @@ export default function Pending() {
           : [response.data.data];
         setEnquiryHistory(historyData);
         setEnquiryAmount(historyData[0].current_price);
-        console.log("History data:", historyData[0].current_price);
+        //console.log("History data:", historyData[0].current_price);
 
         // Check if there's an entry with status 2 (Booked) or 3 (Cancel)
         const hasStatusBookedOrCancel = historyData.some(
@@ -1503,13 +1746,13 @@ export default function Pending() {
             item.status === 3
         );
 
-        console.log("Has status booked or cancel?", hasStatusBookedOrCancel);
+        //console.log("Has status booked or cancel?", hasStatusBookedOrCancel);
 
         // If the status is 2 or 3, close the modal and don't show it
         if (hasStatusBookedOrCancel) {
-          toast.info(
-            "This enquiry has already been processed (Booked or Cancelled)"
-          );
+          setSnackbarMessage("This enquiry has already been processed (Booked or Cancelled)");
+          setSnackbarSeverity("info");
+          setOpenSnackbar(true);
           setLoadingEnquiryHistory(false);
           return;
         }
@@ -1518,13 +1761,13 @@ export default function Pending() {
         const isAssignedToAgent = historyData.some(
           (item) => item.assigned && item.assigned === "Agent"
         );
-        console.log("Enquiry history data:", historyData);
+        //console.log("Enquiry history data:", historyData);
         console.log("Is assigned to agent?", isAssignedToAgent);
 
         // Check if any entry has assigned as "OM" or other value
         const assignedValue =
           historyData.length > 0 ? historyData[0].assigned : "none";
-        console.log("Assigned value found:", assignedValue);
+        //console.log("Assigned value found:", assignedValue);
         console.log("Is assigned OM?", assignedValue === "OM");
 
         // Set assigned state based on what we found
@@ -1532,7 +1775,7 @@ export default function Pending() {
           assignedValue === "OM" ||
           (assignedValue && assignedValue !== "Agent")
         ) {
-          console.log("Setting assigned to a non-Agent value:", assignedValue);
+          //console.log("Setting assigned to a non-Agent value:", assignedValue);
           setAssigned(assignedValue);
         } else {
           setAssigned(isAssignedToAgent ? "Agent" : null);
@@ -1546,7 +1789,7 @@ export default function Pending() {
         setIsEnquiryModalVisible(true);
       }
     } catch (error) {
-      console.error("Error fetching enquiry history:", error);
+      //console.error("Error fetching enquiry history:", error);
       setEnquiryHistory([]);
       setIsEnquiryModalVisible(true);
     } finally {
@@ -1574,7 +1817,9 @@ export default function Pending() {
       // Comment is required only for 'enquiry' type
       if (type === "enquiry" && !enquiryComment.trim()) {
         setCommentError(true);
-        toast.error("Please enter a comment for the enquiry");
+        setSnackbarMessage("Please enter a comment for the enquiry");
+        setSnackbarSeverity("error");
+        setOpenSnackbar(true);
         return;
       }
 
@@ -1582,7 +1827,9 @@ export default function Pending() {
       const AgentId = Cookies.get("AgentId");
 
       if (!authToken || !AgentId) {
-        toast.error("Authorization failed. Please login again.");
+        setSnackbarMessage("Authorization failed. Please login again.");
+        setSnackbarSeverity("error");
+        setOpenSnackbar(true);
         return;
       }
 
@@ -1600,6 +1847,10 @@ export default function Pending() {
         bookings.restaurant || bookings.data?.restaurant || [];
       const travelPoints =
         bookings.travel_point || bookings.data?.travel_point || [];
+      const travelHourly =
+        bookings.travel_hourly || bookings.data?.travel_hourly || [];
+      const localTransports =
+        bookings.local_transport || bookings.data?.local_transport || [];
 
       // Calculate total original price
       hotels.forEach((hotel) => {
@@ -1643,6 +1894,20 @@ export default function Pending() {
           actualPrice += parseFloat(travelPoint.totalPrice);
         }
       });
+      
+      // Add travel hourly prices
+      travelHourly.forEach((travel) => {
+        if (travel.totalPrice) {
+          actualPrice += parseFloat(travel.totalPrice);
+        }
+      });
+      
+      // Add local transport prices
+      localTransports.forEach((transport) => {
+        if (transport.totalPrice) {
+          actualPrice += parseFloat(transport.totalPrice);
+        }
+      });
 
       // Use Math.ceil for the prices
       actualPrice = Math.ceil(actualPrice);
@@ -1652,7 +1917,9 @@ export default function Pending() {
       const tour_id = bookings.id || bookings.data?.id || tourId;
 
       if (!tour_id) {
-        toast.error("Tour ID is missing. Cannot submit enquiry.");
+        setSnackbarMessage("Tour ID is missing. Cannot submit enquiry.");
+        setSnackbarSeverity("error");
+        setOpenSnackbar(true);
         return;
       }
 
@@ -1665,7 +1932,7 @@ export default function Pending() {
         type: type, // Dynamic type based on action
       };
 
-      console.log(`Submitting ${type} with data:`, requestData);
+      //console.log(`Submitting ${type} with data:`, requestData);
 
       // Make API call to the new endpoint, explicitly sending data in the request body
       const response = await axios({
@@ -1685,7 +1952,7 @@ export default function Pending() {
 
         switch (type) {
           case "accept":
-            successMessage = "Enquiry accepted successfully!";
+            successMessage = "Enquiry accepted successfully with amount: " + response.data.actual_amount;
             // Store the tour ID that has a processed enquiry
             setTourWithProcessedEnquiry(tour_id);
             break;
@@ -1698,21 +1965,25 @@ export default function Pending() {
             successMessage = "Enquiry submitted successfully!";
         }
 
-        toast.success(successMessage);
+        setSnackbarMessage(successMessage);
+        setSnackbarSeverity("success");
+        setOpenSnackbar(true);
 
         // Close the modal for all types using the handleCloseEnquiryModal
         handleCloseEnquiryModal();
 
         // Refresh the list
-        dispatch(fetchLists());
+        dispatch(fetchLists({ reset: true }));
       } else {
-        toast.error(
-          response.data?.message || "Operation failed. Please try again."
-        );
+        setSnackbarMessage(response.data?.message || "Operation failed. Please try again.");
+        setSnackbarSeverity("error");
+        setOpenSnackbar(true);
       }
     } catch (error) {
-      console.error(`Error during ${type} operation:`, error);
-      toast.error("Something went wrong. Please try again later.");
+      //    console.error(`Error during ${type} operation:`, error);
+      setSnackbarMessage("Something went wrong. Please try again later.");
+      setSnackbarSeverity("error");
+      setOpenSnackbar(true);
     }
   };
 
@@ -1733,11 +2004,15 @@ export default function Pending() {
       const exitPorts = bookings.exit_port || bookings.data?.exit_port || [];
       const travelPoints =
         bookings.travel_point || bookings.data?.travel_point || [];
+      const travelHourly =
+        bookings.travel_hourly || bookings.data?.travel_hourly || [];
       const attractions =
         bookings.attraction || bookings.data?.attraction || [];
       const guides = bookings.guide || bookings.data?.guide || [];
       const restaurants =
         bookings.restaurant || bookings.data?.restaurant || [];
+      const localTransports =
+        bookings.local_transport || bookings.data?.local_transport || [];
 
       // Calculate total original price
       hotels.forEach((hotel) => {
@@ -1779,6 +2054,20 @@ export default function Pending() {
       restaurants.forEach((restaurant) => {
         if (restaurant.totalPrice) {
           calculatedTotalPrice += parseFloat(restaurant.totalPrice);
+        }
+      });
+      
+      // Add travel hourly prices
+      travelHourly.forEach((travel) => {
+        if (travel.totalPrice) {
+          calculatedTotalPrice += parseFloat(travel.totalPrice);
+        }
+      });
+      
+      // Add local transport prices
+      localTransports.forEach((transport) => {
+        if (transport.totalPrice) {
+          calculatedTotalPrice += parseFloat(transport.totalPrice);
         }
       });
 
@@ -1848,8 +2137,8 @@ export default function Pending() {
                 border: "1px solid #e0e6ed",
               }}
             >
-              <div className="overflow-hidden">
-                <table className="table-3 -border-bottom col-12" style={{ width: "100%", tableLayout: "fixed" }}>
+              <div className="responsive-table-container">
+                <table className="table-3 -border-bottom col-12 responsive-table">
                   <thead className="bg-light-2">
                     <tr>
                       <th
@@ -1933,9 +2222,8 @@ export default function Pending() {
                           Booking ID
                           {sortColumn === "id" && (
                             <i
-                              className={`icon-up-down text-blue-1 mr-5 ${
-                                order === "asc" ? "rotate-180" : ""
-                              }`}
+                              className={`icon-up-down text-blue-1 mr-5 ${order === "asc" ? "rotate-180" : ""
+                                }`}
                               style={{
                                 fontSize: "12px",
                                 opacity: order === "asc" ? 1 : 0.7,
@@ -1988,9 +2276,8 @@ export default function Pending() {
                           Start Date
                           {sortColumn === "startDate" && (
                             <i
-                              className={`icon-up-down text-blue-1 mr-5 ${
-                                order === "asc" ? "rotate-180" : ""
-                              }`}
+                              className={`icon-up-down text-blue-1 mr-5 ${order === "asc" ? "rotate-180" : ""
+                                }`}
                               style={{
                                 fontSize: "12px",
                                 opacity: order === "asc" ? 1 : 0.7,
@@ -2043,9 +2330,8 @@ export default function Pending() {
                           End Date
                           {sortColumn === "endDate" && (
                             <i
-                              className={`icon-up-down text-blue-1 mr-5 ${
-                                order === "asc" ? "rotate-180" : ""
-                              }`}
+                              className={`icon-up-down text-blue-1 mr-5 ${order === "asc" ? "rotate-180" : ""
+                                }`}
                               style={{
                                 fontSize: "12px",
                                 opacity: order === "asc" ? 1 : 0.7,
@@ -2101,9 +2387,8 @@ export default function Pending() {
                           Pax
                           {sortColumn === "pax" && (
                             <i
-                              className={`icon-arrow-${
-                                order === "asc" ? "down" : "up"
-                              }`}
+                              className={`icon-arrow-${order === "asc" ? "down" : "up"
+                                }`}
                               style={{ fontSize: "12px", opacity: 0.7 }}
                             ></i>
                           )}
@@ -2243,9 +2528,9 @@ export default function Pending() {
                           color: "#3554D1",
                           cursor: "pointer",
                           transition: "background-color 0.3s ease",
-                          width: "110px",
-                          minWidth: "110px",
-                          maxWidth: "110px",
+                          width: "140px",
+                          minWidth: "140px",
+                          maxWidth: "140px",
                         }}
                         onMouseEnter={(e) => {
                           e.currentTarget.style.backgroundColor = "#e6eafb";
@@ -2273,48 +2558,7 @@ export default function Pending() {
                               color: "#3554D1",
                             }}
                           ></i>
-                          Payment
-                        </div>
-                      </th>
-                      <th
-                        style={{
-                          backgroundColor: "#f5f7fc",
-                          padding: "8px 12px",
-                          fontWeight: "600",
-                          color: "#3554D1",
-                          cursor: "pointer",
-                          transition: "background-color 0.3s ease",
-                          width: "120px",
-                          minWidth: "120px",
-                          maxWidth: "120px",
-                        }}
-                        onMouseEnter={(e) => {
-                          e.currentTarget.style.backgroundColor = "#e6eafb";
-                          e.currentTarget.querySelector("i").style.transform = "scale(1.2)";
-                        }}
-                        onMouseLeave={(e) => {
-                          e.currentTarget.style.backgroundColor = "#f5f7fc";
-                          e.currentTarget.querySelector("i").style.transform = "scale(1)";
-                        }}
-                      >
-                        <div
-                          style={{
-                            display: "flex",
-                            alignItems: "center",
-                            justifyContent: "center",
-                            gap: "6px",
-                            fontSize: "13px",
-                            fontWeight: "600",
-                          }}
-                        >
-                          <i
-                            className="icon-usd"
-                            style={{
-                              fontSize: "14px",
-                              color: "#3554D1",
-                            }}
-                          ></i>
-                          Payment Status
+                          Payment Details
                         </div>
                       </th>
                       <th
@@ -2377,16 +2621,13 @@ export default function Pending() {
                             <Skeleton variant="text" width={60} />
                           </td>
                           <td>
-                            <Skeleton variant="text" width={120} />
-                          </td>
-                          <td>
                             <Skeleton
                               variant="rectangular"
-                              width={130}
-                              height={35}
+                              width={140}
+                              height={80}
                             />
                           </td>
-                          <td style={{ padding: "8px 12px", width: "110px", minWidth: "110px", maxWidth: "110px", whiteSpace: "nowrap" }}>
+                          <td className="actions-column" style={{ whiteSpace: "nowrap" }}>
                             <Skeleton variant="text" width={100} />
                           </td>
                         </tr>
@@ -2413,11 +2654,12 @@ export default function Pending() {
                             <div
                               style={{
                                 display: "flex",
-                                gap: "8px",
+                                gap: "4px",
                                 flexWrap: "nowrap",
                                 alignItems: "center",
                               }}
                             >
+                              {/* View button - always visible */}
                               <Tooltip title="View Details" arrow>
                                 <IconButton
                                   size="small"
@@ -2426,81 +2668,99 @@ export default function Pending() {
                                     color: "#4361ee",
                                     width: "28px",
                                     height: "28px",
-                                    borderRadius: "6px",
-                                    backgroundColor: "rgba(0, 0, 0, 0.04)",
-                                    boxShadow: "0 2px 4px rgba(0, 0, 0, 0.1)",
-                                    transition: "all 0.2s ease",
+                                    padding: "4px",
                                     "&:hover": {
-                                      backgroundColor: "rgba(67, 97, 238, 0.12)",
-                                      boxShadow: "0 4px 8px rgba(0, 0, 0, 0.15)",
-                                      transform: "translateY(-1px)",
+                                      color: "#2847C7",
                                     },
                                   }}
                                 >
-                                  <Visibility sx={{ fontSize: "16px" }} />
+                                  <Visibility sx={{ fontSize: "14px" }} />
                                 </IconButton>
                               </Tooltip>
 
-                              {/* Only render Edit button if editOff is not 1 */}
-                              {list.editOff !== 1 && (
-                                <Tooltip title="Add More Services" arrow>
-                                  <IconButton
-                                    size="small"
-                                    onClick={() => handleEdit(list)}
-                                    sx={{
-                                      color: "#2e7d32",
-                                      width: "28px",
-                                      height: "28px",
-                                      borderRadius: "6px",
-                                      backgroundColor: "rgba(0, 0, 0, 0.04)",
-                                      boxShadow: "0 2px 4px rgba(0, 0, 0, 0.1)",
-                                      transition: "all 0.2s ease",
-                                      "&:hover": {
-                                        backgroundColor: "rgba(46, 125, 50, 0.12)",
-                                        boxShadow: "0 4px 8px rgba(0, 0, 0, 0.15)",
-                                        transform: "translateY(-1px)",
-                                      },
-                                    }}
-                                  >
-                                    <Edit sx={{ fontSize: "16px" }} />
-                                  </IconButton>
-                                </Tooltip>
-                              )}
+                              {/* Show other buttons only if status doesn't start with "Cancel" */}
+                              {(!list.tour_status?.toLowerCase().startsWith("cancel") && !list.tour_status?.toLowerCase().startsWith("refund") && !list.tour_status?.toLowerCase().startsWith("refunded"))&& !list.tour_status?.toLowerCase().startsWith("auto cancel") && (
+                                <>
+                                  {/* Only render Edit button if editOff is not 1 */}
+                                
+                                    <Tooltip title="Add More Services" arrow>
+                                      <IconButton
+                                        size="small"
+                                        onClick={() => handleEdit(list)}
+                                        sx={{
+                                          color: "#2e7d32",
+                                          width: "20px",
+                                          height: "20px",
+                                          padding: "2px",
+                                          "&:hover": {
+                                            color: "#1b5e20",
+                                          },
+                                        }}
+                                      >
+                                        <Edit sx={{ fontSize: "14px" }} />
+                                      </IconButton>
+                                    </Tooltip>
+                                  
 
-                              {list.booking_type === "enquiry" &&
-                                userRole === "Agent" && (
-                                  <Tooltip title="Negotiate" arrow>
-                                    <IconButton
-                                      size="small"
-                                      onClick={() => handleDirectEnquiry(list)}
-                                      sx={{
-                                        color: "#7b1fa2",
-                                        width: "28px",
-                                        height: "28px",
-                                        borderRadius: "6px",
-                                        backgroundColor: "rgba(0, 0, 0, 0.04)",
-                                        boxShadow: "0 2px 4px rgba(0, 0, 0, 0.1)",
-                                        transition: "all 0.2s ease",
-                                        "&:hover": {
-                                          backgroundColor: "rgba(123, 31, 162, 0.12)",
-                                          boxShadow: "0 4px 8px rgba(0, 0, 0, 0.15)",
-                                          transform: "translateY(-1px)",
-                                        },
-                                      }}
-                                    >
-                                      <AttachMoney sx={{ fontSize: "16px" }} />
-                                    </IconButton>
-                                  </Tooltip>
-                                )}
+                                  {/* Negotiate button for enquiry type and Agent role */}
+                                  {list.booking_type === "enquiry" && userRole === "Agent" && (
+                                    <Tooltip title="Negotiate" arrow>
+                                      <IconButton
+                                        size="small"
+                                        onClick={() => handleDirectEnquiry(list)}
+                                        sx={{
+                                          color: "#7b1fa2",
+                                          width: "20px",
+                                          height: "20px",
+                                          padding: "2px",
+                                          "&:hover": {
+                                            color: "#4a148c",
+                                          },
+                                        }}
+                                      >
+                                        <AttachMoney sx={{ fontSize: "14px" }} />
+                                      </IconButton>
+                                    </Tooltip>
+                                  )}
+                                </>
+                              )}
                             </div>
+                            {list.dmc_company_name && (
+                              <Tooltip
+                                title={list.dmc_company_name}
+                                arrow
+                                placement="bottom"
+                              >
+                                <div
+                                  style={{
+                                    fontSize: "10px",
+                                    fontWeight: "600",
+                                    overflow: "hidden",
+                                    textOverflow: "ellipsis",
+                                    whiteSpace: "nowrap",
+                                    maxWidth: "80px",
+                                    marginTop: "10px",
+                                    textAlign: "center",
+                                    backgroundColor: "#3554D1",
+                                    color: "#fff",
+                                    padding: "5px 10px",
+                                    borderRadius: "50px",
+                                    cursor: "pointer",
+                                    display: "inline-block",
+                                  }}
+                                >
+                                  {list.dmc_company_name}
+                                </div>
+                              </Tooltip>
+                            )}
                           </td>
-                          <td style={{ padding: "16px 20px", width: "100px", minWidth: "100px", maxWidth: "100px" }}>
+                          <td className="booking-id-column">
                             <div
                               style={{
                                 backgroundColor: "rgba(53, 84, 209, 0.1)",
-                                padding: "6px 8px",
-                                borderRadius: "12px",
-                                fontSize: "11px",
+                                padding: "4px 6px",
+                                borderRadius: "8px",
+                                fontSize: "10px",
                                 color: "#3554D1",
                                 fontWeight: "600",
                                 display: "inline-flex",
@@ -2517,55 +2777,72 @@ export default function Pending() {
                                     color: "#fff",
                                     padding: "2px 8px",
                                     borderRadius: "50px",
-                                    fontSize: "12px",
+                                    fontSize: "10px",
                                     marginTop: "4px",
                                   }}
                                 >
                                   {list.order_from}
+
                                 </span>
                               )}
+                              {list.multi_enq_id && (
+                                <div
+                                  style={{
+
+                                    textAlign: "center",
+                                    //backgroundColor: "#3554D1",
+                                    color: "#3554D1",
+                                    padding: "5px 10px",
+                                    borderRadius: "50px",
+                                    cursor: "pointer",
+                                  }}
+                                >
+                                  {list.multi_enq_id}
+                                </div>
+                              )}
+
                             </div>
                           </td>
-                          <td style={{ padding: "16px 20px", width: "90px", minWidth: "90px", maxWidth: "90px" }}>
+                          <td className="date-column">
                             <Tooltip title={formatDateTooltip(list.check_in_time)} arrow placement="top">
-                                                          <div
-                              style={{
-                                backgroundColor: "rgba(76, 175, 80, 0.1)",
-                                padding: "6px 8px",
-                                borderRadius: "12px",
-                                fontSize: "15px",
-                                color: "#4CAF50",
-                                fontWeight: "600",
-                                display: "inline-flex",
-                                alignItems: "center",
-                                justifyContent: "center",
-                                whiteSpace: "nowrap",
-                                cursor: "pointer",
-                              }}
-                            >
-                              <span style={{ fontWeight: "600", fontSize: "15px" }}>{formatDate(list.check_in_time)}</span>
-                            </div>
+                              <div
+                                style={{
+                                  backgroundColor: "rgba(76, 175, 80, 0.1)",
+                                  padding: "4px 6px",
+                                  borderRadius: "8px",
+                                  fontSize: "12px",
+                                  color: "#4CAF50",
+                                  fontWeight: "600",
+                                  display: "inline-flex",
+                                  alignItems: "center",
+                                  justifyContent: "center",
+                                  whiteSpace: "nowrap",
+                                  cursor: "pointer",
+                                }}
+                              >
+                                <span style={{ fontWeight: "600", fontSize: "12px" }}>{formatDate(list.check_in_time)}</span>
+                              </div>
                             </Tooltip>
                           </td>
-                          <td style={{ padding: "16px 20px", width: "90px", minWidth: "90px", maxWidth: "90px" }}>
+                          <td className="date-column">
                             <Tooltip title={formatDateTooltip(list.check_out_time)} arrow placement="top">
-                                                          <div
-                              style={{
-                                backgroundColor: "rgba(244, 67, 54, 0.1)",
-                                padding: "6px 8px",
-                                borderRadius: "12px",
-                                fontSize: "15px",
-                                color: "#F44336",
-                                fontWeight: "600",
-                                display: "inline-flex",
-                                alignItems: "center",
-                                justifyContent: "center",
-                                whiteSpace: "nowrap",
-                                cursor: "pointer",
-                              }}
-                            >
-                              <span style={{ fontWeight: "600", fontSize: "15px" }}>{formatDate(list.check_out_time)}</span>
-                            </div>
+                              <div
+                                style={{
+                                  backgroundColor: "rgba(244, 67, 54, 0.1)",
+                                  padding: "4px 6px",
+                                  borderRadius: "8px",
+                                  fontSize: "12px",
+                                  color: "#F44336",
+                                  fontWeight: "600",
+                                  display: "inline-flex",
+                                  alignItems: "center",
+                                  justifyContent: "center",
+                                  whiteSpace: "nowrap",
+                                  cursor: "pointer",
+                                }}
+                              >
+                                <span style={{ fontWeight: "600", fontSize: "12px" }}>{formatDate(list.check_out_time)}</span>
+                              </div>
                             </Tooltip>
                           </td>
                           <td
@@ -2599,7 +2876,7 @@ export default function Pending() {
                               <span
                                 style={{
                                   fontWeight: "600",
-                                  fontSize: "15px",
+                                  fontSize: "12px",
                                   color: "#FF9800",
                                   whiteSpace: "nowrap",
                                 }}
@@ -2608,7 +2885,7 @@ export default function Pending() {
                               </span>
                             </div>
                           </td>
-                          <td style={{ padding: "16px 20px", width: "120px", minWidth: "120px", maxWidth: "120px" }}>
+                          <td className="destination-column">
                             <div
                               style={{
                                 display: "flex",
@@ -2643,30 +2920,51 @@ export default function Pending() {
                               </span>
                             </div>
                           </td>
-                          <td style={{ padding: "16px 20px", width: "130px", minWidth: "130px", maxWidth: "130px" }}>
+                          <td className="customer-column">
                             <div
                               style={{
                                 display: "flex",
                                 alignItems: "center",
                                 gap: "8px",
+                                maxWidth: "150px",
                               }}
                             >
                               <i
                                 className="icon-customer"
                                 style={{ fontSize: "18px", color: "#F44336" }}
                               ></i>
-                              <span>{list.customer_name || "N/A"}</span>
+                              <Tooltip title={list.customer_name || "N/A"} placement="top" arrow>
+                                <span
+                                  style={{
+                                    overflow: "hidden",
+                                    textOverflow: "ellipsis",
+                                    whiteSpace: "nowrap",
+                                    display: "inline-block",
+                                    maxWidth: "110px",
+                                  }}
+                                >
+                                  {truncateName(list.customer_name, 10)}
+                                </span>
+                              </Tooltip>
                             </div>
                           </td>
-                          <td style={{ padding: "16px 20px", width: "100px", minWidth: "100px", maxWidth: "100px" }}>
+                          <td className="booking-id-column"
+                          style={{
+                            minWidth: "200px",
+                            maxWidth: "200px",
+                          }}
+                          >
                             <div
                               style={{
                                 display: "flex",
                                 alignItems: "center",
-                                gap: "6px",
+                                justifyContent: "center",
+                                gap: "0px",
                                 backgroundColor: getBackgroundColor(list.tour_status),
                                 padding: "4px 8px",
                                 borderRadius: "16px",
+                                whiteSpace: "nowrap",
+                                width: "",
                               }}
                             >
                               <i
@@ -2704,12 +3002,8 @@ export default function Pending() {
                               </span>
                             </div>
                           </td>
-                          <td style={{ padding: "8px 12px", width: "110px", minWidth: "110px", maxWidth: "110px" }}>
-                            <Tooltip 
-                              title={`Original: SGD ${Math.ceil(list.finalAmount + list.discountAmount)} | Discount: SGD ${Math.ceil(list.discountAmount)} | Final: SGD ${Math.ceil(list.finalAmount)}`}
-                              arrow
-                              placement="top"
-                            >
+                          <td className="payment-column">
+                            <CustomPaymentTooltip list={list}>
                               <div
                                 style={{
                                   borderRadius: "8px",
@@ -2729,163 +3023,432 @@ export default function Pending() {
                                   e.currentTarget.style.boxShadow = "0 2px 8px rgba(33, 150, 243, 0.15)";
                                 }}
                               >
+                                {/* Original Amount (from API, no tax) */}
+                                <div
+                                  style={{
+                                    display: "flex",
+                                    alignItems: "center",
+                                    justifyContent: "space-between",
+                                    marginBottom: "4px",
+                                    padding: "3px 6px",
+                                    backgroundColor: "rgba(255, 255, 255, 0.8)",
+                                    borderRadius: "6px",
+                                    border: "1px solid rgba(0, 0, 0, 0.1)",
+                                  }}
+                                >
+                                  <div style={{ display: "flex", alignItems: "center", gap: "4px" }}>
+                                    <i className="icon-tag" style={{ fontSize: "14px", color: "#1976d2" }}></i>
+                                    <span style={{ fontSize: "9px", color: "#1976d2", fontWeight: "600" }}>
+                                      Original
+                                    </span>
+                                  </div>
+                                  <span style={{ fontSize: "9px", color: "#1976d2", fontWeight: "700" }}>
+                                    {(() => {
+                                      const original = Math.ceil(
+                                        list.tour_total_price != null
+                                          ? Number(list.tour_total_price)
+                                          : Number(list.finalAmount || 0) + Number(list.discountAmount || 0)
+                                      );
+                                      return `SGD ${original}`;
+                                    })()}
+                                  </span>
+                                </div>
+
+                                {/* Discount Amount */}
+                                {list.discountAmount > 0 && (
+                                  <div
+                                    style={{
+                                      display: "flex",
+                                      alignItems: "center",
+                                      justifyContent: "space-between",
+                                      marginBottom: "4px",
+                                      padding: "3px 6px",
+                                      backgroundColor: "rgba(229, 57, 53, 0.1)",
+                                      borderRadius: "6px",
+                                      border: "1px solid rgba(229, 57, 53, 0.2)",
+                                    }}
+                                  >
+                                    <div style={{ display: "flex", alignItems: "center", gap: "4px" }}>
+                                      <i className="icon-usd" style={{ fontSize: "14px", color: "#e53935" }}></i>
+                                      <span style={{ fontSize: "9px", color: "#e53935", fontWeight: "600" }}>
+                                        Discount
+                                      </span>
+                                    </div>
+                                    <span style={{ fontSize: "9px", color: "#e53935", fontWeight: "700" }}>
+                                      -SGD {Math.ceil(list.discountAmount)}
+                                    </span>
+                                  </div>
+                                )}
+
+                                {/* Final Amount (API final + tax) */}
+                                <div
+                                  style={{
+                                    display: "flex",
+                                    alignItems: "center",
+                                    justifyContent: "space-between",
+                                    marginBottom: "4px",
+                                    padding: "3px 6px",
+                                    backgroundColor: "rgba(255, 255, 255, 0.8)",
+                                    borderRadius: "6px",
+                                    border: "1px solid rgba(0, 0, 0, 0.1)",
+                                  }}
+                                >
+                                  <div style={{ display: "flex", alignItems: "center", gap: "4px" }}>
+                                    <i className="icon-wallet" style={{ fontSize: "14px", color: "#4CAF50" }}></i>
+                                    <span style={{ fontSize: "9px", color: "#4CAF50", fontWeight: "600" }}>
+                                      Final
+                                    </span>
+                                  </div>
+                                  <span style={{ fontSize: "9px", color: "#4CAF50", fontWeight: "700" }}>
+                                    {(() => {
+                                      const baseFinal = Number(list.finalAmountWithTax || 0);
+                                      const withTax = Math.ceil(baseFinal );
+                                      return `SGD ${withTax}`;
+                                    })()}
+                                  </span>
+                                </div>
+
                                 <div
                                   style={{
                                     display: "flex",
                                     alignItems: "center",
                                     justifyContent: "space-between",
                                     marginBottom: "6px",
+                                    padding: "4px 8px",
+                                    backgroundColor: "rgba(76, 175, 80, 0.1)",
+                                    borderRadius: "6px",
+                                    border: "1px solid rgba(76, 175, 80, 0.2)",
                                   }}
                                 >
                                   <div style={{ display: "flex", alignItems: "center", gap: "4px" }}>
-                                    <i className="icon-usd" style={{ fontSize: "12px", color: "#e53935" }}></i>
-                                    <span style={{ fontSize: "10px", color: "#e53935", fontWeight: "600" }}>
-                                      -{Math.ceil(list.discountAmount)}
+                                    <i className="icon-wallet" style={{ fontSize: "10px", color: "#4CAF50" }}></i>
+                                    <span style={{ fontSize: "10px", color: "#4CAF50", fontWeight: "600" }}>
+                                      Total(Tax Included)
                                     </span>
                                   </div>
-                                  <div style={{ display: "flex", alignItems: "center", gap: "4px" }}>
-                                    <i className="icon-tag" style={{ fontSize: "12px", color: "#1976d2" }}></i>
-                                    <span style={{ fontSize: "10px", color: "#1976d2", fontWeight: "600" }}>
-                                      {Math.ceil(list.finalAmount)}
-                                    </span>
-                                  </div>
+                                  <span style={{ fontSize: "10px", color: "#4CAF50", fontWeight: "700" }}>{(() => {
+                                      // Base amount - check first
+                                      const baseFinalAmount = Number(list.finalAmountWithTax || 0);
+                                      
+                                      // If finalAmountWithTax is 0, return 0 (don't calculate taxes)
+                                      if (!baseFinalAmount || baseFinalAmount <= 0) {
+                                        return `SGD 0`;
+                                      }
+
+                                      // Helper function to safely convert to number
+                                      const safeNumber = (value) => {
+                                        const num = Number(value);
+                                        return isNaN(num) ? 0 : num;
+                                      };
+
+                                      // Helper function to calculate nights
+                                      const parseDate = (dateStr) => {
+                                        if (!dateStr) return null;
+                                        const parsed = dayjs(dateStr, ["DD/MM/YYYY", "DD-MM-YYYY", "YYYY-MM-DD", "YYYY/MM/DD"], true);
+                                        if (parsed.isValid()) {
+                                          return parsed;
+                                        }
+                                        const fallback = dayjs(dateStr);
+                                        return fallback.isValid() ? fallback : null;
+                                      };
+
+                                      const calculateNights = (checkIn, checkOut) => {
+                                        const inDate = parseDate(checkIn);
+                                        const outDate = parseDate(checkOut);
+                                        if (!inDate || !outDate) return 0;
+                                        const nights = outDate.diff(inDate, 'day');
+                                        return Math.max(nights, 0);
+                                      };
+
+                                      // Parse taxes from JSON string
+                                      let taxes = [];
+                                      try {
+                                        if (list.taxes && typeof list.taxes === 'string') {
+                                          taxes = JSON.parse(list.taxes);
+                                        } else if (Array.isArray(list.taxes)) {
+                                          taxes = list.taxes;
+                                        }
+                                      } catch (e) {
+                                        console.error('Error parsing taxes for tour:', list.display_id, e);
+                                        return `SGD ${Math.ceil(baseFinalAmount)}`;
+                                      }
+
+                                      if (!taxes || taxes.length === 0) {
+                                        return `SGD ${Math.ceil(baseFinalAmount)}`;
+                                      }
+
+                                      // Initialize with base amount
+                                      let total = baseFinalAmount;
+                                      const totalPax = safeNumber(list.total_pax);
+                                      const nights = calculateNights(list.check_in_time, list.check_out_time);
+
+                                      // Store calculated amounts for each tax (for cascading)
+                                      const taxCalculations = {};
+
+                                      // Step 1: Process taxes where calculate_on = "total"
+                                      const totalTaxes = taxes.filter(tax => 
+                                        tax.calculate_on && tax.calculate_on.toLowerCase() === 'total'
+                                      );
+
+                                      const effectiveNights = nights > 0 ? nights : 1;
+
+                                      totalTaxes.forEach(tax => {
+                                        let taxAmount = 0;
+                                        const taxValue = safeNumber(tax.tax_value);
+
+                                        if (tax.tax_type === 'percentage') {
+                                          // Calculate percentage tax on BASE amount (not running total)
+                                          taxAmount = (baseFinalAmount * taxValue) / 100;
+                                        } else if (tax.tax_type === 'fixed') {
+                                          // Calculate fixed tax based on if_fixed type
+                                          switch (tax.if_fixed) {
+                                            case 'person':
+                                              taxAmount = totalPax * taxValue;
+                                              break;
+                                            case 'person_day':
+                                              taxAmount = totalPax * effectiveNights * taxValue;
+                                              break;
+                                            case 'per_day':
+                                              taxAmount = effectiveNights * taxValue;
+                                              break;
+                                            case 'per_tour':
+                                            case 'person_tour':
+                                              taxAmount = taxValue;
+                                              break;
+                                            default:
+                                              taxAmount = taxValue;
+                                          }
+                                        }
+
+                                        // Validate taxAmount is not NaN
+                                        if (isNaN(taxAmount)) {
+                                          taxAmount = 0;
+                                        }
+
+                                        // Round the tax amount for consistency between display and calculation
+                                        const roundedTaxAmount = Math.ceil(taxAmount);
+                                        total += roundedTaxAmount;
+
+                                        // Store the total after this tax (for potential cascading)
+                                        taxCalculations[tax.tax_id] = {
+                                          amount: total,
+                                          taxAmount: roundedTaxAmount
+                                        };
+                                      });
+
+                                      // Step 2: Process cascading taxes (where calculate_on != "total")
+                                      const cascadingTaxes = taxes.filter(tax => 
+                                        tax.calculate_on && tax.calculate_on.toLowerCase() !== 'total'
+                                      );
+
+                                      cascadingTaxes.forEach(tax => {
+                                        let taxAmount = 0;
+                                        const taxValue = safeNumber(tax.tax_value);
+
+                                        if (tax.tax_type === 'percentage') {
+                                          // For percentage taxes, calculate on the previous tax's total amount
+                                          // Convert calculate_on to number to match tax_id keys in taxCalculations
+                                          const calculateOnKey = typeof tax.calculate_on === 'string' && !isNaN(parseInt(tax.calculate_on)) 
+                                            ? parseInt(tax.calculate_on) 
+                                            : tax.calculate_on;
+                                          const baseCalc = taxCalculations[calculateOnKey];
+                                          const baseAmount = baseCalc ? baseCalc.amount : total;
+                                          taxAmount = (baseAmount * taxValue) / 100;
+                                        } else if (tax.tax_type === 'fixed') {
+                                          // For fixed taxes, use if_fixed rules (don't use previous tax's amount)
+                                          switch (tax.if_fixed) {
+                                            case 'person':
+                                            case 'per_person':
+                                              taxAmount = totalPax * taxValue;
+                                              break;
+                                            case 'per_person_per_day':
+                                              taxAmount = totalPax * effectiveNights * taxValue;
+                                              break;
+                                            case 'per_tour_per_day':
+                                              taxAmount = effectiveNights * taxValue;
+                                              break;
+                                            case 'per_tour':
+                                            case 'person_tour':
+                                              taxAmount = taxValue;
+                                              break;
+                                            default:
+                                              taxAmount = taxValue;
+                                          }
+                                        }
+
+                                        // Validate taxAmount is not NaN
+                                        if (isNaN(taxAmount)) {
+                                          taxAmount = 0;
+                                        }
+
+                                        // Round the tax amount for consistency between display and calculation
+                                        const roundedTaxAmount = Math.ceil(taxAmount);
+                                        total += roundedTaxAmount;
+
+                                        // Store the total after this tax
+                                        taxCalculations[tax.tax_id] = {
+                                          amount: total,
+                                          taxAmount: roundedTaxAmount
+                                        };
+                                      });
+
+                                      // Final validation - if total is NaN, fallback to baseFinalAmount
+                                      if (isNaN(total) || !isFinite(total)) {
+                                        console.error('Total became NaN for tour:', list.display_id);
+                                        return `SGD ${Math.ceil(baseFinalAmount)}`;
+                                      }
+
+                                      return `SGD ${Math.ceil(total)}`;
+                                    })()}
+                                  </span>
                                 </div>
+
+                                {/* Payment Status */}
                                 <div
                                   style={{
                                     display: "flex",
                                     alignItems: "center",
                                     justifyContent: "center",
-                                    gap: "6px",
-                                    padding: "4px 8px",
-                                    backgroundColor: "rgba(255, 255, 255, 0.7)",
+                                    gap: "4px",
+                                    padding: "3px 6px",
+                                    backgroundColor:
+                                      list.payment_status === "Not Paid"
+                                        ? "rgba(253, 236, 234, 0.9)"
+                                        : list.payment_status === "Partially Paid"
+                                          ? "rgba(227, 242, 253, 0.9)"
+                                          : list.payment_status === "Completely Paid"
+                                            ? "rgba(232, 245, 233, 0.9)"
+                                            : "rgba(224, 224, 224, 0.9)",
                                     borderRadius: "6px",
-                                    border: "1px solid rgba(33, 150, 243, 0.1)",
+                                    border: `1px solid ${list.payment_status === "Not Paid"
+                                        ? "rgba(211, 47, 47, 0.3)"
+                                        : list.payment_status === "Partially Paid"
+                                          ? "rgba(25, 118, 210, 0.3)"
+                                          : list.payment_status === "Completely Paid"
+                                            ? "rgba(56, 142, 60, 0.3)"
+                                            : "rgba(97, 97, 97, 0.3)"
+                                      }`,
                                   }}
                                 >
-                                  <i className="icon-wallet" style={{ fontSize: "14px", color: "#1976d2" }}></i>
-                                  <span style={{ fontSize: "12px", fontWeight: "700", color: "#1976d2" }}>
-                                    SGD {Math.ceil(list.finalAmount)}
+                                  <i
+                                    className={
+                                      list.payment_status === "Not Paid"
+                                        ? "icon-x-circle"
+                                        : list.payment_status === "Partially Paid"
+                                          ? "icon-clock"
+                                          : list.payment_status === "Completely Paid"
+                                            ? "icon-check-circle"
+                                            : "icon-help-circle"
+                                    }
+                                    style={{
+                                      fontSize: "14px",
+                                      color:
+                                        list.payment_status === "Not Paid"
+                                          ? "#d32f2f"
+                                          : list.payment_status === "Partially Paid"
+                                            ? "#1976d2"
+                                            : list.payment_status === "Completely Paid"
+                                              ? "#388e3c"
+                                              : "#616161"
+                                    }}
+                                  ></i>
+                                  <span
+                                    style={{
+                                      fontWeight: "600",
+                                      fontSize: "9px",
+                                      color:
+                                        list.payment_status === "Not Paid"
+                                          ? "#d32f2f"
+                                          : list.payment_status === "Partially Paid"
+                                            ? "#1976d2"
+                                            : list.payment_status === "Completely Paid"
+                                              ? "#388e3c"
+                                              : "#616161",
+                                    }}
+                                  >
+                                    {list.payment_status}
                                   </span>
                                 </div>
-                              </div>
-                            </Tooltip>
-                          </td>
 
-                          <td style={{ padding: "8px 12px" }}>
-                            <Tooltip 
-                              title={`Status: ${list.payment_status}${list.dueAmount > 0 ? ` | Due: SGD ${Math.ceil(list.dueAmount)}` : ''}`}
-                              arrow
-                              placement="top"
-                            >
-                              <div
-                                style={{
-                                  borderRadius: "8px",
-                                  padding: "10px 12px",
-                                  backgroundColor:
-                                    list.payment_status === "Not Paid"
-                                      ? "rgba(253, 236, 234, 0.95)"
-                                      : list.payment_status === "Partially Paid"
-                                      ? "rgba(227, 242, 253, 0.95)"
-                                      : list.payment_status === "Completely Paid"
-                                      ? "rgba(232, 245, 233, 0.95)"
-                                      : "rgba(224, 224, 224, 0.95)",
-                                  border: `1px solid ${
-                                    list.payment_status === "Not Paid"
-                                      ? "rgba(211, 47, 47, 0.3)"
-                                      : list.payment_status === "Partially Paid"
-                                      ? "rgba(25, 118, 210, 0.3)"
-                                      : list.payment_status === "Completely Paid"
-                                      ? "rgba(56, 142, 60, 0.3)"
-                                      : "rgba(97, 97, 97, 0.3)"
-                                  }`,
-                                  boxShadow: "0 2px 8px rgba(0, 0, 0, 0.12)",
-                                  transition: "all 0.3s ease",
-                                  cursor: "pointer",
-                                }}
-                                onMouseEnter={(e) => {
-                                  e.currentTarget.style.transform = "translateY(-2px)";
-                                  e.currentTarget.style.boxShadow = "0 4px 12px rgba(0, 0, 0, 0.2)";
-                                }}
-                                onMouseLeave={(e) => {
-                                  e.currentTarget.style.transform = "translateY(0)";
-                                  e.currentTarget.style.boxShadow = "0 2px 8px rgba(0, 0, 0, 0.12)";
-                                }}
-                              >
-                                {list.dueAmount > 0 && (
+                                {/* Due Amount Warning */}
+                                {(() => {
+                                  const baseFinalAmount = Number(list.finalAmountWithTax || 0);
+                                  if (!baseFinalAmount || baseFinalAmount <= 0) return false;
+
+                                  const safeNumber = (value) => { const n = Number(value); return isNaN(n) ? 0 : n; };
+                                  const parseDate = (dateStr) => {
+                                    if (!dateStr) return null;
+                                    const parsed = dayjs(dateStr, ["DD/MM/YYYY", "DD-MM-YYYY", "YYYY-MM-DD", "YYYY/MM/DD"], true);
+                                    if (parsed.isValid()) {
+                                      return parsed;
+                                    }
+                                    const fallback = dayjs(dateStr);
+                                    return fallback.isValid() ? fallback : null;
+                                  };
+                                  const calculateNights = (checkIn, checkOut) => {
+                                    const inDate = parseDate(checkIn);
+                                    const outDate = parseDate(checkOut);
+                                    if (!inDate || !outDate) return 0;
+                                    const nights = outDate.diff(inDate, 'day');
+                                    return Math.max(nights,0);
+                                  };
+                                  let taxes = [];
+                                  try { if (list.taxes && typeof list.taxes==='string') taxes = JSON.parse(list.taxes); else if (Array.isArray(list.taxes)) taxes = list.taxes; } catch { taxes = []; }
+                                  let total = baseFinalAmount;
+                                  const totalPax = safeNumber(list.total_pax);
+                                  const nights = calculateNights(list.check_in_time, list.check_out_time);
+                                  const effectiveNights = nights > 0 ? nights : 1;
+                                  const taxCalculations = {};
+                                  (taxes||[]).filter(t=>t.calculate_on&&t.calculate_on.toLowerCase()==='total').forEach(t=>{
+                                    let a=0; const v=safeNumber(t.tax_value);
+                                    if(t.tax_type==='percentage') a=(baseFinalAmount*v)/100; else { switch(t.if_fixed){case 'person': a=totalPax*v; break; case 'person_day': a=totalPax*effectiveNights*v; break; case 'per_day': a=effectiveNights*v; break; case 'per_tour': case 'person_tour': a=v; break; default: a=v; } }
+                                    const r=Math.ceil(isNaN(a)?0:a); total+=r; taxCalculations[t.tax_id]={amount:total,taxAmount:r};
+                                  });
+                                  (taxes||[]).filter(t=>t.calculate_on&&t.calculate_on.toLowerCase()!=='total').forEach(t=>{
+                                    let a=0; const v=safeNumber(t.tax_value);
+                                    if(t.tax_type==='percentage') {
+                                      const calculateOnKey = typeof t.calculate_on === 'string' && !isNaN(parseInt(t.calculate_on)) ? parseInt(t.calculate_on) : t.calculate_on;
+                                      const baseCalc=taxCalculations[calculateOnKey]; const b=baseCalc?baseCalc.amount:total;
+                                      a=(b*v)/100;
+                                    } else {
+                                      switch(t.if_fixed){case 'person': case 'per_person': a=totalPax*v; break; case 'per_person_per_day': a=totalPax*effectiveNights*v; break; case 'per_tour_per_day': a=effectiveNights*v; break; case 'per_tour': case 'person_tour': a=v; break; default: a=v; }
+                                    }
+                                    const r=Math.ceil(isNaN(a)?0:a); total+=r; taxCalculations[t.tax_id]={amount:total,taxAmount:r};
+                                  });
+                                  const dueNow = Math.max(total - safeNumber(list.paidAmount), 0);
+                                  return dueNow > 0;
+                                })() && (
                                   <div
                                     style={{
                                       display: "flex",
                                       alignItems: "center",
                                       justifyContent: "center",
                                       gap: "4px",
-                                      marginBottom: "6px",
-                                      padding: "3px 8px",
+                                      marginTop: "4px",
+                                      padding: "3px 6px",
                                       backgroundColor: "rgba(229, 57, 53, 0.1)",
-                                      borderRadius: "12px",
+                                      borderRadius: "6px",
                                       border: "1px solid rgba(229, 57, 53, 0.2)",
                                     }}
                                   >
-                                    <i className="icon-alert-circle" style={{ fontSize: "10px", color: "#e53935" }}></i>
-                                    <span style={{ fontSize: "10px", color: "#e53935", fontWeight: "600" }}>
-                                      Due: SGD {Math.ceil(list.dueAmount)}
+                                    <i className="icon-alert-circle" style={{ fontSize: "8px", color: "#e53935" }}></i>
+                                    <span style={{ fontSize: "8px", color: "#e53935", fontWeight: "600" }}>
+                                      {(() => {
+                                        const safeNumber = (value) => { const n = Number(value); return isNaN(n) ? 0 : n; };
+                                        const calculateNights = (checkIn, checkOut) => { if(!checkIn||!checkOut) return 0; try{ const i=dayjs(checkIn); const o=dayjs(checkOut); const d=o.diff(i,'day'); return Math.max(d,0);}catch{return 0;} };
+                                        const baseFinalAmount = Number(list.finalAmountWithTax || 0);
+                                        let taxes=[]; try{ if(list.taxes && typeof list.taxes==='string') taxes=JSON.parse(list.taxes); else if(Array.isArray(list.taxes)) taxes=list.taxes; }catch{ taxes=[]; }
+                                        let total=baseFinalAmount; const totalPax=safeNumber(list.total_pax); const nights=calculateNights(list.check_in_time, list.check_out_time); const taxCalculations={};
+                                        (taxes||[]).filter(t=>t.calculate_on&&t.calculate_on.toLowerCase()==='total').forEach(t=>{ let a=0; const v=safeNumber(t.tax_value); if(t.tax_type==='percentage') a=(baseFinalAmount*v)/100; else { switch(t.if_fixed){case 'person': a=totalPax*v; break; case 'person_day': a=totalPax*nights*v; break; case 'per_day': a=nights*v; break; case 'per_tour': case 'person_tour': a=v; break; default: a=v; } } const r=Math.ceil(isNaN(a)?0:a); total+=r; taxCalculations[t.tax_id]={amount:total,taxAmount:r}; });
+                                        (taxes||[]).filter(t=>t.calculate_on&&t.calculate_on.toLowerCase()!=='total').forEach(t=>{ let a=0; const v=safeNumber(t.tax_value); if(t.tax_type==='percentage') { const calculateOnKey = typeof t.calculate_on === 'string' && !isNaN(parseInt(t.calculate_on)) ? parseInt(t.calculate_on) : t.calculate_on; const baseCalc=taxCalculations[calculateOnKey]; const b=baseCalc?baseCalc.amount:total; a=(b*v)/100; } else { switch(t.if_fixed){case 'person': case 'per_person': a=totalPax*v; break; case 'per_person_per_day': a=totalPax*nights*v; break; case 'per_tour_per_day': a=nights*v; break; case 'per_tour': case 'person_tour': a=v; break; default: a=v; } } const r=Math.ceil(isNaN(a)?0:a); total+=r; taxCalculations[t.tax_id]={amount:total,taxAmount:r}; });
+                                        const dueNow=Math.max(total - safeNumber(list.paidAmount),0); return `Due: SGD ${Math.ceil(dueNow)}`; })()}
                                     </span>
                                   </div>
                                 )}
-                                <div
-                                  style={{
-                                    display: "flex",
-                                    alignItems: "center",
-                                    justifyContent: "center",
-                                    gap: "6px",
-                                    padding: "4px 8px",
-                                    backgroundColor: "rgba(255, 255, 255, 0.8)",
-                                    borderRadius: "6px",
-                                    border: "1px solid rgba(0, 0, 0, 0.1)",
-                                  }}
-                                >
-                                  <i 
-                                    className={
-                                      list.payment_status === "Not Paid"
-                                        ? "icon-x-circle"
-                                        : list.payment_status === "Partially Paid"
-                                        ? "icon-clock"
-                                        : list.payment_status === "Completely Paid"
-                                        ? "icon-check-circle"
-                                        : "icon-help-circle"
-                                    }
-                                    style={{ 
-                                      fontSize: "14px", 
-                                      color:
-                                        list.payment_status === "Not Paid"
-                                          ? "#d32f2f"
-                                          : list.payment_status === "Partially Paid"
-                                          ? "#1976d2"
-                                          : list.payment_status === "Completely Paid"
-                                          ? "#388e3c"
-                                          : "#616161"
-                                    }}
-                                  ></i>
-                                  <span
-                                    style={{
-                                      fontWeight: "700",
-                                      fontSize: "12px",
-                                      color:
-                                        list.payment_status === "Not Paid"
-                                          ? "#d32f2f"
-                                          : list.payment_status === "Partially Paid"
-                                          ? "#1976d2"
-                                          : list.payment_status === "Completely Paid"
-                                          ? "#388e3c"
-                                          : "#616161",
-                                    }}
-                                  >
-                                    {list.payment_status}
-                                  </span>
-                                </div>
                               </div>
-                            </Tooltip>
+                            </CustomPaymentTooltip>
                           </td>
-                          <td style={{ padding: "8px 12px", width: "110px", minWidth: "110px", maxWidth: "110px", whiteSpace: "nowrap", display: "flex", alignItems: "center", justifyContent: "center", height: "100%" }}>
+                          <td className="date-column" style={{ display: "flex", alignItems: "center", justifyContent: "center", height: "100%" }}>
                             <span style={{ fontSize: "11px" }}>
                               {list.created_at ? dayjs(list.created_at).format("DD MMM YYYY, HH:mm") : "-"}
                             </span>
@@ -2895,7 +3458,7 @@ export default function Pending() {
                     ) : (
                       <tr>
                         <td
-                          colSpan="12"
+                          colSpan="11"
                           style={{ textAlign: "center", padding: "40px 20px" }}
                         >
                           <div
@@ -3003,13 +3566,14 @@ export default function Pending() {
           handleDownloadPDF={handleDownloadPDF}
           contentRef={contentRef}
           viewDetailsStatus={viewDetailsStatus}
-          DmcLogo={DmcLogo}
-          DmcName={DmcName}
           displayId={displayId}
           bookings={bookings}
           modifiedPriceData={modifiedPriceData}
           markupAmount={markupAmount}
           discountAmount={discountAmount}
+          totalPrice={totalPrice}
+          tourId={tourId}
+          pricehide={priceHideFromBookings}
         />
         {/* </Box> */}
       </div>

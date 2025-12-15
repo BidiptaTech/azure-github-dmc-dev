@@ -26,20 +26,27 @@ import {
   statusUpdate,
   updateStepStatus,
   setType,
+  resetSteps,
 } from "../../../slice/common/stepsSlice";
-import { setBookingType } from "../../../slice/common/commonSlice";
+import { setTourIdd } from "../../../slice/common/authSlices";
+import { setBookingType, setHaveBooking } from "../../../slice/common/commonSlice";
 import moment from "moment";
 import { clearUserInfo } from "../../../slice/common/customerInfo"; // Add this import
-import { clearAttractions } from "../../../slice/attractions/attractionSlice";
+import { clearAttractions, setIsFromMainSearch } from "../../../slice/attractions/attractionSlice";
 import { fetchAttractions } from "../../../slice/attractions/attractionSlice";
 import {
   fetchRestaurants,
   clearRestaurants,
+  setIsFromMainSearch as setRestaurantFromMainSearch,
 } from "../../../slice/restaurant/RestaurantsSlice";
 import { resetguide } from "../../../slice/tourguide/guideslice";
 import { resetVehicles } from "../../../slice/port/pickupDropSlice";
 import { resetVehicles1 } from "../../../slice/localtour/Localslice";
 import {setSelectedCity} from "@/slice/common/commonSlice";
+import { resetAllServiceResponses } from "../../../slice/common/stepperButtonSlice";
+import { setCity } from "../../../slice/common/citySlice";
+import { clearSelectedDmc } from "@/slice/dmc/dmcSlice";
+import { fetchCitiesByCountry } from "../../../slice/common/citiesSlice";
 
 // Create a reusable alert component
 const Alert = React.forwardRef(function Alert(props, ref) {
@@ -80,7 +87,7 @@ const MainFilterSearchBox = () => {
 
   const handleLocationSelect = (location) => {
     console.log("Selected Location:", location);
-    setSelectedLocation(location?.code);
+    setSelectedLocation(location);
   };
 
   const handleDateChange = (dates) => {
@@ -166,7 +173,8 @@ const MainFilterSearchBox = () => {
 
     // Clear previous customer info when starting new search
     dispatch(clearUserInfo());
-
+    dispatch(setHaveBooking(false));
+    dispatch(clearSelectedDmc());
     // Format Dates - Handle different date formats safely
     let formattedCheckIn, formattedCheckOut;
     
@@ -201,7 +209,10 @@ const MainFilterSearchBox = () => {
     }
 
     // Convert country code to full name for destination
-    const destinationName = countryCodeToName[selectedLocation] || selectedLocation;
+    const destinationName = selectedLocation ?? countryCodeToName[selectedLocation];
+    
+    // Fetch cities from API based on selected country name and wait for response
+    const citiesResult = await dispatch(fetchCitiesByCountry(destinationName));
     
     // Step 2: Dispatch Redux actions to update the search state
     dispatch(setSearchLocation(selectedLocation));
@@ -211,12 +222,21 @@ const MainFilterSearchBox = () => {
 
     // Clear any existing attractions data
     dispatch(clearAttractions());
+    dispatch(setIsFromMainSearch(true));
     dispatch(resetguide());
     dispatch(resetVehicles());
     dispatch(resetVehicles1());
 
     // Clear any existing restaurants data
     dispatch(clearRestaurants());
+    dispatch(setRestaurantFromMainSearch(true));
+
+    // Reset stepper button state for new search
+    dispatch(resetAllServiceResponses());
+    
+    // Reset local step tracking for new search
+    dispatch(resetSteps());
+    dispatch(setTourIdd(null));
 
     // Create genders array based on male and female counts
     const maleCount = guestCounts.maleCount || 0;
@@ -238,85 +258,79 @@ const MainFilterSearchBox = () => {
     );
 
     // Add this line to ensure attractions aren't loaded
-    dispatch(
-      fetchAttractions({
-        city: selectedLocation,
-        adults: guestCounts.Adults,
-        children: guestCounts.Children,
-        fromMainSearch: true,
-      })
-    );
+    // dispatch(
+    //   fetchAttractions({
+    //     city: selectedLocation,
+    //     adults: guestCounts.Adults,
+    //     children: guestCounts.Children,
+    //     fromMainSearch: true,
+    //     start: 0,
+    //     limit: 5,
+    //   })
+    // );
 
     // Add this line to ensure restaurants aren't loaded
+    // dispatch(
+    //   fetchRestaurants({
+    //     city: selectedLocation,
+    //     date: formattedCheckIn,
+    //     adults: guestCounts.Adults,
+    //     children: guestCounts.Children,
+    //     fromMainSearch: true,
+    //   })
+    // );
+
+    // Update hotel search state so the hotel list has city and dates
+    const ucheckInYmd = moment(formattedCheckIn, "DD/MM/YYYY").format("YYYY-MM-DD");
+    const ucheckOutYmd = moment(formattedCheckOut, "DD/MM/YYYY").format("YYYY-MM-DD");
     dispatch(
-      fetchRestaurants({
-        city: selectedLocation,
-        date: formattedCheckIn,
-        adults: guestCounts.Adults,
-        children: guestCounts.Children,
-        fromMainSearch: true,
+      updateSearchState({
+        location: [destinationName],
+        ucheckIn: ucheckInYmd,
+        ucheckOut: ucheckOutYmd,
+        guests: {
+          adults: guestCounts.Adults,
+          children: guestCounts.Children,
+          infant: guestCounts.Infants,
+        },
       })
     );
 
-    // Step 4: Fetch Booking ID
-    dispatch(fetchBookingid({
-      destination: destinationName, // Use full country name in payload
-      check_in: formattedCheckIn,
-      check_out: formattedCheckOut,
-      adult: guestCounts.Adults,
-      child: guestCounts.Children,
-      infant: guestCounts.Infants,
-      male: guestCounts.maleCount || 0,
-      female: guestCounts.femaleCount || 0,
-      children_ages: guestCounts.ages.join(',')
-    }))
-      .unwrap()
-      .then((data) => {
-        const id = data?.tour_id || data?.data?.tour_id;
-        
-        // Ensure we're using the full country name for destination
-        const destination = destinationName; // Use the full country name from our mapping
-        console.log('destination destination', destination);
-
-        if (!id || !destination) {
-          console.error("Tour ID or destination not found in response:", data);
-          throw new Error("Invalid response data.");
-        }
-
-        // Step 5: Update state with API response
-        dispatch(updateSearchState({ location: destination })); // Update location with full name
-        dispatch(settourdetails({
-          ...data,
-          destination: destination // Override the destination with full name
-        }));
-        dispatch(setId(id));
-        dispatch(setTourId(id));
-        dispatch(setBookingType("null"));
-
-        // Step 6: Create search query params
-        const searchParams = new URLSearchParams({
-          location: selectedLocation, // Keep using code in URL
-          dates: [formattedCheckIn, formattedCheckOut].join(","),
-          guests: JSON.stringify(guestCounts),
-        });
-
-        dispatch(setType(" "));
-        dispatch(updateStepStatus({ key: "hotel", status: 2 }));
-        dispatch(statusUpdate()).unwrap();
-
-        // Step 7: Navigate to the hotel search results page
-        navigate(
-          `/dashboard/db-dashboard/view-hotel-search/${id}?${searchParams}`
-        );
+    // Provide basic tour details for hotel UI that previously relied on API response
+    dispatch(
+      settourdetails({
+        destination: destinationName,
+        adult: guestCounts.Adults,
+        child: guestCounts.Children,
+        infant: guestCounts.Infants,
+        CheckInTime: formattedCheckIn,
+        CheckOutTime: formattedCheckOut,
+        tour_id: null,
       })
-      .catch((error) => {
-        console.error("Error fetching booking ID:", error);
-        setSnackbarMessage(
-          "Failed to fetch booking details. Please try again."
-        );
-        setSnackbarSeverity("error");
-        setOpenSnackbar(true);
-      });
+    );
+    dispatch(setId(0));
+
+    // Set cities from API response
+    if (citiesResult.payload && Array.isArray(citiesResult.payload)) {
+      console.log("Cities fetched from API:", citiesResult.payload);
+      dispatch(setCity(citiesResult.payload));
+      // Optionally set first city as selected, or keep null for user to select
+      // dispatch(setSelectedCity(citiesResult.payload[0]));
+    } else {
+      console.log("No cities fetched, clearing city state");
+      dispatch(setCity([]));
+    }
+    dispatch(setSelectedCity(null));
+
+    // Step 4: Navigate to the hotel search results page without creating a tour
+    const searchParams = new URLSearchParams({
+      location: selectedLocation, // Keep using code in URL
+      dates: [formattedCheckIn, formattedCheckOut].join(","),
+      guests: JSON.stringify(guestCounts),
+    });
+
+    // Use placeholder id since router expects an :id param; actual tour will be created on booking/enquiry
+    navigate(`/dashboard/db-dashboard/view-hotel-search/0?${searchParams}`);
   };
 
   return (

@@ -1,40 +1,10 @@
-// import React from "react";
-// import { useDispatch, useSelector } from "react-redux";
-// import { useParams } from "react-router-dom";
-// import { fetchRestaurantsDetails } from "@/slice/restaurant/RestaurantsSlice";
-
-// const Overview = () => {
-//   // Fetch attraction details from Redux
-//   const restaurantsDetails = useSelector(
-//     (state) => state.restaurants.selectedRestaurant
-//   );
-
-//   return (
-//     <>
-//       <div className="row x-gap-40 y-gap-40">
-//         <div className="col-12">
-//           <h3 className="text-22 fw-500">Overview</h3>
-//           <p
-//             className="text-dark-1 text-15 mt-20"
-//             dangerouslySetInnerHTML={{
-//               __html:
-//                 restaurantsDetails?.description || "No description available.",
-//             }}
-//           />
-//         </div>
-//       </div>
-//     </>
-//   );
-// };
-
-// export default Overview;
 
 
 import React, { useState } from "react";
 import { useSelector } from "react-redux";
 import { FaRegFileAlt, FaStickyNote, FaGavel } from "react-icons/fa";
 
-const MAX_WORDS = 200;
+const MAX_WORDS = 100;
 
 const Section = ({ title, icon: Icon, content, color }) => {
   const [expanded, setExpanded] = useState(false);
@@ -62,7 +32,7 @@ const Section = ({ title, icon: Icon, content, color }) => {
         />
         {shouldTruncate && (
           <button
-            className="text-blue-600 text-sm mt-2 underline"
+            className="text-blue-600 hover:text-blue-800 text-sm font-medium mt-2 transition-colors duration-200 focus:outline-none focus:underline"
             onClick={() => setExpanded((prev) => !prev)}
           >
             {expanded ? "See less" : "See more"}

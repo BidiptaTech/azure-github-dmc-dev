@@ -34,11 +34,11 @@ const CustomTooltip = styled(({ className, ...props }) => (
   '& .MuiTooltip-tooltip': {
     backgroundColor: 'white',
     color: 'rgba(0, 0, 0, 0.87)',
-    maxWidth: 400,
+    maxWidth: 350,
     border: '1px solid #dadde9',
-    borderRadius: '12px',
+    borderRadius: '8px',
     padding: 0,
-    boxShadow: theme.shadows[3]
+    boxShadow: theme.shadows[2]
   },
 }));
 
@@ -50,10 +50,10 @@ const OpeningHoursChip = ({ isOpen, label }) => (
     sx={{
       backgroundColor: isOpen ? 'rgba(76, 175, 80, 0.1)' : 'rgba(0, 0, 0, 0.08)',
       color: isOpen ? '#2e7d32' : 'text.secondary',
-      fontSize: '0.75rem',
-      height: 24,
+      fontSize: '0.7rem',
+      height: 20,
       '& .MuiChip-label': {
-        px: 1,
+        px: 0.8,
       },
     }}
   />
@@ -61,6 +61,7 @@ const OpeningHoursChip = ({ isOpen, label }) => (
 
 // Tooltip content component
 const TooltipContent = ({ attraction }) => {
+  const PriceHide = useSelector((state) => state.auth.PriceHide);
   const openingTimes = [];
   if (attraction.morning_opening === 1) openingTimes.push("Morning");
   if (attraction.afternoon_opening === 1) openingTimes.push("Afternoon");
@@ -70,7 +71,7 @@ const TooltipContent = ({ attraction }) => {
   return (
     <Box>
       {/* Header Image Section */}
-      <Box sx={{ position: 'relative', width: '100%', height: 200 }}>
+      <Box sx={{ position: 'relative', width: '100%', height: 160 }}>
         <Box
           component="img"
           src={attraction.image}
@@ -79,22 +80,22 @@ const TooltipContent = ({ attraction }) => {
             width: '100%',
             height: '100%',
             objectFit: 'cover',
-            borderTopLeftRadius: '12px',
-            borderTopRightRadius: '12px',
+            borderTopLeftRadius: '8px',
+            borderTopRightRadius: '8px',
           }}
         />
         {attraction.additional_images && attraction.additional_images.length > 0 && (
           <Box
             sx={{
               position: 'absolute',
-              top: 8,
-              right: 8,
+              top: 6,
+              right: 6,
               bgcolor: 'rgba(0, 0, 0, 0.6)',
               color: 'white',
-              px: 1,
-              py: 0.5,
-              borderRadius: 1,
-              fontSize: '0.75rem',
+              px: 0.8,
+              py: 0.4,
+              borderRadius: 0.8,
+              fontSize: '0.7rem',
             }}
           >
             +{attraction.additional_images.length} photos
@@ -103,24 +104,24 @@ const TooltipContent = ({ attraction }) => {
       </Box>
 
       {/* Content Section */}
-      <Box sx={{ p: 2 }}>
+      <Box sx={{ p: 1.5 }}>
         {/* Title and Location */}
-        <Typography variant="h6" gutterBottom sx={{ fontWeight: 'bold', fontSize: '1.1rem' }}>
+        <Typography variant="subtitle1" gutterBottom sx={{ fontWeight: 'bold', fontSize: '1rem', mb: 1 }}>
           {attraction.attraction_name}
         </Typography>
-        <Box sx={{ display: 'flex', alignItems: 'center', mb: 1.5 }}>
-          <LocationOnIcon sx={{ fontSize: 18, color: 'text.secondary', mr: 0.5 }} />
-          <Typography variant="body2" color="text.secondary">
+        <Box sx={{ display: 'flex', alignItems: 'center', mb: 1 }}>
+          <LocationOnIcon sx={{ fontSize: 16, color: 'text.secondary', mr: 0.5 }} />
+          <Typography variant="caption" color="text.secondary" sx={{ fontSize: '0.75rem' }}>
             {attraction.city}, {attraction.country}
           </Typography>
         </Box>
 
         {/* Opening Hours */}
-        <Box sx={{ mb: 2 }}>
-          <Typography variant="subtitle2" gutterBottom sx={{ fontWeight: 500 }}>
+        <Box sx={{ mb: 1.5 }}>
+          <Typography variant="body2" gutterBottom sx={{ fontWeight: 500, fontSize: '0.8rem', mb: 0.8 }}>
             Opening Hours
           </Typography>
-          <Stack direction="row" spacing={1} flexWrap="wrap" useFlexGap>
+          <Stack direction="row" spacing={0.8} flexWrap="wrap" useFlexGap>
             <OpeningHoursChip isOpen={attraction.morning_opening === 1} label="Morning" />
             <OpeningHoursChip isOpen={attraction.afternoon_opening === 1} label="Afternoon" />
             <OpeningHoursChip isOpen={attraction.evening_opening === 1} label="Evening" />
@@ -130,11 +131,11 @@ const TooltipContent = ({ attraction }) => {
 
         {/* Time Slots */}
         {attraction.time_slots && attraction.time_slots.length > 0 && (
-          <Box sx={{ mb: 2 }}>
-            <Typography variant="subtitle2" gutterBottom sx={{ fontWeight: 500 }}>
+          <Box sx={{ mb: 1.5 }}>
+            <Typography variant="body2" gutterBottom sx={{ fontWeight: 500, fontSize: '0.8rem', mb: 0.8 }}>
               Available Time Slots
             </Typography>
-            <Stack direction="row" spacing={1} flexWrap="wrap" useFlexGap>
+            <Stack direction="row" spacing={0.8} flexWrap="wrap" useFlexGap>
               {attraction.time_slots.map((slot, index) => (
                 <Chip
                   key={index}
@@ -143,8 +144,8 @@ const TooltipContent = ({ attraction }) => {
                   sx={{
                     bgcolor: 'rgba(25, 118, 210, 0.08)',
                     color: 'primary.main',
-                    fontSize: '0.75rem',
-                    height: 24,
+                    fontSize: '0.7rem',
+                    height: 20,
                   }}
                 />
               ))}
@@ -153,79 +154,92 @@ const TooltipContent = ({ attraction }) => {
         )}
 
         {/* Pricing Section */}
-        <Box sx={{ mt: 2 }}>
-          <Typography variant="subtitle2" gutterBottom sx={{ fontWeight: 500 }}>
-            Pricing Details
-          </Typography>
-          <Grid container spacing={2}>
-            {/* DMC Prices */}
-            {attraction.dmc_adult_price > 0 && (
-              <Grid item xs={6}>
-                <Paper 
-                  variant="outlined" 
-                  sx={{ 
-                    p: 1.5,
-                    bgcolor: 'rgba(25, 118, 210, 0.02)',
-                    borderColor: 'rgba(25, 118, 210, 0.1)'
-                  }}
-                >
-                  <Typography variant="subtitle2" gutterBottom sx={{ color: 'primary.main', fontWeight: 500 }}>
-                    DMC Prices
-                  </Typography>
-                  <Stack spacing={0.5}>
-                    <Typography variant="body2">Adult: ${attraction.dmc_adult_price}</Typography>
-                    <Typography variant="body2">Child: ${attraction.dmc_child_price}</Typography>
-                    <Typography variant="body2">Senior: ${attraction.dmc_senior_price}</Typography>
-                  </Stack>
-                </Paper>
-              </Grid>
-            )}
+        <Box sx={{ mt: 1.5 }}>
+  <Typography variant="body2" gutterBottom sx={{ fontWeight: 500, fontSize: '0.8rem', mb: 1 }}>
+    Pricing Details
+  </Typography>
 
-            {/* Travclicks Prices */}
-            {attraction.travClicks_adult_price > 0 && (
-              <Grid item xs={6}>
-                <Paper 
-                  variant="outlined" 
-                  sx={{ 
-                    p: 1.5,
-                    bgcolor: 'rgba(76, 175, 80, 0.02)',
-                    borderColor: 'rgba(76, 175, 80, 0.1)'
-                  }}
-                >
-                  <Typography variant="subtitle2" gutterBottom sx={{ color: '#2e7d32', fontWeight: 500 }}>
-                    Travclicks Prices
-                  </Typography>
-                  <Stack spacing={0.5}>
-                    <Typography variant="body2">Adult: ${attraction.travClicks_adult_price}</Typography>
-                    <Typography variant="body2">Child: ${attraction.travClicks_child_price}</Typography>
-                    <Typography variant="body2">Senior: ${attraction.travClicks_senior_price}</Typography>
-                  </Stack>
-                </Paper>
-              </Grid>
-            )}
-          </Grid>
-
-          {/* Tax Information */}
-          {attraction.tax_percentage && (
-            <Typography 
-              variant="caption" 
+  {PriceHide !== "1" ? (
+    <>
+      <Grid container spacing={1.5}>
+        {/* DMC Prices */}
+        {attraction.dmc_adult_price > 0 && (
+          <Grid item xs={6}>
+            <Paper 
+              variant="outlined" 
               sx={{ 
-                display: 'block',
-                mt: 1,
-                color: 'text.secondary',
-                fontStyle: 'italic'
+                p: 1,
+                bgcolor: 'rgba(25, 118, 210, 0.02)',
+                borderColor: 'rgba(25, 118, 210, 0.1)'
               }}
             >
-              *Prices are subject to {attraction.tax_percentage}% tax
-            </Typography>
-          )}
-        </Box>
+              <Typography variant="caption" gutterBottom sx={{ color: 'primary.main', fontWeight: 500, fontSize: '0.75rem' }}>
+                DMC Prices
+              </Typography>
+              <Stack spacing={0.3}>
+                <Typography variant="caption" sx={{ fontSize: '0.7rem' }}>Adult: ${attraction.dmc_adult_price}</Typography>
+                <Typography variant="caption" sx={{ fontSize: '0.7rem' }}>Child: ${attraction.dmc_child_price}</Typography>
+                <Typography variant="caption" sx={{ fontSize: '0.7rem' }}>Senior: ${attraction.dmc_senior_price}</Typography>
+              </Stack>
+            </Paper>
+          </Grid>
+        )}
+
+        {/* Travclicks Prices */}
+        {attraction.travClicks_adult_price > 0 && (
+          <Grid item xs={6}>
+            <Paper 
+              variant="outlined" 
+              sx={{ 
+                p: 1,
+                bgcolor: 'rgba(76, 175, 80, 0.02)',
+                borderColor: 'rgba(76, 175, 80, 0.1)'
+              }}
+            >
+              <Typography variant="caption" gutterBottom sx={{ color: '#2e7d32', fontWeight: 500, fontSize: '0.75rem' }}>
+                Travclicks Prices
+              </Typography>
+              <Stack spacing={0.3}>
+                <Typography variant="caption" sx={{ fontSize: '0.7rem' }}>Adult: ${attraction.travClicks_adult_price}</Typography>
+                <Typography variant="caption" sx={{ fontSize: '0.7rem' }}>Child: ${attraction.travClicks_child_price}</Typography>
+                <Typography variant="caption" sx={{ fontSize: '0.7rem' }}>Senior: ${attraction.travClicks_senior_price}</Typography>
+              </Stack>
+            </Paper>
+          </Grid>
+        )}
+      </Grid>
+
+      {/* Tax Information */}
+      {attraction.tax_percentage && (
+        <Typography 
+          variant="caption" 
+          sx={{ 
+            display: 'block',
+            mt: 0.8,
+            color: 'text.secondary',
+            fontStyle: 'italic',
+            fontSize: '0.65rem'
+          }}
+        >
+          *Prices are subject to {attraction.tax_percentage}% tax
+        </Typography>
+      )}
+    </>
+  ) : (
+    <Grid item xs={12}>
+      <Typography variant="caption" gutterBottom sx={{ color: 'text.secondary', fontWeight: 500, fontSize: '0.75rem' }}>
+        Pricing hidden
+      </Typography>
+    </Grid>
+  )}
+</Box>
+
       </Box>
     </Box>
   );
 };
 
-const AttractionListing = ({ attractions, selectedAttraction, onAttractionChange }) => {
+const AttractionListing = ({ attractions, selectedAttraction, onAttractionChange, disabled = false, selectedAttractionName }) => {
   const dispatch = useDispatch();
   const navigate = useNavigate();
   const bookingMode = useSelector((state) => state.common.bookingMode);
@@ -239,7 +253,7 @@ const AttractionListing = ({ attractions, selectedAttraction, onAttractionChange
   });
 
   const handleAttractionClick = (attraction) => {
-    if (!attraction) return;
+    if (!attraction || disabled) return;
     
     // Determine which pricing mode to use based on availability
     const hasDmcPrice = attraction.dmc_adult_price > 0;
@@ -272,16 +286,42 @@ const AttractionListing = ({ attractions, selectedAttraction, onAttractionChange
     }
   };
 
+  // Create a display value for the autocomplete
+  const getDisplayValue = () => {
+    if (selectedAttractionName) {
+      // If we have an attraction name, create a display object
+      return {
+        id: selectedAttraction,
+        attraction_name: selectedAttractionName,
+        // Add other required properties with default values
+        dmc_adult_price: 0,
+        travClicks_adult_price: 0,
+        dmc_id: null,
+        travclicks_dmc_id: null
+      };
+    }
+    return filteredAttractions.find(a => a.id === selectedAttraction) || null;
+  };
+
   return (
     <Grid item xs={12} sm={12} md={12}>
       <Autocomplete
-        value={filteredAttractions.find(a => a.id === selectedAttraction) || null}
+        value={getDisplayValue()}
         onChange={(event, newValue) => {
           handleAttractionClick(newValue);
         }}
         options={filteredAttractions}
         getOptionLabel={(option) => option.attraction_name || ''}
         noOptionsText="No attractions with valid pricing available"
+        disabled={disabled}
+        sx={{
+          '& .MuiInputBase-input': {
+            fontSize: '0.75rem',
+            height: '12px',
+            paddingBottom: '10px',
+            paddingTop: '0px',
+          },
+        }}
         renderOption={(props, option) => {
           // Extract the key from props and remove it from the rest to avoid React warning
           const { key, ...otherProps } = props;
@@ -302,8 +342,8 @@ const AttractionListing = ({ attractions, selectedAttraction, onAttractionChange
                       size="small" 
                       label="DMC"
                       sx={{ 
-                        height: 20,
-                        fontSize: '0.7rem',
+                        height: 18,
+                        fontSize: '0.65rem',
                         bgcolor: 'rgba(25, 118, 210, 0.08)',
                         color: 'primary.main'
                       }}
@@ -314,8 +354,8 @@ const AttractionListing = ({ attractions, selectedAttraction, onAttractionChange
                       size="small" 
                       label="Travclicks"
                       sx={{ 
-                        height: 20,
-                        fontSize: '0.7rem',
+                        height: 18,
+                        fontSize: '0.65rem',
                         bgcolor: 'rgba(76, 175, 80, 0.08)',
                         color: '#2e7d32'
                       }}
@@ -330,6 +370,15 @@ const AttractionListing = ({ attractions, selectedAttraction, onAttractionChange
           <TextField
             {...params}
             label="Search Attraction"
+          
+            InputProps={{
+              ...params.InputProps,
+              sx: {
+                '& .MuiInputBase-input': {
+                  marginBottom: '10px',
+                },
+              },
+            }}
             fullWidth
           />
         )}

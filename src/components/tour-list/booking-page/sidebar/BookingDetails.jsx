@@ -49,7 +49,7 @@ const BookingDetails = () => {
   const attractionBookings = useSelector(
     (state) => state.attractions?.attractionBookings || []
   );
-    console.log("attractionBookings", attractionBookings);
+    // console.log("attractionBookings", attractionBookings);
 
   const attractionDetails = useSelector(
     (state) => state.attractions.attractionDetails

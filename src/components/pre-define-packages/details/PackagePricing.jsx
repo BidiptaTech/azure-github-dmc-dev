@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Paper, Typography, Box, Button, Grid, Divider, Snackbar, Alert } from '@mui/material';
+import { Paper, Typography, Box, Button, Grid, Divider } from '@mui/material';
 import AttachMoneyIcon from '@mui/icons-material/AttachMoney';
 import PersonIcon from '@mui/icons-material/Person';
 import { useSelector, useDispatch } from 'react-redux';
@@ -23,11 +23,6 @@ import { resetBookingStatus } from '../../../slice/tour-packages/prePackagesSlic
   const [isUserInfoModalOpen, setIsUserInfoModalOpen] = useState(false);
   const [bookingData, setBookingData] = useState(null);
   const [bookingComplete, setBookingComplete] = useState(false);
-  const [notification, setNotification] = useState({
-    open: false,
-    message: '',
-    severity: 'success'
-  });
 
   // Try to parse itinerary if it exists, otherwise use empty object
   const originalItinerary = packageData.itinerary ? 
@@ -43,29 +38,17 @@ import { resetBookingStatus } from '../../../slice/tour-packages/prePackagesSlic
   // Get userRole and agentId from auth slice
   const { userRole, agentId } = useSelector(state => state.auth);
 
-  // Handle successful booking
+  // Handle successful booking - removed notification handling since it's now handled at the page level
   useEffect(() => {
     if (bookingSuccess && bookedData) {
       setBookingComplete(true);
-      setNotification({
-        open: true,
-        message: 'Your booking has been successfully submitted!',
-        severity: 'success'
-      });
-
-
-      // Reset booking status after showing success
-      setTimeout(() => {
-        dispatch(resetBookingStatus());
-      }, 1000);
     }
-  }, [bookingSuccess, bookedData, dispatch]);
+  }, [bookingSuccess, bookedData]);
 
 
-  // Calculate total price based on number of adults and children
+  // Calculate total price based on package type and number of people
   const adultPrice = parseFloat(packageData.price_adult) || 0;
   const childPrice = parseFloat(packageData.price_child) || 0;
-
 
   // Use search params for passenger counts if available, otherwise fallback to packageData
   const adultCount = searchParams?.adults ? parseInt(searchParams.adults) : 1;
@@ -73,18 +56,13 @@ import { resetBookingStatus } from '../../../slice/tour-packages/prePackagesSlic
   const maleCount = searchParams?.male_count ? parseInt(searchParams.male_count) : 0;
   const femaleCount = searchParams?.female_count ? parseInt(searchParams.female_count) : 0;
 
-
+  // Calculate total price - always per person pricing
   const totalAdultPrice = adultPrice * adultCount;
   const totalChildPrice = childPrice * childCount;
   const totalPrice = totalAdultPrice + totalChildPrice;
 
-
   // Check if child price is available
   const hasChildPrice = packageData.price_child && parseFloat(packageData.price_child) > 0;
-
-
-
-
 
   // Helper functions to check transfer availability
   const hasEntryPortTransfer = () => {
@@ -201,8 +179,8 @@ import { resetBookingStatus } from '../../../slice/tour-packages/prePackagesSlic
 
     // Create enhanced itinerary with services for each day
     const enhancedItinerary = itineraryDates.map(dayInfo => {
-      console.log('dayInfo', dayInfo);
-      console.log('dayInfo', dayInfo);
+      // console.log('dayInfo', dayInfo);
+      // console.log('dayInfo', dayInfo);
       // Start with basic day info
       const enhancedDay = {
        
@@ -380,7 +358,7 @@ import { resetBookingStatus } from '../../../slice/tour-packages/prePackagesSlic
         package_date: searchParams?.date || packageData.date,
         date: searchParams?.date || packageData.date,
         itinerary: enhancedItinerary.map(day => {
-          const originalDay = originalItinerary.itinerary.find(d => d.day === day.day);
+          const originalDay = originalItinerary?.itinerary?.find(d => d.day === day.day);
         
           return {
             ...day,
@@ -423,11 +401,7 @@ import { resetBookingStatus } from '../../../slice/tour-packages/prePackagesSlic
       }
     };
 
-    // Debug: Log the booking data to see what guides are being sent
-    console.log('Booking Data - Guides by Day:', guidesByDay);
-    console.log('Booking Data - Selected Guides:', bookingData.selected.guides);
-    console.log('Booking Data - Enhanced Itinerary:', bookingData.booking_details.itinerary);
-    console.log('Booking Data - Using Agent ID:', effectiveAgentId);
+   
 
     // Save booking data to state and open the user info modal
     setBookingData(bookingData);
@@ -443,10 +417,7 @@ import { resetBookingStatus } from '../../../slice/tour-packages/prePackagesSlic
   };
 
 
-  // Handle notification close
-  const handleCloseNotification = () => {
-    setNotification(prev => ({ ...prev, open: false }));
-  };
+
 
 
   return (
@@ -493,14 +464,12 @@ import { resetBookingStatus } from '../../../slice/tour-packages/prePackagesSlic
               Adult{adultCount > 1 ? 's' : ''} ({adultCount})
             </Typography>
           </Box>
-                      <Typography variant="body1" fontWeight="bold">
-              <Box component="span" fontSize="0.7rem" mr={0.3}>
-                SGD
-              </Box>
-              {adultPrice.toFixed(2)} each
-            </Typography>
-
-
+          <Typography variant="body1" fontWeight="bold">
+            <Box component="span" fontSize="0.7rem" mr={0.3}>
+              SGD
+            </Box>
+            {adultPrice.toFixed(2)} each
+          </Typography>
         </Box>
 
 
@@ -590,6 +559,8 @@ import { resetBookingStatus } from '../../../slice/tour-packages/prePackagesSlic
             {totalPrice.toFixed(2)}
           </Typography>
         </Box>
+        
+
 
      
 
@@ -620,21 +591,7 @@ import { resetBookingStatus } from '../../../slice/tour-packages/prePackagesSlic
       )}
 
 
-      {/* Notifications */}
-      <Snackbar
-        open={notification.open}
-        autoHideDuration={6000}
-        onClose={handleCloseNotification}
-      >
-        <Alert
-          onClose={handleCloseNotification}
-          severity={notification.severity}
-        
-          sx={{ width: '100%' }}
-        >
-          {notification.message}
-        </Alert>
-      </Snackbar>
+
     </Paper>
   );
 };

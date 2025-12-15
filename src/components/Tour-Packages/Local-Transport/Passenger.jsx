@@ -300,10 +300,11 @@ const Passenger = ({
         sx={{ 
           cursor: 'pointer',
           border: '1px solid',
-          borderColor: 'divider'
+          borderColor: 'divider',
+          height: '42px'
         }}
       >
-        <CardContent sx={{ p: 2, '&:last-child': { pb: 2 } }}>
+        <CardContent sx={{ p: 0.9, '&:last-child': { pb: 0.9 } }}>
           <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
             <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
               <PersonIcon sx={{ color: 'primary.main' }} />

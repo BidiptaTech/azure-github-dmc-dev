@@ -24,13 +24,13 @@ const index = () => {
   const attraction = location.state?.attraction || {};
   
 
-   console.log('attraction',attraction);
+   // console.log('attraction',attraction);
   
 
   const attractionDetails = useSelector(
     (state) => state.attractions.attractionDetails || { prices: {} }
   );
-      console.log('attractionDetails',attractionDetails);
+      // console.log('attractionDetails',attractionDetails);
   
 
  
@@ -130,7 +130,7 @@ const index = () => {
   // Force re-render when nriStatus changes to update price calculations
   useEffect(() => {
     setPriceUpdateTrigger(prev => prev + 1);
-    console.log("NRI status changed to:", nriStatus);
+    // console.log("NRI status changed to:", nriStatus);
   }, [nriStatus]);
 
   // Also force re-render when selectedTicket changes
@@ -140,10 +140,7 @@ const index = () => {
     }
   }, [selectedTicket]);
 
-  // Add effect to track ticket selection changes
-  useEffect(() => {
-    console.log("Selected ticket changed in parent:", selectedTicket);
-  }, [selectedTicket]);
+
 
   // Calculate total price based on selected options
   const calculateTotalPrice = () => {
@@ -152,7 +149,7 @@ const index = () => {
     let totalPrice = 0;
     
     // Debug the nriStatus
-    console.log("Current NRI status in price calculation:", nriStatus);
+    // console.log("Current NRI status in price calculation:", nriStatus);
     
     // Get numeric values with safe parsing - ensure we're reading the latest nriStatus
     let adultPrice, childPrice, seniorPrice;
@@ -173,7 +170,7 @@ const index = () => {
     }
     
     // Log the prices being used
-    console.log("Using prices:", { adultPrice, childPrice, seniorPrice });
+    // console.log("Using prices:", { adultPrice, childPrice, seniorPrice });
     
     // Ensure these are numbers
     const adultCount = parseInt(guestCounts.Adults || 0, 10);
@@ -232,7 +229,7 @@ const index = () => {
     }
     
     // Log the NRI status used for booking
-    console.log("Booking with NRI status:", nriStatus);
+    // console.log("Booking with NRI status:", nriStatus);
     
     // Get accurate counts for database
     const adultCount = parseInt(guestCounts.Adults || 0, 10);
@@ -258,7 +255,7 @@ const index = () => {
     }
     
     // Log the actual prices being used
-    console.log("Using ticket prices:", { baseTicketPrice, childTicketPrice, seniorTicketPrice, nriStatus });
+    //  console.log("Using ticket prices:", { baseTicketPrice, childTicketPrice, seniorTicketPrice, nriStatus });
     
     // Calculate ticket total - simply multiply price by count, no extra multiplier
     const calculatedTotal = (adultCount * baseTicketPrice) + 
@@ -406,6 +403,9 @@ const index = () => {
   
   // Show Checkout button and price summary only if all required selections are made
   const showCheckout = selectedTicket !== null;
+  
+  // Check if all required tasks are completed for button to be enabled
+  const isBookingReady = selectedDate && selectedTime && selectedTicket;
 
   return (
     <>
@@ -472,9 +472,20 @@ const index = () => {
           <div className="py-15 px-20 border-light rounded-4 bg-blue-1-05">
             <div className="d-flex justify-content-between align-items-center">
               <h5 className="text-16 fw-500 text-blue-1 mb-0">Total Price {nriStatus === "nri" ? "(Foreigner)" : "(Local)"}</h5>
-              <div className="text-18 fw-500" key={`price-${nriStatus}-${priceUpdateTrigger}`}>
-                {formatPrice(calculateTotalPrice(), "main")}
-              </div>
+              
+              {/* Main price display - only show if PriceHide is "0" */}
+              {PriceHide === "0" && (
+                <div className="text-18 fw-500" key={`price-${nriStatus}-${priceUpdateTrigger}`}>
+                  {formatPrice(calculateTotalPrice(), "main")}
+                </div>
+              )}
+              
+              {/* Show message when prices are hidden */}
+              {PriceHide !== "0" && (
+                <div className="text-16 fw-500 text-light-1" style={{ fontStyle: 'italic' }}>
+                  Price Hide
+                </div>
+              )}
             </div>
             
             {/* Alternative currencies - only display if PriceHide is "0" */}
@@ -535,31 +546,38 @@ const index = () => {
         </div>
       )}
 
-      {showCheckout && (
-        <div className="col-12">
-          <button
-            className="button -dark-1 py-15 px-35 h-60 col-12 rounded-4 bg-blue-1 text-white"
-            onClick={handleBookNow}
-            style={{
-              transition: "all 0.3s ease",
-              boxShadow: "0 4px 10px rgba(53, 84, 209, 0.25)",
-              fontWeight: "600",
-              letterSpacing: "0.5px",
-              marginTop: "15px"
-            }}
-            onMouseOver={(e) => {
+      <div className="col-12">
+        <button
+          className={`button -dark-1 py-15 px-35 h-60 col-12 rounded-4 text-white ${
+            isBookingReady ? 'bg-blue-1' : 'bg-light-3 text-light-1'
+          }`}
+          onClick={isBookingReady ? handleBookNow : undefined}
+          disabled={!isBookingReady}
+          style={{
+            transition: "all 0.3s ease",
+            boxShadow: isBookingReady ? "0 4px 10px rgba(53, 84, 209, 0.25)" : "none",
+            fontWeight: "600",
+            letterSpacing: "0.5px",
+            marginTop: "15px",
+            cursor: isBookingReady ? "pointer" : "not-allowed",
+            opacity: isBookingReady ? 1 : 0.6
+          }}
+          onMouseOver={(e) => {
+            if (isBookingReady) {
               e.currentTarget.style.transform = "translateY(-2px)";
               e.currentTarget.style.boxShadow = "0 6px 15px rgba(53, 84, 209, 0.35)";
-            }}
-            onMouseOut={(e) => {
+            }
+          }}
+          onMouseOut={(e) => {
+            if (isBookingReady) {
               e.currentTarget.style.transform = "translateY(0)";
               e.currentTarget.style.boxShadow = "0 4px 10px rgba(53, 84, 209, 0.25)";
-            }}
-          >
-            Check Out
-          </button>
-        </div>
-      )}
+            }
+          }}
+        >
+          {isBookingReady ? "Check Out" : "Complete all selections to proceed"}
+        </button>
+      </div>
      
       <ToastContainer />
     </>

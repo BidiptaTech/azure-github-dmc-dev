@@ -1,9 +1,13 @@
 import { createSlice, createAsyncThunk } from "@reduxjs/toolkit";
 import axios from "axios";
 import Cookies from "js-cookie";
-import { logoutUser } from "../common/authSlices";
+import { logoutUser, setTourIdd } from "../common/authSlices";
 import { setPriceMode1 } from "../localtour/Localslice";
 import { BASE_URL } from "@/services/api";
+import { selectDmcId } from "../dmc/dmcSlice";
+import { updateServiceResponse } from "../common/stepperButtonSlice";
+import { setId } from "@/slice/hotel/hotelSlice";
+import { setTourId, updateStepStatus, statusUpdate, setType as setStepType } from "@/slice/common/stepsSlice";
 
 export const fetchGuides = createAsyncThunk(
   "tourguide/fetchGuides",
@@ -12,13 +16,32 @@ export const fetchGuides = createAsyncThunk(
       const state = getState();
       const authToken = Cookies.get("authToken");
       const AgentId = Cookies.get("AgentId");
-
+      const dmcId = selectDmcId(state);
       // Use the passed parameters or fallback to state values
       const city = params?.city || state.tourguide.entrypickup;
       const date = params?.date || state.tourguide.pickupdate;
+      const tour_id = params?.tour_id;
 
       if (!city) {
         return rejectWithValue({ message: "City is required" });
+      }
+
+      // Parse city if it contains both city and country in format "City, (Country)"
+      let cityName = city;
+      let countryName = params?.country;
+      
+      if (city && city.includes(",")) {
+        // Split "Singapore, (Singapore)" into city and country
+        const parts = city.split(",").map(p => p.trim());
+        cityName = parts[0]; // "Singapore"
+        if (parts[1]) {
+          countryName = parts[1].replace(/[()]/g, "").trim(); // Remove parentheses
+        }
+      }
+      
+      // If country is still not set, use cityName as country
+      if (!countryName && cityName) {
+        countryName = cityName;
       }
 
       const response = await axios.get(`${BASE_URL}/guide`, {
@@ -27,15 +50,20 @@ export const fetchGuides = createAsyncThunk(
           "agent-id": AgentId,
         },
         params: {
-          city: city,
+          city: cityName,
+          country: countryName,
           date: JSON.stringify({ 0: date }),
+          tour_id: tour_id || "",
+          dmc_id: dmcId,
+          start: (params && params.start) || undefined,
+          limit: (params && params.limit) || undefined,
         },
       });
 
       // Validate the response data
-      if (!response.data || !Array.isArray(response.data) || response.data.length === 0) {
-        return rejectWithValue({ message: "No guides found for the selected city" });
-      }
+      // if (!response.data || !Array.isArray(response.data) || response.data.length === 0) {
+      //   return rejectWithValue({ message: "No guides found for the selected city" });
+      // }
 
       return response.data;
     } catch (error) {
@@ -53,13 +81,13 @@ export const fetchGuideDetails = createAsyncThunk(
   async (params, { rejectWithValue, getState }) => {
     try {
       const state = getState();
-      
+      const dmcId = selectDmcId(state);
       // Validate required parameters
       if (!params) {
         throw new Error("Parameters are required for fetching guide details");
       }
       
-      const { pickup, date, guide_id, mode, dmc_id } = params;
+      const { pickup, date, guide_id, mode } = params;
       
       if (!pickup) {
         throw new Error("Pickup location is required");
@@ -73,7 +101,7 @@ export const fetchGuideDetails = createAsyncThunk(
         throw new Error("Mode is required");
       }
       
-      if (!dmc_id) {
+      if (!dmcId) {
         throw new Error("DMC ID is required");
       }
       
@@ -103,7 +131,7 @@ export const fetchGuideDetails = createAsyncThunk(
         date: JSON.stringify({ 0: date }), 
         guide_id,
         mode,
-        dmc_id,
+        dmc_id: dmcId,
       };
 
       // Make API request with params
@@ -163,13 +191,16 @@ export const guideslice = createAsyncThunk(
       const authToken = Cookies.get("authToken");
       const agentID = state.editing?.agentId;
       const userRole = state.auth?.userRole;
-
+      const dmcId = selectDmcId(state);
       // Corrected conditional statement
       let AgentId;
       if (
         userRole === "Sales Head(DMC)" ||
         userRole === "Sales Manager (DMC)" ||
-        userRole === "Assistant Manager (DMC)"
+        userRole === "Assistant Manager (DMC)" ||
+        userRole === "DMC Assistant Operational Manager" ||
+        userRole === "DMC Operational Manager" ||
+        userRole === "Operational Head(DMC)"
       ) {
         AgentId = agentID;
       } else {
@@ -186,6 +217,57 @@ export const guideslice = createAsyncThunk(
       // let json0 = {};
       // let json1 = {};
 
+      // Check if we have an existing tour_id from guide state or global auth state
+      const globalTourId = state.auth?.tourId || state.steps?.id;
+      const effectiveTourId = tourid || globalTourId;
+      
+      // Extract numeric part from tour_id (e.g., "DMC-ORD2904" -> "2904")
+      let numericTourId = "";
+      if (effectiveTourId) {
+        const tourIdStr = String(effectiveTourId);
+        const match = tourIdStr.match(/\d+$/); // Extract trailing digits
+        numericTourId = match ? match[0] : tourIdStr;
+      }
+      
+      const hasTourId = numericTourId && Number(numericTourId) > 0;
+
+      // Build tour meta from Redux when no tour exists
+      let tourMeta = {};
+      if (!hasTourId) {
+        const bookings = state.bookings || {};
+        const auth = state.auth || {};
+
+        const countryCodeToName = {};
+        if (auth.user_country && Array.isArray(auth.user_country)) {
+          auth.user_country.forEach((country) => {
+            if (country && country.name && country.code) {
+              countryCodeToName[country.code] = country.name;
+              countryCodeToName[country.code.toLowerCase()] = country.name;
+            }
+          });
+        }
+
+        const searchLocation = bookings.searchLocation || [];
+        const destination = (Array.isArray(searchLocation) ? searchLocation : [searchLocation])
+          .map((loc) => countryCodeToName[loc] || loc)
+          .join(", ");
+        const check_in = bookings.checkIn || "";
+        const check_out = bookings.checkOut || "";
+        const bGuests = bookings.guests || {};
+        
+        tourMeta = {
+          destination,
+          check_in,
+          check_out,
+          adult: bGuests.adults ?? 1,
+          child: bGuests.children ?? 0,
+          infant: bGuests.infant ?? 0,
+          male: bGuests.maleCount ?? 0,
+          female: bGuests.femaleCount ?? 0,
+          children_ages: (bGuests.childrenAges || []).join(", "),
+        };
+      }
+
       // Populate FormData if entrypickup and related fields exist
       if (
         entrypickup &&
@@ -198,12 +280,17 @@ export const guideslice = createAsyncThunk(
         children !== undefined
       ) {
         formData = {
-          data: details,
+          data: details.map(item => ({ ...item, dmc_id: dmcId })),
           type: type1,
           agent_id: AgentId,
-          tour_id: tourid,
+          tour_id: hasTourId ? Number(numericTourId) : "",
           bookingType: bookingtype,
         };
+        
+        // Only add tour meta if no tour_id exists
+        if (!hasTourId) {
+          Object.assign(formData, tourMeta);
+        }
       }
       console.log("form", formData);
 
@@ -280,8 +367,29 @@ export const guideslice = createAsyncThunk(
 
       console.log("API Response:", response.data);
 
+      // Extract and dispatch tour_id if this was the first booking (tour created)
+      const tourId = response.data?.order?.tour_id || response.data?.tour_id;
+      if (tourId) {
+        dispatch(setId(tourId));
+        dispatch(setTourId(tourId));
+        dispatch(setTourIdd(tourId));
+        console.log("Tour ID created and stored from guide booking:", tourId);
+        
+        // Update step status to mark guide as completed
+        dispatch(updateStepStatus({ key: 'guide', status: 3 }));
+        dispatch(setStepType(null));
+        dispatch(statusUpdate());
+      }
+
       let guide = response.data?.service?.data || [];
       dispatch(setbookedGuide(guide));
+      
+      // Update stepper button visibility based on booking response
+      dispatch(updateServiceResponse({ 
+        service: 'guide', 
+        response: response.data 
+      }));
+      
       return response.data;
     } catch (error) {
       if (error.response?.status === 401) {
@@ -502,12 +610,28 @@ const Localguideslice = createSlice({
       })
       .addCase(fetchGuides.fulfilled, (state, action) => {
         state.status = "succeeded";
-        state.Guides = Array.isArray(action.payload) ? action.payload : [];
-        if (state.Guides.length === 0) {
-          state.status = "idle";
-          state.error = "No guides found for the selected location";
+        
+        // Check if payload is a valid array
+        if (!Array.isArray(action.payload)) {
+          // If payload is not an array (string, object, etc.), keep previous guides
+          console.log("fetchGuides - Invalid payload, keeping previous guides:", state.Guides);
+          return; // Exit early, don't modify state
         }
-        console.log("guide", state.Guides);
+        
+        // Support infinite scrolling - check if it's initial load or subsequent load
+        const { start = 0 } = action.meta?.arg || {};
+        
+        if (start === 0) {
+          // First page - replace guides
+          state.Guides = action.payload;
+          console.log("fetchGuides - Replaced guides:", state.Guides);
+        } else {
+          // Subsequent pages - accumulate guides
+          const existingIds = new Set(state.Guides.map(guide => guide.id));
+          const newGuides = action.payload.filter(guide => !existingIds.has(guide.id));
+          state.Guides = [...state.Guides, ...newGuides];
+          console.log("fetchGuides - Accumulated guides:", state.Guides);
+        }
       })
       .addCase(fetchGuides.rejected, (state, action) => {
         state.status = "failed";

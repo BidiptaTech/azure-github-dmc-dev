@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { useSelector } from 'react-redux';
 import {
   Box,
   Typography,
@@ -45,10 +46,12 @@ import {
   Hiking,
   Flight,
   NightsStay,
-  LocalActivity
+  LocalActivity,
+  Business
 } from '@mui/icons-material';
 import { StatusChip, PaymentStatusChip } from './StatusChips';
 import PDFGenerator, { PDFPrintButton, usePDFGenerator } from './PDFGenerator';
+import { calculateTotalWithTaxes } from './utils';
 
 // Slide transition for modal
 const Transition = React.forwardRef(function Transition(props, ref) {
@@ -196,9 +199,9 @@ const safeRender = (content, type = 'default') => {
 // Enhanced Service Card Component - For debugging data issues
 const ServiceCard = ({ service, fallback = false }) => {
   // Only log in development environment 
-  if (process.env.NODE_ENV === 'development') {
-    console.log('Service data:', service);
-  }
+  // if (process.env.NODE_ENV === 'development') {
+  //   console.log('Service data:', service);
+  // }
   
   // Extract basic information that should be available
   let serviceType = '';
@@ -470,9 +473,9 @@ const DayCard = ({ day, index, totalDays }) => {
   const hasServices = day.services && Array.isArray(day.services) && day.services.length > 0;
   
   // Debugging the day structure - only in development
-  if (process.env.NODE_ENV === 'development') {
-    console.log(`Day ${day.day || index + 1} data:`, day);
-  }
+  // if (process.env.NODE_ENV === 'development') {
+  //   console.log(`Day ${day.day || index + 1} data:`, day);
+  // }
   
   // Extract transport information from day data
   const hasArrivalPickup = day.arrival_pickup === 1 || day.arrival_pickup === true;
@@ -660,6 +663,10 @@ const BookingViewModal = ({ open, onClose, bookingData }) => {
   const fullScreen = useMediaQuery(theme.breakpoints.down('md'));
   const { generatePDF } = usePDFGenerator();
   
+  // Get agent info from Redux store
+  const agencyLogo = useSelector((state) => state.auth.agencyLogo);
+  const agentCompanyName = useSelector((state) => state.auth.agentCompanyName);
+  
   if (!bookingData) {
     return null;
   }
@@ -676,9 +683,9 @@ const BookingViewModal = ({ open, onClose, bookingData }) => {
   const itinerary = bookingDetails?.itinerary || [];
   
   // Log the itinerary data for debugging
-  if (process.env.NODE_ENV === 'development') {
-    console.log('Itinerary data:', itinerary);
-  }
+  // if (process.env.NODE_ENV === 'development') {
+  //   console.log('Itinerary data:', itinerary);
+  // }
   
   // const itinerary = bookingDetails?.itinerary || [];
   
@@ -728,6 +735,103 @@ const BookingViewModal = ({ open, onClose, bookingData }) => {
         
         {/* Dialog content */}
         <DialogContent sx={{ p: 2 }}>
+          {/* Agent Branding Header */}
+          {(agentCompanyName || agencyLogo) && (
+            <Paper 
+              elevation={3} 
+              sx={{ 
+                borderRadius: '12px', 
+                mb: 3,
+                overflow: 'hidden',
+                background: 'linear-gradient(135deg, #ffffff 0%, #f8f9fa 100%)',
+                border: '1px solid #e0e0e0',
+                boxShadow: '0 4px 12px rgba(0,0,0,0.08)'
+              }}
+            >
+                <Box sx={{ 
+                 p: 3,
+                 display: 'flex',
+                 flexDirection: 'row',
+                 alignItems: 'center',
+                 justifyContent: 'center',
+                 gap: 3,
+                 position: 'relative',
+                 '&::before': {
+                   content: '""',
+                   position: 'absolute',
+                   top: 0,
+                   left: 0,
+                   right: 0,
+                   height: '4px',
+                   background: 'linear-gradient(90deg, #667eea 0%, #764ba2 100%)',
+                 }
+               }}>
+                 {agencyLogo && (
+                   <Box 
+                     component="img"
+                     src={agencyLogo} 
+                     alt={agentCompanyName || 'Agent Logo'}
+                     sx={{ 
+                       width: 120, 
+                       height: 90,
+                       objectFit: 'contain',
+                       filter: 'drop-shadow(0 2px 4px rgba(0,0,0,0.1))',
+                       transition: 'transform 0.2s ease',
+                       '&:hover': {
+                         transform: 'scale(1.05)'
+                       }
+                     }}
+                   />
+                 )}
+                 <Box sx={{ textAlign: agencyLogo ? 'left' : 'center' }}>
+                   <Typography 
+                     variant="h5" 
+                     fontWeight={700} 
+                     sx={{ 
+                       color: '#1a237e', 
+                       mb: 0.5,
+                       letterSpacing: '-0.5px',
+                       lineHeight: 1.2
+                     }}
+                   >
+                     {agentCompanyName || 'Travel Agency'}
+                   </Typography>
+                   {/* <Box sx={{ 
+                     display: 'flex', 
+                     alignItems: 'center', 
+                     justifyContent: agencyLogo ? 'flex-start' : 'center',
+                     gap: 1 
+                   }}>
+                     <Box sx={{ 
+                       width: '30px', 
+                       height: '2px', 
+                       background: 'linear-gradient(90deg, #667eea 0%, #764ba2 100%)',
+                       borderRadius: '2px'
+                     }} />
+                     <Typography 
+                       variant="body2" 
+                       sx={{ 
+                         color: '#5e6e82', 
+                         textTransform: 'uppercase', 
+                         letterSpacing: '1.5px',
+                         fontSize: '0.75rem',
+                         fontWeight: 600
+                       }}
+                     >
+                       Travel Agency
+                     </Typography>
+                     <Box sx={{ 
+                       width: '30px', 
+                       height: '2px', 
+                       background: 'linear-gradient(90deg, #764ba2 0%, #667eea 100%)',
+                       borderRadius: '2px'
+                     }} />
+                   </Box> */}
+                 </Box>
+               </Box>
+            </Paper>
+          )}
+          
           {/* Redesigned Customer and booking summary */}
           <Paper 
             elevation={1} 
@@ -780,9 +884,56 @@ const BookingViewModal = ({ open, onClose, bookingData }) => {
                       <AttachMoney sx={{ color: 'success.main', mt: 0.25, mr: 1.5, fontSize: '1.3rem' }} />
                       <Box>
                         <Typography variant="caption" color="text.secondary" sx={{ display: 'block' }}>Payment Amount</Typography>
-                        <Typography variant="body1" fontWeight={500}>
-                          SGD {bookingDetails?.total_price || bookingData.payment}
+                        
+                        {/* Base Amount */}
+                        <Typography variant="body2" fontWeight={400} color="text.secondary" sx={{ mb: 0.5 }}>
+                          SGD {bookingData.payment || bookingData.total_amount}
                         </Typography>
+                        
+                        {/* Total with Taxes - Green highlighted */}
+                        {bookingData.taxes && (Array.isArray(bookingData.taxes) ? bookingData.taxes.length > 0 : bookingData.taxes) && (
+                          <Box sx={{ 
+                            display: 'inline-flex', 
+                            alignItems: 'baseline',
+                            padding: '4px 8px',
+                            backgroundColor: 'rgba(76, 175, 80, 0.1)',
+                            borderRadius: '6px',
+                            mt: 0.5
+                          }}>
+                            <Typography variant="body1" sx={{ 
+                              fontWeight: 600, 
+                              color: 'success.main', 
+                              mr: 0.5
+                            }}>
+                              SGD {calculateTotalWithTaxes(bookingData)}
+                            </Typography>
+                            <Typography variant="caption" sx={{ 
+                              color: 'success.main',
+                              fontStyle: 'italic'
+                            }}>
+                              (incl. tax)
+                            </Typography>
+                          </Box>
+                        )}
+                        
+                        {/* If no taxes, show single amount */}
+                        {(!bookingData.taxes || (Array.isArray(bookingData.taxes) && bookingData.taxes.length === 0)) && (
+                          <Box sx={{ 
+                            display: 'inline-flex', 
+                            alignItems: 'baseline',
+                            padding: '4px 8px',
+                            backgroundColor: 'rgba(76, 175, 80, 0.1)',
+                            borderRadius: '6px',
+                            mt: 0.5
+                          }}>
+                            <Typography variant="body1" sx={{ 
+                              fontWeight: 600, 
+                              color: 'success.main'
+                            }}>
+                              SGD {bookingData.payment || bookingData.total_amount}
+                            </Typography>
+                          </Box>
+                        )}
                       </Box>
                     </Box>
                   </Grid>
@@ -816,6 +967,8 @@ const BookingViewModal = ({ open, onClose, bookingData }) => {
                       </Box>
                     </Box>
                   </Grid>
+                  
+                  
                 </Grid>
               </Grid>
               
@@ -870,7 +1023,7 @@ const BookingViewModal = ({ open, onClose, bookingData }) => {
                     </Box>
                   </Grid>
                   
-                  <Grid item xs={6} sx={{ mt: 1 }}>
+                  {/* <Grid item xs={6} sx={{ mt: 1 }}>
                     <Box sx={{ 
                       p: 1.5, 
                       bgcolor: 'grey.50', 
@@ -880,7 +1033,7 @@ const BookingViewModal = ({ open, onClose, bookingData }) => {
                       <Typography variant="body2" color="text.secondary" gutterBottom>Payment Status</Typography>
                       <PaymentStatusChip status={bookingData.paymentStatus} />
                     </Box>
-                  </Grid>
+                  </Grid> */}
                 </Grid>
               </Grid>
             </Grid>

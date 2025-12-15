@@ -110,12 +110,12 @@ const StatsSection = () => {
         backgroundPosition: 'center',
         position: 'relative',
         overflow: 'hidden',
-        minHeight: '600px',
+        minHeight: { xs: '400px', sm: '500px', md: '600px' },
         display: 'flex',
         alignItems: 'center',
-        borderRadius: '30px',
+        borderRadius: { xs: '15px', md: '30px' },
         margin: '0 auto',
-        maxWidth: '95%'
+        maxWidth: { xs: '100%', sm: '98%', md: '95%' }
       }}
     >
       {/* Dark overlay for better content visibility */}
@@ -211,24 +211,24 @@ const StatsSection = () => {
       </Box>
 
       <Container maxWidth="xl" sx={{ position: 'relative', zIndex: 3 }}>
-        <Grid container spacing={6} alignItems="center" sx={{ minHeight: '500px' }}>
+        <Grid container spacing={{ xs: 3, md: 6 }} alignItems="center" sx={{ minHeight: { xs: '300px', sm: '400px', md: '500px' } }}>
           {/* Left Side - Stats Card */}
           <Grid item xs={12} md={6}>
             <Fade in={true} timeout={1000}>
               <Card
                 sx={{
-                  borderRadius: '25px',
+                  borderRadius: { xs: '15px', md: '25px' },
                   boxShadow: '0 20px 60px rgba(0,0,0,0.3)',
                   bgcolor: 'rgba(255, 255, 255, 0.98)',
                   backdropFilter: 'blur(15px)',
                   border: '2px solid rgba(255, 255, 255, 0.3)',
-                  p: 3,
-                  maxWidth: '480px',
+                  p: { xs: 2, sm: 2.5, md: 3 },
+                  maxWidth: { xs: '100%', sm: '450px', md: '480px' },
                   mx: { xs: 'auto', md: 0 }
                 }}
               >
-                <CardContent sx={{ p: 3 }}>
-                  <Grid container spacing={3}>
+                <CardContent sx={{ p: { xs: 2, sm: 2.5, md: 3 } }}>
+                  <Grid container spacing={{ xs: 2, sm: 2.5, md: 3 }}>
                     {stats.map((stat, index) => (
                       <Grid item xs={6} key={stat.id}>
                         <Grow in={true} timeout={1200 + index * 200}>
@@ -247,12 +247,14 @@ const StatsSection = () => {
                           >
                             <Box
                               sx={{
-                                mb: 2,
+                                mb: { xs: 1, sm: 1.5, md: 2 },
                                 display: 'flex',
                                 justifyContent: 'center'
                               }}
                             >
-                              {stat.icon}
+                              {React.cloneElement(stat.icon, { 
+                                sx: { fontSize: { xs: 24, sm: 28, md: 30 } } 
+                              })}
                             </Box>
                             
                             <Typography
@@ -260,8 +262,8 @@ const StatsSection = () => {
                               sx={{
                                 fontWeight: 'bold',
                                 color: '#333',
-                                fontSize: { xs: '1.6rem', md: '2rem' },
-                                mb: 1
+                                fontSize: { xs: '1.2rem', sm: '1.4rem', md: '1.6rem', lg: '2rem' },
+                                mb: { xs: 0.5, md: 1 }
                               }}
                             >
                               {stat.number}
@@ -272,7 +274,7 @@ const StatsSection = () => {
                               sx={{
                                 color: '#666',
                                 fontWeight: 500,
-                                fontSize: '13px'
+                                fontSize: { xs: '11px', sm: '12px', md: '13px' }
                               }}
                             >
                               {stat.label}

@@ -17,21 +17,21 @@ import AddIcon from "@mui/icons-material/Add";
 // Styled components
 const SearchContainer = styled(Box)(({ theme }) => ({
   position: "relative",
-  marginBottom: theme.spacing(2),
+  marginBottom: theme.spacing(1.5),
 }));
 
 const DropdownContainer = styled(Paper)(({ theme }) => ({
   position: "absolute",
   width: "100%",
-  maxHeight: 350,
+  maxHeight: 300,
   overflowY: "auto",
   zIndex: 20,
   marginTop: theme.spacing(0.5),
-  boxShadow: theme.shadows[3],
+  boxShadow: theme.shadows[2],
 }));
 
 const MealPlanOption = styled(ListItem)(({ theme }) => ({
-  padding: theme.spacing(1.5, 2),
+  padding: theme.spacing(1, 1.5),
   cursor: "pointer",
   transition: "background-color 0.2s",
   borderBottom: `1px solid ${theme.palette.divider}`,
@@ -51,25 +51,25 @@ const MealPlanInfo = styled(Box)({
 });
 
 const SelectedMealPlan = styled(Box)(({ theme }) => ({
-  marginTop: theme.spacing(1),
-  padding: theme.spacing(1, 1.5),
+  marginTop: theme.spacing(0.8),
+  padding: theme.spacing(0.8, 1),
   backgroundColor: theme.palette.grey[50],
   borderRadius: theme.shape.borderRadius,
-  borderLeft: `3px solid ${theme.palette.primary.main}`,
-  fontSize: 13,
+  borderLeft: `2px solid ${theme.palette.primary.main}`,
+  fontSize: 12,
 }));
 
 const SelectedLabel = styled("span")(({ theme }) => ({
   fontWeight: 500,
-  marginRight: theme.spacing(0.5),
+  marginRight: theme.spacing(0.3),
   color: theme.palette.primary.main,
 }));
 
 const CountBadge = styled(Chip)(({ theme }) => ({
   backgroundColor: theme.palette.grey[200],
-  marginLeft: theme.spacing(1),
-  height: 20,
-  fontSize: 12,
+  marginLeft: theme.spacing(0.8),
+  height: 18,
+  fontSize: 11,
 }));
 
 const MealPlanListing = ({ onSelect, initialMealPlans = [], selectedMealPlanId = '' }) => {
@@ -145,7 +145,7 @@ const MealPlanListing = ({ onSelect, initialMealPlans = [], selectedMealPlanId =
 
   return (
     <Box sx={{ height: '100%', display: 'flex', flexDirection: 'column' }}>
-      <Typography variant="subtitle1" fontWeight={500} sx={{ mb: 2 }}>
+      <Typography variant="subtitle2" fontWeight={500} sx={{ mb: 1.5, fontSize: '0.9rem' }}>
         Meal Plans 
         <CountBadge 
           label={mealPlans.length} 
@@ -181,15 +181,15 @@ const MealPlanListing = ({ onSelect, initialMealPlans = [], selectedMealPlanId =
                     onClick={() => handleMealPlanSelect(plan)}
                   >
                     <MealPlanInfo>
-                      <Box sx={{ display: 'flex', alignItems: 'center' }}>
-                        {plan.icon}
-                        <Typography variant="subtitle2" fontWeight={500} sx={{ ml: 0.5 }}>
-                          {plan.title}
-                        </Typography>
-                      </Box>
-                      <Typography variant="body2" color="text.secondary" sx={{ fontSize: 12, mt: 0.5 }}>
-                        {plan.description}
+                                          <Box sx={{ display: 'flex', alignItems: 'center' }}>
+                      {plan.icon}
+                      <Typography variant="subtitle2" fontWeight={500} sx={{ ml: 0.4, fontSize: '0.8rem' }}>
+                        {plan.title}
                       </Typography>
+                    </Box>
+                    <Typography variant="body2" color="text.secondary" sx={{ fontSize: 11, mt: 0.4 }}>
+                      {plan.description}
+                    </Typography>
                     </MealPlanInfo>
                     {selectedMealPlan && selectedMealPlan.id === plan.id && (
                       <Chip 
@@ -219,24 +219,24 @@ const MealPlanListing = ({ onSelect, initialMealPlans = [], selectedMealPlanId =
       
       {/* Selected Meal Plan Card */}
       {selectedMealPlan && (
-        <Card elevation={3} sx={{ 
-          borderRadius: 2,
-          border: '2px solid #3554D1',
-          mb: 2,
-          mt: 2
+        <Card elevation={2} sx={{ 
+          borderRadius: 1.5,
+          border: '1px solid #3554D1',
+          mb: 1.5,
+          mt: 1.5
         }}>
           <Box sx={{ 
             bgcolor: '#3554D1', 
             color: 'white', 
-            py: 1.5, 
-            px: 2,
+            py: 1, 
+            px: 1.5,
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'space-between'
           }}>
             <Box sx={{ display: 'flex', alignItems: 'center' }}>
               {selectedMealPlan.icon}
-              <Typography variant="subtitle1" sx={{ ml: 1 }}>
+              <Typography variant="subtitle2" sx={{ ml: 0.8, fontSize: '0.85rem' }}>
                 {selectedMealPlan.title}
               </Typography>
             </Box>
@@ -247,6 +247,9 @@ const MealPlanListing = ({ onSelect, initialMealPlans = [], selectedMealPlanId =
               sx={{ 
                 color: 'white', 
                 borderColor: 'white',
+                fontSize: '0.7rem',
+                py: 0.3,
+                px: 1,
                 '&:hover': {
                   borderColor: 'white',
                   bgcolor: 'rgba(255, 255, 255, 0.1)'
@@ -260,21 +263,21 @@ const MealPlanListing = ({ onSelect, initialMealPlans = [], selectedMealPlanId =
             display: 'flex', 
             justifyContent: 'space-between', 
             alignItems: 'center',
-            py: 2,
-            px: 2,
+            py: 1.5,
+            px: 1.5,
             bgcolor: 'rgba(53, 84, 209, 0.05)'
           }}>
             <Box sx={{ 
-              py: 1,
-              px: 3,
+              py: 0.8,
+              px: 2,
               bgcolor: 'rgba(255, 255, 255, 0.7)',
-              borderRadius: '4px'
+              borderRadius: '3px'
             }}>
-              <Typography variant="body2" color="text.secondary">
+              <Typography variant="body2" color="text.secondary" sx={{ fontSize: '0.7rem' }}>
                 Price available on request
               </Typography>
             </Box>
-            <Typography variant="body2" color="primary" fontWeight={500}>
+            <Typography variant="body2" color="primary" fontWeight={500} sx={{ fontSize: '0.75rem' }}>
               Currently Selected
             </Typography>
           </Box>

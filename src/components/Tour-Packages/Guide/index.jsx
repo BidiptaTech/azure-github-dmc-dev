@@ -28,13 +28,15 @@ import BusinessCenterIcon from '@mui/icons-material/BusinessCenter';
 import PersonIcon from '@mui/icons-material/Person';
 import AssistantIcon from '@mui/icons-material/Assistant';
 import CheckCircleIcon from '@mui/icons-material/CheckCircle';
-import { useDispatch, useSelector } from 'react-redux';
+import { useDispatch, useSelector, shallowEqual } from 'react-redux';
 import GuideListing from './GuideListing';
 import TimeSelection from './TimeSelection';
 import PackageSelection from './PackageSelection';
 import PassengerSelection from './PassengerSelection';
 import GuideBookingSummaryModal from './GuideBookingSummaryModal';
 import { setAllServices } from '../../../slice/tour-packages/tourPackageSlice';
+import PortCity from './PortCity';
+import { fetchGuides } from '@/slice/tourguide/guideslice';
 
 const initialFormState = {
   guide: '',
@@ -61,10 +63,21 @@ export default function GuideComponent({ date, dayIndex, guidespack, tourDates =
   const selectedGuide = useSelector((state) => state.tourguide.selectedGuide);
   const guides = useSelector((state) => state.tourguide.Guides);
   const status = useSelector((state) => state.tourguide.status);
-  const searchParams = useSelector((state) => state.tourguide.searchParams);
+  const searchParams = useSelector((state) => state.tourguide.searchParams, shallowEqual);
   const currentMode = useSelector((state) => state.common.bookingMode) || 'dmc';
   const agentId = useSelector((state) => state.editing?.agentId);
   const tourId = useSelector((state) => state.hotels.id);
+  const globalTourId = useSelector((state) => state.auth?.tourId || state.steps?.id);
+  const tourStatus = useSelector((state) => state.tourPackages.tourStatus);
+  // Extract numeric part from tour_id
+  const numericTourId = React.useMemo(() => {
+    const effectiveTourId = globalTourId || tourId;
+    if (!effectiveTourId) return null;
+    const tourIdStr = String(effectiveTourId);
+    const match = tourIdStr.match(/\d+$/); // Extract trailing digits
+    return match ? Number(match[0]) : null;
+  }, [globalTourId, tourId]);
+  
   console.log('Guide update', guidespack);
   
   // Get existing services from Redux state
@@ -116,7 +129,14 @@ export default function GuideComponent({ date, dayIndex, guidespack, tourDates =
   const [expandedSections, setExpandedSections] = useState([0]);
   // Track which sections have already been saved to Redux
   const [savedSectionIds, setSavedSectionIds] = useState([]);
-
+  
+  // City selection state
+  const [selectedCity, setSelectedCity] = useState(null);
+  const [cityError, setCityError] = useState(false);
+  const [isCityEnabled, setIsCityEnabled] = useState(true);
+  const [isGuideListingEnabled, setIsGuideListingEnabled] = useState(false);
+  console.log("selectedCity", selectedCity);
+  const country = useSelector((state) => state.tourPackages.searchCriteria.country);
   // Refs to prevent infinite loops (following attraction component pattern)
   const hasInitializedRef = useRef(false);
   const lastDispatchRef = useRef(null);
@@ -137,18 +157,32 @@ export default function GuideComponent({ date, dayIndex, guidespack, tourDates =
 
     console.log('Initializing form sections from guidespack:', guidespack);
 
-    // Filter guides that match the current bookingDate for form sections
-    // If dayIndex is missing, use bookingDate for filtering
+    // Filter guides - show all for first dayIndex, match by bookingDate for other days
     const dayGuides = guidespack.filter(guideService => {
       const guideData = guideService.data?.[0];
       
+      if (!guideData) return false;
+
+      // For first dayIndex (dayIndex === 0), show guides that either match current bookingDate OR don't match any tour dates
+      if (dayIndex === 0) {
+       
+        
+        // Show if it matches current bookingDate OR doesn't match any tour dates
+        const matchesCurrentDate = guideData.bookingDate === bookingDate;
+        const notInTourDates = !tourDates.includes(guideData.bookingDate);
+        const shouldShow = matchesCurrentDate || notInTourDates;
+        
+       
+        return shouldShow;
+      }
+      
       // If we have dayIndex, use it for filtering (backward compatibility)
-      if (guideData && guideData.dayIndex === dayIndex) {
+      if (guideData.dayIndex === dayIndex) {
         return true;
       }
       
       // If dayIndex is missing, filter by bookingDate
-      if (guideData && guideData.bookingDate) {
+      if (guideData.bookingDate) {
         // Format dates for comparison
         const guideDateFormatted = formatDateToString(guideData.bookingDate);
         const currentDateFormatted = formatDateToString(date);
@@ -166,13 +200,39 @@ export default function GuideComponent({ date, dayIndex, guidespack, tourDates =
     });
 
     if (dayGuides.length === 0) {
-      console.log(`No guides found for date ${bookingDate} or dayIndex ${dayIndex}`);
+      console.log(`No guides found for dayIndex ${dayIndex}${dayIndex === 0 ? ' (showing all dates)' : ` (bookingDate: ${bookingDate})`}`);
       return;
     }
 
     // Convert guide data to form sections for current day
     const newFormSections = dayGuides.map((guideService, index) => {
       const guideData = guideService.data[0];
+      
+      // Debug guide data
+      console.log(`Processing guide ${index + 1}:`, {
+        guideId: guideData?.guide_id,
+        guideName: guideData?.guide_name,
+        hasGuideId: !!guideData?.guide_id,
+        guideIdType: typeof guideData?.guide_id,
+        fullGuideData: guideData
+      });
+      
+      // Check if guide_id is missing or invalid
+      if (!guideData?.guide_id) {
+        console.warn(`Guide ${index + 1} has missing or invalid guide_id:`, guideData);
+        // Skip this guide or provide a fallback
+        return null;
+      }
+      
+      // Check if the guide exists in available guides
+      const availableGuide = guides.find(g => 
+        g.id === guideData.guide_id || 
+        String(g.id) === String(guideData.guide_id)
+      );
+      
+      if (!availableGuide) {
+        console.warn(`Guide with ID ${guideData.guide_id} not found in available guides list. Available guide IDs:`, guides.map(g => g.id));
+      }
       
       console.log('Guide originalData image check:', {
         guideId: guideData.guide_id,
@@ -205,12 +265,17 @@ export default function GuideComponent({ date, dayIndex, guidespack, tourDates =
           booking_id: guideService.booking_id // Preserve booking_id from service level
         }
       };
-    });
+    }).filter(section => section !== null); // Remove null entries
 
     console.log('Initialized guide form sections for current day:', newFormSections);
+    console.log('Form sections guide IDs:', newFormSections.map(section => ({
+      guide: section.guide,
+      guide_name: section.guide_name
+    })));
+    
     setFormSections(newFormSections);
     setExpandedSections(newFormSections.map((_, index) => index));
-  }, [guidespack, dayIndex, bookingDate, date, formatDateToString]);
+  }, [ dayIndex, bookingDate, date, formatDateToString, guides]);
 
   // Function to dispatch ALL guides from guidespack to Redux state
   const dispatchAllGuidesToRedux = useCallback(() => {
@@ -332,6 +397,13 @@ export default function GuideComponent({ date, dayIndex, guidespack, tourDates =
     currentServicesRef.current = [];
   }, [dayIndex]);
 
+  // Reset guide listing state when city changes or component mounts
+  useEffect(() => {
+    if (!selectedCity) {
+      setIsGuideListingEnabled(false);
+    }
+  }, [selectedCity]);
+
   // Cleanup effect
   useEffect(() => {
     return () => {
@@ -357,24 +429,25 @@ export default function GuideComponent({ date, dayIndex, guidespack, tourDates =
       console.log('Dispatching ALL guides from guidespack to Redux on mount');
       dispatchAllGuidesToRedux();
       hasDispatchedAllGuidesRef.current = true;
+      hasInitializedRef.current = true;
     }
   }, [guidespack, dispatchAllGuidesToRedux]);
 
   // Log guidespack data when it changes
-  useEffect(() => {
-    if (guidespack && Array.isArray(guidespack) && guidespack.length > 0) {
-      console.log('Received guidespack data:', guidespack);
-      console.log('Guides by type:', {
-        guideCount: guidespack.length,
-        bookingTypes: guidespack.map(g => g.bookingType).filter((v, i, a) => a.indexOf(v) === i),
-        hasBookingIds: guidespack.filter(g => g.booking_id).length
-      });
+  // useEffect(() => {
+  //   if (guidespack && Array.isArray(guidespack) && guidespack.length > 0) {
+  //     console.log('Received guidespack data:', guidespack);
+  //     console.log('Guides by type:', {
+  //       guideCount: guidespack.length,
+  //       bookingTypes: guidespack.map(g => g.bookingType).filter((v, i, a) => a.indexOf(v) === i),
+  //       hasBookingIds: guidespack.filter(g => g.booking_id).length
+  //     });
       
-      // Reset the dispatch flag when guidespack changes
-      hasDispatchedAllGuidesRef.current = false;
-      hasInitializedRef.current = false;
-    }
-  }, [guidespack]);
+  //     // Reset the dispatch flag when guidespack changes
+  //     hasDispatchedAllGuidesRef.current = false;
+  //     hasInitializedRef.current = false;
+  //   }
+  // }, [guidespack]);
 
   // Define helper functions at the beginning
   // Helper to check if a booking is out of current tour dates for the specific dayIndex
@@ -563,7 +636,7 @@ export default function GuideComponent({ date, dayIndex, guidespack, tourDates =
           ...customerDetails,
           // Update with current form values
           guide_id: section.guide,
-          entrypickup: section.pickUpTime,
+          entrypickup: section.city,
           entrytime: section.pickUpTimeHour,
           adults: section.pax.Adults,
           children: section.pax.Children,
@@ -625,8 +698,8 @@ export default function GuideComponent({ date, dayIndex, guidespack, tourDates =
         image: summaryData.image,
         dmc_Id: agentId,
         Mode: currentMode,
-        entrypickup: section.pickUpTime,
-        entrytime: section.pickUpTimeHour,
+        entrypickup: summaryData.city,
+        entrytime: section.pickUpTime,
         adults: section.pax.Adults,
         children: section.pax.Children,
         hours: section.hourlyPackage,
@@ -746,7 +819,7 @@ export default function GuideComponent({ date, dayIndex, guidespack, tourDates =
         ...customerDetails,
         // Update with current form values
         guide_id: updatedSection.guide,
-        entrypickup: updatedSection.pickUpTime,
+        entrypickup: updatedSection.city,
         entrytime: updatedSection.pickUpTimeHour,
         adults: updatedSection.pax.Adults,
         children: updatedSection.pax.Children,
@@ -830,7 +903,7 @@ export default function GuideComponent({ date, dayIndex, guidespack, tourDates =
       image: summaryData.image,
       dmc_Id: agentId,
       Mode: currentMode,
-      entrypickup: updatedSection.pickUpTime,
+      entrypickup: summaryData.city,
       entrytime: updatedSection.pickUpTimeHour,
       adults: updatedSection.pax.Adults,
       children: updatedSection.pax.Children,
@@ -899,10 +972,13 @@ export default function GuideComponent({ date, dayIndex, guidespack, tourDates =
     dispatch(setAllServices(updatedServices));
   }, [guides, currentMode, agentId, tourId, dayIndex, existingServices, dispatch, getBookingSummary, getSelectedGuide]);
   
+  // Ref to track if we're already processing to prevent infinite loops
+  const isProcessingRef = useRef(false);
+  
   // Effect to automatically dispatch completed guide bookings to Redux
   useEffect(() => {
-    // Skip if no form sections or during loading
-    if (formSections.length === 0 || status === 'loading') return;
+    // Skip if no form sections, during loading, or already processing
+    if (formSections.length === 0 || status === 'loading' || isProcessingRef.current) return;
     
     // Find sections that are complete but not yet saved
     const newCompleteSections = formSections.filter((section, index) => {
@@ -926,6 +1002,9 @@ export default function GuideComponent({ date, dayIndex, guidespack, tourDates =
     
     // If we found new complete sections, update Redux
     if (newCompleteSections.length > 0) {
+      // Set processing flag to prevent multiple simultaneous executions
+      isProcessingRef.current = true;
+      
       // Get signatures for the new sections
       const newSectionSignatures = newCompleteSections.map(section => 
         `${section.guide}-${section.pickUpTime}-${section.hourlyPackage}-${dayIndex}`
@@ -940,16 +1019,28 @@ export default function GuideComponent({ date, dayIndex, guidespack, tourDates =
       
       // Wait a bit to avoid too many Redux updates
       const timeoutId = setTimeout(() => {
-        // Call handleBookNow
-        handleBookNow();
-        
-        // Mark these sections as saved
-        setSavedSectionIds(prev => [...prev, ...newSectionSignatures]);
+        try {
+          // Call handleBookNow
+          handleBookNow();
+          
+          // Mark these sections as saved
+          setSavedSectionIds(prev => [...prev, ...newSectionSignatures]);
+        } catch (error) {
+          console.error('Error in auto dispatch:', error);
+        } finally {
+          // Reset processing flag after a delay to allow for state updates
+          setTimeout(() => {
+            isProcessingRef.current = false;
+          }, 1000);
+        }
       }, 500);
       
-      return () => clearTimeout(timeoutId);
+      return () => {
+        clearTimeout(timeoutId);
+        isProcessingRef.current = false;
+      };
     }
-  }, [formSections, handleBookNow, status, savedSectionIds, dispatchBookingUpdateToRedux]);
+  }, [formSections, status, savedSectionIds, dayIndex]);
 
   const handleAddMore = () => {
     const newIndex = formSections.length;
@@ -986,63 +1077,58 @@ export default function GuideComponent({ date, dayIndex, guidespack, tourDates =
     // Remove from Redux state if the section has guide data (either has an original ID or guide selection)
     const hasOriginalId = sectionToRemove?.originalData?.id;
     const hasGuideId = sectionToRemove?.guide;
+    console.log("Guide - Has original ID:", hasOriginalId);
+    console.log("Guide - Section to remove:", sectionToRemove);
     
     if (hasOriginalId || hasGuideId) {
       // Clone the existing services array
       const currentServices = [...existingServices];
+      console.log("Guide - Current services before removal:", currentServices);
       
-      // Filter out guide services that contain this booking
-      const filteredServices = currentServices.map(service => {
+      // Filter out the specific guide service
+      const filteredServices = currentServices.filter(service => {
         // Check if this is a guide service
         if (service.type === "guide") {
-          // Check if this service contains data that matches our booking
+          // For existing services with booking_id, match by booking_id
+          if (sectionToRemove.originalData?.booking_id && service.booking_id) {
+            const shouldRemove = service.booking_id === sectionToRemove.originalData.booking_id;
+            console.log(`Guide - Checking booking_id match: ${service.booking_id} === ${sectionToRemove.originalData.booking_id} = ${shouldRemove}`);
+            return !shouldRemove;
+          }
+          
+          // For new services without booking_id, match by guide data
           if (service.data && Array.isArray(service.data)) {
-            // Remove the specific booking with matching ID and booking_id (if available)
-            const filteredData = service.data.filter(dataItem => {
-              // Match by booking_id first (most reliable)
-              if (sectionToRemove.originalData?.booking_id && dataItem.booking_id) {
-                return !(dataItem.id === sectionToRemove.originalData.id && 
-                        dataItem.booking_id === sectionToRemove.originalData.booking_id);
+            const hasMatchingData = service.data.some(dataItem => {
+              // Match by guide_id and dayIndex
+              if (sectionToRemove.guide && dataItem.guide_id) {
+                const matchesGuide = dataItem.guide_id === sectionToRemove.guide;
+                const matchesDay = dataItem.dayIndex === dayIndex;
+                console.log(`Guide - Checking data match: guide_id ${dataItem.guide_id} === ${sectionToRemove.guide} && dayIndex ${dataItem.dayIndex} === ${dayIndex} = ${matchesGuide && matchesDay}`);
+                return matchesGuide && matchesDay;
               }
-              
-              // Match by ID as fallback
-              if (sectionToRemove.originalData?.id && dataItem.id === sectionToRemove.originalData.id) {
-                return false;
-              }
-              
-              // Match by guide ID and dayIndex as final fallback for new bookings
-              if (sectionToRemove.guide && 
-                  dataItem.guide_id === sectionToRemove.guide &&
-                  dataItem.dayIndex === dayIndex) {
-                return false;
-              }
-              
-              return true;
+              return false;
             });
             
-            if (filteredData.length === 0) {
-              // If no data left, mark for removal
-              return null;
-            } else {
-              // Create a new service with filtered data (immutable update)
-              return {
-                ...service,
-                data: filteredData
-              };
+            if (hasMatchingData) {
+              console.log("Guide - Found matching data, removing service");
+              return false; // Remove this service
             }
           }
         }
         
-        // Keep all other services as-is
-        return service;
-      }).filter(service => service !== null); // Remove services marked as null
+        // Keep all other services
+        return true;
+      });
+      
+      console.log("Guide - Filtered services after removal:", filteredServices);
       
       // Only dispatch if there's an actual change
-      if (filteredServices.length !== currentServices.length || 
-          JSON.stringify(filteredServices) !== JSON.stringify(currentServices)) {
-        console.log("Guide - Removing booking from Redux:", sectionToRemove);
-        console.log("Guide - Updated services:", filteredServices);
+      if (filteredServices.length !== currentServices.length) {
+        console.log("Guide - Removing guide service from Redux");
+        console.log(`Guide - Services count: ${currentServices.length} -> ${filteredServices.length}`);
         dispatch(setAllServices(filteredServices));
+      } else {
+        console.log("Guide - No matching service found to remove");
       }
     }
   };
@@ -1056,6 +1142,13 @@ export default function GuideComponent({ date, dayIndex, guidespack, tourDates =
   };
 
   const handleInputChange = (sectionIndex, field, value) => {
+    console.log('GuideComponent - handleInputChange called:', {
+      sectionIndex: sectionIndex,
+      field: field,
+      value: value,
+      currentSectionGuide: formSections[sectionIndex]?.guide
+    });
+    
     const newFormSections = [...formSections];
     
     if (field === 'guide') {
@@ -1094,6 +1187,13 @@ export default function GuideComponent({ date, dayIndex, guidespack, tourDates =
         bookingDate: bookingDate // Preserve booking date
       };
     }
+    
+    console.log('GuideComponent - Updated section:', {
+      sectionIndex: sectionIndex,
+      field: field,
+      newGuideValue: newFormSections[sectionIndex].guide,
+      fullSection: newFormSections[sectionIndex]
+    });
     
     setFormSections(newFormSections);
     
@@ -1141,52 +1241,122 @@ export default function GuideComponent({ date, dayIndex, guidespack, tourDates =
     setSelectedSectionIndex(null);
   };
 
-  if (!guides || guides.length === 0) {
-    return (
-      <Container maxWidth="xl">
-        <Card 
-          elevation={3}
-          sx={{
-            borderRadius: 3,
-            background: 'linear-gradient(135deg, #2196f3 0%, #1976d2 100%)',
-            color: 'white',
-            mb: 2,
-            mx: 'auto',
-          }}
-        >
-          <CardContent sx={{ py: 2, textAlign: 'center' }}>
-            <PersonIcon sx={{ fontSize: 64, color: '#FFD700', mb: 2 }} />
-            <Typography variant="h6" color="white">
-              Please search for guides first
-            </Typography>
-          </CardContent>
-        </Card>
-      </Container>
-    );
-  }
+  // Handle city selection
+  const handleCitySelect = (city) => {
+    console.log("City selected:", city);
+    setSelectedCity(city);
+    
+    if (city) {
+      setCityError(false);
+      // Disable guide listing until API call is successful
+      setIsGuideListingEnabled(false);
+      
+      // Dispatch fetchGuides API call
+      dispatch(fetchGuides({ city: `${city.name}, (${country})`, date: bookingDate, tour_id: numericTourId }))
+        .then((result) => {
+          console.log("fetchGuides API result:", result);
+          if (result.error) {
+            console.error("fetchGuides API Error:", result.error);
+            setIsGuideListingEnabled(false);
+          } else {
+            console.log("fetchGuides API Success - enabling guide listing");
+            setIsGuideListingEnabled(true);
+          }
+        })
+        .catch((error) => {
+          console.error("Error dispatching fetchGuides:", error);
+          setIsGuideListingEnabled(false);
+        });
+    } else {
+      // If no city selected, disable guide listing
+      setIsGuideListingEnabled(false);
+    }
+  };
+
+  // if (!guides || guides.length === 0) {
+  //   return (
+  //     <Container maxWidth="xl">
+  //       <Card 
+  //         elevation={3}
+  //         sx={{
+  //           borderRadius: 3,
+  //           background: 'linear-gradient(135deg, #2196f3 0%, #1976d2 100%)',
+  //           color: 'white',
+  //           mb: 2,
+  //           mx: 'auto',
+  //         }}
+  //       >
+  //         <CardContent sx={{ py: 2, textAlign: 'center' }}>
+  //           <PersonIcon sx={{ fontSize: 64, color: '#FFD700', mb: 2 }} />
+  //           <Typography variant="h6" color="white">
+  //             Please search for guides first
+  //           </Typography>
+  //         </CardContent>
+  //       </Card>
+  //     </Container>
+  //   );
+  // }
 
   return (
-    <Container maxWidth="xl" sx={{ py: 2, position: 'relative' }}>
+    <Container maxWidth="xl" sx={{ mt: 3, mb: 4 }}>
       {/* Header Card with Gradient Background */}
       <Card 
         elevation={3}
         sx={{
-          borderRadius: 3,
+          borderRadius: 2,
           background: 'linear-gradient(135deg, #2196f3 0%, #1976d2 100%)',
           color: 'white',
-          mb: 3,
+          mb: 1.5,
           mx: 'auto',
         }}
       >
-        <CardContent sx={{ py: 1}}>
-          <Box display="flex" alignItems="center" justifyContent="space-between">
-            <Box display="flex" alignItems="center">
-              <AssistantIcon sx={{ mr: 2, fontSize: 32, color: '#FFD700' }} />
+        <CardContent sx={{ 
+          py: { xs: 1, sm: 0.8, md: 0.5 },
+          px: { xs: 1.5, sm: 2, md: 2 },
+          height: { xs: 'auto', sm: '52px' },
+          minHeight: { xs: '60px', sm: '52px' }
+        }}>
+          <Box 
+            display="flex" 
+            alignItems="center" 
+            justifyContent="space-between"
+            flexDirection={{ xs: 'column', sm: 'row' }}
+            gap={{ xs: 1, sm: 0 }}
+          >
+            <Box 
+              display="flex" 
+              alignItems="center"
+              flexDirection={{ xs: 'column', sm: 'row' }}
+              textAlign={{ xs: 'center', sm: 'left' }}
+              gap={{ xs: 1, sm: 0 }}
+            >
+              <AssistantIcon sx={{ 
+                mr: { xs: 0, sm: 1.5 }, 
+                mb: { xs: 0.5, sm: 0 },
+                fontSize: { xs: 32, sm: 28 }, 
+                color: '#FFD700' 
+              }} />
               <Box>
-                <Typography variant="h5" fontWeight="600" sx={{ color: 'white' }}>
+                <Typography 
+                  variant="h6" 
+                  fontWeight="600" 
+                  sx={{ 
+                    color: 'white', 
+                    fontSize: { xs: '0.85rem', sm: '0.9rem', md: '0.9rem' },
+                    lineHeight: 1.2
+                  }}
+                >
                   Book Tour Guide Services
                 </Typography>
-                <Typography variant="body2" sx={{ color: 'rgba(255, 255, 255, 0.8)' }}>
+                <Typography 
+                  variant="body2" 
+                  sx={{ 
+                    color: 'rgba(255, 255, 255, 0.8)', 
+                    fontSize: { xs: '0.65rem', sm: '0.7rem', md: '0.7rem' },
+                    lineHeight: 1.3,
+                    display: { xs: 'none', sm: 'block' }
+                  }}
+                >
                   Select professional guides and configure your tour package
                 </Typography>
               </Box>
@@ -1197,7 +1367,11 @@ export default function GuideComponent({ date, dayIndex, guidespack, tourDates =
                 bgcolor: 'rgba(255, 255, 255, 0.2)',
                 color: 'white',
                 fontWeight: 600,
-                border: '1px solid rgba(255, 255, 255, 0.3)'
+                border: '1px solid rgba(255, 255, 255, 0.3)',
+                fontSize: { xs: '0.7rem', sm: '0.75rem' },
+                height: { xs: '28px', sm: '20px' },
+                minWidth: { xs: '80px', sm: 'auto' },
+                mt: { xs: 0.5, sm: 0 }
               }}
             />
           </Box>
@@ -1207,7 +1381,7 @@ export default function GuideComponent({ date, dayIndex, guidespack, tourDates =
       <Fade in={validationError} timeout={300}>
         <Box>
           {validationError && (
-            <Alert severity="error" sx={{ mb: 2, borderRadius: 2 }}>
+            <Alert severity="error" sx={{ mb: 1.5, borderRadius: 1.5 }}>
               {validationError}
             </Alert>
           )}
@@ -1217,54 +1391,66 @@ export default function GuideComponent({ date, dayIndex, guidespack, tourDates =
       <Fade in={bookingSuccess} timeout={300}>
         <Box>
           {bookingSuccess && (
-            <Alert severity="success" sx={{ mb: 2, borderRadius: 2 }}>
+            <Alert severity="success" sx={{ mb: 1.5, borderRadius: 1.5 }}>
               Guide booking information saved successfully to the tour package data!
             </Alert>
           )}
         </Box>
       </Fade>
       
-      <Grid container spacing={2}>
+      <Grid container spacing={1.5}>
         {formSections.map((section, sectionIndex) => {
           const selectedGuideDetails = getSelectedGuide(section.guide);
           const completionStatus = getCompletionStatus(section);
           const isExpanded = expandedSections.includes(sectionIndex);
           const outOfTourDates = isBookingOutOfTourDates(section);
+          console.log("sectionIndexguide1323", section);
+          console.log(`Rendering section ${sectionIndex}:`, {
+            guideId: section.guide,
+            guideName: section.guide_name,
+            selectedGuideDetails: selectedGuideDetails ? {
+              id: selectedGuideDetails.id,
+              name: selectedGuideDetails.guide_name
+            } : 'Not found',
+            hasOriginalData: !!section.originalData
+          });
           
           return (
             <Grid item xs={12} key={sectionIndex}>
               <Card 
                 elevation={2}
                 sx={{ 
-                  borderRadius: 3,
-                  border: outOfTourDates ? '2px solid #e53935' : `2px solid ${alpha('#2196f3', 0.2)}`,
+                  borderRadius: 2,
+                  border: outOfTourDates ? '1px solid #e53935' : `1px solid ${alpha('#2196f3', 0.2)}`,
                   background: outOfTourDates ? 'rgba(229,57,53,0.08)' : undefined,
                   transition: 'all 0.3s ease',
                   '&:hover': {
                     boxShadow: outOfTourDates
-                      ? `0 8px 24px ${alpha('#e53935', 0.15)}`
-                      : `0 8px 24px ${alpha('#2196f3', 0.15)}`,
-                    transform: 'translateY(-2px)',
+                      ? `0 4px 12px ${alpha('#e53935', 0.15)}`
+                      : `0 4px 12px ${alpha('#2196f3', 0.15)}`,
+                    transform: 'translateY(-1px)',
                   }
                 }}
               >
                 <CardContent sx={{ p: 0 }}>
                   {/* Header */}
                   <Box sx={{ 
-                    p: 2,
+                    p: 1.5,
                     bgcolor: alpha('#2196f3', 0.05),
                     borderBottom: `1px solid ${alpha('#2196f3', 0.1)}`,
                     display: 'flex',
                     alignItems: 'center',
                     justifyContent: 'space-between'
                   }}>
-                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
+                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5 }}>
                       <Chip 
                         label={`Booking ${sectionIndex + 1}`}
                         sx={{ 
                           bgcolor: '#2196f3',
                           color: 'white',
-                          fontWeight: 600
+                          fontWeight: 600,
+                          fontSize: '0.7rem',
+                          height: '20px'
                         }}
                         size="small"
                       />
@@ -1273,16 +1459,19 @@ export default function GuideComponent({ date, dayIndex, guidespack, tourDates =
                         color={completionStatus === 4 ? "success" : "warning"}
                         size="small"
                         variant="outlined"
+                        sx={{ fontSize: '0.7rem', height: '20px' }}
                       />
                       {selectedGuideDetails && (
                         <Chip 
-                          icon={<LocationOnIcon sx={{ fontSize: 16 }} />}
+                          icon={<LocationOnIcon sx={{ fontSize: 14 }} />}
                           label={selectedGuideDetails.city}
                           size="small"
                           variant="outlined"
                           sx={{ 
                             borderColor: '#2196f3',
-                            color: '#2196f3'
+                            color: '#2196f3',
+                            fontSize: '0.7rem',
+                            height: '20px'
                           }}
                         />
                       )}
@@ -1305,15 +1494,15 @@ export default function GuideComponent({ date, dayIndex, guidespack, tourDates =
                       {section.guide && (
                         <Button
                           variant="outlined"
-                          size="large"
+                          size="medium"
                           onClick={() => handleOpenModal(sectionIndex)}
                           disabled={!section.guide}
                           startIcon={<VisibilityIcon />}
                           sx={{
-                            borderRadius: 2,
-                            px: 4,
-                            py: 1,
-                            fontSize: '0.875rem',
+                            borderRadius: 1.5,
+                            px: 3,
+                            py: 0.8,
+                            fontSize: '0.8rem',
                             fontWeight: 600,
                             textTransform: 'none',
                             borderColor: '#2196f3',
@@ -1329,7 +1518,7 @@ export default function GuideComponent({ date, dayIndex, guidespack, tourDates =
                           View Summary
                         </Button>
                       )}
-                                  
+                      {(tourStatus !== "Confirmed" && tourStatus !== "Definite" && tourStatus !== "Actual") && (
                       <Tooltip title="Remove Booking">
                         <IconButton 
                           size="small"
@@ -1340,16 +1529,17 @@ export default function GuideComponent({ date, dayIndex, guidespack, tourDates =
                             '&:hover': { bgcolor: alpha(theme.palette.error.main, 0.2) }
                           }}
                         >
-                          <DeleteIcon sx={{ fontSize: 18 }} />
+                          <DeleteIcon sx={{ fontSize: 16 }} />
                         </IconButton>
                       </Tooltip>
+                      )}
                     </Box>
                   </Box>
 
                   {/* Summary when collapsed */}
                   {!isExpanded && selectedGuideDetails && (
-                    <Box sx={{ p: 2 }}>
-                      <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
+                    <Box sx={{ p: 1.5 }}>
+                      <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5 }}>
                         <Box 
                           component="img"
                           src={(() => {
@@ -1373,53 +1563,59 @@ export default function GuideComponent({ date, dayIndex, guidespack, tourDates =
                                selectedGuide?.guide_name || 
                                selectedGuideDetails.guide_name}
                           sx={{ 
-                            width: 60, 
-                            height: 60, 
-                            borderRadius: 2,
+                            width: 50, 
+                            height: 50, 
+                            borderRadius: 1.5,
                             objectFit: 'cover',
-                            border: `2px solid ${alpha('#2196f3', 0.2)}`
+                            border: `1px solid ${alpha('#2196f3', 0.2)}`
                           }}
                         />
                         <Box sx={{ flex: 1 }}>
-                          <Typography variant="h6" fontWeight={600} sx={{ mb: 0.5 }}>
+                          <Typography variant="subtitle1" fontWeight={600} sx={{ mb: 0.5, fontSize: '0.9rem' }}>
                             {section.originalData?.guide_name || 
                              selectedGuide?.guide_name || 
                              selectedGuideDetails.guide_name}
                           </Typography>
-                          <Box sx={{ display: 'flex', gap: 2, flexWrap: 'wrap' }}>
+                          <Box sx={{ display: 'flex', gap: 1.5, flexWrap: 'wrap' }}>
                             {section.pax.Adults + section.pax.Children > 0 && (
                               <Chip 
-                                icon={<PeopleIcon sx={{ fontSize: 16 }} />}
+                                icon={<PeopleIcon sx={{ fontSize: 14 }} />}
                                 label={`${section.pax.Adults + section.pax.Children} Pax`}
                                 size="small"
                                 variant="outlined"
                                 sx={{ 
                                   borderColor: '#2196f3',
-                                  color: '#2196f3'
+                                  color: '#2196f3',
+                                  fontSize: '0.7rem',
+                                  height: '20px'
                                 }}
                               />
                             )}
                             {section.pickUpTime && (
                               <Chip 
-                                icon={<AccessTimeIcon sx={{ fontSize: 16 }} />}
+                                icon={<AccessTimeIcon sx={{ fontSize: 14 }} />}
                                 label={section.pickUpTime}
                                 size="small"
                                 variant="outlined"
                                 sx={{ 
                                   borderColor: '#2196f3',
-                                  color: '#2196f3'
+                                  color: '#2196f3',
+                                  fontSize: '0.7rem',
+                                  height: '20px'
                                 }}
                               />
                             )}
                             {section.hourlyPackage && (
                               <Chip 
-                                icon={<BusinessCenterIcon sx={{ fontSize: 16 }} />}
+                                icon={<BusinessCenterIcon sx={{ fontSize: 14 }} />}
                                 label={`${section.hourlyPackage}h Package`}
                                 size="small"
                                 variant="outlined"
                                 sx={{ 
                                   borderColor: '#2196f3',
-                                  color: '#2196f3'
+                                  color: '#2196f3',
+                                  fontSize: '0.7rem',
+                                  height: '20px'
                                 }}
                               />
                             )}
@@ -1434,28 +1630,59 @@ export default function GuideComponent({ date, dayIndex, guidespack, tourDates =
                     <Paper 
                       elevation={0} 
                       sx={{ 
-                        m: 2,
+                        m: 1.5,
                         p: 0, 
-                        borderRadius: 2,
+                        borderRadius: 1.5,
                         background: 'rgba(255, 255, 255, 0.95)',
                         backdropFilter: 'blur(10px)'
                       }}
                     >
-                      <Grid container spacing={2} alignItems="flex-end">
+                      <Grid container spacing={1.5} alignItems="flex-end">
+                        {/* City Selection */}
+                        <Grid item xs={12} md={3}>
+                          <Box sx={{ height: '100%', display: 'flex', flexDirection: 'column' }}>
+                            <Box display="flex" alignItems="center" mb={0.8} sx={{ height: '28px' }}>
+                              <LocationOnIcon sx={{ mr: 0.8, color: '#1976d2', fontSize: 18 }} />
+                              <Typography 
+                                variant="body2" 
+                                fontWeight="600"
+                                color={!isCityEnabled ? "text.disabled" : "text.primary"}
+                                sx={{ fontSize: '0.8rem' }}
+                              >
+                                City
+                              </Typography>
+                            </Box>
+                            <Box sx={{ minHeight: '36px', display: 'flex', alignItems: 'center', position: 'relative', zIndex: 1 }}>
+                              <PortCity
+                                onLocationSelect={handleCitySelect}
+                                hasError={cityError}
+                                setError={setCityError}
+                                disabled={!isCityEnabled}
+                              />
+                            </Box>
+                          </Box>
+                        </Grid>
+
                         {/* Guide Selection */}
                         <Grid item xs={12} md={3}>
                           <Box sx={{ height: '100%', display: 'flex', flexDirection: 'column' }}>
-                            <Box display="flex" alignItems="center" mb={1} sx={{ height: '32px' }}>
-                              <PersonIcon sx={{ mr: 1, color: '#2196f3', fontSize: 20 }} />
-                              <Typography variant="subtitle2" fontWeight="600" color="text.primary">
+                            <Box display="flex" alignItems="center" mb={0.8} sx={{ height: '28px' }}>
+                              <PersonIcon sx={{ mr: 0.8, color: '#2196f3', fontSize: 18 }} />
+                              <Typography 
+                                variant="body2" 
+                                fontWeight="600" 
+                                color={!isGuideListingEnabled ? "text.disabled" : "text.primary"} 
+                                sx={{ fontSize: '0.8rem' }}
+                              >
                                 Select Guide
                               </Typography>
                             </Box>
-                            <Box sx={{ minHeight: '48px', display: 'flex', alignItems: 'center' }}>
+                            <Box sx={{ minHeight: '42px', display: 'flex', alignItems: 'center' }}>
                               <GuideListing 
                                 value={section.guide}
+                                selectedGuideName={section?.guide_name}
                                 onChange={(field, value) => handleInputChange(sectionIndex, field, value)}
-                                disabled={status === 'loading'}
+                                disabled={status === 'loading' || !isGuideListingEnabled}
                               />
                             </Box>
                           </Box>
@@ -1464,17 +1691,18 @@ export default function GuideComponent({ date, dayIndex, guidespack, tourDates =
                         {/* Guests Selection */}
                         <Grid item xs={12} md={3}>
                           <Box sx={{ height: '100%', display: 'flex', flexDirection: 'column' }}>
-                            <Box display="flex" alignItems="center" mb={1} sx={{ height: '32px' }}>
-                              <PeopleIcon sx={{ mr: 1, color: '#2e7d32', fontSize: 20 }} />
+                            <Box display="flex" alignItems="center" mb={0.8} sx={{ height: '28px' }}>
+                              <PeopleIcon sx={{ mr: 0.8, color: '#2e7d32', fontSize: 18 }} />
                               <Typography 
-                                variant="subtitle2" 
+                                variant="body2" 
                                 fontWeight="600"
                                 color={!section.guide ? "text.disabled" : "text.primary"}
+                                sx={{ fontSize: '0.8rem' }}
                               >
                                 Select Guests
                               </Typography>
                             </Box>
-                            <Box sx={{ minHeight: '48px', display: 'flex', alignItems: 'center' }}>
+                            <Box sx={{ minHeight: '42px', display: 'flex', alignItems: 'center' }}>
                               <PassengerSelection
                                 value={section.pax}
                                 onChange={(value) => handleInputChange(sectionIndex, 'pax', value)}
@@ -1487,17 +1715,18 @@ export default function GuideComponent({ date, dayIndex, guidespack, tourDates =
                         {/* Time Selection */}
                         <Grid item xs={12} md={3}>
                           <Box sx={{ height: '100%', display: 'flex', flexDirection: 'column' }}>
-                            <Box display="flex" alignItems="center" mb={1} sx={{ height: '32px' }}>
-                              <AccessTimeIcon sx={{ mr: 1, color: '#ff9800', fontSize: 20 }} />
+                            <Box display="flex" alignItems="center" mb={0.8} sx={{ height: '28px' }}>
+                              <AccessTimeIcon sx={{ mr: 0.8, color: '#ff9800', fontSize: 18 }} />
                               <Typography 
-                                variant="subtitle2" 
+                                variant="body2" 
                                 fontWeight="600"
                                 color={!section.guide ? "text.disabled" : "text.primary"}
+                                sx={{ fontSize: '0.8rem' }}
                               >
                                 Pickup Time
                               </Typography>
                             </Box>
-                            <Box sx={{ minHeight: '48px', display: 'flex', alignItems: 'center' }}>
+                            <Box sx={{ minHeight: '42px', display: 'flex', alignItems: 'center' }}>
                               <TimeSelection
                                 value={section.pickUpTime}
                                 onChange={(e) => handleInputChange(sectionIndex, 'pickUpTime', e)}
@@ -1510,17 +1739,18 @@ export default function GuideComponent({ date, dayIndex, guidespack, tourDates =
                         {/* Package Selection */}
                         <Grid item xs={12} md={3}>
                           <Box sx={{ height: '100%', display: 'flex', flexDirection: 'column' }}>
-                            <Box display="flex" alignItems="center" mb={1} sx={{ height: '32px' }}>
-                              <BusinessCenterIcon sx={{ mr: 1, color: '#9c27b0', fontSize: 20 }} />
+                            <Box display="flex" alignItems="center" mb={0.8} sx={{ height: '28px' }}>
+                              <BusinessCenterIcon sx={{ mr: 0.8, color: '#9c27b0', fontSize: 18 }} />
                               <Typography 
-                                variant="subtitle2" 
+                                variant="body2" 
                                 fontWeight="600"
                                 color={!section.guide || !section.pickUpTime ? "text.disabled" : "text.primary"}
+                                sx={{ fontSize: '0.8rem' }}
                               >
                                 Select Package
                               </Typography>
                             </Box>
-                            <Box sx={{ minHeight: '48px', display: 'flex', alignItems: 'center' }}>
+                            <Box sx={{ minHeight: '42px', display: 'flex', alignItems: 'center' }}>
                               <PackageSelection
                                 value={section.hourlyPackage}
                                 onChange={(e) => handleInputChange(sectionIndex, 'hourlyPackage', e)}
@@ -1538,8 +1768,8 @@ export default function GuideComponent({ date, dayIndex, guidespack, tourDates =
 
                   {/* Red alert if out of tour dates */}
                   {outOfTourDates && (
-                    <Box sx={{ px: 2, pt: 1 }}>
-                      <Alert severity="error" sx={{ borderRadius: 2, mb: 1 }}>
+                    <Box sx={{ px: 1.5, pt: 0.5 }}>
+                      <Alert severity="error" sx={{ borderRadius: 1.5, mb: 0.5 }}>
                         The booking is out of currently updated tour dates
                       </Alert>
                     </Box>
@@ -1554,8 +1784,8 @@ export default function GuideComponent({ date, dayIndex, guidespack, tourDates =
         <Grid item xs={12}>
           <Card 
             sx={{ 
-              borderRadius: 3,
-              border: `2px dashed ${alpha('#2196f3', 0.4)}`,
+              borderRadius: 2,
+              border: `1px dashed ${alpha('#2196f3', 0.4)}`,
               bgcolor: alpha('#2196f3', 0.02),
               cursor: 'pointer',
               transition: 'all 0.3s ease',
@@ -1572,10 +1802,10 @@ export default function GuideComponent({ date, dayIndex, guidespack, tourDates =
                 display: 'flex', 
                 alignItems: 'center', 
                 justifyContent: 'center',
-                gap: 2
+                gap: 1.5
               }}>
-                <AddIcon sx={{ fontSize: 32, color: '#2196f3' }} />
-                <Typography variant="h6" color="#2196f3" fontWeight={600}>
+                <AddIcon sx={{ fontSize: 28, color: '#2196f3' }} />
+                <Typography variant="subtitle1" color="#2196f3" fontWeight={600} sx={{ fontSize: '0.9rem' }}>
                   Add More
                 </Typography>
               </Box>

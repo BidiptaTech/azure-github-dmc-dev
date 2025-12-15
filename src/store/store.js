@@ -29,6 +29,8 @@ import convertToTourListReducer from "../slice/enquiries/enquiryToTourSlice"
 import tourPackagesReducer from "../slice/tour-packages/tourPackageSlice"
 import prePackagesReducer from "../slice/tour-packages/prePackagesSlice"
 import profileReducer from "../slice/common/profileSlice"
+import dmcReducer from "../slice/dmc/dmcSlice"
+import stepperButtonReducer from "../slice/common/stepperButtonSlice"
 
 export const store = configureStore({
   reducer: {
@@ -61,6 +63,8 @@ export const store = configureStore({
     convertToTourList:convertToTourListReducer,
     tourPackages: tourPackagesReducer,
     prePackages: prePackagesReducer,
-    profile: profileReducer
+    profile: profileReducer,
+    dmc: dmcReducer,
+    stepperButton: stepperButtonReducer
   },
 });

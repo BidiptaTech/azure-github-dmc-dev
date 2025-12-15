@@ -7,8 +7,8 @@ import TourStatus from "@/components/common/sub_common/TourStatus";
 import StepperBooking2 from "@/components/restaurants/booking-page/index2";
 import { useNavigate } from "react-router-dom";
 import { selectUserInfo } from "@/slice/common/customerInfo";
-import { useSelector } from "react-redux";
-import { selectIsNavigating } from "@/slice/common/commonSlice";
+import { useSelector, useDispatch } from "react-redux";
+import { selectIsNavigating, setIsNavigating } from "@/slice/common/commonSlice";
 import { useEffect, useState } from "react";
 
 const metadata = {
@@ -18,11 +18,17 @@ const metadata = {
 
 const BookingPage = () => {
   const navigate = useNavigate();
+  const dispatch = useDispatch();
   const userInfo = useSelector(selectUserInfo);
   const isNavigating = useSelector(selectIsNavigating);
   
   // Use a state to track which component to show, initialize based on userInfo
   const [currentStep, setCurrentStep] = useState(userInfo?.fullName ? 'confirmation' : 'booking');
+  
+  // Reset isNavigating on mount so second booking shows index2.jsx if userInfo exists
+  useEffect(() => {
+    dispatch(setIsNavigating(false));
+  }, [dispatch]);
   
   useEffect(() => {
     // Only change steps when we're not in the middle of navigating

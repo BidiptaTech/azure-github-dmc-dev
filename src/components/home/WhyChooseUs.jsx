@@ -121,19 +121,28 @@ const WhyChooseUs = () => {
         <Grid container spacing={3} alignItems="center">
           {/* Left Side - Images */}
           <Grid item xs={12} md={6}>
-            <Box sx={{ position: 'relative', height: '600px' }}>
+            <Box sx={{ 
+              position: 'relative', 
+              height: { xs: '300px', sm: '400px', md: '600px' },
+              display: { xs: 'flex', md: 'block' },
+              flexDirection: { xs: 'column', sm: 'row' },
+              gap: { xs: 2, sm: 1 },
+              justifyContent: 'center',
+              alignItems: 'center'
+            }}>
               {/* Top Left Image - Castle */}
               <Box
                 sx={{
-                  position: 'absolute',
-                  top: 0,
-                  left: 0,
-                  width: '280px',
-                  height: '280px',
+                  position: { xs: 'relative', md: 'absolute' },
+                  top: { xs: 'auto', md: 0 },
+                  left: { xs: 'auto', md: 0 },
+                  width: { xs: '150px', sm: '180px', md: '280px' },
+                  height: { xs: '150px', sm: '180px', md: '280px' },
                   borderRadius: '30%',
                   overflow: 'hidden',
                   boxShadow: '0 15px 35px rgba(0,0,0,0.2)',
-                  zIndex: 2
+                  zIndex: 2,
+                  order: { xs: 1, sm: 1, md: 'auto' }
                 }}
               >
                 <Box
@@ -155,15 +164,16 @@ const WhyChooseUs = () => {
               {/* Bottom Left Image - Woman in Yellow */}
               <Box
                 sx={{
-                  position: 'absolute',
-                  bottom: 0,
-                  left: 0,
-                  width: '280px',
-                  height: '280px',
+                  position: { xs: 'relative', md: 'absolute' },
+                  bottom: { xs: 'auto', md: 0 },
+                  left: { xs: 'auto', md: 0 },
+                  width: { xs: '150px', sm: '180px', md: '280px' },
+                  height: { xs: '150px', sm: '180px', md: '280px' },
                   borderRadius: '50%',
                   overflow: 'hidden',
                   boxShadow: '0 15px 35px rgba(0,0,0,0.2)',
-                  zIndex: 2
+                  zIndex: 2,
+                  order: { xs: 2, sm: 2, md: 'auto' }
                 }}
               >
                 <Box
@@ -182,19 +192,20 @@ const WhyChooseUs = () => {
                 />
               </Box>
 
-              {/* Right Side Image - Eiffel Tower */}
+              {/* Right Side Image - Eiffel Tower - Hidden on mobile */}
               <Box
                 sx={{
                   position: 'absolute',
                   top: '50%',
                   right: 0,
                   transform: 'translateY(-50%)',
-                  width: '320px',
-                  height: '600px',
+                  width: { xs: '0px', sm: '0px', md: '320px' },
+                  height: { xs: '0px', sm: '0px', md: '600px' },
                   borderRadius: '10%',
                   overflow: 'hidden',
                   boxShadow: '0 20px 40px rgba(0,0,0,0.2)',
-                  zIndex: 3
+                  zIndex: 3,
+                  display: { xs: 'none', md: 'block' }
                 }}
               >
                 <Box

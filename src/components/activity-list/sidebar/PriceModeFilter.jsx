@@ -4,17 +4,20 @@ import { setPriceMode } from "@/slice/port/pickupDropSlice";
 import { setPriceMode1 } from "@/slice/localtour/Localslice";
 import { setPriceMode2 } from "@/slice/tourguide/guideslice";
 import { Checkbox, FormControlLabel, FormControl, Avatar } from "@mui/material";
+import { selectSelectedDmcLogo, selectSelectedDmcCompanyName } from "@/slice/dmc/dmcSlice";
 
 const PriceModeFilter = () => {
   const dispatch = useDispatch();
-  const [isChecked, setIsChecked] = useState(false); // Local state for checkbox
-  const DmcName = useSelector((state) => state.auth.DmcName);
-  const DmcLogo = useSelector((state) => state.auth.DmcLogo);
+  const [isChecked, setIsChecked] = useState(true); // Local state for checkbox
+  const DmcName = useSelector(selectSelectedDmcCompanyName);
+  const DmcLogo = useSelector(selectSelectedDmcLogo);
+  console.log("DmcName1", DmcName);
+  console.log("DmcLogo1", DmcLogo);
   // Dispatch default value "non-checked" when component mounts
   useEffect(() => {
-    dispatch(setPriceMode("non-checked"));
-    dispatch(setPriceMode1("non-checked"));
-    dispatch(setPriceMode2("non-checked"));
+    dispatch(setPriceMode("checked"));
+    dispatch(setPriceMode1("checked"));
+    dispatch(setPriceMode2("checked"));
   }, [dispatch]);
 
   const handleChange = (event) => {

@@ -1,9 +1,31 @@
 import React from "react";
-import { Button } from "@mui/material";
+import { 
+  Button, 
+  Box, 
+  Typography, 
+  Card, 
+  CardContent, 
+  TextField, 
+  InputAdornment,
+  Chip,
+  Paper,
+  Divider,
+  Alert,
+  Stack
+} from "@mui/material";
 import { Modal, Table, Empty } from "antd";
 import CheckCircleOutlinedIcon from "@mui/icons-material/CheckCircleOutlined";
 import CancelOutlinedIcon from "@mui/icons-material/CancelOutlined";
 import QuestionAnswerIcon from "@mui/icons-material/QuestionAnswer";
+import AttachMoneyIcon from "@mui/icons-material/AttachMoney";
+import CommentIcon from "@mui/icons-material/Comment";
+import HistoryIcon from "@mui/icons-material/History";
+import InfoIcon from "@mui/icons-material/Info";
+import WarningIcon from "@mui/icons-material/Warning";
+import TrendingUpIcon from "@mui/icons-material/TrendingUp";
+import AccessTimeIcon from "@mui/icons-material/AccessTime";
+import PersonIcon from "@mui/icons-material/Person";
+import MonetizationOnIcon from "@mui/icons-material/MonetizationOn";
 
 const EnquiryModal = ({
   isEnquiryModalVisible,
@@ -21,22 +43,52 @@ const EnquiryModal = ({
   submitEnquiry,
   handleEnquirySubmit,
 }) => {
+  // Calculate max amount and validation
+  // Use current_price from enquiryHistory if available, otherwise use totalPrice
+  const getCurrentPrice = () => {
+    if (enquiryHistory && enquiryHistory.length > 0) {
+      // Get the latest enquiry's current_price
+      const latestEnquiry = enquiryHistory[enquiryHistory.length - 1];
+      if (latestEnquiry.current_price) {
+        return parseFloat(latestEnquiry.current_price);
+      }
+    }
+    return totalPrice || 0;
+  };
+
+  const maxAmount = getCurrentPrice();
+  const currentAmount = parseFloat(enquiryAmount) || 0;
+  const isAmountExceeded = currentAmount > maxAmount;
   return (
     <Modal
-      title="Make an Enquiry"
+      title={
+        <Box display="flex" alignItems="center" gap={1}>
+          <HistoryIcon color="primary" />
+          <Typography variant="h6" component="span" sx={{ fontWeight: 600 }}>
+            Enquiry Management
+          </Typography>
+        </Box>
+      }
       open={isEnquiryModalVisible}
       onCancel={handleCloseEnquiryModal}
       footer={null}
-      width="800px"
+      width="950px"
       centered
+      styles={{
+        body: { padding: 0 }
+      }}
     >
-      <div style={{ padding: "20px" }}>
-        <div style={{ marginBottom: "20px" }}>
-          <h3 style={{ marginBottom: 0, color: "#3554D1", fontSize: "18px" }}>
-            Enquiry Details
-          </h3>
+      <Box sx={{ p: 1 }}>
+        <Card elevation={0} sx={{ mb: 1, border: '1px solid', borderColor: 'divider' }}>
+          <CardContent>
+            <Box display="flex" alignItems="center" gap={1} mb={2}>
+              <InfoIcon color="primary" />
+              <Typography variant="h6" sx={{ fontWeight: 600, color: 'primary.main' }}>
+                Enquiry History
+              </Typography>
+            </Box>
 
-          <div style={{ marginBottom: "20px", marginTop: "10px" }}>
+          <div style={{ marginBottom: "5px", marginTop: "10px" }}>
             <Table
               dataSource={enquiryHistory}
               columns={[
@@ -54,20 +106,32 @@ const EnquiryModal = ({
                   width: "10%",
                 },
                 {
-                  title: " Actual Price",
+                  title: "Actual Price",
                   dataIndex: "actual_price",
                   key: "actual_price",
                   width: "12%",
-                  render: (price) =>
-                    price ? `SGD${parseFloat(price).toFixed(0)}` : "N/A",
+                  render: (price) => (
+                    <Box display="flex" alignItems="center" gap={0.5}>
+                      <MonetizationOnIcon sx={{ fontSize: 16, color: 'success.main' }} />
+                      <Typography variant="body2" sx={{ fontWeight: 600 }}>
+                        {price ? `SGD${parseFloat(price).toFixed(0)}` : "N/A"}
+                      </Typography>
+                    </Box>
+                  ),
                 },
                 {
                   title: "Current Price",
                   dataIndex: "current_price",
                   key: "current_price",
                   width: "12%",
-                  render: (price) =>
-                    price ? `SGD${parseFloat(price).toFixed(0)}` : "N/A",
+                  render: (price) => (
+                    <Box display="flex" alignItems="center" gap={0.5}>
+                      <TrendingUpIcon sx={{ fontSize: 16, color: 'primary.main' }} />
+                      <Typography variant="body2" sx={{ fontWeight: 600 }}>
+                        {price ? `SGD${parseFloat(price).toFixed(0)}` : "N/A"}
+                      </Typography>
+                    </Box>
+                  ),
                 },
                 {
                   title: "Comment",
@@ -75,6 +139,14 @@ const EnquiryModal = ({
                   key: "comment",
                   width: "15%",
                   ellipsis: false,
+                  render: (comment) => (
+                    <Box display="flex" alignItems="center" gap={0.5}>
+                      <CommentIcon sx={{ fontSize: 16, color: 'text.secondary' }} />
+                      <Typography variant="body2">
+                        {comment || "N/A"}
+                      </Typography>
+                    </Box>
+                  ),
                 },
                 {
                   title: "Remarks",
@@ -82,27 +154,53 @@ const EnquiryModal = ({
                   key: "remarks",
                   width: "15%",
                   ellipsis: false,
+                  render: (remarks) => (
+                    <Typography variant="body2">
+                      {remarks || "N/A"}
+                    </Typography>
+                  ),
                 },
                 {
                   title: "Created",
                   dataIndex: "created",
                   key: "created",
                   width: "10%",
-                  render: (date) => date || "N/A",
+                  render: (date) => (
+                    <Box display="flex" alignItems="center" gap={0.5}>
+                      <AccessTimeIcon sx={{ fontSize: 16, color: 'text.secondary' }} />
+                      <Typography variant="body2">
+                        {date || "N/A"}
+                      </Typography>
+                    </Box>
+                  ),
                 },
                 {
                   title: "Updated",
                   dataIndex: "updated",
                   key: "updated",
                   width: "10%",
-                  render: (date) => date || "N/A",
+                  render: (date) => (
+                    <Box display="flex" alignItems="center" gap={0.5}>
+                      <AccessTimeIcon sx={{ fontSize: 16, color: 'text.secondary' }} />
+                      <Typography variant="body2">
+                        {date || "N/A"}
+                      </Typography>
+                    </Box>
+                  ),
                 },
                 {
                   title: "Pending",
                   dataIndex: "pending_days",
                   key: "pending_days",
                   width: "8%",
-                  render: (days) => days || "N/A",
+                  render: (days) => (
+                    <Chip 
+                      label={days || "N/A"} 
+                      size="small" 
+                      color={days > 7 ? "error" : days > 3 ? "warning" : "success"}
+                      variant="outlined"
+                    />
+                  ),
                 },
                 {
                   title: "Status",
@@ -161,20 +259,16 @@ const EnquiryModal = ({
                     };
 
                     return (
-                      <span
-                        style={{
+                      <Chip
+                        label={getStatusText(status)}
+                        size="small"
+                        sx={{
+                          backgroundColor: color ? `${color}15` : "rgba(24, 144, 255, 0.1)",
                           color: color || "#1890ff",
-                          backgroundColor: color
-                            ? `${color}15`
-                            : "rgba(24, 144, 255, 0.1)",
-                          padding: "3px 8px",
-                          borderRadius: "4px",
-                          fontSize: "12px",
                           fontWeight: "bold",
+                          border: `1px solid ${color || "#1890ff"}`,
                         }}
-                      >
-                        {getStatusText(status)}
-                      </span>
+                      />
                     );
                   },
                 },
@@ -197,172 +291,153 @@ const EnquiryModal = ({
               size="small"
             />
           </div>
+          </CardContent>
+        </Card>
 
-          {/* Show form ONLY when assigned is null or exactly "Agent". Hide for all other values  */}
-          {(assigned === null || assigned === "Agent") && (
-            <>
-              <div
-                style={{
-                  marginBottom: "20px",
-                  padding: "15px",
-                  borderRadius: "8px",
-                  border: "1px solid rgba(53, 84, 209, 0.1)",
-                  backgroundColor: "rgba(53, 84, 209, 0.03)",
+        {/* Show form ONLY when assigned is null or exactly "Agent". Hide for all other values  */}
+        {(assigned === null || assigned === "Agent") && (
+          <Card elevation={0} sx={{ border: '1px solid', borderColor: 'divider' }}>
+            <CardContent sx={{ p: 2 }}>
+              <Box display="flex" alignItems="center" gap={1} mb={1.5}>
+                <AttachMoneyIcon color="primary" />
+                <Typography variant="h6" sx={{ fontWeight: 600, color: 'primary.main' }}>
+                  Negotiate Amount
+                </Typography>
+              </Box>
+              <TextField
+                label="Negotiated Amount"
+                id="enquiryAmount"
+                type="number"
+                value={enquiryAmount || ""}
+                onChange={(e) => {
+                  const value = parseFloat(e.target.value) || 0;
+                  
+                  // Allow empty value or values up to maxAmount
+                  if (e.target.value === "" || value <= maxAmount) {
+                    handleEnquiryAmountChange(e);
+                  } else {
+                    // If value exceeds max, revert to the previous valid value
+                    e.target.value = enquiryAmount || "";
+                  }
                 }}
-              >
-                <label
-                  htmlFor="enquiryAmount"
-                  style={{
-                    display: "block",
-                    marginBottom: "8px",
-                    fontSize: "14px",
-                    fontWeight: "bold",
-                    color: "#555",
-                  }}
-                >
-                  Negotiated Amount
-                </label>
-
-                <div style={{ display: "flex", alignItems: "center" }}>
-                  <div
-                    style={{
-                      display: "flex",
-                      alignItems: "center",
-                      width: "100%",
-                      border: "1px solid #ddd",
-                      borderRadius: "4px",
-                      overflow: "hidden",
-                    }}
-                  >
-                    <div
-                      style={{
-                        padding: "8px 12px",
-                        backgroundColor: "#f5f5f5",
-                        borderRight: "1px solid #ddd",
-                        color: "#555",
-                        fontWeight: "bold",
-                      }}
-                    >
-                      SGD
-                    </div>
-                    <input
-                      id="enquiryAmount"
-                      type="number"
-                      min="0"
-                      value={enquiryAmount || totalPrice}
-                      onChange={handleEnquiryAmountChange}
-                      placeholder="Enter negotiated amount"
-                      style={{
-                        flex: 1,
-                        padding: "8px 12px",
-                        border: "none",
-                        outline: "none",
-                        fontSize: "14px",
-                        // Remove increment/decrement arrows
-                        WebkitAppearance: "none",
-                        MozAppearance: "textfield",
-                      }}
-                    />
-                  </div>
-                </div>
-
-                {/* Message showing max amount */}
-                <div
-                  style={{
-                    display: "flex",
-                    justifyContent: "space-between",
-                    marginTop: "8px",
-                    padding: "6px 10px",
-                    backgroundColor: "rgba(53, 84, 209, 0.08)",
-                    borderRadius: "4px",
-                    fontSize: "12px",
-                  }}
-                >
-                  <span style={{ color: "#555" }}>
-                    The negotiated amount must be less than or equal to the base
-                    price.
-                  </span>
-                  <span style={{ fontWeight: "bold", color: "#3554D1" }}>
-                    Max: SGD {totalPrice}
-                  </span>
-                </div>
-              </div>
-
-              <div
-                style={{
-                  marginBottom: "20px",
-                  padding: "15px",
-                  borderRadius: "8px",
-                  border: commentError
-                    ? "1px solid #f44336"
-                    : "1px solid rgba(53, 84, 209, 0.1)",
-                  backgroundColor: commentError
-                    ? "rgba(244, 67, 54, 0.03)"
-                    : "rgba(53, 84, 209, 0.03)",
+                onBlur={(e) => {
+                  // Ensure value doesn't exceed max on blur
+                  const value = parseFloat(e.target.value) || 0;
+                  if (value > maxAmount) {
+                    const syntheticEvent = {
+                      ...e,
+                      target: {
+                        ...e.target,
+                        value: maxAmount.toString()
+                      }
+                    };
+                    handleEnquiryAmountChange(syntheticEvent);
+                  }
                 }}
-              >
-                <label
-                  htmlFor="enquiryComment"
-                  style={{
-                    display: "block",
-                    marginBottom: "8px",
-                    fontSize: "14px",
-                    fontWeight: "bold",
-                    color: "#555",
-                  }}
-                >
-                  Comment <span style={{ color: "#f44336" }}>*</span>
-                </label>
-
-                <textarea
-                  id="enquiryComment"
-                  value={enquiryComment}
-                  onChange={(e) => {
-                    setEnquiryComment(e.target.value);
-                    setCommentError(false);
-                  }}
-                  placeholder="Enter your comment for this enquiry"
-                  rows="4"
-                  style={{
-                    width: "100%",
-                    padding: "10px",
-                    borderRadius: "4px",
-                    border: commentError
-                      ? "1px solid #f44336"
-                      : "1px solid #ddd",
-                    resize: "vertical",
-                    fontSize: "14px",
-                  }}
-                />
-
-                {commentError && (
-                  <p
-                    style={{
-                      color: "#f44336",
-                      margin: "5px 0 0",
-                      fontSize: "12px",
-                    }}
-                  >
-                    Comment is required
-                  </p>
-                )}
-              </div>
-
-              <div
-                style={{
-                  display: "flex",
-                  justifyContent: "flex-end",
-                  gap: "10px",
+                onKeyDown={(e) => {
+                  // Prevent typing if it would exceed maxAmount
+                  const currentValue = parseFloat(e.target.value) || 0;
+                  const key = e.key;
+                  
+                  // Allow backspace, delete, arrow keys, etc.
+                  if (['Backspace', 'Delete', 'ArrowLeft', 'ArrowRight', 'Tab', 'Enter'].includes(key)) {
+                    return;
+                  }
+                  
+                  // Allow numbers and decimal point
+                  if (/^[0-9.]$/.test(key)) {
+                    const newValue = parseFloat(currentValue.toString() + key) || 0;
+                    if (newValue > maxAmount) {
+                      e.preventDefault();
+                    }
+                  } else {
+                    // Prevent other keys
+                    e.preventDefault();
+                  }
                 }}
+                placeholder="Enter negotiated amount"
+                InputProps={{
+                  startAdornment: (
+                    <InputAdornment position="start">
+                      <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
+                        <MonetizationOnIcon color="primary" />
+                        <Typography variant="body2" sx={{ fontWeight: 600 }}>
+                          SGD
+                        </Typography>
+                      </Box>
+                    </InputAdornment>
+                  ),
+                }}
+                fullWidth
+                error={isAmountExceeded}
+                helperText={isAmountExceeded ? `Amount cannot exceed SGD ${maxAmount.toFixed(2)}` : `Maximum: SGD ${maxAmount.toFixed(2)}`}
+                sx={{ mb: 0.5 }}
+              />
+
+              {isAmountExceeded && (
+                <Alert 
+                  severity="error" 
+                  icon={<WarningIcon />}
+                  sx={{ mb: 0.5 }}
+                >
+                  Negotiated amount cannot exceed the current price of SGD {maxAmount.toFixed(2)}
+                </Alert>
+              )}
+
+              <Alert 
+                severity="info" 
+                icon={<InfoIcon />}
+                sx={{ mb: 0.5 }}
               >
+                <Box display="flex" justifyContent="space-between" alignItems="center">
+                  <Typography variant="body2">
+                    The negotiated amount must be less than or equal to the current price.
+                  </Typography>
+                  <Typography variant="body2" sx={{ fontWeight: 600, color: 'primary.main' }}>
+                    Current Price: SGD {maxAmount.toFixed(2)}
+                  </Typography>
+                </Box>
+              </Alert>
+            </CardContent>
+          </Card>
+        )}
+
+        {/* Comment Section */}
+          <Card elevation={0} sx={{ border: '1px solid', borderColor: 'divider', mt: 1.5 }}>
+            <CardContent sx={{ p: 2 }}>
+              <Box display="flex" alignItems="center" gap={1} mb={1.5}>
+                <CommentIcon color="primary" />
+                <Typography variant="h6" sx={{ fontWeight: 600, color: 'primary.main' }}>
+                  Add Comment
+                </Typography>
+              </Box>
+
+              <TextField
+                label="Comment"
+                id="enquiryComment"
+                value={enquiryComment}
+                onChange={(e) => {
+                  setEnquiryComment(e.target.value);
+                  setCommentError(false);
+                }}
+                placeholder="Enter your comment for this enquiry"
+                multiline
+                rows={3}
+                fullWidth
+                required
+                error={commentError}
+                helperText={commentError ? "Comment is required" : ""}
+                sx={{ mb: 1.5 }}
+              />
+   
+
+              <Stack direction="row" spacing={1.5} justifyContent="flex-end">
                 <Button
                   onClick={() => submitEnquiry("cancel")}
                   variant="contained"
                   color="error"
                   startIcon={<CancelOutlinedIcon />}
-                  sx={{
-                    fontSize: "14px",
-                  }}
+                  size="medium"
                 >
                   Cancel
                 </Button>
@@ -372,9 +447,8 @@ const EnquiryModal = ({
                   variant="contained"
                   color="success"
                   startIcon={<CheckCircleOutlinedIcon />}
-                  sx={{
-                    fontSize: "14px",
-                  }}
+                  disabled={isAmountExceeded || (enquiryAmount && enquiryAmount > 0)}
+                  size="medium"
                 >
                   Accept & Booking
                 </Button>
@@ -383,6 +457,8 @@ const EnquiryModal = ({
                   onClick={handleEnquirySubmit}
                   variant="contained"
                   startIcon={<QuestionAnswerIcon />}
+                  disabled={isAmountExceeded}
+                  size="medium"
                   sx={{
                     backgroundColor: "#3554D1",
                     "&:hover": {
@@ -392,11 +468,12 @@ const EnquiryModal = ({
                 >
                   Submit Enquiry
                 </Button>
-              </div>
-            </>
-          )}
-        </div>
-      </div>
+              </Stack>
+    
+
+            </CardContent>
+          </Card>
+      </Box>
     </Modal>
   );
 };

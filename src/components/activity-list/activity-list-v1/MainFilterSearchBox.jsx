@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback } from "react";
-import { useDispatch } from "react-redux";
+import { useDispatch, useSelector } from "react-redux";
 import DateSearch from "../common/DateSearch";
 import LocationSearch from "./LocationSearch";
 import {
@@ -11,6 +11,7 @@ import {
   // setDropoffPlaceid,
   resetguide,
 } from "@/slice/tourguide/guideslice";
+import { triggerSearch, clearTriggerSearch } from "@/slice/common/stepsSlice";
 import moment from "moment";
 
 const MainFilterSearchBox = ({ Location }) => {
@@ -53,9 +54,23 @@ const MainFilterSearchBox = ({ Location }) => {
     // Call the fetchGuides API with the required parameters
     dispatch(fetchGuides({
       city: pickUpLocation,
-      date: formattedDate
+      date: formattedDate,
+      start: 0,
+      limit: 5
     }));
   }, [dispatch, pickUpLocation, selectedDate]);
+
+  // Listen for triggerSearch from Redux and call buttonsearch when guide step is triggered
+  const searchTrigger = useSelector((state) => state.steps.triggerSearch);
+  
+  useEffect(() => {
+    if (searchTrigger === 'guide') {
+      console.log('🔍 Guide MainFilterSearchBox - Trigger search received, calling buttonsearch');
+      buttonsearch();
+      // Clear the trigger after handling
+      dispatch(clearTriggerSearch());
+    }
+  }, [searchTrigger, dispatch]);
 
   return (
     <>

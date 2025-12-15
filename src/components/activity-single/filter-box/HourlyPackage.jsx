@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useMemo } from "react";
 import { useLocation } from "react-router-dom";
 import { Select, FormControl, InputLabel, MenuItem } from "@mui/material";
 import { useSelector } from "react-redux";
@@ -16,7 +16,7 @@ const HourPackage = ({ hour, sethours, onHourChange, entryytime }) => {
   const [open, setOpen] = useState(false); // State to control dropdown open/close
   const [availableHours, setAvailableHours] = useState([]); // State for available hours
 
-  const hourlyPrices = {
+  const hourlyPrices = useMemo(() => ({
     1:
       guide.guide.prices.dmc_hourly_price ||
       guide.guide.prices.travclicks_hourly_price,
@@ -38,7 +38,7 @@ const HourPackage = ({ hour, sethours, onHourChange, entryytime }) => {
     12:
       guide.guide.prices.dmc_twelve_hour_price ||
       guide.guide.prices.travclicks_twelve_hour_price,
-  };
+  }), [guide.guide.prices]);
 
   // Calculate available hours based on selected entry time
   useEffect(() => {
@@ -85,7 +85,7 @@ const HourPackage = ({ hour, sethours, onHourChange, entryytime }) => {
       sethours("");
       onHourChange("", 0);
     }
-  }, [entryytime, hour, hourlyPrices, sethours, onHourChange]);
+  }, [entryytime, hour, hourlyPrices, sethours]);
 
   const handleHourChange = (e) => {
     const selectedHour = e.target.value;

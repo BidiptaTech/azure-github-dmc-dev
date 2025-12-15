@@ -41,7 +41,7 @@ const ServicesSummaryModal = ({ open, onClose }) => {
   const { searchCriteria } = useSelector((state) => state.tourPackages);
   const selectedCity = useSelector(state => state.common?.selectedCity?.cityName);
   const selectedCountry = useSelector(state => state.common?.selectedCity?.countryName);
-
+const PriceHide = useSelector(state => state.auth.PriceHide);
   // Generate dates array from the selected date range
   const dates = React.useMemo(() => {
     if (!searchCriteria?.checkIn || !searchCriteria?.checkOut) return [];
@@ -66,6 +66,7 @@ const ServicesSummaryModal = ({ open, onClose }) => {
   const itineraryByDate = React.useMemo(() => {
     const dateMap = new Map();
     
+    // First, collect all services by date
     allServices.forEach(service => {
       let serviceDates = [];
       
@@ -73,13 +74,16 @@ const ServicesSummaryModal = ({ open, onClose }) => {
       if ((service.type === 'Hotel' || service.type === 'hotel') && service.data?.[0]?.bookingDate) {
         const bookingDate = service.data[0].bookingDate;
         if (Array.isArray(bookingDate)) {
-          // For hotels, create entries for each day of stay
-          const startDate = moment(bookingDate[0]);
-          const endDate = moment(bookingDate[1]);
-          const daysDiff = endDate.diff(startDate, 'days');
+          // For hotels, only add check-in and check-out dates
+          const startDate = moment(bookingDate[0]).format('YYYY-MM-DD');
+          const endDate = moment(bookingDate[1]).format('YYYY-MM-DD');
           
-          for (let i = 0; i < daysDiff; i++) {
-            serviceDates.push(moment(startDate).add(i, 'days').format('YYYY-MM-DD'));
+          // Add check-in date
+          serviceDates.push(startDate);
+          
+          // Add check-out date (only if it's different from check-in)
+          if (startDate !== endDate) {
+            serviceDates.push(endDate);
           }
         } else {
           serviceDates.push(moment(bookingDate).format('YYYY-MM-DD'));
@@ -109,13 +113,24 @@ const ServicesSummaryModal = ({ open, onClose }) => {
       });
     });
     
-    // Convert to array and sort by date
-    return Array.from(dateMap.entries())
-      .sort(([dateA], [dateB]) => moment(dateA).diff(moment(dateB)))
-      .map(([date, services]) => ({
-        date: moment(date),
-        services: services.sort((a, b) => {
+    // Generate complete trip duration from search criteria
+    const completeItinerary = [];
+    
+    if (searchCriteria?.checkIn && searchCriteria?.checkOut) {
+      const startDate = moment(searchCriteria.checkIn, 'DD/MM/YYYY');
+      const endDate = moment(searchCriteria.checkOut, 'DD/MM/YYYY');
+      const totalDays = endDate.diff(startDate, 'days') + 1;
+      
+      // Generate all days from start to end
+      for (let i = 0; i < totalDays; i++) {
+        const currentDate = moment(startDate).add(i, 'days');
+        const dateStr = currentDate.format('YYYY-MM-DD');
+        
+        // Get services for this date (if any)
+        const dayServices = dateMap.get(dateStr) || [];
+        
           // Sort services by time within each day
+        const sortedServices = dayServices.sort((a, b) => {
           const getServiceTime = (service) => {
             const data = service.data?.[0];
             let timeValue = '00:00';
@@ -180,9 +195,41 @@ const ServicesSummaryModal = ({ open, onClose }) => {
           const time24B = convertTo24Hour(timeB);
           
           return time24A.localeCompare(time24B);
-        })
-      }));
-  }, [allServices]);
+        });
+        
+        // Push hotel checkout entries to the end of the day
+        const isHotelCheckout = (service) => {
+          if (!(service.type === 'Hotel' || service.type === 'hotel')) return false;
+          const hotelData = service.data?.[0];
+          const bookingDate = hotelData?.bookingDate;
+          if (Array.isArray(bookingDate)) {
+            const checkOutDate = moment(bookingDate[1]).format('YYYY-MM-DD');
+            return currentDate.format('YYYY-MM-DD') === checkOutDate;
+          }
+          return false;
+        };
+
+        const nonCheckout = sortedServices.filter(svc => !isHotelCheckout(svc));
+        const checkoutLast = sortedServices.filter(svc => isHotelCheckout(svc));
+        const finalServices = [...nonCheckout, ...checkoutLast];
+        
+        completeItinerary.push({
+          date: currentDate,
+          services: finalServices
+        });
+      }
+    } else {
+      // Fallback to original logic if no search criteria
+      completeItinerary.push(...Array.from(dateMap.entries())
+        .sort(([dateA], [dateB]) => moment(dateA).diff(moment(dateB)))
+        .map(([date, services]) => ({
+          date: moment(date),
+          services: services
+        })));
+    }
+    
+    return completeItinerary;
+  }, [allServices, searchCriteria]);
 
   // Service type configurations
   const serviceTypeConfig = {
@@ -234,6 +281,12 @@ const ServicesSummaryModal = ({ open, onClose }) => {
       title: 'Hourly Transport',
       bgColor: 'rgba(255, 87, 34, 0.1)'
     },
+    local_transfer: {
+      icon: <DirectionsCarIcon />,
+      color: '#2196f3',
+      title: 'Local Transfer',
+      bgColor: 'rgba(33, 150, 243, 0.1)'
+    },
     entry_port: {
       icon: <AirportShuttleIcon />,
       color: '#9c27b0',
@@ -252,6 +305,111 @@ const ServicesSummaryModal = ({ open, onClose }) => {
   const totalPrice = allServices.reduce((total, service) => {
     return total + (service.totalPrice || service.price || 0);
   }, 0);
+
+  // Helper: robust price extractor for any service
+  const extractServicePrice = (service) => {
+    if (!service) return 0;
+    // Direct total if present
+    if (typeof service.totalPrice === 'number') return service.totalPrice;
+
+    const data0 = service.data?.[0] || {};
+    // Common fields
+    if (typeof data0.totalPrice === 'number') return data0.totalPrice;
+    if (typeof data0.price === 'number') return data0.price;
+
+    // Restaurant variants
+    if (service.type === 'restaurant') {
+      const spec = data0.mealSpecificType;
+      if (typeof spec === 'object' && typeof spec?.totalPrice === 'number') return spec.totalPrice;
+      if (typeof data0.mealPrice === 'number') return data0.mealPrice;
+    }
+
+    // Attraction variants
+    if (service.type === 'attraction' || service.type === 'attraction_package') {
+      if (typeof data0.totalPrice === 'number') return data0.totalPrice;
+      if (typeof data0.ticket_details?.adult_price === 'number') {
+        const adults = Number(data0.adultCount || 0);
+        const children = Number(data0.childCount || 0);
+        const seniors = Number(data0.seniorCount || 0);
+        const ap = data0.ticket_details.adult_price || 0;
+        const cp = data0.ticket_details.child_price || 0;
+        const sp = data0.ticket_details.senior_price || 0;
+        return adults * ap + children * cp + seniors * sp;
+      }
+    }
+
+    // Hotel variants: sum beds/rooms if needed
+    if (service.type === 'Hotel' || service.type === 'hotel') {
+      if (typeof data0.totalPrice === 'number') return data0.totalPrice;
+      const rooms = Array.isArray(data0.rooms) ? data0.rooms : [];
+      if (rooms.length) {
+        const roomsTotal = rooms.reduce((sum, room) => {
+          const beds = Array.isArray(room?.beds) ? room.beds : [];
+          const bedTotal = beds.reduce((bSum, bed) => {
+            const base = Number(bed.price || 0);
+            const mealAdd = bed.selectedMeals
+              ? Object.values(bed.selectedMeals).reduce((ms, m) => ms + Number(m?.price || 0), 0)
+              : 0;
+            return bSum + base + mealAdd;
+          }, 0);
+          return sum + bedTotal;
+        }, 0);
+        if (roomsTotal > 0) return roomsTotal;
+      }
+    }
+
+    // Transport
+    if (
+      service.type === 'travel_point' ||
+      service.type === 'local_transfer' ||
+      service.type === 'travel_hourly' ||
+      service.type === 'entry_port' ||
+      service.type === 'exit_port'
+    ) {
+      if (typeof data0.totalPrice === 'number') return data0.totalPrice;
+      if (typeof data0.price === 'number') return data0.price;
+    }
+
+    return 0;
+  };
+
+  const servicesWithPrices = React.useMemo(() => {
+    return allServices.map((svc) => ({
+      service: svc,
+      price: extractServicePrice(svc)
+    }));
+  }, [allServices]);
+
+  const computedGrandTotal = React.useMemo(() => {
+    return servicesWithPrices
+      .filter((item) => Number(item.price) > 0)
+      .reduce((sum, item) => sum + (Number(item.price) || 0), 0);
+  }, [servicesWithPrices]);
+
+  // Function to get current destination based on hotels for a specific date
+  const getCurrentDestination = (date) => {
+    const dateStr = date.format('YYYY-MM-DD');
+    
+    // Find hotels that are active on this date
+    const activeHotels = allServices.filter(service => {
+      if ((service.type === 'Hotel' || service.type === 'hotel') && service.data?.[0]?.bookingDate) {
+        const bookingDate = service.data[0].bookingDate;
+        if (Array.isArray(bookingDate)) {
+          const startDate = moment(bookingDate[0]).format('YYYY-MM-DD');
+          const endDate = moment(bookingDate[1]).format('YYYY-MM-DD');
+          return dateStr >= startDate && dateStr <= endDate;
+        }
+      }
+      return false;
+    });
+
+    if (activeHotels.length > 0) {
+      const hotelData = activeHotels[0].data?.[0];
+      return hotelData?.hotelDetails?.location || hotelData?.location || selectedCity;
+    }
+    
+    return selectedCity;
+  };
 
   // Format date range for hotels
   const formatDateRange = (bookingDate) => {
@@ -300,254 +458,98 @@ const ServicesSummaryModal = ({ open, onClose }) => {
       fullWidth
       PaperProps={{
         sx: { 
-          borderRadius: 3,
-          maxHeight: '90vh'
+          borderRadius: 2,
+          maxHeight: '95vh',
+          bgcolor: 'white'
         }
       }}
     >
-      <DialogTitle sx={{ pb: 1 }}>
+      <DialogTitle sx={{ p: 0 }}>
         <Box sx={{ 
           display: 'flex', 
           alignItems: 'center', 
           justifyContent: 'space-between',
-          background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
-          color: 'white',
-          p: 3,
-          borderRadius: 2,
-          mb: 2,
-          boxShadow: '0 4px 12px rgba(102, 126, 234, 0.3)'
+          bgcolor: 'white',
+          p: 2,
+          borderBottom: '1px solid #e0e0e0'
         }}>
-          <Box sx={{ display: 'flex', alignItems: 'center' }}>
-            <Avatar 
-              sx={{ 
-                bgcolor: 'rgba(255, 255, 255, 0.2)', 
-                mr: 2,
-                width: 48,
-                height: 48,
-                backdropFilter: 'blur(10px)'
-              }}
-            >
-              <SummarizeIcon sx={{ fontSize: 24, color: 'white' }} />
-            </Avatar>
-            <Box>
-              <Typography variant="h5" fontWeight={700} sx={{ mb: 0.5 }}>
-                Trip Services Summary
+          <Typography variant="h6" fontWeight={600} color="text.primary">
+            Trip Summary
               </Typography>
-              <Typography variant="body2" sx={{ color: 'white', opacity: 0.9, fontWeight: 500 }}>
-                Complete overview of your travel itinerary
-              </Typography>
-            </Box>
-            {allServices.length > 0 && (
-              <Chip 
-                label={`${allServices.length} Service${allServices.length !== 1 ? 's' : ''}`} 
-                sx={{ 
-                  ml: 3,
-                  bgcolor: 'rgba(255, 255, 255, 0.2)',
-                  color: 'white',
-                  fontWeight: 600,
-                  backdropFilter: 'blur(10px)',
-                  border: '1px solid rgba(255, 255, 255, 0.3)'
-                }} 
-              />
-            )}
-          </Box>
-          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-            {allServices.length > 0 && (
-              <IconButton 
-                onClick={handlePrint} 
-                sx={{ 
-                  bgcolor: 'rgba(255, 255, 255, 0.1)',
-                  color: 'white',
-                  '&:hover': { 
-                    bgcolor: 'rgba(255, 255, 255, 0.2)',
-                    transform: 'scale(1.05)'
-                  },
-                  transition: 'all 0.3s ease'
-                }}
-              >
-                <PrintIcon />
-              </IconButton>
-            )}
             <IconButton 
               onClick={onClose}
               sx={{ 
-                bgcolor: 'rgba(255, 255, 255, 0.1)',
-                color: 'white',
+              color: 'text.secondary',
                 '&:hover': { 
-                  bgcolor: 'rgba(255, 255, 255, 0.2)',
-                  transform: 'scale(1.05)'
-                },
-                transition: 'all 0.3s ease'
+                bgcolor: 'rgba(0,0,0,0.04)'
+              }
               }}
             >
               <CloseIcon />
             </IconButton>
-          </Box>
         </Box>
       </DialogTitle>
 
-      <DialogContent sx={{ pt: 2 }}>
+      <DialogContent sx={{ p: 0, bgcolor: 'white' }}>
         {allServices.length === 0 ? (
           <Box sx={{ 
             textAlign: 'center', 
-            py: 8,
-            px: 3,
-            bgcolor: 'rgba(33, 150, 243, 0.02)',
-            borderRadius: 3,
-            border: '2px dashed rgba(33, 150, 243, 0.2)'
+            py: 6,
+            px: 3
           }}>
-            <Box sx={{ mb: 3 }}>
-              <Avatar 
-                sx={{ 
-                  width: 80, 
-                  height: 80, 
-                  bgcolor: 'rgba(33, 150, 243, 0.1)',
-                  mx: 'auto',
-                  mb: 2
-                }}
-              >
-                <AddCircleOutlineIcon sx={{ fontSize: 40, color: 'primary.main' }} />
-              </Avatar>
-              <Typography variant="h5" color="text.primary" fontWeight={600} gutterBottom>
+            <Typography variant="h6" color="text.secondary" gutterBottom>
                 No Services Selected Yet
               </Typography>
-              <Typography variant="body1" color="text.secondary" sx={{ mb: 3, maxWidth: 400, mx: 'auto' }}>
-                Start building your perfect trip by adding hotels, attractions, restaurants, and other services.
+            <Typography variant="body2" color="text.secondary">
+              Start building your perfect trip by adding services.
               </Typography>
             </Box>
-
-            <Grid container spacing={3} justifyContent="center" sx={{ maxWidth: 600, mx: 'auto' }}>
-              <Grid item xs={12} sm={6} md={3}>
-                <Card variant="outlined" sx={{ 
-                  p: 2, 
-                  textAlign: 'center',
-                  borderColor: 'rgba(25, 118, 210, 0.2)',
-                  bgcolor: 'rgba(25, 118, 210, 0.02)',
-                  '&:hover': { 
-                    bgcolor: 'rgba(25, 118, 210, 0.05)',
-                    transform: 'translateY(-2px)',
-                    transition: 'all 0.3s ease'
-                  }
-                }}>
-                  <HotelIcon sx={{ fontSize: 32, color: '#1976d2', mb: 1 }} />
-                  <Typography variant="subtitle2" fontWeight={600} color="primary.main">
-                    Hotels
-                  </Typography>
-                  <Typography variant="caption" color="text.secondary">
-                    Book accommodations
-                  </Typography>
-                </Card>
-              </Grid>
-
-              <Grid item xs={12} sm={6} md={3}>
-                <Card variant="outlined" sx={{ 
-                  p: 2, 
-                  textAlign: 'center',
-                  borderColor: 'rgba(244, 67, 54, 0.2)',
-                  bgcolor: 'rgba(244, 67, 54, 0.02)',
-                  '&:hover': { 
-                    bgcolor: 'rgba(244, 67, 54, 0.05)',
-                    transform: 'translateY(-2px)',
-                    transition: 'all 0.3s ease'
-                  }
-                }}>
-                  <AttractionsIcon sx={{ fontSize: 32, color: '#f44336', mb: 1 }} />
-                  <Typography variant="subtitle2" fontWeight={600} color="#f44336">
-                    Attractions
-                  </Typography>
-                  <Typography variant="caption" color="text.secondary">
-                    Explore destinations
-                  </Typography>
-                </Card>
-              </Grid>
-
-              <Grid item xs={12} sm={6} md={3}>
-                <Card variant="outlined" sx={{ 
-                  p: 2, 
-                  textAlign: 'center',
-                  borderColor: 'rgba(255, 152, 0, 0.2)',
-                  bgcolor: 'rgba(255, 152, 0, 0.02)',
-                  '&:hover': { 
-                    bgcolor: 'rgba(255, 152, 0, 0.05)',
-                    transform: 'translateY(-2px)',
-                    transition: 'all 0.3s ease'
-                  }
-                }}>
-                  <RestaurantIcon sx={{ fontSize: 32, color: '#ff9800', mb: 1 }} />
-                  <Typography variant="subtitle2" fontWeight={600} color="#ff9800">
-                    Restaurants
-                  </Typography>
-                  <Typography variant="caption" color="text.secondary">
-                    Dining experiences
-                  </Typography>
-                </Card>
-              </Grid>
-
-              <Grid item xs={12} sm={6} md={3}>
-                <Card variant="outlined" sx={{ 
-                  p: 2, 
-                  textAlign: 'center',
-                  borderColor: 'rgba(33, 150, 243, 0.2)',
-                  bgcolor: 'rgba(33, 150, 243, 0.02)',
-                  '&:hover': { 
-                    bgcolor: 'rgba(33, 150, 243, 0.05)',
-                    transform: 'translateY(-2px)',
-                    transition: 'all 0.3s ease'
-                  }
-                }}>
-                  <DirectionsCarIcon sx={{ fontSize: 32, color: '#2196f3', mb: 1 }} />
-                  <Typography variant="subtitle2" fontWeight={600} color="#2196f3">
-                    Transport
-                  </Typography>
-                  <Typography variant="caption" color="text.secondary">
-                    Get around easily
-                  </Typography>
-                </Card>
-              </Grid>
-            </Grid>
-
-            <Box sx={{ mt: 4 }}>
-              <Typography variant="body2" color="text.secondary" sx={{ fontStyle: 'italic' }}>
-                ✨ Your trip summary will appear here once you start adding services
-              </Typography>
-            </Box>
-          </Box>
         ) : (
-          <>
-            {/* Trip Overview */}
-            <Box sx={{ mb: 3, p: 3, bgcolor: 'rgba(33, 150, 243, 0.05)', borderRadius: 2 }}>
-              <Grid container spacing={3}>
-                <Grid item xs={12} md={8}>
-                  <Typography variant="h6" gutterBottom>
-                    {selectedCity}, {selectedCountry}
+          <Grid container sx={{ height: '100%' }}>
+            {/* Left Side - Itinerary */}
+            <Grid item xs={12} md={8} sx={{ borderRight: '1px solid #e0e0e0' }}>
+              <Box sx={{ 
+                bgcolor: 'white',
+                height: '100vh',
+                maxHeight: '80vh',
+                overflow: 'auto'
+              }}>
+                
+                {/* Top Route Bar */}
+                {/* <Box sx={{ 
+                  display: 'flex', 
+                  alignItems: 'center', 
+                  bgcolor: '#f5f5f5',
+                  p: 2,
+                  borderBottom: '1px solid #e0e0e0'
+                }}>
+                  <DirectionsCarIcon sx={{ fontSize: 16, mr: 1, color: '#666' }} />
+                  <Typography variant="body2" color="text.secondary" fontWeight={500}>
+                    {selectedCity}
                   </Typography>
-                  <Box sx={{ display: 'flex', alignItems: 'center', gap: 2, flexWrap: 'wrap' }}>
-                    <Box sx={{ display: 'flex', alignItems: 'center' }}>
-                      <CalendarTodayIcon sx={{ fontSize: 16, mr: 0.5, color: 'text.secondary' }} />
-                      <Typography variant="body2" color="text.secondary">
-                        {searchCriteria?.checkIn} - {searchCriteria?.checkOut}
-                      </Typography>
-                    </Box>
-                    <Box sx={{ display: 'flex', alignItems: 'center' }}>
-                      <GroupIcon sx={{ fontSize: 16, mr: 0.5, color: 'text.secondary' }} />
-                      <Typography variant="body2" color="text.secondary">
-                        {searchCriteria.guests?.adults || 1} Adult{parseInt(searchCriteria.guests?.adults) !== 1 ? 's' : ''}
-                        {searchCriteria.guests?.children > 0 ? ` • ${searchCriteria.guests.children} Child${parseInt(searchCriteria.guests.children) !== 1 ? 'ren' : ''}` : ''}
-                      </Typography>
-                    </Box>
-                  </Box>
-                </Grid>
-                <Grid item xs={12} md={4} sx={{ textAlign: { xs: 'left', md: 'right' } }}>
-                  {totalPrice > 0 && (
-                    <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: { xs: 'flex-start', md: 'flex-end' } }}>
-                      <AttachMoneyIcon sx={{ color: 'success.main', mr: 0.5 }} />
-                      <Typography variant="h6" color="success.main" fontWeight={600}>
-                        ${totalPrice.toLocaleString()}
-                      </Typography>
-                    </Box>
-                  )}
-                </Grid>
-              </Grid>
+                </Box> */}
+
+                {/* Main Itinerary Section */}
+                <Box sx={{ p: 3 }}>
+                  {/* Trip Title - Beige Section */}
+                  <Box sx={{ 
+                    bgcolor: '#f5e8d7', 
+                    p: 2, 
+                    borderRadius: 1, 
+                    mb: 3,
+                    border: '1px solid #e0c4a0'
+                  }}>
+                    <Typography variant="h6" fontWeight={600} color="text.primary">
+                      {selectedCountry} - {(() => {
+                        if (searchCriteria?.checkIn && searchCriteria?.checkOut) {
+                          const startDate = moment(searchCriteria.checkIn, 'DD/MM/YYYY');
+                          const endDate = moment(searchCriteria.checkOut, 'DD/MM/YYYY');
+                          const nights = endDate.diff(startDate, 'days');
+                          return `${nights} Nights Stay`;
+                        }
+                        return '2 Nights Stay';
+                      })()}
+              </Typography>
             </Box>
 
             {/* Hotels Section - Show at top like main itinerary */}
@@ -801,40 +803,40 @@ const ServicesSummaryModal = ({ open, onClose }) => {
               </Box>
             )} */}
 
-            {/* Professional Day-wise Itinerary */}
-            {itineraryByDate.length > 0 ? (
+                  {/* Day-wise Itinerary */}
+                  {itineraryByDate.length > 0 && (
               <Box>
-                <Typography variant="h6" fontWeight={600} sx={{ mb: 2 }}>
-                  Trip Itinerary
-                </Typography>
-                
                 {itineraryByDate.map((dayData, dayIndex) => {
                   const { date, services } = dayData;
                   
                   return (
-                    <Box key={dayIndex} sx={{ mb: 4 }}>
-                      {/* Day Header */}
-                      <Box 
-                        sx={{ 
-                          bgcolor: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)', 
-                          background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
-                          color: 'white', 
-                          p: 2, 
-                          borderRadius: 2,
-                          mb: 2,
-                          boxShadow: '0 4px 8px rgba(0,0,0,0.1)'
-                        }}
-                      >
-                        <Typography variant="h6" fontWeight={600}>
-                          Day {dayIndex + 1} - {date.format('dddd, Do MMMM YYYY')}
+                          <Box key={dayIndex} sx={{ 
+                            borderBottom: dayIndex < itineraryByDate.length - 1 ? '1px solid #e0e0e0' : 'none',
+                            pb: 3,
+                            mb: 3
+                          }}>
+                            {/* Day Row */}
+                            <Box sx={{ 
+                              display: 'flex', 
+                              alignItems: 'flex-start'
+                            }}>
+                              {/* Left Column - Day Info */}
+                              <Box sx={{ 
+                                minWidth: 100,
+                                mr: 3,
+                                borderRight: '1px solid #e0e0e0',
+                                pr: 2
+                              }}>
+                                <Typography variant="subtitle1" fontWeight={600} color="text.primary" sx={{ mb: 0.5 }}>
+                                  Day {dayIndex + 1}
                         </Typography>
-                        <Typography variant="body2" sx={{ opacity: 0.9 }}>
-                          {services.length} {services.length === 1 ? 'activity' : 'activities'} planned
+                                <Typography variant="body2" color="text.secondary" sx={{ fontSize: '0.85rem' }}>
+                                  {date.format('MMM DD, ddd')}
                         </Typography>
                       </Box>
 
-                      {/* Services for this day */}
-                      <Stack spacing={2}>
+                              {/* Right Column - Activities */}
+                              <Box sx={{ flex: 1 }}>
                         {services.map((service, serviceIndex) => {
                           const config = serviceTypeConfig[service.type] || {
                             icon: <DirectionsCarIcon />,
@@ -877,13 +879,22 @@ const ServicesSummaryModal = ({ open, onClose }) => {
                                   ticketDetails: serviceData?.ticket_details
                                 };
                               case 'restaurant':
+                                {
+                                  const mealType = serviceData?.mealType
+                                    || (typeof serviceData?.mealSpecificType === 'string' ? serviceData?.mealSpecificType : serviceData?.mealSpecificType?.mealType)
+                                    || serviceData?.mealSpecificType?.meal_type
+                                    || 'Meal';
+                                  const mealCategory = Array.isArray(serviceData?.MealDescription) && serviceData.MealDescription[0]?.category
+                                    ? serviceData.MealDescription[0].category
+                                    : undefined;
                                 return {
                                   name: serviceData?.restaurantName || 'Restaurant',
                                   location: serviceData?.city,
                                   time: serviceData?.visitTime || 'Time not specified',
-                                  extra: `${serviceData?.mealType || 'Meal'} | ${serviceData?.cuisine || 'Various'} cuisine`,
-                                  price: serviceData?.totalPrice || serviceData?.mealSpecificType?.totalPrice
+                                    extra: mealCategory ? `${mealType}: ${mealCategory}` : `${mealType}`,
+                                    price: serviceData?.totalPrice || (typeof serviceData?.mealSpecificType === 'object' ? serviceData?.mealSpecificType?.totalPrice : undefined)
                                 };
+                                }
                               case 'guide':
                                 return {
                                   name: serviceData?.guide_name || 'Guide',
@@ -896,15 +907,23 @@ const ServicesSummaryModal = ({ open, onClose }) => {
                                 return {
                                   name: `${serviceData?.vehicles_name || 'Vehicle'} - ${serviceData?.type || 'Transfer'}`,
                                   location: `${serviceData?.entrypickup} → ${serviceData?.entrydropoff}`,
-                                  time: serviceData?.entrytime || 'Time not specified',
+                                  time: `${serviceData?.entrytime || 'N/A'} | Duration: ${serviceData?.selectedHours || 0} hours`,
                                   extra: `Distance: ${serviceData?.distance || 0} km | Adults: ${serviceData?.adults || 0}`,
                                   price: serviceData?.totalPrice
                                 };
                               case 'travel_hourly':
                                 return {
                                   name: `${serviceData?.vehicles_name || 'Vehicle'} - Hourly Transport`,
-                                  location: serviceData?.entrypickup || 'Pickup location not specified',
+                                  //location: `${serviceData?.entrypickup} → ${serviceData?.entrydropoff}`|| 'Pickup location not specified',
                                   time: `${serviceData?.entrytime || 'N/A'} | Duration: ${serviceData?.selectedHours || 0} hours`,
+                                  extra: `${serviceData?.type || 'Private'} Vehicle | Adults: ${serviceData?.adults || 0}`,
+                                  price: serviceData?.totalPrice
+                                };
+                              case 'local_transport':
+                                return {
+                                  name: `${serviceData?.vehicles_name || 'Vehicle'} - Local Transfer`,
+                                  location: `${serviceData?.entrypickup} → ${serviceData?.entrydropoff}`,
+                                  time: `${serviceData?.entrytime || 'N/A'}`,
                                   extra: `${serviceData?.type || 'Private'} Vehicle | Adults: ${serviceData?.adults || 0}`,
                                   price: serviceData?.totalPrice
                                 };
@@ -938,255 +957,264 @@ const ServicesSummaryModal = ({ open, onClose }) => {
                           const details = getServiceDetails();
 
                           return (
-                            <Card 
-                              key={serviceIndex} 
-                              elevation={2}
-                              sx={{ 
-                                borderRadius: 2,
-                                overflow: 'hidden',
+                            <React.Fragment key={serviceIndex}>
+                              {/* Service Card */}
+                              <Box sx={{ 
+                                display: 'flex',
+                                alignItems: 'center',
+                                p: 2,
+                                mb: serviceIndex < services.length - 1 ? 1.5 : 0,
+                                bgcolor: 'rgba(0, 0, 0, 0.02)',
+                                borderRadius: 1,
+                                border: '1px solid rgba(0, 0, 0, 0.08)',
+                                transition: 'all 0.2s ease',
                                 '&:hover': {
-                                  boxShadow: '0 8px 25px rgba(0,0,0,0.15)',
-                                  transform: 'translateY(-2px)',
-                                  transition: 'all 0.3s ease'
+                                  bgcolor: 'rgba(0, 0, 0, 0.04)',
+                                  borderColor: 'rgba(0, 0, 0, 0.12)'
                                 }
-                              }}
-                            >
-                              <CardContent sx={{ p: 0 }}>
-                                <Box sx={{ display: 'flex', height: '100%' }}>
-                                  {/* Service Type Indicator */}
-                                  <Box 
-                                    sx={{ 
-                                      width: 8,
-                                      bgcolor: config.color,
-                                      flexShrink: 0
-                                    }}
-                                  />
+                              }}>
+                                {/* Service Icon */}
+                                <Box sx={{ 
+                                  mr: 2,
+                                  display: 'flex',
+                                  alignItems: 'center',
+                                  justifyContent: 'center',
+                                  minWidth: 40,
+                                  height: 40,
+                                  bgcolor: config.bgColor || 'rgba(102, 102, 102, 0.1)',
+                                  borderRadius: '50%',
+                                  border: `2px solid ${config.color || '#666'}`
+                                }}>
+                                  {React.cloneElement(config.icon, { 
+                                    sx: { 
+                                      fontSize: 20, 
+                                      color: config.color || '#666' 
+                                    } 
+                                  })}
+                                </Box>
+                                
+                                {/* Service Details */}
+                                <Box sx={{ flex: 1, minWidth: 0 }}>
+                                  <Typography variant="subtitle2" fontWeight={600} color="text.primary" sx={{ 
+                                    mb: 0.5,
+                                    fontSize: '0.95rem',
+                                    lineHeight: 1.3
+                                  }}>
+                                    {(() => {
+                                      switch (service.type) {
+                                        case 'Hotel':
+                                        case 'hotel':
+                                          // Determine if this is check-in or check-out
+                                          const hotelData = service.data?.[0];
+                                          const bookingDate = hotelData?.bookingDate;
+                                          const currentDate = dayData.date.format('YYYY-MM-DD');
+                                          
+                                          if (Array.isArray(bookingDate)) {
+                                            const checkInDate = moment(bookingDate[0]).format('YYYY-MM-DD');
+                                            const checkOutDate = moment(bookingDate[1]).format('YYYY-MM-DD');
+                                            
+                                            if (currentDate === checkInDate) {
+                                              return `Check in to ${details.name}`;
+                                            } else if (currentDate === checkOutDate) {
+                                              return `Checkout from ${details.name}`;
+                                            }
+                                          }
+                                          return `Check in to ${details.name}`;
+                                        case 'attraction':
+                                          return `${details.name}`;
+                                        case 'restaurant':
+                                          const currentDestination = getCurrentDestination(dayData.date);
+                                          const dataObj = service.data?.[0] || {};
+                                          const mealTypeBase = dataObj.mealType 
+                                            || (Array.isArray(dataObj.MealDescription) && dataObj.MealDescription[0]?.category)
+                                            || dataObj.foodType 
+                                            || dataObj.food_type 
+                                            || 'Meal';
+                                          const mealSpecific = typeof dataObj.mealSpecificType === 'string'
+                                            ? dataObj.mealSpecificType
+                                            : (dataObj.mealSpecificType?.mealType || dataObj.mealSpecificType?.meal_type);
+                                          const mealLabel = mealSpecific && mealSpecific.toLowerCase() !== (mealTypeBase || '').toLowerCase()
+                                            ? `${mealTypeBase} (${mealSpecific})`
+                                            : `${mealTypeBase}`;
+                                          const rName = dataObj.restaurantName || 'Restaurant';
+                                          return `Day Meals: ${mealLabel}: Included at ${rName}`;
+                                        case 'travel_point':
+                                        case 'local_transfer':
+                                          return details.name;
+                                        default:
+                                          return details.name;
+                                      }
+                                    })()}
+                                  </Typography>
                                   
-                                  {/* Content */}
-                                  <Box sx={{ flex: 1, p: 3 }}>
-                                    <Grid container spacing={2} alignItems="center">
-                                      {/* Service Icon and Type */}
-                                      <Grid item xs={12} sm={2} md={1}>
-                                        <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
-                                          <Avatar sx={{ bgcolor: config.color, mb: 1, width: 48, height: 48 }}>
-                                            {React.cloneElement(config.icon, { sx: { fontSize: 24 } })}
-                                          </Avatar>
-                                          <Typography variant="caption" color="text.secondary" fontWeight={600} textAlign="center">
-                                            {config.title}
-                                          </Typography>
-                                        </Box>
-                                      </Grid>
-                                      
-                                      {/* Service Details */}
-                                      <Grid item xs={12} sm={10} md={8}>
-                                        <Stack spacing={1}>
-                                          <Typography variant="h6" fontWeight={600} color="text.primary">
-                                            {details.name}
-                                          </Typography>
-                                          
-                                          {details.location && (
-                                            <Box sx={{ display: 'flex', alignItems: 'center' }}>
-                                              <LocationOnIcon sx={{ fontSize: 16, mr: 1, color: 'text.secondary' }} />
-                                              <Typography variant="body2" color="text.secondary">
-                                                {details.location}
-                                              </Typography>
-                                            </Box>
-                                          )}
-                                          
-                                          <Box sx={{ display: 'flex', alignItems: 'center' }}>
-                                            <AccessTimeIcon sx={{ fontSize: 16, mr: 1, color: 'primary.main' }} />
-                                            <Typography variant="body2" color="text.primary">
-                                              {details.time}
-                                            </Typography>
-                                          </Box>
-                                          
-                                          {details.extra && (
-                                            <Typography variant="body2" color="text.secondary" sx={{ fontStyle: 'italic' }}>
-                                              {details.extra}
-                                            </Typography>
-                                          )}
-
-                                          {/* Special display for attraction packages */}
-                                          {service.type === 'attraction_package' && details.packageDetails && (
-                                            <Box sx={{ mt: 2, p: 2, bgcolor: 'rgba(233, 30, 99, 0.05)', borderRadius: 1, border: '1px solid rgba(233, 30, 99, 0.2)' }}>
-                                              <Typography variant="subtitle2" fontWeight={600} gutterBottom sx={{ color: '#e91e63', mb: 2 }}>
-                                                🎫 Package Details
-                                              </Typography>
-                                              
-                                              {/* Package Information */}
-                                              <Box sx={{ mb: 2, p: 1.5, bgcolor: 'white', borderRadius: 1, border: '1px solid rgba(233, 30, 99, 0.1)' }}>
-                                                <Grid container spacing={2} alignItems="center">
-                                                  <Grid item xs={12} sm={6}>
-                                                    <Typography variant="body2" fontWeight={600} gutterBottom sx={{ fontSize: '0.85rem' }}>
-                                                      📍 Main Attraction: {serviceData?.AttractionName}
-                                                    </Typography>
-                                                    <Typography variant="body2" color="text.secondary" sx={{ fontSize: '0.8rem' }}>
-                                                      📅 Date: {serviceData?.bookingDate} | ⏰ Time: {serviceData?.visitTime}
-                                                    </Typography>
-                                                  </Grid>
-                                                  <Grid item xs={12} sm={6}>
-                                                    <Box sx={{ display: 'flex', gap: 1, flexWrap: 'wrap' }}>
-                                                      <Chip label={`${serviceData?.adultCount || 0} Adults`} size="small" color="primary" />
-                                                      {serviceData?.childCount > 0 && <Chip label={`${serviceData.childCount} Children`} size="small" color="secondary" />}
-                                                      {serviceData?.seniorCount > 0 && <Chip label={`${serviceData.seniorCount} Seniors`} size="small" color="info" />}
-                                                    </Box>
-                                                  </Grid>
-                                                </Grid>
-                                              </Box>
-                                              
-                                              {/* Included Attractions with Images */}
-                                              {details.packageDetails.package_attractions && (
-                                                <Box sx={{ mb: 2 }}>
-                                                  <Typography variant="body2" fontWeight={600} gutterBottom sx={{ fontSize: '0.85rem', mb: 1.5 }}>
-                                                    🎯 Included Attractions ({details.packageDetails.package_attractions.length}):
-                                                  </Typography>
-                                                  <Grid container spacing={1.5}>
-                                                    {details.packageDetails.package_attractions.map((attraction, idx) => (
-                                                      <Grid item xs={12} sm={6} md={4} key={idx}>
-                                                        <Card variant="outlined" sx={{ height: '100%', borderColor: 'rgba(233, 30, 99, 0.2)' }}>
-                                                          <Box sx={{ position: 'relative', height: 80 }}>
-                                                            {attraction.master_image ? (
-                                                              <Box 
-                                                                component="img" 
-                                                                src={attraction.master_image} 
-                                                                alt={attraction.name}
-                                                                sx={{
-                                                                  width: '100%',
-                                                                  height: '100%',
-                                                                  objectFit: 'cover'
-                                                                }}
-                                                              />
-                                                            ) : (
-                                                              <Box 
-                                                                sx={{
-                                                                  width: '100%', 
-                                                                  height: '100%', 
-                                                                  bgcolor: 'rgba(233, 30, 99, 0.1)',
-                                                                  display: 'flex',
-                                                                  alignItems: 'center',
-                                                                  justifyContent: 'center'
-                                                                }}
-                                                              >
-                                                                <AttractionsIcon sx={{ fontSize: 24, color: '#e91e63' }} />
-                                                              </Box>
-                                                            )}
-                                                            <Chip 
-                                                              label={`#${idx + 1}`} 
-                                                              size="small" 
-                                                              color="primary"
-                                                              sx={{ 
-                                                                position: 'absolute', 
-                                                                top: 4, 
-                                                                right: 4,
-                                                                fontSize: '0.7rem',
-                                                                height: 20
-                                                              }} 
-                                                            />
-                                                          </Box>
-                                                          <CardContent sx={{ p: 1.5, '&:last-child': { pb: 1.5 } }}>
-                                                            <Typography variant="body2" fontWeight={600} sx={{ fontSize: '0.8rem', mb: 0.5 }}>
-                                                              {attraction.name}
-                                                            </Typography>
-                                                            <Box sx={{ display: 'flex', alignItems: 'center' }}>
-                                                              <LocationOnIcon sx={{ fontSize: 12, mr: 0.5, color: 'text.secondary' }} />
-                                                              <Typography variant="caption" color="text.secondary" sx={{ fontSize: '0.7rem' }}>
-                                                                {attraction.location}, {attraction.country}
-                                                              </Typography>
-                                                            </Box>
-                                                            {attraction.attraction_id && (
-                                                              <Typography variant="caption" color="primary.main" sx={{ fontSize: '0.7rem', fontWeight: 500 }}>
-                                                                ID: {attraction.attraction_id}
-                                                              </Typography>
-                                                            )}
-                                                          </CardContent>
-                                                        </Card>
-                                                      </Grid>
-                                                    ))}
-                                                  </Grid>
-                                                </Box>
-                                              )}
-
-
-                                            </Box>
-                                          )}
-                                        </Stack>
-                                      </Grid>
-                                      
-                                      {/* Price */}
-                                      <Grid item xs={12} sm={12} md={3}>
-                                        <Box sx={{ textAlign: { xs: 'left', md: 'right' } }}>
-                                          {details.price > 0 && (
-                                            <Box sx={{ display: 'inline-flex', alignItems: 'center', bgcolor: 'success.light', px: 2, py: 1, borderRadius: 1 }}>
-                                              <AttachMoneyIcon sx={{ fontSize: 18, mr: 0.5, color: 'success.contrastText' }} />
-                                              <Typography variant="subtitle1" color="success.contrastText" fontWeight={600}>
-                                                ${details.price.toLocaleString()}
-                                              </Typography>
-                                            </Box>
-                                          )}
-                                        </Box>
-                                      </Grid>
-                                    </Grid>
+                                  {/* Service Time and Additional Info */}
+                                  <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5, flexWrap: 'wrap' }}>
+                                    {details.time && details.time !== 'Time not specified' && (
+                                      <Box sx={{ display: 'flex', alignItems: 'center' }}>
+                                        <AccessTimeIcon sx={{ fontSize: 14, mr: 0.5, color: 'text.secondary' }} />
+                                        <Typography variant="caption" color="text.secondary" sx={{ fontSize: '0.75rem' }}>
+                                          {details.time}
+                                        </Typography>
+                                      </Box>
+                                    )}
+                                    
+                                    {details.location && (
+                                      <Box sx={{ display: 'flex', alignItems: 'center' }}>
+                                        <LocationOnIcon sx={{ fontSize: 14, mr: 0.5, color: 'text.secondary' }} />
+                                        <Typography variant="caption" color="text.secondary" sx={{ fontSize: '0.75rem' }}>
+                                          {details.location}
+                                        </Typography>
+                                      </Box>
+                                    )}
+                                    
+                                    {details.extra && (
+                                      <Typography variant="caption" color="text.secondary" sx={{ fontSize: '0.75rem' }}>
+                                        {details.extra}
+                                      </Typography>
+                                    )}
                                   </Box>
                                 </Box>
-                              </CardContent>
-                            </Card>
+                                
+                                {/* Service Price */}
+                                {details.price && details.price > 0 && (
+                                  <Box sx={{ ml: 2, textAlign: 'right' }}>
+                                    {PriceHide === "0" && (  
+                                    <Typography variant="subtitle2" fontWeight={600} color="primary.main" sx={{ fontSize: '0.9rem' }}>
+                                      SGD {Number(details.price).toLocaleString()}
+                                    </Typography>
+                                  ) }
+                                  </Box>
+                                )}
+                              </Box>
+                              
+                              {/* Horizontal Divider - Show between services, not after the last one */}
+                              {serviceIndex < services.length - 1 && (
+                                <Divider sx={{ 
+                                  mx: 2, 
+                                  my: 1,
+                                  borderColor: 'rgba(0, 0, 0, 0.08)'
+                                }} />
+                              )}
+                            </React.Fragment>
                           );
                         })}
-                      </Stack>
+                            </Box>
+                          </Box>
+                        </Box>
+                      );
+                    })}
+                  </Box>
+                )}
+                
+                  {itineraryByDate.length === 0 && (
+                    <Box sx={{ textAlign: 'center', py: 6, px: 3 }}>
+                      <Typography variant="h6" color="text.secondary" gutterBottom>
+                        No itinerary available
+                                              </Typography>
+                      <Typography variant="body2" color="text.secondary">
+                        Add services with booking dates to see your day-wise itinerary here.
+                                                    </Typography>
+                                                    </Box>
+                  )}
+                                              </Box>
+                                              
+                {/* Bottom Route Bar */}
+                <Box sx={{ 
+                                                                  display: 'flex',
+                                                                  alignItems: 'center',
+                  bgcolor: '#f5f5f5',
+                  p: 2,
+                  borderTop: '1px solid #e0e0e0'
+                }}>
+                  <DirectionsCarIcon sx={{ fontSize: 16, mr: 1, color: '#666' }} />
+                  <Typography variant="body2" color="text.secondary" fontWeight={500}>
+                    {selectedCity} 
+                                                              </Typography>
+                                                            </Box>
+                                                </Box>
+            </Grid>
+
+            {/* Right Side - Pricing */}
+            <Grid item xs={12} md={4}>
+              <Box sx={{ 
+                p: 3,
+                position: 'sticky', 
+                top: 0, 
+                bgcolor: '#fafafa', 
+                height: '100vh',
+                maxHeight: '100vh',
+                overflow: 'hidden',
+                borderLeft: '1px solid #e0e0e0',
+                zIndex: 1
+              }}>
+                <Typography variant="h6" fontWeight={700} sx={{ mb: 2 }}>
+                  Price Summary
+                </Typography>
+
+                <Box sx={{ maxHeight: '60vh', overflow: 'auto', pr: 1 }}>
+                  {servicesWithPrices.filter(({ price }) => Number(price) > 0).map(({ service, price }, idx) => {
+                    const data0 = service.data?.[0] || {};
+                    // Friendly name per service type
+                    let label = service.type;
+                    if (service.type === 'hotel' || service.type === 'Hotel') {
+                      label = data0?.hotelDetails?.hotel_name || 'Hotel';
+                    } else if (service.type === 'attraction') {
+                      label = data0?.AttractionName || data0?.ticketName || 'Attraction';
+                    } else if (service.type === 'attraction_package') {
+                      label = data0?.package_details?.package_name || data0?.ticketName || 'Attraction Package';
+                    } else if (service.type === 'restaurant') {
+                      label = data0?.restaurantName || 'Restaurant';
+                    } else if (service.type === 'travel_point' || service.type === 'local_transfer' || service.type === 'travel_hourly') {
+                      label = `${data0?.vehicles_name || 'Transport'}${data0?.type ? ' - ' + data0.type : ''}`;
+                    } else if (service.type === 'entry_port') {
+                      label = 'Entry Port Transfer';
+                    } else if (service.type === 'exit_port') {
+                      label = 'Exit Port Transfer';
+                    } else if (service.type) {
+                      label = service.type.toString().replace(/_/g, ' ');
+                    }
+
+                    const iconConfig = serviceTypeConfig[service.type];
+ 
+                    return (
+                      <Box key={idx} sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', py: 1.2, borderBottom: '1px dashed #e5e5e5' }}>
+                        <Box sx={{ display: 'flex', alignItems: 'center', pr: 2, minWidth: 0 }}>
+                          <Box sx={{ mr: 1 }}>
+                            {iconConfig ? React.cloneElement(iconConfig.icon, { sx: { fontSize: 16, color: '#666' } }) : <DirectionsCarIcon sx={{ fontSize: 16, color: '#666' }} />}
+                          </Box>
+                          <Typography variant="body2" color="text.secondary" noWrap>
+                            {label}
+                          </Typography>
+                        </Box>
+                        {PriceHide === "0" && (
+                         <Typography variant="body2" fontWeight={600}>
+                           {Number(price || 0).toLocaleString()} SGD
+                                              </Typography>
+                                              )}
+                                            </Box>
+                          );
+                        })}
                     </Box>
-                  );
-                })}
-              </Box>
-            ) : (
-              <Box sx={{ textAlign: 'center', py: 6 }}>
-                <Typography variant="h6" color="text.secondary" gutterBottom>
-                  No itinerary available
-                </Typography>
-                <Typography variant="body2" color="text.secondary">
-                  Add services with booking dates to see your day-wise itinerary here.
-                </Typography>
-              </Box>
-            )}
 
+                <Divider sx={{ my: 2 }} />
 
-
-            {/* Total Summary */}
-            {totalPrice > 0 && (
-              <>
-                <Divider sx={{ my: 3 }} />
-                <Box sx={{ p: 3, bgcolor: 'success.light', borderRadius: 2 }}>
-                  <Grid container alignItems="center">
-                    <Grid item xs={12} md={8}>
-                      <Typography variant="h6" color="success.contrastText">
-                        Total Estimated Cost
+                <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                  <Typography variant="subtitle1" fontWeight={700}>
+                    Grand Total
                       </Typography>
-                      <Typography variant="body2" color="success.contrastText" sx={{ opacity: 0.8 }}>
-                        Based on selected services and configurations
+                      {PriceHide === "0" && (
+                   <Typography variant="h6" fontWeight={800} color="primary.main">
+                     SGD {Number(computedGrandTotal || 0).toLocaleString()}
                       </Typography>
-                    </Grid>
-                    <Grid item xs={12} md={4} sx={{ textAlign: { xs: 'left', md: 'right' } }}>
-                      <Typography variant="h4" color="success.contrastText" fontWeight={700}>
-                        ${totalPrice.toLocaleString()}
-                      </Typography>
-                    </Grid>
-                  </Grid>
+                      )}
                 </Box>
-              </>
-            )}
-          </>
+              </Box>
+                    </Grid>
+         
+                    </Grid>
         )}
       </DialogContent>
 
-      <DialogActions sx={{ px: 3, pb: 3 }}>
-        <Button onClick={onClose} variant="outlined" color="primary">
-          Close
-        </Button>
-        {/* {allServices.length > 0 && (
-          <Button onClick={handlePrint} variant="contained" color="primary" startIcon={<PrintIcon />}>
-            Print Summary
-          </Button>
-        )} */}
-      </DialogActions>
     </Dialog>
   );
 };

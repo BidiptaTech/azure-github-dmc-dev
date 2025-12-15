@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useMemo, useRef } from "react";
+import "./ResponsiveTable.css";
 
 import { useSelector, useDispatch } from "react-redux";
 import { useNavigate } from "react-router-dom";
@@ -40,11 +41,15 @@ import { fetchEditid, setTourId1, deleteTour } from "@/slice/common/EditSlice";
 import Snackbar from "@mui/material/Snackbar";
 import MuiAlert from "@mui/material/Alert";
 import { setDateService } from "@/slice/common/dateServicesSlice";
-import { fetchLists } from "@/slice/common/TourlistSlice";
+import { fetchLists, setTourType } from "@/slice/common/TourlistSlice";
 import Pagination from "../../common/Pagination";
 import { setBookingType } from "../../../../../slice/common/commonSlice";
 import dayjs from "dayjs";
-import { Button, InputAdornment, TextField, Typography, Tooltip, IconButton } from "@mui/material";
+import customParseFormat from "dayjs/plugin/customParseFormat";
+
+dayjs.extend(customParseFormat);
+import { Button, InputAdornment, TextField, Typography, IconButton, Tooltip } from "@mui/material";
+import CustomPaymentTooltip from "./CustomTooltip";
 import { Visibility } from "@mui/icons-material";
 import { toast } from "react-toastify";
 import Cookies from "js-cookie";
@@ -188,7 +193,18 @@ const formatDate1 = (dateString) => {
   return `${formattedDay}/${formattedMonth}/${formattedYear}`;
 };
 
-export default function Pending() {
+// Truncate long customer names with word-aware cutoff
+const truncateName = (name, maxLength = 10) => {
+  if (!name) return "N/A";
+  const trimmed = String(name).trim();
+  if (trimmed.length <= maxLength) return trimmed;
+  const slice = trimmed.slice(0, maxLength);
+  const lastSpaceIndex = slice.lastIndexOf(" ");
+  const base = lastSpaceIndex > 0 ? slice.slice(0, lastSpaceIndex) : slice;
+  return `${base.trim()}...`;
+};
+
+export default function Pending({ filters = {} }) {
   const [page, setPage] = useState(0);
   const [rowsPerPage, setRowsPerPage] = useState(5);
   const [isModalVisible, setIsModalVisible] = useState(false);
@@ -201,6 +217,9 @@ export default function Pending() {
   const { bookings = {}, status: viewDetailsStatus } = useSelector(
     (state) => state.viewDetails
   );
+  
+  // Extract price_hide from the fetched bookings data
+  const priceHideFromBookings = bookings?.tour?.price_hide;
 
   const contentRef = useRef(null);
 
@@ -209,9 +228,11 @@ export default function Pending() {
   const [discountAmount, setDiscountAmount] = useState(0);
   const [bookingType1, setBookingType1] = useState(null);
   const [displayId, setDisplayId] = useState(null);
+  const [pricehide, setPricehide] = useState(null);
   const [modifiedPriceData, setModifiedPriceData] = useState(null);
   //const { currentStep } = useSelector((state) => state.steps);
   const { DmcName, DmcLogo } = useSelector((state) => state.auth);
+  const sgdTax = useSelector((state) => state.auth.sgdTax);
   const dispatch = useDispatch();
   const location = useLocation(); // Get the current location (route)
   const [order, setOrder] = useState("asc"); // State to track sort order
@@ -222,17 +243,124 @@ export default function Pending() {
   useEffect(() => {
     // Trigger fetchLists only when navigating to "/dashboard"
     if (location.pathname === "/dashboard/db-dashboard") {
-      dispatch(fetchLists());
+      dispatch(setTourType("past"));
+      dispatch(fetchLists({ reset: true, type: "past" }));
+      
+      console.log('Initial data fetch with type: past');
     }
   }, [location.pathname, dispatch]); // Depend on the pathname // Dependency on location.pathname
 
   // if (status === "loading") return <p>Loading...</p>;
   // if (status === "failed") return <p>Error: {error}</p>;
   const [sortedLists, setSortedLists] = useState([]); // State for sorted data
-  // Update sortedLists when lists change
+  const totalPages = Math.ceil(sortedLists.length / rowsPerPage);
+  // Filter function
+  const filterData = (data) => {
+    if (!filters || Object.keys(filters).length === 0) return data;
+    
+    return data.filter(item => {
+      // Booking ID filter
+      if (filters.searchId && !item.display_id?.toLowerCase().includes(filters.searchId.toLowerCase())) {
+        return false;
+      }
+      
+      // Customer name filter
+      if (filters.customerName && !item.customer_name?.toLowerCase().includes(filters.customerName.toLowerCase())) {
+        return false;
+      }
+      
+      // Country filter
+      if (filters.country) {
+        const destination = item.destination || '';
+        const countryMatch = destination.toLowerCase().includes(filters.country.toLowerCase());
+        if (!countryMatch) return false;
+      }
+      
+      
+      // Check-in date filter
+      if (filters.checkInDate) {
+        const checkInDate = item.check_in_time;
+        if (checkInDate) {
+          const [day, month, year] = checkInDate.split('/');
+          const itemDate = new Date(`${year}-${month}-${day}`);
+          const filterDate = new Date(filters.checkInDate);
+          if (itemDate.toDateString() !== filterDate.toDateString()) {
+            return false;
+          }
+        }
+      }
+      
+      // Check-out date filter
+      if (filters.checkOutDate) {
+        const checkOutDate = item.check_out_time;
+        if (checkOutDate) {
+          const [day, month, year] = checkOutDate.split('/');
+          const itemDate = new Date(`${year}-${month}-${day}`);
+          const filterDate = new Date(filters.checkOutDate);
+          if (itemDate.toDateString() !== filterDate.toDateString()) {
+            return false;
+          }
+        }
+      }
+      
+      // Status filter
+      if (filters.status) {
+        if (filters.status === "Cancel") {
+          // For "Cancel" status, check if tour_status starts with "cancel" (case insensitive)
+          if (!item.tour_status?.toLowerCase().startsWith("cancel")) {
+            return false;
+          }
+        } else {
+          // For other statuses, exact match
+          if (item.tour_status !== filters.status) {
+            return false;
+          }
+        }
+      }
+      
+      
+      return true;
+    });
+  };
+
+  // Update sortedLists when lists or filters change
   useEffect(() => {
-    setSortedLists(Array.isArray(lists) ? lists : []); // Safely check if lists is an array
-  }, [lists]);
+    const newLists = Array.isArray(lists) ? lists : [];
+    const filteredLists = filterData(newLists);
+    setSortedLists(filteredLists); // Apply filters to the data
+    
+    console.log('Lists updated in Deleted.jsx:', {
+      listsLength: newLists.length,
+      filteredLength: filteredLists.length,
+      totalPages: Math.ceil(filteredLists.length / rowsPerPage),
+      currentPage: page + 1
+    });
+  }, [lists, rowsPerPage, page, filters]);
+  
+  // Auto-fetch more data when reaching the last page
+  // useEffect(() => {
+  //   if (page > 0 && sortedLists.length > 0) {
+  //     const currentPageEnd = (page + 1) * rowsPerPage;
+  //     const dataAvailable = sortedLists.length;
+      
+  //     // If we're on the last page or near the end of available data, fetch more
+  //     if (page + 1 === totalPages || currentPageEnd >= dataAvailable - rowsPerPage) {
+  //       const nextStart = Math.ceil(dataAvailable / 30) * 30; // Align to the next 30-item chunk
+        
+  //       console.log('Auto-fetching more data:', {
+  //         currentPage: page + 1,
+  //         totalPages,
+  //         dataAvailable,
+  //         nextStart,
+  //         type: "past"
+  //       });
+        
+  //       // Make sure we're using the correct type
+  //       const currentType = "past"; // For Deleted.jsx, we always use "past"
+  //       dispatch(fetchLists({ start: nextStart, limit: 30, type: currentType, reset: false }));
+  //     }
+  //   }
+  // }, [page, sortedLists.length, rowsPerPage, dispatch, totalPages]);
 
   const handleColumnSort = (column) => {
     // Clone current list to avoid mutation
@@ -329,13 +457,17 @@ export default function Pending() {
   //   setPage(0);
   // };
 
+  // Get the current page's data
   const paginatedLists = sortedLists.slice(
     page * rowsPerPage,
     page * rowsPerPage + rowsPerPage
   );
 
-  // Calculate total pages
-  const totalPages = Math.ceil(sortedLists.length / rowsPerPage);
+  // Calculate total pages based on the total data available
+  // Since we're fetching data in chunks of 30, we need to calculate total pages differently
+  
+  
+
 
   const handleCloseSnackbar = (event, reason) => {
     if (reason === "clickaway") {
@@ -453,17 +585,17 @@ export default function Pending() {
     setIsModalVisible(true);
 
     // Store the current tour ID
-    setTId(tourId);
+    //setTId(tourId);
 
     // Log the booking data for debugging
     console.log("Fetching tour details for:", tourId);
 
     // Reset enquiry processed state when viewing a new tour
-    setEnquiryProcessed(false);
+    //setEnquiryProcessed(false);
 
     // Check if this tour has a status of 2 or 3
-    const isProcessed = await checkEnquiryStatus(tourId);
-    setEnquiryStatusProcessed(isProcessed);
+    //const isProcessed = await checkEnquiryStatus(tourId);
+    //setEnquiryStatusProcessed(isProcessed);
 
     // Add a timeout to log bookings data after it's loaded
     setTimeout(() => {
@@ -510,6 +642,10 @@ export default function Pending() {
       modifiedData.exit_port || modifiedData.data?.exit_port || [];
     const travelPoints =
       modifiedData.travel_point || modifiedData.data?.travel_point || [];
+    const travelHourly =
+      modifiedData.travel_hourly || modifiedData.data?.travel_hourly || [];
+    const localTransports =
+      modifiedData.local_transport || modifiedData.data?.local_transport || [];
 
     const attractions =
       modifiedData.attraction || modifiedData.data?.attraction || [];
@@ -559,6 +695,20 @@ export default function Pending() {
         totalOriginalPrice += parseFloat(restaurant.totalPrice);
       }
     });
+    
+    // Add travel_hourly to total price
+    travelHourly.forEach((travel) => {
+      if (travel.totalPrice) {
+        totalOriginalPrice += parseFloat(travel.totalPrice);
+      }
+    });
+    
+    // Add local_transport to total price
+    localTransports.forEach((transport) => {
+      if (transport.totalPrice) {
+        totalOriginalPrice += parseFloat(transport.totalPrice);
+      }
+    });
 
     // If total price is 0, we can't calculate distribution ratios
     if (totalOriginalPrice === 0) {
@@ -576,9 +726,11 @@ export default function Pending() {
       ...entryPorts,
       ...exitPorts,
       ...travelPoints,
+      ...travelHourly,
       ...attractions,
       ...guides,
       ...restaurants,
+      ...localTransports,
     ].filter((item) => item.totalPrice);
 
     // Sort items by price to distribute remaining amounts to higher priced items first
@@ -780,6 +932,72 @@ export default function Pending() {
         // Remove the temporary calculation properties
         delete attraction.calculatedMarkup;
         delete attraction.calculatedDiscount;
+      }
+    });
+    
+    // Process travel hourly
+    travelHourly.forEach((travel) => {
+      if (travel.totalPrice) {
+        // Store original price
+        travel.basePrice = travel.totalPrice;
+
+        // Use the pre-calculated markup amount that ensures total matches exactly
+        const travelMarkupAmount = travel.calculatedMarkup || 0;
+
+        // Apply markup to get the new base price
+        const markedUpPrice =
+          parseFloat(travel.totalPrice) + travelMarkupAmount;
+        travel.markedUpPrice = markedUpPrice.toString();
+
+        // Use the pre-calculated discount amount that ensures total matches exactly
+        const travelDiscountAmount = travel.calculatedDiscount || 0;
+
+        // Apply discount on the marked-up price
+        travel.totalPrice = (markedUpPrice - travelDiscountAmount).toString();
+
+        // Store markup and discount amounts
+        travel.markupAmount = travelMarkupAmount.toString();
+        if (discount > 0) {
+          travel.discountAmount = travelDiscountAmount.toString();
+        }
+
+        // Remove the temporary calculation properties
+        delete travel.calculatedMarkup;
+        delete travel.calculatedDiscount;
+      }
+    });
+    
+    // Process local transport
+    localTransports.forEach((transport) => {
+      if (transport.totalPrice) {
+        // Store original price
+        transport.basePrice = transport.totalPrice;
+
+        // Use the pre-calculated markup amount that ensures total matches exactly
+        const transportMarkupAmount = transport.calculatedMarkup || 0;
+
+        // Apply markup to get the new base price
+        const markedUpPrice =
+          parseFloat(transport.totalPrice) + transportMarkupAmount;
+        transport.markedUpPrice = markedUpPrice.toString();
+
+        // Use the pre-calculated discount amount that ensures total matches exactly
+        const transportDiscountAmount = transport.calculatedDiscount || 0;
+
+        // Apply discount on the marked-up price
+        transport.totalPrice = (
+          markedUpPrice - transportDiscountAmount
+        ).toString();
+
+        // Store markup and discount amounts
+        transport.markupAmount = transportMarkupAmount.toString();
+        if (discount > 0) {
+          transport.discountAmount = transportDiscountAmount.toString();
+        }
+
+        // Remove the temporary calculation properties
+        delete transport.calculatedMarkup;
+        delete transport.calculatedDiscount;
       }
     });
 
@@ -1075,11 +1293,15 @@ export default function Pending() {
       const exitPorts = bookings.exit_port || bookings.data?.exit_port || [];
       const travelPoints =
         bookings.travel_point || bookings.data?.travel_point || [];
+      const travelHourly =
+        bookings.travel_hourly || bookings.data?.travel_hourly || [];
       const attractions =
         bookings.attraction || bookings.data?.attraction || [];
       const guides = bookings.guide || bookings.data?.guide || [];
       const restaurants =
         bookings.restaurant || bookings.data?.restaurant || [];
+      const localTransports =
+        bookings.local_transport || bookings.data?.local_transport || [];
 
       // Calculate total original price
       hotels.forEach((hotel) => {
@@ -1123,6 +1345,20 @@ export default function Pending() {
           calculatedTotalPrice += parseFloat(restaurant.totalPrice);
         }
       });
+      
+      // Add travel hourly prices
+      travelHourly.forEach((travel) => {
+        if (travel.totalPrice) {
+          calculatedTotalPrice += parseFloat(travel.totalPrice);
+        }
+      });
+      
+      // Add local transport prices
+      localTransports.forEach((transport) => {
+        if (transport.totalPrice) {
+          calculatedTotalPrice += parseFloat(transport.totalPrice);
+        }
+      });
 
       setTotalPrice(Math.ceil(calculatedTotalPrice));
     }
@@ -1160,8 +1396,8 @@ export default function Pending() {
               border: "1px solid #e0e6ed",
             }}
           >
-            <div className="overflow-hidden">
-              <table className="table-3 -border-bottom col-12" style={{ width: "100%", tableLayout: "fixed" }}>
+            <div className="responsive-table-container">
+              <table className="table-3 -border-bottom col-12 responsive-table">
                 <thead className="bg-light-2">
                   <tr>
                     <th
@@ -1255,7 +1491,7 @@ export default function Pending() {
                               order === "asc" ? "rotate-180" : ""
                             }`}
                             style={{
-                              fontSize: "12px",
+                              fontSize: "10px",
                               opacity: order === "asc" ? 1 : 0.7,
                               fontWeight: order === "asc" ? "normal" : "bold",
                             }}
@@ -1315,7 +1551,7 @@ export default function Pending() {
                               order === "asc" ? "rotate-180" : ""
                             }`}
                             style={{
-                              fontSize: "12px",
+                              fontSize: "10px",
                               opacity: order === "asc" ? 1 : 0.7,
                               fontWeight: order === "asc" ? "normal" : "bold",
                             }}
@@ -1375,7 +1611,7 @@ export default function Pending() {
                               order === "asc" ? "rotate-180" : ""
                             }`}
                             style={{
-                              fontSize: "12px",
+                              fontSize: "10px",
                               opacity: order === "asc" ? 1 : 0.7,
                               fontWeight: order === "asc" ? "normal" : "bold",
                             }}
@@ -1440,7 +1676,7 @@ export default function Pending() {
                             className={`icon-arrow-${
                               order === "asc" ? "down" : "up"
                             }`}
-                            style={{ fontSize: "12px", opacity: 0.7 }}
+                            style={{ fontSize: "10px", opacity: 0.7 }}
                           ></i>
                         )}
                       </div>
@@ -1578,6 +1814,9 @@ export default function Pending() {
                         cursor: "pointer",
                         transition: "background-color 0.3s ease",
                         whiteSpace: "nowrap",
+                        width: "140px",
+                        minWidth: "140px",
+                        maxWidth: "140px",
                       }}
                       // onClick={() => handleColumnSort("status")}
                       onMouseEnter={(e) => {
@@ -1608,49 +1847,7 @@ export default function Pending() {
                             color: "#3554D1",
                           }}
                         ></i>
-                        Payment
-                      </div>
-                    </th>
-                    <th
-                      style={{
-                        backgroundColor: "#f5f7fc",
-                        padding: "14px 20px",
-                        fontWeight: "600",
-                        color: "#3554D1",
-                        cursor: "pointer",
-                        transition: "background-color 0.3s ease",
-                        whiteSpace: "nowrap",
-                      }}
-                      // onClick={() => handleColumnSort("status")}
-                      onMouseEnter={(e) => {
-                        e.currentTarget.style.backgroundColor = "#e6eafb";
-                        e.currentTarget.querySelector("i").style.transform =
-                          "scale(1.2)";
-                      }}
-                      onMouseLeave={(e) => {
-                        e.currentTarget.style.backgroundColor = "#f5f7fc";
-                        e.currentTarget.querySelector("i").style.transform =
-                          "scale(1)";
-                      }}
-                    >
-                      <div
-                        style={{
-                          display: "flex",
-                          alignItems: "center",
-                          justifyContent: "center",
-                          gap: "6px",
-                          fontSize: "13px",
-                          fontWeight: "600",
-                        }}
-                      >
-                        <i
-                          className="icon-usd"
-                          style={{
-                            fontSize: "14px",
-                            color: "#3554D1",
-                          }}
-                        ></i>
-                        Payment Status
+                        Payment Details
                       </div>
                     </th>
                     <th
@@ -1691,34 +1888,35 @@ export default function Pending() {
                         <td style={{ padding: "12px 20px", minWidth: "80px", whiteSpace: "nowrap" }}>
                           <Skeleton variant="text" width={80} />
                         </td>
-                        <td style={{ padding: "16px 20px", width: "100px", minWidth: "100px", maxWidth: "100px" }}>
+                        <td className="booking-id-column">
                           <Skeleton variant="text" width={80} />
                         </td>
-                        <td style={{ padding: "16px 20px", width: "90px", minWidth: "90px", maxWidth: "90px" }}>
+                        <td className="date-column">
                           <Skeleton variant="text" width={80} />
                         </td>
-                        <td style={{ padding: "16px 20px", width: "90px", minWidth: "90px", maxWidth: "90px" }}>
+                        <td className="date-column">
                           <Skeleton variant="text" width={80} />
                         </td>
-                        <td style={{ padding: "16px 10px", width: "80px", minWidth: "80px", maxWidth: "80px", textAlign: "center" }}>
+                        <td className="pax-column" style={{ textAlign: "center" }}>
                           <Skeleton variant="text" width={60} />
                         </td>
-                        <td style={{ padding: "16px 20px", width: "120px", minWidth: "120px", maxWidth: "120px" }}>
+                        <td className="destination-column">
                           <Skeleton variant="text" width={100} />
                         </td>
-                        <td style={{ padding: "16px 20px", width: "130px", minWidth: "130px", maxWidth: "130px" }}>
+                        <td className="customer-column">
                           <Skeleton variant="text" width={100} />
                         </td>
-                        <td style={{ padding: "16px 20px", width: "100px", minWidth: "100px", maxWidth: "100px" }}>
+                        <td className="booking-id-column">
                           <Skeleton variant="text" width={80} />
                         </td>
-                        <td style={{ padding: "8px 12px", width: "110px", minWidth: "110px", maxWidth: "110px" }}>
-                          <Skeleton variant="text" width={80} />
+                        <td className="payment-column">
+                          <Skeleton
+                            variant="rectangular"
+                            width={140}
+                            height={80}
+                          />
                         </td>
-                        <td style={{ padding: "8px 12px", width: "120px", minWidth: "120px", maxWidth: "120px" }}>
-                          <Skeleton variant="text" width={100} />
-                        </td>
-                        <td style={{ padding: "8px 12px", width: "110px", minWidth: "110px", maxWidth: "110px", whiteSpace: "nowrap" }}>
+                        <td className="actions-column" style={{ whiteSpace: "nowrap" }}>
                           <Skeleton variant="text" width={100} />
                         </td>
                       </tr>
@@ -1744,7 +1942,7 @@ export default function Pending() {
                           <div
                             style={{
                               display: "flex",
-                              gap: "8px",
+                              gap: "4px",
                               flexWrap: "nowrap",
                               whiteSpace: "nowrap",
                               alignItems: "center",
@@ -1754,22 +1952,17 @@ export default function Pending() {
                               <IconButton
                                 size="small"
                                 onClick={() => handleViewDetails(list)}
-                                                                  sx={{
-                                    color: "#4361ee",
-                                    width: "28px",
-                                    height: "28px",
-                                    borderRadius: "6px",
-                                    backgroundColor: "rgba(0, 0, 0, 0.04)",
-                                    boxShadow: "0 2px 4px rgba(0, 0, 0, 0.1)",
-                                    transition: "all 0.2s ease",
-                                    "&:hover": {
-                                      backgroundColor: "rgba(67, 97, 238, 0.12)",
-                                      boxShadow: "0 4px 8px rgba(0, 0, 0, 0.15)",
-                                      transform: "translateY(-1px)",
-                                    },
-                                  }}
-                                >
-                                  <Visibility sx={{ fontSize: "16px" }} />
+                                sx={{
+                                  color: "#4361ee",
+                                  width: "28px",
+                                  height: "28px",
+                                  padding: "4px",
+                                  "&:hover": {
+                                    color: "#2847C7",
+                                  },
+                                }}
+                              >
+                                <Visibility sx={{ fontSize: "14px" }} />
                               </IconButton>
                             </Tooltip>
                             {/* Only render Edit button if editOff is not 1 */}
@@ -1795,7 +1988,7 @@ export default function Pending() {
                                   <i
                                     className="icon-edit"
                                     style={{
-                                      fontSize: "16px",
+                                      fontSize: "10px",
                                     }}
                                   ></i>
                                 </IconButton>
@@ -1822,12 +2015,40 @@ export default function Pending() {
                                 <i
                                   className="icon-trash-2"
                                   style={{
-                                    fontSize: "16px",
+                                    fontSize: "10px",
                                   }}
                                 ></i>
                               </IconButton>
                             </Tooltip> */}
                           </div>
+                          {list.dmc_company_name && (
+                            <Tooltip
+                              title={list.dmc_company_name}
+                              arrow
+                              placement="bottom"
+                            >
+                              <div
+                                style={{
+                                  fontSize: "10px",
+                                  fontWeight: "600",
+                                  overflow: "hidden",
+                                  textOverflow: "ellipsis",
+                                  whiteSpace: "nowrap",
+                                  maxWidth: "80px",
+                                  marginTop: "10px",
+                                  textAlign: "center",
+                                  backgroundColor: "#3554D1",
+                                  color: "#fff",
+                                  padding: "5px 10px",
+                                  borderRadius: "50px",
+                                  cursor: "pointer",
+                                  display: "inline-block",
+                                }}
+                              >
+                                {list.dmc_company_name}
+                              </div>
+                            </Tooltip>
+                          )}
                         </td>
                     <td style={{ padding: "16px 20px" }}>
   <div
@@ -1835,7 +2056,7 @@ export default function Pending() {
       backgroundColor: "rgba(53, 84, 209, 0.1)",
       padding: "6px 8px",
       borderRadius: "12px",
-      fontSize: "11px",
+      fontSize: "10px",
       color: "#3554D1",
       fontWeight: "600",
       display: "inline-flex",
@@ -1855,7 +2076,7 @@ export default function Pending() {
           color: "#fff",
           padding: "2px 8px",
           borderRadius: "50px",
-          fontSize: "12px",
+          fontSize: "10px",
           marginTop: "4px",
         }}
       >
@@ -1873,9 +2094,9 @@ export default function Pending() {
                             <div
                               style={{
                                 backgroundColor: "rgba(76, 175, 80, 0.1)",
-                                padding: "6px 8px",
-                                borderRadius: "12px",
-                                fontSize: "15px",
+                                padding: "4px 6px",
+                                borderRadius: "8px",
+                                fontSize: "10px",
                                 color: "#4CAF50",
                                 fontWeight: "600",
                                 display: "inline-flex",
@@ -1885,7 +2106,7 @@ export default function Pending() {
                                 cursor: "pointer",
                               }}
                             >
-                              <span style={{ fontWeight: "600", fontSize: "15px" }}>{formatDate(list.check_in_time)}</span>
+                              <span style={{ fontWeight: "600", fontSize: "12px" }}>{formatDate(list.check_in_time)}</span>
                             </div>
                           </Tooltip>
                         </td>
@@ -1898,9 +2119,9 @@ export default function Pending() {
                             <div
                               style={{
                                 backgroundColor: "rgba(244, 67, 54, 0.1)",
-                                padding: "6px 8px",
-                                borderRadius: "12px",
-                                fontSize: "15px",
+                                padding: "4px 6px",
+                                borderRadius: "8px",
+                                fontSize: "10px",
                                 color: "#F44336",
                                 fontWeight: "600",
                                 display: "inline-flex",
@@ -1910,7 +2131,7 @@ export default function Pending() {
                                 cursor: "pointer",
                               }}
                             >
-                              <span style={{ fontWeight: "600", fontSize: "15px" }}>{formatDate(list.check_out_time)}</span>
+                              <span style={{ fontWeight: "600", fontSize: "12px" }}>{formatDate(list.check_out_time)}</span>
                             </div>
                           </Tooltip>
                         </td>
@@ -1945,7 +2166,7 @@ export default function Pending() {
                             <span
                               style={{
                                 fontWeight: "600",
-                                fontSize: "15px",
+                                fontSize: "10px",
                                 color: "#FF9800",
                                 whiteSpace: "nowrap",
                               }}
@@ -1992,17 +2213,30 @@ export default function Pending() {
                               display: "flex",
                               alignItems: "center",
                               gap: "8px",
+                              maxWidth: "150px",
                             }}
                           >
                             <i
                               className="icon-customer"
                               style={{ fontSize: "18px", color: "#F44336" }}
                             ></i>
-                            <span>{list.customer_name || "N/A"}</span>
+                            <Tooltip title={list.customer_name || "N/A"} placement="top" arrow>
+                              <span
+                                style={{
+                                  overflow: "hidden",
+                                  textOverflow: "ellipsis",
+                                  whiteSpace: "nowrap",
+                                  display: "inline-block",
+                                  maxWidth: "110px",
+                                }}
+                              >
+                                {truncateName(list.customer_name, 10)}
+                              </span>
+                            </Tooltip>
                           </div>
                         </td>
                         <td style={{ padding: "16px 20px" }}>
-                        <div                            style={{                              display: "flex",                              alignItems: "center",                              gap: "6px",                              backgroundColor: getBackgroundColor(list.tour_status),
+                        <div                            style={{                              display: "flex",                              alignItems: "center",  justifyContent: "center",                            gap: "6px",                              backgroundColor: getBackgroundColor(list.tour_status),
                               padding: "4px 8px",
                               borderRadius: "16px",
                             }}
@@ -2030,21 +2264,15 @@ export default function Pending() {
                               }}
                             ></i>
                             <span                              style={{                                fontWeight: "600",                                color: getTextColor(list.tour_status),
-                                fontSize: "11px",
+                                fontSize: "10px",
                               }}                            >                              {list.tour_status || "Pending"}
                             </span>
                           </div>
                         </td>
                         <td
-                          style={{
-                            padding: "8px 12px",
-                          }}
+                          className="payment-column"
                         >
-                          <Tooltip 
-                            title={`Original: SGD ${Math.ceil(list.finalAmount + list.discountAmount)} | Discount: SGD ${Math.ceil(list.discountAmount)} | Final: SGD ${Math.ceil(list.finalAmount)}`}
-                            arrow
-                            placement="top"
-                          >
+                          <CustomPaymentTooltip list={list}>
                             <div
                               style={{
                                 borderRadius: "8px",
@@ -2064,118 +2292,311 @@ export default function Pending() {
                                 e.currentTarget.style.boxShadow = "0 2px 8px rgba(33, 150, 243, 0.15)";
                               }}
                             >
+                              {/* Original Amount (from API, no tax) */}
+                              <div
+                                style={{
+                                  display: "flex",
+                                  alignItems: "center",
+                                  justifyContent: "space-between",
+                                  marginBottom: "4px",
+                                  padding: "3px 6px",
+                                  backgroundColor: "rgba(255, 255, 255, 0.8)",
+                                  borderRadius: "6px",
+                                  border: "1px solid rgba(0, 0, 0, 0.1)",
+                                }}
+                              >
+                                <div style={{ display: "flex", alignItems: "center", gap: "4px" }}>
+                                  <i className="icon-tag" style={{ fontSize: "10px", color: "#1976d2" }}></i>
+                                  <span style={{ fontSize: "9px", color: "#1976d2", fontWeight: "600" }}>
+                                    Original
+                                  </span>
+                                </div>
+                                <span style={{ fontSize: "9px", color: "#1976d2", fontWeight: "700" }}>
+                                  {(() => {
+                                    const original = Math.ceil(
+                                      list.tour_total_price != null
+                                        ? Number(list.tour_total_price)
+                                        : Number(list.finalAmount || 0) + Number(list.discountAmount || 0)
+                                    );
+                                    return `SGD ${original}`;
+                                  })()}
+                                </span>
+                              </div>
+
+                              {/* Discount Amount */}
+                              {list.discountAmount > 0 && (
+                                <div
+                                  style={{
+                                    display: "flex",
+                                    alignItems: "center",
+                                    justifyContent: "space-between",
+                                    marginBottom: "4px",
+                                    padding: "3px 6px",
+                                    backgroundColor: "rgba(229, 57, 53, 0.1)",
+                                    borderRadius: "6px",
+                                    border: "1px solid rgba(229, 57, 53, 0.2)",
+                                  }}
+                                >
+                                  <div style={{ display: "flex", alignItems: "center", gap: "4px" }}>
+                                    <i className="icon-usd" style={{ fontSize: "10px", color: "#e53935" }}></i>
+                                    <span style={{ fontSize: "9px", color: "#e53935", fontWeight: "600" }}>
+                                      Discount
+                                    </span>
+                                  </div>
+                                  <span style={{ fontSize: "9px", color: "#e53935", fontWeight: "700" }}>
+                                    -SGD {Math.ceil(list.discountAmount)}
+                                  </span>
+                                </div>
+                              )}
+
+                              {/* Final Amount (API final + tax) */}
                               <div
                                 style={{
                                   display: "flex",
                                   alignItems: "center",
                                   justifyContent: "space-between",
                                   marginBottom: "6px",
-                                }}
-                              >
-                                <div style={{ display: "flex", alignItems: "center", gap: "4px" }}>
-                                  <i className="icon-usd" style={{ fontSize: "12px", color: "#e53935" }}></i>
-                                  <span style={{ fontSize: "10px", color: "#e53935", fontWeight: "600" }}>
-                                    -{Math.ceil(list.discountAmount)}
-                                  </span>
-                                </div>
-                                <div style={{ display: "flex", alignItems: "center", gap: "4px" }}>
-                                  <i className="icon-tag" style={{ fontSize: "12px", color: "#1976d2" }}></i>
-                                  <span style={{ fontSize: "10px", color: "#1976d2", fontWeight: "600" }}>
-                                    {Math.ceil(list.finalAmount)}
-                                  </span>
-                                </div>
-                              </div>
-                              <div
-                                style={{
-                                  display: "flex",
-                                  alignItems: "center",
-                                  justifyContent: "center",
-                                  gap: "6px",
                                   padding: "4px 8px",
-                                  backgroundColor: "rgba(255, 255, 255, 0.7)",
+                                  backgroundColor: "rgba(76, 175, 80, 0.1)",
                                   borderRadius: "6px",
-                                  border: "1px solid rgba(33, 150, 243, 0.1)",
+                                  border: "1px solid rgba(76, 175, 80, 0.2)",
                                 }}
                               >
-                                <i className="icon-wallet" style={{ fontSize: "14px", color: "#1976d2" }}></i>
-                                <span style={{ fontSize: "12px", fontWeight: "700", color: "#1976d2" }}>
-                                  SGD {Math.ceil(list.finalAmount)}
+                                <div style={{ display: "flex", alignItems: "center", gap: "4px" }}>
+                                  <i className="icon-wallet" style={{ fontSize: "10px", color: "#4CAF50" }}></i>
+                                  <span style={{ fontSize: "10px", color: "#4CAF50", fontWeight: "600" }}>
+                                    Final
+                                  </span>
+                                </div>
+                                <span style={{ fontSize: "10px", color: "#4CAF50", fontWeight: "700" }}>
+                                  {(() => {
+                                    const baseFinal = Number(list.finalAmountWithTax || 0);
+                                    const withTax = Math.ceil(baseFinal );
+                                    return `SGD ${withTax}`;
+                                  })()}
                                 </span>
                               </div>
-                            </div>
-                          </Tooltip>
-                        </td>
 
-                        <td style={{ padding: "8px 12px" }}>
-                          <Tooltip 
-                            title={`Status: ${list.payment_status}${list.dueAmount > 0 ? ` | Due: SGD ${Math.ceil(list.dueAmount)}` : ''}`}
-                            arrow
-                            placement="top"
-                          >
-                            <div
-                              style={{
-                                borderRadius: "8px",
-                                padding: "10px 12px",
-                                backgroundColor:
-                                  list.payment_status === "Not Paid"
-                                    ? "rgba(253, 236, 234, 0.95)"
-                                    : list.payment_status === "Partially Paid"
-                                    ? "rgba(227, 242, 253, 0.95)"
-                                    : list.payment_status === "Completely Paid"
-                                    ? "rgba(232, 245, 233, 0.95)"
-                                    : "rgba(224, 224, 224, 0.95)",
-                                border: `1px solid ${
-                                  list.payment_status === "Not Paid"
-                                    ? "rgba(211, 47, 47, 0.3)"
-                                    : list.payment_status === "Partially Paid"
-                                    ? "rgba(25, 118, 210, 0.3)"
-                                    : list.payment_status === "Completely Paid"
-                                    ? "rgba(56, 142, 60, 0.3)"
-                                    : "rgba(97, 97, 97, 0.3)"
-                                }`,
-                                boxShadow: "0 2px 8px rgba(0, 0, 0, 0.12)",
-                                transition: "all 0.3s ease",
-                                cursor: "pointer",
-                              }}
-                              onMouseEnter={(e) => {
-                                e.currentTarget.style.transform = "translateY(-2px)";
-                                e.currentTarget.style.boxShadow = "0 4px 12px rgba(0, 0, 0, 0.2)";
-                              }}
-                              onMouseLeave={(e) => {
-                                e.currentTarget.style.transform = "translateY(0)";
-                                e.currentTarget.style.boxShadow = "0 2px 8px rgba(0, 0, 0, 0.12)";
-                              }}
-                            >
-                              {list.dueAmount > 0 && (
-                                <div
-                                  style={{
-                                    display: "flex",
-                                    alignItems: "center",
-                                    justifyContent: "center",
-                                    gap: "4px",
-                                    marginBottom: "6px",
-                                    padding: "3px 8px",
-                                    backgroundColor: "rgba(229, 57, 53, 0.1)",
-                                    borderRadius: "12px",
-                                    border: "1px solid rgba(229, 57, 53, 0.2)",
-                                  }}
-                                >
-                                  <i className="icon-alert-circle" style={{ fontSize: "10px", color: "#e53935" }}></i>
-                                  <span style={{ fontSize: "10px", color: "#e53935", fontWeight: "600" }}>
-                                    Due: SGD {Math.ceil(list.dueAmount)}
+                              <div
+                                style={{
+                                  display: "flex",
+                                  alignItems: "center",
+                                  justifyContent: "space-between",
+                                  marginBottom: "6px",
+                                  padding: "4px 8px",
+                                  backgroundColor: "rgba(76, 175, 80, 0.1)",
+                                  borderRadius: "6px",
+                                  border: "1px solid rgba(76, 175, 80, 0.2)",
+                                }}
+                              >
+                                <div style={{ display: "flex", alignItems: "center", gap: "4px" }}>
+                                  <i className="icon-wallet" style={{ fontSize: "10px", color: "#4CAF50" }}></i>
+                                  <span style={{ fontSize: "10px", color: "#4CAF50", fontWeight: "600" }}>
+                                    Total(Tax Included)
                                   </span>
                                 </div>
-                              )}
+                                <span style={{ fontSize: "10px", color: "#4CAF50", fontWeight: "700" }}>{(() => {
+                                    // Base amount - check first
+                                    const baseFinalAmount = Number(list.finalAmountWithTax || 0);
+                                    
+                                    // If finalAmountWithTax is 0, return 0 (don't calculate taxes)
+                                    if (!baseFinalAmount || baseFinalAmount <= 0) {
+                                      return `SGD 0`;
+                                    }
+
+                                    // Helper function to safely convert to number
+                                    const safeNumber = (value) => {
+                                      const num = Number(value);
+                                      return isNaN(num) ? 0 : num;
+                                    };
+
+                                   // Helper function to calculate nights
+                                   const parseDate = (dateStr) => {
+                                     if (!dateStr) return null;
+                                     const parsed = dayjs(dateStr, ["DD/MM/YYYY", "DD-MM-YYYY", "YYYY-MM-DD", "YYYY/MM/DD"], true);
+                                     if (parsed.isValid()) {
+                                       return parsed;
+                                     }
+                                     const fallback = dayjs(dateStr);
+                                     return fallback.isValid() ? fallback : null;
+                                   };
+
+                                   const calculateNights = (checkIn, checkOut) => {
+                                     const inDate = parseDate(checkIn);
+                                     const outDate = parseDate(checkOut);
+                                     if (!inDate || !outDate) return 0;
+                                     const nights = outDate.diff(inDate, 'day');
+                                     return Math.max(nights, 0);
+                                   };
+
+                                    // Parse taxes from JSON string
+                                    let taxes = [];
+                                    try {
+                                      if (list.taxes && typeof list.taxes === 'string') {
+                                        taxes = JSON.parse(list.taxes);
+                                      } else if (Array.isArray(list.taxes)) {
+                                        taxes = list.taxes;
+                                      }
+                                    } catch (e) {
+                                      console.error('Error parsing taxes for tour:', list.display_id, e);
+                                      return `SGD ${Math.ceil(baseFinalAmount)}`;
+                                    }
+
+                                    if (!taxes || taxes.length === 0) {
+                                      return `SGD ${Math.ceil(baseFinalAmount)}`;
+                                    }
+
+                                    // Initialize with base amount
+                                    let total = baseFinalAmount;
+                                    const totalPax = safeNumber(list.total_pax);
+                                    const nights = calculateNights(list.check_in_time, list.check_out_time);
+                                    const effectiveNights = nights > 0 ? nights : 1;
+
+                                    // Store calculated amounts for each tax (for cascading)
+                                    const taxCalculations = {};
+
+                                    // Step 1: Process taxes where calculate_on = "total"
+                                    const totalTaxes = taxes.filter(tax => 
+                                      tax.calculate_on && tax.calculate_on.toLowerCase() === 'total'
+                                    );
+
+                                    totalTaxes.forEach(tax => {
+                                      let taxAmount = 0;
+                                      const taxValue = safeNumber(tax.tax_value);
+
+                                      if (tax.tax_type === 'percentage') {
+                                        // Calculate percentage tax on BASE amount (not running total)
+                                        taxAmount = (baseFinalAmount * taxValue) / 100;
+                                      } else if (tax.tax_type === 'fixed') {
+                                        // Calculate fixed tax based on if_fixed type
+                                        switch (tax.if_fixed) {
+                                          case 'person':
+                                            taxAmount = totalPax * taxValue;
+                                            break;
+                                          case 'person_day':
+                                            taxAmount = totalPax * effectiveNights * taxValue;
+                                            break;
+                                          case 'per_day':
+                                            taxAmount = effectiveNights * taxValue;
+                                            break;
+                                          case 'per_tour':
+                                          case 'person_tour':
+                                            taxAmount = taxValue;
+                                            break;
+                                          default:
+                                            taxAmount = taxValue;
+                                        }
+                                      }
+
+                                      // Validate taxAmount is not NaN
+                                      if (isNaN(taxAmount)) {
+                                        taxAmount = 0;
+                                      }
+
+                                      // Round the tax amount for consistency between display and calculation
+                                      const roundedTaxAmount = Math.ceil(taxAmount);
+                                      total += roundedTaxAmount;
+
+                                      // Store the total after this tax (for potential cascading)
+                                      taxCalculations[tax.tax_id] = {
+                                        amount: total,
+                                        taxAmount: roundedTaxAmount
+                                      };
+                                    });
+
+                                    // Step 2: Process cascading taxes (where calculate_on != "total")
+                                    const cascadingTaxes = taxes.filter(tax => 
+                                      tax.calculate_on && tax.calculate_on.toLowerCase() !== 'total'
+                                    );
+
+                                    cascadingTaxes.forEach(tax => {
+                                      let taxAmount = 0;
+                                      const taxValue = safeNumber(tax.tax_value);
+
+                                      if (tax.tax_type === 'percentage') {
+                                        // For percentage taxes, calculate on the previous tax's total amount
+                                        // Convert calculate_on to number to match tax_id keys in taxCalculations
+                                        const calculateOnKey = typeof tax.calculate_on === 'string' && !isNaN(parseInt(tax.calculate_on)) 
+                                          ? parseInt(tax.calculate_on) 
+                                          : tax.calculate_on;
+                                        const baseCalc = taxCalculations[calculateOnKey];
+                                        const baseAmount = baseCalc ? baseCalc.amount : total;
+                                        taxAmount = (baseAmount * taxValue) / 100;
+                                      } else if (tax.tax_type === 'fixed') {
+                                        // For fixed taxes, use if_fixed rules (don't use previous tax's amount)
+                                        switch (tax.if_fixed) {
+                                          case 'person':
+                                          case 'per_person':
+                                            taxAmount = totalPax * taxValue;
+                                            break;
+                                          case 'per_person_per_day':
+                                            taxAmount = totalPax * effectiveNights * taxValue;
+                                            break;
+                                          case 'per_tour_per_day':
+                                            taxAmount = effectiveNights * taxValue;
+                                            break;
+                                          case 'per_tour':
+                                          case 'person_tour':
+                                            taxAmount = taxValue;
+                                            break;
+                                          default:
+                                            taxAmount = taxValue;
+                                        }
+                                      }
+
+                                      // Validate taxAmount is not NaN
+                                      if (isNaN(taxAmount)) {
+                                        taxAmount = 0;
+                                      }
+
+                                      // Round the tax amount for consistency between display and calculation
+                                      const roundedTaxAmount = Math.ceil(taxAmount);
+                                      total += roundedTaxAmount;
+
+                                      // Store the total after this tax
+                                      taxCalculations[tax.tax_id] = {
+                                        amount: total,
+                                        taxAmount: roundedTaxAmount
+                                      };
+                                    });
+
+                                    // Final validation - if total is NaN, fallback to baseFinalAmount
+                                    if (isNaN(total) || !isFinite(total)) {
+                                      console.error('Total became NaN for tour:', list.display_id);
+                                      return `SGD ${Math.ceil(baseFinalAmount)}`;
+                                    }
+
+                                    return `SGD ${Math.ceil(total)}`;
+                                  })()}
+                                </span>
+                              </div>
+
+                              {/* Payment Status */}
                               <div
                                 style={{
                                   display: "flex",
                                   alignItems: "center",
                                   justifyContent: "center",
-                                  gap: "6px",
-                                  padding: "4px 8px",
-                                  backgroundColor: "rgba(255, 255, 255, 0.8)",
+                                  gap: "4px",
+                                  padding: "3px 6px",
+                                  backgroundColor:
+                                    list.payment_status === "Not Paid"
+                                      ? "rgba(253, 236, 234, 0.9)"
+                                      : list.payment_status === "Partially Paid"
+                                      ? "rgba(227, 242, 253, 0.9)"
+                                      : list.payment_status === "Completely Paid"
+                                      ? "rgba(232, 245, 233, 0.9)"
+                                      : "rgba(224, 224, 224, 0.9)",
                                   borderRadius: "6px",
-                                  border: "1px solid rgba(0, 0, 0, 0.1)",
+                                  border: `1px solid ${
+                                    list.payment_status === "Not Paid"
+                                      ? "rgba(211, 47, 47, 0.3)"
+                                      : list.payment_status === "Partially Paid"
+                                      ? "rgba(25, 118, 210, 0.3)"
+                                      : list.payment_status === "Completely Paid"
+                                      ? "rgba(56, 142, 60, 0.3)"
+                                      : "rgba(97, 97, 97, 0.3)"
+                                  }`,
                                 }}
                               >
                                 <i 
@@ -2189,7 +2610,7 @@ export default function Pending() {
                                       : "icon-help-circle"
                                   }
                                   style={{ 
-                                    fontSize: "14px", 
+                                    fontSize: "10px", 
                                     color:
                                       list.payment_status === "Not Paid"
                                         ? "#d32f2f"
@@ -2202,8 +2623,8 @@ export default function Pending() {
                                 ></i>
                                 <span
                                   style={{
-                                    fontWeight: "700",
-                                    fontSize: "12px",
+                                    fontWeight: "600",
+                                    fontSize: "9px",
                                     color:
                                       list.payment_status === "Not Paid"
                                         ? "#d32f2f"
@@ -2217,10 +2638,58 @@ export default function Pending() {
                                   {list.payment_status}
                                 </span>
                               </div>
+
+                              {/* Due Amount Warning */}
+                              {(() => {
+                                const baseFinalAmount = Number(list.finalAmountWithTax || 0);
+                                if (!baseFinalAmount || baseFinalAmount <= 0) return false;
+                                const safeNumber = (v) => { const n = Number(v); return isNaN(n) ? 0 : n; };
+                                const parseDate = (dateStr) => {
+                                  if (!dateStr) return null;
+                                  const parsed = dayjs(dateStr, ["DD/MM/YYYY", "DD-MM-YYYY", "YYYY-MM-DD", "YYYY/MM/DD"], true);
+                                  if (parsed.isValid()) {
+                                    return parsed;
+                                  }
+                                  const fallback = dayjs(dateStr);
+                                  return fallback.isValid() ? fallback : null;
+                                };
+                                const calculateNights = (ci, co) => {
+                                  const inDate = parseDate(ci);
+                                  const outDate = parseDate(co);
+                                  if (!inDate || !outDate) return 0;
+                                  const d = outDate.diff(inDate, 'day');
+                                  return Math.max(d,0);
+                                };
+                                let taxes=[]; try{ if(list.taxes && typeof list.taxes==='string') taxes=JSON.parse(list.taxes); else if(Array.isArray(list.taxes)) taxes=list.taxes; }catch{ taxes=[]; }
+                                let total=baseFinalAmount; const totalPax=safeNumber(list.total_pax); const nights=calculateNights(list.check_in_time, list.check_out_time); const taxCalculations={};
+                                (taxes||[]).filter(t=>t.calculate_on&&t.calculate_on.toLowerCase()==='total').forEach(t=>{ let a=0; const v=safeNumber(t.tax_value); if(t.tax_type==='percentage') a=(baseFinalAmount*v)/100; else { switch(t.if_fixed){case 'person': a=totalPax*v; break; case 'person_day': a=totalPax*nights*v; break; case 'per_day': a=nights*v; break; case 'per_tour': case 'person_tour': a=v; break; default: a=v; } } const r=Math.ceil(isNaN(a)?0:a); total+=r; taxCalculations[t.tax_id]={amount:total,taxAmount:r}; });
+                                (taxes||[]).filter(t=>t.calculate_on&&t.calculate_on.toLowerCase()!=='total').forEach(t=>{ let a=0; const v=safeNumber(t.tax_value); if(t.tax_type==='percentage') { const calculateOnKey = typeof t.calculate_on === 'string' && !isNaN(parseInt(t.calculate_on)) ? parseInt(t.calculate_on) : t.calculate_on; const baseCalc=taxCalculations[calculateOnKey]; const b=baseCalc?baseCalc.amount:total; a=(b*v)/100; } else { switch(t.if_fixed){case 'person': case 'per_person': a=totalPax*v; break; case 'per_person_per_day': a=totalPax*nights*v; break; case 'per_tour_per_day': a=nights*v; break; case 'per_tour': case 'person_tour': a=v; break; default: a=v; } } const r=Math.ceil(isNaN(a)?0:a); total+=r; taxCalculations[t.tax_id]={amount:total,taxAmount:r}; });
+                                const dueNow=Math.max(total - safeNumber(list.paidAmount),0);
+                                return dueNow > 0;
+                              })() && (
+                                <div
+                                  style={{
+                                    display: "flex",
+                                    alignItems: "center",
+                                    justifyContent: "center",
+                                    gap: "4px",
+                                    marginTop: "4px",
+                                    padding: "3px 6px",
+                                    backgroundColor: "rgba(229, 57, 53, 0.1)",
+                                    borderRadius: "6px",
+                                    border: "1px solid rgba(229, 57, 53, 0.2)",
+                                  }}
+                                >
+                                  <i className="icon-alert-circle" style={{ fontSize: "8px", color: "#e53935" }}></i>
+                                  <span style={{ fontSize: "8px", color: "#e53935", fontWeight: "600" }}>
+                                    {(() => { const safeNumber=(v)=>{const n=Number(v);return isNaN(n)?0:n;}; const parseDate=(dateStr)=>{if(!dateStr)return null; const parsed=dayjs(dateStr,["DD/MM/YYYY","DD-MM-YYYY","YYYY-MM-DD","YYYY/MM/DD"],true); if(parsed.isValid()) return parsed; const fallback=dayjs(dateStr); return fallback.isValid()?fallback:null;}; const calculateNights=(ci,co)=>{const inDate=parseDate(ci); const outDate=parseDate(co); if(!inDate||!outDate)return 0; const d=outDate.diff(inDate,'day'); return Math.max(d,0);}; const baseFinalAmount=Number(list.finalAmountWithTax||0); let taxes=[]; try{ if(list.taxes&&typeof list.taxes==='string') taxes=JSON.parse(list.taxes); else if(Array.isArray(list.taxes)) taxes=list.taxes; }catch{ taxes=[]; } let total=baseFinalAmount; const totalPax=safeNumber(list.total_pax); const nights=calculateNights(list.check_in_time,list.check_out_time); const effectiveNights=nights>0?nights:1; const taxCalculations={}; (taxes||[]).filter(t=>t.calculate_on&&t.calculate_on.toLowerCase()==='total').forEach(t=>{ let a=0; const v=safeNumber(t.tax_value); if(t.tax_type==='percentage') a=(baseFinalAmount*v)/100; else { switch(t.if_fixed){case 'person': a=totalPax*v; break; case 'person_day': a=totalPax*effectiveNights*v; break; case 'per_day': a=effectiveNights*v; break; case 'per_tour': case 'person_tour': a=v; break; default: a=v; } } const r=Math.ceil(isNaN(a)?0:a); total+=r; taxCalculations[t.tax_id]={amount:total,taxAmount:r}; }); (taxes||[]).filter(t=>t.calculate_on&&t.calculate_on.toLowerCase()!=='total').forEach(t=>{ let a=0; const v=safeNumber(t.tax_value); if(t.tax_type==='percentage') { const calculateOnKey = typeof t.calculate_on === 'string' && !isNaN(parseInt(t.calculate_on)) ? parseInt(t.calculate_on) : t.calculate_on; const baseCalc=taxCalculations[calculateOnKey]; const b=baseCalc?baseCalc.amount:total; a=(b*v)/100; } else { switch(t.if_fixed){case 'person': case 'per_person': a=totalPax*v; break; case 'per_person_per_day': a=totalPax*effectiveNights*v; break; case 'per_tour_per_day': a=effectiveNights*v; break; case 'per_tour': case 'person_tour': a=v; break; default: a=v; } } const r=Math.ceil(isNaN(a)?0:a); total+=r; taxCalculations[t.tax_id]={amount:total,taxAmount:r}; }); const dueNow=Math.max(total - safeNumber(list.paidAmount),0); return `Due: SGD ${Math.ceil(dueNow)}`; })()}
+                                  </span>
+                                </div>
+                              )}
                             </div>
-                          </Tooltip>
+                          </CustomPaymentTooltip>
                         </td>
-                        <td style={{ padding: "8px 12px", width: "110px", minWidth: "110px", maxWidth: "110px", whiteSpace: "nowrap", display: "flex", alignItems: "center", justifyContent: "center", height: "100%" }}>
+                        <td className="actions-column" style={{ display: "flex", alignItems: "center", justifyContent: "center", height: "100%" }}>
   <span style={{ fontSize: "11px" }}>
     {list.created_at ? dayjs(list.created_at).format("DD MMM YYYY, HH:mm") : "-"}
   </span>
@@ -2229,10 +2698,10 @@ export default function Pending() {
                     ))
                   ) : (
                     <tr>
-                      <td
-                        colSpan="13"
-                        style={{ textAlign: "center", padding: "40px 20px" }}
-                      >
+                                              <td
+                          colSpan="12"
+                          style={{ textAlign: "center", padding: "40px 20px" }}
+                        >
                         <div
                           style={{
                             display: "flex",
@@ -2288,6 +2757,8 @@ export default function Pending() {
           setCurrentPage={(newPage) => setPage(newPage - 1)} // Update state to 0-based
           totalPages={totalPages}
         />
+        
+
       </Box>
 
       <Snackbar
@@ -2316,13 +2787,14 @@ export default function Pending() {
         handleDownloadPDF={handleDownloadPDF}
         contentRef={contentRef}
         viewDetailsStatus={viewDetailsStatus}
-        DmcLogo={DmcLogo}
-        DmcName={DmcName}
         displayId={displayId}
         bookings={bookings}
         modifiedPriceData={modifiedPriceData}
         markupAmount={markupAmount}
         discountAmount={discountAmount}
+        totalPrice={totalPrice}
+        //tourId={tourId}
+        pricehide={priceHideFromBookings}
       />
       {/* </Box> */}
     </>

@@ -28,13 +28,15 @@ import AccessTimeIcon from '@mui/icons-material/AccessTime';
 import ConfirmationNumberIcon from '@mui/icons-material/ConfirmationNumber';
 import AttractionsIcon from '@mui/icons-material/Attractions';
 import TourIcon from '@mui/icons-material/Tour';
-import { selectAttractions } from '../../../slice/attractions/attractionSlice';
+import { fetchAttractions, selectAttractions } from '../../../slice/attractions/attractionSlice';
 import { setAllServices } from '../../../slice/tour-packages/tourPackageSlice';
 import AttractionListing from './AttractionListing';
 import PaxSelector from './PaxSelector';
 import TimeSlotSelector from './TimeSlotSelector';
 import TicketTypeSelector from './TicketTypeSelector';
 import BookingSummaryModal from './BookingSummaryModal';
+import PortCity from './PortCity';
+import { shallowEqual } from 'react-redux';
 
 const initialFormState = {
   attraction: '',
@@ -52,12 +54,13 @@ export default function AttractionComponent({ date, dayIndex, attractionspack, t
   const theme = useTheme();
   const dispatch = useDispatch();
   const attractions = useSelector(selectAttractions);
-  const searchParams = useSelector((state) => state.attractions.searchParams);
+  const searchParams = useSelector((state) => state.attractions.searchParams, shallowEqual);
   const attractionDetails = useSelector((state) => state.attractions.attractionDetails);
   const currentMode = useSelector((state) => state.common.bookingMode) || 'dmc';
   const agentId = useSelector((state) => state.editing?.agentId);
   const tourId = useSelector((state) => state.hotels.id);
   const existingServices = useSelector((state) => state.tourPackages.AllServices || []);
+  const tourStatus = useSelector((state) => state.tourPackages.tourStatus);
   
   console.log('Attraction update', attractionspack);
   console.log('AttractionDetails:', attractionDetails);
@@ -99,67 +102,148 @@ export default function AttractionComponent({ date, dayIndex, attractionspack, t
   const [expandedSections, setExpandedSections] = useState([0]);
   // Track which sections have already been saved to Redux
   const [savedSectionIds, setSavedSectionIds] = useState([]);
-  
+  const [selectedCity, setSelectedCity] = useState(null);
+  const [cityError, setCityError] = useState(false);
+  const [isCityEnabled, setIsCityEnabled] = useState(true);
+  const [isAttractionListingEnabled, setIsAttractionListingEnabled] = useState(false);
+  console.log("selectedCity", selectedCity);
+  const country = useSelector((state) => state.tourPackages.searchCriteria.country);
+  const tour = useSelector((state) => state.hotels.tourdetails, shallowEqual);
+  console.log("tour", tour);
   // Refs to prevent infinite loops
   const hasInitializedRef = useRef(false);
   const lastDispatchRef = useRef(null);
   const hasDispatchedAllAttractionsRef = useRef(false);
   const currentServicesRef = useRef([]);
+  const isInitializingRef = useRef(false);
+  const hasDataConflictsRef = useRef(false);
+  console.log("hasDataConflictsRef", hasDataConflictsRef);
 
+  console.log("formsection", formSections);
+  
+  // Debug effect to track formSections changes
+  useEffect(() => {
+    console.log('formSections state changed:', formSections);
+  }, [formSections]);
+  
   // Update the current services ref when existingServices changes
   useEffect(() => {
     currentServicesRef.current = existingServices;
   }, [existingServices]);
 
+  // Reset attraction listing state when city changes or component mounts
+  useEffect(() => {
+    if (!selectedCity) {
+      setIsAttractionListingEnabled(false);
+    }
+  }, [selectedCity]);
+
+  // Debug effect to track isAttractionListingEnabled changes
+  useEffect(() => {
+    console.log("isAttractionListingEnabled changed to:", isAttractionListingEnabled);
+  }, [isAttractionListingEnabled]);
+
   // Function to initialize form sections from attractionspack data
   const initializeFormSectionsFromAttractionPack = useCallback(() => {
     if (!attractionspack || !Array.isArray(attractionspack) || attractionspack.length === 0) {
       console.log('No attractionspack data to initialize from');
+      isInitializingRef.current = false; // Ensure flag is reset even when no data
       return;
     }
 
     console.log('Initializing form sections from attractionspack:', attractionspack);
-
-    // Filter attractions based on bookingDate instead of dayIndex
-    const dayAttractions = attractionspack.filter(attractionService => {
+    isInitializingRef.current = true;
+    
+    // Check for data conflicts that could cause infinite loops (for logging only)
+    const hasDataConflicts = attractionspack.some(attractionService => {
       const attractionData = attractionService.data?.[0];
-      // Include all attractions if bookingDate matches or is not specified
       if (!attractionData) return false;
       
-      const attractionBookingDate = attractionData.bookingDate || '';
-      // If no booking date specified, include it
-      if (!attractionBookingDate) return true;
+      // Check if adult/child counts from attractionspack don't match search form data
+      const searchAdults = searchParams?.adults || 0;
+      const searchChildren = searchParams?.children || 0;
+      const attractionAdults = Number(attractionData.adultCount) || 0;
+      const attractionChildren = Number(attractionData.childCount) || 0;
       
-      // If date is provided, check if it matches
-      if (date && date._isAMomentObject) {
-        return attractionBookingDate === date.format('YYYY-MM-DD');
+      const hasMismatch = (searchAdults !== attractionAdults) || (searchChildren !== attractionChildren);
+      
+      if (hasMismatch) {
+        console.warn('Data mismatch detected but proceeding with initialization:', {
+          searchForm: { adults: searchAdults, children: searchChildren },
+          attractionData: { adults: attractionAdults, children: attractionChildren },
+          attractionId: attractionData.AttractionId
+        });
       }
       
-      // Otherwise, include all attractions
-      return true;
+      return hasMismatch;
+    });
+    
+    // Store the conflict status for use in auto-dispatch logic
+    hasDataConflictsRef.current = hasDataConflicts;
+    if (hasDataConflicts) {
+      console.log('Data conflicts detected - will proceed with initialization but skip auto-dispatch');
+    }
+
+    // Filter attractions - show all for first dayIndex, match by bookingDate for other days
+   
+    const dayAttractions = attractionspack.filter((attractionService, index) => {
+      const attractionData = attractionService.data?.[0];
+      
+
+      if (!attractionData) {
+        console.log(`Attraction ${index}: No data, skipping`);
+        return false;
+      }
+
+      // For first dayIndex (dayIndex === 0), show attractions that either match current bookingDate OR don't match any tour dates
+      if (dayIndex === 0) {
+        
+        
+        // Show if it matches current bookingDate OR doesn't match any tour dates
+        const matchesCurrentDate = attractionData.bookingDate === bookingDate;
+        const notInTourDates = !tourDates.includes(attractionData.bookingDate);
+        const shouldShow = matchesCurrentDate || notInTourDates;
+        
+       
+        return shouldShow;
+      }
+
+      // For other dayIndexes, match by bookingDate
+      const matchesBookingDate = attractionData.bookingDate === bookingDate;
+    
+      return matchesBookingDate;
     });
 
     if (dayAttractions.length === 0) {
-      console.log(`No attractions found for date ${bookingDate}`);
+     
+      isInitializingRef.current = false; // Ensure flag is reset when no attractions found
       return;
     }
 
+   
+
     // Convert attraction data to form sections for current day
     const newFormSections = dayAttractions.map((attractionService, index) => {
-      const originalAttractionData = attractionService.data[0];
+      const attractionData = attractionService.data[0];
       
-      // Create a copy of the data instead of modifying the original
-      const attractionData = { ...originalAttractionData };
+      console.log('Processing attraction data for form section:', {
+        AttractionId: attractionData.AttractionId,
+        ticketId: attractionData.ticketId,
+        visitTime: attractionData.visitTime,
+        adultCount: attractionData.adultCount,
+        childCount: attractionData.childCount,
+        seniorCount: attractionData.seniorCount
+      });
       
-      return {
-        attraction: attractionData.AttractionId,
+      const formSection = {
+        attraction: String(attractionData.AttractionId), // Convert to string
         pax: {
           Adults: Number(attractionData.adultCount) || 0,
           Children: Number(attractionData.childCount) || 0,
           Seniors: Number(attractionData.seniorCount) || 0
         },
         timeSlot: attractionData.visitTime || '',
-        ticketType: attractionData.ticketId || '',
+        ticketType: String(attractionData.ticketId), // Convert to string
         priceType: attractionData.nri || 'residential',
         type: attractionService.type || 'attraction', // Include service type
         bookingDate: attractionData.bookingDate || bookingDate,
@@ -171,16 +255,22 @@ export default function AttractionComponent({ date, dayIndex, attractionspack, t
           dayIndex: dayIndex // Set dayIndex in the copy, not the original
         }
       };
+      
+      console.log('Created form section:', formSection);
+      return formSection;
     });
 
-    console.log('Initialized form sections for current day:', newFormSections);
-    console.log('Form sections by type:', {
-      attractions: newFormSections.filter(s => s.type === 'attraction').length,
-      packages: newFormSections.filter(s => s.type === 'attraction_package').length
-    });
+   
+    
     setFormSections(newFormSections);
     setExpandedSections(newFormSections.map((_, index) => index));
-  }, [attractionspack, dayIndex, bookingDate, date]);
+    
+    // Clear initialization flag after a short delay to allow components to render
+    setTimeout(() => {
+      isInitializingRef.current = false;
+      console.log('Initialization complete, allowing component updates');
+    }, 100);
+  }, [ dayIndex, bookingDate, searchParams]); // Added tourDates to dependencies
 
   // Function to dispatch ALL attractions from attractionspack to Redux state
   const dispatchAllAttractionsToRedux = useCallback(() => {
@@ -190,10 +280,23 @@ export default function AttractionComponent({ date, dayIndex, attractionspack, t
     }
 
     // Create a unique key for this dispatch to prevent duplicates
-    const dispatchKey = JSON.stringify(attractionspack.map(service => service.data?.[0]?.id));
+    const dispatchKey = JSON.stringify(attractionspack.map(service => service.data?.[0]?.AttractionId));
     
     if (lastDispatchRef.current === dispatchKey) {
       console.log('Skipping duplicate dispatch for all attractions');
+      return;
+    }
+
+    // Check if there are already attraction services for the current day in Redux
+    const existingAttractionServices = currentServicesRef.current.filter(service => 
+      (service.type === "attraction" || service.type === "attraction_package") && 
+      service.data && 
+      Array.isArray(service.data) &&
+      service.data.some(booking => booking.dayIndex === dayIndex)
+    );
+    console.log('Existing attraction services:', existingAttractionServices);
+    if (existingAttractionServices.length > 0) {
+      console.log('Attraction services already exist for this day, skipping dispatch to prevent duplicates');
       return;
     }
 
@@ -207,7 +310,7 @@ export default function AttractionComponent({ date, dayIndex, attractionspack, t
     // Create new attraction service entries for ALL attractions, preserving booking_id
     const newAttractionServices = attractionspack.map(attractionService => {
       const originalAttractionData = attractionService.data[0];
-      
+      console.log('Original attraction data:', originalAttractionData);
       if (!originalAttractionData) {
         console.log('No attraction data found in service:', attractionService);
         return null;
@@ -218,7 +321,6 @@ export default function AttractionComponent({ date, dayIndex, attractionspack, t
       
       // Create a copy of the data instead of modifying the original
       const processedAttractionData = {
-        id: originalAttractionData.id || `attraction-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
         AttractionId: originalAttractionData.AttractionId,
         AttractionName: originalAttractionData.AttractionName,
         location: originalAttractionData.location || originalAttractionData.city || '',
@@ -261,7 +363,7 @@ export default function AttractionComponent({ date, dayIndex, attractionspack, t
         agent_id: agentId,
         tour_id: tourId,
         data: [processedAttractionData],
-        bookingType: attractionService.bookingType || "enquiry"
+        bookingType: "enquiry"
       };
 
       // Add booking_id if it exists in the original service
@@ -272,6 +374,7 @@ export default function AttractionComponent({ date, dayIndex, attractionspack, t
       return serviceObject;
     }).filter(Boolean); // Remove null entries
 
+    console.log('New attraction services:', newAttractionServices);
     if (newAttractionServices.length === 0) {
       console.log('No valid attractions to dispatch to Redux');
       return;
@@ -298,6 +401,8 @@ export default function AttractionComponent({ date, dayIndex, attractionspack, t
     lastDispatchRef.current = null;
     hasDispatchedAllAttractionsRef.current = false;
     currentServicesRef.current = [];
+    isInitializingRef.current = false;
+    hasDataConflictsRef.current = false;
   }, [dayIndex]);
 
   // Cleanup effect
@@ -307,6 +412,8 @@ export default function AttractionComponent({ date, dayIndex, attractionspack, t
       lastDispatchRef.current = null;
       hasDispatchedAllAttractionsRef.current = false;
       currentServicesRef.current = [];
+      isInitializingRef.current = false;
+      hasDataConflictsRef.current = false;
     };
   }, []);
 
@@ -385,63 +492,58 @@ export default function AttractionComponent({ date, dayIndex, attractionspack, t
     // Remove from Redux state if the section has attraction data (either has an original ID or attraction selection)
     const hasOriginalId = sectionToRemove?.originalData?.id;
     const hasAttractionId = sectionToRemove?.attraction;
+    console.log("Attraction - Has original ID:", hasOriginalId);
+    console.log("Attraction - Section to remove:", sectionToRemove);
     
     if (hasOriginalId || hasAttractionId) {
       // Clone the existing services array
       const currentServices = [...existingServices];
+      console.log("Attraction - Current services before removal:", currentServices);
       
-      // Filter out attraction services that contain this booking
-      const filteredServices = currentServices.map(service => {
-        // Check if this is an attraction service (including attraction packages)
+      // Filter out the specific attraction service
+      const filteredServices = currentServices.filter(service => {
+        // Check if this is an attraction service
         if (service.type === "attraction" || service.type === "attraction_package") {
-          // Check if this service contains data that matches our booking
+          // For existing services with booking_id, match by booking_id
+          if (sectionToRemove.originalData?.booking_id && service.booking_id) {
+            const shouldRemove = service.booking_id === sectionToRemove.originalData.booking_id;
+            console.log(`Attraction - Checking booking_id match: ${service.booking_id} === ${sectionToRemove.originalData.booking_id} = ${shouldRemove}`);
+            return !shouldRemove;
+          }
+          
+          // For new services without booking_id, match by attraction data
           if (service.data && Array.isArray(service.data)) {
-            // Remove the specific booking with matching ID and booking_id (if available)
-            const filteredData = service.data.filter(dataItem => {
-              // Match by booking_id first (most reliable)
-              if (sectionToRemove.originalData?.booking_id && dataItem.booking_id) {
-                return !(dataItem.id === sectionToRemove.originalData.id && 
-                        dataItem.booking_id === sectionToRemove.originalData.booking_id);
+            const hasMatchingData = service.data.some(dataItem => {
+              // Match by AttractionId and dayIndex
+              if (sectionToRemove.attraction && dataItem.AttractionId) {
+                const matchesAttraction = dataItem.AttractionId === sectionToRemove.attraction;
+                const matchesDay = dataItem.dayIndex === dayIndex;
+                console.log(`Attraction - Checking data match: AttractionId ${dataItem.AttractionId} === ${sectionToRemove.attraction} && dayIndex ${dataItem.dayIndex} === ${dayIndex} = ${matchesAttraction && matchesDay}`);
+                return matchesAttraction && matchesDay;
               }
-              
-              // Match by ID as fallback
-              if (sectionToRemove.originalData?.id && dataItem.id === sectionToRemove.originalData.id) {
-                return false;
-              }
-              
-              // Match by attraction ID and dayIndex as final fallback for new bookings
-              if (sectionToRemove.attraction && 
-                  dataItem.AttractionId === sectionToRemove.attraction &&
-                  dataItem.dayIndex === dayIndex) {
-                return false;
-              }
-              
-              return true;
+              return false;
             });
             
-            if (filteredData.length === 0) {
-              // If no data left, mark for removal
-              return null;
-            } else {
-              // Create a new service with filtered data (immutable update)
-              return {
-                ...service,
-                data: filteredData
-              };
+            if (hasMatchingData) {
+              console.log("Attraction - Found matching data, removing service");
+              return false; // Remove this service
             }
           }
         }
         
-        // Keep all other services as-is
-        return service;
-      }).filter(service => service !== null); // Remove services marked as null
+        // Keep all other services
+        return true;
+      });
+      
+      console.log("Attraction - Filtered services after removal:", filteredServices);
       
       // Only dispatch if there's an actual change
-      if (filteredServices.length !== currentServices.length || 
-          JSON.stringify(filteredServices) !== JSON.stringify(currentServices)) {
-        console.log("Attraction - Removing booking from Redux:", sectionToRemove);
-        console.log("Attraction - Updated services:", filteredServices);
+      if (filteredServices.length !== currentServices.length) {
+        console.log("Attraction - Removing attraction service from Redux");
+        console.log(`Attraction - Services count: ${currentServices.length} -> ${filteredServices.length}`);
         dispatch(setAllServices(filteredServices));
+      } else {
+        console.log("Attraction - No matching service found to remove");
       }
     }
   };
@@ -483,7 +585,7 @@ export default function AttractionComponent({ date, dayIndex, attractionspack, t
         ...customerDetails,
         
         // Core booking details
-        id: updatedSection.originalData.id,
+        
         AttractionId: updatedSection.originalData.AttractionId,
         AttractionName: updatedSection.originalData.AttractionName,
         location: updatedSection.originalData.location,
@@ -538,7 +640,8 @@ export default function AttractionComponent({ date, dayIndex, attractionspack, t
           type: isPackageBooking ? "attraction_package" : "attraction",
           agent_id: agentId,
           tour_id: tourId,
-          data: [bookingData]
+          data: [bookingData],
+          bookingType: "enquiry"
         };
         
         // Add booking_id if available from original data
@@ -575,7 +678,7 @@ export default function AttractionComponent({ date, dayIndex, attractionspack, t
       specialRequests: "",
       
       // Core booking details
-      id: updatedSection.originalData?.id || `attraction-${Date.now()}-${sectionIndex}`,
+      
       AttractionId: updatedSection.attraction,
       AttractionName: summaryData.attraction,
       location: summaryData.location,
@@ -634,7 +737,8 @@ export default function AttractionComponent({ date, dayIndex, attractionspack, t
         type: "attraction",
         agent_id: agentId,
         tour_id: tourId,
-        data: [bookingData]
+        data: [bookingData],
+        bookingType: "enquiry"
       };
       
       // Add booking_id if available from original data
@@ -647,9 +751,23 @@ export default function AttractionComponent({ date, dayIndex, attractionspack, t
 
     console.log("Attraction - Dispatching individual booking update to Redux:", bookingData);
     dispatch(setAllServices(updatedServices));
+    setBookingSuccess(true);
+    
+    setTimeout(() => {
+      setBookingSuccess(false);
+    }, 5000);
   }, [attractions, attractionDetails, currentMode, agentId, tourId, dayIndex, existingServices, dispatch]);
 
   const handleInputChange = (sectionIndex, field, value) => {
+    console.log('handleInputChange called:', { sectionIndex, field, value, currentFormSections: formSections, isInitializing: isInitializingRef.current });
+    
+    // Skip updates during initialization to prevent overwriting initialized data
+    if (isInitializingRef.current) {
+      console.log('Skipping handleInputChange during initialization');
+      return;
+    }
+    
+    
     const newFormSections = [...formSections];
     
     // Generate old signature before changes
@@ -1009,7 +1127,7 @@ export default function AttractionComponent({ date, dayIndex, attractionspack, t
           ...customerDetails,
           
           // Core booking details
-          id: section.originalData.id,
+         
           AttractionId: section.originalData.AttractionId,
           AttractionName: section.originalData.AttractionName,
           location: section.originalData.location,
@@ -1058,7 +1176,7 @@ export default function AttractionComponent({ date, dayIndex, attractionspack, t
         specialRequests: "",
         
         // Core booking details
-        id: section.originalData?.id || `attraction-${Date.now()}-${index}`,
+       
         AttractionId: section.attraction,
         AttractionName: summaryData.attraction,
         location: summaryData.location,
@@ -1108,7 +1226,8 @@ export default function AttractionComponent({ date, dayIndex, attractionspack, t
         type: isPackageBooking ? "attraction_package" : "attraction",
         agent_id: agentId,
         tour_id: tourId,
-        data: [attractionData]
+        data: [attractionData],
+        bookingType: "enquiry"
       };
       
       // Add booking_id if available from original data
@@ -1135,10 +1254,50 @@ export default function AttractionComponent({ date, dayIndex, attractionspack, t
     }, 5000);
   }, [formSections, existingServices, validateBookings, dispatch, currentMode, getBookingSummary, agentId, tourId, dayIndex]);
 
+  // Ref to track if we're already processing to prevent infinite loops
+  const isProcessingRef = useRef(false);
+  const lastFormSectionsRef = useRef([]);
+  const lastAttractionspackRef = useRef([]);
+  
   // Effect to automatically dispatch completed attraction bookings to Redux
   useEffect(() => {
-    // Skip if no form sections or during loading
-    if (formSections.length === 0 || !attractions || attractions.length === 0) return;
+    // Skip if no form sections, during loading, or already processing
+    if (formSections.length === 0 || !attractions || attractions.length === 0 || isProcessingRef.current) return;
+    
+    // Skip auto-dispatch if we have attractionspack data (to prevent duplicates)
+    // Only auto-dispatch when there's no attractionspack data (new bookings)
+    if (attractionspack && Array.isArray(attractionspack) && attractionspack.length > 0) {
+      console.log('Attraction - Skipping auto-dispatch because attractionspack data exists');
+      return;
+    }
+    
+    // Check for data conflicts that could cause infinite loops using the ref
+    if (hasDataConflictsRef.current) {
+      console.log('Attraction - Data conflicts detected, skipping auto-dispatch to prevent infinite loops');
+      return;
+    }
+    
+    // Check if form sections have actually changed to prevent unnecessary re-runs
+    const currentFormSectionsString = JSON.stringify(formSections.map(s => ({
+      attraction: s.attraction,
+      timeSlot: s.timeSlot,
+      ticketType: s.ticketType,
+      pax: s.pax
+    })));
+    const lastFormSectionsString = JSON.stringify(lastFormSectionsRef.current);
+    
+    if (currentFormSectionsString === lastFormSectionsString) {
+      console.log('Attraction - Form sections unchanged, skipping auto-dispatch');
+      return;
+    }
+    
+    // Update the ref with current form sections
+    lastFormSectionsRef.current = formSections.map(s => ({
+      attraction: s.attraction,
+      timeSlot: s.timeSlot,
+      ticketType: s.ticketType,
+      pax: s.pax
+    }));
     
     // Find sections that are complete but not yet saved
     const newCompleteSections = formSections.filter((section, index) => {
@@ -1162,6 +1321,9 @@ export default function AttractionComponent({ date, dayIndex, attractionspack, t
     
     // If we found new complete sections, update Redux
     if (newCompleteSections.length > 0) {
+      // Set processing flag to prevent multiple simultaneous executions
+      isProcessingRef.current = true;
+      
       // Get signatures for the new sections
       const newSectionSignatures = newCompleteSections.map(section => 
         `${section.attraction}-${section.timeSlot}-${section.ticketType}-${dayIndex}`
@@ -1176,16 +1338,28 @@ export default function AttractionComponent({ date, dayIndex, attractionspack, t
       
       // Wait a bit to avoid too many Redux updates
       const timeoutId = setTimeout(() => {
-        // Call handleBookNow
-        handleBookNow();
-        
-        // Mark these sections as saved
-        setSavedSectionIds(prev => [...prev, ...newSectionSignatures]);
+        try {
+          // Call handleBookNow
+          handleBookNow();
+          
+          // Mark these sections as saved
+          setSavedSectionIds(prev => [...prev, ...newSectionSignatures]);
+        } catch (error) {
+          console.error('Error in auto dispatch:', error);
+        } finally {
+          // Reset processing flag after a delay to allow for state updates
+          setTimeout(() => {
+            isProcessingRef.current = false;
+          }, 1000);
+        }
       }, 500);
       
-      return () => clearTimeout(timeoutId);
+      return () => {
+        clearTimeout(timeoutId);
+        isProcessingRef.current = false;
+      };
     }
-  }, [formSections, handleBookNow, attractions, savedSectionIds, dayIndex]);
+  }, [formSections, attractions, savedSectionIds, dayIndex, attractionspack, tour]); // Added tour to dependencies
 
   const getCompletionStatus = (section) => {
     const steps = [
@@ -1260,29 +1434,80 @@ export default function AttractionComponent({ date, dayIndex, attractionspack, t
     return !isDateValid;
   };
 
-  if (!attractions || attractions.length === 0) {
-    return (
-      <Container maxWidth="xl">
-        <Card 
-          elevation={3}
-          sx={{
-            borderRadius: 3,
-            background: 'linear-gradient(135deg, #ff6b6b 0%, #ee5a24 100%)',
-            color: 'white',
-            mb: 2,
-            mx: 'auto',
-          }}
-        >
-          <CardContent sx={{ py: 2, textAlign: 'center' }}>
-            <AttractionsIcon sx={{ fontSize: 64, color: '#FFD700', mb: 2 }} />
-            <Typography variant="h6" color="white">
-              Please search for attractions first
-            </Typography>
-          </CardContent>
-        </Card>
-      </Container>
-    );
-  }
+  // if (!attractions || attractions.length === 0) {
+  //   return (
+  //     <Container maxWidth="xl">
+  //       <Card 
+  //         elevation={3}
+  //         sx={{
+  //           borderRadius: 3,
+  //           background: 'linear-gradient(135deg, #ff6b6b 0%, #ee5a24 100%)',
+  //           color: 'white',
+  //           mb: 2,
+  //           mx: 'auto',
+  //         }}
+  //       >
+  //         <CardContent sx={{ py: 2, textAlign: 'center' }}>
+  //           <AttractionsIcon sx={{ fontSize: 64, color: '#FFD700', mb: 2 }} />
+  //           <Typography variant="h6" color="white">
+  //             Please search for attractions first
+  //           </Typography>
+  //         </CardContent>
+  //       </Card>
+  //     </Container>
+  //   );
+  // }
+
+  const handleCitySelect = (city) => {
+    console.log("City selected:", city);
+    console.log("Current isAttractionListingEnabled:", isAttractionListingEnabled);
+    setSelectedCity(city);
+    
+    if (city) {
+      setCityError(false);
+      // Disable attraction listing until API call is successful
+      console.log("Disabling attraction listing - waiting for API response");
+      setIsAttractionListingEnabled(false);
+      
+      // Dispatch fetchAttractions API call
+      console.log("Dispatching fetchAttractions with params:", {
+        city: `${city.name}, (${country})`,
+        date: bookingDate,
+        adults: tour.adult,
+        children: tour.child,
+        tour_id: tour.tour_id,
+        selectedDate: bookingDate,
+        fromMainSearch: false
+      });
+      
+      dispatch(fetchAttractions({ city: `${city.name}, (${country})`, date: bookingDate, adults: tour.adult,
+        children: tour.child,
+        tour_id: tour.tour_id, // Use tour_id from packageData
+        selectedDate: bookingDate,
+        fromMainSearch: false, }))
+        .then((result) => {
+          console.log("fetchAttractions API result:", result);
+          if (result.error) {
+            console.error("fetchAttractions API Error:", result.error);
+            console.log("API failed - keeping attraction listing disabled");
+            setIsAttractionListingEnabled(false);
+          } else {
+            console.log("fetchAttractions API Success - enabling attraction listing");
+            console.log("API succeeded - enabling attraction listing");
+            setIsAttractionListingEnabled(true);
+          }
+        })
+        .catch((error) => {
+          console.error("Error dispatching fetchAttractions:", error);
+          console.log("API dispatch failed - keeping attraction listing disabled");
+          setIsAttractionListingEnabled(false);
+        });
+    } else {
+      // If no city selected, disable attraction listing
+      console.log("No city selected - disabling attraction listing");
+      setIsAttractionListingEnabled(false);
+    }
+  };
 
   return (
     <Container maxWidth="xl" sx={{ py: 2, position: 'relative' }}>
@@ -1290,22 +1515,60 @@ export default function AttractionComponent({ date, dayIndex, attractionspack, t
       <Card 
         elevation={3}
         sx={{
-          borderRadius: 3,
+          borderRadius: 2,
           background: 'linear-gradient(135deg, #ff6b6b 0%, #ee5a24 100%)',
           color: 'white',
-          mb: 3,
+          mb: 1.5,
           mx: 'auto',
         }}
       >
-        <CardContent sx={{ py: 1}}>
-          <Box display="flex" alignItems="center" justifyContent="space-between">
-            <Box display="flex" alignItems="center">
-              <TourIcon sx={{ mr: 2, fontSize: 32, color: '#FFD700' }} />
+        <CardContent sx={{ 
+          py: { xs: 1, sm: 0.8, md: 0.5 },
+          px: { xs: 1.5, sm: 2, md: 2 },
+          height: { xs: 'auto', sm: '52px' },
+          minHeight: { xs: '60px', sm: '52px' }
+        }}>
+          <Box 
+            display="flex" 
+            alignItems="center" 
+            justifyContent="space-between"
+            flexDirection={{ xs: 'column', sm: 'row' }}
+            gap={{ xs: 1, sm: 0 }}
+          >
+            <Box 
+              display="flex" 
+              alignItems="center"
+              flexDirection={{ xs: 'column', sm: 'row' }}
+              textAlign={{ xs: 'center', sm: 'left' }}
+              gap={{ xs: 1, sm: 0 }}
+            >
+              <TourIcon sx={{ 
+                mr: { xs: 0, sm: 1.5 }, 
+                mb: { xs: 0.5, sm: 0 },
+                fontSize: { xs: 32, sm: 28 }, 
+                color: '#FFD700' 
+              }} />
               <Box>
-                <Typography variant="h5" fontWeight="600" sx={{ color: 'white' }}>
+                <Typography 
+                  variant="h6" 
+                  fontWeight="600" 
+                  sx={{ 
+                    color: 'white', 
+                    fontSize: { xs: '0.85rem', sm: '0.9rem', md: '0.9rem' },
+                    lineHeight: 1.2
+                  }}
+                >
                   Book Attraction Tickets
                 </Typography>
-                <Typography variant="body2" sx={{ color: 'rgba(255, 255, 255, 0.8)' }}>
+                <Typography 
+                  variant="body2" 
+                  sx={{ 
+                    color: 'rgba(255, 255, 255, 0.8)', 
+                    fontSize: { xs: '0.65rem', sm: '0.7rem', md: '0.7rem' },
+                    lineHeight: 1.3,
+                    display: { xs: 'none', sm: 'block' }
+                  }}
+                >
                   Select attractions and configure your perfect tour package
                 </Typography>
               </Box>
@@ -1316,7 +1579,11 @@ export default function AttractionComponent({ date, dayIndex, attractionspack, t
                 bgcolor: 'rgba(255, 255, 255, 0.2)',
                 color: 'white',
                 fontWeight: 600,
-                border: '1px solid rgba(255, 255, 255, 0.3)'
+                border: '1px solid rgba(255, 255, 255, 0.3)',
+                fontSize: { xs: '0.7rem', sm: '0.75rem' },
+                height: { xs: '28px', sm: '20px' },
+                minWidth: { xs: '80px', sm: 'auto' },
+                mt: { xs: 0.5, sm: 0 }
               }}
             />
           </Box>
@@ -1326,7 +1593,7 @@ export default function AttractionComponent({ date, dayIndex, attractionspack, t
       <Fade in={validationError} timeout={300}>
         <Box>
           {validationError && (
-            <Alert severity="error" sx={{ mb: 2, borderRadius: 2 }}>
+            <Alert severity="error" sx={{ mb: 1.5, borderRadius: 1.5 }}>
               {validationError}
             </Alert>
           )}
@@ -1336,54 +1603,56 @@ export default function AttractionComponent({ date, dayIndex, attractionspack, t
       <Fade in={bookingSuccess} timeout={300}>
         <Box>
           {bookingSuccess && (
-            <Alert severity="success" sx={{ mb: 2, borderRadius: 2 }}>
+            <Alert severity="success" sx={{ mb: 1.5, borderRadius: 1.5 }}>
               Booking information saved successfully to the tour package data!
             </Alert>
           )}
         </Box>
       </Fade>
       
-      <Grid container spacing={2}>
+      <Grid container spacing={1.5}>
         {formSections.map((section, sectionIndex) => {
           const selectedAttraction = getSelectedAttraction(section.attraction);
           const completionStatus = getCompletionStatus(section);
           const isExpanded = expandedSections.includes(sectionIndex);
           const outOfTourDates = isBookingOutOfTourDates(section);
-          
+          console.log("sectionIndexatt1476", section);
           return (
             <Grid item xs={12} key={sectionIndex}>
               <Card 
                 elevation={2}
                 sx={{ 
-                  borderRadius: 3,
-                  border: outOfTourDates ? '2px solid #e53935' : `2px solid ${alpha('#ff6b6b', 0.2)}`,
+                  borderRadius: 2,
+                  border: outOfTourDates ? '1px solid #e53935' : `1px solid ${alpha('#ff6b6b', 0.2)}`,
                   background: outOfTourDates ? 'rgba(229,57,53,0.08)' : undefined,
                   transition: 'all 0.3s ease',
                   '&:hover': {
                     boxShadow: outOfTourDates
-                      ? `0 8px 24px ${alpha('#e53935', 0.15)}`
-                      : `0 8px 24px ${alpha('#ff6b6b', 0.15)}`,
-                    transform: 'translateY(-2px)',
+                      ? `0 4px 12px ${alpha('#e53935', 0.15)}`
+                      : `0 4px 12px ${alpha('#ff6b6b', 0.15)}`,
+                    transform: 'translateY(-1px)',
                   }
                 }}
               >
                 <CardContent sx={{ p: 0 }}>
                   {/* Header */}
                   <Box sx={{ 
-                    p: 2,
+                    p: 1.5,
                     bgcolor: alpha('#ff6b6b', 0.05),
                     borderBottom: `1px solid ${alpha('#ff6b6b', 0.1)}`,
                     display: 'flex',
                     alignItems: 'center',
                     justifyContent: 'space-between'
                   }}>
-                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
+                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5 }}>
                       <Chip 
                         label={`Booking ${sectionIndex + 1}`}
                         sx={{ 
                           bgcolor: '#ff6b6b',
                           color: 'white',
-                          fontWeight: 600
+                          fontWeight: 600,
+                          fontSize: '0.7rem',
+                          height: '20px'
                         }}
                         size="small"
                       />
@@ -1392,16 +1661,19 @@ export default function AttractionComponent({ date, dayIndex, attractionspack, t
                         color={completionStatus === 4 ? "success" : "warning"}
                         size="small"
                         variant="outlined"
+                        sx={{ fontSize: '0.7rem', height: '20px' }}
                       />
                       {selectedAttraction && (
                         <Chip 
-                          icon={<LocationOnIcon sx={{ fontSize: 16 }} />}
+                          icon={<LocationOnIcon sx={{ fontSize: 14 }} />}
                           label={selectedAttraction.city}
                           size="small"
                           variant="outlined"
                           sx={{ 
                             borderColor: '#ff6b6b',
-                            color: '#ff6b6b'
+                            color: '#ff6b6b',
+                            fontSize: '0.7rem',
+                            height: '20px'
                           }}
                         />
                       )}
@@ -1424,15 +1696,15 @@ export default function AttractionComponent({ date, dayIndex, attractionspack, t
                       {section.attraction && (
                         <Button
                               variant="outlined"
-                              size="large"
+                              size="medium"
                               onClick={() => handleOpenModal(sectionIndex)}
                               disabled={!section.attraction}
                               startIcon={<VisibilityIcon />}
                               sx={{
-                                borderRadius: 2,
-                                px: 4,
-                                py: 1,
-                                fontSize: '0.875rem',
+                                borderRadius: 1.5,
+                                px: 3,
+                                py: 0.8,
+                                fontSize: '0.8rem',
                                 fontWeight: 600,
                                 textTransform: 'none',
                                 borderColor: '#ff6b6b',
@@ -1448,7 +1720,7 @@ export default function AttractionComponent({ date, dayIndex, attractionspack, t
                               View Summary
                             </Button>
                       )}
-                                  
+                      {(tourStatus !== "Confirmed" && tourStatus !== "Definite" && tourStatus !== "Actual") && (
                       <Tooltip title="Remove Booking">
                         <IconButton 
                           size="small"
@@ -1459,54 +1731,59 @@ export default function AttractionComponent({ date, dayIndex, attractionspack, t
                             '&:hover': { bgcolor: alpha(theme.palette.error.main, 0.2) }
                           }}
                         >
-                          <DeleteIcon sx={{ fontSize: 18 }} />
+                          <DeleteIcon sx={{ fontSize: 16 }} />
                         </IconButton>
                       </Tooltip>
+                      )}
                     </Box>
                   </Box>
 
                   {/* Summary when collapsed */}
                   {!isExpanded && selectedAttraction && (
-                    <Box sx={{ p: 2 }}>
-                      <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
+                    <Box sx={{ p: 1.5 }}>
+                      <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5 }}>
                         <Box 
                           component="img"
                           src={selectedAttraction.image}
                           alt={selectedAttraction.attraction_name}
                           sx={{ 
-                            width: 60, 
-                            height: 60, 
-                            borderRadius: 2,
+                            width: 50, 
+                            height: 50, 
+                            borderRadius: 1.5,
                             objectFit: 'cover',
-                            border: `2px solid ${alpha('#ff6b6b', 0.2)}`
+                            border: `1px solid ${alpha('#ff6b6b', 0.2)}`
                           }}
                         />
                         <Box sx={{ flex: 1 }}>
-                          <Typography variant="h6" fontWeight={600} sx={{ mb: 0.5 }}>
+                          <Typography variant="subtitle1" fontWeight={600} sx={{ mb: 0.5, fontSize: '0.9rem' }}>
                             {selectedAttraction.attraction_name}
                           </Typography>
-                          <Box sx={{ display: 'flex', gap: 2, flexWrap: 'wrap' }}>
+                          <Box sx={{ display: 'flex', gap: 1.5, flexWrap: 'wrap' }}>
                             {section.pax.Adults + section.pax.Children + section.pax.Seniors > 0 && (
                               <Chip 
-                                icon={<PeopleIcon sx={{ fontSize: 16 }} />}
+                                icon={<PeopleIcon sx={{ fontSize: 14 }} />}
                                 label={`${section.pax.Adults + section.pax.Children + section.pax.Seniors} Pax`}
                                 size="small"
                                 variant="outlined"
                                 sx={{ 
                                   borderColor: '#ff6b6b',
-                                  color: '#ff6b6b'
+                                  color: '#ff6b6b',
+                                  fontSize: '0.7rem',
+                                  height: '20px'
                                 }}
                               />
                             )}
                             {section.timeSlot && (
                               <Chip 
-                                icon={<AccessTimeIcon sx={{ fontSize: 16 }} />}
+                                icon={<AccessTimeIcon sx={{ fontSize: 14 }} />}
                                 label={section.timeSlot}
                                 size="small"
                                 variant="outlined"
                                 sx={{ 
                                   borderColor: '#ff6b6b',
-                                  color: '#ff6b6b'
+                                  color: '#ff6b6b',
+                                  fontSize: '0.7rem',
+                                  height: '20px'
                                 }}
                               />
                             )}
@@ -1521,27 +1798,52 @@ export default function AttractionComponent({ date, dayIndex, attractionspack, t
                     <Paper 
                       elevation={0} 
                       sx={{ 
-                        m: 2,
+                        m: 1.5,
                         p: 0, 
-                        borderRadius: 2,
+                        borderRadius: 1.5,
                         background: 'rgba(255, 255, 255, 0.95)',
                         backdropFilter: 'blur(10px)'
                       }}
                     >
-                      <Grid container spacing={2} alignItems="flex-end">
+                      <Grid container spacing={1.5} alignItems="flex-end">
                         {/* Attraction Selection */}
                         <Grid item xs={12} md={3}>
                           <Box sx={{ height: '100%', display: 'flex', flexDirection: 'column' }}>
-                            <Box display="flex" alignItems="center" mb={1} sx={{ height: '32px' }}>
-                              <AttractionsIcon sx={{ mr: 1, color: '#ff6b6b', fontSize: 20 }} />
-                              <Typography variant="subtitle2" fontWeight="600" color="text.primary">
+                            <Box display="flex" alignItems="center" mb={0.8} sx={{ height: '28px' }}>
+                              <LocationOnIcon sx={{ mr: 0.8, color: '#1976d2', fontSize: 18 }} />
+                              <Typography 
+                                variant="body2" 
+                                fontWeight="600"
+                                color={!isCityEnabled ? "text.disabled" : "text.primary"}
+                                sx={{ fontSize: '0.8rem' }}
+                              >
+                                City
+                              </Typography>
+                            </Box>
+                            <Box sx={{ minHeight: '36px', display: 'flex', alignItems: 'center', position: 'relative', zIndex: 1 }}>
+                              <PortCity
+                                onLocationSelect={handleCitySelect}
+                                hasError={cityError}
+                                setError={setCityError}
+                                disabled={!isCityEnabled}
+                              />
+                            </Box>
+                          </Box>
+                        </Grid>
+                        <Grid item xs={12} md={3}>
+                          <Box sx={{ height: '100%', display: 'flex', flexDirection: 'column' }}>
+                            <Box display="flex" alignItems="center" mb={0.8} sx={{ height: '28px' }}>
+                              <AttractionsIcon sx={{ mr: 0.8, color: '#ff6b6b', fontSize: 18 }} />
+                              <Typography variant="body2" fontWeight="600" color={!isAttractionListingEnabled ? "text.disabled" : "text.primary"}  sx={{ fontSize: '0.8rem' }}>
                                 Select Attraction
                               </Typography>
                             </Box>
-                            <Box sx={{ minHeight: '48px', display: 'flex', alignItems: 'center' }}>
+                            <Box sx={{ minHeight: '42px', display: 'flex', alignItems: 'center' }}>
                               <AttractionListing
                                 attractions={attractions}
                                 selectedAttraction={section.attraction}
+                                selectedAttractionName={section?.originalData?.AttractionName}
+                                disabled={!isAttractionListingEnabled}
                                 onAttractionChange={(value) => handleInputChange(sectionIndex, 'attraction', value)}
                               />
                             </Box>
@@ -1551,20 +1853,22 @@ export default function AttractionComponent({ date, dayIndex, attractionspack, t
                         {/* Guests Selection */}
                         <Grid item xs={12} md={3}>
                           <Box sx={{ height: '100%', display: 'flex', flexDirection: 'column' }}>
-                            <Box display="flex" alignItems="center" mb={1} sx={{ height: '32px' }}>
-                              <PeopleIcon sx={{ mr: 1, color: '#2e7d32', fontSize: 20 }} />
+                            <Box display="flex" alignItems="center" mb={0.8} sx={{ height: '28px' }}>
+                              <PeopleIcon sx={{ mr: 0.8, color: '#2e7d32', fontSize: 18 }} />
                               <Typography 
-                                variant="subtitle2" 
+                                variant="body2" 
                                 fontWeight="600"
                                 color={!section.attraction ? "text.disabled" : "text.primary"}
+                                sx={{ fontSize: '0.8rem' }}
                               >
                                 Select Guests
                               </Typography>
                             </Box>
-                            <Box sx={{ minHeight: '48px', display: 'flex', alignItems: 'center' }}>
+                            <Box sx={{ minHeight: '42px', display: 'flex', alignItems: 'center' }}>
                               <PaxSelector
-                                initialAdults={searchParams?.adults || 1}
-                                initialChildren={searchParams?.children || 0}
+                                selectedPax={section.pax}
+                                initialAdults={section.pax?.Adults || searchParams?.adults || 1}
+                                initialChildren={section.pax?.Children || searchParams?.children || 0}
                                 onPaxChange={(value) => handleInputChange(sectionIndex, 'pax', value)}
                                 disabled={!section.attraction}
                               />
@@ -1575,17 +1879,18 @@ export default function AttractionComponent({ date, dayIndex, attractionspack, t
                         {/* Time Selection */}
                         <Grid item xs={12} md={3}>
                           <Box sx={{ height: '100%', display: 'flex', flexDirection: 'column' }}>
-                            <Box display="flex" alignItems="center" mb={1} sx={{ height: '32px' }}>
-                              <AccessTimeIcon sx={{ mr: 1, color: '#ff9800', fontSize: 20 }} />
+                            <Box display="flex" alignItems="center" mb={0.8} sx={{ height: '28px' }}>
+                              <AccessTimeIcon sx={{ mr: 0.8, color: '#ff9800', fontSize: 18 }} />
                               <Typography 
-                                variant="subtitle2" 
+                                variant="body2" 
                                 fontWeight="600"
                                 color={!section.attraction ? "text.disabled" : "text.primary"}
+                                sx={{ fontSize: '0.8rem' }}
                               >
                                 Select Time
                               </Typography>
                             </Box>
-                            <Box sx={{ minHeight: '48px', display: 'flex', alignItems: 'center' }}>
+                            <Box sx={{ minHeight: '42px', display: 'flex', alignItems: 'center' }}>
                               <TimeSlotSelector
                                 selectedTimeSlot={section.timeSlot}
                                 onTimeSlotChange={(value) => handleInputChange(sectionIndex, 'timeSlot', value)}
@@ -1599,17 +1904,18 @@ export default function AttractionComponent({ date, dayIndex, attractionspack, t
                         {/* Ticket Selection */}
                         <Grid item xs={12} md={3}>
                           <Box sx={{ height: '100%', display: 'flex', flexDirection: 'column' }}>
-                            <Box display="flex" alignItems="center" mb={1} sx={{ height: '32px' }}>
-                              <ConfirmationNumberIcon sx={{ mr: 1, color: '#9c27b0', fontSize: 20 }} />
+                            <Box display="flex" alignItems="center" mb={0.8} sx={{ height: '28px' }}>
+                              <ConfirmationNumberIcon sx={{ mr: 0.8, color: '#9c27b0', fontSize: 18 }} />
                               <Typography 
-                                variant="subtitle2" 
+                                variant="body2" 
                                 fontWeight="600"
                                 color={!section.attraction ? "text.disabled" : "text.primary"}
+                                sx={{ fontSize: '0.8rem' }}
                               >
                                 Select Ticket
                               </Typography>
                             </Box>
-                            <Box sx={{ minHeight: '48px', display: 'flex', alignItems: 'center' }}>
+                            <Box sx={{ minHeight: '42px', display: 'flex', alignItems: 'center' }}>
                                                           <TicketTypeSelector
                               selectedTicketType={section.ticketType}
                               onTicketTypeChange={(value) => handleInputChange(sectionIndex, 'ticketType', value)}
@@ -1623,45 +1929,14 @@ export default function AttractionComponent({ date, dayIndex, attractionspack, t
                             </Box>
                           </Box>
                         </Grid>
-
-                        {/* View Summary Button */}
-                        {/* <Grid item xs={12} sx={{ mt: 2 }}>
-                          <Box display="flex" justifyContent="center">
-                            <Button
-                              variant="outlined"
-                              size="large"
-                              onClick={() => handleOpenModal(sectionIndex)}
-                              disabled={!section.attraction}
-                              startIcon={<VisibilityIcon />}
-                              sx={{
-                                borderRadius: 2,
-                                px: 4,
-                                py: 1,
-                                fontSize: '0.875rem',
-                                fontWeight: 600,
-                                textTransform: 'none',
-                                borderColor: '#ff6b6b',
-                                color: '#ff6b6b',
-                                '&:hover': {
-                                  borderColor: '#ee5a24',
-                                  bgcolor: alpha('#ff6b6b', 0.05),
-                                  transform: 'translateY(-1px)',
-                                },
-                                transition: 'all 0.3s ease',
-                              }}
-                            >
-                              View Summary
-                            </Button>
-                          </Box>
-                        </Grid> */}
                       </Grid>
                     </Paper>
                   </Collapse>
 
                   {/* Red alert if out of tour dates */}
                   {outOfTourDates && (
-                    <Box sx={{ px: 2, pt: 1 }}>
-                      <Alert severity="error" sx={{ borderRadius: 2, mb: 1 }}>
+                    <Box sx={{ px: 1.5, pt: 0.5 }}>
+                      <Alert severity="error" sx={{ borderRadius: 1.5, mb: 0.5 }}>
                         The booking is out of currently updated tour dates
                       </Alert>
                     </Box>
@@ -1676,8 +1951,8 @@ export default function AttractionComponent({ date, dayIndex, attractionspack, t
         <Grid item xs={12}>
           <Card 
             sx={{ 
-              borderRadius: 3,
-              border: `2px dashed ${alpha('#ff6b6b', 0.4)}`,
+              borderRadius: 2,
+              border: `1px dashed ${alpha('#ff6b6b', 0.4)}`,
               bgcolor: alpha('#ff6b6b', 0.02),
               cursor: 'pointer',
               transition: 'all 0.3s ease',
@@ -1689,15 +1964,15 @@ export default function AttractionComponent({ date, dayIndex, attractionspack, t
             }}
             onClick={handleAddMore}
           >
-            <CardContent sx={{ py: 3 }}>
+            <CardContent sx={{ py: 2 }}>
               <Box sx={{ 
                 display: 'flex', 
                 alignItems: 'center', 
                 justifyContent: 'center',
-                gap: 2
+                gap: 1.5
               }}>
-                <AddIcon sx={{ fontSize: 32, color: '#ff6b6b' }} />
-                <Typography variant="h6" color="#ff6b6b" fontWeight={600}>
+                <AddIcon sx={{ fontSize: 28, color: '#ff6b6b' }} />
+                <Typography variant="subtitle1" color="#ff6b6b" fontWeight={600} sx={{ fontSize: '0.9rem' }}>
                   Add More
                 </Typography>
               </Box>
@@ -1714,4 +1989,4 @@ export default function AttractionComponent({ date, dayIndex, attractionspack, t
       />
     </Container>
   );
-} 
+}

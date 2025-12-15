@@ -427,7 +427,7 @@ const Index = () => {
   const AgentId = Cookies.get("AgentId") || "0";
   const location = useLocation();
   const restaurant = location.state?.restaurants || {};
-  // console.log("restaurant restaurant", restaurant);
+ 
 
   const tourdetails = useSelector((state) => state.hotels.tourdetails);
   const searchParams =
@@ -652,8 +652,6 @@ const Index = () => {
   const handleMealSelection = (e) => {
     const selectedMealName = e.target.value;
     setSpecificMealType(selectedMealName);
-    setSelectedMealIndex(null); // Reset selected index
-    setSelectedMealIndexes([]); // Reset selected indexes
 
     const selectedMeals = restaurantsDetails.meals.filter(
       (meal) =>
@@ -662,29 +660,107 @@ const Index = () => {
     );
 
     if (selectedMeals.length > 0) {
-      const mealParts = selectedMeals.map((meal) => ({
-        item_name: meal.name,
-        name: meal.item_description,
-        category: meal.category,
-        item_type: meal.item_type,
-        checked: false,
-        price: meal.price,
-        meal_id: meal.meal_id,
-        quantity: 1,
-        // Add adult and child prices for buffet type
-        adult_price: meal.adult_price,
-        child_price: meal.child_price,
-        // Initialize counts for buffet
-        adultCount: 0,
-        childCount: 0
-      }));
+      const mealParts = selectedMeals.map((meal) => {
+        // Check if this meal was previously confirmed
+        const confirmedMeal = confirmedMealParts.find(
+          confirmed => confirmed.meal_id === meal.meal_id
+        );
+        
+        return {
+          item_name: meal.name,
+          name: meal.item_description,
+          category: meal.category,
+          item_type: meal.item_type,
+          checked: confirmedMeal ? true : false, // Restore checked state
+          price: meal.price,
+          meal_id: meal.meal_id,
+          quantity: confirmedMeal ? confirmedMeal.quantity || 1 : 1, // Restore quantity
+          // Add adult and child prices for buffet type
+          adult_price: meal.adult_price,
+          child_price: meal.child_price,
+          // Initialize counts for buffet
+          adultCount: confirmedMeal ? confirmedMeal.adultCount || 0 : 0,
+          childCount: confirmedMeal ? confirmedMeal.childCount || 0 : 0
+        };
+      });
+
+      // Restore selected indexes based on confirmed selections
+      const confirmedIndexes = [];
+      let confirmedSingleIndex = null;
+      
+      mealParts.forEach((part, index) => {
+        if (part.checked) {
+          confirmedIndexes.push(index);
+          if (confirmedSingleIndex === null) {
+            confirmedSingleIndex = index;
+          }
+        }
+      });
 
       setSelectedMealParts(mealParts);
-      setIsConfirmDisabled(true);
+      setSelectedMealIndexes(confirmedIndexes);
+      setSelectedMealIndex(confirmedSingleIndex);
+      setIsConfirmDisabled(confirmedIndexes.length === 0);
       setOpen(true);
     } else {
       setSelectedMealParts([]);
       setOpen(false);
+    }
+  };
+
+  // New function to handle meal item clicks (including re-selections)
+  const handleMealItemClick = (selectedMealName) => {
+    setSpecificMealTypeOpen(false); // Close the dropdown
+
+    const selectedMeals = restaurantsDetails.meals.filter(
+      (meal) =>
+        meal.type === selectedMealName &&
+        meal.meal_period.toLowerCase() === mealType.toLowerCase()
+    );
+
+    if (selectedMeals.length > 0) {
+      const mealParts = selectedMeals.map((meal) => {
+        // Check if this meal was previously confirmed
+        const confirmedMeal = confirmedMealParts.find(
+          confirmed => confirmed.meal_id === meal.meal_id
+        );
+        
+        return {
+          item_name: meal.name,
+          name: meal.item_description,
+          category: meal.category,
+          item_type: meal.item_type,
+          checked: confirmedMeal ? true : false, // Restore checked state
+          price: meal.price,
+          meal_id: meal.meal_id,
+          quantity: confirmedMeal ? confirmedMeal.quantity || 1 : 1, // Restore quantity
+          // Add adult and child prices for buffet type
+          adult_price: meal.adult_price,
+          child_price: meal.child_price,
+          // Initialize counts for buffet
+          adultCount: confirmedMeal ? confirmedMeal.adultCount || 0 : 0,
+          childCount: confirmedMeal ? confirmedMeal.childCount || 0 : 0
+        };
+      });
+
+      // Restore selected indexes based on confirmed selections
+      const confirmedIndexes = [];
+      let confirmedSingleIndex = null;
+      
+      mealParts.forEach((part, index) => {
+        if (part.checked) {
+          confirmedIndexes.push(index);
+          if (confirmedSingleIndex === null) {
+            confirmedSingleIndex = index;
+          }
+        }
+      });
+
+      setSelectedMealParts(mealParts);
+      setSelectedMealIndexes(confirmedIndexes);
+      setSelectedMealIndex(confirmedSingleIndex);
+      setIsConfirmDisabled(confirmedIndexes.length === 0);
+      setOpen(true);
     }
   };
 
@@ -1163,6 +1239,7 @@ const Index = () => {
                       key={index}
                       value={uniqueMealType}
                       isNightTime={false}
+                      onClick={() => handleMealItemClick(uniqueMealType)}
                     >
                       {mealTypeIcon}
                       <Typography variant="body1" sx={{ fontWeight: 500 }}>
@@ -1419,7 +1496,7 @@ const Index = () => {
           display: 'flex',
           alignItems: 'center',
           justifyContent: 'center',
-          padding: '20px',
+          padding: { xs: '10px', sm: '15px', md: '20px' },
           height: '100vh',
           backdropFilter: 'blur(8px)',
           backgroundColor: 'rgba(0, 0, 0, 0.7)',
@@ -1429,10 +1506,14 @@ const Index = () => {
           <Paper
             elevation={24}
             sx={{
-              width: '95%',
-              maxWidth: '1200px',
+              width: { xs: '100%', sm: '95%', md: '95%' },
+              maxWidth: { 
+                xs: '100%', 
+                sm: specificMealType === "Buffet" ? '700px' : '900px', 
+                md: specificMealType === "Buffet" ? '800px' : '1200px' 
+              },
               height: 'auto',
-              maxHeight: '90vh',
+              maxHeight: { xs: '95vh', sm: '90vh', md: '90vh' },
               margin: 'auto',
               position: 'relative',
               transform: 'translateY(-20px)',
@@ -1450,7 +1531,7 @@ const Index = () => {
               },
               '& .MuiDialog-paper': {
                 margin: '0',
-                borderRadius: '20px',
+                borderRadius: { xs: '16px', sm: '18px', md: '20px' },
                 boxShadow: '0 20px 60px rgba(0, 0, 0, 0.3)',
                 overflow: 'hidden',
                 border: '1px solid rgba(255, 255, 255, 0.2)',
@@ -1461,14 +1542,14 @@ const Index = () => {
             {/* Enhanced Modal Header */}
             <Box sx={{
               position: 'relative',
-              padding: '28px 32px',
+              padding: { xs: '16px 20px', sm: '20px 24px', md: '28px 32px' },
               borderBottom: '1px solid rgba(230, 235, 245, 0.8)',
               background: 'linear-gradient(135deg, #f0f5ff 0%, #ffffff 100%)',
-              borderTopLeftRadius: '20px',
-              borderTopRightRadius: '20px',
+              borderTopLeftRadius: { xs: '16px', sm: '18px', md: '20px' },
+              borderTopRightRadius: { xs: '16px', sm: '18px', md: '20px' },
               display: 'flex',
               alignItems: 'center',
-              gap: '16px',
+              gap: { xs: '12px', sm: '14px', md: '16px' },
               overflow: 'hidden'
             }}>
               {/* Animated background elements */}
@@ -1511,9 +1592,9 @@ const Index = () => {
                   display: 'flex',
                   alignItems: 'center',
                   justifyContent: 'center',
-                  width: '56px',
-                  height: '56px',
-                  borderRadius: '16px',
+                  width: { xs: '44px', sm: '50px', md: '56px' },
+                  height: { xs: '44px', sm: '50px', md: '56px' },
+                  borderRadius: { xs: '12px', sm: '14px', md: '16px' },
                   background: 'linear-gradient(135deg, #3554D1 0%, #5E72E4 100%)',
                   boxShadow: '0 8px 25px rgba(53, 84, 209, 0.3)',
                   position: 'relative',
@@ -1536,23 +1617,23 @@ const Index = () => {
                 }}
               >
                 {specificMealType === "Buffet" ? (
-                  <BuffetIcon sx={{ color: '#ffffff', fontSize: 32 }} />
+                  <BuffetIcon sx={{ color: '#ffffff', fontSize: { xs: 24, sm: 28, md: 32 } }} />
                 ) : specificMealType === "Set Menu" ? (
-                  <SetMenuIcon sx={{ color: '#ffffff', fontSize: 32 }} />
+                  <SetMenuIcon sx={{ color: '#ffffff', fontSize: { xs: 24, sm: 28, md: 32 } }} />
                 ) : specificMealType === "A la carte" ? (
-                  <FastfoodIcon sx={{ color: '#ffffff', fontSize: 32 }} />
+                  <FastfoodIcon sx={{ color: '#ffffff', fontSize: { xs: 24, sm: 28, md: 32 } }} />
                 ) : (
-                  <RestaurantMenuIcon sx={{ color: '#ffffff', fontSize: 32 }} />
+                  <RestaurantMenuIcon sx={{ color: '#ffffff', fontSize: { xs: 24, sm: 28, md: 32 } }} />
                 )}
               </Box>
               
               <Box sx={{ zIndex: 1, flex: 1 }}>
                 <Typography variant="h4" component="h2" sx={{ 
                   margin: 0, 
-                  fontSize: '28px', 
+                  fontSize: { xs: '20px', sm: '24px', md: '28px' }, 
                   fontWeight: 800, 
                   color: '#1a1a1a',
-                  marginBottom: '6px',
+                  marginBottom: { xs: '4px', sm: '5px', md: '6px' },
                   background: 'linear-gradient(135deg, #1E293B 0%, #3554D1 100%)',
                   backgroundClip: 'text',
                   WebkitBackgroundClip: 'text',
@@ -1562,11 +1643,12 @@ const Index = () => {
                 </Typography>
                 <Typography variant="body1" sx={{ 
                   color: '#64748B',
-                  fontSize: '16px',
+                  fontSize: { xs: '14px', sm: '15px', md: '16px' },
                   fontWeight: 500,
                   display: 'flex',
                   alignItems: 'center',
-                  gap: '8px'
+                  gap: { xs: '6px', sm: '7px', md: '8px' },
+                  flexWrap: 'wrap'
                 }}>
                   <Box sx={{
                     display: 'flex',
@@ -1630,13 +1712,19 @@ const Index = () => {
               </Box>
               
               <IconButton 
-                onClick={() => setOpen(false)}
+                onClick={() => {
+                  setOpen(false);
+                  setSpecificMealType("");  // Reset meal type selection
+                  setConfirmedMealParts([]); // Clear confirmed selections
+                  setSelectedTime(""); // Clear time slot selection
+                  setTimeSlots([]); // Clear available time slots
+                }}
                 sx={{ 
                   color: '#64748B', 
                   backgroundColor: 'rgba(100, 116, 139, 0.1)',
-                  borderRadius: '12px',
-                  width: '48px',
-                  height: '48px',
+                  borderRadius: { xs: '10px', sm: '11px', md: '12px' },
+                  width: { xs: '40px', sm: '44px', md: '48px' },
+                  height: { xs: '40px', sm: '44px', md: '48px' },
                   transition: 'all 0.3s ease',
                   '&:hover': { 
                     backgroundColor: 'rgba(100, 116, 139, 0.2)', 
@@ -1646,19 +1734,19 @@ const Index = () => {
                   zIndex: 1
                 }}
               >
-                <CloseIcon sx={{ fontSize: 24 }} />
+                <CloseIcon sx={{ fontSize: { xs: 20, sm: 22, md: 24 } }} />
               </IconButton>
             </Box>
             
             {/* Enhanced Modal Content */}
             <Box sx={{ 
               position: 'relative',
-              padding: '32px',
+              padding: { xs: '16px', sm: '20px', md: '32px' },
               background: 'linear-gradient(135deg, rgba(255, 255, 255, 0.95) 0%, rgba(245, 248, 255, 0.95) 100%)',
               overflow: 'auto',
-              maxHeight: 'calc(90vh - 200px)',
+              maxHeight: { xs: 'calc(95vh - 120px)', sm: 'calc(90vh - 160px)', md: 'calc(90vh - 200px)' },
               '&::-webkit-scrollbar': {
-                width: '10px',
+                width: { xs: '6px', sm: '8px', md: '10px' },
               },
               '&::-webkit-scrollbar-track': {
                 background: 'rgba(241, 245, 249, 0.8)',
@@ -1672,54 +1760,75 @@ const Index = () => {
                 },
               },
             }}>
-              {/* Enhanced background decorative elements */}
+              {/* Enhanced background decorative elements - Hidden on mobile for better performance */}
               <Box sx={{
                 position: 'absolute',
                 top: '30%',
                 right: '5%',
-                width: '250px',
-                height: '250px',
+                width: { xs: '120px', sm: '180px', md: '250px' },
+                height: { xs: '120px', sm: '180px', md: '250px' },
                 background: 'radial-gradient(circle, rgba(53, 84, 209, 0.04) 0%, rgba(255, 255, 255, 0) 70%)',
                 borderRadius: '50%',
                 zIndex: 0,
                 animation: 'float 10s ease-in-out infinite',
+                display: { xs: 'none', sm: 'block' }
               }} />
               <Box sx={{
                 position: 'absolute',
                 bottom: '15%',
                 left: '8%',
-                width: '180px',
-                height: '180px',
+                width: { xs: '100px', sm: '140px', md: '180px' },
+                height: { xs: '100px', sm: '140px', md: '180px' },
                 background: 'radial-gradient(circle, rgba(53, 84, 209, 0.03) 0%, rgba(255, 255, 255, 0) 70%)',
                 borderRadius: '50%',
                 zIndex: 0,
                 animation: 'float 12s ease-in-out infinite reverse',
+                display: { xs: 'none', sm: 'block' }
               }} />
               
-              {/* Enhanced Table with glass morphism effect */}
+              {/* Enhanced Table with glass morphism effect - Responsive */}
               <Box 
                 sx={{ 
                   position: 'relative', 
                   zIndex: 1, 
                   boxShadow: '0 8px 32px rgba(0, 0, 0, 0.08)',
-                  borderRadius: '20px',
+                  borderRadius: { xs: '16px', sm: '18px', md: '20px' },
                   overflow: 'hidden',
                   background: 'rgba(255, 255, 255, 0.9)',
                   backdropFilter: 'blur(10px)',
-                  border: '1px solid rgba(255, 255, 255, 0.2)'
+                  border: '1px solid rgba(255, 255, 255, 0.2)',
+                  display: { xs: 'none', md: 'block' }
                 }}
               >
                 <table style={{ 
                   width: '100%', 
                   borderCollapse: 'separate', 
                   borderSpacing: '0',
-                  tableLayout: 'fixed' 
+                  tableLayout: specificMealType === "Buffet" ? 'auto' : 'fixed' 
                 }}>
                   <thead>
                     <tr style={{ 
                       background: 'linear-gradient(135deg, #EBF2FF 0%, #F8FAFF 100%)',
                       borderBottom: '2px solid rgba(53, 84, 209, 0.1)'
                     }}>
+                      {specificMealType !== "Buffet" && (
+                        <th style={{ 
+                          padding: '24px 28px', 
+                          textAlign: 'left', 
+                          fontWeight: 700, 
+                          color: '#1E293B',
+                          fontSize: '15px',
+                          letterSpacing: '0.8px',
+                          textTransform: 'uppercase',
+                          borderBottom: '2px solid rgba(53, 84, 209, 0.1)',
+                          position: 'relative'
+                        }}>
+                          <Box sx={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                            <RestaurantMenuIcon sx={{ fontSize: 20, color: '#3554D1' }} />
+                            Item Details
+                          </Box>
+                        </th>
+                      )}
                       <th style={{ 
                         padding: '24px 28px', 
                         textAlign: 'left', 
@@ -1729,22 +1838,7 @@ const Index = () => {
                         letterSpacing: '0.8px',
                         textTransform: 'uppercase',
                         borderBottom: '2px solid rgba(53, 84, 209, 0.1)',
-                        position: 'relative'
-                      }}>
-                        <Box sx={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                          <RestaurantMenuIcon sx={{ fontSize: 20, color: '#3554D1' }} />
-                          Item Details
-                        </Box>
-                      </th>
-                      <th style={{ 
-                        padding: '24px 28px', 
-                        textAlign: 'left', 
-                        fontWeight: 700, 
-                        color: '#1E293B',
-                        fontSize: '15px',
-                        letterSpacing: '0.8px',
-                        textTransform: 'uppercase',
-                        borderBottom: '2px solid rgba(53, 84, 209, 0.1)'
+                        width: specificMealType === "Buffet" ? '50%' : 'auto'
                       }}>
                         <Box sx={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
                           <MenuBookIcon sx={{ fontSize: 20, color: '#3554D1' }} />
@@ -1780,7 +1874,7 @@ const Index = () => {
                             letterSpacing: '0.8px',
                             textTransform: 'uppercase',
                             borderBottom: '2px solid rgba(53, 84, 209, 0.1)',
-                            width: '140px'
+                            width: specificMealType === "Buffet" ? '120px' : '140px'
                           }}>
                             <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px' }}>
                               <Typography sx={{ fontSize: 20, color: '#3554D1' }}>👥</Typography>
@@ -1797,7 +1891,7 @@ const Index = () => {
                               letterSpacing: '0.8px',
                               textTransform: 'uppercase',
                               borderBottom: '2px solid rgba(53, 84, 209, 0.1)',
-                              width: '140px'
+                              width: specificMealType === "Buffet" ? '120px' : '140px'
                             }}>
                               <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px' }}>
                                 <Typography sx={{ fontSize: 20, color: '#3554D1' }}>👶</Typography>
@@ -1816,7 +1910,7 @@ const Index = () => {
                         letterSpacing: '0.8px',
                         textTransform: 'uppercase',
                         borderBottom: '2px solid rgba(53, 84, 209, 0.1)',
-                        width: '160px'
+                        width: specificMealType === "Buffet" ? '140px' : '160px'
                       }}>
                         <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'flex-end', gap: '8px' }}>
                           <Typography sx={{ fontSize: 20, color: '#3554D1' }}>💰</Typography>
@@ -1857,9 +1951,9 @@ const Index = () => {
                             e.currentTarget.style.boxShadow = 'none';
                           }}
                         >
-                          <td style={{ padding: '24px 28px', color: '#334155' }}>
-                            <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
-                              {specificMealType !== "Buffet" && (
+                          {specificMealType !== "Buffet" && (
+                            <td style={{ padding: '24px 28px', color: '#334155' }}>
+                              <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
                                 <Box 
                                   sx={{ 
                                     display: 'flex', 
@@ -1946,34 +2040,36 @@ const Index = () => {
                                     </Tooltip>
                                   ) : null}
                                 </Box>
-                              )}
-                              <Box sx={{ display: 'flex', flexDirection: 'column' }}>
-                                <Typography sx={{ 
-                                  fontWeight: 700,
-                                  fontSize: '18px',
-                                  color: '#1E293B',
-                                  marginBottom: '4px'
-                                }}>
-                                  {part.item_name || "Unnamed Item"}
-                                </Typography>
-                                {/* {part.category && (
-                                  <Box sx={{
-                                    display: 'inline-flex',
-                                    alignItems: 'center',
-                                    padding: '4px 12px',
-                                    backgroundColor: 'rgba(53, 84, 209, 0.1)',
-                                    borderRadius: '16px',
-                                    fontSize: '12px',
-                                    fontWeight: 600,
-                                    color: '#3554D1',
-                                    width: 'fit-content'
-                                  }}>
-                                    {part.category}
-                                  </Box>
-                                )} */}
-                              </Box>
-                            </div>
-                          </td>
+                                <Box sx={{ display: 'flex', flexDirection: 'column' }}>
+                                  {specificMealType !== "Set Menu" && (
+                                    <Typography sx={{ 
+                                      fontWeight: 700,
+                                      fontSize: '18px',
+                                      color: '#1E293B',
+                                      marginBottom: '4px'
+                                    }}>
+                                      {part.item_name || "Unnamed Item"}
+                                    </Typography>
+                                  )}
+                                  {/* {part.category && (
+                                    <Box sx={{
+                                      display: 'inline-flex',
+                                      alignItems: 'center',
+                                      padding: '4px 12px',
+                                      backgroundColor: 'rgba(53, 84, 209, 0.1)',
+                                      borderRadius: '16px',
+                                      fontSize: '12px',
+                                      fontWeight: 600,
+                                      color: '#3554D1',
+                                      width: 'fit-content'
+                                    }}>
+                                      {part.category}
+                                    </Box>
+                                  )} */}
+                                </Box>
+                              </div>
+                            </td>
+                          )}
                           <td style={{ padding: '24px 28px' }}>
                             {specificMealType === "A la carte" ? (
                               <FormControlLabel
@@ -2165,14 +2261,27 @@ const Index = () => {
                                 flexDirection: 'column',
                                 alignItems: 'flex-end'
                               }}>
-                                <Typography sx={{ 
-                                  color: '#3554D1', 
-                                  fontWeight: 800,
-                                  fontSize: '20px',
+                                <Box sx={{ 
+                                  display: 'flex', 
+                                  alignItems: 'baseline',
                                   marginBottom: '4px'
                                 }}>
-                                  S$ {calculateItemPrice(part).toFixed(2)}
-                                </Typography>
+                                  <Typography sx={{ 
+                                    color: '#3554D1', 
+                                    fontWeight: 800,
+                                    fontSize: '12px',
+                                    marginRight: '2px'
+                                  }}>
+                                    SGD
+                                  </Typography>
+                                  <Typography sx={{ 
+                                    color: '#3554D1', 
+                                    fontWeight: 800,
+                                    fontSize: '20px'
+                                  }}>
+                                    {calculateItemPrice(part).toFixed(2)}
+                                  </Typography>
+                                </Box>
                                 <Box sx={{
                                   display: 'inline-flex',
                                   alignItems: 'center',
@@ -2223,7 +2332,13 @@ const Index = () => {
                     ) : (
                       <tr>
                         <td 
-                          colSpan={showBuffetColumns ? (searchParams?.children > 0 ? 6 : 5) : (showQuantityColumn ? 4 : 3)} 
+                          colSpan={
+                            specificMealType === "Buffet" 
+                              ? (searchParams?.children > 0 ? 4 : 3) // Description + Adults + Children(if any) + Price
+                              : showBuffetColumns 
+                                ? (searchParams?.children > 0 ? 6 : 5) // Item Details + Description + Adults + Children(if any) + Price
+                                : (showQuantityColumn ? 4 : 3) // Item Details + Description + Quantity(if any) + Price
+                          } 
                           style={{ 
                             padding: '60px 28px', 
                             textAlign: 'center', 
@@ -2256,20 +2371,319 @@ const Index = () => {
                   </tbody>
                 </table>
               </Box>
+
+              {/* Mobile and Tablet Responsive Card Layout */}
+              <Box 
+                sx={{ 
+                  position: 'relative', 
+                  zIndex: 1, 
+                  display: { xs: 'block', md: 'none' },
+                  '& > * + *': {
+                    marginTop: { xs: '12px', sm: '16px' }
+                  }
+                }}
+              >
+                {selectedMealParts.length > 0 ? (
+                  selectedMealParts.map((part, index) => (
+                    <Box
+                      key={index}
+                      sx={{
+                        background: 'rgba(255, 255, 255, 0.9)',
+                        backdropFilter: 'blur(10px)',
+                        border: '1px solid rgba(255, 255, 255, 0.2)',
+                        borderRadius: { xs: '16px', sm: '18px' },
+                        padding: { xs: '16px', sm: '20px' },
+                        boxShadow: '0 4px 20px rgba(0, 0, 0, 0.08)',
+                        borderLeft: selectedMealIndex === index || selectedMealIndexes.includes(index) 
+                          ? '4px solid #3554D1' 
+                          : '4px solid transparent',
+                        transition: 'all 0.3s ease',
+                        '&:hover': {
+                          transform: 'translateY(-2px)',
+                          boxShadow: '0 8px 25px rgba(53, 84, 209, 0.15)',
+                        }
+                      }}
+                    >
+                      {/* Card Header */}
+                      <Box sx={{ 
+                        display: 'flex', 
+                        justifyContent: 'space-between', 
+                        alignItems: 'flex-start',
+                        marginBottom: { xs: '12px', sm: '16px' }
+                      }}>
+                        <Box sx={{ flex: 1 }}>
+                          <Typography sx={{ 
+                            fontSize: { xs: '16px', sm: '18px' },
+                            fontWeight: 700,
+                            color: '#1E293B',
+                            marginBottom: '4px'
+                          }}>
+                            {part.name}
+                          </Typography>
+                          {part.description && (
+                            <Typography sx={{ 
+                              fontSize: { xs: '13px', sm: '14px' },
+                              color: '#64748B',
+                              lineHeight: 1.4
+                            }}>
+                              {part.description}
+                            </Typography>
+                          )}
+                        </Box>
+                        
+                        {/* Selection Controls */}
+                        <Box sx={{ marginLeft: '12px' }}>
+                          {specificMealType === "Buffet" ? (
+                            <Radio
+                              checked={selectedMealIndex === index}
+                              onChange={() => handleRadioChange(index)}
+                              sx={{ 
+                                color: '#3554D1',
+                                '&.Mui-checked': { color: '#3554D1' }
+                              }}
+                            />
+                          ) : specificMealType === "A la carte" ? (
+                            <Checkbox
+                              checked={selectedMealIndexes.includes(index)}
+                              onChange={() => handleCheckboxChange(index)}
+                              sx={{ 
+                                color: '#3554D1',
+                                '&.Mui-checked': { color: '#3554D1' }
+                              }}
+                            />
+                          ) : (
+                            <Radio
+                              checked={selectedMealIndex === index}
+                              onChange={() => handleRadioChange(index)}
+                              sx={{ 
+                                color: '#3554D1',
+                                '&.Mui-checked': { color: '#3554D1' }
+                              }}
+                            />
+                          )}
+                        </Box>
+                      </Box>
+
+                      {/* Card Content */}
+                      <Box sx={{ 
+                        display: 'flex', 
+                        justifyContent: 'space-between', 
+                        alignItems: 'center',
+                        flexWrap: 'wrap',
+                        gap: { xs: '8px', sm: '12px' }
+                      }}>
+                        {/* Item Type and Category */}
+                        <Box sx={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
+                          {part.item_type === 'Veg' && (
+                            <Box sx={{ 
+                              display: 'flex', 
+                              alignItems: 'center', 
+                              gap: '4px',
+                              padding: '4px 8px',
+                              backgroundColor: 'rgba(46, 204, 113, 0.1)',
+                              borderRadius: '12px',
+                              fontSize: '12px',
+                              fontWeight: 600,
+                              color: '#2ecc71'
+                            }}>
+                              <SquareIcon sx={{ fontSize: 16, color: '#2ecc71' }} />
+                              Veg
+                            </Box>
+                          )}
+                          {part.item_type === 'Non Veg' && (
+                            <Box sx={{ 
+                              display: 'flex', 
+                              alignItems: 'center', 
+                              gap: '4px',
+                              padding: '4px 8px',
+                              backgroundColor: 'rgba(231, 76, 60, 0.1)',
+                              borderRadius: '12px',
+                              fontSize: '12px',
+                              fontWeight: 600,
+                              color: '#e74c3c'
+                            }}>
+                              <SquareIcon sx={{ fontSize: 16, color: '#e74c3c' }} />
+                              Non-Veg
+                            </Box>
+                          )}
+                          {part.category === 'Alcoholic' && (
+                            <Box sx={{ 
+                              display: 'flex', 
+                              alignItems: 'center', 
+                              gap: '4px',
+                              padding: '4px 8px',
+                              backgroundColor: 'rgba(231, 76, 60, 0.1)',
+                              borderRadius: '12px',
+                              fontSize: '12px',
+                              fontWeight: 600,
+                              color: '#e74c3c'
+                            }}>
+                              <DrinkIcon sx={{ fontSize: 16, color: '#e74c3c' }} />
+                              Alcohol
+                            </Box>
+                          )}
+                        </Box>
+
+                        {/* Price */}
+                        <Typography sx={{ 
+                          fontSize: { xs: '16px', sm: '18px' },
+                          fontWeight: 700,
+                          color: '#3554D1'
+                        }}>
+                          ${calculateItemPrice(part).toFixed(2)}
+                        </Typography>
+                      </Box>
+
+                      {/* Quantity Controls for A la carte */}
+                      {specificMealType === "A la carte" && selectedMealIndexes.includes(index) && (
+                        <Box sx={{ 
+                          marginTop: { xs: '12px', sm: '16px' },
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'space-between',
+                          padding: { xs: '12px', sm: '16px' },
+                          backgroundColor: 'rgba(53, 84, 209, 0.05)',
+                          borderRadius: { xs: '12px', sm: '14px' },
+                          border: '1px solid rgba(53, 84, 209, 0.1)'
+                        }}>
+                          <Typography sx={{ 
+                            fontSize: { xs: '14px', sm: '15px' },
+                            fontWeight: 600,
+                            color: '#3554D1'
+                          }}>
+                            Quantity
+                          </Typography>
+                          <Box sx={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                            <IconButton
+                              onClick={() => handleQuantityChange(index, -1)}
+                              sx={{ 
+                                width: { xs: '32px', sm: '36px' },
+                                height: { xs: '32px', sm: '36px' },
+                                backgroundColor: 'rgba(53, 84, 209, 0.1)',
+                                '&:hover': { backgroundColor: 'rgba(53, 84, 209, 0.2)' }
+                              }}
+                            >
+                              <RemoveIcon sx={{ fontSize: { xs: 16, sm: 18 }, color: '#3554D1' }} />
+                            </IconButton>
+                            <Typography sx={{ 
+                              minWidth: '40px', 
+                              textAlign: 'center',
+                              fontSize: { xs: '16px', sm: '18px' },
+                              fontWeight: 700,
+                              color: '#3554D1'
+                            }}>
+                              {part.quantity || 1}
+                            </Typography>
+                            <IconButton
+                              onClick={() => handleQuantityChange(index, 1)}
+                              sx={{ 
+                                width: { xs: '32px', sm: '36px' },
+                                height: { xs: '32px', sm: '36px' },
+                                backgroundColor: 'rgba(53, 84, 209, 0.1)',
+                                '&:hover': { backgroundColor: 'rgba(53, 84, 209, 0.2)' }
+                              }}
+                            >
+                              <AddIcon sx={{ fontSize: { xs: 16, sm: 18 }, color: '#3554D1' }} />
+                            </IconButton>
+                          </Box>
+                        </Box>
+                      )}
+
+                      {/* Buffet Guest Count Controls */}
+                      {specificMealType === "Buffet" && selectedMealIndex === index && (
+                        <Box sx={{ 
+                          marginTop: { xs: '12px', sm: '16px' },
+                          display: 'flex',
+                          flexDirection: 'column',
+                          gap: { xs: '8px', sm: '12px' }
+                        }}>
+                          <Box sx={{ 
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'space-between',
+                            padding: { xs: '12px', sm: '16px' },
+                            backgroundColor: 'rgba(46, 204, 113, 0.05)',
+                            borderRadius: { xs: '12px', sm: '14px' },
+                            border: '1px solid rgba(46, 204, 113, 0.1)'
+                          }}>
+                            <Typography sx={{ 
+                              fontSize: { xs: '14px', sm: '15px' },
+                              fontWeight: 600,
+                              color: '#2ecc71'
+                            }}>
+                              Adults ({searchParams?.adults || 0})
+                            </Typography>
+                            <Typography sx={{ 
+                              fontSize: { xs: '16px', sm: '18px' },
+                              fontWeight: 700,
+                              color: '#2ecc71'
+                            }}>
+                              ${((searchParams?.adults || 0) * part.adult_price).toFixed(2)}
+                            </Typography>
+                          </Box>
+                          {searchParams?.children > 0 && (
+                            <Box sx={{ 
+                              display: 'flex',
+                              alignItems: 'center',
+                              justifyContent: 'space-between',
+                              padding: { xs: '12px', sm: '16px' },
+                              backgroundColor: 'rgba(255, 193, 7, 0.05)',
+                              borderRadius: { xs: '12px', sm: '14px' },
+                              border: '1px solid rgba(255, 193, 7, 0.1)'
+                            }}>
+                              <Typography sx={{ 
+                                fontSize: { xs: '14px', sm: '15px' },
+                                fontWeight: 600,
+                                color: '#ffc107'
+                              }}>
+                                Children ({searchParams?.children || 0})
+                              </Typography>
+                              <Typography sx={{ 
+                                fontSize: { xs: '16px', sm: '18px' },
+                                fontWeight: 700,
+                                color: '#ffc107'
+                              }}>
+                                ${((searchParams?.children || 0) * part.child_price).toFixed(2)}
+                              </Typography>
+                            </Box>
+                          )}
+                        </Box>
+                      )}
+                    </Box>
+                  ))
+                ) : (
+                  <Box sx={{ 
+                    textAlign: 'center', 
+                    padding: { xs: '40px 20px', sm: '60px 40px' },
+                    color: '#64748B'
+                  }}>
+                    <RestaurantMenuIcon sx={{ fontSize: { xs: 48, sm: 64 }, marginBottom: '16px', opacity: 0.5 }} />
+                    <Typography sx={{ 
+                      fontSize: { xs: '16px', sm: '18px' },
+                      fontWeight: 500
+                    }}>
+                      No meal options available
+                    </Typography>
+                  </Box>
+                )}
+              </Box>
             </Box>
             
             {/* Enhanced Modal Footer */}
             <Box sx={{
               position: 'relative',
-              padding: '24px 32px',
+              padding: { xs: '12px 16px', sm: '16px 20px', md: '24px 32px' },
               borderTop: '1px solid rgba(230, 235, 245, 0.8)',
               background: 'linear-gradient(135deg, #f8faff 0%, #ffffff 100%)',
-              borderBottomLeftRadius: '20px',
-              borderBottomRightRadius: '20px',
+              borderBottomLeftRadius: { xs: '16px', sm: '18px', md: '20px' },
+              borderBottomRightRadius: { xs: '16px', sm: '18px', md: '20px' },
               display: 'flex',
               justifyContent: 'space-between',
               alignItems: 'center',
-              overflow: 'hidden'
+              flexDirection: 'row',
+              gap: { xs: '8px', sm: '12px', md: '16px' },
+              overflow: 'hidden',
+              flexWrap: 'nowrap'
             }}>
               {/* Background decorative element */}
               <Box sx={{
@@ -2284,34 +2698,60 @@ const Index = () => {
                 zIndex: 0
               }} />
               
-              <Box sx={{ display: 'flex', alignItems: 'center', zIndex: 1 }}>
+              <Box sx={{ 
+                display: 'flex', 
+                alignItems: 'center', 
+                zIndex: 1,
+                flex: 1,
+                minWidth: 0
+              }}>
                 {!isConfirmDisabled && (
-                  <Box sx={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                  <Box sx={{ 
+                    display: 'flex', 
+                    alignItems: 'center', 
+                    gap: { xs: '6px', sm: '8px', md: '10px' },
+                    flexWrap: 'nowrap',
+                    overflow: 'hidden'
+                  }}>
                     <Box sx={{
                       display: 'flex',
                       alignItems: 'center',
-                      padding: '8px 16px',
+                      padding: { xs: '4px 8px', sm: '6px 10px', md: '8px 12px' },
                       backgroundColor: 'rgba(46, 204, 113, 0.1)',
-                      borderRadius: '20px',
-                      border: '1px solid rgba(46, 204, 113, 0.2)'
+                      borderRadius: { xs: '12px', sm: '14px', md: '16px' },
+                      border: '1px solid rgba(46, 204, 113, 0.2)',
+                      whiteSpace: 'nowrap',
+                      flexShrink: 0
                     }}>
-                      <Typography sx={{ color: '#2ecc71', fontSize: '14px', fontWeight: 600 }}>
+                      <Typography sx={{ 
+                        color: '#2ecc71', 
+                        fontSize: { xs: '11px', sm: '12px', md: '13px' }, 
+                        fontWeight: 600,
+                        whiteSpace: 'nowrap'
+                      }}>
                         {specificMealType === "A la carte" 
-                          ? `${selectedMealIndexes.length} item${selectedMealIndexes.length !== 1 ? 's' : ''} selected` 
-                          : 'Ready to confirm'}
+                          ? `${selectedMealIndexes.length} item${selectedMealIndexes.length !== 1 ? 's' : ''}` 
+                          : 'Ready'}
                       </Typography>
                     </Box>
                     {PriceHide === "0" && calculateTotalPrice() > 0 && (
                       <Box sx={{
                         display: 'flex',
                         alignItems: 'center',
-                        padding: '8px 16px',
+                        padding: { xs: '4px 8px', sm: '6px 10px', md: '8px 12px' },
                         backgroundColor: 'rgba(53, 84, 209, 0.1)',
-                        borderRadius: '20px',
-                        border: '1px solid rgba(53, 84, 209, 0.2)'
+                        borderRadius: { xs: '12px', sm: '14px', md: '16px' },
+                        border: '1px solid rgba(53, 84, 209, 0.2)',
+                        whiteSpace: 'nowrap',
+                        flexShrink: 0
                       }}>
-                        <Typography sx={{ color: '#3554D1', fontSize: '16px', fontWeight: 700 }}>
-                          Total: {formatPrice(calculateTotalPrice(), "main")}
+                        <Typography sx={{ 
+                          color: '#3554D1', 
+                          fontSize: { xs: '12px', sm: '13px', md: '14px' }, 
+                          fontWeight: 700,
+                          whiteSpace: 'nowrap'
+                        }}>
+                          {formatPrice(calculateTotalPrice(), "main")}
                         </Typography>
                       </Box>
                     )}
@@ -2319,19 +2759,32 @@ const Index = () => {
                 )}
               </Box>
               
-              <Box sx={{ display: 'flex', gap: '16px', zIndex: 1 }}>
+              <Box sx={{ 
+                display: 'flex', 
+                gap: { xs: '8px', sm: '10px', md: '12px' }, 
+                zIndex: 1,
+                flexShrink: 0
+              }}>
                 <Button
-                  onClick={() => setOpen(false)}
+                  onClick={() => {
+                    setOpen(false);
+                    setSpecificMealType("");  // Reset meal type selection
+                    setConfirmedMealParts([]); // Clear confirmed selections
+                    setSelectedTime(""); // Clear time slot selection
+                    setTimeSlots([]); // Clear available time slots
+                  }}
                   sx={{
-                    padding: '12px 28px',
-                    borderRadius: '12px',
+                    padding: { xs: '8px 16px', sm: '10px 20px', md: '12px 24px' },
+                    borderRadius: { xs: '8px', sm: '10px', md: '12px' },
                     textTransform: 'none',
                     backgroundColor: 'transparent',
                     color: '#64748B',
                     border: '2px solid #E2E8F0',
                     fontWeight: 600,
-                    fontSize: '16px',
+                    fontSize: { xs: '12px', sm: '13px', md: '14px' },
                     transition: 'all 0.3s ease',
+                    whiteSpace: 'nowrap',
+                    minWidth: { xs: '80px', sm: '90px', md: '100px' },
                     '&:hover': {
                       backgroundColor: '#F8FAFC',
                       borderColor: '#CBD5E1',
@@ -2346,15 +2799,17 @@ const Index = () => {
                   onClick={handleConfirm}
                   disabled={isConfirmDisabled}
                   sx={{
-                    padding: '12px 32px',
-                    borderRadius: '12px',
+                    padding: { xs: '8px 16px', sm: '10px 20px', md: '12px 24px' },
+                    borderRadius: { xs: '8px', sm: '10px', md: '12px' },
                     textTransform: 'none',
                     backgroundColor: '#3554D1',
                     color: 'white',
                     fontWeight: 700,
-                    fontSize: '16px',
+                    fontSize: { xs: '12px', sm: '13px', md: '14px' },
                     boxShadow: '0 6px 20px rgba(53, 84, 209, 0.25)',
                     transition: 'all 0.3s ease',
+                    whiteSpace: 'nowrap',
+                    minWidth: { xs: '100px', sm: '120px', md: '140px' },
                     '&:hover': {
                       backgroundColor: '#2A44B0',
                       boxShadow: '0 8px 25px rgba(53, 84, 209, 0.35)',
@@ -2368,7 +2823,7 @@ const Index = () => {
                     },
                   }}
                 >
-                  Confirm Selection
+                  Confirm
                 </Button>
               </Box>
             </Box>

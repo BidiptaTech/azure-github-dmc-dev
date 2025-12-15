@@ -6,6 +6,7 @@ import { setAttractionService } from "../attractions/attractionSlice";
 import { setRestaurantsService } from "../restaurant/RestaurantsSlice";
 import { setDateService } from "../common/dateServicesSlice";
 import { setCity } from "./citySlice";
+import { setSelectedDmcId, setDmcFromAuth } from "../dmc/dmcSlice";
 import {
   setEntryport,
   setExitport,
@@ -46,7 +47,7 @@ export const fetchEditid = createAsyncThunk(
         },
       });
 
-      console.log("Edit API Response:", response.data);
+      // console.log("Edit API Response:", response.data);
       const { tour_display_id, data } = response.data;
       const { tour_id, agent_id } = data || {};
 
@@ -144,11 +145,51 @@ export const fetchEditid = createAsyncThunk(
       dispatch(setZone(data.service?.local_transport || []));
       dispatch(setbookedGuide(data.service?.guide || []));
 
+      // Handle DMC ID, logo, and company name from response
+      if (data?.dmc_id) {
+        // console.log('🎯 EditSlice: Setting DMC data from edit tour response');
+        // console.log('🎯 EditSlice: dmc_id:', data.dmc_id);
+        // console.log('🎯 EditSlice: dmc_logo:', data.dmc_logo);
+        // console.log('🎯 EditSlice: dmc_company_name:', data.dmc_company_name);
+        
+        dispatch(setSelectedDmcId({
+          dmcId: data.dmc_id,
+          dmcData: {
+            id: `dmc-edit-${data.dmc_id}`,
+            dmcId: data.dmc_id,
+            name: data.dmc_company_name || `DMC ${data.dmc_id}`,
+            location: 'Edit-selected',
+            logo: data.dmc_logo || '',
+            rating: 4.5,
+            description: 'DMC from edit tour response',
+            originalData: { 
+              dmcId: data.dmc_id,
+              logo: data.dmc_logo,
+              company_name: data.dmc_company_name,
+              price_hide: data.price_hide,
+              zone_on: data.zone_on
+            }
+          }
+        }));
+      } else if (data?.dmc_id === null) {
+        // console.log('🎯 EditSlice: DMC ID is null in edit tour response');
+      }
+      
+      // Alternative approach: Also dispatch setDmcFromAuth for direct DMC data storage
+      if (data?.dmc_id && (data?.dmc_logo || data?.dmc_company_name)) {
+        // console.log('🎯 EditSlice: Also dispatching setDmcFromAuth for direct DMC data storage');
+        dispatch(setDmcFromAuth({
+          dmcId: data.dmc_id,
+          dmcLogo: data.dmc_logo || null,
+          dmcCompanyName: data.dmc_company_name || null
+        }));
+      }
+
       // Return data for unwrap()
       return response.data;
     } catch (error) {
       if (error.response?.status === 401) {
-        console.log("Unauthorized! Dispatching logout...");
+        // console.log("Unauthorized! Dispatching logout...");
         await dispatch(logoutUser()); // Ensure the logout process completes
       }
       return rejectWithValue(error.response?.data || error.message);
@@ -161,18 +202,18 @@ export const deleteTour = createAsyncThunk(
   "editing/deleteTour",
   async (tourId, { rejectWithValue, dispatch }) => {
     // Accept tourId as argument
-    console.log("🚀 tourId to be deleted:", tourId); // ✅ This will now show the correct ID
+    // console.log("🚀 tourId to be deleted:", tourId); // ✅ This will now show the correct ID
 
     if (!tourId) {
-      console.error("❌ tourId is missing!");
+      // console.error("❌ tourId is missing!");
       return rejectWithValue("Tour ID is required.");
     }
 
     try {
       const authToken = Cookies.get("authToken");
       const AgentId = Cookies.get("AgentId");
-      console.log("authToken", authToken);
-      console.log("AgentId", AgentId);
+      // console.log("authToken", authToken);
+      // console.log("AgentId", AgentId);
 
       if (!authToken || !AgentId) {
         throw new Error("Authorization and AgentId are missing.");
@@ -189,13 +230,13 @@ export const deleteTour = createAsyncThunk(
         }
       );
 
-      console.log("✅ Delete Tour Response:", response.data);
+      // console.log("✅ Delete Tour Response:", response.data);
 
       dispatch(setTourId1(null)); // Clear tourId after deletion
       return response.data;
     } catch (error) {
       if (error.response?.status === 401) {
-        console.log("Unauthorized! Dispatching logout...");
+        // console.log("Unauthorized! Dispatching logout...");
         await dispatch(logoutUser()); // Ensure the logout process completes
       }
       return rejectWithValue(error.response?.data || error.message);
@@ -215,12 +256,12 @@ const EditSlice = createSlice({
   },
   reducers: {
     setTourId1: (state, action) => {
-      console.log("Set TourId:", action.payload);
+      // console.log("Set TourId:", action.payload);
       state.tourId = action.payload;
     },
     setAgentId: (state, action) => {
       state.agentId = action.payload;
-      console.log("Agent ID set:", action.payload);
+      // console.log("Agent ID set:", action.payload);
     },
   },
   extraReducers: (builder) => {

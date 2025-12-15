@@ -38,6 +38,7 @@ import CancelOutlinedIcon from "@mui/icons-material/CancelOutlined";
 import AttractionBookingModal from "../../dashboard/dashboard/db-dashboard/components/AttractionBookingModal";
 import { useSelector, useDispatch } from "react-redux";
 import { fetchAttractionDetails } from "../../../slice/attractions/attractionSlice";
+import { selectSelectedDmcLogo, selectSelectedDmcCompanyName } from "../../../slice/dmc/dmcSlice"; // Import DMC slice selectors
 
 export default function AttractionModal({
   open,
@@ -46,14 +47,16 @@ export default function AttractionModal({
   date,
 }) {
   // Debug logging to see what data is being received
-  console.log('AttractionModal - Received bookings:', bookings);
-  console.log('AttractionModal - Received date:', date);
+  // console.log('AttractionModal - Received bookings:', bookings);
+  // console.log('AttractionModal - Received date:', date);
   const [selectedBooking, setSelectedBooking] = useState(null);
   const [isViewModalOpen, setIsViewModalOpen] = useState(false);
   const [enrichedBooking, setEnrichedBooking] = useState(null);
   const dispatch = useDispatch();
   const attractionDetails = useSelector((state) => state.attractions?.attractionDetails);
-  const { DmcName, DmcLogo } = useSelector((state) => state.auth);
+  // Get DMC logo and company name from DMC slice instead of auth slice
+  const dmcLogo = useSelector(selectSelectedDmcLogo);
+  const dmcCompanyName = useSelector(selectSelectedDmcCompanyName) || 'DMC';
   const theme = useTheme();
   // Get tax percentage from auth slice instead of attractions
   const sgdTax = useSelector((state) => state.auth.sgdTax || 0);
@@ -102,10 +105,10 @@ export default function AttractionModal({
     };
 
     // Debug logging to see what data is being passed
-    console.log('AttractionModal - Original booking:', booking);
-    console.log('AttractionModal - Is package booking:', isPackageBooking);
-    console.log('AttractionModal - Package details:', packageDetails);
-    console.log('AttractionModal - Enriched booking:', enrichedBooking);
+    // console.log('AttractionModal - Original booking:', booking);
+    // console.log('AttractionModal - Is package booking:', isPackageBooking);
+    // console.log('AttractionModal - Package details:', packageDetails);
+    // console.log('AttractionModal - Enriched booking:', enrichedBooking);
 
     setSelectedBooking(booking);
     setEnrichedBooking(enrichedBooking);
@@ -208,7 +211,7 @@ export default function AttractionModal({
         
         const shouldInclude = booking.bookingDate === date && isAttractionBooking && !isRestaurantBooking;
         
-        // Debug logging for filtered bookings
+        
         if (booking.bookingDate === date) {
           console.log('AttractionModal - Booking being evaluated:', {
             booking,
@@ -221,7 +224,7 @@ export default function AttractionModal({
         return shouldInclude;
       })
     : [];
-     console.log('AttractionModal - Filtered bookings:', filteredBookings);
+    
     
 
   return (
@@ -583,10 +586,10 @@ export default function AttractionModal({
                               />
                             ) : booking.mode === "dmc" ? (
                               <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.8 }}>
-                                {DmcLogo ? (
+                                {dmcLogo ? (
                                   <Avatar
-                                    src={DmcLogo} 
-                                    alt="DMC Logo" 
+                                    src={dmcLogo} 
+                                    alt={`${dmcCompanyName} Logo`} 
                                     sx={{ width: 24, height: 24 }}
                                   />
                                 ) : (
@@ -599,11 +602,11 @@ export default function AttractionModal({
                                       fontSize: '12px'
                                     }}
                                   >
-                                    {DmcName?.charAt(0) || "D"}
+                                    {dmcCompanyName?.charAt(0) || "D"}
                                   </Avatar>
                                 )}
                                 <Typography variant="body2" fontWeight="medium" color="#E65100" noWrap sx={{ maxWidth: 100 }}>
-                                  {DmcName || "DMC"}
+                                  {dmcCompanyName}
                                 </Typography>
                               </Box>
                             ) : (
@@ -628,7 +631,7 @@ export default function AttractionModal({
                                 const sgdGrandTotal = sgdPrice + sgdTaxAmount;
                                 
                                 return sgdTax > 0 
-                                  ? `SGD ${sgdGrandTotal}`
+                                  ? `SGD ${sgdPrice}`
                                   : `SGD ${sgdPrice}`;
                               })()}
                               sx={{
@@ -654,7 +657,7 @@ export default function AttractionModal({
                                 }
                               }}
                             />
-                            {PriceHide === "0" && sgdTax > 0 && (
+                            {/* {PriceHide === "0" && sgdTax > 0 && (
                               <Typography 
                                 variant="caption" 
                                 display="block" 
@@ -667,7 +670,7 @@ export default function AttractionModal({
                               >
                                 (incl. {sgdTax}% tax)
                               </Typography>
-                            )}
+                            )} */}
                           </TableCell>
                           <TableCell sx={{ py: 1 }}>
                             <Button

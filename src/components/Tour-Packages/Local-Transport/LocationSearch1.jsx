@@ -58,7 +58,7 @@ const SearchBar1 = ({
         setTimeout(() => {
           const retryElement = document.getElementById(inputId);
           if (retryElement) {
-            console.log(`Element with ID ${inputId} found on retry`);
+          
             initializeAutocomplete(inputId, ref, setLocation, setLatLng, setIsValid, setParentValid);
           } else {
             console.error(`Input element with ID ${inputId} still not found after retry`);
@@ -67,7 +67,7 @@ const SearchBar1 = ({
         return;
       }
 
-      console.log(`Initializing autocomplete for ${inputId}`);
+      
       ref.current = new window.google.maps.places.Autocomplete(inputElement, {
         types: [], // Allow any location
         componentRestrictions: {
@@ -84,7 +84,7 @@ const SearchBar1 = ({
           // Set flag to indicate we're in the middle of selection
           isSelectingRef.current = true;
           
-          console.log(`Place selected: ${inputId}`, { lat, lng });
+          
 
           // Validate lat/lng values
           if (lat === undefined || lng === undefined || isNaN(lat) || isNaN(lng)) {
@@ -109,15 +109,12 @@ const SearchBar1 = ({
           setTimeout(() => {
             setLocation(formattedLocation);
             setLatLng({ lat, lng });
-            console.log(`Setting ${inputId} lat/lng:`, { lat, lng });
+            
             setIsValid(true); // Mark as selected from autocomplete
             setParentValid(true); // Update parent state to indicate autocomplete selection
             
             // Log the successful completion of location selection
-            console.log(`✅ Location ${inputId} selected successfully:`, {
-              name: formattedLocation,
-              coords: { lat, lng }
-            });
+           
             
             // Reset the selecting flag
             isSelectingRef.current = false;
@@ -167,7 +164,7 @@ const SearchBar1 = ({
     
     // Reset lat/lng if manually typing - but only if the user is making significant changes
     if (newValue && newValue !== exitpickUpLocation) {
-      // Remove console.log for Manual pickup input
+      
     }
   };
 
@@ -175,11 +172,11 @@ const SearchBar1 = ({
   const showPickupError = validationTriggered && !isPickupValid;
 
   return (
-    <Box sx={{ width: '100%', px: 2, py: 2 }}>
-      <Grid container spacing={3}>
+    <Box sx={{ width: '100%', px: 1.5, py: 1.5 }}>
+      <Grid container spacing={{ xs: 1.5, sm: 1.5, md: 1.5 }} alignItems="flex-end">
         {/* Pick-up Location */}
         <Grid item xs={12}>
-          <Typography variant="body2" sx={{ mb: 1, fontWeight: 500 }}>
+          <Typography variant="body2" sx={{ mb: 0.8, fontWeight: 700, fontSize: '0.85rem', color: '#000' }}>
             Pick Up Location
           </Typography>
           <TextField
@@ -191,6 +188,11 @@ const SearchBar1 = ({
             onChange={handlePickupChange}
             disabled={selectedPort !== "Hourly"}
             error={showPickupError}
+            sx={{
+              '& .MuiOutlinedInput-root': {
+                height: '47px',
+              },
+            }}
             InputProps={{
               startAdornment: (
                 <InputAdornment position="start">
@@ -200,7 +202,7 @@ const SearchBar1 = ({
             }}
           />
           {showPickupError && (
-            <Alert severity="error" sx={{ mt: 1 }}>
+            <Alert severity="error" sx={{ mt: 0.8, fontSize: '0.8rem' }}>
               Please select location from dropdown suggestions
             </Alert>
           )}

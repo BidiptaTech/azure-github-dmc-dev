@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import {
   Box,
   Typography,
@@ -36,16 +36,19 @@ const Counter = ({
   maleCount = 0,
   femaleCount = 0,
   totalAdults = 1,
+  disabled = false,
 }) => {
   const [count, setCount] = useState(defaultValue);
 
   const incrementCount = () => {
+    if (disabled) return;
     const newCount = count + 1;
     setCount(newCount);
     onCounterChange(name, newCount);
   };
 
   const decrementCount = () => {
+    if (disabled) return;
     // For Adults, prevent going below 1
     if (name === "Adults" && count <= 1) {
       return;
@@ -79,32 +82,60 @@ const Counter = ({
   };
 
   return (
-    <Box sx={{ mb: 1 }}>
+    <Box sx={{ mb: { xs: 0.5, sm: 1 } }}>
       <Grid container justifyContent="space-between" alignItems="center">
-        <Grid item>
+        <Grid item xs={6} sm={8}>
           <Box>
-            <Typography variant="subtitle1" fontWeight={500}>{name}</Typography>
+            <Typography 
+              variant="subtitle1" 
+              fontWeight={500}
+              sx={{ fontSize: { xs: '0.875rem', sm: '1rem' } }}
+            >
+              {name}
+            </Typography>
             {name === "Children" && (
-              <Typography variant="caption" color="text.secondary">Ages 1 - 17</Typography>
+              <Typography 
+                variant="caption" 
+                color="text.secondary"
+                sx={{ fontSize: { xs: '0.7rem', sm: '0.75rem' } }}
+              >
+                Ages 1 - 17
+              </Typography>
             )}
             {name === "Infants" && (
-              <Typography variant="caption" color="text.secondary">Younger than 1 year old</Typography>
+              <Typography 
+                variant="caption" 
+                color="text.secondary"
+                sx={{ fontSize: { xs: '0.7rem', sm: '0.75rem' } }}
+              >
+                Younger than 1 year old
+              </Typography>
             )}
           </Box>
         </Grid>
-        <Grid item>
-          <Box sx={{ display: 'flex', alignItems: 'center' }}>
+        <Grid item xs={6} sm={4}>
+          <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'flex-end' }}>
             <Button 
               variant="outlined" 
               color="primary" 
               size="small"
               onClick={decrementCount}
-              disabled={(name === "Adults" && count <= 1) || (name !== "Adults" && count <= 0)}
-              sx={{ minWidth: '36px', width: '36px', height: '36px', p: 0 }}
+              disabled={disabled || (name === "Adults" && count <= 1) || (name !== "Adults" && count <= 0)}
+              sx={{ 
+                minWidth: { xs: '32px', sm: '36px' }, 
+                width: { xs: '32px', sm: '36px' }, 
+                height: { xs: '32px', sm: '36px' }, 
+                p: 0 
+              }}
             >
-              <RemoveIcon fontSize="small" />
+              <RemoveIcon sx={{ fontSize: { xs: '0.875rem', sm: '1rem' } }} />
             </Button>
-            <Typography sx={{ mx: 2, minWidth: '20px', textAlign: 'center' }}>
+            <Typography sx={{ 
+              mx: { xs: 1.5, sm: 2 }, 
+              minWidth: '20px', 
+              textAlign: 'center',
+              fontSize: { xs: '0.875rem', sm: '1rem' }
+            }}>
               {count}
             </Typography>
             <Button 
@@ -112,9 +143,15 @@ const Counter = ({
               color="primary" 
               size="small"
               onClick={incrementCount}
-              sx={{ minWidth: '36px', width: '36px', height: '36px', p: 0 }}
+              disabled={disabled}
+              sx={{ 
+                minWidth: { xs: '32px', sm: '36px' }, 
+                width: { xs: '32px', sm: '36px' }, 
+                height: { xs: '32px', sm: '36px' }, 
+                p: 0 
+              }}
             >
-              <AddIcon fontSize="small" />
+              <AddIcon sx={{ fontSize: { xs: '0.875rem', sm: '1rem' } }} />
             </Button>
           </Box>
         </Grid>
@@ -122,31 +159,56 @@ const Counter = ({
 
       {/* Gender Selection for Adults */}
       {name === "Adults" && count > 0 && (
-        <Paper variant="outlined" sx={{ mt: 1, p: 1.5, bgcolor: 'rgba(0,0,0,0.02)' }}>
+        <Paper variant="outlined" sx={{ 
+          mt: { xs: 0.5, sm: 1 }, 
+          p: { xs: 1, sm: 1.5 }, 
+          bgcolor: 'rgba(0,0,0,0.02)' 
+        }}>
           <Box>
-            <Grid container alignItems="center" justifyContent="space-between" sx={{ mb: 1 }}>
-              <Grid item>
+            <Grid container alignItems="center" justifyContent="space-between" sx={{ mb: { xs: 0.5, sm: 1 } }}>
+              <Grid item xs={6}>
                 <Box sx={{ display: 'flex', alignItems: 'center' }}>
-                  <Avatar sx={{ bgcolor: 'primary.light', width: 28, height: 28, mr: 1 }}>
-                    <MaleIcon fontSize="small" />
+                  <Avatar sx={{ 
+                    bgcolor: 'primary.light', 
+                    width: { xs: 24, sm: 28 }, 
+                    height: { xs: 24, sm: 28 }, 
+                    mr: { xs: 0.5, sm: 1 } 
+                  }}>
+                    <MaleIcon sx={{ fontSize: { xs: '0.875rem', sm: '1rem' } }} />
                   </Avatar>
-                  <Typography variant="body2" fontWeight={500}>Male</Typography>
+                  <Typography 
+                    variant="body2" 
+                    fontWeight={500}
+                    sx={{ fontSize: { xs: '0.75rem', sm: '0.875rem' } }}
+                  >
+                    Male
+                  </Typography>
                 </Box>
               </Grid>
-              <Grid item>
-                <Box sx={{ display: 'flex', alignItems: 'center' }}>
+              <Grid item xs={6}>
+                <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'flex-end' }}>
                   <Button 
                     variant="outlined" 
                     color="primary" 
                     size="small"
                     onClick={() => decrementGenderCount("Male")}
                     disabled={maleCount === 0}
-                    sx={{ minWidth: '30px', width: '30px', height: '30px', p: 0 }}
+                    sx={{ 
+                      minWidth: { xs: '28px', sm: '30px' }, 
+                      width: { xs: '28px', sm: '30px' }, 
+                      height: { xs: '28px', sm: '30px' }, 
+                      p: 0 
+                    }}
                   >
-                    <RemoveIcon fontSize="small" />
+                    <RemoveIcon sx={{ fontSize: { xs: '0.75rem', sm: '0.875rem' } }} />
                   </Button>
-                  <Typography sx={{ mx: 2, minWidth: '20px', textAlign: 'center' }}>
-                    {maleCount}
+                  <Typography sx={{ 
+                    mx: { xs: 1, sm: 2 }, 
+                    minWidth: '20px', 
+                    textAlign: 'center',
+                    fontSize: { xs: '0.75rem', sm: '0.875rem' }
+                  }}>
+                    {maleCount > 0 ? maleCount : ''}
                   </Typography>
                   <Button 
                     variant="outlined" 
@@ -154,37 +216,63 @@ const Counter = ({
                     size="small"
                     onClick={() => incrementGenderCount("Male")}
                     disabled={maleCount === totalAdults}
-                    sx={{ minWidth: '30px', width: '30px', height: '30px', p: 0 }}
+                    sx={{ 
+                      minWidth: { xs: '28px', sm: '30px' }, 
+                      width: { xs: '28px', sm: '30px' }, 
+                      height: { xs: '28px', sm: '30px' }, 
+                      p: 0 
+                    }}
                   >
-                    <AddIcon fontSize="small" />
+                    <AddIcon sx={{ fontSize: { xs: '0.75rem', sm: '0.875rem' } }} />
                   </Button>
                 </Box>
               </Grid>
             </Grid>
 
             <Grid container alignItems="center" justifyContent="space-between">
-              <Grid item>
+              <Grid item xs={6}>
                 <Box sx={{ display: 'flex', alignItems: 'center' }}>
-                  <Avatar sx={{ bgcolor: 'secondary.light', width: 28, height: 28, mr: 1 }}>
-                    <FemaleIcon fontSize="small" />
+                  <Avatar sx={{ 
+                    bgcolor: 'secondary.light', 
+                    width: { xs: 24, sm: 28 }, 
+                    height: { xs: 24, sm: 28 }, 
+                    mr: { xs: 0.5, sm: 1 } 
+                  }}>
+                    <FemaleIcon sx={{ fontSize: { xs: '0.875rem', sm: '1rem' } }} />
                   </Avatar>
-                  <Typography variant="body2" fontWeight={500}>Female</Typography>
+                  <Typography 
+                    variant="body2" 
+                    fontWeight={500}
+                    sx={{ fontSize: { xs: '0.75rem', sm: '0.875rem' } }}
+                  >
+                    Female
+                  </Typography>
                 </Box>
               </Grid>
-              <Grid item>
-                <Box sx={{ display: 'flex', alignItems: 'center' }}>
+              <Grid item xs={6}>
+                <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'flex-end' }}>
                   <Button 
                     variant="outlined" 
                     color="primary" 
                     size="small"
                     onClick={() => decrementGenderCount("Female")}
                     disabled={femaleCount === 0}
-                    sx={{ minWidth: '30px', width: '30px', height: '30px', p: 0 }}
+                    sx={{ 
+                      minWidth: { xs: '28px', sm: '30px' }, 
+                      width: { xs: '28px', sm: '30px' }, 
+                      height: { xs: '28px', sm: '30px' }, 
+                      p: 0 
+                    }}
                   >
-                    <RemoveIcon fontSize="small" />
+                    <RemoveIcon sx={{ fontSize: { xs: '0.75rem', sm: '0.875rem' } }} />
                   </Button>
-                  <Typography sx={{ mx: 2, minWidth: '20px', textAlign: 'center' }}>
-                    {femaleCount}
+                  <Typography sx={{ 
+                    mx: { xs: 1, sm: 2 }, 
+                    minWidth: '20px', 
+                    textAlign: 'center',
+                    fontSize: { xs: '0.75rem', sm: '0.875rem' }
+                  }}>
+                    {femaleCount > 0 ? femaleCount : ''}
                   </Typography>
                   <Button 
                     variant="outlined" 
@@ -192,9 +280,14 @@ const Counter = ({
                     size="small"
                     onClick={() => incrementGenderCount("Female")}
                     disabled={femaleCount === totalAdults}
-                    sx={{ minWidth: '30px', width: '30px', height: '30px', p: 0 }}
+                    sx={{ 
+                      minWidth: { xs: '28px', sm: '30px' }, 
+                      width: { xs: '28px', sm: '30px' }, 
+                      height: { xs: '28px', sm: '30px' }, 
+                      p: 0 
+                    }}
                   >
-                    <AddIcon fontSize="small" />
+                    <AddIcon sx={{ fontSize: { xs: '0.75rem', sm: '0.875rem' } }} />
                   </Button>
                 </Box>
               </Grid>
@@ -207,8 +300,8 @@ const Counter = ({
       {name === "Children" && count > 0 && (
         <Box 
           sx={{ 
-            mt: 1, 
-            maxHeight: '120px', 
+            mt: { xs: 0.5, sm: 1 }, 
+            maxHeight: { xs: '100px', sm: '120px' }, 
             overflowY: 'auto', 
             pr: 1,
             '&::-webkit-scrollbar': {
@@ -229,8 +322,8 @@ const Counter = ({
               key={i} 
               variant="outlined" 
               sx={{ 
-                p: 0.75, 
-                mb: 0.5, 
+                p: { xs: 0.5, sm: 0.75 }, 
+                mb: { xs: 0.25, sm: 0.5 }, 
                 bgcolor: 'rgba(0,0,0,0.02)',
                 display: 'flex',
                 justifyContent: 'space-between',
@@ -238,10 +331,20 @@ const Counter = ({
               }}
             >
               <Box sx={{ display: 'flex', alignItems: 'center' }}>
-                <Avatar sx={{ bgcolor: 'primary.light', width: 24, height: 24, mr: 1 }}>
-                  <ChildCareIcon sx={{ fontSize: 16 }} />
+                <Avatar sx={{ 
+                  bgcolor: 'primary.light', 
+                  width: { xs: 20, sm: 24 }, 
+                  height: { xs: 20, sm: 24 }, 
+                  mr: { xs: 0.5, sm: 1 } 
+                }}>
+                  <ChildCareIcon sx={{ fontSize: { xs: 14, sm: 16 } }} />
                 </Avatar>
-                <Typography variant="body2" fontSize="0.85rem">Child {i + 1}</Typography>
+                <Typography 
+                  variant="body2" 
+                  sx={{ fontSize: { xs: '0.75rem', sm: '0.85rem' } }}
+                >
+                  Child {i + 1}
+                </Typography>
               </Box>
               <Box>
                 <select
@@ -249,12 +352,12 @@ const Counter = ({
                   value={ages[i] || ""}
                   onChange={(e) => onAgeChange(i, e.target.value)}
                   style={{
-                    minWidth: '100px',
+                    minWidth: { xs: '80px', sm: '100px' },
                     padding: '4px 8px',
                     border: '1px solid #ddd',
                     borderRadius: '4px',
-                    fontSize: '0.85rem',
-                    height: '32px',
+                    fontSize: { xs: '0.75rem', sm: '0.85rem' },
+                    height: { xs: '28px', sm: '32px' },
                     background: 'white',
                     cursor: 'pointer',
                     appearance: 'none',
@@ -282,7 +385,60 @@ const Counter = ({
   );
 };
 
-const GuestSearch = ({ onGuestChange, guestCounts }) => {
+const GuestSearch = ({ onGuestChange, guestCounts, disabled = false }) => {
+  const dropdownRef = useRef(null);
+
+  // Close dropdown when location becomes invalid
+  useEffect(() => {
+    if (disabled && dropdownRef.current) {
+      // Force close Bootstrap dropdown
+      const dropdownElement = dropdownRef.current.querySelector('[data-bs-toggle="dropdown"]');
+      if (dropdownElement) {
+        // Remove show class and reset aria-expanded
+        dropdownElement.classList.remove('show');
+        dropdownElement.setAttribute('aria-expanded', 'false');
+        
+        // Hide the dropdown menu
+        const dropdownMenu = dropdownRef.current.querySelector('.dropdown-menu');
+        if (dropdownMenu) {
+          dropdownMenu.classList.remove('show');
+        }
+      }
+      
+      // Also try to close any Bootstrap dropdown instances
+      try {
+        // Get Bootstrap dropdown instance and hide it
+        const bootstrap = window.bootstrap;
+        if (bootstrap && bootstrap.Dropdown) {
+          const dropdownInstance = bootstrap.Dropdown.getInstance(dropdownElement);
+          if (dropdownInstance) {
+            dropdownInstance.hide();
+          }
+        }
+      } catch (error) {
+        console.log('Bootstrap dropdown close error:', error);
+      }
+      
+      // Additional fallback: Force close all dropdowns
+      setTimeout(() => {
+        const allDropdowns = document.querySelectorAll('.dropdown-menu.show');
+        allDropdowns.forEach(menu => {
+          if (dropdownRef.current && dropdownRef.current.contains(menu)) {
+            menu.classList.remove('show');
+          }
+        });
+        
+        const allDropdownToggles = document.querySelectorAll('[data-bs-toggle="dropdown"].show');
+        allDropdownToggles.forEach(toggle => {
+          if (dropdownRef.current && dropdownRef.current.contains(toggle)) {
+            toggle.classList.remove('show');
+            toggle.setAttribute('aria-expanded', 'false');
+          }
+        });
+      }, 10);
+    }
+  }, [disabled]);
+
   const handleCounterChange = (name, value) => {
     const updatedGuestCounts = { ...guestCounts, [name]: value };
                  
@@ -374,44 +530,104 @@ const GuestSearch = ({ onGuestChange, guestCounts }) => {
     onGuestChange({ ...guestCounts, infantAges: updatedInfantAges });
   };
 
+  const handleDropdownClick = (e) => {
+    if (disabled) {
+      e.preventDefault();
+      e.stopPropagation();
+      return false;
+    }
+  };
+
   return (
-    <Box className="searchMenu-guests px-30 lg:py-20 lg:px-0 js-form-dd js-form-counters position-relative" sx={{ zIndex: 1000 }}>
+    <Box 
+      ref={dropdownRef}
+      className="searchMenu-guests px-30 lg:py-20 lg:px-0 js-form-dd js-form-counters position-relative" 
+      sx={{ zIndex: 1000 }}
+    >
       <Box
-        data-bs-toggle="dropdown"
+        data-bs-toggle={disabled ? "" : "dropdown"}
         data-bs-auto-close="outside"
         aria-expanded="false"
         data-bs-offset="0,22"
+        onClick={handleDropdownClick}
+        sx={{
+          opacity: disabled ? 0.6 : 1,
+          cursor: disabled ? 'not-allowed' : 'pointer',
+          pointerEvents: disabled ? 'none' : 'auto',
+          maxWidth: { xs: '120px', sm: '160px' },
+          width: { xs: '120px', sm: '160px' }
+        }}
       >
-        <Typography variant="subtitle2" sx={{ mb: 0.5 }}>Guest</Typography>
-        <Typography variant="body2" color="text.secondary">
-          {guestCounts.Adults} adults
-          ({guestCounts.maleCount || 0} male, {guestCounts.femaleCount || 0} female) -
-          {guestCounts.Children} children -
-          {guestCounts.Infants} infants
+        
+        <Typography 
+          variant="body2" 
+          color={disabled ? "text.disabled" : "text.secondary"}
+          sx={{
+            fontSize: { xs: '0.75rem', sm: '0.875rem' },
+            lineHeight: { xs: 1.2, sm: 1.4 },
+            maxWidth: { xs: '120px', sm: '160px' },
+            width: { xs: '120px', sm: '160px' },
+            minWidth: { xs: '120px', sm: '160px' }
+          }}
+        >
+          <Box component="span" sx={{ display: { xs: 'none', sm: 'block' } }}>
+            <Box component="span" sx={{ display: 'block' }}>
+              {guestCounts.Adults} adults
+              {((guestCounts.maleCount || 0) > 0 || (guestCounts.femaleCount || 0) > 0) && (
+                <> ({guestCounts.maleCount || 0}M, {guestCounts.femaleCount || 0}F)</>
+              )}
+            </Box>
+            {((guestCounts.Children || 0) > 0 || (guestCounts.Infants || 0) > 0) && (
+              <Box component="span" sx={{ display: 'block' }}>
+                {(guestCounts.Children || 0) > 0 && <>{guestCounts.Children}Children</>}
+                {(guestCounts.Children || 0) > 0 && (guestCounts.Infants || 0) > 0 && <> - </>}
+                {(guestCounts.Infants || 0) > 0 && <>{guestCounts.Infants}Infants</>}
+              </Box>
+            )}
+          </Box>
+          <Box component="span" sx={{ display: { xs: 'block', sm: 'none' } }}>
+            <Box component="span" sx={{ display: 'block' }}>
+              {guestCounts.Adults}A
+              {((guestCounts.maleCount || 0) > 0 || (guestCounts.femaleCount || 0) > 0) && (
+                <> ({guestCounts.maleCount || 0}M, {guestCounts.femaleCount || 0}F)</>
+              )}
+            </Box>
+            {((guestCounts.Children || 0) > 0 || (guestCounts.Infants || 0) > 0) && (
+              <Box component="span" sx={{ display: 'block' }}>
+                {(guestCounts.Children || 0) > 0 && <>{guestCounts.Children}Children</>}
+                {(guestCounts.Children || 0) > 0 && (guestCounts.Infants || 0) > 0 && <> - </>}
+                {(guestCounts.Infants || 0) > 0 && <>{guestCounts.Infants}Infants</>}
+              </Box>
+            )}
+          </Box>
         </Typography>
       </Box>
 
       <Box
         className="shadow-2 dropdown-menu min-width-400"
         sx={{
-          maxHeight: '80vh',
+          maxHeight: { xs: '70vh', sm: '80vh' },
           border: 'none',
-          borderRadius: '16px',
+          borderRadius: { xs: '12px', sm: '16px' },
           boxShadow: '0 20px 40px rgba(0,0,0,0.1)',
           zIndex: 1100, 
           position: 'absolute !important',
+          width: { xs: 'calc(100vw - 32px)', sm: '400px' },
+          maxWidth: { xs: '350px', sm: '400px' },
+          left: { xs: '50%', sm: 'auto' },
+          transform: { xs: 'translateX(-50%)', sm: 'none' },
         }}
       >
         <Box
           className="bg-white px-30 py-30 rounded-4 counter-box"
           sx={{
-            maxHeight: '80vh',
+            maxHeight: { xs: '60vh', sm: '80vh' },
             overflowY: 'auto',
             background: 'linear-gradient(to bottom, #ffffff, #f8f9fa)',
-            borderRadius: '16px',
+            borderRadius: { xs: '12px', sm: '16px' },
             position: 'relative',
-            py: 1.5,
-            px: 2,
+            py: { xs: 1, sm: 1.5 },
+            px: { xs: 1.5, sm: 2 },
             '&::-webkit-scrollbar': {
               width: '6px',
             },
@@ -432,6 +648,7 @@ const GuestSearch = ({ onGuestChange, guestCounts }) => {
               defaultValue={guestCounts[counter.name] || counter.defaultValue}
               onCounterChange={handleCounterChange}
               onGenderCountChange={handleGenderCountChange}
+              disabled={disabled}
               maleCount={guestCounts.maleCount || 0}
               femaleCount={guestCounts.femaleCount || 0}
               totalAdults={guestCounts.Adults || 1}

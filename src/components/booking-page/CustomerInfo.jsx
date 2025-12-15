@@ -38,6 +38,8 @@ const CustomerInfo = forwardRef(
       priceMode,
       handleSubmit: parentHandleSubmit,
       handleEnquirySubmit,
+      isEnquirySubmitting,
+      isSubmitting,
     },
     ref
   ) => {
@@ -96,6 +98,8 @@ const CustomerInfo = forwardRef(
     // Add state for enquiry form visibility
     const [showEnquiry, setShowEnquiry] = useState(false);
     const [commentError, setCommentError] = useState(false);
+    
+
 
     // Get currency information from Redux store
     const currencySymbol = useSelector((state) => state.auth.currencySymbol);
@@ -227,18 +231,18 @@ const CustomerInfo = forwardRef(
           }
           break;
 
-        case "state":
-          if (!value.trim()) {
-            error = "State is required";
-          }
-          break;
+        // case "state":
+        //   if (!value.trim()) {
+        //     error = "State is required";
+        //   }
+        //   break;
 
-        case "zip":
-          // Less strict ZIP validation, similar to activity-single component
-          if (value && !/^\d{5,8}$/.test(value)) {
-            error = "Please enter a valid ZIP code (5-8 digits)";
-          }
-          break;
+        // case "zip":
+        //   // Less strict ZIP validation, similar to activity-single component
+        //   if (value && !/^\d{5,8}$/.test(value)) {
+        //     error = "Please enter a valid ZIP code (5-8 digits)";
+        //   }
+        //   break;
 
         default:
           break;
@@ -276,8 +280,7 @@ const CustomerInfo = forwardRef(
           "email",
           "phone",
           "address1",
-          "state",
-          "zip",
+         
         ];
         const newErrors = {};
         let isValid = true;
@@ -299,6 +302,11 @@ const CustomerInfo = forwardRef(
     }));
 
     const handleSubmit = async () => {
+      // Prevent multiple submissions
+      if (isSubmitting) {
+        return;
+      }
+
       const isValid = ref.current.isFormValid();
       if (!isValid) {
         toast.error("Please fill in all required fields correctly.", {
@@ -308,17 +316,18 @@ const CustomerInfo = forwardRef(
       }
 
       try {
-        // First dispatch user info to Redux
-        dispatch(
-          setUserInfo({
-            ...form,
-            phone: `${form.countryCode}${form.phone}`,
-          })
-        );
+        // Don't dispatch userInfo to prevent parent from switching to index2.jsx
+        // The parent component (index.jsx) already has all the necessary data via formData
+        // dispatch(
+        //   setUserInfo({
+        //     ...form,
+        //     phone: `${form.countryCode}${form.phone}`,
+        //   })
+        // );
 
         // Simply call the parent's handleSubmit function
         // The parent component (index.jsx) already has all the necessary data
-        parentHandleSubmit();
+        await parentHandleSubmit();
       } catch (error) {
         console.error("Error during submission:", error);
         toast.error("Something went wrong. Please try again later.", {
@@ -461,7 +470,7 @@ const CustomerInfo = forwardRef(
                     onBlur={handleBlur}
                     error={touched.state && Boolean(errors.state)}
                     helperText={touched.state && errors.state}
-                    required
+                   
                   />
                 </Grid>
 
@@ -499,22 +508,29 @@ const CustomerInfo = forwardRef(
                       mt: 2,
                     }}
                   >
-                    <button
-                      className="button h-60 px-24 -dark-1 bg-blue-1 text-white"
-                      onClick={handleSubmit}
-                    >
-                       Book Now
-                      <div className="icon-arrow-top-right ml-15" />
-                    </button>
-                    {(mode === "dmc" || (Array.isArray(mode) && mode[0] === "dmc")) && (
-                      <button
-                        className="button h-60 px-24 -dark-1 bg-blue-1 text-white"
-                        onClick={() => handleEnquirySubmit()}
-                        style={{ backgroundColor: "#3554D1" }}
-                      >
-                        Make an Enquiry
-                      </button>
-                    )}
+                                         <button
+                       className="button h-60 px-24 -dark-1 bg-blue-1 text-white"
+                       onClick={handleSubmit}
+                       disabled={isSubmitting || isEnquirySubmitting}
+                       style={{ opacity: (isSubmitting || isEnquirySubmitting) ? 0.6 : 1, cursor: (isSubmitting || isEnquirySubmitting) ? 'not-allowed' : 'pointer' }}
+                     >
+                       {isSubmitting ? 'Processing...' : 'Book Now'}
+                       <div className="icon-arrow-top-right ml-15" />
+                     </button>
+                     {(mode === "dmc" || (Array.isArray(mode) && mode[0] === "dmc")) && (
+                       <button
+                         className="button h-60 px-24 -dark-1 bg-blue-1 text-white"
+                         onClick={() => handleEnquirySubmit()}
+                         disabled={isSubmitting || isEnquirySubmitting}
+                         style={{ 
+                           backgroundColor: "#3554D1",
+                           opacity: (isSubmitting || isEnquirySubmitting) ? 0.6 : 1, 
+                           cursor: (isSubmitting || isEnquirySubmitting) ? 'not-allowed' : 'pointer' 
+                         }}
+                       >
+                         {isEnquirySubmitting ? 'Processing...' : 'Make an Enquiry'}
+                       </button>
+                     )}
                   </Box>
                 </Grid>
               </Grid>

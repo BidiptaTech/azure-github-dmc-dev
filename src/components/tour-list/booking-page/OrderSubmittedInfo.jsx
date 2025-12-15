@@ -6,14 +6,16 @@ import CustomStepper from "@/components/common/sub_common/CustomStepper";
 import { useLocation } from "react-router-dom";
 import { useSelector } from "react-redux";
 import { Avatar, Box, Chip, Typography } from "@mui/material";
+import { selectSelectedDmcLogo, selectSelectedDmcCompanyName } from "../../../slice/dmc/dmcSlice"; // Import DMC slice selectors
 
 const OrderSubmittedInfo = () => {
   const navigate = useNavigate();
   const location = useLocation();
   const bookingResponse = location.state?.bookingResponse;
 
-  // Add selectors for DMC and currency info
-  const { DmcName, DmcLogo } = useSelector((state) => state.auth);
+  // Get DMC logo and company name from DMC slice instead of auth slice
+  const dmcLogo = useSelector(selectSelectedDmcLogo);
+  const dmcCompanyName = useSelector(selectSelectedDmcCompanyName) || 'DMC';
   const priceMode =
     useSelector((state) => state.hotels.searchState.priceMode) || "dmc";
   const currencyCode = useSelector((state) => state.auth.currencyCode);
@@ -53,7 +55,11 @@ const OrderSubmittedInfo = () => {
               <div className="size-80 flex-center rounded-full bg-dark-3">
                 <i className="icon-check text-30 text-white" />
               </div>
-              <div className="text-30 lh-1 fw-600 mt-20">{message}</div>
+              <div className="text-30 lh-1 fw-600 mt-20">
+                {message === "Attraction_package Booking created successfully." 
+                  ? "Attraction package booked successfully." 
+                  : message}
+              </div>
               <div className="text-15 flex-center text-light-1 mt-30">
                 {/* Booking details have been sent to:{" "}
                 {parsedData.length > 0
@@ -89,9 +95,9 @@ const OrderSubmittedInfo = () => {
             <div className="border-type-1 rounded-8 px-50 py-35 mt-40">
               <div className="row">
                 <div className="col-lg-3 col-md-6">
-                  <div className="text-15 lh-12">Booking Number</div>
+                  <div className="text-15 lh-12">Tour ID </div>
                   <div className="text-15 lh-12 fw-500 text-blue-1 mt-10">
-                    {order?.booking_id}
+                    {order?.tour_id}
                   </div>
                 </div>
                 {/* End .col */}
@@ -150,20 +156,23 @@ const OrderSubmittedInfo = () => {
                               <div>
                                 {/* Always show SGD price first */}
                                 <div className={isSgdCurrency ? "text-16 fw-500" : "text-14 text-light-1"}>
-                                  SGD {sgdGrandTotal.toFixed(2)} <span className="text-12">(incl. {sgdTax}% tax)</span>
+                                  SGD {sgdPrice.toFixed(2)} 
+                                  {/* <span className="text-12">(incl. {sgdTax}% tax)</span> */}
                                 </div>
 
                                 {/* Show current currency if not SGD */}
                                 {!isSgdCurrency && (
                                   <div className="text-16 fw-500 mt-5">
-                                    {currencyCode} {convertedGrandTotal.toFixed(2)} <span className="text-13 text-light-1">(incl. {currentTax}% tax)</span>
+                                    {currencyCode} {convertedPrice.toFixed(2)}
+                                     {/* <span className="text-13 text-light-1">(incl. {currentTax}% tax)</span> */}
                                   </div>
                                 )}
 
                                 {/* Show USD if not already shown */}
                                 {!isUsdCurrency && currencyCode !== usdCurrencyCode && (
                                   <div className="text-14 text-light-1">
-                                    {usdCurrencyCode} {usdGrandTotal.toFixed(2)} <span className="text-12">(incl. {usdTax}% tax)</span>
+                                    {usdCurrencyCode} {usdPrice.toFixed(2)}
+                                     {/* <span className="text-12">(incl. {usdTax}% tax)</span> */}
                                   </div>
                                 )}
                               </div>
@@ -193,17 +202,17 @@ const OrderSubmittedInfo = () => {
                                   alignItems: 'center', 
                                   gap: '8px' 
                                 }}>
-                                  {DmcLogo && (
+                                  {dmcLogo && (
                                     <Avatar
-                                      src={DmcLogo}
-                                      alt={`${DmcName} Logo`}
+                                      src={dmcLogo}
+                                      alt={`${dmcCompanyName} Logo`}
                                       sx={{ 
                                         width: 24,
                                         height: 24,
                                       }}
                                     />
                                   )}
-                                  <span>{`${DmcName || "DMC"}'s Mode`}</span>
+                                  <span>{`${dmcCompanyName}'s Mode`}</span>
                                 </div>
                               ) : type === "travClicks" ||
                                 type === "travclicks" ? (

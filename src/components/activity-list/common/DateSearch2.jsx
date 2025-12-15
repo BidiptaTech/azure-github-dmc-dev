@@ -10,14 +10,23 @@ const DateSearch2 = ({ selectedDate1, setSelectedDate1, disabled = false }) => {
   // );
   const checkOut = useSelector(
     (state) =>
-      state.hotels.tourdetails.check_out_time ||
-      state.hotels.tourdetails.CheckOutTime ||
-      state.hotels.tourdetails.data.CheckOutTime
+      state.hotels?.tourdetails?.check_out_time ||
+      state.hotels?.tourdetails?.CheckOutTime ||
+      state.hotels?.tourdetails?.data?.CheckOutTime
   );
   console.log("checkOut (original):", checkOut);
 
   const formatDateToDDMMYYYY = (dateString) => {
     if (!dateString) return null;
+    
+    // Handle ISO datetime format (e.g., 2025-09-15T00:00:00.000000Z)
+    if (dateString.includes("T") && dateString.includes("Z")) {
+      const date = new Date(dateString);
+      const year = date.getFullYear();
+      const month = String(date.getMonth() + 1).padStart(2, '0');
+      const day = String(date.getDate()).padStart(2, '0');
+      return `${year}-${month}-${day}`;
+    }
     
     // Check if the date is already in YYYY-MM-DD format
     if (dateString.includes("-") && dateString.match(/^\d{4}-\d{2}-\d{2}$/)) {

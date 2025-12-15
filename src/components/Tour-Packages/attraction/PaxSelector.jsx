@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { 
   Grid, 
   Box,
@@ -21,7 +21,7 @@ import RemoveCircleOutlineIcon from '@mui/icons-material/RemoveCircleOutline';
 import ElderlyIcon from '@mui/icons-material/Elderly';
 import ChildCareIcon from '@mui/icons-material/ChildCare';
 import GroupIcon from '@mui/icons-material/Group';
-import { useSelector } from 'react-redux';
+import { useSelector, shallowEqual } from 'react-redux';
 
 // Styled components
 const StyledCard = styled(Card)(({ theme }) => ({
@@ -37,10 +37,10 @@ const CounterBox = styled(Box)(({ theme }) => ({
   display: 'flex',
   alignItems: 'center',
   justifyContent: 'space-between',
-  padding: theme.spacing(1.5),
+  padding: theme.spacing(1),
   borderRadius: theme.shape.borderRadius,
   backgroundColor: theme.palette.background.paper,
-  marginBottom: theme.spacing(2),
+  marginBottom: theme.spacing(1.5),
   '&:hover': {
     backgroundColor: theme.palette.action.hover
   }
@@ -51,18 +51,18 @@ const Counter = ({ name, value, minValue, onCounterChange, maxValue, disabled = 
     <CounterBox>
       <Box sx={{ display: 'flex', alignItems: 'center' }}>
         {icon}
-        <Box sx={{ ml: 2 }}>
-          <Typography variant="subtitle1" sx={{ fontWeight: 500 }}>
+        <Box sx={{ ml: 1.5 }}>
+          <Typography variant="body2" sx={{ fontWeight: 500, fontSize: '0.8rem' }}>
             {name}
           </Typography>
           {ageDescription && (
-            <Typography variant="caption" color="text.secondary">
+            <Typography variant="caption" color="text.secondary" sx={{ fontSize: '0.7rem' }}>
               {ageDescription}
             </Typography>
           )}
         </Box>
       </Box>
-      <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+      <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
         <Tooltip title={value <= minValue ? "Minimum reached" : "Decrease"}>
           <span>
             <IconButton
@@ -76,16 +76,16 @@ const Counter = ({ name, value, minValue, onCounterChange, maxValue, disabled = 
                 }
               }}
             >
-              <RemoveCircleOutlineIcon />
+              <RemoveCircleOutlineIcon sx={{ fontSize: 18 }} />
             </IconButton>
           </span>
         </Tooltip>
         <Typography 
           sx={{ 
-            minWidth: '32px', 
+            minWidth: '28px', 
             textAlign: 'center',
             fontWeight: 'bold',
-            fontSize: '1.1rem'
+            fontSize: '1rem'
           }}
         >
           {value}
@@ -103,7 +103,7 @@ const Counter = ({ name, value, minValue, onCounterChange, maxValue, disabled = 
                 }
               }}
             >
-              <AddCircleOutlineIcon />
+              <AddCircleOutlineIcon sx={{ fontSize: 18 }} />
             </IconButton>
           </span>
         </Tooltip>
@@ -114,7 +114,7 @@ const Counter = ({ name, value, minValue, onCounterChange, maxValue, disabled = 
 
 const PaxSelector = ({ selectedPax, onPaxChange, initialAdults, initialChildren, disabled }) => {
   const [anchorEl, setAnchorEl] = useState(null);
-  const attractionDetails = useSelector((state) => state.attractions.attractionDetails || {});
+  const attractionDetails = useSelector((state) => state.attractions.attractionDetails, shallowEqual) || {};
 
   // Get age limits from attractionDetails or use defaults
   const childMaxAge = attractionDetails.child_max_age || 17;
@@ -124,50 +124,57 @@ const PaxSelector = ({ selectedPax, onPaxChange, initialAdults, initialChildren,
   const defaultAdults = initialAdults || 1;
   const defaultChildren = initialChildren || 0;
 
-  // Initialize guest counts
+  // Initialize guest counts - prioritize selectedPax if available
   const [guestCounts, setGuestCounts] = useState({
-    Adults: defaultAdults,
-    Children: defaultChildren,
-    Seniors: 0
+    Adults: selectedPax?.Adults !== undefined ? selectedPax.Adults : defaultAdults,
+    Children: selectedPax?.Children !== undefined ? selectedPax.Children : defaultChildren,
+    Seniors: selectedPax?.Seniors !== undefined ? selectedPax.Seniors : 0
   });
 
-  // Track the maximum allowed values
-  const [maxValues, setMaxValues] = useState({
-    Adults: defaultAdults,
-    Children: defaultChildren,
-    Seniors: defaultAdults
+  // Store max limits as immutable state (initialized once, never updated)
+  const [maxLimits] = useState(() => {
+    const totalFromSelected = selectedPax 
+      ? (selectedPax.Adults || 0) + (selectedPax.Seniors || 0)
+      : defaultAdults;
+    
+    return {
+      Adults: Math.max(totalFromSelected, defaultAdults),
+      Children: selectedPax?.Children || defaultChildren,
+      Seniors: Math.max(totalFromSelected, defaultAdults),
+      originalAdultCount: Math.max(totalFromSelected, defaultAdults)
+    };
   });
 
-  // Track the original total adult count
-  const [originalAdultCount, setOriginalAdultCount] = useState(defaultAdults);
-
+  // Sync with selectedPax when it changes - WITH GUARDS to prevent loops
   useEffect(() => {
-    setGuestCounts({
-      Adults: defaultAdults,
-      Children: defaultChildren,
-      Seniors: 0
-    });
-
-    setMaxValues({
-      Adults: defaultAdults,
-      Children: defaultChildren,
-      Seniors: defaultAdults
-    });
-
-    setOriginalAdultCount(defaultAdults);
-  }, [defaultAdults, defaultChildren]);
-
-  useEffect(() => {
-    // Only call onPaxChange if the values are actually different from the current props
-    const currentPax = selectedPax || { Adults: 0, Children: 0, Seniors: 0 };
-    if (
-      currentPax.Adults !== guestCounts.Adults ||
-      currentPax.Children !== guestCounts.Children ||
-      currentPax.Seniors !== guestCounts.Seniors
-    ) {
-      onPaxChange(guestCounts);
+    if (selectedPax && (selectedPax.Adults !== undefined || selectedPax.Children !== undefined || selectedPax.Seniors !== undefined)) {
+      // Only update if values actually differ
+      if (
+        selectedPax.Adults !== guestCounts.Adults ||
+        selectedPax.Children !== guestCounts.Children ||
+        selectedPax.Seniors !== guestCounts.Seniors
+      ) {
+        console.log('PaxSelector syncing from selectedPax:', selectedPax);
+        setGuestCounts({
+          Adults: selectedPax.Adults || 0,
+          Children: selectedPax.Children || 0,
+          Seniors: selectedPax.Seniors || 0
+        });
+      }
     }
-  }, [guestCounts, onPaxChange, selectedPax]);
+  }, [selectedPax]); // REMOVED guestCounts from dependencies to break feedback loop
+
+  // Memoized callback to notify parent - WITH GUARDS
+  const notifyParent = useCallback((counts) => {
+    if (onPaxChange && 
+        (!selectedPax || 
+          selectedPax.Adults !== counts.Adults ||
+          selectedPax.Children !== counts.Children ||
+          selectedPax.Seniors !== counts.Seniors)) {
+      console.log('PaxSelector calling onPaxChange:', { from: selectedPax, to: counts });
+      onPaxChange(counts);
+    }
+  }, [onPaxChange, selectedPax]); // REMOVED guestCounts from dependencies
 
   const handleClick = (event) => {
     if (!disabled) {
@@ -180,6 +187,8 @@ const PaxSelector = ({ selectedPax, onPaxChange, initialAdults, initialChildren,
   };
 
   const handleCounterChange = (name, value) => {
+    let newCounts = { ...guestCounts };
+    
     // Special logic for Seniors to decrease Adults when Seniors increase
     if (name === "Seniors") {
       const currentSeniors = guestCounts.Seniors;
@@ -199,24 +208,21 @@ const PaxSelector = ({ selectedPax, onPaxChange, initialAdults, initialChildren,
       }
       
       // Ensure we don't exceed original adult count
-      if (newAdultValue + value > originalAdultCount) {
-        value = originalAdultCount - newAdultValue;
+      if (newAdultValue + value > maxLimits.originalAdultCount) {
+        value = maxLimits.originalAdultCount - newAdultValue;
       }
       
       // Update both seniors and adults
-      setGuestCounts(prev => ({
-        ...prev,
+      newCounts = {
+        ...newCounts,
         Seniors: value,
         Adults: newAdultValue
-      }));
-      
-      return;
+      };
     }
-    
     // For Adults, ensure we respect the senior count
-    if (name === "Adults") {
+    else if (name === "Adults") {
       // Calculate maximum adults based on seniors and original total
-      const maxAdults = originalAdultCount - guestCounts.Seniors;
+      const maxAdults = maxLimits.originalAdultCount - guestCounts.Seniors;
       if (value > maxAdults) {
         value = maxAdults;
       }
@@ -225,25 +231,34 @@ const PaxSelector = ({ selectedPax, onPaxChange, initialAdults, initialChildren,
       if (value < 1) {
         value = 1;
       }
+      
+      newCounts[name] = value;
     }
-    
     // For Children
-    if (name === "Children") {
+    else if (name === "Children") {
       // Ensure values never exceed the original maximum
-      if (value > maxValues[name]) {
-        value = maxValues[name];
+      if (value > maxLimits[name]) {
+        value = maxLimits[name];
       }
       
       // Ensure children never goes below 0
       if (value < 0) {
         value = 0;
       }
+      
+      newCounts[name] = value;
     }
     
-    setGuestCounts(prev => ({
-      ...prev,
-      [name]: value
-    }));
+    // Only update state if values changed
+    if (
+      newCounts.Adults !== guestCounts.Adults ||
+      newCounts.Children !== guestCounts.Children ||
+      newCounts.Seniors !== guestCounts.Seniors
+    ) {
+      setGuestCounts(newCounts);
+      // Immediately notify parent with new values
+      notifyParent(newCounts);
+    }
   };
 
   const open = Boolean(anchorEl);
@@ -265,25 +280,25 @@ const PaxSelector = ({ selectedPax, onPaxChange, initialAdults, initialChildren,
           borderColor: 'divider'
         }}
       >
-        <CardContent sx={{ p: 2, '&:last-child': { pb: 2 } }}>
-          <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
-            <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-              <PersonIcon sx={{ color: 'primary.main' }} />
-              <Typography>
+        <CardContent sx={{ p: 1.5, '&:last-child': { pb: 1.5 } }}>
+          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5 }}>
+            <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
+              <PersonIcon sx={{ color: 'primary.main', fontSize: 18 }} />
+              <Typography sx={{ fontSize: '0.8rem' }}>
                 {guestCounts.Adults}
               </Typography>
             </Box>
             
-            <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-              <ElderlyIcon sx={{ color: 'primary.main' }} />
-              <Typography>
+            <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
+              <ElderlyIcon sx={{ color: 'primary.main', fontSize: 18 }} />
+              <Typography sx={{ fontSize: '0.8rem' }}>
                 {guestCounts.Seniors}
               </Typography>
             </Box>
 
-            <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-              <ChildCareIcon sx={{ color: 'primary.main' }} />
-              <Typography>
+            <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
+              <ChildCareIcon sx={{ color: 'primary.main', fontSize: 18 }} />
+              <Typography sx={{ fontSize: '0.8rem' }}>
                 {guestCounts.Children}
               </Typography>
             </Box>
@@ -306,7 +321,7 @@ const PaxSelector = ({ selectedPax, onPaxChange, initialAdults, initialChildren,
         }}
         PaperProps={{
           sx: {
-            width: '350px',
+            width: '320px',
             mt: 1,
             overflow: 'visible',
             '&:before': {
@@ -324,16 +339,16 @@ const PaxSelector = ({ selectedPax, onPaxChange, initialAdults, initialChildren,
           }
         }}
       >
-        <Paper sx={{ p: 3 }}>
-          <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 3 }}>
-            <Typography variant="h6" sx={{ fontWeight: 600 }}>
+        <Paper sx={{ p: 2.5 }}>
+          <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 2.5 }}>
+            <Typography variant="subtitle1" sx={{ fontWeight: 600, fontSize: '0.9rem' }}>
               Number of travelers
             </Typography>
             <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
-              <Typography variant="caption" color="text.secondary">
+              <Typography variant="caption" color="text.secondary" sx={{ fontSize: '0.7rem' }}>
                 Total:
               </Typography>
-              <Typography variant="subtitle2" color="primary.main" sx={{ fontWeight: 600 }}>
+              <Typography variant="body2" color="primary.main" sx={{ fontWeight: 600, fontSize: '0.8rem' }}>
                 {guestCounts.Adults + guestCounts.Seniors + guestCounts.Children}
               </Typography>
             </Box>
@@ -343,43 +358,43 @@ const PaxSelector = ({ selectedPax, onPaxChange, initialAdults, initialChildren,
             name="Adults"
             value={guestCounts.Adults}
             minValue={1}
-            maxValue={originalAdultCount - guestCounts.Seniors}
+            maxValue={maxLimits.originalAdultCount - guestCounts.Seniors}
             onCounterChange={handleCounterChange}
             ageDescription={adultsAgeDescription}
-            icon={<PersonIcon sx={{ color: 'primary.main' }} />}
+            icon={<PersonIcon sx={{ color: 'primary.main', fontSize: 18 }} />}
           />
 
           <Counter
             name="Seniors"
             value={guestCounts.Seniors}
             minValue={0}
-            maxValue={originalAdultCount}
+            maxValue={maxLimits.originalAdultCount}
             onCounterChange={handleCounterChange}
             ageDescription={seniorsAgeDescription}
-            icon={<ElderlyIcon sx={{ color: 'primary.main' }} />}
+            icon={<ElderlyIcon sx={{ color: 'primary.main', fontSize: 18 }} />}
           />
 
           <Counter
             name="Children"
             value={guestCounts.Children}
             minValue={0}
-            maxValue={maxValues.Children}
+            maxValue={maxLimits.Children}
             onCounterChange={handleCounterChange}
             ageDescription={childrenAgeDescription}
-            icon={<ChildCareIcon sx={{ color: 'primary.main' }} />}
+            icon={<ChildCareIcon sx={{ color: 'primary.main', fontSize: 18 }} />}
           />
 
-          <Divider sx={{ my: 2 }} />
+          <Divider sx={{ my: 1.5 }} />
 
           <Button 
             variant="contained" 
             fullWidth 
             onClick={handleClose}
             sx={{ 
-              mt: 2,
-              py: 1.5,
+              mt: 1.5,
+              py: 1.2,
               textTransform: 'none',
-              fontSize: '1rem'
+              fontSize: '0.9rem'
             }}
           >
             Done

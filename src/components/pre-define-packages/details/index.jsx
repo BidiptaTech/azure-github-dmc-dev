@@ -1,7 +1,7 @@
 import React, { useEffect, useState, useRef } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useSelector, useDispatch } from 'react-redux';
-import { fetchPackageDetails } from '../../../slice/tour-packages/prePackagesSlice';
+import { fetchPackageDetails, resetBookingStatus } from '../../../slice/tour-packages/prePackagesSlice';
 import {
   Container,
   Box,
@@ -13,85 +13,31 @@ import {
   Tab,
   AppBar,
   Grid,
-  Divider,
-  List,
-  ListItem,
-  ListItemText,
-  ListItemIcon,
-  Paper,
-  Stack,
   Card,
   CardContent,
   Chip,
-  CardHeader,
   Avatar,
   IconButton,
-  Badge,
-  Collapse,
-  CardMedia
 } from '@mui/material';
 import HotelIcon from '@mui/icons-material/Hotel';
-import RestaurantIcon from '@mui/icons-material/Restaurant';
 import PersonIcon from '@mui/icons-material/Person';
 import AttractionsIcon from '@mui/icons-material/Attractions';
-import MapIcon from '@mui/icons-material/Map';
-import GavelIcon from '@mui/icons-material/Gavel';
-import InfoIcon from '@mui/icons-material/Info';
 import CalendarTodayIcon from '@mui/icons-material/CalendarToday';
-import TodayIcon from '@mui/icons-material/Today';
-import FiberManualRecordIcon from '@mui/icons-material/FiberManualRecord';
-import KeyboardArrowUpIcon from '@mui/icons-material/KeyboardArrowUp';
-import KeyboardArrowDownIcon from '@mui/icons-material/KeyboardArrowDown';
 import KeyboardArrowRightIcon from '@mui/icons-material/KeyboardArrowRight';
 import KeyboardArrowLeftIcon from '@mui/icons-material/KeyboardArrowLeft';
 import LocationOnIcon from '@mui/icons-material/LocationOn';
-import GradeIcon from '@mui/icons-material/Grade';
-import CategoryIcon from '@mui/icons-material/Category';
-import LocalDiningIcon from '@mui/icons-material/LocalDining';
-import Dialog from '@mui/material/Dialog';
-import DialogTitle from '@mui/material/DialogTitle';
-import DialogContent from '@mui/material/DialogContent';
-import DialogActions from '@mui/material/DialogActions';
+import CheckCircleIcon from '@mui/icons-material/CheckCircle';
 import CloseIcon from '@mui/icons-material/Close';
-import EditIcon from '@mui/icons-material/Edit';
-import Checkbox from '@mui/material/Checkbox';
-import FormControlLabel from '@mui/material/FormControlLabel';
-import FormGroup from '@mui/material/FormGroup';
-import Radio from '@mui/material/Radio';
 import RadioGroup from '@mui/material/RadioGroup';
-
-
-
-
-
 // Import components
 import PackageHeader from './PackageHeader';
 import PackageOverview from './PackageOverview';
 import InclusionsExclusions from './InclusionsExclusions';
 import PackageItinerary from './PackageItinerary';
-import AccommodationDetails from './AccommodationDetails';
-import AttractionsDetails from './AttractionsDetails';
-/* import RestaurantsDetails from './RestaurantsDetails'; */
-/* import RestaurantsDetails from './RestaurantsDetails'; */
-/* import RestaurantsDetails from './RestaurantsDetails'; */
-import GuideDetails from './GuideDetails';
 import PackagePricing from './PackagePricing';
 import TermsConditions from './TermsConditions';
-
-// Import selection components
-import SelectionModal from './selection-components/SelectionModal';
-import HotelItemRenderer from './selection-components/HotelItemRenderer';
-import AttractionItemRenderer from './selection-components/AttractionItemRenderer';
-/* import RestaurantItemRenderer from './selection-components/RestaurantItemRenderer'; */
-/* import RestaurantItemRenderer from './selection-components/RestaurantItemRenderer'; */
-/* import RestaurantItemRenderer from './selection-components/RestaurantItemRenderer'; */
-import GuideItemRenderer from './selection-components/GuideItemRenderer';
-
-// Import API endpoints
-import { endpoints } from '../../../services/api';
 import { formatDate, getItineraryDayDate } from './shared-date-utils';
-// import { formatDate, getItineraryDayDate } from './shared-date-utils';
-// import { formatDate, getItineraryDayDate } from './shared-date-utils';
+
 
 // Navigation arrow for section navigation
 const NavigationArrow = ({ direction = 'next', onClick, disabled = false, label }) => {
@@ -122,69 +68,7 @@ const NavigationArrow = ({ direction = 'next', onClick, disabled = false, label 
   );
 };
 
-// Section header component with change button
-const SectionHeader = ({ icon: Icon, title, count, onChangeClick }) => (
-  <Box sx={{
-    display: 'flex',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    backgroundColor: 'primary.main',
-    color: 'primary.contrastText',
-    px: 2,
-    py: 0.8,
-    borderRadius: '8px 8px 0 0'
-  }}>
-    <Box sx={{ display: 'flex', alignItems: 'center' }}>
-      <Avatar
-        sx={{
-          bgcolor: 'rgba(255, 255, 255, 0.2)',
-          width: 28,
-          height: 28,
-          mr: 1.5
-        }}
-      >
-        <Icon fontSize="small" />
-      </Avatar>
-      <Typography variant="subtitle2" fontWeight="bold">
-        {title}
-      </Typography>
-    </Box>
 
-    <Box sx={{ display: 'flex', alignItems: 'center' }}>
-      {count && (
-        <Chip
-          label={`${count}`}
-          size="small"
-          sx={{
-            bgcolor: 'rgba(255, 255, 255, 0.2)',
-            color: 'inherit',
-            fontWeight: 'bold',
-            height: 20,
-            mr: 1,
-            '& .MuiChip-label': { px: 0.8, py: 0 }
-          }}
-        />
-      )}
-
-      {onChangeClick && (
-        <IconButton
-          size="small"
-          onClick={onChangeClick}
-          sx={{
-            color: 'inherit',
-            bgcolor: 'rgba(255, 255, 255, 0.2)',
-            p: 0.5,
-            '&:hover': {
-              bgcolor: 'rgba(255, 255, 255, 0.3)',
-            }
-          }}
-        >
-          <EditIcon fontSize="small" />
-        </IconButton>
-      )}
-    </Box>
-  </Box>
-);
 
 // Compact content section wrapper
 const ContentSection = ({ children }) => (
@@ -241,30 +125,9 @@ const PackageDetailsContainer = () => {
   const [activeDay, setActiveDay] = useState(0);
   const [currentPackageDetails, setCurrentPackageDetails] = useState(null);
 
-
-
-  // State for modals
-  const [hotelsModalOpen, setHotelsModalOpen] = useState(false);
-  const [attractionsModalOpen, setAttractionsModalOpen] = useState(false);
-  /* const [restaurantsModalOpen, setRestaurantsModalOpen] = useState(false); */
-  /* const [restaurantsModalOpen, setRestaurantsModalOpen] = useState(false); */
-  /* const [restaurantsModalOpen, setRestaurantsModalOpen] = useState(false); */
-  const [guidesModalOpen, setGuidesModalOpen] = useState(false);
-
-  // State for available items (items fetched from API)
-  const [availableHotels, setAvailableHotels] = useState([]);
-  const [availableAttractions, setAvailableAttractions] = useState([]);
-  /* const [availableRestaurants, setAvailableRestaurants] = useState([]); */
-  /* const [availableRestaurants, setAvailableRestaurants] = useState([]); */
-  /* const [availableRestaurants, setAvailableRestaurants] = useState([]); */
-  const [availableGuides, setAvailableGuides] = useState([]);
-
   // State for selected items
   const [selectedHotels, setSelectedHotels] = useState([]);
   const [selectedAttractions, setSelectedAttractions] = useState([]);
-  /* const [selectedRestaurants, setSelectedRestaurants] = useState([]); */
-  /* const [selectedRestaurants, setSelectedRestaurants] = useState([]); */
-  /* const [selectedRestaurants, setSelectedRestaurants] = useState([]); */
   const [selectedGuides, setSelectedGuides] = useState([]);
 
   // State for globally selected hotel and guide across all days
@@ -462,7 +325,7 @@ const PackageDetailsContainer = () => {
     };
   }, [activeDay, dayRefs.current.length]);
 
-  const { packageDetails, loadingDetails, errorDetails, searchParams } = useSelector(state => state.prePackages);
+  const { packageDetails, loadingDetails, errorDetails, searchParams, bookingSuccess, bookingData: bookingResponse } = useSelector(state => state.prePackages);
   // const { packageDetails, loadingDetails, errorDetails, searchParams } = useSelector(state => state.prePackages);
 
   useEffect(() => {
@@ -471,6 +334,8 @@ const PackageDetailsContainer = () => {
       dispatch(fetchPackageDetails(id));
     }
   }, [dispatch, id]);
+
+  // Remove auto-dismiss functionality - notification will only be dismissed by user action
 
 
 
@@ -494,14 +359,14 @@ const PackageDetailsContainer = () => {
 
       // Process the API response data structure
       try {
-       
-        
+
+
         // First, try to parse the itinerary JSON if it exists (this contains the detailed day-wise data)
         let parsedItinerary = null;
         if (typeof updatedPackageDetails.itinerary === 'string' && updatedPackageDetails.itinerary) {
           try {
             parsedItinerary = JSON.parse(updatedPackageDetails.itinerary);
-          
+
           } catch (e) {
             console.error('Error parsing itinerary JSON:', e);
           }
@@ -509,7 +374,7 @@ const PackageDetailsContainer = () => {
 
         // Handle hotels - prioritize parsed itinerary data
         if (parsedItinerary && parsedItinerary.hotels && Array.isArray(parsedItinerary.hotels)) {
-         
+
           setSelectedHotels(parsedItinerary.hotels.map(hotel => ({
             ...hotel,
             name: hotel.name || "Unknown Hotel",
@@ -528,16 +393,16 @@ const PackageDetailsContainer = () => {
 
         // Handle attractions and guides from parsed itinerary (day-wise data)
         if (parsedItinerary && parsedItinerary.itinerary && Array.isArray(parsedItinerary.itinerary)) {
-          
-          
+
+
           const allAttractions = [];
           const bookedByDay = {};
           const allGuides = [];
           const guidesByDay = {};
 
           parsedItinerary.itinerary.forEach((dayData, index) => {
-          
-            
+
+
             // Process attractions for this day
             if (dayData && dayData.attractions && Array.isArray(dayData.attractions)) {
               const safeAttractions = dayData.attractions.map(attraction => ({
@@ -573,18 +438,18 @@ const PackageDetailsContainer = () => {
             }
           });
 
-      
+
 
           setSelectedAttractions(allAttractions);
           setBookedAttractions(bookedByDay);
           setSelectedGuides(allGuides);
-          
+
           // Store guides by day for easy access
           setGuidesByDay(guidesByDay);
-          
+
           // Debug: Log guides by day
-         
-          
+
+
           // Store parsed itinerary for transport service checks
           setParsedItineraryData(parsedItinerary);
         } else {
@@ -638,7 +503,7 @@ const PackageDetailsContainer = () => {
 
       // Set current package details with updates
       setCurrentPackageDetails(updatedPackageDetails);
-    
+
     }
   }, [packageDetails, searchParams]);
 
@@ -667,7 +532,7 @@ const PackageDetailsContainer = () => {
 
   // Handlers for hotel and guide selection
   const handleHotelSelect = (hotelId) => {
-   
+
     setSelectedHotelId(hotelId);
   };
 
@@ -763,7 +628,7 @@ const PackageDetailsContainer = () => {
   }
 
   if (!packageDetails) {
-   
+
     return (
       <Container>
         <Box sx={{ mt: 4 }}>
@@ -783,7 +648,58 @@ const PackageDetailsContainer = () => {
 
 
   return (
-    <Container maxWidth="lg" sx={{ py: 4 }}>
+    <Container maxWidth="lg" sx={{ py: 4, pt: bookingSuccess ? 8 : 4 }}>
+      {/* Sticky Success Notification */}
+      {bookingSuccess && (
+        <Box
+          sx={{
+            position: 'fixed',
+            top: 0,
+            left: 0,
+            right: 0,
+            zIndex: 9999,
+            bgcolor: 'success.main',
+            color: 'white',
+            py: 2,
+            px: 3,
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'space-between',
+            boxShadow: '0 2px 8px rgba(0,0,0,0.15)',
+            animation: 'slideDown 0.3s ease-out',
+            '@keyframes slideDown': {
+              '0%': {
+                transform: 'translateY(-100%)',
+              },
+              '100%': {
+                transform: 'translateY(0)',
+              },
+            },
+          }}
+        >
+          <Box sx={{ display: 'flex', alignItems: 'center' }}>
+            <CheckCircleIcon sx={{ mr: 1 }} />
+            <Box>
+              <Typography variant="h6" fontWeight="bold">
+                {bookingResponse?.message || 'Your booking has been successfully submitted!'}
+              </Typography>
+              {bookingResponse?.booking_id && (
+                <Typography variant="body2" sx={{ opacity: 0.9, mt: 0.5, color: 'white' }}>
+                  Booking ID: <Box component="span" fontWeight="bold">{bookingResponse.booking_id}</Box>
+                </Typography>
+              )}
+            </Box>
+          </Box>
+          <IconButton
+            onClick={() => dispatch(resetBookingStatus())}
+            sx={{ color: 'white' }}
+            size="small"
+          >
+            <CloseIcon />
+          </IconButton>
+        </Box>
+      )}
+
       <Button
         variant="outlined"
         sx={{ mb: 3 }}
@@ -879,9 +795,9 @@ const PackageDetailsContainer = () => {
 
                           // Get description for the day
                           const currentDetails = detailsWithSearchParams;
-                          const dayDescription = dayIndex === 0 ? 'Arrival' : 
-                            dayIndex === (currentDetails.duration_days - 1) ? 'Departure' : 
-                            'Exploration';
+                          const dayDescription = dayIndex === 0 ? 'Arrival' :
+                            dayIndex === (currentDetails.duration_days - 1) ? 'Departure' :
+                              'Exploration';
 
                           return (
                             <Box
@@ -954,28 +870,28 @@ const PackageDetailsContainer = () => {
                                       {/* Entry port transfer for first day - Check if entry port transfer is enabled */}
                                       {dayIndex === 0 && (() => {
                                         const details = currentPackageDetails || packageDetails;
-                                        
+
                                         // First check parsed itinerary data for this specific day
                                         if (parsedItineraryData?.itinerary?.[dayIndex]?.arrival_pickup === 1) {
                                           return true;
                                         }
-                                        
+
                                         // Check for explicit transport flags in package details
-                                        const hasEntryTransfer = details?.entry_port_transfer === 1 || 
-                                                               details?.entry_port === 1 || 
-                                                               details?.arrival_pickup === 1 ||
-                                                               details?.has_entry_port_transfer === true;
-                                        
+                                        const hasEntryTransfer = details?.entry_port_transfer === 1 ||
+                                          details?.entry_port === 1 ||
+                                          details?.arrival_pickup === 1 ||
+                                          details?.has_entry_port_transfer === true;
+
                                         // Also check if description mentions airport pickup
                                         const descriptionIncludesPickup = details?.description?.toLowerCase().includes('airport pickup') ||
-                                                                         details?.description?.toLowerCase().includes('airport transfer') ||
-                                                                         details?.description?.toLowerCase().includes('pickup service');
-                                        
+                                          details?.description?.toLowerCase().includes('airport transfer') ||
+                                          details?.description?.toLowerCase().includes('pickup service');
+
                                         // Check inclusions for transport services
                                         const inclusionsIncludePickup = details?.inclusions?.toLowerCase().includes('airport pickup') ||
-                                                                       details?.inclusions?.toLowerCase().includes('airport transfer') ||
-                                                                       details?.inclusions?.toLowerCase().includes('pickup service');
-                                        
+                                          details?.inclusions?.toLowerCase().includes('airport transfer') ||
+                                          details?.inclusions?.toLowerCase().includes('pickup service');
+
                                         return hasEntryTransfer || descriptionIncludesPickup || inclusionsIncludePickup;
                                       })() && (
                                           <Grid item xs={12}>
@@ -1018,28 +934,28 @@ const PackageDetailsContainer = () => {
                                       {/* Exit port transfer for last day - Check if exit port transfer is enabled */}
                                       {dayIndex === (packageDetails.duration_days - 1) && (() => {
                                         const details = currentPackageDetails || packageDetails;
-                                        
+
                                         // First check parsed itinerary data for this specific day
                                         if (parsedItineraryData?.itinerary?.[dayIndex]?.departure_service === 1) {
                                           return true;
                                         }
-                                        
+
                                         // Check for explicit transport flags in package details
-                                        const hasExitTransfer = details?.exit_port_transfer === 1 || 
-                                                              details?.exit_port === 1 || 
-                                                              details?.departure_service === 1 ||
-                                                              details?.has_exit_port_transfer === true;
-                                        
+                                        const hasExitTransfer = details?.exit_port_transfer === 1 ||
+                                          details?.exit_port === 1 ||
+                                          details?.departure_service === 1 ||
+                                          details?.has_exit_port_transfer === true;
+
                                         // Also check if description mentions airport drop-off
                                         const descriptionIncludesDropoff = details?.description?.toLowerCase().includes('airport drop') ||
-                                                                          details?.description?.toLowerCase().includes('airport transfer') ||
-                                                                          details?.description?.toLowerCase().includes('drop-off service');
-                                        
+                                          details?.description?.toLowerCase().includes('airport transfer') ||
+                                          details?.description?.toLowerCase().includes('drop-off service');
+
                                         // Check inclusions for transport services
                                         const inclusionsIncludeDropoff = details?.inclusions?.toLowerCase().includes('airport drop') ||
-                                                                        details?.inclusions?.toLowerCase().includes('airport transfer') ||
-                                                                        details?.inclusions?.toLowerCase().includes('drop-off service');
-                                        
+                                          details?.inclusions?.toLowerCase().includes('airport transfer') ||
+                                          details?.inclusions?.toLowerCase().includes('drop-off service');
+
                                         return hasExitTransfer || descriptionIncludesDropoff || inclusionsIncludeDropoff;
                                       })() && (
                                           <Grid item xs={12}>
@@ -1331,10 +1247,10 @@ const PackageDetailsContainer = () => {
                                       {(() => {
                                         // Get guide for this specific day
                                         const dayGuide = guidesByDay[dayIndex];
-                                        
+
                                         if (dayGuide) {
                                           const guideId = getEntityId(dayGuide, dayIndex, 'guide');
-                                          
+
                                           return (
                                             <Grid item xs={12} sm={6} md={4} key={`guide-${dayIndex}`}>
                                               <Card
@@ -1474,67 +1390,9 @@ const PackageDetailsContainer = () => {
         {mainTab === 2 && (
           <Box sx={{ mt: 3 }}>
             <PackageOverview packageData={packageDetails} />
-            {/* <Box sx={{ mt: 3 }}>
-              <PackagePricing 
-                packageData={packageDetails} 
-                selectedHotels={selectedHotels}
-                selectedAttractions={selectedAttractions}
-                selectedRestaurants={selectedRestaurants}
-                selectedGuides={selectedGuides}
-              />
-            </Box> */}
           </Box>
         )}
       </Box>
-
-      {/* Selection Modals */}
-      <SelectionModal
-        open={hotelsModalOpen}
-        onClose={() => setHotelsModalOpen(false)}
-        title="Select Hotels"
-        items={availableHotels}
-        selectedItems={selectedHotels}
-        onSelectionChange={setSelectedHotels}
-        renderItem={HotelItemRenderer}
-        loading={isLoading}
-      />
-
-      <SelectionModal
-        open={attractionsModalOpen}
-        onClose={() => setAttractionsModalOpen(false)}
-        title="Select Attractions"
-        items={availableAttractions}
-        selectedItems={selectedAttractions}
-        onSelectionChange={setSelectedAttractions}
-        renderItem={AttractionItemRenderer}
-        loading={isLoading}
-      />
-
-      {/* 
-      {/* 
-      <SelectionModal
-        open={restaurantsModalOpen}
-        onClose={() => setRestaurantsModalOpen(false)}
-        title="Select Restaurants"
-        items={availableRestaurants}
-        selectedItems={selectedRestaurants}
-        onSelectionChange={setSelectedRestaurants}
-        renderItem={RestaurantItemRenderer}
-        loading={isLoading}
-      />
-      */}
-
-
-      <SelectionModal
-        open={guidesModalOpen}
-        onClose={() => setGuidesModalOpen(false)}
-        title="Select Tour Guides"
-        items={availableGuides}
-        selectedItems={selectedGuides}
-        onSelectionChange={setSelectedGuides}
-        renderItem={GuideItemRenderer}
-        loading={isLoading}
-      />
     </Container>
   );
 };

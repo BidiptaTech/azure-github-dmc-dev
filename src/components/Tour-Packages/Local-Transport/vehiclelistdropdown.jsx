@@ -1,4 +1,4 @@
-import React, { useEffect } from 'react';
+import React, { useEffect, useRef } from 'react';
 import { 
   Grid, 
   Autocomplete, 
@@ -35,20 +35,21 @@ const CustomTooltip = styled(({ className, ...props }) => (
   '& .MuiTooltip-tooltip': {
     backgroundColor: 'white',
     color: 'rgba(0, 0, 0, 0.87)',
-    maxWidth: 400,
+    maxWidth: 350,
     border: '1px solid #dadde9',
-    borderRadius: '12px',
+    borderRadius: '10px',
     padding: 0,
-    boxShadow: theme.shadows[3]
+    boxShadow: theme.shadows[2]
   },
 }));
 
 // Tooltip content component
 const TooltipContent = ({ vehicle }) => {
+  const PriceHide = useSelector((state) => state.auth.PriceHide);
   return (
     <Box>
       {/* Header Image Section */}
-      <Box sx={{ position: 'relative', width: '100%', height: 200 }}>
+      <Box sx={{ position: 'relative', width: '100%', height: 160 }}>
         <Box
           component="img"
           src={vehicle.image}
@@ -57,52 +58,52 @@ const TooltipContent = ({ vehicle }) => {
             width: '100%',
             height: '100%',
             objectFit: 'cover',
-            borderTopLeftRadius: '12px',
-            borderTopRightRadius: '12px',
+            borderTopLeftRadius: '10px',
+            borderTopRightRadius: '10px',
           }}
         />
       </Box>
 
       {/* Content Section */}
-      <Box sx={{ p: 2 }}>
+      <Box sx={{ p: 1.5 }}>
         {/* Title and Location */}
-        <Typography variant="h6" gutterBottom sx={{ fontWeight: 'bold', fontSize: '1.1rem' }}>
+        <Typography variant="h6" gutterBottom sx={{ fontWeight: 'bold', fontSize: '1rem' }}>
           {vehicle.vehicle_name}
         </Typography>
-        <Box sx={{ display: 'flex', alignItems: 'center', mb: 1.5 }}>
-          <LocationOnIcon sx={{ fontSize: 18, color: 'text.secondary', mr: 0.5 }} />
-          <Typography variant="body2" color="text.secondary">
+        <Box sx={{ display: 'flex', alignItems: 'center', mb: 1 }}>
+          <LocationOnIcon sx={{ fontSize: 16, color: 'text.secondary', mr: 0.5 }} />
+          <Typography variant="body2" color="text.secondary" sx={{ fontSize: '0.85rem' }}>
             {vehicle.city}, {vehicle.country}
           </Typography>
         </Box>
 
         {/* Vehicle Details */}
-        <Box sx={{ mb: 2 }}>
-          <Typography variant="subtitle2" gutterBottom sx={{ fontWeight: 500 }}>
+        <Box sx={{ mb: 1.5 }}>
+          <Typography variant="subtitle2" gutterBottom sx={{ fontWeight: 500, fontSize: '0.9rem' }}>
             Vehicle Details
           </Typography>
-          <Stack spacing={1.5}>
+          <Stack spacing={1}>
             <Box sx={{ display: 'flex', alignItems: 'center' }}>
-              <DirectionsCarIcon sx={{ fontSize: 18, color: 'text.secondary', mr: 1 }} />
-              <Typography variant="body2">
+              <DirectionsCarIcon sx={{ fontSize: 16, color: 'text.secondary', mr: 0.8 }} />
+              <Typography variant="body2" sx={{ fontSize: '0.8rem' }}>
                 <strong>Type:</strong> {vehicle.vehicle_type}
               </Typography>
             </Box>
             <Box sx={{ display: 'flex', alignItems: 'center' }}>
-              <DirectionsCarIcon sx={{ fontSize: 18, color: 'text.secondary', mr: 1 }} />
-              <Typography variant="body2">
+              <DirectionsCarIcon sx={{ fontSize: 16, color: 'text.secondary', mr: 0.8 }} />
+              <Typography variant="body2" sx={{ fontSize: '0.8rem' }}>
                 <strong>Model:</strong> {vehicle.vehicle_model}
               </Typography>
             </Box>
             <Box sx={{ display: 'flex', alignItems: 'center' }}>
-              <DirectionsCarIcon sx={{ fontSize: 18, color: 'text.secondary', mr: 1 }} />
-              <Typography variant="body2">
+              <DirectionsCarIcon sx={{ fontSize: 16, color: 'text.secondary', mr: 0.8 }} />
+              <Typography variant="body2" sx={{ fontSize: '0.8rem' }}>
                 <strong>Year:</strong> {vehicle.model_year}
               </Typography>
             </Box>
             <Box sx={{ display: 'flex', alignItems: 'center' }}>
-              <EventSeatIcon sx={{ fontSize: 18, color: 'text.secondary', mr: 1 }} />
-              <Typography variant="body2">
+              <EventSeatIcon sx={{ fontSize: 16, color: 'text.secondary', mr: 0.8 }} />
+              <Typography variant="body2" sx={{ fontSize: '0.8rem' }}>
                 <strong>Seating Capacity:</strong> {vehicle.seating_capacity}
               </Typography>
             </Box>
@@ -110,31 +111,33 @@ const TooltipContent = ({ vehicle }) => {
         </Box>
 
         {/* Pricing Section */}
-        <Box sx={{ mt: 2 }}>
-          <Typography variant="subtitle2" gutterBottom sx={{ fontWeight: 500 }}>
+        <Box sx={{ mt: 1.5 }}>
+          <Typography variant="subtitle2" gutterBottom sx={{ fontWeight: 500, fontSize: '0.9rem' }}>
             Pricing Details
           </Typography>
-          <Grid container spacing={2}>
+          {PriceHide !== "1" ? (
+          <>
+          <Grid container spacing={1.5}>
             {/* DMC Prices */}
             {(vehicle.dmc_private_price > 0 || vehicle.dmc_sharable_price > 0) && (
               <Grid item xs={6}>
                 <Paper 
                   variant="outlined" 
                   sx={{ 
-                    p: 1.5,
+                    p: 1,
                     bgcolor: 'rgba(25, 118, 210, 0.02)',
                     borderColor: 'rgba(25, 118, 210, 0.1)'
                   }}
                 >
-                  <Typography variant="subtitle2" gutterBottom sx={{ color: 'primary.main', fontWeight: 500 }}>
+                  <Typography variant="subtitle2" gutterBottom sx={{ color: 'primary.main', fontWeight: 500, fontSize: '0.8rem' }}>
                     DMC Prices
                   </Typography>
-                  <Stack spacing={0.5}>
+                  <Stack spacing={0.4}>
                     {vehicle.dmc_private_price > 0 && (
-                      <Typography variant="body2">Private: ${vehicle.dmc_private_price}</Typography>
+                      <Typography variant="body2" sx={{ fontSize: '0.75rem' }}>Private: ${vehicle.dmc_private_price}</Typography>
                     )}
                     {vehicle.dmc_sharable_price > 0 && (
-                      <Typography variant="body2">Sharable: ${vehicle.dmc_sharable_price}</Typography>
+                      <Typography variant="body2" sx={{ fontSize: '0.75rem' }}>Sharable: ${vehicle.dmc_sharable_price}</Typography>
                     )}
                   </Stack>
                 </Paper>
@@ -147,20 +150,20 @@ const TooltipContent = ({ vehicle }) => {
                 <Paper 
                   variant="outlined" 
                   sx={{ 
-                    p: 1.5,
+                    p: 1,
                     bgcolor: 'rgba(76, 175, 80, 0.02)',
                     borderColor: 'rgba(76, 175, 80, 0.1)'
                   }}
                 >
-                  <Typography variant="subtitle2" gutterBottom sx={{ color: '#2e7d32', fontWeight: 500 }}>
+                  <Typography variant="subtitle2" gutterBottom sx={{ color: '#2e7d32', fontWeight: 500, fontSize: '0.8rem' }}>
                     Travclicks Prices
                   </Typography>
-                  <Stack spacing={0.5}>
+                  <Stack spacing={0.4}>
                     {vehicle.trav_private_price > 0 && (
-                      <Typography variant="body2">Private: ${vehicle.trav_private_price}</Typography>
+                      <Typography variant="body2" sx={{ fontSize: '0.75rem' }}>Private: ${vehicle.trav_private_price}</Typography>
                     )}
                     {vehicle.trav_sharable_price > 0 && (
-                      <Typography variant="body2">Sharable: ${vehicle.trav_sharable_price}</Typography>
+                      <Typography variant="body2" sx={{ fontSize: '0.75rem' }}>Sharable: ${vehicle.trav_sharable_price}</Typography>
                     )}
                   </Stack>
                 </Paper>
@@ -174,12 +177,19 @@ const TooltipContent = ({ vehicle }) => {
               variant="caption" 
               sx={{ 
                 display: 'block',
-                mt: 1,
+                mt: 0.8,
                 color: 'text.secondary',
-                fontStyle: 'italic'
+                fontStyle: 'italic',
+                fontSize: '0.7rem'
               }}
             >
               *Prices are subject to {vehicle.tax_percentage}% tax
+            </Typography>
+          )}
+          </>
+          ):(
+            <Typography variant="caption" gutterBottom sx={{ color: 'text.secondary', fontWeight: 500, fontSize: '0.75rem' }}>
+              Pricing hidden
             </Typography>
           )}
         </Box>
@@ -237,9 +247,22 @@ const Mode = ({ pricemode, setpricemode, vehicles }) => {
   return (
     <Grid item xs={12} sm={6} md={12}>
       {/* Mount the component directly without Box wrapping */}
-      <div style={{ isolation: 'isolate' }}>
+      <div style={{ isolation: 'isolate'}}>
         <FormControl fullWidth>
-          <InputLabel id="price-mode-label">Price Mode</InputLabel>
+          <InputLabel 
+            id="price-mode-label"
+            sx={{
+              transform: 'translate(14px, 16px) scale(1)',
+              '&.Mui-focused, &.MuiFormLabel-filled': {
+                transform: 'translate(14px, -9px) scale(0.75)',
+                color: '#ff9800',
+                fontSize: '0.8rem',
+                mt: 0.5
+              }
+            }}
+          >
+            Price Mode
+          </InputLabel>
           <Select
             labelId="price-mode-label"
             id="price-mode-select"
@@ -251,6 +274,24 @@ const Mode = ({ pricemode, setpricemode, vehicles }) => {
             onChange={handleChange}
             onClick={(e) => e.stopPropagation()}
             onMouseDown={(e) => e.stopPropagation()}
+            sx={{
+              height: '42px',
+              '& .MuiSelect-select': {
+                height: '42px',
+                paddingTop: '15px',
+                paddingBottom: '0px'
+              },
+              '& .MuiOutlinedInput-notchedOutline': {
+                borderColor: '#e0e0e0'
+              },
+              '&:hover .MuiOutlinedInput-notchedOutline': {
+                borderColor: '#ff9800'
+              },
+              '&.Mui-focused .MuiOutlinedInput-notchedOutline': {
+                borderColor: '#ff9800',
+                borderWidth: '2px'
+              }
+            }}
             MenuProps={{
               disableScrollLock: true,
               slotProps: {
@@ -286,14 +327,17 @@ const VehicleListDropdown = ({
   cachedVehicles,
   cachedVehicleName,
   isGridLayout = false,
-  preloadedBooking = null
+  preloadedBooking = null,
+  onAddMore = null,
+  PointToPoint,
 }) => {
   const vehicles = useSelector((state) => state.localtour.vehicles || []);
   const portZoneType = useSelector((state) => state.localtour.portZoneType);
   const dispatch = useDispatch();
   const tourDetails = useSelector((state) => state.hotels?.tourdetails);
   console.log("tourDetailsdd", tourDetails);
-  
+  const searchParams = useSelector((state) => state.tourPackages.searchCriteria);
+  console.log("searchParamsvehi", searchParams);
   // Use cached vehicles if provided, otherwise use Redux vehicles
   const vehiclesToUse = cachedVehicles && cachedVehicles.length > 0 ? cachedVehicles : vehicles;
   
@@ -301,8 +345,8 @@ const VehicleListDropdown = ({
   const selectedVehicleObj = vehiclesToUse.find(v => v.id === selectedVehicle) || null;
 
   // Use optional chaining for safe access to nested properties
-  const adultsMax = tourDetails?.data?.adult || tourDetails?.adult || 1;
-  const childrenMax = tourDetails?.data?.child || tourDetails?.child || 0;
+  const adultsMax = searchParams?.guests?.adults  || 1;
+  const childrenMax = searchParams?.guests?.children || 0;
 
   // Get initial passenger counts from preloaded booking or parent component
   const [adults, setAdults] = useState(preloadedBooking?.adults || adultsMax);
@@ -311,7 +355,7 @@ const VehicleListDropdown = ({
   const [data, setData] = useState(null);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState(null);
-  
+  const tourStatus = useSelector((state) => state.tourPackages.tourStatus);
   // Define totalGuests for price calculation
   const totalGuests = adults + children;
   
@@ -504,22 +548,23 @@ const VehicleListDropdown = ({
   }
 
   return (
-    <Grid container spacing={3} sx={{ mt: 2 }}>
+    <Grid container spacing={1} sx={{ mt: 0, p: 2 }}>
       {/* Vehicle Selection Column */}
-      <Grid item xs={12} md={4}>
+      <Grid item xs={12} md={4} sx={{mt: 0}}>
      
           <Typography 
             variant="subtitle2" 
             fontWeight={600} 
             sx={{ 
-              mb: 2, 
+              mb: 1.5, 
               display: 'flex', 
               alignItems: 'center', 
-              gap: 1,
-              color: '#ff6b6b'
+              gap: 0.8,
+              color: '#ff6b6b',
+              fontSize: '0.9rem'
             }}
           >
-            <DirectionsCarIcon sx={{ fontSize: 20, color: '#ff6b6b' }} />
+            <DirectionsCarIcon sx={{ fontSize: 18, color: '#ff6b6b' }} />
             Vehicle Selection
           </Typography>
           <div style={{ isolation: 'isolate' }}>
@@ -630,14 +675,15 @@ const VehicleListDropdown = ({
             variant="subtitle2" 
             fontWeight={600} 
             sx={{ 
-              mb: 2, 
+              mb: 1.5, 
               display: 'flex', 
               alignItems: 'center', 
-              gap: 1,
-              color: selectedVehicleObj ? '#2196f3' : 'text.disabled'
+              gap: 0.8,
+              color: selectedVehicleObj ? '#2196f3' : 'text.disabled',
+              fontSize: '0.9rem'
             }}
           >
-            <PeopleIcon sx={{ fontSize: 20 }} />
+            <PeopleIcon sx={{ fontSize: 18 }} />
             Passengers
           </Typography>
           <Box sx={{ 
@@ -663,14 +709,15 @@ const VehicleListDropdown = ({
             variant="subtitle2" 
             fontWeight={600} 
             sx={{ 
-              mb: 2, 
+              mb: 1.5, 
               display: 'flex', 
               alignItems: 'center', 
-              gap: 1,
-              color: data ? '#ff9800' : 'text.disabled'
+              gap: 0.8,
+              color: data ? '#ff9800' : 'text.disabled',
+              fontSize: '0.9rem'
             }}
           >
-            <LocalOfferIcon sx={{ fontSize: 20 }} />
+            <LocalOfferIcon sx={{ fontSize: 18 }} />
             Price Mode
           </Typography>
           <Box sx={{ 
@@ -681,14 +728,14 @@ const VehicleListDropdown = ({
               <Paper 
                 variant="outlined" 
                 sx={{ 
-                  p: 3, 
+                  p: 0.5, 
                   textAlign: 'center',
                   bgcolor: 'grey.50',
                   borderStyle: 'dashed',
                   borderColor: 'action.disabled'
                 }}
               >
-                <Typography variant="body2" color="text.disabled" sx={{ fontStyle: 'italic' }}>
+                <Typography variant="body2" color="text.disabled" sx={{ fontStyle: 'italic', fontSize: '0.85rem' }}>
                   Select vehicle first
                 </Typography>
               </Paper>

@@ -7,7 +7,7 @@ import { BASE_URL } from '@/services/api';
 
 export const convertEnquiresToTourId = createAsyncThunk(
   'convertToTour/sendEnquiryId',
-  async ({ agentId = null, enquiryID = null }, { getState, rejectWithValue }) => {
+  async ({ agentId = null, enquiryID = null, dmcId = null }, { getState, rejectWithValue }) => {
     try {
     //   const { token } = getState().auth;
       const token = Cookies.get("authToken");
@@ -18,6 +18,7 @@ export const convertEnquiresToTourId = createAsyncThunk(
        const params = {};
       if (agentId) params.agent_id = agentId;
       if (enquiryID) params.enquiry_id = enquiryID;
+      //if (dmcId) params.dmc_id = dmcId;
       const response = await axios.get(`${BASE_URL}/create-enquiry-tour`,{
         headers: {
           Authorization: `Bearer ${token}`,

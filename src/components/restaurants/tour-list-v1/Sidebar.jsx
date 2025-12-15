@@ -1,15 +1,18 @@
 import React, { useState, useEffect } from "react";
 import { useDispatch, useSelector } from "react-redux";
 import { setFilters, selectFilters, selectRestaurants } from "../../../slice/restaurant/RestaurantsSlice";
+import { selectSelectedDmcLogo, selectSelectedDmcCompanyName } from "../../../slice/dmc/dmcSlice"; // Import DMC slice selectors
 import { Slider, RadioGroup, FormControlLabel, Radio, FormControl, FormLabel, Avatar } from "@mui/material";
+import DmcFilter from "../../hotel-list/sidebar/dmcFilter";
 
 const Sidebar = () => {
   const dispatch = useDispatch();
   const filters = useSelector(selectFilters);
   const restaurants = useSelector(selectRestaurants);
-  const dmcLogo = useSelector((state) => state.auth.DmcLogo);
-  const dmcName = useSelector((state) => state.auth.DmcName) || 'DMC';
-  
+  // Get DMC logo and company name from DMC slice instead of auth slice
+  const dmcLogo = useSelector(selectSelectedDmcLogo);
+  const dmcCompanyName = useSelector(selectSelectedDmcCompanyName) || 'DMC';
+  const haveBooking = useSelector((state) => state.common.haveBooking);
   // Get currency information from Redux store
   const currencySymbol = useSelector((state) => state.auth.currencySymbol);
   const currencyCode = useSelector((state) => state.auth.currencyCode);
@@ -144,7 +147,7 @@ const Sidebar = () => {
       </div> */}
 
       {/* Price Mode with Single Checkbox */}
-      <div className="sidebar__item -no-border">
+      {/* <div className="sidebar__item -no-border">
         <h5 className="text-18 fw-500 mb-10">Price Mode</h5>
         <div className="sidebar-checkbox">
           <div className="row y-gap-10 items-center justify-between">
@@ -163,7 +166,7 @@ const Sidebar = () => {
                   {dmcLogo && (
                     <Avatar
                       src={dmcLogo}
-                      alt={`${dmcName} Logo`}
+                      alt={`${dmcCompanyName} Logo`}
                       sx={{ 
                         width: 24, 
                         height: 24,
@@ -171,16 +174,16 @@ const Sidebar = () => {
                       }}
                     />
                   )}
-                  <span>{dmcName}'s Mode</span>
+                                      <span>{dmcCompanyName}'s Mode</span>
                 </div>
               </div>
             </div>
           </div>
         </div>
-      </div>
+      </div> */}
 
       {/* Cuisine Filter */}
-      <div className="sidebar__item">
+      <div className="sidebar__item -no-border">
         <h5 className="text-18 fw-500 mb-10">Cuisine</h5>
         <div className="sidebar-checkbox">
           {cuisines.map((option, index) => (
@@ -227,6 +230,15 @@ const Sidebar = () => {
         </div>
       </div>
       )}
+
+
+<div className="sidebar__item">
+        <h5 className="text-18 fw-500 mb-10">DMC</h5>
+        <div className="sidebar-checkbox">
+          <DmcFilter />
+        </div>
+      </div>
+      
     </>
   );
 };

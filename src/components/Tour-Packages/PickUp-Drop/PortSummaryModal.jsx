@@ -69,8 +69,10 @@ const PortSummaryModal = ({
   const exchangeRate = useSelector((state) => state.auth.exchangeRate) || 1;
   const usdExchangeRate = useSelector((state) => state.auth.usdExchangeRate) || 1;
   const dmcLogo = useSelector((state) => state.auth.DmcLogo);
-  const dmcName = useSelector((state) => state.auth.DmcName) || "DMC";
-
+  //const dmcName = useSelector((state) => state.auth.DmcName) || "DMC";
+  const PriceHide = useSelector((state) => state.auth.PriceHide);
+  const dmcName = useSelector((state) => state.tourPackages.packageData.dmc_company_name);
+  
   // Determine color theme based on port type
   const getColorTheme = () => {
     if (portType === "Entry Port") {
@@ -139,16 +141,16 @@ const PortSummaryModal = ({
 
     return (
       <Stack spacing={0.5}>
-        <Typography variant="h6" color="primary" sx={{ fontWeight: 600 }}>
+        <Typography variant="h6" color="primary" sx={{ fontWeight: 600, color: 'white' }}>
           {currencyCode} {mainPrice}
         </Typography>
         {currencyCode !== 'USD' && (
-          <Typography variant="caption" color="text.secondary">
+          <Typography variant="caption" color="text.secondary" sx={{ color: 'white' }}>
             USD {usdPrice}
           </Typography>
         )}
         {currencyCode !== 'SGD' && (
-          <Typography variant="caption" color="text.secondary">
+          <Typography variant="caption" color="text.secondary" sx={{ color: 'white' }}>
             SGD {sgdPrice}
           </Typography>
         )}
@@ -278,7 +280,7 @@ const PortSummaryModal = ({
                     color: 'white'
                   }}
                 >
-                  <Typography variant="body2" sx={{ fontWeight: 600 }}>
+                  <Typography variant="body2" sx={{ fontWeight: 600, color: 'white' }}>
                     {colorTheme.name} Transfer
                   </Typography>
                 </Box>
@@ -367,7 +369,13 @@ const PortSummaryModal = ({
                     </Box>
                   </Box>
                   <Divider sx={{ bgcolor: 'rgba(255,255,255,0.3)', mb: 1 }} />
-                  {formatPrice(bookingData.price)}
+                  {PriceHide !== "1" ? (
+                    formatPrice(bookingData.price)
+                  ):(
+                    <Typography variant="caption" color="text.secondary">
+                      Pricing hidden
+                    </Typography>
+                  )}
                   {bookingData.taxPercentage && (
                     <Typography variant="caption" sx={{ opacity: 0.8, display: 'block', mt: 0.5 }}>
                       *Inc. {bookingData.taxPercentage}% tax

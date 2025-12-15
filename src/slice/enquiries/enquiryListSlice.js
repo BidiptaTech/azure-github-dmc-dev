@@ -7,9 +7,10 @@ import { BASE_URL } from '@/services/api';
 // Async thunk for fetching enquiries
 export const fetchEnquiries = createAsyncThunk(
   'enquiryList/fetchEnquiries',
-  async (agentId =null, { getState, rejectWithValue }) => {
+  async (params = {}, { getState, rejectWithValue }) => {
+    const { agentId = null, start = 0, limit = 30, reset = false } = params;
+    
     try {
-    //   const { token } = getState().auth;
       const token = Cookies.get("authToken");
       
       if (!token) {
@@ -22,11 +23,20 @@ export const fetchEnquiries = createAsyncThunk(
           "Content-Type": "application/json",
           "Accept": "application/json"
         },
-        params: agentId ? { 'agent_id': agentId } : {}
+        params: {
+          ...(agentId && { 'agent_id': agentId }),
+          ...(start !== undefined && { start }),
+          ...(limit !== undefined && { limit })
+        }
       });
       
       if (response.data.success) {
-        return response.data.enquiries;
+        return { 
+          data: response.data.enquiries, 
+          reset, 
+          start, 
+          limit 
+        };
       } else {
         return rejectWithValue(response.data.message || 'Failed to fetch enquiries');
       }
@@ -38,16 +48,17 @@ export const fetchEnquiries = createAsyncThunk(
 
 const initialState = {
   enquiries: [],
-  status: 'idle', // 'idle' | 'loading' | 'succeeded' | 'failed'
+  status: 'idle',
   error: null,
   totalCount: 0,
+  start: 0,
+  limit: 30,
   stats: {
     total: 0,
     withHotel: 0,
     withPickup: 0,
     withPort: 0,
     withAttractions: 0,
-    withPackagedAttractions: 0,
     withRestaurants: 0,
     withGuides: 0,
   }
@@ -64,21 +75,34 @@ const enquiryListSlice = createSlice({
         state.error = null;
       })
      .addCase(fetchEnquiries.fulfilled, (state, action) => {
-  const enquiries = action.payload || [];
+  const { data: enquiries, reset, start, limit } = action.payload || {};
+  const enquiriesArray = enquiries || [];
 
   state.status = 'succeeded';
-  state.enquiries = enquiries;
-  state.totalCount = enquiries.length;
+  
+  // Update start and limit in state
+  if (start !== undefined) state.start = start;
+  if (limit !== undefined) state.limit = limit;
+  
+  // Handle data based on reset flag
+  if (reset) {
+    // Reset - replace the data
+    state.enquiries = enquiriesArray;
+  } else {
+    // Append the data
+    state.enquiries = [...state.enquiries, ...enquiriesArray];
+  }
+  
+  state.totalCount = state.enquiries.length;
 
   // Calculate stats safely
-  state.stats.total = enquiries.length;
-  state.stats.withHotel = enquiries.filter(e => e.hotel).length;
-  state.stats.withPickup = enquiries.filter(e => e.local_transfer).length;
-  state.stats.withPort = enquiries.filter(e => e.port).length;
-  state.stats.withAttractions = enquiries.filter(e => e.attraction).length;
-  state.stats.withPackagedAttractions = enquiries.filter(e => e.packaged_attractions).length;
-  state.stats.withRestaurants = enquiries.filter(e => e.restaurant).length;
-  state.stats.withGuides = enquiries.filter(e => e.guide).length;
+  state.stats.total = state.enquiries.length;
+  state.stats.withHotel = state.enquiries.filter(e => e.hotel).length;
+  state.stats.withPickup = state.enquiries.filter(e => e.local_transfer).length;
+  state.stats.withPort = state.enquiries.filter(e => e.port).length;
+  state.stats.withAttractions = state.enquiries.filter(e => e.attraction).length;
+  state.stats.withRestaurants = state.enquiries.filter(e => e.restaurant).length;
+  state.stats.withGuides = state.enquiries.filter(e => e.guide).length;
 })
       .addCase(fetchEnquiries.rejected, (state, action) => {
         state.status = 'failed';

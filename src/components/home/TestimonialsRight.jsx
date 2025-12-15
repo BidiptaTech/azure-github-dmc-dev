@@ -19,12 +19,13 @@ const TestimonialsRight = ({ testimonials, currentTestimonial,onPrevious, onNext
   return (
     <Box
       sx={{
-        width: '60%',
-        height: '100vh',
+        width: '100%',
+        height: '100%',
         display: 'flex',
         alignItems: 'center',
         justifyContent: 'center',
-        py: 8,
+        py: { xs: 4, md: 8 },
+        px: { xs: 2, md: 0 },
         position: 'relative',
         overflow: 'hidden'
       }}
@@ -61,7 +62,7 @@ const TestimonialsRight = ({ testimonials, currentTestimonial,onPrevious, onNext
       <Box
         sx={{
           position: 'absolute',
-          left: '50px',
+          left: { xs: '10px', md: '50px' },
           top: '50%',
           transform: 'translateY(-50%)',
           display: 'flex',
@@ -198,8 +199,13 @@ const TestimonialsRight = ({ testimonials, currentTestimonial,onPrevious, onNext
         }}
       />
 
-      <Container maxWidth="md" sx={{ position: 'relative', zIndex: 4 }}>
-        <Box sx={{ display: 'flex', gap: 4, alignItems: 'center' }}>
+      <Container maxWidth="md" sx={{ position: 'relative', zIndex: 4, px: { xs: 1, md: 2 } }}>
+        <Box sx={{ 
+          display: 'flex', 
+          gap: { xs: 2, md: 4 }, 
+          alignItems: 'center',
+          flexDirection: { xs: 'column', md: 'row' }
+        }}>
           {/* Current Testimonial */}
           <Card
             sx={{
@@ -207,34 +213,35 @@ const TestimonialsRight = ({ testimonials, currentTestimonial,onPrevious, onNext
               borderRadius: '20px',
               bgcolor: 'rgba(255, 255, 255, 0.95)',
               backdropFilter: 'blur(10px)',
-              p: 4,
+              p: { xs: 2, md: 4 },
               boxShadow: '0 25px 50px rgba(0,0,0,0.2)',
               position: 'relative',
-              border: '1px solid rgba(255, 255, 255, 0.3)'
+              border: '1px solid rgba(255, 255, 255, 0.3)',
+              width: { xs: '100%', md: 'auto' }
             }}
           >
             {/* Quote Icon */}
             <Box
               sx={{
                 position: 'absolute',
-                top: 20,
-                left: 20,
+                top: { xs: 10, md: 20 },
+                left: { xs: 10, md: 20 },
                 color: '#4CAF50',
-                fontSize: '40px'
+                fontSize: { xs: '30px', md: '40px' }
               }}
             >
-              <FormatQuote sx={{ fontSize: 40, transform: 'scaleX(-1)' }} />
+              <FormatQuote sx={{ fontSize: { xs: 30, md: 40 }, transform: 'scaleX(-1)' }} />
             </Box>
 
-            <CardContent sx={{ pt: 4 }}>
+            <CardContent sx={{ pt: { xs: 2, md: 4 } }}>
               {/* Profile Section */}
               <Box sx={{ textAlign: 'center', mb: 3 }}>
                 <Avatar
                   src={testimonials[currentTestimonial].image}
                   alt={testimonials[currentTestimonial].name}
                   sx={{
-                    width: 80,
-                    height: 80,
+                    width: { xs: 60, md: 80 },
+                    height: { xs: 60, md: 80 },
                     mx: 'auto',
                     mb: 2,
                     border: '4px solid #4CAF50'
@@ -247,7 +254,8 @@ const TestimonialsRight = ({ testimonials, currentTestimonial,onPrevious, onNext
                   readOnly
                   sx={{
                     '& .MuiRating-icon': {
-                      color: '#FF9800'
+                      color: '#FF9800',
+                      fontSize: { xs: '1.2rem', md: '1.5rem' }
                     },
                     mb: 2
                   }}
@@ -258,7 +266,7 @@ const TestimonialsRight = ({ testimonials, currentTestimonial,onPrevious, onNext
                   sx={{
                     fontWeight: 'bold',
                     color: '#4CAF50',
-                    fontSize: '20px',
+                    fontSize: { xs: '16px', md: '20px' },
                     mb: 0.5
                   }}
                 >
@@ -269,7 +277,7 @@ const TestimonialsRight = ({ testimonials, currentTestimonial,onPrevious, onNext
                   variant="body2"
                   sx={{
                     color: '#666',
-                    fontSize: '14px'
+                    fontSize: { xs: '12px', md: '14px' }
                   }}
                 >
                   {testimonials[currentTestimonial].position}
@@ -282,7 +290,7 @@ const TestimonialsRight = ({ testimonials, currentTestimonial,onPrevious, onNext
                 sx={{
                   fontStyle: 'italic',
                   color: '#666',
-                  fontSize: '16px',
+                  fontSize: { xs: '14px', md: '16px' },
                   lineHeight: 1.6,
                   textAlign: 'center'
                 }}
@@ -292,17 +300,18 @@ const TestimonialsRight = ({ testimonials, currentTestimonial,onPrevious, onNext
             </CardContent>
           </Card>
 
-          {/* Next Testimonial Preview */}
+          {/* Next Testimonial Preview - Hidden on mobile */}
           {testimonials.length > 1 && (
             <Card
               sx={{
-                width: '300px',
+                width: { xs: '100%', md: '300px' },
                 borderRadius: '20px',
                 bgcolor: 'rgba(255, 255, 255, 0.15)',
                 backdropFilter: 'blur(15px)',
                 p: 2,
                 border: '1px solid rgba(255, 255, 255, 0.3)',
-                position: 'relative'
+                position: 'relative',
+                display: { xs: 'none', md: 'block' }
               }}
             >
               <CardContent>

@@ -28,17 +28,9 @@ import {
 } from "../../../slice/attractions/attractionSlice";
 import Cookies from "js-cookie";
 import { toast } from "react-toastify";
-import { setBookingType, setBookingMode, setIsNavigating } from '../../../slice/common/commonSlice';
+import { setBookingType, setBookingMode, setIsNavigating, setHaveBooking } from '../../../slice/common/commonSlice';
 
-// Add this near the top with other constants
-const countryCodes = [
-  { code: "US", name: "United States", dialCode: "+1" },
-  { code: "GB", name: "United Kingdom", dialCode: "+44" },
-  { code: "IN", name: "India", dialCode: "+91" },
-  { code: "AU", name: "Australia", dialCode: "+61" },
-  { code: "SG", name: "Singapore", dialCode: "+65" },
-  // Add more country codes as needed
-];
+
 
 const CustomerInfo = forwardRef((props, ref) => {
   const dispatch = useDispatch();
@@ -362,16 +354,15 @@ const CustomerInfo = forwardRef((props, ref) => {
           mode: attractionBookingMode?.prices?.mode || attractionDetails?.prices?.mode,
           totalPrice: attractionBookings?.[0]?.data?.[0]?.totalPrice,
           nri : attractionBookings?.[0]?.data?.[0]?.ticket_details?.nri || "residential",
-          dmc_id: attractionBookings?.[0]?.data?.[0]?.dmc_id || null,
           bookingType: "booking",
           package_type: attractionBookings?.[0]?.data?.[0]?.package_type || 0,
-          package_attraction_id: attractionDetails.packages[0].package_attraction_id || null,
+          package_attraction_id: attractionDetails?.packages?.[0]?.package_attraction_id || null,
           ...(isPackageBooking && packageDetails && { package_details: packageDetails })
         }],
         tour_id: parseInt(tourdetails?.tour_id, 10) || 0,
         type: isPackageBooking ? "attraction_package" : "attraction",
-        type: isPackageBooking ? "attraction_package" : "attraction",
-        type: isPackageBooking ? "attraction_package" : "attraction",
+        // type: isPackageBooking ? "attraction_package" : "attraction",
+        // type: isPackageBooking ? "attraction_package" : "attraction",
         bookingType: "booking"
       };
 
@@ -384,7 +375,7 @@ const CustomerInfo = forwardRef((props, ref) => {
         dispatch(setUserInfo(formData));
         dispatch(setBookingResponse(response));
         dispatch(setBookingType(response?.order?.bookingType));
-        
+        dispatch(setHaveBooking(true));
         // Navigate to thank you page after a short delay to ensure Redux updates
         setTimeout(() => {
           navigate("/dashboard/db-dashboard/attraction-thank-you", {
@@ -523,16 +514,15 @@ const CustomerInfo = forwardRef((props, ref) => {
           prices: { 
             price: attractionBookings?.[0]?.data?.[0]?.totalPrice 
           },
-          dmc_id: attractionBookings?.[0]?.data?.[0]?.dmc_id || null,
           bookingType: "enquiry",
           package_type: attractionBookings?.[0]?.data?.[0]?.package_type || 0,
-          package_attraction_id: attractionDetails.packages[0].package_attraction_id || null,
+          package_attraction_id: attractionDetails?.packages?.[0]?.package_attraction_id || null,
           ...(isPackageBooking && packageDetails && { package_details: packageDetails })
         }],
         tour_id: parseInt(tourdetails?.tour_id, 10) || 0,
         type: isPackageBooking ? "attraction_package" : "attraction",
-        type: isPackageBooking ? "attraction_package" : "attraction",
-        type: isPackageBooking ? "attraction_package" : "attraction",
+        // type: isPackageBooking ? "attraction_package" : "attraction",
+        // type: isPackageBooking ? "attraction_package" : "attraction",
         bookingType: "enquiry",
       };
 
@@ -548,7 +538,7 @@ const CustomerInfo = forwardRef((props, ref) => {
         dispatch(setUserInfo(formData));
         dispatch(setBookingResponse(response));
         dispatch(setBookingType(response?.order?.bookingType));
-        
+        dispatch(setHaveBooking(true));
         // Show success message
         toast.success("Enquiry submitted successfully!", {
           position: "top-center",

@@ -39,19 +39,19 @@ import { useSelector } from 'react-redux';
 
 // Styled components
 const StyledMenuItem = styled(MenuItem)(({ theme }) => ({
-  padding: '10px 16px',
+  padding: '8px 12px',
   display: 'flex',
   alignItems: 'center',
   backgroundColor: 'rgba(232, 245, 233, 0.85)',
   color: '#2e7d32',
-  borderRadius: '6px',
-  margin: '4px 8px',
+  borderRadius: '4px',
+  margin: '3px 6px',
   transition: 'all 0.2s ease',
 
   '&:hover': {
     backgroundColor: 'rgba(232, 245, 233, 1)',
-    transform: 'translateY(-2px) scale(1.02)',
-    boxShadow: '0 4px 8px rgba(0, 0, 0, 0.1)',
+    transform: 'translateY(-1px) scale(1.01)',
+    boxShadow: '0 3px 6px rgba(0, 0, 0, 0.1)',
   },
 
   '&.Mui-selected': {
@@ -72,8 +72,8 @@ const PriceSummaryCard = styled(Card)(({ theme }) => ({
   backgroundColor: 'rgba(255, 255, 255, 0.95)',
   backdropFilter: 'blur(10px)',
   borderTop: '1px solid rgba(0, 0, 0, 0.12)',
-  borderRadius: '0 0 16px 16px',
-  boxShadow: '0 -4px 12px rgba(0, 0, 0, 0.05)',
+  borderRadius: '0 0 12px 12px',
+  boxShadow: '0 -3px 8px rgba(0, 0, 0, 0.05)',
 }));
 
 // MealDescription component for truncated text
@@ -92,7 +92,7 @@ const MealDescription = ({ description, expanded, onToggle }) => {
     <Box sx={{ display: 'flex', flexDirection: 'column' }}>
       <Typography sx={{ 
         fontWeight: 500,
-        fontSize: '15px',
+        fontSize: '14px',
         color: '#1E293B'
       }}>
         {hasMoreContent ? (
@@ -106,9 +106,9 @@ const MealDescription = ({ description, expanded, onToggle }) => {
               }}
               sx={{
                 minWidth: 'auto',
-                padding: '2px 8px',
-                fontSize: '12px',
-                marginLeft: '4px',
+                padding: '1px 6px',
+                fontSize: '11px',
+                marginLeft: '3px',
                 color: '#4caf50',
                 textTransform: 'none',
                 display: 'inline-flex',
@@ -119,9 +119,9 @@ const MealDescription = ({ description, expanded, onToggle }) => {
               }}
             >
               {expanded ? (
-                <>Show Less <ExpandLessIcon sx={{ fontSize: 16, ml: 0.5 }} /></>
+                <>Show Less <ExpandLessIcon sx={{ fontSize: 14, ml: 0.5 }} /></>
               ) : (
-                <>Show More <ExpandMoreIcon sx={{ fontSize: 16, ml: 0.5 }} /></>
+                <>Show More <ExpandMoreIcon sx={{ fontSize: 14, ml: 0.5 }} /></>
               )}
             </Button>
           </>
@@ -143,10 +143,11 @@ const SpecificMealSelect = ({ value, onChange, selectedMealType, restaurantDetai
   const [isConfirmDisabled, setIsConfirmDisabled] = useState(true);
   const [totalPrice, setTotalPrice] = useState(0);
   const [paxCounts, setPaxCounts] = useState({ Adults: 0, Children: 0 });
+  const [confirmedMealParts, setConfirmedMealParts] = useState([]);
 
   // Get the search parameters from Redux store for pax counts
   const searchParams = useSelector((state) => state.restaurants.searchParams);
-
+  const PriceHide = useSelector((state) => state.auth.PriceHide);
   // Update pax counts when search parameters change
   useEffect(() => {
     if (searchParams) {
@@ -172,15 +173,31 @@ const SpecificMealSelect = ({ value, onChange, selectedMealType, restaurantDetai
     calculateTotalPrice();
   }, [selectedMealIndex, selectedMealIndexes, selectedMealParts, specificMealType, paxCounts]);
 
-  // Reset internal state when selectedMealType changes
+  // Initialize with existing value if available
   useEffect(() => {
-    setSpecificMealType("");
+    console.log('SpecificMealSelect - Initializing with value:', value);
+    
+    if (value && typeof value === 'object' && value.specificMealType) {
+      console.log('Setting specificMealType from value:', value.specificMealType);
+      setSpecificMealType(value.specificMealType);
+      setTotalPrice(value.totalPrice || 0);
+      
+      // If we have items, restore the confirmed meal parts
+      if (value.items && Array.isArray(value.items) && value.items.length > 0) {
+        console.log('Restoring confirmed meal parts:', value.items);
+        setConfirmedMealParts(value.items);
+      }
+    } else {
+      // Only reset if no value is provided
+      console.log('Resetting SpecificMealSelect state');
+      setSpecificMealType("");
     setSelectedMealIndex(null);
     setSelectedMealIndexes([]);
     setSelectedMealParts([]);
     setIsConfirmDisabled(true);
     setTotalPrice(0);
-  }, [selectedMealType]);
+    }
+  }, [value,selectedMealType]); // Remove selectedMealType dependency to prevent conflicts
 
   // Format currency helper function
   const formatCurrency = (amount) => {
@@ -260,10 +277,6 @@ const SpecificMealSelect = ({ value, onChange, selectedMealType, restaurantDetai
     const selectedType = event.target.value;
     console.log('Selected Meal Type:', selectedType);
     setSpecificMealType(selectedType);
-    setSelectedMealIndex(null);
-    setSelectedMealIndexes([]);
-    setIsConfirmDisabled(true);
-    setTotalPrice(0);
 
     if (selectedType) {
       const filteredMeals = restaurantDetails?.meals?.filter(
@@ -275,23 +288,100 @@ const SpecificMealSelect = ({ value, onChange, selectedMealType, restaurantDetai
 
       console.log('Filtered Meals:', filteredMeals);
 
-      const mealParts = filteredMeals.map((meal) => ({
+      const mealParts = filteredMeals.map((meal) => {
+        // Check if this meal was previously confirmed
+        const confirmedMeal = confirmedMealParts.find(
+          confirmed => confirmed.meal_id === meal.id
+        );
+        
+        return {
+          meal_id: meal.id,
+          name: meal.name,
+          description: meal.description,
+          price: meal.price,
+          adult_price: meal.adult_price,
+          child_price: meal.child_price,
+          adultCount: confirmedMeal ? confirmedMeal.adultCount || paxCounts.Adults : paxCounts.Adults,
+          childCount: confirmedMeal ? confirmedMeal.childCount || paxCounts.Children : paxCounts.Children,
+          quantity: confirmedMeal ? confirmedMeal.quantity || 1 : 1,
+          checked: confirmedMeal ? true : false // Restore checked state
+        };
+      });
+
+      // Restore selected indexes based on confirmed selections
+      const confirmedIndexes = [];
+      let confirmedSingleIndex = null;
+      
+      mealParts.forEach((part, index) => {
+        if (part.checked) {
+          confirmedIndexes.push(index);
+          if (confirmedSingleIndex === null) {
+            confirmedSingleIndex = index;
+          }
+        }
+      });
+
+      console.log('Prepared Meal Parts:', mealParts);
+      setSelectedMealParts(mealParts);
+      setSelectedMealIndexes(confirmedIndexes);
+      setSelectedMealIndex(confirmedSingleIndex);
+      setIsConfirmDisabled(confirmedIndexes.length === 0);
+      setOpenModal(true);
+    }
+  };
+
+  // New function to handle meal item clicks (including re-selections)
+  const handleMealItemClick = (selectedType) => {
+    console.log('Selected Meal Type:', selectedType);
+
+    const filteredMeals = restaurantDetails?.meals?.filter(
+      (meal) =>
+        meal.meal_period === selectedMealType &&
+        meal.type === selectedType &&
+        meal.is_active === 1
+    ) || [];
+
+    console.log('Filtered Meals:', filteredMeals);
+
+    const mealParts = filteredMeals.map((meal) => {
+      // Check if this meal was previously confirmed
+      const confirmedMeal = confirmedMealParts.find(
+        confirmed => confirmed.meal_id === meal.id
+      );
+      
+      return {
         meal_id: meal.id,
         name: meal.name,
         description: meal.description,
         price: meal.price,
         adult_price: meal.adult_price,
         child_price: meal.child_price,
-        adultCount: paxCounts.Adults,
-        childCount: paxCounts.Children,
-        quantity: 1,
-        checked: false
-      }));
+        adultCount: confirmedMeal ? confirmedMeal.adultCount || paxCounts.Adults : paxCounts.Adults,
+        childCount: confirmedMeal ? confirmedMeal.childCount || paxCounts.Children : paxCounts.Children,
+        quantity: confirmedMeal ? confirmedMeal.quantity || 1 : 1,
+        checked: confirmedMeal ? true : false // Restore checked state
+      };
+    });
 
-      console.log('Prepared Meal Parts:', mealParts);
-      setSelectedMealParts(mealParts);
-      setOpenModal(true);
-    }
+    // Restore selected indexes based on confirmed selections
+    const confirmedIndexes = [];
+    let confirmedSingleIndex = null;
+    
+    mealParts.forEach((part, index) => {
+      if (part.checked) {
+        confirmedIndexes.push(index);
+        if (confirmedSingleIndex === null) {
+          confirmedSingleIndex = index;
+        }
+      }
+    });
+
+    console.log('Prepared Meal Parts:', mealParts);
+    setSelectedMealParts(mealParts);
+    setSelectedMealIndexes(confirmedIndexes);
+    setSelectedMealIndex(confirmedSingleIndex);
+    setIsConfirmDisabled(confirmedIndexes.length === 0);
+    setOpenModal(true);
   };
 
   const handleRadioChange = (index) => {
@@ -347,6 +437,9 @@ const SpecificMealSelect = ({ value, onChange, selectedMealType, restaurantDetai
       });
 
       if (selectedItems.length > 0) {
+        // Store confirmed selections for future reopening
+        setConfirmedMealParts(selectedItems);
+        
         const selectionData = { 
           target: { 
             value: {
@@ -372,21 +465,50 @@ const SpecificMealSelect = ({ value, onChange, selectedMealType, restaurantDetai
 
   return (
     <>
-      <FormControl fullWidth disabled={!selectedMealType || disabled}>
-        <InputLabel>Specific Meal Type</InputLabel>
+      <FormControl fullWidth disabled={!selectedMealType || disabled} size="small">
+        <InputLabel sx={{ fontSize: '0.8rem' }}>Specific Meal Type</InputLabel>
         <Select
           value={specificMealType}
           label="Specific Meal Type"
           onChange={handleMealSelection}
+          sx={{
+            height: '42px',
+            '& .MuiSelect-select': {
+              fontSize: '0.8rem'
+            }
+          }}
+          renderValue={(selected) => {
+            if (!selected) return <em>Select a meal type</em>;
+            return (
+              <Box sx={{ display: 'flex', alignItems: 'center', width: '100%' }}>
+                {getIconForMealType(selected)}
+                <Typography sx={{ ml: 1, fontSize: '0.8rem', flex: 1 }}>{selected}</Typography>
+                {value && value.totalPrice && (
+                  <Typography sx={{ fontSize: '0.7rem', color: '#4caf50', fontWeight: 500 }}>
+                    ${Math.round(value.totalPrice)}
+                  </Typography>
+                )}
+                {value && value.items && value.items.length > 0 && (
+                  <Typography sx={{ ml: 1, fontSize: '0.65rem', color: '#666', fontStyle: 'italic' }}>
+                    ({value.items.length} item{value.items.length !== 1 ? 's' : ''})
+                  </Typography>
+                )}
+              </Box>
+            );
+          }}
         >
-          <MenuItem value="">
+          <MenuItem value="" sx={{ fontSize: '0.8rem' }}>
             <em>Select a meal type</em>
           </MenuItem>
           {getMealOptions().map((type) => (
-            <StyledMenuItem key={type} value={type}>
+            <StyledMenuItem 
+              key={type} 
+              value={type}
+              onClick={() => handleMealItemClick(type)}
+            >
               <Box sx={{ display: 'flex', alignItems: 'center', width: '100%' }}>
                 {getIconForMealType(type)}
-                <Typography sx={{ ml: 2 }}>{type}</Typography>
+                <Typography sx={{ ml: 1.5, fontSize: '0.8rem' }}>{type}</Typography>
               </Box>
             </StyledMenuItem>
           ))}
@@ -401,28 +523,28 @@ const SpecificMealSelect = ({ value, onChange, selectedMealType, restaurantDetai
           display: 'flex',
           alignItems: 'center',
           justifyContent: 'center',
-          padding: '20px',
+          padding: '16px',
           backdropFilter: 'blur(5px)',
           backgroundColor: 'rgba(0, 0, 0, 0.6)',
         }}
       >
         <Fade in={openModal}>
           <Paper
-            elevation={24}
+            elevation={20}
             sx={{
               width: '90%',
-              maxWidth: '900px',
-              maxHeight: '90vh',
-              borderRadius: '16px',
+              maxWidth: '800px',
+              maxHeight: '85vh',
+              borderRadius: '12px',
               overflow: 'hidden',
-              boxShadow: '0 10px 40px rgba(0, 0, 0, 0.2)',
+              boxShadow: '0 8px 32px rgba(0, 0, 0, 0.2)',
               display: 'flex',
               flexDirection: 'column',
             }}
           >
             {/* Modal Header */}
             <Box sx={{ 
-              p: 2, 
+              p: 1.5, 
               borderBottom: '1px solid',
               borderColor: 'divider',
               display: 'flex',
@@ -430,134 +552,155 @@ const SpecificMealSelect = ({ value, onChange, selectedMealType, restaurantDetai
               justifyContent: 'space-between',
               backgroundColor: 'rgba(255, 255, 255, 0.95)',
             }}>
-              <Typography variant="h6" component="h2">
+              <Typography variant="subtitle1" component="h2" sx={{ fontSize: '0.9rem' }}>
                 Select {specificMealType}
               </Typography>
-              <IconButton onClick={() => setOpenModal(false)} size="small">
+              <IconButton onClick={() => {
+                setOpenModal(false);
+                setSpecificMealType("");  // Reset meal type selection
+                setConfirmedMealParts([]); // Clear confirmed selections
+                // Notify parent to clear the specific meal selection
+                onChange({ target: { value: "" } });
+              }} size="small">
                 <CloseIcon />
               </IconButton>
             </Box>
 
             {/* Modal Content */}
             <Box sx={{ 
-              p: 2, 
+              p: 1.5, 
               overflowY: 'auto',
               flexGrow: 1,
               display: 'flex',
               flexDirection: 'column'
             }}>
               <List>
-                {selectedMealParts.map((meal, index) => (
-                  <ListItem
-                    key={meal.meal_id}
-                    sx={{
-                      mb: 2,
-                      border: '1px solid',
-                      borderColor: 'divider',
-                      borderRadius: 1,
-                      p: 2,
-                      backgroundColor: selectedMealIndex === index ? 'rgba(76, 175, 80, 0.04)' : 'transparent',
-                    }}
-                  >
-                    <ListItemText
-                      primary={
-                        <Box sx={{ display: 'flex', alignItems: 'center', mb: 1 }}>
-                          <Radio
-                            checked={specificMealType.toLowerCase() === 'buffet' ? 
-                              selectedMealIndex === index : 
-                              selectedMealIndexes.includes(index)}
-                            onChange={() => handleRadioChange(index)}
-                          />
-                          <Box sx={{ ml: 1 }}>
-                            <MealDescription
-                              description={meal.name}
-                              expanded={expandedDescriptions[index]}
-                              onToggle={() => toggleDescription(index)}
-                            />
-                          </Box>
-                        </Box>
-                      }
-                      secondary={
-                        <Box sx={{ ml: 4 }}>
-                          {specificMealType.toLowerCase() === 'buffet' ? (
-                            <Box>
-                              <Typography variant="body2" color="text.secondary">
-                                Adult: {formatCurrency(meal.adult_price)} × {paxCounts.Adults} = {formatCurrency(meal.adult_price * paxCounts.Adults)}
-                              </Typography>
-                              {paxCounts.Children > 0 && (
-                                <Typography variant="body2" color="text.secondary">
-                                  Child: {formatCurrency(meal.child_price)} × {paxCounts.Children} = {formatCurrency(meal.child_price * paxCounts.Children)}
-                                </Typography>
-                              )}
-                            </Box>
-                          ) : (
-                            <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-                              <Typography variant="body2" color="text.secondary">
-                                {formatCurrency(meal.price)}
-                              </Typography>
-                              
-                              {/* Quantity controls for Set Menu and A la carte */}
-                              {(specificMealType.toLowerCase() === 'set menu' || 
-                                specificMealType.toLowerCase() === 'a la carte') && 
-                               selectedMealIndexes.includes(index) && (
-                                <Box sx={{ 
-                                  display: 'flex', 
-                                  alignItems: 'center',
-                                  gap: 1,
-                                  ml: 2
-                                }}>
-                                  <IconButton
-                                    size="small"
-                                    onClick={() => handleQuantityChange(index, -1)}
-                                    disabled={meal.quantity <= 1}
-                                    sx={{
-                                      border: '1px solid',
-                                      borderColor: 'divider',
-                                      '&:hover': {
-                                        backgroundColor: 'rgba(76, 175, 80, 0.04)',
-                                      },
-                                    }}
-                                  >
-                                    <RemoveIcon fontSize="small" />
-                                  </IconButton>
-                                  <Typography 
-                                    variant="body2" 
-                                    sx={{ 
-                                      minWidth: '30px', 
-                                      textAlign: 'center',
-                                      fontWeight: 500
-                                    }}
-                                  >
-                                    {meal.quantity}
-                                  </Typography>
-                                  <IconButton
-                                    size="small"
-                                    onClick={() => handleQuantityChange(index, 1)}
-                                    sx={{
-                                      border: '1px solid',
-                                      borderColor: 'divider',
-                                      '&:hover': {
-                                        backgroundColor: 'rgba(76, 175, 80, 0.04)',
-                                      },
-                                    }}
-                                  >
-                                    <AddIcon fontSize="small" />
-                                  </IconButton>
-                                  <Typography 
-                                    variant="body2" 
-                                    sx={{ ml: 2, fontWeight: 500, color: '#4caf50' }}
-                                  >
-                                    = {formatCurrency(meal.price * meal.quantity)}
-                                  </Typography>
-                                </Box>
-                              )}
-                            </Box>
-                          )}
-                        </Box>
-                      }
-                    />
-                  </ListItem>
-                ))}
+              {selectedMealParts.map((meal, index) => (
+  <ListItem
+    key={meal.meal_id}
+    sx={{
+      mb: 1.5,
+      border: '1px solid',
+      borderColor: 'divider',
+      borderRadius: 1,
+      p: 1.5,
+      backgroundColor: selectedMealIndex === index ? 'rgba(76, 175, 80, 0.04)' : 'transparent',
+    }}
+  >
+    <ListItemText
+      primary={
+        <Box sx={{ display: 'flex', alignItems: 'center', mb: 0.8 }}>
+          <Radio
+            checked={
+              specificMealType.toLowerCase() === 'buffet'
+                ? selectedMealIndex === index
+                : selectedMealIndexes.includes(index)
+            }
+            onChange={() => handleRadioChange(index)}
+            size="small"
+          />
+          <Box sx={{ ml: 1 }}>
+            <MealDescription
+              description={meal.name}
+              expanded={expandedDescriptions[index]}
+              onToggle={() => toggleDescription(index)}
+            />
+          </Box>
+        </Box>
+      }
+                             secondary={
+                         <Box sx={{ ml: 3 }}>
+                           {specificMealType.toLowerCase() === 'buffet' ? (
+                             <Box>
+                               <Typography variant="caption" color="text.secondary" sx={{ fontSize: '0.7rem' }}>
+                                 Adult: {PriceHide !== "1" ? formatCurrency(meal.adult_price) : "Price hidden"} × {paxCounts.Adults} = {PriceHide !== "1" ? formatCurrency(meal.adult_price * paxCounts.Adults) : "Price hidden"}
+                               </Typography>
+                               {paxCounts.Children > 0 && (
+                                 <Typography variant="caption" color="text.secondary" sx={{ fontSize: '0.7rem' }}>
+                                   Child: {PriceHide !== "1" ? formatCurrency(meal.child_price) : "Price hidden"} × {paxCounts.Children} = {PriceHide !== "1" ? formatCurrency(meal.child_price * paxCounts.Children) : "Price hidden"}
+                                 </Typography>
+                               )}
+                             </Box>
+                           ) : (
+                             <>
+                               <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                                 <Typography variant="caption" color="text.secondary" sx={{ fontSize: '0.7rem' }}>
+                                   {PriceHide !== "1" ? formatCurrency(meal.price) : "Price hidden"}
+                                 </Typography>
+                               </Box>
+
+                               {/* Quantity controls for Set Menu and A la carte */}
+                               {(specificMealType.toLowerCase() === 'set menu' ||
+                                 specificMealType.toLowerCase() === 'a la carte') &&
+                                 selectedMealIndexes.includes(index) && (
+                                   <Box
+                                     sx={{
+                                       display: 'flex',
+                                       alignItems: 'center',
+                                       gap: 0.5,
+                                       ml: 1.5,
+                                     }}
+                                   >
+                                     <IconButton
+                                       size="small"
+                                       onClick={() => handleQuantityChange(index, -1)}
+                                       disabled={meal.quantity <= 1}
+                                       sx={{
+                                         border: '1px solid',
+                                         borderColor: 'divider',
+                                         '&:hover': {
+                                           backgroundColor: 'rgba(76, 175, 80, 0.04)',
+                                         },
+                                       }}
+                                     >
+                                       <RemoveIcon fontSize="small" />
+                                     </IconButton>
+                                     <Typography
+                                       variant="caption"
+                                       sx={{
+                                         minWidth: '24px',
+                                         textAlign: 'center',
+                                         fontWeight: 500,
+                                         fontSize: '0.7rem',
+                                       }}
+                                     >
+                                       {meal.quantity}
+                                     </Typography>
+                                     <IconButton
+                                       size="small"
+                                       onClick={() => handleQuantityChange(index, 1)}
+                                       sx={{
+                                         border: '1px solid',
+                                         borderColor: 'divider',
+                                         '&:hover': {
+                                           backgroundColor: 'rgba(76, 175, 80, 0.04)',
+                                         },
+                                       }}
+                                     >
+                                       <AddIcon fontSize="small" />
+                                     </IconButton>
+                                     {PriceHide !== "1" ? (
+                                       <Typography
+                                         variant="caption"
+                                         sx={{ ml: 1.5, fontWeight: 500, color: '#4caf50', fontSize: '0.7rem' }}
+                                       >
+                                         = {formatCurrency(meal.price * meal.quantity)}
+                                       </Typography>
+                                     ) : (
+                                       <Typography variant="caption" color="text.secondary" sx={{ fontSize: '0.7rem' }}>
+                                         = Price hidden
+                                       </Typography>
+                                     )}
+                                   </Box>
+                                 )}
+                             </>
+                           )}
+                         </Box>
+                       }
+    />
+  </ListItem>
+))}
+
               </List>
             </Box>
 
@@ -567,41 +710,49 @@ const SpecificMealSelect = ({ value, onChange, selectedMealType, restaurantDetai
                 display: 'flex', 
                 justifyContent: 'space-between',
                 alignItems: 'center',
-                py: 2
+                py: 1.5
               }}>
-                <Box sx={{ display: 'flex', alignItems: 'center' }}>
-                  <ShoppingCartIcon sx={{ mr: 2, color: '#4caf50' }} />
-                  <Typography variant="h6" component="div">
-                    Total Price:
-                  </Typography>
-                </Box>
-                <Box sx={{ textAlign: 'right' }}>
-                  <Typography variant="h5" sx={{ fontWeight: 600, color: '#4caf50' }}>
-                    {formatCurrency(totalPrice)}
-                  </Typography>
-                  {specificMealType.toLowerCase() === 'buffet' && (
-                    <Typography variant="caption" color="text.secondary">
-                      {paxCounts.Adults} Adult{paxCounts.Adults !== 1 ? 's' : ''}{paxCounts.Children > 0 ? ` + ${paxCounts.Children} Child${paxCounts.Children !== 1 ? 'ren' : ''}` : ''}
-                    </Typography>
-                  )}
-                </Box>
+                                 <Box sx={{ display: 'flex', alignItems: 'center' }}>
+                   <ShoppingCartIcon sx={{ mr: 1.5, color: '#4caf50', fontSize: 20 }} />
+                   <Typography variant="subtitle1" component="div" sx={{ fontSize: '0.9rem' }}>
+                     Total Price:
+                   </Typography>
+                 </Box>
+                 <Box sx={{ textAlign: 'right' }}>
+                   <Typography variant="h6" sx={{ fontWeight: 600, color: '#4caf50', fontSize: '1.1rem' }}>
+                     {PriceHide !== "1" ? formatCurrency(Math.round(totalPrice)) : "Price hidden"}
+                   </Typography>
+                   {specificMealType.toLowerCase() === 'buffet' && (
+                     <Typography variant="caption" color="text.secondary" sx={{ fontSize: '0.65rem' }}>
+                       {paxCounts.Adults} Adult{paxCounts.Adults !== 1 ? 's' : ''}{paxCounts.Children > 0 ? ` + ${paxCounts.Children} Child${paxCounts.Children !== 1 ? 'ren' : ''}` : ''}
+                     </Typography>
+                   )}
+                 </Box>
               </CardContent>
             </PriceSummaryCard>
 
             {/* Modal Footer */}
             <Box sx={{ 
-              p: 2, 
+              p: 1.5, 
               borderTop: '1px solid',
               borderColor: 'divider',
               display: 'flex',
               justifyContent: 'flex-end',
-              gap: 2,
+              gap: 1.5,
               backgroundColor: 'rgba(255, 255, 255, 0.95)',
             }}>
               <Button 
-                onClick={() => setOpenModal(false)}
+                onClick={() => {
+                  setOpenModal(false);
+                  setSpecificMealType("");  // Reset meal type selection
+                  setConfirmedMealParts([]); // Clear confirmed selections
+                  // Notify parent to clear the specific meal selection
+                  onChange({ target: { value: "" } });
+                }}
                 variant="outlined"
                 color="inherit"
+                size="small"
+                sx={{ fontSize: '0.8rem' }}
               >
                 Cancel
               </Button>
@@ -610,8 +761,10 @@ const SpecificMealSelect = ({ value, onChange, selectedMealType, restaurantDetai
                 onClick={handleConfirm}
                 disabled={isConfirmDisabled}
                 startIcon={<ShoppingCartIcon />}
+                size="small"
                 sx={{
                   bgcolor: '#4caf50',
+                  fontSize: '0.8rem',
                   '&:hover': {
                     bgcolor: '#388e3c'
                   }

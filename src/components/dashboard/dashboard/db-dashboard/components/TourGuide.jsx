@@ -7,12 +7,12 @@ import TableHead from "@mui/material/TableHead";
 import TableRow from "@mui/material/TableRow";
 import Paper from "@mui/material/Paper";
 import Button from "@mui/material/Button";
-import { useSelector } from "react-redux";
+import { useSelector, useDispatch } from "react-redux";
 import dayjs from "dayjs";
 import VisibilityIcon from "@mui/icons-material/Visibility";
 import CancelIcon from "@mui/icons-material/Cancel";
 import TourGuideBookingModal from "./TourGuideBookingModal";
-import { Typography, Box, Chip, Avatar, alpha } from "@mui/material";
+import { Typography, Box, Chip, Avatar, alpha, Snackbar, Alert, Modal, TextField, Skeleton } from "@mui/material";
 import TourIcon from "@mui/icons-material/Tour";
 import CalendarTodayIcon from "@mui/icons-material/CalendarToday";
 import AccessTimeIcon from "@mui/icons-material/AccessTime";
@@ -22,6 +22,8 @@ import LocationOnIcon from "@mui/icons-material/LocationOn";
 import HourglassEmptyIcon from "@mui/icons-material/HourglassEmpty";
 import EmojiPeopleIcon from "@mui/icons-material/EmojiPeople";
 import PaymentsIcon from "@mui/icons-material/Payments";
+import { singleBooking } from "@/slice/common/commonSlice";
+import { fetchViewDetails } from "@/slice/common/ViewDetails";
 
 // Function to capitalize first letter
 const capitalizeFirstLetter = (string) => {
@@ -81,15 +83,21 @@ const getStatusStyle = (statusText) => {
   }
 };
 
-const TourGuide = React.memo(({ onCountChange }) => {
+const TourGuide = React.memo(({ onCountChange}) => {
+  const dispatch = useDispatch();
   const { bookings, status, error } = useSelector((state) => state.viewDetails);
   const [selectedBooking, setSelectedBooking] = useState(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
+  const [showSuccessToast, setShowSuccessToast] = useState(false);
+  const [showCancelConfirmModal, setShowCancelConfirmModal] = useState(false);
+  const [cancelReason, setCancelReason] = useState("");
+  const [bookingToCancel, setBookingToCancel] = useState(null);
   const { DmcLogo, DmcName } = useSelector((state) => state.auth);
   const currentTax = useSelector((state) => state.auth.currentTax);
   const sgdTax = useSelector((state) => state.auth.sgdTax);
   const usdTax = useSelector((state) => state.auth.usdTax);
   const PriceHide = useSelector((state) => state.auth.PriceHide);
+  const tourStatus = useMemo(() => bookings?.tour?.status, [bookings?.tour?.status]);
 
   // Memoize the tour guide bookings count
   const tourGuideCount = useMemo(
@@ -104,20 +112,122 @@ const TourGuide = React.memo(({ onCountChange }) => {
 
   if (status === "loading")
     return (
-      <Box
+      <TableContainer
+        component={Paper}
+        elevation={1}
         sx={{
-          p: 4,
-          display: "flex",
-          justifyContent: "center",
-          alignItems: "center",
-          bgcolor: alpha("#1976d2", 0.04),
-          borderRadius: 2,
+          borderRadius: 1,
+          overflow: "hidden",
+          mb: 3,
+          maxHeight: '70vh',
+          overflowX: 'auto',
+          overflowY: 'auto',
+          '&::-webkit-scrollbar': {
+            width: '8px',
+            height: '8px',
+          },
+          '&::-webkit-scrollbar-track': {
+            background: '#f1f1f1',
+            borderRadius: '4px',
+          },
+          '&::-webkit-scrollbar-thumb': {
+            background: '#c1c1c1',
+            borderRadius: '4px',
+            '&:hover': {
+              background: '#a8a8a8',
+            },
+          },
         }}
       >
-        <Typography variant="body1" color="primary">
-          Loading bookings...
-        </Typography>
-      </Box>
+        <Table sx={{ minWidth: 1200 }}>
+          <TableHead>
+            <TableRow
+              sx={{
+                background: "linear-gradient(90deg, #9C27B0 0%, #BA68C8 100%)",
+                "& .MuiTableCell-head": {
+                  fontWeight: "bold",
+                  py: 1.8,
+                  whiteSpace: "nowrap",
+                },
+              }}
+            >
+              <TableCell sx={{ color: "#fff" }}>
+                <Box sx={{ display: "flex", alignItems: "center", gap: "0.5px" }}>
+                  <PersonIcon fontSize="small" />
+                  <Typography variant="body1" fontWeight="bold" color="white">
+                    Guide Name
+                  </Typography>
+                </Box>
+              </TableCell>
+              <TableCell sx={{ color: "#fff" }}>
+                <Box sx={{ display: "flex", alignItems: "center", gap: "0.5px" }}>
+                  <CalendarTodayIcon fontSize="small" />
+                  <Typography variant="body1" fontWeight="bold" color="white">
+                    Date
+                  </Typography>
+                </Box>
+              </TableCell>
+              <TableCell sx={{ color: "#fff" }}>
+                <Box sx={{ display: "flex", alignItems: "center", gap: "0.5px" }}>
+                  <AccessTimeIcon fontSize="small" />
+                  <Typography variant="body1" fontWeight="bold" color="white">
+                    Start Time
+                  </Typography>
+                </Box>
+              </TableCell>
+              <TableCell sx={{ color: "#fff" }}>
+                <Box sx={{ display: "flex", alignItems: "center", gap: "0.5px" }}>
+                  <AccessTimeIcon fontSize="small" />
+                  <Typography variant="body1" fontWeight="bold" color="white">
+                    Hours
+                  </Typography>
+                </Box>
+              </TableCell>
+              <TableCell sx={{ color: "#fff" }}>Price</TableCell>
+              <TableCell sx={{ color: "#fff" }}>Mode</TableCell>
+              <TableCell sx={{ color: "#fff" }}>Status</TableCell>
+              <TableCell sx={{ color: "#fff" }}>Actions</TableCell>
+            </TableRow>
+          </TableHead>
+          <TableBody>
+            {/* Generate 5 skeleton rows */}
+            {Array.from({ length: 5 }).map((_, index) => (
+              <TableRow key={index}>
+                <TableCell>
+                  <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
+                    <Skeleton variant="circular" width={28} height={28} />
+                    <Skeleton variant="rectangular" width={120} height={20} sx={{ borderRadius: 1 }} />
+                  </Box>
+                </TableCell>
+                <TableCell>
+                  <Skeleton variant="rectangular" width={100} height={26} sx={{ borderRadius: 1 }} />
+                </TableCell>
+                <TableCell>
+                  <Skeleton variant="rectangular" width={80} height={24} sx={{ borderRadius: 1 }} />
+                </TableCell>
+                <TableCell>
+                  <Skeleton variant="rectangular" width={60} height={24} sx={{ borderRadius: 1 }} />
+                </TableCell>
+                <TableCell>
+                  <Skeleton variant="rectangular" width={100} height={26} sx={{ borderRadius: 1 }} />
+                </TableCell>
+                <TableCell>
+                  <Skeleton variant="rectangular" width={80} height={24} sx={{ borderRadius: 1 }} />
+                </TableCell>
+                <TableCell>
+                  <Skeleton variant="rectangular" width={80} height={24} sx={{ borderRadius: 1 }} />
+                </TableCell>
+                <TableCell>
+                  <Box sx={{ display: "flex", gap: "5px" }}>
+                    <Skeleton variant="rectangular" width={60} height={32} sx={{ borderRadius: 1.5 }} />
+                    <Skeleton variant="rectangular" width={60} height={32} sx={{ borderRadius: 1.5 }} />
+                  </Box>
+                </TableCell>
+              </TableRow>
+            ))}
+          </TableBody>
+        </Table>
+      </TableContainer>
     );
 
   if (status === "failed")
@@ -144,8 +254,55 @@ const TourGuide = React.memo(({ onCountChange }) => {
   };
 
   const handleCancel = (booking) => {
-    // Handle cancel action
-    console.log("Cancel booking:", booking);
+    // Show confirmation modal instead of directly cancelling
+    setBookingToCancel(booking);
+    setCancelReason("");
+    setShowCancelConfirmModal(true);
+  };
+
+  const handleConfirmCancel = async () => {
+    if (!cancelReason.trim()) {
+      // Don't proceed if reason is empty
+      return;
+    }
+
+    const booking = bookingToCancel;
+    // For tour guide, use the appropriate booking ID and tour ID
+    const bookingId = booking.entry_booking_id || booking.exit_booking_id || booking.booking_id;
+    // Get tour_id from the root bookings object since it's not in individual booking objects
+    const tourId = bookings?.tour?.tour_id;
+    
+    if (bookingId && tourId) {
+      try {
+        const result = await dispatch(singleBooking({bookingId: bookingId, tourId: tourId, cancelReason: cancelReason}));
+        console.log("Cancel tour guide booking:", { bookingId, tourId, booking, reason: cancelReason });
+        
+        // Check if cancellation was successful
+                 if (result.meta.requestStatus === 'fulfilled') {
+           console.log("Tour guide booking cancelled successfully");
+           // Show success toaster
+           setShowSuccessToast(true);
+           // Refresh data to show updated state
+           dispatch(fetchViewDetails({ tour_id: tourId }));
+           // Close the confirmation modal
+           setShowCancelConfirmModal(false);
+           setCancelReason("");
+           setBookingToCancel(null);
+         } else if (result.meta.requestStatus === 'rejected') {
+          console.error("Failed to cancel tour guide booking:", result.error);
+        }
+      } catch (error) {
+        console.error("Error cancelling tour guide booking:", error);
+      }
+    } else {
+      console.error("Missing data for cancellation:", { bookingId, tourId, booking });
+    }
+  };
+
+  const handleCancelModalClose = () => {
+    setShowCancelConfirmModal(false);
+    setCancelReason("");
+    setBookingToCancel(null);
   };
 
   const handleCloseModal = () => {
@@ -162,9 +319,27 @@ const TourGuide = React.memo(({ onCountChange }) => {
           borderRadius: 2,
           overflow: "hidden",
           mb: 3,
+          maxHeight: '70vh',
+          overflowX: 'auto',
+          overflowY: 'auto',
+          '&::-webkit-scrollbar': {
+            width: '8px',
+            height: '8px',
+          },
+          '&::-webkit-scrollbar-track': {
+            background: '#f1f1f1',
+            borderRadius: '4px',
+          },
+          '&::-webkit-scrollbar-thumb': {
+            background: '#c1c1c1',
+            borderRadius: '4px',
+            '&:hover': {
+              background: '#a8a8a8',
+            },
+          },
         }}
       >
-        <Table>
+        <Table sx={{ minWidth: 1200 }}>
           <TableHead>
             <TableRow
               sx={{
@@ -392,9 +567,10 @@ const TourGuide = React.memo(({ onCountChange }) => {
                             label={
                               booking.totalPrice
                                 ? `SGD ${Math.ceil(
-                                    Math.ceil(booking.totalPrice) +
-                                      (Math.ceil(booking.totalPrice) * sgdTax) /
-                                        100
+                                    Math.ceil(booking.totalPrice) 
+                                    // +
+                                    //   (Math.ceil(booking.totalPrice) * sgdTax) /
+                                    //     100
                                   )}`
                                 : "N/A"
                             }
@@ -409,7 +585,7 @@ const TourGuide = React.memo(({ onCountChange }) => {
                               },
                             }}
                           />
-                          {sgdTax > 0 && (
+                          {/* {sgdTax > 0 && (
                             <Typography
                               variant="caption"
                               display="block"
@@ -424,7 +600,7 @@ const TourGuide = React.memo(({ onCountChange }) => {
                             >
                               (incl. {sgdTax}% tax)
                             </Typography>
-                          )}
+                          )} */}
                         </>
                       ) : (
                         <div className="text-15 lh-12 fw-500 text-blue-1 mt-10">
@@ -516,6 +692,7 @@ const TourGuide = React.memo(({ onCountChange }) => {
                         >
                           View
                         </Button>
+                        {tourStatus !== "Actual" && (
                         <Button
                           variant="contained"
                           size="small"
@@ -534,6 +711,7 @@ const TourGuide = React.memo(({ onCountChange }) => {
                         >
                           Cancel
                         </Button>
+                        )}
                       </Box>
                     </TableCell>
                   </TableRow>
@@ -578,6 +756,120 @@ const TourGuide = React.memo(({ onCountChange }) => {
         onClose={handleCloseModal}
         booking={selectedBooking}
       />
+
+      {/* Cancel Confirmation Modal */}
+      <Modal
+        open={showCancelConfirmModal}
+        onClose={handleCancelModalClose}
+        aria-labelledby="cancel-confirmation-modal"
+        aria-describedby="cancel-confirmation-description"
+        sx={{
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+        }}
+      >
+        <Box
+          sx={{
+            position: 'relative',
+            width: 400,
+            bgcolor: 'background.paper',
+            borderRadius: 2,
+            boxShadow: 24,
+            p: 4,
+            outline: 'none',
+          }}
+        >
+          {/* Header */}
+          <Box sx={{ mb: 3, textAlign: 'center' }}>
+            <Typography variant="h6" component="h2" sx={{ fontWeight: 600, color: '#d32f2f' }}>
+              Cancel Booking
+            </Typography>
+            <Typography variant="body1" sx={{ mt: 1, color: 'text.secondary' }}>
+              Are you sure you want to cancel this booking?
+            </Typography>
+          </Box>
+
+          {/* Reason Input */}
+          <Box sx={{ mb: 3 }}>
+            <Typography variant="body2" component="label" sx={{ fontWeight: 500, mb: 1, display: 'block' }}>
+              Reason for Cancellation *
+            </Typography>
+            <TextField
+              fullWidth
+              multiline
+              rows={3}
+              variant="outlined"
+              placeholder="Please provide a reason for cancellation..."
+              value={cancelReason}
+              onChange={(e) => setCancelReason(e.target.value)}
+              error={!cancelReason.trim()}
+              helperText={!cancelReason.trim() ? "Reason is required" : ""}
+              sx={{
+                '& .MuiOutlinedInput-root': {
+                  '&:hover fieldset': {
+                    borderColor: '#d32f2f',
+                  },
+                  '&.Mui-focused fieldset': {
+                    borderColor: '#d32f2f',
+                  },
+                },
+              }}
+            />
+          </Box>
+
+          {/* Action Buttons */}
+          <Box sx={{ display: 'flex', gap: 2, justifyContent: 'flex-end' }}>
+            <Button
+              variant="outlined"
+              onClick={handleCancelModalClose}
+              sx={{
+                borderColor: '#757575',
+                color: '#757575',
+                '&:hover': {
+                  borderColor: '#424242',
+                  backgroundColor: 'rgba(117, 117, 117, 0.05)',
+                },
+              }}
+            >
+              No
+            </Button>
+            <Button
+              variant="contained"
+              onClick={handleConfirmCancel}
+              disabled={!cancelReason.trim()}
+              sx={{
+                backgroundColor: '#d32f2f',
+                '&:hover': {
+                  backgroundColor: '#c62828',
+                },
+                '&:disabled': {
+                  backgroundColor: '#e0e0e0',
+                  color: '#9e9e9e',
+                },
+              }}
+            >
+              Yes, Cancel
+            </Button>
+          </Box>
+        </Box>
+      </Modal>
+
+      {/* Success Toaster */}
+      <Snackbar
+        open={showSuccessToast}
+        autoHideDuration={3000}
+        onClose={() => setShowSuccessToast(false)}
+        anchorOrigin={{ vertical: 'top', horizontal: 'center' }}
+      >
+        <Alert
+          onClose={() => setShowSuccessToast(false)}
+          severity="success"
+          sx={{ width: '100%' }}
+        >
+          Successfully Cancelled
+        </Alert>
+      </Snackbar>
     </>
   );
 });

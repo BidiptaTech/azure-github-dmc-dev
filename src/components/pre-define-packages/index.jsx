@@ -9,17 +9,25 @@ import {
   Paper,
   styled,
   Divider,
+  useTheme,
+  useMediaQuery,
 } from '@mui/material';
 import MuiAlert from "@mui/material/Alert";
-import LocationSearch from '../hero/hero-3/LocationSearch';
+import LocationSearch from '../hero/hero-2/LocationSearch';
+import CitySearch from '../hero/hero-2/CitySearch';
 import GuestSearch from '../hero/hero-3/GuestSearch';
-import CitySearch from '../hero/hero-3/CitySearch';
 import SelectAgent from '../hero/hero-3/SelectAgent';
-
-
 import DateSelect from './common/DateSelect';
-import { fetchPackages, setSearchParams } from '../../slice/tour-packages/prePackagesSlice';
+import { fetchPackages, setSearchParams, clearPackages } from '../../slice/tour-packages/prePackagesSlice';
 import ListingCards from './common/ListingCards';
+import {
+  fetchDMCsByCountry,
+  setSelectedDmcId,
+  clearSelectedDmc,
+  selectDMCs,
+  selectDMCLoading,
+  selectDMCError,
+} from '../../slice/dmc/dmcSlice';
 // import LuggageIcon from '@mui/icons-material/Luggage';
 // import LuggageIcon from '@mui/icons-material/Luggage';
 import ExploreIcon from '@mui/icons-material/Explore';
@@ -60,29 +68,46 @@ const TitleSection = styled(Box)(({ theme }) => ({
   alignItems: 'center',
   marginTop: theme.spacing(4),
   marginBottom: theme.spacing(4),
+  [theme.breakpoints.down('md')]: {
+    marginTop: theme.spacing(2),
+    marginBottom: theme.spacing(2),
+  },
 }));
 
 const IconContainer = styled(Box)(({ theme }) => ({
   display: 'flex',
   alignItems: 'center',
   marginBottom: theme.spacing(2),
+  [theme.breakpoints.down('md')]: {
+    marginBottom: theme.spacing(1),
+  },
 }));
+
+
 
 const PreDefinePackages = () => {
   const dispatch = useDispatch();
   const { searchParams } = useSelector(state => state.prePackages);
   const { isAuthenticated, userRole } = useSelector(state => state.auth);
   const showAgentSelector = isAuthenticated && userRole !== 'Agent';
-
- 
-
- 
-
-  const [selectedLocation, setSelectedLocation] = useState(null);
-  const [selectedCity, setSelectedCity] = useState(null);
- 
- 
+  const theme = useTheme();
+  const isMobile = useMediaQuery(theme.breakpoints.down('md'));
+  const isTablet = useMediaQuery(theme.breakpoints.down('lg'));
+  const [locationData, setLocationData] = useState(null); // Combined location data (country + city)
+  const [selectedCountry, setSelectedCountry] = useState(null); // Selected country object for CitySearch
   const [selectedAgent, setSelectedAgent] = useState(null);
+  
+  // DMC-related state and selectors
+  const apiDMCs = useSelector(selectDMCs);
+  const dmcLoading = useSelector(selectDMCLoading);
+  const dmcError = useSelector(selectDMCError);
+  const selectedDmcId = useSelector((state) => state.dmc.dmcId); // Single DMC selection
+  const selectedDmcData = useSelector((state) => state.dmc.selectedDmcData); // Single DMC data
+  
+  // Component state for DMC management
+  const [dmcOptions, setDmcOptions] = useState([]);
+  const [filterText, setFilterText] = useState('');
+  const [hasDMCsAvailable, setHasDMCsAvailable] = useState(false);
   const [selectedDate, setSelectedDate] = useState(new Date().toISOString().split('T')[0]); // Today's date
   const [guestCounts, setGuestCounts] = useState({
     Adults: 1,
@@ -96,16 +121,70 @@ const PreDefinePackages = () => {
   const [snackbarMessage, setSnackbarMessage] = useState("");
   const [snackbarSeverity, setSnackbarSeverity] = useState("error");
   const [hasSearched, setHasSearched] = useState(false);
+  const [isInitializing, setIsInitializing] = useState(true);
+
+  // Auto-fetch DMCs when location is selected (for UI preview)
+  useEffect(() => {
+    if (locationData && locationData.country && !hasSearched) {
+      const countryName = locationData.country;
+      // console.log('🏢 Auto-fetching DMCs for country:', countryName);
+      dispatch(fetchDMCsByCountry([countryName]));
+    }
+  }, [locationData, dispatch, hasSearched]);
+
+  // Process DMC data for sidebar options
+  useEffect(() => {
+    if (apiDMCs && apiDMCs.data && Array.isArray(apiDMCs.data)) {
+      const processedDMCs = apiDMCs.data.map((dmc, index) => ({
+        id: `dmc-${index}`,
+        dmcId: dmc.userId || null,
+        name: dmc.company_name || `DMC ${index + 1}`,
+        location: dmc.country || 'Unknown Location',
+        logo: dmc.logo || '',
+        description: 'Professional destination management services',
+        originalData: dmc,
+      }));
+      
+      setDmcOptions(processedDMCs);
+      setHasDMCsAvailable(processedDMCs.length > 0);
+    } else {
+      setDmcOptions([]);
+      setHasDMCsAvailable(false);
+    }
+  }, [apiDMCs]);
 
   // Check if search parameters exist when component mounts
   useEffect(() => {
     if (searchParams) {
       setHasSearched(true);
-      // Optionally restore form values from searchParams
-      if (searchParams.country) setSelectedLocation(searchParams.country);
-      if (searchParams.city) setSelectedCity(searchParams.city);
-      if (searchParams.agent_id && showAgentSelector) setSelectedAgent(searchParams.agent_id);
-      if (searchParams.agent_id && showAgentSelector) setSelectedAgent(searchParams.agent_id);
+      
+      // Restore location data (country + city combined)
+      if (searchParams.country) {
+        // Restore country object for CitySearch
+        setSelectedCountry({
+          name: searchParams.country,
+          code: searchParams.country_code || null,
+          country_code: searchParams.country_code || null
+        });
+        
+        // Restore full location data
+        if (searchParams.city) {
+          setLocationData({
+            country: searchParams.country,
+            city: searchParams.city,
+            countryCode: searchParams.country_code || null,
+            cityCode: searchParams.city_code || null
+          });
+        } else {
+          setLocationData({
+            country: searchParams.country,
+            countryCode: searchParams.country_code || null,
+            city: null,
+            cityCode: null
+          });
+        }
+      }
+      
       if (searchParams.agent_id && showAgentSelector) setSelectedAgent(searchParams.agent_id);
       if (searchParams.date) setSelectedDate(searchParams.date);
       
@@ -120,6 +199,11 @@ const PreDefinePackages = () => {
       };
       setGuestCounts(updatedGuestCounts);
     }
+    
+    // Mark initialization as complete after a short delay
+    setTimeout(() => {
+      setIsInitializing(false);
+    }, 100);
   }, [searchParams, showAgentSelector]);
   
   
@@ -133,21 +217,91 @@ const PreDefinePackages = () => {
   };
   
   const handleLocationSelect = (location) => {
-    setSelectedLocation(location);
-    // Reset city when location changes
-    setSelectedCity(null);
+    // LocationSearch (hero-2) returns combined data: { country, countryCode, city, cityCode }
+    // or null when cleared
+    // console.log('📍 Location data received:', location);
+    setLocationData(location);
   };
 
-  const handleCitySelect = (city) => {
-    setSelectedCity(city);
+  const handleCountrySelect = (country) => {
+    // Handle country selection from LocationSearch
+    setSelectedCountry(country);
+    // Update locationData with country info (city will be null until city is selected)
+    if (country) {
+      setLocationData({
+        country: country.name,
+        countryCode: country.code || country.country_code,
+        city: null,
+        cityCode: null
+      });
+      // Clear packages when country changes (new search will be needed)
+      dispatch(clearPackages());
+    } else {
+      // Country cleared, reset everything
+      setSelectedCountry(null);
+      setLocationData(null);
+      // Clear packages when country is cleared
+      dispatch(clearPackages());
+    }
   };
 
-
-
-
+  const handleCitySelect = (cityData) => {
+    // Handle city selection from CitySearch
+    // cityData contains: { country, countryCode, city, cityCode }
+    if (cityData) {
+      setLocationData(cityData);
+      // Clear packages when city changes (new search will be needed)
+      dispatch(clearPackages());
+    } else {
+      // City cleared, keep country but clear city
+      if (selectedCountry) {
+        setLocationData({
+          country: selectedCountry.name,
+          countryCode: selectedCountry.code || selectedCountry.country_code,
+          city: null,
+          cityCode: null
+        });
+        // Clear packages when city is cleared
+        dispatch(clearPackages());
+      }
+    }
+  };
 
   const handleAgentSelect = (agent) => {
     setSelectedAgent(agent);
+  };
+
+  // === DMC Selection Handlers (Single Selection) ===
+  const handleDMCCardClick = (dmc) => {
+    // console.log('🏢 DMC card clicked:', dmc);
+    
+    // Check if this DMC is already selected
+    const isSelected = selectedDmcId === dmc.dmcId;
+    
+    if (isSelected) {
+      // Deselect: clear the selection
+      dispatch(clearSelectedDmc());
+      // console.log('🏢 DMC deselected');
+    } else {
+      // Select: set this DMC as the selected one (replaces any previous selection)
+      dispatch(setSelectedDmcId({ dmcId: dmc.dmcId, dmcData: dmc }));
+      // console.log('🏢 DMC selected:', dmc.name);
+    }
+  };
+
+  const handleFilterChange = (event) => {
+    setFilterText(event.target.value);
+  };
+
+  // Filter DMCs based on search text
+  const filteredDMCs = dmcOptions.filter(dmc => 
+    dmc.name.toLowerCase().includes(filterText.toLowerCase()) ||
+    dmc.location.toLowerCase().includes(filterText.toLowerCase())
+  );
+
+  // Check if a DMC is selected
+  const isDMCSelected = (dmc) => {
+    return selectedDmcId === dmc.dmcId;
   };
   
   const handleCloseSnackbar = () => {
@@ -155,21 +309,23 @@ const PreDefinePackages = () => {
   };
 
   const validateForm = () => {
-    // Validate location selection
-    if (!selectedLocation) {
-      setSnackbarMessage("Please select a location");
+    // Validate location selection (country)
+    if (!locationData || !locationData.country) {
+      setSnackbarMessage("Please select a country");
       setSnackbarSeverity("error");
       setOpenSnackbar(true);
       return false;
     }
 
     // Validate city selection
-    if (!selectedCity) {
+    if (!locationData.city) {
       setSnackbarMessage("Please select a city");
       setSnackbarSeverity("error");
       setOpenSnackbar(true);
       return false;
     }
+    
+   
 
     // Validate agent selection only if the agent selector is shown
     if (showAgentSelector && !selectedAgent) {
@@ -243,15 +399,14 @@ const PreDefinePackages = () => {
     return true;
   };
 
-  const handleSubmit = () => {
+  const handleSubmit = async () => {
     if (!validateForm()) {
       return;
     }
 
     // Format the data for submission
     const formData = {
-      location: selectedLocation,
-      city: selectedCity,
+      location: locationData,
       date: selectedDate,
       guests: {
         adults: guestCounts.Adults,
@@ -268,12 +423,14 @@ const PreDefinePackages = () => {
       formData.agent = selectedAgent;
     }
     
-   
+    // console.log('📦 Submitting package search with data:', formData);
     
     // Format the data for API request
     const searchParams = {
-      country: selectedLocation,
-      city: selectedCity,
+      country: locationData.country,
+      city: locationData.city,
+      country_code: locationData.countryCode || null,
+      city_code: locationData.cityCode || null,
       date: selectedDate,
       adults: guestCounts.Adults,
       male_count: guestCounts.maleCount || 0,
@@ -281,17 +438,8 @@ const PreDefinePackages = () => {
       children: guestCounts.Children,
       children_ages: guestCounts.ages?.join(','),
       infants: guestCounts.Infants
+      
     };
-
-    // Add agent_id parameter only if the agent selector is shown
-    if (showAgentSelector && selectedAgent) {
-      searchParams.agent_id = selectedAgent?.id;
-    }
-
-    // Add agent_id parameter only if the agent selector is shown
-    if (showAgentSelector && selectedAgent) {
-      searchParams.agent_id = selectedAgent?.id;
-    }
 
     // Add agent_id parameter only if the agent selector is shown
     if (showAgentSelector && selectedAgent) {
@@ -301,15 +449,37 @@ const PreDefinePackages = () => {
     // Set search status to true
     setHasSearched(true);
     
-    // Dispatch actions to fetch packages and store search parameters
+    // Clear existing packages immediately to avoid showing stale data
+    dispatch(clearPackages());
+    
+    // Store search parameters first
     dispatch(setSearchParams(searchParams));
-    dispatch(fetchPackages(searchParams))
+    
+    // Ensure DMCs are fetched and first one is auto-selected before searching packages
+    // This ensures the first DMC is included in the initial package search
+    try {
+      // Only fetch DMCs if they haven't been fetched yet or if no DMC is selected
+      if (locationData && locationData.country && (!dmcOptions || dmcOptions.length === 0 || !selectedDmcId)) {
+        // console.log('🏢 Fetching DMCs before package search');
+        await dispatch(fetchDMCsByCountry([locationData.country])).unwrap();
+        // console.log('🏢 DMCs fetched, first DMC auto-selected');
+        
+        // Small delay to ensure Redux state is updated with first DMC selection
+        await new Promise(resolve => setTimeout(resolve, 100));
+      } else {
+        // console.log('🏢 DMCs already loaded, DMC ID:', selectedDmcId);
+      }
+    } catch (dmcError) {
+      // console.error('🏢 Failed to fetch DMCs, continuing with package search anyway:', dmcError);
+    }
+    
+    // Now fetch packages - the first DMC ID will be automatically included from Redux state
+    dispatch(fetchPackages({ searchParams, start: 0, limit: 5 }))
       .unwrap()
       .then(() => {
         setSnackbarMessage("Search successful! Fetching packages...");
         setSnackbarSeverity("success");
         setOpenSnackbar(true);
-        // Here you can add navigation to packages list page if needed
       })
       .catch((error) => {
         setSnackbarMessage(error || "Failed to fetch packages. Please try again.");
@@ -318,115 +488,202 @@ const PreDefinePackages = () => {
       });
   };
 
+
   return (
     <StyledContainer maxWidth="lg">
-     
-     
-     
-      <Box p={4} sx={{ position: 'relative', zIndex: 1 }}>
+      <Box sx={{ position: 'relative', zIndex: 1 }}>
         <TitleSection>
           <IconContainer>
-           
-            {/* <LuggageIcon sx={{ fontSize: 36, color: 'primary.main', mr: 1, mt: 3 }} /> */}
-            {/* <LuggageIcon sx={{ fontSize: 36, color: 'primary.main', mr: 1, mt: 3 }} /> */}
             <Typography 
-              variant="h3" 
+              variant={isMobile ? "h4" : "h3"}
               component="h1" 
               sx={{ 
                 fontWeight: 700, 
                 color: 'white',
-                mt: 3,
-                color: 'white',
-                mt: 3,
-                color: 'white',
-                mt: 3,
-                color: 'white',
-                mt: 3,
+                mt: isMobile ? 2 : 3,
                 letterSpacing: '0.5px',
                 display: 'flex',
-                alignItems: 'center'
+                alignItems: 'center',
+                flexDirection: isMobile ? 'column' : 'row',
+                textAlign: isMobile ? 'center' : 'left',
+                gap: isMobile ? 1 : 0
               }}
             >
-              Fixed Itinerary Packages
-              
-              
-              
-              <ExploreIcon sx={{ ml: 1, fontSize: 28 }} />
+              {isMobile ? 'Fixed Itinerary' : 'Fixed Itinerary Packages'}
+              <ExploreIcon sx={{ ml: isMobile ? 0 : 1, fontSize: isMobile ? 24 : 28 }} />
             </Typography>
           </IconContainer>
-          <Divider sx={{ width: '100px', height: '4px', backgroundColor: 'secondary.main', mb: 3 }} />
-         
-         
-         
-          <Typography variant="subtitle1" color="#ece9f1" textAlign="center">
+          <Divider sx={{ 
+            width: isMobile ? '60px' : '100px', 
+            height: '4px', 
+            backgroundColor: 'secondary.main', 
+            mb: isMobile ? 2 : 3 
+          }} />
+          <Typography 
+            variant={isMobile ? "body1" : "subtitle1"} 
+            color="#ece9f1" 
+            textAlign="center"
+            sx={{ px: isMobile ? 2 : 0 }}
+          >
             Discover our exclusive pre-arranged travel experiences
           </Typography>
         </TitleSection>
 
-        <Paper elevation={3} sx={{ borderRadius: '8px', overflow: 'visible', mb: 4 }}>
-          <div className="mainSearch bg-white pr-20 py-20 lg:px-20 lg:pt-5 lg:pb-20 rounded-4">
-            <div className="button-grid items-center" style={{ display: 'flex', flexWrap: 'nowrap' }}>
-              <div style={{ flex: '1', minWidth: '0' }}>
-                
-                
-                
-                <LocationSearch onLocationSelect={handleLocationSelect} initialValue={selectedLocation} />
-              </div>
-              
-              <div style={{ flex: '1', minWidth: '0' }}>
-                <CitySearch selectedCountry={selectedLocation} onCitySelect={handleCitySelect} initialValue={selectedCity} />
-               
-               
-               
-              </div>
+        <Paper 
+          elevation={3} 
+          sx={{ 
+            borderRadius: isMobile ? '16px' : '50px',
+            overflow: 'visible', 
+            mb: 4,
+            background: 'white',
+            boxShadow: '0 10px 40px rgba(0, 0, 0, 0.15)'
+          }}
+        >
+          <Box sx={{ 
+            display: 'flex', 
+            flexWrap: isMobile ? 'wrap' : 'nowrap',
+            alignItems: 'stretch',
+            p: isMobile ? 2 : 1,
+            gap: isMobile ? 2 : 0
+          }}>
+            {/* Country Search */}
+            {/* <Box sx={{ 
+              flex: isMobile ? '1 1 100%' : '1',
+              minWidth: 0,
+              borderRight: isMobile ? 'none' : '1px solid #e0e0e0',
+              px: isMobile ? 0 : 2,
+              py: isMobile ? 0 : 1.5,
+              display: 'flex',
+              flexDirection: 'column',
+              justifyContent: 'flex-start',
+              height: '100%'
+            }}>
+              <h4 className="text-15 fw-500 ls-2 lh-16" style={{ marginBottom: '8px', marginTop: '0' }}>Country</h4>
+              <LocationSearch 
+                onLocationSelect={handleLocationSelect} 
+                onCountrySelect={handleCountrySelect}
+              />
+            </Box> */}
 
-              {showAgentSelector && (
-                <div style={{ flex: '1', minWidth: '0' }}>
-                  <SelectAgent onAgentSelect={handleAgentSelect} initialValue={selectedAgent} />
-                </div>
-              )}
+            {/* City Search */}
+            <Box sx={{ 
+              flex: isMobile ? '1 1 100%' : '1',
+              minWidth: 0,
+              borderRight: isMobile ? 'none' : '1px solid #e0e0e0',
+              px: isMobile ? 0 : 2,
+              py: isMobile ? 0 : 1.5,
+              display: 'flex',
+              flexDirection: 'column',
+              justifyContent: 'flex-start',
+              height: '100%'
+            }}>
+              <h4 className="text-15 fw-500 ls-2 lh-16" style={{ marginBottom: '8px', marginTop: '0' }}>City</h4>
+              <CitySearch 
+                selectedCountry={selectedCountry}
+                onCitySelect={handleCitySelect}
+              />
+            </Box>
 
-             
+            {/* Agent Selector (if visible) */}
+            {showAgentSelector && (
+              <Box sx={{ 
+                flex: isMobile ? '1 1 100%' : '1',
+                minWidth: 0,
+                borderRight: isMobile ? 'none' : '1px solid #e0e0e0',
+                px: isMobile ? 0 : 2,
+                py: isMobile ? 0 : 1.5,
+                display: 'flex',
+                flexDirection: 'column',
+                justifyContent: 'center'
+              }}>
+                <SelectAgent onAgentSelect={handleAgentSelect} initialValue={selectedAgent} />
+              </Box>
+            )}
 
-              <div style={{ flex: '1.2', minWidth: '0' }} className="searchMenu-date px-30 lg:py-20 lg:px-0 js-form-dd js-calendar">
-                <div>
-                  <h4 className="text-15 fw-500 ls-2 lh-16">
-                    Select Date
-                  </h4>
-                  <DateSelect onChange={handleDateChange} value={selectedDate} />
-                </div>
-              </div>
+            {/* Date Selection */}
+            <Box sx={{ 
+              flex: isMobile ? '1 1 100%' : '1.2',
+              minWidth: 0,
+              borderRight: isMobile ? 'none' : '1px solid #e0e0e0',
+              px: isMobile ? 0 : 2,
+              py: isMobile ? 0 : 1.5,
+              display: 'flex',
+              flexDirection: 'column',
+              justifyContent: 'flex-start',
+              height: '100%'
+            }}>
+              <h4 className="text-15 fw-500 ls-2 lh-16" style={{ marginBottom: '8px', marginTop: '0' }}>Select Date</h4>
+              <DateSelect onChange={handleDateChange} value={selectedDate} />
+            </Box>
 
-              <div style={{ flex: '1', minWidth: '0' }}>
-                <GuestSearch onGuestChange={handleGuestChange} guestCounts={guestCounts} />
-              </div>
+            {/* Guest Selection */}
+            <Box sx={{ 
+              flex: isMobile ? '1 1 100%' : '1',
+              minWidth: 0,
+              borderRight: isMobile ? 'none' : '1px solid #e0e0e0',
+              px: isMobile ? 0 : 2,
+              py: isMobile ? 0 : 1.5,
+              display: 'flex',
+              flexDirection: 'column',
+              justifyContent: 'flex-start',
+              height: '100%'
+            }}>
+              <h4 className="text-15 fw-500 ls-2 lh-16" style={{ marginBottom: '8px', marginTop: '0' }}>Guests</h4>
+              <GuestSearch onGuestChange={handleGuestChange} guestCounts={guestCounts} />
+            </Box>
 
-              <div className="button-item" style={{ width: 'auto', padding: '0 15px', display: 'flex', alignItems: 'flex-end' }}>
-                <button
-                  className="mainSearch__submit button -dark-1 py-15 px-35 h-60 col-12 rounded-4 bg-blue-1 text-white"
-                  onClick={handleSubmit}
-                 
-                 
-                 
-                  style={{ whiteSpace: 'nowrap', marginBottom: '5px' }}
-                >
-                
-                
-                
-                  <i className="icon-search text-20 mr-10" />
-                  Search Packages
-                  
-                  
-                  
-                </button>
-              </div>
-            </div>
-          </div>
+            {/* Search Button */}
+            <Box sx={{ 
+              flex: isMobile ? '1 1 100%' : '0 0 auto',
+              display: 'flex',
+              alignItems: 'flex-end',
+              justifyContent: 'center',
+              px: isMobile ? 0 : 2,
+              py: isMobile ? 0 : 1,
+              height: '100%'
+            }}>
+              <Button
+                variant="contained"
+                onClick={handleSubmit}
+                startIcon={<i className="icon-search" />}
+                sx={{
+                  bgcolor: '#1976d2',
+                  color: 'white',
+                  px: isMobile ? 4 : 4,
+                  py: isMobile ? 1.5 : 1.75,
+                  borderRadius: isMobile ? '12px' : '40px',
+                  fontSize: '0.9rem',
+                  fontWeight: 600,
+                  textTransform: 'none',
+                  boxShadow: 'none',
+                  whiteSpace: 'nowrap',
+                  width: isMobile ? '100%' : 'auto',
+                  '&:hover': {
+                    bgcolor: '#1565c0',
+                    boxShadow: '0 4px 12px rgba(25, 118, 210, 0.3)'
+                  }
+                }}
+              >
+                {isMobile ? 'Search' : 'Search Packages'}
+              </Button>
+            </Box>
+          </Box>
         </Paper>
         
-        <ListingCards hasSearched={hasSearched} />
-        
-        
+        <ListingCards 
+          hasSearched={hasSearched} 
+          selectedDmcId={selectedDmcId}
+          selectedDmcData={selectedDmcData}
+          locationData={locationData}
+          dmcOptions={dmcOptions}
+          filteredDMCs={filteredDMCs}
+          dmcLoading={dmcLoading}
+          dmcError={dmcError}
+          filterText={filterText}
+          handleFilterChange={handleFilterChange}
+          handleDMCCardClick={handleDMCCardClick}
+          isDMCSelected={isDMCSelected}
+        />
         
       </Box>
       
@@ -460,49 +717,21 @@ const PreDefinePackages = () => {
           z-index: 1050 !important;
           position: absolute !important;
         }
-        
-        .mainSearch {
-          overflow: visible !important;
-        }
-        
-        .searchMenu-loc, 
-        .searchMenu-date, 
-        .searchMenu-guests {
-          position: relative;
-          z-index: 40;
-        }
-        
-        /* Ensure specific dropdown ordering */
-        .searchMenu-loc .shadow-2 {
-          z-index: 1060 !important;
-        }
-        
-        .searchMenu-date .rmdp-wrapper {
-          z-index: 1050 !important;
-          top: 100% !important;
-        }
-        
-        .searchMenu-guests .shadow-2 {
-          z-index: 1040 !important;
-        }
-        
-        /* Fix for position context */
-        .button-grid {
-          position: relative;
-          overflow: visible !important;
-        }
-        
-        /* Ensure dropdown menus are not cut off */
-        .button-item {
-          overflow: visible !important;
-        }
-        
+
         /* Fix global dropdown issues */
         body .dropdown-menu.show {
           display: block !important;
           position: absolute !important;
           transform: none !important;
           top: 100% !important;
+        }
+
+        /* Responsive adjustments */
+        @media (max-width: 480px) {
+          .MuiContainer-root {
+            padding-left: 8px !important;
+            padding-right: 8px !important;
+          }
         }
       `}</style>
     </StyledContainer>

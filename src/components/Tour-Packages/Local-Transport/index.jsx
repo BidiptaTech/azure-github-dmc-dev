@@ -82,7 +82,7 @@ const LocalTransportComponent = React.memo(function LocalTransportComponent({ da
   const agentId = useSelector((state) => state.editing?.agentId);
   const tourId = useSelector((state) => state.hotels.id);
   const searchDayIndex = useSelector((state) => state.localtour.searchDayIndex);
-
+  const PriceHide = useSelector((state) => state.auth.PriceHide);
 
   
   // Location data from Redux
@@ -90,8 +90,8 @@ const LocalTransportComponent = React.memo(function LocalTransportComponent({ da
   const dropoffLocation = useSelector(state => state.localtour.entrydropoff || '');
   const exitPickupLocation = useSelector(state => state.localtour.exitpickup || '');
   const pickupTime = useSelector(state => state.localtour.entrytime || '');
-  const pickupTime1 = useSelector(state => state.localtour.entrytime1 || '');
-  const pickupTimeZone = useSelector(state => state.localtour.entrytimezone || '');
+  const pickupTime1 = useSelector(state => state.localtour.entrytime || '');
+  const pickupTimeZone = useSelector(state => state.localtour.entrytime || '');
   const pickupDate = useSelector(state => state.localtour.pickdate || '');
   const exitPickupDate = useSelector(state => state.localtour.exitpickupdate || '');
 
@@ -133,26 +133,34 @@ const LocalTransportComponent = React.memo(function LocalTransportComponent({ da
   const [hasInitializedBookings, setHasInitializedBookings] = useState(false);
   const [hasDispatchedToRedux, setHasDispatchedToRedux] = useState(false);
   const [lastInitializationKey, setLastInitializationKey] = useState('');
-  
+  const tourStatus = useSelector((state) => state.tourPackages.tourStatus);
   // Use ref to track if initialization has already been attempted for this component instance
   const initializationAttempted = useRef(false);
   
   // Create a unique key for this component instance to prevent double initialization
   const initializationKey = useMemo(() => {
-    return `${dayIndex}-${date}-${PointToPoint?.length || 0}-${Hourly?.length || 0}-${LocalTransports?.length || 0}`;
-  }, [dayIndex, date, PointToPoint?.length, Hourly?.length, LocalTransports?.length]);
+    // Count total bookings across all transport types for more accurate key
+    const pointToPointCount = PointToPoint?.reduce((sum, service) => 
+      sum + (service.data?.length || 0), 0) || 0;
+    const hourlyCount = Hourly?.reduce((sum, service) => 
+      sum + (service.data?.length || 0), 0) || 0;
+    const localTransportsCount = LocalTransports?.reduce((sum, service) => 
+      sum + (service.data?.length || 0), 0) || 0;
+    
+    return `${dayIndex}-${date}-${pointToPointCount}-${hourlyCount}-${localTransportsCount}`;
+  }, [dayIndex, date, PointToPoint, Hourly, LocalTransports]);
   
   // Initialize bookings from props data when available - only run once and prevent re-initialization
   useEffect(() => {
     // Hard stop - if initial setup is already complete, never initialize again
     if (isInitialSetupComplete) {
-      console.log(`Local Transport - Skipping initialization for dayIndex ${dayIndex} (setup already complete)`);
+      
       return;
     }
     
     // Skip if we've already initialized for this specific instance
     if (hasInitializedBookings && lastInitializationKey === initializationKey) {
-      console.log(`Local Transport - Skipping initialization for dayIndex ${dayIndex} (already initialized for key: ${initializationKey})`);
+      
       return;
     }
     
@@ -160,7 +168,12 @@ const LocalTransportComponent = React.memo(function LocalTransportComponent({ da
         (Hourly && Hourly.length > 0) || 
         (LocalTransports && LocalTransports.length > 0)) {
       
-      console.log(`Local Transport - Initializing bookings for dayIndex ${dayIndex} with key: ${initializationKey}`);
+      
+      console.log(`Local Transport - Data summary:`, {
+        PointToPoint: PointToPoint?.map(s => ({ type: s.type, dataCount: s.data?.length || 0 })) || [],
+        Hourly: Hourly?.map(s => ({ type: s.type, dataCount: s.data?.length || 0 })) || [],
+        LocalTransports: LocalTransports?.map(s => ({ type: s.type, dataCount: s.data?.length || 0 })) || []
+      });
       
       // Mark initialization as done for this key
       setHasInitializedBookings(true);
@@ -170,7 +183,7 @@ const LocalTransportComponent = React.memo(function LocalTransportComponent({ da
       const initializedBookings = initializeBookingsFromProps();
 
       if (initializedBookings.length > 0) {
-        console.log(`Local Transport - Setting ${initializedBookings.length} bookings in local state for dayIndex ${dayIndex}`);
+        
         // Set the bookings in local state - replace any existing bookings for this component
         setAllBookings(initializedBookings);
         setExpandedSections(initializedBookings.map((_, index) => index));
@@ -187,6 +200,8 @@ const LocalTransportComponent = React.memo(function LocalTransportComponent({ da
       } else {
         console.log(`Local Transport - No bookings found after filtering for dayIndex ${dayIndex}`);
       }
+    } else {
+      console.log(`Local Transport - No data available for initialization on dayIndex ${dayIndex}`);
     }
   }, [
     // Only depend on dayIndex to prevent re-initialization when props change
@@ -203,12 +218,29 @@ const LocalTransportComponent = React.memo(function LocalTransportComponent({ da
     const initializedBookings = [];
     const processedIds = new Set(); // Track processed booking IDs to avoid duplicates
     
-    // console.log(`Initializing bookings for dayIndex ${dayIndex} with date:`, date);
+    
+    console.log('Local Transport - Available data:', {
+      PointToPoint: PointToPoint?.length || 0,
+      Hourly: Hourly?.length || 0,
+      LocalTransports: LocalTransports?.length || 0
+    });
+    
+    console.log('Local Transport - Current dayIndex:', dayIndex);
 
     // Helper function to check if booking belongs to current dayIndex
-    // Similar to attraction component's dayIndex filtering
-    const shouldShowBookingForThisDay = (bookingDate) => {
-      if (!date || !bookingDate) return false;
+    // Improved to handle both JSON formats and be more flexible
+    const shouldShowBookingForThisDay = (bookingDate, componentDayIndex) => {
+      // If componentDayIndex is provided and matches current dayIndex, show the booking
+      if (componentDayIndex !== undefined && componentDayIndex === dayIndex) {
+        
+        return true;
+      }
+
+      // If no date provided, show in dayIndex 0 to avoid losing data
+      if (!date || !bookingDate) {
+        
+        return dayIndex === 0;
+      }
 
       try {
         // The 'date' prop from Itinerary is the specific date for this dayIndex
@@ -244,182 +276,512 @@ const LocalTransportComponent = React.memo(function LocalTransportComponent({ da
           return false;
         }
 
-                 // Show booking if it matches current day
-         const matchesCurrentDay = currentDayDateStr === bookingDateStr;
-         
-         // For orphaned bookings (dates not in tour dates), show them only in dayIndex 0 to avoid duplication
-         const isOrphanedBooking = tourDates && tourDates.length > 0 && !tourDates.includes(bookingDateStr);
-         const showOrphanedInFirstDay = isOrphanedBooking && dayIndex === 0;
-         
-         // For debugging
-         if (matchesCurrentDay || showOrphanedInFirstDay) {
-           console.log(`Local Transport - Showing booking for dayIndex ${dayIndex}:`, {
-             bookingDate: bookingDateStr,
-             currentDayDate: currentDayDateStr,
-             matchesCurrentDay,
-             isOrphanedBooking,
-             showOrphanedInFirstDay,
-             dayIndex,
-             reason: matchesCurrentDay ? 'matches current day' : 'orphaned booking (shown in dayIndex 0 only)'
-           });
-         }
-         
-         return matchesCurrentDay || showOrphanedInFirstDay;
+        // Show booking if it matches current day
+        const matchesCurrentDay = currentDayDateStr === bookingDateStr;
+        
+        // For orphaned bookings (dates not in tour dates), show them only in dayIndex 0 to avoid duplication
+        const isOrphanedBooking = tourDates && tourDates.length > 0 && !tourDates.includes(bookingDateStr);
+        const showOrphanedInFirstDay = isOrphanedBooking && dayIndex === 0;
+        
+        // For debugging
+        if (matchesCurrentDay || showOrphanedInFirstDay) {
+          console.log(`Local Transport - Showing booking for dayIndex ${dayIndex}:`, {
+            bookingDate: bookingDateStr,
+            currentDayDate: currentDayDateStr,
+            matchesCurrentDay,
+            isOrphanedBooking,
+            showOrphanedInFirstDay,
+            dayIndex,
+            reason: matchesCurrentDay ? 'matches current day' : 'orphaned booking (shown in dayIndex 0 only)'
+          });
+        }
+        
+        return matchesCurrentDay || showOrphanedInFirstDay;
       } catch (error) {
         console.error('Error comparing dates for dayIndex filtering:', error);
-        return false;
+        // If there's an error in date comparison, show in dayIndex 0 to avoid losing data
+        return dayIndex === 0;
       }
+    };
+
+    // Helper function to distribute bookings without componentDayIndex across dayIndexes
+    const shouldShowBookingByDistribution = (bookingData, transportType, index) => {
+      // Always use date-based distribution for better accuracy
+      // If we have tourDates, try to match the booking date with the date for this dayIndex
+      if (tourDates && tourDates.length > dayIndex && bookingData.bookingDate) {
+        try {
+          // Get the date for this dayIndex from tourDates
+          const currentDayDate = tourDates[dayIndex];
+          
+          // Normalize booking date
+          let bookingDateStr;
+          if (typeof bookingData.bookingDate === 'string') {
+            const tempDate = new Date(bookingData.bookingDate);
+            if (!isNaN(tempDate.getTime())) {
+              bookingDateStr = tempDate.toISOString().split('T')[0];
+            } else {
+              bookingDateStr = bookingData.bookingDate;
+            }
+          }
+          
+          // If the booking date matches the date for this dayIndex, show it
+          if (currentDayDate === bookingDateStr) {
+            console.log(`Local Transport - Showing ${transportType} booking in dayIndex ${dayIndex} by date match:`, {
+              bookingId: bookingData.id,
+              bookingDate: bookingDateStr,
+              dayIndexDate: currentDayDate
+            });
+            return true;
+          }
+        } catch (error) {
+          console.error('Error in date-based distribution:', error);
+        }
+      }
+      
+      // If no tourDates or date doesn't match, only show in dayIndex 0 as a last resort
+      // But this should be avoided in most cases
+      if (dayIndex === 0 && (!tourDates || tourDates.length === 0)) {
+        console.log(`Local Transport - Showing ${transportType} booking in dayIndex 0 (no tourDates fallback):`, {
+          id: bookingData.id,
+          bookingDate: bookingData.bookingDate,
+          reason: 'no tourDates available, using dayIndex 0 fallback'
+        });
+        return true;
+      }
+      
+      // For all other cases, don't show the booking
+      return false;
     };
 
     // Process PointToPoint data
     if (PointToPoint && Array.isArray(PointToPoint)) {
+      // Track bookings by date for better distribution
+      const bookingsByDate = new Map();
+      
+      // First pass: collect all bookings by date
       PointToPoint.forEach(pointToPointService => {
         if (pointToPointService.data && Array.isArray(pointToPointService.data)) {
           pointToPointService.data.forEach(bookingData => {
-            // Check for duplicate IDs
-            if (processedIds.has(bookingData.id)) {
+            // Create a copy of bookingData to avoid modifying the original object
+            const bookingDataCopy = { ...bookingData };
+            if (!bookingDataCopy.id) {
+              // Generate a stable ID if none exists
+              bookingDataCopy.id = `generated-point-${pointToPointService.booking_id}-${bookingDataCopy.vehicles_id}-${Date.now()}`;
+            }
+            
+            // Skip if already processed
+            if (processedIds.has(bookingDataCopy.id)) {
               return;
             }
             
-            processedIds.add(bookingData.id);
-
-            // Check if booking belongs to current dayIndex (similar to attraction component)
-            if (!shouldShowBookingForThisDay(bookingData.bookingDate)) {
-              return;
+            // Normalize booking date
+            let bookingDateStr = bookingDataCopy.bookingDate || '';
+            try {
+              if (typeof bookingDateStr === 'string') {
+                const tempDate = new Date(bookingDateStr);
+                if (!isNaN(tempDate.getTime())) {
+                  bookingDateStr = tempDate.toISOString().split('T')[0];
+                }
+              }
+            } catch (e) {
+              console.error('Error normalizing date:', e);
             }
-
-            const booking = {
-              id: bookingData.id,
-              vehicle: null, 
-              vehicleId: bookingData.vehicles_id,
-              mode: bookingData.Mode,
-              dmcId: bookingData.dmc_id,
-              city: bookingData.city,
-              country: bookingData.country,
-              adults: bookingData.adults,
-              children: bookingData.children,
-              priceMode: bookingData.type,
-              hours: 1,
-              transportType: "Point To Point",
-              vehicleName: bookingData.vehicles_name,
-              vehicleImage: bookingData.image,
-              vehicleModel: '',
-              vehicleType: '',
-              zoneId: '',
-              pickupLocation: bookingData.entrypickup,
-              dropoffLocation: bookingData.entrydropoff,
-              pickupTime: bookingData.entrytime,
-              bookingDate: bookingData.bookingDate,
-              price: bookingData.totalPrice,
-              isComplete: true,
-              originalData: bookingData
-            };
-            initializedBookings.push(booking);
+            
+            // Group by date
+            if (!bookingsByDate.has(bookingDateStr)) {
+              bookingsByDate.set(bookingDateStr, []);
+            }
+            bookingsByDate.get(bookingDateStr).push({
+              bookingData: bookingDataCopy,
+              serviceType: pointToPointService.type,
+              booking_id: pointToPointService.booking_id
+            });
           });
         }
+      });
+      
+      console.log(`Local Transport - Found PointToPoint bookings for ${bookingsByDate.size} different dates`);
+      
+      // Second pass: process bookings based on dayIndex and date
+      bookingsByDate.forEach((bookingsForDate, dateStr) => {
+        // Find if this date corresponds to a specific dayIndex in tourDates
+        let matchingDayIndex = -1;
+        if (tourDates && tourDates.length > 0) {
+          matchingDayIndex = tourDates.findIndex(date => date === dateStr);
+        }
+        
+        console.log(`Local Transport - Processing PointToPoint bookings for date ${dateStr}:`, {
+          dayIndex: dayIndex,
+          matchingDayIndex: matchingDayIndex,
+          bookingsCount: bookingsForDate.length,
+          tourDates: tourDates
+        });
+        
+        bookingsForDate.forEach(({ bookingData, serviceType, booking_id }) => {
+          // Check for duplicate IDs
+          if (processedIds.has(bookingData.id)) {
+            console.log(`Local Transport - Skipping duplicate PointToPoint booking ID: ${bookingData.id}`);
+            return;
+          }
+          
+          processedIds.add(bookingData.id);
+          
+          // Check if booking belongs to current dayIndex (improved logic)
+          const componentDayIndex = bookingData.componentDayIndex;
+          
+          // Special case: if we found a matching dayIndex for this date and it's the current dayIndex
+          const isMatchingDayByDate = matchingDayIndex === dayIndex && matchingDayIndex !== -1;
+          
+          // Only show this booking if:
+          // 1. It has a componentDayIndex that matches current dayIndex, OR
+          // 2. Its date matches the date for current dayIndex, OR
+          // 3. It passes the distribution logic (which now uses strict date matching)
+          const shouldShow = shouldShowBookingForThisDay(bookingData.bookingDate, componentDayIndex) || 
+                            isMatchingDayByDate || 
+                            shouldShowBookingByDistribution(bookingData, "Point To Point", 0);
+          
+          if (!shouldShow) {
+            console.log(`Local Transport - Skipping PointToPoint booking for dayIndex ${dayIndex}:`, {
+              id: bookingData.id,
+              bookingDate: bookingData.bookingDate,
+              componentDayIndex: componentDayIndex,
+              matchingDayIndex,
+              reason: 'does not match current dayIndex by any criteria'
+            });
+            return;
+          }
+          
+          // If we get here, we should show this booking for the current dayIndex
+          const booking = {
+            id: bookingData.id,
+            vehicle: null, 
+            vehicleId: bookingData.vehicles_id,
+            mode: bookingData.Mode,
+            dmcId: bookingData.dmc_id,
+            city: bookingData.city,
+            country: bookingData.country,
+            adults: bookingData.adults,
+            children: bookingData.children,
+            priceMode: bookingData.type,
+            hours: 1,
+            transportType: "Point To Point",
+            vehicleName: bookingData.vehicles_name,
+            vehicleImage: bookingData.image,
+            vehicleModel: '',
+            vehicleType: '',
+            zoneId: '',
+            pickupLocation: bookingData.entrypickup,
+            dropoffLocation: bookingData.entrydropoff,
+            pickupTime: bookingData.entrytime,
+            bookingDate: bookingData.bookingDate,
+            price: bookingData.totalPrice,
+            isComplete: true,
+            originalData: {
+              ...bookingData,
+              booking_id: booking_id // Ensure booking_id is included
+            }
+          };
+          initializedBookings.push(booking);
+          console.log(`Local Transport - Added PointToPoint booking:`, {
+            id: booking.id,
+            date: booking.bookingDate,
+            dayIndex: dayIndex,
+            reason: isMatchingDayByDate ? 'date matches dayIndex' : 
+                    componentDayIndex !== undefined ? 'componentDayIndex match' : 
+                    'distribution fallback'
+          });
+        });
       });
     }
 
     // Process Hourly data
     if (Hourly && Array.isArray(Hourly)) {
+      // Track bookings by date for better distribution
+      const bookingsByDate = new Map();
+      
+      // First pass: collect all bookings by date
       Hourly.forEach(hourlyService => {
         if (hourlyService.data && Array.isArray(hourlyService.data)) {
           hourlyService.data.forEach(bookingData => {
-            // Check for duplicate IDs
-            if (processedIds.has(bookingData.id)) {
+            // Create a copy of bookingData to avoid modifying the original object
+            const bookingDataCopy = { ...bookingData };
+            if (!bookingDataCopy.id) {
+              // Generate a stable ID if none exists
+              bookingDataCopy.id = `generated-hourly-${hourlyService.booking_id}-${bookingDataCopy.vehicles_id}-${Date.now()}`;
+            }
+            
+            // Skip if already processed
+            if (processedIds.has(bookingDataCopy.id)) {
               return;
             }
             
-            processedIds.add(bookingData.id);
-
-            // Check if booking belongs to current dayIndex (similar to attraction component)
-            if (!shouldShowBookingForThisDay(bookingData.bookingDate)) {
-              return;
+            // Normalize booking date
+            let bookingDateStr = bookingDataCopy.bookingDate || '';
+            try {
+              if (typeof bookingDateStr === 'string') {
+                const tempDate = new Date(bookingDateStr);
+                if (!isNaN(tempDate.getTime())) {
+                  bookingDateStr = tempDate.toISOString().split('T')[0];
+                }
+              }
+            } catch (e) {
+              console.error('Error normalizing date:', e);
             }
-
-            const booking = {
-              id: bookingData.id,
-              vehicle: null, 
-              vehicleId: bookingData.vehicles_id,
-              mode: bookingData.Mode,
-              dmcId: bookingData.dmc_id,
-              city: bookingData.city,
-              country: bookingData.country,
-              adults: bookingData.adults,
-              children: bookingData.children,
-              priceMode: bookingData.type,
-              hours: bookingData.selectedHours || 1,
-              transportType: "Hourly",
-              vehicleName: bookingData.vehicles_name,
-              vehicleImage: bookingData.image,
-              vehicleModel: '',
-              vehicleType: '',
-              zoneId: '',
-              pickupLocation: bookingData.entrypickup,
-              dropoffLocation: '',
-              pickupTime: bookingData.entrytime,
-              bookingDate: bookingData.bookingDate,
-              price: bookingData.totalPrice,
-              isComplete: true,
-              originalData: bookingData
-            };
-            initializedBookings.push(booking);
+            
+            // Group by date
+            if (!bookingsByDate.has(bookingDateStr)) {
+              bookingsByDate.set(bookingDateStr, []);
+            }
+            bookingsByDate.get(bookingDateStr).push({
+              bookingData: bookingDataCopy,
+              serviceType: hourlyService.type,
+              booking_id: hourlyService.booking_id
+            });
           });
         }
+      });
+      
+     
+      
+      // Second pass: process bookings based on dayIndex and date
+      bookingsByDate.forEach((bookingsForDate, dateStr) => {
+        // Find if this date corresponds to a specific dayIndex in tourDates
+        let matchingDayIndex = -1;
+        if (tourDates && tourDates.length > 0) {
+          matchingDayIndex = tourDates.findIndex(date => date === dateStr);
+        }
+        
+        console.log(`Local Transport - Processing Hourly bookings for date ${dateStr}:`, {
+          dayIndex: dayIndex,
+          matchingDayIndex: matchingDayIndex,
+          bookingsCount: bookingsForDate.length,
+          tourDates: tourDates
+        });
+        
+        bookingsForDate.forEach(({ bookingData, serviceType, booking_id }) => {
+          // Check for duplicate IDs
+          if (processedIds.has(bookingData.id)) {
+           
+            return;
+          }
+          
+          processedIds.add(bookingData.id);
+          
+          // Check if booking belongs to current dayIndex (improved logic)
+          const componentDayIndex = bookingData.componentDayIndex;
+          
+          // Special case: if we found a matching dayIndex for this date and it's the current dayIndex
+          const isMatchingDayByDate = matchingDayIndex === dayIndex && matchingDayIndex !== -1;
+          
+          // Only show this booking if:
+          // 1. It has a componentDayIndex that matches current dayIndex, OR
+          // 2. Its date matches the date for current dayIndex, OR
+          // 3. It passes the distribution logic (which now uses strict date matching)
+          const shouldShow = shouldShowBookingForThisDay(bookingData.bookingDate, componentDayIndex) || 
+                            isMatchingDayByDate || 
+                            shouldShowBookingByDistribution(bookingData, "Hourly", 1);
+          
+          if (!shouldShow) {
+            console.log(`Local Transport - Skipping Hourly booking for dayIndex ${dayIndex}:`, {
+              id: bookingData.id,
+              bookingDate: bookingData.bookingDate,
+              componentDayIndex: componentDayIndex,
+              matchingDayIndex,
+              reason: 'does not match current dayIndex by any criteria'
+            });
+            return;
+          }
+          
+          // If we get here, we should show this booking for the current dayIndex
+          const booking = {
+            id: bookingData.id,
+            vehicle: null, 
+            vehicleId: bookingData.vehicles_id,
+            mode: bookingData.Mode,
+            dmcId: bookingData.dmc_id,
+            city: bookingData.city,
+            country: bookingData.country,
+            adults: bookingData.adults,
+            children: bookingData.children,
+            priceMode: bookingData.type,
+            hours: bookingData.selectedHours || 1,
+            transportType: "Hourly",
+            vehicleName: bookingData.vehicles_name,
+            vehicleImage: bookingData.image,
+            vehicleModel: '',
+            vehicleType: '',
+            zoneId: '',
+            pickupLocation: bookingData.entrypickup,
+            dropoffLocation: '',
+            pickupTime: bookingData.entrytime,
+            bookingDate: bookingData.bookingDate,
+            price: bookingData.totalPrice,
+            isComplete: true,
+            originalData: {
+              ...bookingData,
+              booking_id: booking_id // Ensure booking_id is included
+            }
+          };
+          initializedBookings.push(booking);
+          console.log(`Local Transport - Added Hourly booking:`, {
+            id: booking.id,
+            date: booking.bookingDate,
+            dayIndex: dayIndex,
+            reason: isMatchingDayByDate ? 'date matches dayIndex' : 
+                    componentDayIndex !== undefined ? 'componentDayIndex match' : 
+                    'distribution fallback'
+          });
+        });
       });
     }
 
     // Process LocalTransports data
     if (LocalTransports && Array.isArray(LocalTransports)) {
+      // Track bookings by date for better distribution
+      const bookingsByDate = new Map();
+      
+      // First pass: collect all bookings by date
       LocalTransports.forEach(localService => {
         if (localService.data && Array.isArray(localService.data)) {
           localService.data.forEach(bookingData => {
-            // Check for duplicate IDs
-            if (processedIds.has(bookingData.id)) {
+            // Create a copy of bookingData to avoid modifying the original object
+            const bookingDataCopy = { ...bookingData };
+            if (!bookingDataCopy.id) {
+              // Generate a stable ID if none exists
+              bookingDataCopy.id = `generated-local-${localService.booking_id}-${bookingDataCopy.vehicles_id}-${Date.now()}`;
+            }
+            
+            // Skip if already processed
+            if (processedIds.has(bookingDataCopy.id)) {
               return;
             }
             
-            processedIds.add(bookingData.id);
-
-            // Check if booking belongs to current dayIndex (similar to attraction component)
-            if (!shouldShowBookingForThisDay(bookingData.bookingDate)) {
-              return;
+            // Normalize booking date
+            let bookingDateStr = bookingDataCopy.bookingDate || '';
+            try {
+              if (typeof bookingDateStr === 'string') {
+                const tempDate = new Date(bookingDateStr);
+                if (!isNaN(tempDate.getTime())) {
+                  bookingDateStr = tempDate.toISOString().split('T')[0];
+                }
+              }
+            } catch (e) {
+              console.error('Error normalizing date:', e);
             }
-
-            const booking = {
-              id: bookingData.id,
-              vehicle: null, 
-              vehicleId: bookingData.vehicles_id,
-              mode: bookingData.Mode,
-              dmcId: bookingData.dmc_id,
-              city: bookingData.city,
-              country: bookingData.country,
-              adults: bookingData.adults,
-              children: bookingData.children,
-              priceMode: bookingData.type,
-              hours: 1,
-              transportType: "Local Transfer",
-              vehicleName: bookingData.vehicles_name,
-              vehicleImage: bookingData.image,
-              vehicleModel: '',
-              vehicleType: '',
-              zoneId: bookingData.to_zone_id || '',
-              pickupLocation: bookingData.entrypickup,
-              dropoffLocation: bookingData.entrydropoff,
-              pickupTime: bookingData.entrytime,
-              bookingDate: bookingData.bookingDate,
-              price: bookingData.totalPrice,
-              isComplete: true,
-              originalData: bookingData
-            };
-            initializedBookings.push(booking);
+            
+            // Group by date
+            if (!bookingsByDate.has(bookingDateStr)) {
+              bookingsByDate.set(bookingDateStr, []);
+            }
+            bookingsByDate.get(bookingDateStr).push({
+              bookingData: bookingDataCopy,
+              serviceType: localService.type,
+              booking_id: localService.booking_id
+            });
           });
         }
+      });
+      
+      console.log(`Local Transport - Found LocalTransfer bookings for ${bookingsByDate.size} different dates`);
+      
+      // Second pass: process bookings based on dayIndex and date
+      bookingsByDate.forEach((bookingsForDate, dateStr) => {
+        // Find if this date corresponds to a specific dayIndex in tourDates
+        let matchingDayIndex = -1;
+        if (tourDates && tourDates.length > 0) {
+          matchingDayIndex = tourDates.findIndex(date => date === dateStr);
+        }
+        
+        console.log(`Local Transport - Processing LocalTransfer bookings for date ${dateStr}:`, {
+          dayIndex: dayIndex,
+          matchingDayIndex: matchingDayIndex,
+          bookingsCount: bookingsForDate.length,
+          tourDates: tourDates
+        });
+        
+        bookingsForDate.forEach(({ bookingData, serviceType, booking_id }) => {
+          // Check for duplicate IDs
+          if (processedIds.has(bookingData.id)) {
+            
+            return;
+          }
+          
+          processedIds.add(bookingData.id);
+          
+          // Check if booking belongs to current dayIndex (improved logic)
+          const componentDayIndex = bookingData.componentDayIndex;
+          
+          // Special case: if we found a matching dayIndex for this date and it's the current dayIndex
+          const isMatchingDayByDate = matchingDayIndex === dayIndex && matchingDayIndex !== -1;
+          
+          // Only show this booking if:
+          // 1. It has a componentDayIndex that matches current dayIndex, OR
+          // 2. Its date matches the date for current dayIndex, OR
+          // 3. It passes the distribution logic (which now uses strict date matching)
+          const shouldShow = shouldShowBookingForThisDay(bookingData.bookingDate, componentDayIndex) || 
+                            isMatchingDayByDate || 
+                            shouldShowBookingByDistribution(bookingData, "Local Transfer", 2);
+          
+          if (!shouldShow) {
+            console.log(`Local Transport - Skipping LocalTransfer booking for dayIndex ${dayIndex}:`, {
+              id: bookingData.id,
+              bookingDate: bookingData.bookingDate,
+              componentDayIndex: componentDayIndex,
+              matchingDayIndex,
+              reason: 'does not match current dayIndex by any criteria'
+            });
+            return;
+          }
+          
+          // If we get here, we should show this booking for the current dayIndex
+          const booking = {
+            id: bookingData.id,
+            vehicle: null, 
+            vehicleId: bookingData.vehicles_id,
+            mode: bookingData.Mode,
+            dmcId: bookingData.dmc_id,
+            city: bookingData.city,
+            country: bookingData.country,
+            adults: bookingData.adults,
+            children: bookingData.children,
+            priceMode: bookingData.type,
+            hours: 1,
+            transportType: "Local Transfer",
+            vehicleName: bookingData.vehicles_name,
+            vehicleImage: bookingData.image,
+            vehicleModel: '',
+            vehicleType: '',
+            zoneId: bookingData.to_zone_id || '',
+            pickupLocation: bookingData.entrypickup,
+            dropoffLocation: bookingData.entrydropoff,
+            pickupTime: bookingData.entrytime,
+            bookingDate: bookingData.bookingDate,
+            price: bookingData.totalPrice,
+            isComplete: true,
+            originalData: {
+              ...bookingData,
+              booking_id: booking_id // Ensure booking_id is included
+            }
+          };
+          initializedBookings.push(booking);
+          console.log(`Local Transport - Added LocalTransfer booking:`, {
+            id: booking.id,
+            date: booking.bookingDate,
+            dayIndex: dayIndex,
+            reason: isMatchingDayByDate ? 'date matches dayIndex' : 
+                    componentDayIndex !== undefined ? 'componentDayIndex match' : 
+                    'distribution fallback'
+          });
+        });
       });
     }
 
     if (initializedBookings.length > 0) {
-      console.log(`Found ${initializedBookings.length} bookings for dayIndex ${dayIndex}`);
+      console.log(`Local Transport - Found ${initializedBookings.length} bookings for dayIndex ${dayIndex}:`, 
+        initializedBookings.map(b => ({ id: b.id, transportType: b.transportType, bookingDate: b.bookingDate }))
+      );
+    } else {
+      console.log(`Local Transport - No bookings found for dayIndex ${dayIndex}`);
     }
 
     return initializedBookings;
@@ -429,84 +791,191 @@ const LocalTransportComponent = React.memo(function LocalTransportComponent({ da
   const dispatchInitializedBookingsToRedux = useCallback((bookings) => {
     // Prevent dispatching if initial setup is already complete
     if (isInitialSetupComplete) {
-      console.log(`Local Transport - Skipping dispatch to Redux for dayIndex ${dayIndex} (setup already complete)`);
+      
       return;
     }
-    
+  
     const completedBookings = bookings.filter(booking => booking.isComplete);
-
+  
     if (completedBookings.length > 0) {
-      console.log(`Local Transport - Dispatching ${completedBookings.length} initialized bookings to Redux for dayIndex ${dayIndex}`);
       
-      // Instead of replacing all services, we'll just ensure our original services are in Redux
-      // This prevents conflicts between different component instances
+  
       const currentServices = [...allServices];
       let hasUpdates = false;
       
-      // Process each original booking to restore its service entry
+      // Group bookings by type to handle them more efficiently
+      const bookingsByType = {
+        "Point To Point": [],
+        "Hourly": [],
+        "Local Transfer": []
+      };
+      
+      completedBookings.forEach(booking => {
+        if (booking.transportType) {
+          bookingsByType[booking.transportType].push(booking);
+        }
+      });
+      
+      
+  
+      // Process each booking
       completedBookings.forEach(booking => {
         if (booking.originalData) {
-          // Find the original service this booking belongs to
-          const originalService = [PointToPoint, Hourly, LocalTransports]
-            .flat()
-            .find(service => 
-              service.data && service.data.some(item => item.id === booking.originalData.id)
-            );
+          // Get the booking_id from the originalData if available
+          const booking_id = booking.originalData.booking_id;
           
-          if (originalService) {
-            // Check if this service is already in Redux
+          // If we have a booking_id, try to find the service directly
+          if (booking_id) {
             const existingServiceIndex = currentServices.findIndex(service => 
-              service.id === originalService.id
+              service.booking_id === booking_id
             );
             
-            if (existingServiceIndex === -1) {
-              // Service not in Redux, add it
-              console.log(`Adding missing service to Redux: ${originalService.type} (ID: ${originalService.id})`);
-              currentServices.push({
-                ...originalService,
-                agent_id: agentId || originalService.agent_id,
-                tour_id: tourId || originalService.tour_id
-              });
-              hasUpdates = true;
-            } else {
-              // Service exists, ensure it has the correct data
+            if (existingServiceIndex !== -1) {
+              // Service exists, check if booking data exists
               const existingService = currentServices[existingServiceIndex];
-              const originalBookingExists = existingService.data?.some(item => 
+              const originalBookingExists = existingService.data?.some(item =>
                 item.id === booking.originalData.id
               );
               
               if (!originalBookingExists) {
                 // Add missing booking to existing service
-                console.log(`Adding missing booking to existing service: ${booking.originalData.id}`);
-                currentServices[existingServiceIndex] = {
+                const updatedService = {
                   ...existingService,
                   data: [...(existingService.data || []), booking.originalData]
                 };
+                
+               
+                
+                currentServices[existingServiceIndex] = updatedService;
                 hasUpdates = true;
+              } else {
+                console.log(`Local Transport - Service already exists with this booking:`, {
+                  type: existingService.type,
+                  booking_id: existingService.booking_id,
+                  bookingId: booking.originalData.id
+                });
+              }
+              
+              return; // Skip the rest of the processing for this booking
+            }
+          }
+          
+          // If we get here, either we don't have a booking_id or the service wasn't found
+          // Try to find the service by matching booking data
+          const allAvailableServices = [PointToPoint, Hourly, LocalTransports].flat().filter(Boolean);
+          
+          const originalService = allAvailableServices.find(service => {
+            // Check if any booking in the service matches our booking ID
+            return service.data?.some(item => item.id === booking.originalData.id);
+          });
+  
+          if (originalService) {
+            const existingServiceIndex = currentServices.findIndex(service =>
+              service.booking_id === originalService.booking_id
+            );
+  
+            if (existingServiceIndex === -1) {
+              // Add full service since it doesn't exist yet
+              const newService = {
+                agent_id: agentId || originalService.agent_id,
+                bookingType: "enquiry",
+                booking_id: originalService.booking_id,
+                data: originalService.data,
+                tour_id: tourId || originalService.tour_id,
+                type: originalService.type
+              };
+              
+              
+              currentServices.push(newService);
+              hasUpdates = true;
+            } else {
+              // Check if the specific booking is missing in an existing service
+              const existingService = currentServices[existingServiceIndex];
+              const originalBookingExists = existingService.data?.some(item =>
+                item.id === booking.originalData.id
+              );
+  
+              if (!originalBookingExists) {
+                // Add missing booking to existing service
+                const updatedService = {
+                  ...existingService,
+                  data: [...(existingService.data || []), booking.originalData]
+                };
+                
+               
+                
+                currentServices[existingServiceIndex] = updatedService;
+                hasUpdates = true;
+              } else {
+                console.log(`Local Transport - Service already exists with this booking:`, {
+                  type: existingService.type,
+                  booking_id: existingService.booking_id,
+                  bookingId: booking.originalData.id
+                });
               }
             }
+          } else {
+           
+            
+            // Determine service type based on booking transport type
+            let serviceType;
+            if (booking.transportType === "Point To Point") {
+              serviceType = "travel_point";
+            } else if (booking.transportType === "Hourly") {
+              serviceType = "travel_hourly";
+            } else if (booking.transportType === "Local Transfer") {
+              serviceType = "local_transport";
+            } else {
+              console.error(`Unknown transport type: ${booking.transportType}`);
+              return;
+            }
+            
+            // Create a new service for this booking
+            const newService = {
+              agent_id: agentId,
+              bookingType: "enquiry",
+              booking_id: booking.originalData.booking_id || `generated-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
+              data: [booking.originalData],
+              tour_id: tourId,
+              type: serviceType
+            };
+            
+           
+            
+            currentServices.push(newService);
+            hasUpdates = true;
           }
         }
       });
-      
-      // Only dispatch if we actually made changes
+  
       if (hasUpdates) {
-        console.log(`Local Transport - Dispatching updated services to Redux for dayIndex ${dayIndex}`);
+          
+          
         dispatch(setAllServices(currentServices));
       } else {
         console.log(`Local Transport - No updates needed for dayIndex ${dayIndex}, services already in Redux`);
       }
+    } else {
+      console.log(`Local Transport - No completed bookings to dispatch for dayIndex ${dayIndex}`);
     }
   }, [allServices, dispatch, agentId, tourId, PointToPoint, Hourly, LocalTransports, dayIndex, isInitialSetupComplete]);
+  
 
   // Validation function
   const isBookingValid = useCallback((section) => {
-    return section.vehicleId && 
-           (section.adults + section.children > 0) && 
-           section.priceMode && 
-           section.price > 0 &&
-           section.price > 0 &&
-           (section.transportType !== "Hourly" || (section.hours && section.hours >= 1));
+    // Basic validation that applies to all transport types
+    const baseValid = section.vehicleId && 
+                     (section.adults + section.children > 0) && 
+                     section.priceMode && 
+                     section.price > 0;
+    
+    // Transport type specific validation
+    if (section.transportType === "Hourly") {
+      return baseValid && section.hours && section.hours >= 1;
+    }
+    
+    // For Point To Point and Local Transfer
+    return baseValid;
   }, []);
 
   // Improved dispatch function with better debouncing and consolidation
@@ -522,12 +991,12 @@ const LocalTransportComponent = React.memo(function LocalTransportComponent({ da
       
       // Prevent dispatching too frequently
       if (now - lastDispatchTime.current < 1000) {
-        console.log("Local Transport - Dispatch frequency limit reached, skipping...");
+       
         return;
       }
 
       if (isDispatching.current) {
-        console.log("Local Transport - Dispatch already in progress, skipping...");
+       
         return;
       }
 
@@ -549,7 +1018,14 @@ const LocalTransportComponent = React.memo(function LocalTransportComponent({ da
         
         if (isBookingValid(booking) && booking.transportType && shouldProcessBooking) {
           // Create a unique signature for this booking
-          const bookingSignature = `${booking.vehicleId}-${booking.priceMode}-${booking.price}-${booking.adults}-${booking.children}-${booking.pickupLocation || ''}-${booking.dropoffLocation || ''}-${booking.hours || 1}`;
+          let bookingSignature = `${booking.vehicleId}-${booking.priceMode}-${booking.price}-${booking.adults}-${booking.children}-${booking.pickupLocation || ''}-${booking.dropoffLocation || ''}`;
+          
+          // Add transport-specific fields to signature
+          if (booking.transportType === "Hourly") {
+            bookingSignature += `-${booking.hours || 1}`;
+          } else if (booking.transportType === "Local Transfer") {
+            bookingSignature += `-${booking.to_zone_id || '1'}-${booking.from_zone_id || '1'}`;
+          }
           
           // Only include if not already saved
           if (!savedBookingIds.includes(bookingSignature)) {
@@ -562,11 +1038,11 @@ const LocalTransportComponent = React.memo(function LocalTransportComponent({ da
       const totalValidBookings = Object.values(validBookings).reduce((sum, bookings) => sum + bookings.length, 0);
       
       if (totalValidBookings === 0) {
-        console.log("Local Transport - No new valid bookings to dispatch");
+       
         return;
       }
       
-      console.log(`Local Transport - Dispatching ${totalValidBookings} new valid bookings to Redux`);
+     
       isDispatching.current = true;
       lastDispatchTime.current = now;
       
@@ -578,7 +1054,7 @@ const LocalTransportComponent = React.memo(function LocalTransportComponent({ da
         // Remove old services for booking indices that will have new services
         // This prevents duplicates when editing existing bookings
         if (bookingIndicesWithNewServices.size > 0) {
-          console.log(`Local Transport - Removing old services for booking indices: ${Array.from(bookingIndicesWithNewServices).join(', ')}`);
+          
           updatedServices = updatedServices.filter(service => {
             // Check if this service was created by this component for the booking indices we're updating
             if (service.type && ["travel_point", "travel_hourly", "local_transport"].includes(service.type)) {
@@ -591,7 +1067,7 @@ const LocalTransportComponent = React.memo(function LocalTransportComponent({ da
                 // Check if this service corresponds to a booking index we're updating
                 const serviceBookingIndex = service.localBookingIndex;
                 if (serviceBookingIndex !== undefined && bookingIndicesWithNewServices.has(serviceBookingIndex)) {
-                  console.log(`Local Transport - Removing old service for booking index ${serviceBookingIndex}`);
+                  
                   return false; // Remove this service
                 }
               }
@@ -672,16 +1148,23 @@ const LocalTransportComponent = React.memo(function LocalTransportComponent({ da
                 Night_Start_Time: booking.Night_Start_Time || null,
                 Night_End_Time: booking.Night_End_Time || null
               };
-            } else if (transportType === "Local Transfer") {
-              bookingData = {
-                ...bookingData,
-                entrypickup: booking.pickupLocation || '',
-                entrydropoff: booking.dropoffLocation || '',
-                PickupPlaceid: booking.PickupPlaceid || null,
-                DropoffPlaceid: booking.DropoffPlaceid || null,
-                to_zone_id: booking.to_zone_id || booking.zoneId || '',
-                from_zone_id: booking.from_zone_id || ''
-              };
+                          } else if (transportType === "Local Transfer") {
+                // Ensure zone IDs are set
+                const zoneId = booking.to_zone_id || booking.zoneId || '1';
+                const fromZoneId = booking.from_zone_id || '1';
+                
+                bookingData = {
+                  ...bookingData,
+                  entrypickup: booking.pickupLocation || '',
+                  entrydropoff: booking.dropoffLocation || '',
+                  PickupPlaceid: booking.PickupPlaceid || null,
+                  DropoffPlaceid: booking.DropoffPlaceid || null,
+                  to_zone_id: zoneId,
+                  from_zone_id: fromZoneId,
+                  zone_id: zoneId,
+                  exitpickupdate: booking.bookingDate,
+                  totalPrice: Math.ceil(booking.price || 0)
+                };
             }
             
             // Update local state with the generated ID if needed
@@ -728,21 +1211,21 @@ const LocalTransportComponent = React.memo(function LocalTransportComponent({ da
             }
             
             updatedServices.push(newService);
-            console.log(`Local Transport - Created new ${transportType} service for booking index ${bookingIndex} with booking ID: ${bookingData.id}`);
+            
           });
           
-          console.log(`Local Transport - Processed ${bookings.length} ${transportType} bookings for Redux`);
+          
         });
         
         // Single consolidated dispatch for all transport types
         if (newSavedSignatures.length > 0) {
-          console.log(`Local Transport - Single dispatch for ${newSavedSignatures.length} new bookings to Redux`);
+          
           
           // Log the service format being created for debugging
           const newServices = updatedServices.filter(service => 
             ["travel_point", "travel_hourly", "local_transport"].includes(service.type)
           );
-          console.log('Local Transport - Service format being dispatched:', JSON.stringify(newServices, null, 2));
+         
           
           dispatch(setAllServices(updatedServices));
           
@@ -782,31 +1265,31 @@ const LocalTransportComponent = React.memo(function LocalTransportComponent({ da
     initializationAttempted.current = false; // Reset initialization flag when dayIndex changes
     // Clear search day index when dayIndex changes to prevent cross-day interference
     dispatch(clearSearchDayIndex());
-    console.log(`Local Transport - Cleared saved booking IDs and reset flags for new dayIndex: ${dayIndex}`);
+    
   }, [dayIndex, dispatch]);
 
   // Dispatch initialized bookings to Redux - only run once and prevent re-dispatching
   useEffect(() => {
     // Hard stop - if initial setup is already complete, never dispatch again
     if (isInitialSetupComplete) {
-      console.log(`Local Transport - Skipping dispatch to Redux for dayIndex ${dayIndex} (setup already complete)`);
+     
       return;
     }
 
      // Skip if we've already initialized for this specific instance
      if (hasInitializedBookings && lastInitializationKey === initializationKey) {
-      console.log(`Local Transport - Skipping initialization for dayIndex ${dayIndex} (already initialized for key: ${initializationKey})`);
+      
       return;
     }
     
     // Hard stop - if we've already dispatched for this component instance
     if (hasDispatchedToRedux) {
-      console.log(`Local Transport - Skipping dispatch to Redux for dayIndex ${dayIndex} (already dispatched)`);
+     
       return;
     }
     
     if (hasInitializedBookings) {
-      console.log(`Local Transport - Dispatching initialized bookings to Redux for dayIndex ${dayIndex}`);
+     
       dispatchInitializedBookingsToRedux(allBookings);
       setHasDispatchedToRedux(true);
       setIsInitialSetupComplete(true); // Mark setup as complete after dispatching
@@ -835,12 +1318,12 @@ const LocalTransportComponent = React.memo(function LocalTransportComponent({ da
       const originalBookings = allBookings.filter(booking => booking.originalData);
 
       if (originalBookings.length > 0) {
-        console.log(`Dispatching ${originalBookings.length} original bookings to Redux for dayIndex ${dayIndex}`);
+        
         dispatchInitializedBookingsToRedux(originalBookings);
         setHasDispatchedToRedux(true);
         // Mark initial setup as complete after dispatching to Redux
         setIsInitialSetupComplete(true);
-        console.log(`Local Transport - Initial setup completed for dayIndex ${dayIndex}`);
+        
       }
     }
   }, [hasInitializedBookings, hasDispatchedToRedux, allBookings, dispatchInitializedBookingsToRedux, dayIndex, isInitialSetupComplete]);
@@ -861,48 +1344,46 @@ const LocalTransportComponent = React.memo(function LocalTransportComponent({ da
   // Monitor for vehicle search results - now creates new booking entries
   useEffect(() => {
     if (hasVehicles && selectedPort && searchDayIndex === dayIndex) {
-      console.log(`Local Transport - Day ${dayIndex}: Creating booking for search initiated by this component`);
+      
 
       setSearchPerformed(prev => ({
         ...prev,
         [selectedPort]: true
       }));
 
-      const hasBookingOfType = allBookings.some(booking => booking.transportType === selectedPort);
+      // Always create a new booking when vehicles are loaded from search
+      // Remove the hasBookingOfType check to allow multiple bookings of the same transport type
+      let newBookingData = { ...initialFormState, transportType: selectedPort };
 
-      if (!hasBookingOfType) {
-        let newBookingData = { ...initialFormState, transportType: selectedPort };
-
-        if (selectedPort === "Point To Point") {
-          newBookingData.pickupLocation = pickupLocation;
-          newBookingData.dropoffLocation = dropoffLocation;
-          newBookingData.pickupTime = pickupTime;
-          newBookingData.bookingDate = pickupDate;
-        } else if (selectedPort === "Hourly") {
-          newBookingData.pickupLocation = exitPickupLocation;
-          newBookingData.pickupTime = pickupTime1;
-          newBookingData.bookingDate = exitPickupDate;
-        } else if (selectedPort === "Local Transfer") {
-          newBookingData.pickupLocation = pickupLocation;
-          newBookingData.dropoffLocation = dropoffLocation;
-          newBookingData.pickupTime = pickupTimeZone;
-          newBookingData.bookingDate = pickupDate;
-        }
-
-        // Use setTimeout to prevent immediate state updates that could cause loops
-        setTimeout(() => {
-          setAllBookings(prev => {
-            const newBookings = [...prev, newBookingData];
-            const newIndex = newBookings.length - 1;
-            setExpandedSections(prevExpanded => [...prevExpanded, newIndex]);
-            
-            // Clear the search day index after creating the booking
-            dispatch(clearSearchDayIndex());
-            
-            return newBookings;
-          });
-        }, 50);
+      if (selectedPort === "Point To Point") {
+        newBookingData.pickupLocation = pickupLocation;
+        newBookingData.dropoffLocation = dropoffLocation;
+        newBookingData.pickupTime = pickupTime;
+        newBookingData.bookingDate = pickupDate;
+      } else if (selectedPort === "Hourly") {
+        newBookingData.pickupLocation = exitPickupLocation;
+        newBookingData.pickupTime = pickupTime1;
+        newBookingData.bookingDate = exitPickupDate;
+      } else if (selectedPort === "Local Transfer") {
+        newBookingData.pickupLocation = pickupLocation;
+        newBookingData.dropoffLocation = dropoffLocation;
+        newBookingData.pickupTime = pickupTimeZone;
+        newBookingData.bookingDate = pickupDate;
       }
+
+      // Use setTimeout to prevent immediate state updates that could cause loops
+      setTimeout(() => {
+        setAllBookings(prev => {
+          const newBookings = [...prev, newBookingData];
+          const newIndex = newBookings.length - 1;
+          setExpandedSections(prevExpanded => [...prevExpanded, newIndex]);
+          
+          // Clear the search day index after creating the booking
+          dispatch(clearSearchDayIndex());
+          
+          return newBookings;
+        });
+      }, 50);
     } else if (hasVehicles && selectedPort) {
       // Log when we have vehicles but this component shouldn't create the booking
       console.log(`Local Transport - Day ${dayIndex}: Skipping booking creation (searchDayIndex: ${searchDayIndex}, this dayIndex: ${dayIndex})`);
@@ -923,6 +1404,17 @@ const LocalTransportComponent = React.memo(function LocalTransportComponent({ da
     dispatch,
     allBookings
   ]);
+
+  // Monitor Redux state changes for debugging
+  useEffect(() => {
+    console.log(`Local Transport - Day ${dayIndex}: Redux state updated:`, {
+      allServicesCount: allServices.length,
+      transportServices: allServices.filter(s => ["travel_point", "travel_hourly", "local_transport"].includes(s.type))
+        .map(s => ({ type: s.type, booking_id: s.booking_id, dataCount: s.data?.length || 0 })),
+      vehiclesCount: vehicles.length,
+      selectedPort: selectedPort
+    });
+  }, [allServices, vehicles, selectedPort, dayIndex]);
 
   // Improved booking validation and auto-dispatch trigger
   useEffect(() => {
@@ -946,7 +1438,7 @@ const LocalTransportComponent = React.memo(function LocalTransportComponent({ da
 
     // If we found new complete bookings, trigger dispatch
     if (newCompleteBookings.length > 0) {
-      console.log(`Local Transport - Auto dispatch triggered for ${newCompleteBookings.length} complete bookings on dayIndex ${dayIndex}`);
+     
 
 
 
@@ -1004,7 +1496,7 @@ const LocalTransportComponent = React.memo(function LocalTransportComponent({ da
   }, [allBookings, isBookingValid, savedBookingIds, dispatchValidBookingsToRedux, dayIndex]);
 
   // Handler functions
-  const handleVehicleChange = useCallback((sectionIndex, vehicleId, mode, dmcId, city, country) => {
+  const handleVehicleChange = useCallback((sectionIndex, vehicleId, mode, dmcId, city, country, toZoneId, fromZoneId) => {
     setAllBookings(prevBookings => {
       const newBookings = [...prevBookings];
 
@@ -1037,6 +1529,10 @@ const LocalTransportComponent = React.memo(function LocalTransportComponent({ da
         updatedBookingDate = pickupDate;
       }
 
+      // For Local Transfer, ensure zone IDs are set
+      const finalToZoneId = transportType === "Local Transfer" ? (toZoneId || '1') : '';
+      const finalFromZoneId = transportType === "Local Transfer" ? (fromZoneId || '1') : '';
+
       newBookings[sectionIndex] = {
         ...newBookings[sectionIndex],
         vehicleId,
@@ -1051,7 +1547,11 @@ const LocalTransportComponent = React.memo(function LocalTransportComponent({ da
         pickupLocation: updatedPickupLocation,
         dropoffLocation: updatedDropoffLocation,
         pickupTime: updatedPickupTime,
-        bookingDate: updatedBookingDate
+        bookingDate: updatedBookingDate,
+        // Add zone information for Local Transfer
+        to_zone_id: finalToZoneId,
+        from_zone_id: finalFromZoneId,
+        zoneId: finalToZoneId // For compatibility with existing code
       };
 
       return newBookings;
@@ -1161,10 +1661,17 @@ const LocalTransportComponent = React.memo(function LocalTransportComponent({ da
     const bookingToRemove = allBookings[indexToRemove];
     
     if (bookingToRemove) {
-      console.log(`Local Transport - Removing booking:`, bookingToRemove);
+      
       
       // Generate the signature for this booking to remove it from saved IDs
-      const bookingSignature = `${bookingToRemove.vehicleId}-${bookingToRemove.priceMode}-${bookingToRemove.price}-${bookingToRemove.adults}-${bookingToRemove.children}-${bookingToRemove.pickupLocation || ''}-${bookingToRemove.dropoffLocation || ''}-${bookingToRemove.hours || 1}`;
+      let bookingSignature = `${bookingToRemove.vehicleId}-${bookingToRemove.priceMode}-${bookingToRemove.price}-${bookingToRemove.adults}-${bookingToRemove.children}-${bookingToRemove.pickupLocation || ''}-${bookingToRemove.dropoffLocation || ''}`;
+      
+      // Add transport-specific fields to signature
+      if (bookingToRemove.transportType === "Hourly") {
+        bookingSignature += `-${bookingToRemove.hours || 1}`;
+      } else if (bookingToRemove.transportType === "Local Transfer") {
+        bookingSignature += `-${bookingToRemove.to_zone_id || '1'}-${bookingToRemove.from_zone_id || '1'}`;
+      }
       
       setAllBookings(prevBookings => {
         const updatedBookings = prevBookings.filter((_, index) => index !== indexToRemove);
@@ -1181,7 +1688,7 @@ const LocalTransportComponent = React.memo(function LocalTransportComponent({ da
       
       // Remove the booking signature from saved IDs
       setSavedBookingIds(prev => prev.filter(signature => signature !== bookingSignature));
-      console.log(`Local Transport - Removed booking signature from saved IDs: ${bookingSignature.substring(0, 50)}...`);
+      
       
       setExpandedSections(prev => 
         prev.filter(index => index !== indexToRemove)
@@ -1197,7 +1704,7 @@ const LocalTransportComponent = React.memo(function LocalTransportComponent({ da
           if (service.localBookingIndex !== undefined && service.data && service.data.some(item => item.componentDayIndex === dayIndex)) {
             // Remove service if it corresponds to the booking we want to remove
             if (service.localBookingIndex === indexToRemove) {
-              console.log(`Local Transport - Removing service for booking index ${indexToRemove} from Redux`);
+             
               return false;
             }
           }
@@ -1206,7 +1713,7 @@ const LocalTransportComponent = React.memo(function LocalTransportComponent({ da
           if (service.data && Array.isArray(service.data) && bookingToRemove.originalData) {
             const containsBooking = service.data.some(item => item.id === bookingToRemove.originalData.id);
             if (containsBooking) {
-              console.log(`Local Transport - Removing legacy service with booking ID ${bookingToRemove.originalData.id} from Redux`);
+              
               return false;
             }
           }
@@ -1216,7 +1723,7 @@ const LocalTransportComponent = React.memo(function LocalTransportComponent({ da
         });
         
         if (filteredServices.length !== currentServices.length) {
-          console.log(`Local Transport - Updating Redux services after removal`);
+          
           dispatch(setAllServices(filteredServices));
           prevServicesRef.current = filteredServices;
         }
@@ -1353,27 +1860,27 @@ const LocalTransportComponent = React.memo(function LocalTransportComponent({ da
   // Show search form if no search performed yet
   if (!anySearchPerformed) {
     return (
-      <Container maxWidth="xl" sx={{ py: 2, position: 'relative' }}>
+      <Container maxWidth="xl" sx={{ py: 0.5, position: 'relative' }}>
         {/* Header Card with Gradient Background */}
         <Card 
           elevation={3}
           sx={{
-            borderRadius: 3,
+            borderRadius: 2,
             background: 'linear-gradient(135deg, #ff6b6b 0%, #ee5a24 100%)',
             color: 'white',
-            mb: 3,
+            mb: 0.1,
             mx: 'auto',
           }}
         >
-          <CardContent sx={{ py: 1}}>
+          <CardContent sx={{height: '52px', py: 0.1}}>
             <Box display="flex" alignItems="center" justifyContent="space-between">
               <Box display="flex" alignItems="center">
-                <DirectionsCarIcon sx={{ mr: 2, fontSize: 32, color: '#FFD700' }} />
+                <DirectionsCarIcon sx={{ mr: 1.5, fontSize: "1.1rem", color: '#FFD700' }} />
                 <Box>
-                  <Typography variant="h5" fontWeight="600" sx={{ color: 'white' }}>
+                  <Typography variant="h6" fontWeight="600" sx={{ color: 'white', fontSize: '0.9rem' }}>
                     Book Transport Services
                   </Typography>
-                  <Typography variant="body2" sx={{ color: 'rgba(255, 255, 255, 0.8)' }}>
+                  <Typography variant="body2" sx={{ color: 'rgba(255, 255, 255, 0.8)', fontSize: '0.7rem' }}>
                     Select professional transport and configure your tour package
                   </Typography>
                 </Box>
@@ -1384,7 +1891,9 @@ const LocalTransportComponent = React.memo(function LocalTransportComponent({ da
                   bgcolor: 'rgba(255, 255, 255, 0.2)',
                   color: 'white',
                   fontWeight: 600,
-                  border: '1px solid rgba(255, 255, 255, 0.3)'
+                  border: '1px solid rgba(255, 255, 255, 0.3)',
+                  fontSize: '0.75rem',
+                  height: '20px'
                 }}
               />
             </Box>
@@ -1395,17 +1904,17 @@ const LocalTransportComponent = React.memo(function LocalTransportComponent({ da
         <Card 
           elevation={2}
           sx={{ 
-            borderRadius: 3,
+            borderRadius: 2,
             border: `2px solid ${alpha('#ff6b6b', 0.2)}`,
-            mb: 3,
+            mb: 2,
             transition: 'all 0.3s ease',
             '&:hover': {
-              boxShadow: `0 8px 24px ${alpha('#ff6b6b', 0.15)}`,
-              transform: 'translateY(-2px)',
+              boxShadow: `0 6px 20px ${alpha('#ff6b6b', 0.15)}`,
+              transform: 'translateY(-1px)',
             }
           }}
         >
-          <CardContent sx={{ p: 2 }}>
+          <CardContent sx={{ p: 0.5 }}>
             <SearchLocationTransport Location={Location} dayIndex={dayIndex} date={date}/>
           </CardContent>
         </Card>
@@ -1414,27 +1923,65 @@ const LocalTransportComponent = React.memo(function LocalTransportComponent({ da
   }
 
   return (
-    <Container maxWidth="xl" sx={{ py: 2, position: 'relative' }}>
+    <Container maxWidth="xl" sx={{ py: 0.5, position: 'relative' }}>
       {/* Header Card with Gradient Background */}
       <Card 
         elevation={3}
         sx={{
-          borderRadius: 3,
+          borderRadius: 2,
           background: 'linear-gradient(135deg, #ff6b6b 0%, #ee5a24 100%)',
           color: 'white',
-          mb: 3,
+          mb: 0.5,
           mx: 'auto',
         }}
       >
-        <CardContent sx={{ py: 1}}>
-          <Box display="flex" alignItems="center" justifyContent="space-between">
-            <Box display="flex" alignItems="center">
-              <DirectionsCarIcon sx={{ mr: 2, fontSize: 32, color: '#FFD700' }} />
+        <CardContent sx={{ 
+          py: { xs: 1, sm: 0.8, md: 0.5 },
+          px: { xs: 1.5, sm: 2, md: 2 },
+          height: { xs: 'auto', sm: '52px' },
+          minHeight: { xs: '60px', sm: '52px' }
+        }}>
+          <Box 
+            display="flex" 
+            alignItems="center" 
+            justifyContent="space-between"
+            flexDirection={{ xs: 'column', sm: 'row' }}
+            gap={{ xs: 1, sm: 0 }}
+          >
+            <Box 
+              display="flex" 
+              alignItems="center"
+              flexDirection={{ xs: 'column', sm: 'row' }}
+              textAlign={{ xs: 'center', sm: 'left' }}
+              gap={{ xs: 1, sm: 0 }}
+            >
+              <DirectionsCarIcon sx={{ 
+                mr: { xs: 0, sm: 1.5 }, 
+                mb: { xs: 0.5, sm: 0 },
+                fontSize: { xs: '1.2rem', sm: '1.1rem' }, 
+                color: '#FFD700' 
+              }} />
               <Box>
-                <Typography variant="h5" fontWeight="600" sx={{ color: 'white' }}>
+                <Typography 
+                  variant="h6" 
+                  fontWeight="600" 
+                  sx={{ 
+                    color: 'white', 
+                    fontSize: { xs: '0.85rem', sm: '0.9rem', md: '0.9rem' },
+                    lineHeight: 1.2
+                  }}
+                >
                   Book Transport Services
                 </Typography>
-                <Typography variant="body2" sx={{ color: 'rgba(255, 255, 255, 0.8)' }}>
+                <Typography 
+                  variant="body2" 
+                  sx={{ 
+                    color: 'rgba(255, 255, 255, 0.8)', 
+                    fontSize: { xs: '0.65rem', sm: '0.7rem', md: '0.7rem' },
+                    lineHeight: 1.3,
+                    display: { xs: 'none', sm: 'block' }
+                  }}
+                >
                   Select professional transport and configure your tour package
                 </Typography>
               </Box>
@@ -1445,7 +1992,11 @@ const LocalTransportComponent = React.memo(function LocalTransportComponent({ da
                 bgcolor: 'rgba(255, 255, 255, 0.2)',
                 color: 'white',
                 fontWeight: 600,
-                border: '1px solid rgba(255, 255, 255, 0.3)'
+                border: '1px solid rgba(255, 255, 255, 0.3)',
+                fontSize: { xs: '0.7rem', sm: '0.75rem' },
+                height: { xs: '28px', sm: '24px' },
+                minWidth: { xs: '80px', sm: 'auto' },
+                mt: { xs: 0.5, sm: 0 }
               }}
             />
           </Box>
@@ -1453,7 +2004,7 @@ const LocalTransportComponent = React.memo(function LocalTransportComponent({ da
       </Card>
 
       {/* Search Section */}
-      <Box sx={{ mb: 3 }}>
+      <Box sx={{ mb: 2 }}>
         <SearchLocationTransport Location={Location} dayIndex={dayIndex} date={date} />
       </Box>
 
@@ -1461,7 +2012,7 @@ const LocalTransportComponent = React.memo(function LocalTransportComponent({ da
       <Fade in={validationError} timeout={300}>
         <Box>
           {validationError && (
-            <Alert severity="error" sx={{ mb: 2, borderRadius: 2 }}>
+            <Alert severity="error" sx={{ mb: 1.5, borderRadius: 1.5 }}>
               {validationError}
             </Alert>
           )}
@@ -1471,7 +2022,7 @@ const LocalTransportComponent = React.memo(function LocalTransportComponent({ da
       <Fade in={bookingSuccess} timeout={300}>
         <Box>
           {bookingSuccess && (
-            <Alert severity="success" sx={{ mb: 2, borderRadius: 2 }}>
+            <Alert severity="success" sx={{ mb: 1.5, borderRadius: 1.5 }}>
               Transport booking information saved successfully to the tour package data!
             </Alert>
           )}
@@ -1479,7 +2030,7 @@ const LocalTransportComponent = React.memo(function LocalTransportComponent({ da
       </Fade>
 
       {/* Multiple Booking Cards */}
-      <Grid container spacing={3}>
+      <Grid container spacing={1}>
         {allBookings.map((booking, bookingIndex) => {
           const isExpanded = expandedSections.includes(bookingIndex);
           const completionStatus = isBookingValid(booking) ? 4 : 
@@ -1492,40 +2043,37 @@ const LocalTransportComponent = React.memo(function LocalTransportComponent({ da
               <Card 
                 elevation={2}
                 sx={{ 
-                  borderRadius: 3,
-                  border: outOfTourDates ? '2px solid #e53935' : `2px solid ${alpha('#ff6b6b', 0.2)}`,
-                  background: outOfTourDates ? 'rgba(229,57,53,0.08)' : undefined,
+                  borderRadius: 2,
                   border: outOfTourDates ? '2px solid #e53935' : `2px solid ${alpha('#ff6b6b', 0.2)}`,
                   background: outOfTourDates ? 'rgba(229,57,53,0.08)' : undefined,
                   transition: 'all 0.3s ease',
                   '&:hover': {
                     boxShadow: outOfTourDates
-                      ? `0 8px 24px ${alpha('#e53935', 0.15)}`
-                      : `0 8px 24px ${alpha('#ff6b6b', 0.15)}`,
-                    boxShadow: outOfTourDates
-                      ? `0 8px 24px ${alpha('#e53935', 0.15)}`
-                      : `0 8px 24px ${alpha('#ff6b6b', 0.15)}`,
-                    transform: 'translateY(-2px)',
+                      ? `0 6px 20px ${alpha('#e53935', 0.15)}`
+                      : `0 6px 20px ${alpha('#ff6b6b', 0.15)}`,
+                    transform: 'translateY(-1px)',
                   }
                 }}
               >
                 <CardContent sx={{ p: 0 }}>
                   {/* Header */}
                   <Box sx={{ 
-                    p: 2,
+                    p: 1.5,
                     bgcolor: alpha('#ff6b6b', 0.05),
                     borderBottom: `1px solid ${alpha('#ff6b6b', 0.1)}`,
                     display: 'flex',
                     alignItems: 'center',
                     justifyContent: 'space-between'
                   }}>
-                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
+                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5 }}>
                       <Chip 
                         label={`Transport #${bookingIndex + 1}`}
                         sx={{ 
                           bgcolor: '#ff6b6b',
                           color: 'white',
-                          fontWeight: 600
+                          fontWeight: 600,
+                          fontSize: '0.75rem',
+                          height: '24px'
                         }}
                         size="small"
                       />
@@ -1534,67 +2082,82 @@ const LocalTransportComponent = React.memo(function LocalTransportComponent({ da
                         color={completionStatus === 4 ? "success" : "warning"}
                         size="small"
                         variant="outlined"
+                        sx={{ fontSize: '0.75rem', height: '24px' }}
                       />
                       <Chip 
                         label={booking.transportType || "Unknown"}
                         color={booking.transportType === "Hourly" ? "secondary" : "primary"}
                         size="small"
                         variant="outlined"
+                        sx={{ fontSize: '0.75rem', height: '24px' }}
                       />
-                      {(Number(booking.price) > 0 || Number(booking.totalPrice) > 0) && (
+                      {(Number(booking.price) > 0 || Number(booking.totalPrice) > 0) && PriceHide !== "1" && (
                         <Chip
-                          label={`$${(
-                            !isNaN(Number(booking.price)) && Number(booking.price) > 0
-                              ? Number(booking.price)
-                              : Number(booking.totalPrice)
-                          ).toFixed(2)}`}
+                          label={`Booking Successfully Added`}
                           color="success"
                           size="small"
                           variant="outlined"
+                          sx={{ fontSize: '0.75rem', height: '24px' }}
                         />
                       )}
                     </Box>
 
-                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.8 }}>
                       <Tooltip title={isExpanded ? "Collapse" : "Expand"}>
                         <IconButton 
                           size="small" 
                           onClick={() => toggleExpand(bookingIndex)}
                           sx={{ 
                             bgcolor: alpha('#ff6b6b', 0.1),
-                            '&:hover': { bgcolor: alpha('#ff6b6b', 0.2) }
+                            '&:hover': { bgcolor: alpha('#ff6b6b', 0.2) },
+                            width: 32,
+                            height: 32
                           }}
                         >
                           {isExpanded ? <ExpandLessIcon /> : <ExpandMoreIcon />}
                         </IconButton>
                       </Tooltip>
 
-
+{(tourStatus !== "Confirmed" && tourStatus !== "Definite" && tourStatus !== "Actual") && (
                         <Tooltip title="Remove this transport service">
                           <IconButton 
                             size="small" 
                             onClick={() => handleRemoveBooking(bookingIndex)}
                             sx={{ 
                               bgcolor: alpha('#f44336', 0.1),
-                              '&:hover': { bgcolor: alpha('#f44336', 0.2) }
+                              '&:hover': { bgcolor: alpha('#f44336', 0.2) },
+                              width: 32,
+                              height: 32
                             }}
                           >
-                            <DeleteIcon sx={{ fontSize: 18, color: '#f44336' }} />
+                            <DeleteIcon sx={{ fontSize: 16, color: '#f44336' }} />
                           </IconButton>
                         </Tooltip>
-
+                      )}
 
                       <Button
                         variant="outlined"
-                        size="large"
-                        onClick={() => handleOpenModal(bookingIndex)}
+                        size="medium"
+                        onClick={() => {
+                          // Force check if booking is complete
+                          if (isBookingValid(booking)) {
+                            
+                            handleOpenModal(bookingIndex);
+                          } else {
+                           
+                            // Show validation error
+                            setValidationError(validateBooking(booking, bookingIndex));
+                            // Clear error after 3 seconds
+                            setTimeout(() => setValidationError(null), 3000);
+                          }
+                        }}
                         disabled={!isBookingValid(booking)}
                         startIcon={<VisibilityIcon />}
                         sx={{
-                          borderRadius: 2,
-                          px: 4,
-                          py: 1,
-                          fontSize: '0.875rem',
+                          borderRadius: 1.5,
+                          px: 2.5,
+                          py: 0.8,
+                          fontSize: '0.8rem',
                           fontWeight: 600,
                           textTransform: 'none',
                           borderColor: '#ff6b6b',
@@ -1621,15 +2184,15 @@ const LocalTransportComponent = React.memo(function LocalTransportComponent({ da
                     <Paper 
                       elevation={0} 
                       sx={{ 
-                        m: 2,
+                        m: 0,
                         p: 0, 
-                        borderRadius: 2,
+                        borderRadius: 1,
                         background: 'rgba(255, 255, 255, 0.95)',
                         backdropFilter: 'blur(10px)'
                       }}
                     >
                       {/* Vehicle Dropdown with Complete Functionality */}
-                      <Box sx={{ p: 3 }}>
+                      <Box sx={{ p: 0.1 }}>
                         {booking.transportType === "Point To Point" && (searchPerformed["Point To Point"] || booking.originalData) && (
                           <VehicleListDropdown
                             key={`point-to-point-${bookingIndex}`}
@@ -1647,6 +2210,8 @@ const LocalTransportComponent = React.memo(function LocalTransportComponent({ da
                             cachedVehicles={getVehiclesForBooking(booking)}
                             cachedVehicleName={booking.vehicleName}
                             preloadedBooking={booking.originalData ? booking : null}
+                            onAddMore={handleAddMore}
+                            PointToPoint={PointToPoint}
                           />
                         )}
 
@@ -1669,6 +2234,8 @@ const LocalTransportComponent = React.memo(function LocalTransportComponent({ da
                             cachedVehicles={getVehiclesForBooking(booking)}
                             cachedVehicleName={booking.vehicleName}
                             preloadedBooking={booking.originalData ? booking : null}
+                            onAddMore={handleAddMore}
+                            Hourly={Hourly}
                           />
                         )}
 
@@ -1676,19 +2243,53 @@ const LocalTransportComponent = React.memo(function LocalTransportComponent({ da
                           <VehicleListDropdownZone
                             key={`local-transfer-${bookingIndex}`}
                             selectedVehicle={booking.vehicleId || null}
-                            onVehicleChange={(vehicleId, mode, dmcId, city, country) => 
-                              handleVehicleChange(bookingIndex, vehicleId, mode, dmcId, city, country)}
+                            onVehicleChange={(vehicleId, mode, dmcId, city, country, toZoneId, fromZoneId) => 
+                              handleVehicleChange(bookingIndex, vehicleId, mode, dmcId, city, country, toZoneId, fromZoneId)}
                             onPaxChange={(adults, children) => 
                               handlePaxChange(bookingIndex, adults, children)}
                             onPriceModeChange={(priceMode) => 
                               handlePriceModeChange(bookingIndex, priceMode)}
                             onPriceChange={(price) =>
                               handlePriceChange(bookingIndex, price)}
+                            onBookingComplete={(isComplete) => {
+                              // Only update if the completion status has changed
+                              const currentComplete = allBookings[bookingIndex]?.isComplete;
+                              if (currentComplete !== isComplete) {
+                                
+                                
+                                // Update booking completion status
+                                setAllBookings(prev => {
+                                  const updatedBookings = [...prev];
+                                  if (updatedBookings[bookingIndex]) {
+                                    updatedBookings[bookingIndex] = {
+                                      ...updatedBookings[bookingIndex],
+                                      isComplete: isComplete
+                                    };
+                                  }
+                                  return updatedBookings;
+                                });
+                                
+                                // Trigger Redux dispatch for complete bookings only once
+                                if (isComplete) {
+                                  
+                                  
+                                  // Use setTimeout to avoid immediate state updates
+                                  const timeoutId = setTimeout(() => {
+                                    dispatchValidBookingsToRedux();
+                                  }, 300);
+                                  
+                                  // Clean up timeout if component unmounts
+                                  return () => clearTimeout(timeoutId);
+                                }
+                              }
+                            }}
                             sectionIndex={bookingIndex}
                             isNewBooking={!booking.vehicleId && !booking.originalData}
                             cachedVehicles={getVehiclesForBooking(booking)}
                             cachedVehicleName={booking.vehicleName}
                             preloadedBooking={booking.originalData ? booking : null}
+                            onAddMore={handleAddMore}
+                            LocalTransports={LocalTransports}
                           />
                         )}
                       </Box>
@@ -1697,8 +2298,8 @@ const LocalTransportComponent = React.memo(function LocalTransportComponent({ da
 
                   {/* Red alert if out of tour dates */}
                   {outOfTourDates && (
-                    <Box sx={{ px: 2, pt: 1 }}>
-                      <Alert severity="error" sx={{ borderRadius: 2, mb: 1 }}>
+                    <Box sx={{ px: 1.5, pt: 0.8 }}>
+                      <Alert severity="error" sx={{ borderRadius: 1.5, mb: 0.8 }}>
                         The {booking.transportType} booking is out of currently updated tour dates
                       </Alert>
                     </Box>
@@ -1713,7 +2314,7 @@ const LocalTransportComponent = React.memo(function LocalTransportComponent({ da
         <Grid item xs={12}>
           <Card 
             sx={{ 
-              borderRadius: 3,
+              borderRadius: 2,
               border: `2px dashed ${alpha('#ff6b6b', 0.4)}`,
               bgcolor: alpha('#ff6b6b', 0.02),
               cursor: 'pointer',
@@ -1726,15 +2327,15 @@ const LocalTransportComponent = React.memo(function LocalTransportComponent({ da
             }}
             onClick={handleAddMore}
           >
-            <CardContent sx={{ py: 2 }}>
+            <CardContent sx={{ py: 1.5 }}>
               <Box sx={{ 
                 display: 'flex', 
                 alignItems: 'center', 
                 justifyContent: 'center',
-                gap: 2
+                gap: 1.5
               }}>
-                <AddIcon sx={{ fontSize: 32, color: '#ff6b6b' }} />
-                <Typography variant="h6" color="#ff6b6b" fontWeight={600}>
+                <AddIcon sx={{ fontSize: 28, color: '#ff6b6b' }} />
+                <Typography variant="h6" color="#ff6b6b" fontWeight={600} sx={{ fontSize: '1.1rem' }}>
                   Add More Transport Service
                 </Typography>
               </Box>

@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useRef, useEffect } from 'react';
 import { 
   Box, 
   Paper, 
@@ -17,7 +17,11 @@ import {
   DialogActions,
   List,
   ListItem,
-  ListItemText
+  ListItemText,
+  Stack,
+  Avatar,
+  TextField,
+  InputAdornment
 } from '@mui/material';
 import MuiAlert from "@mui/material/Alert";
 import { 
@@ -26,7 +30,8 @@ import {
   CalendarToday as CalendarIcon,
   People as PeopleIcon,
   Person as PersonIcon,
-  Warning as WarningIcon
+  Warning as WarningIcon,
+  Clear
 } from '@mui/icons-material';
 import LocationSearch from './LocationSearch';
 import DateRangePicker from './DateRangePicker';
@@ -49,11 +54,12 @@ import {
 import { fetchGuides } from "../../../slice/tourguide/guideslice";
 import { setBookingType } from "../../../slice/common/commonSlice";
 import { clearUserInfo } from "../../../slice/common/customerInfo";
-import { clearAttractions } from "../../../slice/attractions/attractionSlice";
+import { clearAttractions, resetIsFromMainSearch } from "../../../slice/attractions/attractionSlice";
 import { fetchAttractions } from "../../../slice/attractions/attractionSlice";
 import {
   fetchRestaurants,
   clearRestaurants,
+  setSearchParams as setRestaurantSearchParams,
 } from "../../../slice/restaurant/RestaurantsSlice";
 import { resetguide } from "../../../slice/tourguide/guideslice";
 import { resetVehicles } from "../../../slice/port/pickupDropSlice";
@@ -66,7 +72,6 @@ import {
   setGuest 
 } from "../../../slice/common/EnquirySlice";
 import { setSearchLocation } from "../../../slice/common/BookingSlice";
-import { fetchEnquiryList, clearEnquiryList } from "../../../slice/common/enquiryListSlice";
 import { setSearchCriteria, fetchTourPackages, clearPackages, clearAllServices, setAllServices, setPackageData } from "../../../slice/tour-packages/tourPackageSlice";
 import { store } from "../../../store/store";
 import { setSearchParams as setAttractionSearchParams } from "../../../slice/attractions/attractionSlice";
@@ -84,24 +89,28 @@ export default function SearchForm({ onNext, setActiveTab, packageData: propPack
   const dispatch = useDispatch();
   const tourdetails = useSelector((state) => state.hotels.tourdetails);
   const [selectedLocation, setSelectedLocation] = useState(null);
+  console.log("selectedLocationxx",selectedLocation);
+  // State to track if button should be hidden after click
+  const [isButtonHidden, setIsButtonHidden] = useState(false);
+  const [isupdated, setIsupdated] = useState(false);
   
   // Get all services for validation
   const allServices = useSelector((state) => state.tourPackages.AllServices);
-  console.log("All Services in SearchForm:", allServices);
+  // console.log("All Services in SearchForm:", allServices);
   
   // Get packageData from Redux state and prioritize it over prop
   const reduxPackageData = useSelector((state) => state.tourPackages.packageData);
   const enquirydetail = useSelector((state) => state.convertToTourList?.enquirydetail);
-  console.log("enquirydetail",enquirydetail);
+  // console.log("enquirydetail",enquirydetail);
   // Use Redux state if available, otherwise fall back to prop
   const packageData = reduxPackageData || propPackageData;
   
-  console.log("SearchForm packageData sources:", {
-    reduxPackageData: reduxPackageData,
-    propPackageData: propPackageData,
-    finalPackageData: packageData,
-    hasValidTourId: packageData?.tour?.tour_id > 0
-  });
+  // console.log("SearchForm packageData sources:", {
+  //   reduxPackageData: reduxPackageData,
+  //   propPackageData: propPackageData,
+  //   finalPackageData: packageData,
+  //   hasValidTourId: packageData?.tour?.tour_id > 0
+  // });
   
   // State for date validation dialog
   const [dateValidationDialog, setDateValidationDialog] = useState({
@@ -171,9 +180,37 @@ export default function SearchForm({ onNext, setActiveTab, packageData: propPack
         maleCount: tour.male_count || 0,
         femaleCount: tour.female_count || 0,
         genders: [], // Initialize empty array for compatibility
-        ages: tour.child_ages ? 
-          (Array.isArray(tour.child_ages) ? tour.child_ages : 
-           JSON.parse(tour.child_ages || '[]')) : [],
+        ages: (() => {
+          try {
+            if (tour.child_ages) {
+              if (Array.isArray(tour.child_ages)) {
+                return tour.child_ages;
+              } else if (typeof tour.child_ages === 'string') {
+                // Handle comma-separated string format like "16, 14, 14"
+                if (tour.child_ages.includes(',')) {
+                  return tour.child_ages.split(',').map(age => age.trim()).filter(age => age !== '');
+                }
+                // Handle single child age like "5" - convert to array
+                if (tour.child_ages.trim() !== '') {
+                  return [tour.child_ages.trim()];
+                }
+                // Try to parse as JSON first (for backward compatibility)
+                try {
+                  return JSON.parse(tour.child_ages);
+                } catch {
+                  // If JSON parsing fails, return empty array
+                  return [];
+                }
+              } else if (tour.child_ages) {
+                return [tour.child_ages];
+              }
+            }
+            return [];
+          } catch (error) {
+            console.error('Error parsing child_ages from tour:', error);
+            return [];
+          }
+        })(),
       };
     }
     
@@ -186,9 +223,37 @@ export default function SearchForm({ onNext, setActiveTab, packageData: propPack
         maleCount: enquirydetail.male_count || 0,
         femaleCount: enquirydetail.female_count || 0,
         genders: [], // Initialize empty array for compatibility
-        ages: enquirydetail.child_ages ? 
-          (Array.isArray(enquirydetail.child_ages) ? enquirydetail.child_ages : 
-           JSON.parse(enquirydetail.child_ages || '[]')) : [],
+        ages: (() => {
+          try {
+            if (enquirydetail.child_ages) {
+              if (Array.isArray(enquirydetail.child_ages)) {
+                return enquirydetail.child_ages;
+              } else if (typeof enquirydetail.child_ages === 'string') {
+                // Handle comma-separated string format like "16, 14, 14"
+                if (enquirydetail.child_ages.includes(',')) {
+                  return enquirydetail.child_ages.split(',').map(age => age.trim()).filter(age => age !== '');
+                }
+                // Handle single child age like "5" - convert to array
+                if (enquirydetail.child_ages.trim() !== '') {
+                  return [enquirydetail.child_ages.trim()];
+                }
+                // Try to parse as JSON first (for backward compatibility)
+                try {
+                  return JSON.parse(enquirydetail.child_ages);
+                } catch {
+                  // If JSON parsing fails, return empty array
+                  return [];
+                }
+              } else if (enquirydetail.child_ages) {
+                return [enquirydetail.child_ages];
+              }
+            }
+            return [];
+          } catch (error) {
+            console.error('Error parsing child_ages from enquirydetail:', error);
+            return [];
+          }
+        })(),
       };
     }
     
@@ -209,7 +274,7 @@ export default function SearchForm({ onNext, setActiveTab, packageData: propPack
   const [snackbarMessage, setSnackbarMessage] = useState("");
   const [snackbarSeverity, setSnackbarSeverity] = useState("error");
   console.log("packageDatasss", packageData);
-
+  const tourStatus = useSelector((state) => state.tourPackages.tourStatus);
   // Helper functions to get destination and city values
   const getDestinationValue = () => {
     if (packageData?.tour?.destination) {
@@ -232,7 +297,35 @@ export default function SearchForm({ onNext, setActiveTab, packageData: propPack
   };
 
   // Check if data is coming from enquirydetail (to disable date and guest selection)
-  const isDataFromEnquiryDetail = Boolean(enquirydetail && !packageData?.tour);
+  const isDataFromEnquiryDetail = Boolean(enquirydetail && !packageData?.tour) || isupdated; 
+
+  // Lock dates/guests if tour is already confirmed/definite/actual
+  const isStatusLocked =
+    tourStatus === "Confirmed" ||
+    tourStatus === "Definite" ||
+    tourStatus === "Actual";
+
+  const isDateGuestLocked = isDataFromEnquiryDetail || isStatusLocked;
+
+  // Helper function to safely get ages array
+  const getSafeAges = () => {
+    if (!guestCounts.ages || !Array.isArray(guestCounts.ages)) {
+      console.warn('getSafeAges: ages is not an array:', guestCounts.ages);
+      return [];
+    }
+    const filteredAges = guestCounts.ages.filter(age => age !== null && age !== undefined);
+    console.log('getSafeAges: filtered ages:', filteredAges);
+    return filteredAges;
+  };
+
+  // Helper function to safely get ages for API calls (maintains backward compatibility)
+  const getSafeAgesForAPI = () => {
+    const safeAges = getSafeAges();
+    if (safeAges.length === 0) {
+      return [];
+    }
+    return safeAges;
+  };
 
   // Log the initialization values for debugging
   React.useEffect(() => {
@@ -256,13 +349,49 @@ export default function SearchForm({ onNext, setActiveTab, packageData: propPack
   const [selectedAgent, setSelectedAgent] = useState('');
   const [selectedAgentName, setSelectedAgentName] = useState('');
   const [isAgentFromPackageData, setIsAgentFromPackageData] = useState(false);
+  const [searchTerm, setSearchTerm] = useState('');
+  const searchInputRef = useRef(null);
   const { agents } = useSelector((state) => state.agentList);
   
   // Fetch agents on component mount
   React.useEffect(() => {
     dispatch(fetchAgentList());
   }, [dispatch]);
+
+  // Filter agents based on search term
+  const filteredAgents = agents.filter(agent => {
+    if (!searchTerm) return true;
+    const searchLower = searchTerm.toLowerCase();
+    return (
+      agent.name.toLowerCase().includes(searchLower) ||
+      (agent.company_name && agent.company_name.toLowerCase().includes(searchLower))
+    );
+  });
+
+  // Handle search input change
+  const handleSearchChange = (event) => {
+    setSearchTerm(event.target.value);
+  };
+
+  // Clear search
+  const handleClearSearch = () => {
+    setSearchTerm('');
+  };
+
+  // Focus search input when dropdown opens
+  useEffect(() => {
+    if (searchInputRef.current) {
+      const timer = setTimeout(() => {
+        searchInputRef.current?.focus();
+      }, 100);
+      return () => clearTimeout(timer);
+    }
+  }, []);
   console.log("guestCounts",guestCounts);
+  console.log("guestCounts.ages type:", typeof guestCounts.ages, "value:", guestCounts.ages);
+  if (guestCounts.ages && Array.isArray(guestCounts.ages)) {
+    console.log("ages array contents:", guestCounts.ages.map(age => ({ value: age, type: typeof age })));
+  }
   // Auto-select agent based on packageData agent_id and agent_name
   React.useEffect(() => {
     const dataSource = packageData?.tour || enquirydetail;
@@ -273,12 +402,13 @@ export default function SearchForm({ onNext, setActiveTab, packageData: propPack
       console.log('Auto-selecting agent from data:', { agentId, agentName });
       
       // Set agent directly from data
+    
       setSelectedAgent(agentId);
       setSelectedAgentName(agentName);
       setIsAgentFromPackageData(true);
       dispatch(setAgentId(agentId));
     }
-  }, [packageData?.tour?.agent_id, packageData?.tour?.agent_name, enquirydetail?.agent_id, enquirydetail?.agent_name, selectedAgent, dispatch]);
+  }, [packageData?.tour?.agent_id, packageData?.tour?.destination, packageData?.tour?.agent_name, enquirydetail?.agent_id, enquirydetail?.agent_name, selectedAgent, dispatch]);
   
   // Create mapping for country codes to names
   const countryCodeToName = useMemo(() => {
@@ -384,8 +514,8 @@ export default function SearchForm({ onNext, setActiveTab, packageData: propPack
   };
 
   const handleDateChange = (dateRange) => {
-    // Prevent date changes when data is from enquirydetail
-    if (isDataFromEnquiryDetail) {
+    // Prevent date changes when data is from enquirydetail or status-locked
+    if (isDateGuestLocked) {
       return;
     }
     
@@ -420,13 +550,25 @@ export default function SearchForm({ onNext, setActiveTab, packageData: propPack
     setDateValidationDialog({ open: false, conflictingServices: [], newDateRange: { start: null, end: null } });
   };
 
+  useEffect(() => {
+    dispatch(setSearchCriteria({}));
+    dispatch(setAttractionSearchParams({}));
+    dispatch(setGuideSearchParams({}));
+    dispatch(setRestaurantSearchParams({}));
+    dispatch(updateSearchState({}));
+    dispatch(setGuest({}));
+    dispatch(settourdetails({}));
+    dispatch(clearAllServices());
+  }, []);
   // Extract the actual update logic into a separate function
   const proceedWithUpdate = async () => {
     // Clear previous customer info when starting update
     dispatch(clearUserInfo());
     dispatch(clearAllServices());
+    
     // Clear previous data
     dispatch(clearAttractions());
+    dispatch(resetIsFromMainSearch());
     dispatch(clearRestaurants());
     dispatch(resetVehicles());
     dispatch(resetVehicles1()); 
@@ -525,10 +667,10 @@ export default function SearchForm({ onNext, setActiveTab, packageData: propPack
     }));
 
     // Fetch guides with the required parameters
-    dispatch(fetchGuides({
-      city: `${city}, (${country})`,
-      date: formattedAttractionDate
-    }));
+    // dispatch(fetchGuides({
+    //   city: `${city}, (${country})`,
+    //   date: formattedAttractionDate
+    // }));
 
     // Fetch attractions based on search criteria
     dispatch(fetchAttractions({
@@ -538,7 +680,8 @@ export default function SearchForm({ onNext, setActiveTab, packageData: propPack
       children: guestCounts.Children,
       tour_id: tourId, // Use tour_id from packageData
       selectedDate: moment(startDate),
-      fromMainSearch: false
+      fromMainSearch: false,
+
     }));
 
     // Fetch restaurants based on search criteria
@@ -574,7 +717,7 @@ export default function SearchForm({ onNext, setActiveTab, packageData: propPack
 }));
 
 // Step 2: Fetch hotels using pagination args
-dispatch(fetchHotels({ start: 0, limit: 10 }));
+dispatch(fetchHotels());
 
     // Also update the enquiry slice data for compatibility with other parts of the app
     // Set location data in the right format for EnquirySlice
@@ -628,8 +771,8 @@ dispatch(fetchHotels({ start: 0, limit: 10 }));
   
 
   const handleGuestChange = (updatedGuestCounts) => {
-    // Prevent guest changes when data is from enquirydetail
-    if (isDataFromEnquiryDetail) {
+    // Prevent guest changes when data is from enquirydetail or status-locked
+    if (isDateGuestLocked) {
       return;
     }
     
@@ -650,12 +793,12 @@ dispatch(fetchHotels({ start: 0, limit: 10 }));
       return false;
     }
 
-    if (!selectedLocation.city) {
-      setSnackbarMessage("Please select a city.");
-      setSnackbarSeverity("error");
-      setOpenSnackbar(true);
-      return false;
-    }
+    // if (!selectedLocation.city) {
+    //   setSnackbarMessage("Please select a city.");
+    //   setSnackbarSeverity("error");
+    //   setOpenSnackbar(true);
+    //   return false;
+    // }
 
     if (!startDate || !endDate) {
       setSnackbarMessage("Please select check-in and check-out dates.");
@@ -698,9 +841,27 @@ dispatch(fetchHotels({ start: 0, limit: 10 }));
 
     if (
       guestCounts.Children > 0 &&
-      !guestCounts.ages.every((age) => age.trim() !== "")
+      getSafeAges().length !== guestCounts.Children
     ) {
-      setSnackbarMessage("Please provide an age for all children.");
+      setSnackbarMessage(`Please provide ages for all ${guestCounts.Children} children.`);
+      setSnackbarSeverity("error");
+      setOpenSnackbar(true);
+      return false;
+    }
+
+    if (
+      guestCounts.Children > 0 &&
+      !getSafeAges().every((age) => {
+        // Handle both string and number types for age
+        if (typeof age === 'string') {
+          return age.trim() !== "";
+        } else if (typeof age === 'number') {
+          return age > 0;
+        }
+        return false; // Invalid age type
+      })
+    ) {
+      setSnackbarMessage("Please provide valid ages for all children.");
       setSnackbarSeverity("error");
       setOpenSnackbar(true);
       return false;
@@ -717,7 +878,11 @@ dispatch(fetchHotels({ start: 0, limit: 10 }));
   const handleSearch = async (e) => {
     e.preventDefault();
 
-    if (!validateForm()) return;
+    if (!validateForm()) {
+      // Show the button again if validation fails
+      setIsButtonHidden(false);
+      return;
+    }
 
     console.log("=== SEARCH START ===");
     console.log("Before clearing packageData - Redux:", reduxPackageData);
@@ -732,7 +897,9 @@ dispatch(fetchHotels({ start: 0, limit: 10 }));
     dispatch(clearUserInfo());
     dispatch(clearAllServices());
     // Clear previous data
+    dispatch(resetHotels());
     dispatch(clearAttractions());
+    dispatch(resetIsFromMainSearch());
     dispatch(clearRestaurants());
     dispatch(resetVehicles());
     dispatch(resetVehicles1()); 
@@ -814,6 +981,19 @@ dispatch(fetchHotels({ start: 0, limit: 10 }));
       children: guestCounts.Children,
       tour_id: tourId // Use tour_id from packageData
     }));
+    dispatch(setRestaurantSearchParams({
+      location: {
+        country: country,
+        city: `${city}, (${country})`,
+        address: `${city}, (${country})`,
+        countryCode: countryCode,
+        cityCode: cityCode
+      },
+      date: moment(startDate),
+      adults: guestCounts.Adults,
+      children: guestCounts.Children,
+      tour_id: tourId // Use tour_id from packageData
+    }));
 
     // Update the guide search params and fetch guides
     dispatch(setGuideSearchParams({
@@ -831,21 +1011,22 @@ dispatch(fetchHotels({ start: 0, limit: 10 }));
     }));
 
     // Fetch guides with the required parameters
-    dispatch(fetchGuides({
-      city: `${city}, (${country})`,
-      date: formattedAttractionDate
-    }));
+    // dispatch(fetchGuides({
+    //   city: `${city}, (${country})`,
+    //   date: formattedAttractionDate
+    // }));
 
     // Fetch attractions based on search criteria
-    dispatch(fetchAttractions({
-      city: `${city}, (${country})`, // Format city with country
-      date: formattedAttractionDate, // Use YYYY-MM-DD format
-      adults: guestCounts.Adults,
-      children: guestCounts.Children,
-      tour_id: tourId, // Use tour_id from packageData
-      selectedDate: moment(startDate),
-      fromMainSearch: false
-    }));
+    // dispatch(fetchAttractions({
+    //   city: `${city}, (${country})`, // Format city with country
+    //   date: formattedAttractionDate, // Use YYYY-MM-DD format
+    //   adults: guestCounts.Adults,
+    //   children: guestCounts.Children,
+    //   tour_id: tourId, // Use tour_id from packageData
+    //   selectedDate: moment(startDate),
+    //   fromMainSearch: false,
+     
+    // }));
 
     // Fetch restaurants based on search criteria
     console.log('Dispatching fetchRestaurants with params:', {
@@ -857,20 +1038,20 @@ dispatch(fetchHotels({ start: 0, limit: 10 }));
       fromMainSearch: false
     });
 
-    dispatch(fetchRestaurants({
-      city: `${city}, (${country})`,
-      date: formattedAttractionDate,
-      adults: guestCounts.Adults,
-      children: guestCounts.Children,
-      tour_id: tourId, // Use tour_id from packageData
-      fromMainSearch: false
-    }))
-    .then((response) => {
-      console.log('fetchRestaurants response:', response);
-    })
-    .catch((error) => {
-      console.error('fetchRestaurants error:', error);
-    });
+    // dispatch(fetchRestaurants({
+    //   city: `${city}, (${country})`,
+    //   date: formattedAttractionDate,
+    //   adults: guestCounts.Adults,
+    //   children: guestCounts.Children,
+    //   tour_id: tourId, // Use tour_id from packageData
+    //   fromMainSearch: false
+    // }))
+    // .then((response) => {
+    //   console.log('fetchRestaurants response:', response);
+    // })
+    // .catch((error) => {
+    //   console.error('fetchRestaurants error:', error);
+    // });
 
    dispatch(updateSearchState({
   location: [city], // or just city if location is a single string
@@ -880,7 +1061,7 @@ dispatch(fetchHotels({ start: 0, limit: 10 }));
 }));
 
 // Step 2: Fetch hotels using pagination args
-dispatch(fetchHotels({ start: 0, limit: 10 }));
+// dispatch(fetchHotels());
 
     // Also update the enquiry slice data for compatibility with other parts of the app
     // Set location data in the right format for EnquirySlice
@@ -952,6 +1133,9 @@ dispatch(fetchHotels({ start: 0, limit: 10 }));
         
         console.log("=== SEARCH COMPLETE ===");
         console.log("Search completed successfully, packageData should be null");
+        
+        // Show the button again after successful API call
+        setIsButtonHidden(true);
       })
       .catch((error) => {
         console.error("Error fetching tour packages:", error);
@@ -960,6 +1144,9 @@ dispatch(fetchHotels({ start: 0, limit: 10 }));
         );
         setSnackbarSeverity("error");
         setOpenSnackbar(true);
+        
+        // Show the button again after error
+        setIsButtonHidden(false);
       });
 
     // For backward compatibility, also create a booking ID
@@ -994,13 +1181,21 @@ dispatch(fetchHotels({ start: 0, limit: 10 }));
   const handleUpdate = async (e) => {
     e.preventDefault();
 
-    if (!validateForm()) return;
+    if (!validateForm()) {
+      // Show the button again if validation fails
+      setIsButtonHidden(false);
+      return;
+    }
 
+    try {
+      setIsupdated(true);
     // Clear previous customer info when starting update
     dispatch(clearUserInfo());
     // dispatch(clearAllServices());
     // Clear previous data
+    dispatch(resetHotels());
     dispatch(clearAttractions());
+    dispatch(resetIsFromMainSearch());
     dispatch(clearRestaurants());
     dispatch(resetVehicles());
     dispatch(resetVehicles1()); 
@@ -1082,6 +1277,19 @@ dispatch(fetchHotels({ start: 0, limit: 10 }));
       children: guestCounts.Children,
       tour_id: tourId // Use tour_id from packageData
     }));
+    dispatch(setRestaurantSearchParams({
+      location: {
+        country: country,
+        city: `${city}, (${country})`,
+        address: `${city}, (${country})`,
+        countryCode: countryCode,
+        cityCode: cityCode
+      },
+      date: moment(startDate),
+      adults: guestCounts.Adults,
+      children: guestCounts.Children,
+      tour_id: tourId // Use tour_id from packageData
+    }));
 
     // Update the guide search params and fetch guides
     dispatch(setGuideSearchParams({
@@ -1099,21 +1307,22 @@ dispatch(fetchHotels({ start: 0, limit: 10 }));
     }));
 
     // Fetch guides with the required parameters
-    dispatch(fetchGuides({
-      city: `${city}, (${country})`,
-      date: formattedAttractionDate
-    }));
+    // dispatch(fetchGuides({
+    //   city: `${city}, (${country})`,
+    //   date: formattedAttractionDate
+    // }));
 
     // Fetch attractions based on search criteria
-    dispatch(fetchAttractions({
-      city: `${city}, (${country})`, // Format city with country
-      date: formattedAttractionDate, // Use YYYY-MM-DD format
-      adults: guestCounts.Adults,
-      children: guestCounts.Children,
-      tour_id: tourId, // Use tour_id from packageData
-      selectedDate: moment(startDate),
-      fromMainSearch: false
-    }));
+    // dispatch(fetchAttractions({
+    //   city: `${city}, (${country})`, // Format city with country
+    //   date: formattedAttractionDate, // Use YYYY-MM-DD format
+    //   adults: guestCounts.Adults,
+    //   children: guestCounts.Children,
+    //   tour_id: tourId, // Use tour_id from packageData
+    //   selectedDate: moment(startDate),
+    //   fromMainSearch: false,
+     
+    // }));
 
     // Fetch restaurants based on search criteria
     console.log('Dispatching fetchRestaurants with params:', {
@@ -1125,20 +1334,20 @@ dispatch(fetchHotels({ start: 0, limit: 10 }));
       fromMainSearch: false
     });
 
-    dispatch(fetchRestaurants({
-      city: `${city}, (${country})`,
-      date: formattedAttractionDate,
-      adults: guestCounts.Adults,
-      children: guestCounts.Children,
-      tour_id: tourId, // Use tour_id from packageData
-      fromMainSearch: false
-    }))
-    .then((response) => {
-      console.log('fetchRestaurants response:', response);
-    })
-    .catch((error) => {
-      console.error('fetchRestaurants error:', error);
-    });
+    // dispatch(fetchRestaurants({
+    //   city: `${city}, (${country})`,
+    //   date: formattedAttractionDate,
+    //   adults: guestCounts.Adults,
+    //   children: guestCounts.Children,
+    //   tour_id: tourId, // Use tour_id from packageData
+    //   fromMainSearch: false
+    // }))
+    // .then((response) => {
+    //   console.log('fetchRestaurants response:', response);
+    // })
+    // .catch((error) => {
+    //   console.error('fetchRestaurants error:', error);
+    // });
 
    dispatch(updateSearchState({
   location: [city], // or just city if location is a single string
@@ -1148,7 +1357,8 @@ dispatch(fetchHotels({ start: 0, limit: 10 }));
 }));
 
 // Step 2: Fetch hotels using pagination args
-dispatch(fetchHotels({ start: 0, limit: 10 }));
+// dispatch(fetchHotels());
+
 
     // Also update the enquiry slice data for compatibility with other parts of the app
     // Set location data in the right format for EnquirySlice
@@ -1197,12 +1407,39 @@ dispatch(fetchHotels({ start: 0, limit: 10 }));
     }
 
     console.log("Tour package updated successfully with tour_id:", tourId);
+    
+    // Show the button again after successful update
+    setIsButtonHidden(true);
+    
+    } catch (error) {
+      console.error("Error updating tour package:", error);
+      setSnackbarMessage(
+        "Failed to update tour package. Please try again."
+      );
+      setSnackbarSeverity("error");
+      setOpenSnackbar(true);
+      
+      // Show the button again after error
+      setIsButtonHidden(false);
+    }
   };
 
  
   // Determine which handler to use based on packageData presence
   const isUpdatingExistingPackage = Boolean(packageData?.tour?.tour_id > 0);
-  const handleFormSubmit = isUpdatingExistingPackage ? handleUpdate : handleSearch;
+  
+  // Modified form submit handler to hide button after single click
+  const handleFormSubmit = async (e) => {
+    // Hide the button immediately after click
+    setIsButtonHidden(true);
+    
+    // Call the appropriate handler
+    if (isUpdatingExistingPackage) {
+      await handleUpdate(e);
+    } else {
+      await handleSearch(e);
+    }
+  };
   
   // Determine button text based on data source
   const getButtonText = () => {
@@ -1281,17 +1518,17 @@ dispatch(fetchHotels({ start: 0, limit: 10 }));
                 sx={{
                   p: 1,
                   borderRadius: 1.5,
-                  bgcolor: isDataFromEnquiryDetail ? '#f5f5f5' : 'white',
+                  bgcolor: isDateGuestLocked ? '#f5f5f5' : 'white',
                   border: '1px solid #e2e8f0',
                   height: '100%',
                   minHeight: '60px',
                   position: 'relative',
                   zIndex: 10,
                   overflow: 'visible',
-                  opacity: isDataFromEnquiryDetail ? 0.7 : 1,
+                  opacity: isDateGuestLocked ? 0.7 : 1,
                   '&:hover': {
-                    borderColor: isDataFromEnquiryDetail ? '#e2e8f0' : '#3b82f6',
-                    boxShadow: isDataFromEnquiryDetail ? 'none' : '0 2px 6px rgba(59, 130, 246, 0.1)'
+                    borderColor: isDateGuestLocked ? '#e2e8f0' : '#3b82f6',
+                    boxShadow: isDateGuestLocked ? 'none' : '0 2px 6px rgba(59, 130, 246, 0.1)'
                   },
                   transition: 'all 0.2s ease-in-out'
                 }}
@@ -1301,7 +1538,7 @@ dispatch(fetchHotels({ start: 0, limit: 10 }));
                   sx={{ 
                     mb: 0.5, 
                     fontWeight: 600, 
-                    color: isDataFromEnquiryDetail ? '#9ca3af' : '#374151',
+                    color: isDateGuestLocked ? '#9ca3af' : '#374151',
                     textTransform: 'uppercase',
                     fontSize: '0.65rem',
                     letterSpacing: '0.05em',
@@ -1310,9 +1547,9 @@ dispatch(fetchHotels({ start: 0, limit: 10 }));
                     gap: 0.5
                   }}
                 >
-                  <CalendarIcon sx={{ color: isDataFromEnquiryDetail ? '#9ca3af' : '#10b981', fontSize: 14 }} />
+                  <CalendarIcon sx={{ color: isDateGuestLocked ? '#9ca3af' : '#10b981', fontSize: 14 }} />
                   Travel Dates
-                  {isDataFromEnquiryDetail && (
+                  {isDateGuestLocked && (
                     <Typography 
                       variant="caption" 
                       sx={{ 
@@ -1331,9 +1568,9 @@ dispatch(fetchHotels({ start: 0, limit: 10 }));
                     onDateChange={handleDateChange}
                     defaultCheckIn={packageData?.tour?.check_in_time || enquirydetail?.check_in_time}
                     defaultCheckOut={packageData?.tour?.check_out_time || enquirydetail?.check_out_time}
-                    isDataFromEnquiryDetail={isDataFromEnquiryDetail}
+                    isDataFromEnquiryDetail={isDateGuestLocked}
                   />
-                  {isDataFromEnquiryDetail && (
+                  {isDateGuestLocked &&  (
                     <Box
                       sx={{
                         position: 'absolute',
@@ -1357,17 +1594,17 @@ dispatch(fetchHotels({ start: 0, limit: 10 }));
                 sx={{
                   p: 1,
                   borderRadius: 1.5,
-                  bgcolor: isDataFromEnquiryDetail ? '#f5f5f5' : 'white',
+                  bgcolor: isDateGuestLocked ? '#f5f5f5' : 'white',
                   border: '1px solid #e2e8f0',
                   height: '100%',
                   minHeight: '60px',
                   position: 'relative',
                   zIndex: 9,
                   overflow: 'visible',
-                  opacity: isDataFromEnquiryDetail ? 0.7 : 1,
+                  opacity: isDateGuestLocked ? 0.7 : 1,
                   '&:hover': {
-                    borderColor: isDataFromEnquiryDetail ? '#e2e8f0' : '#3b82f6',
-                    boxShadow: isDataFromEnquiryDetail ? 'none' : '0 2px 6px rgba(59, 130, 246, 0.1)'
+                    borderColor: isDateGuestLocked ? '#e2e8f0' : '#3b82f6',
+                    boxShadow: isDateGuestLocked ? 'none' : '0 2px 6px rgba(59, 130, 246, 0.1)'
                   },
                   transition: 'all 0.2s ease-in-out'
                 }}
@@ -1377,7 +1614,7 @@ dispatch(fetchHotels({ start: 0, limit: 10 }));
                   sx={{ 
                     mb: 0.5, 
                     fontWeight: 600, 
-                    color: isDataFromEnquiryDetail ? '#9ca3af' : '#374151',
+                    color: isDateGuestLocked ? '#9ca3af' : '#374151',
                     textTransform: 'uppercase',
                     fontSize: '0.65rem',
                     letterSpacing: '0.05em',
@@ -1386,9 +1623,9 @@ dispatch(fetchHotels({ start: 0, limit: 10 }));
                     gap: 0.5
                   }}
                 >
-                  <PeopleIcon sx={{ color: isDataFromEnquiryDetail ? '#9ca3af' : '#f59e0b', fontSize: 14 }} />
+                  <PeopleIcon sx={{ color: isDateGuestLocked ? '#9ca3af' : '#f59e0b', fontSize: 14 }} />
                   Guests
-                  {isDataFromEnquiryDetail && (
+                  {isDateGuestLocked && (
                     <Typography 
                       variant="caption" 
                       sx={{ 
@@ -1406,9 +1643,9 @@ dispatch(fetchHotels({ start: 0, limit: 10 }));
                   <PaxSelector 
                     guestCounts={guestCounts}
                     onGuestChange={handleGuestChange}
-                    disabled={isDataFromEnquiryDetail}
+                    disabled={isDateGuestLocked}
                   />
-                  {isDataFromEnquiryDetail && (
+                  {isDateGuestLocked && (
                     <Box
                       sx={{
                         position: 'absolute',
@@ -1496,40 +1733,201 @@ dispatch(fetchHotels({ start: 0, limit: 10 }));
                       onChange={handleAgentChange}
                       label="Select Agent *"
                       required
+                      sx={{
+                        "& .MuiOutlinedInput-root": {
+                          backgroundColor: "#f8fafc",
+                          borderColor: "#e2e8f0",
+                          "&:hover": {
+                            borderColor: "#94a3b8",
+                          },
+                          "&.Mui-focused": {
+                            borderColor: "#3b82f6",
+                            boxShadow: "0 0 0 2px rgba(59, 130, 246, 0.1)",
+                          },
+                        },
+                        "& .MuiSelect-icon": {
+                          color: "#64748b",
+                        },
+                        "& .MuiInputLabel-root": {
+                          color: "#475569",
+                          "&.Mui-focused": {
+                            color: "#3b82f6",
+                          },
+                        },
+                      }}
                       MenuProps={{
                         PaperProps: {
                           sx: {
-                            maxHeight: 200,
-                            mt: 1,
-                            boxShadow: '0 4px 20px rgba(0,0,0,0.1)',
-                            borderRadius: 2
-                          }
-                        }
+                            maxHeight: 400,
+                            boxShadow: "0 10px 25px rgba(0, 0, 0, 0.15)",
+                            border: "1px solid #e2e8f0",
+                            borderRadius: "8px",
+                            "& .MuiMenuItem-root": {
+                              fontSize: "0.9rem",
+                              padding: "12px 16px",
+                              "&:hover": {
+                                backgroundColor: "#f1f5f9",
+                              },
+                              "&.Mui-selected": {
+                                backgroundColor: "#dbeafe",
+                                color: "#1e40af",
+                                "&:hover": {
+                                  backgroundColor: "#bfdbfe",
+                                },
+                              },
+                            },
+                          },
+                        },
+                        MenuListProps: {
+                          sx: {
+                            padding: 0,
+                          },
+                          onKeyDown: (e) => {
+                            // Allow typing in search input
+                            if (e.target.tagName === 'INPUT') {
+                              e.stopPropagation();
+                            }
+                          },
+                        },
+                        disableAutoFocus: true,
+                        disableEnforceFocus: true,
+                        disableRestoreFocus: true,
                       }}
                     >
+                      {/* Search Input in Dropdown */}
+                      <Box 
+                        sx={{ 
+                          p: 2, 
+                          borderBottom: "1px solid #e2e8f0", 
+                          backgroundColor: "#f8fafc",
+                          position: "sticky",
+                          top: 0,
+                          zIndex: 1
+                        }}
+                        onClick={(e) => e.stopPropagation()}
+                        onMouseDown={(e) => e.stopPropagation()}
+                      >
+                        <TextField
+                          ref={searchInputRef}
+                          fullWidth
+                          size="small"
+                          placeholder="Search agents or companies..."
+                          value={searchTerm}
+                          onChange={handleSearchChange}
+                          autoFocus={false}
+                          InputProps={{
+                            startAdornment: (
+                              <InputAdornment position="start">
+                                <SearchIcon sx={{ fontSize: 18, color: "#64748b" }} />
+                              </InputAdornment>
+                            ),
+                            endAdornment: searchTerm && (
+                              <InputAdornment position="end">
+                                <Clear 
+                                  sx={{ 
+                                    fontSize: 18, 
+                                    color: "#64748b", 
+                                    cursor: "pointer",
+                                    "&:hover": { color: "#374151" }
+                                  }} 
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    handleClearSearch();
+                                  }}
+                                />
+                              </InputAdornment>
+                            ),
+                            sx: {
+                              "& fieldset": { border: "1px solid #e2e8f0" },
+                              "&:hover fieldset": { border: "1px solid #94a3b8" },
+                              "&.Mui-focused fieldset": { border: "1px solid #3b82f6" },
+                              "& input": {
+                                padding: "8px 12px",
+                                fontSize: "0.9rem",
+                                color: "#1e293b",
+                                "&::placeholder": {
+                                  color: "#64748b",
+                                  opacity: 1,
+                                },
+                              },
+                            },
+                          }}
+                          onKeyDown={(e) => e.stopPropagation()}
+                          onKeyUp={(e) => e.stopPropagation()}
+                          onKeyPress={(e) => e.stopPropagation()}
+                        />
+                      </Box>
+                      
                       <MenuItem value="" sx={{ fontStyle: 'italic', color: '#6b7280', fontSize: '0.8rem' }}>
-                        Choose an agent
+                        <Stack direction="row" alignItems="center" spacing={1}>
+                          <PersonIcon sx={{ fontSize: 16, color: "#3b82f6" }} />
+                          <Box>
+                            <Typography variant="body2" sx={{ fontWeight: 500, color: "#6b7280", fontStyle: 'italic' }}>
+                              Choose an agent
+                            </Typography>
+                            <Typography variant="caption" sx={{ color: "#9ca3af", fontSize: "0.7rem" }}>
+                              Select from available agents
+                            </Typography>
+                          </Box>
+                        </Stack>
                       </MenuItem>
-                      {agents && agents.map((agent) => (
+                      {filteredAgents.length > 0 ? (
+                        filteredAgents.map((agent) => (
                         <MenuItem 
                           key={agent.id} 
                           value={agent.agent_id}
                           sx={{
                             '&:hover': {
-                              bgcolor: '#f3f4f6'
+                              bgcolor: '#f1f5f9'
                             }
                           }}
                         >
-                          <Box>
-                            <Typography variant="body2" sx={{ fontWeight: 500, fontSize: '0.8rem' }}>
-                              {agent.name}
-                            </Typography>
-                            {/* <Typography variant="caption" sx={{ color: '#6b7280', fontSize: '0.7rem' }}>
-                              ID: {agent.agent_id}
-                            </Typography> */}
-                          </Box>
+                          <Stack direction="row" alignItems="center" spacing={1}>
+                            <Avatar 
+                              sx={{ 
+                                width: 24, 
+                                height: 24, 
+                                fontSize: "0.8rem",
+                                backgroundColor: "#3b82f6",
+                                color: "white",
+                                fontWeight: 600
+                              }}
+                            >
+                              {agent.name.charAt(0).toUpperCase()}
+                            </Avatar>
+                            <Box sx={{ minWidth: 0, flex: 1 }}>
+                              <Typography variant="body2" sx={{ fontWeight: 500, color: "#1e293b", lineHeight: 1.2, fontSize: '0.8rem' }}>
+                                {agent.name}
+                              </Typography>
+                              <Typography 
+                                variant="caption" 
+                                sx={{ 
+                                  color: "#059669", 
+                                  fontSize: "0.7rem",
+                                  lineHeight: 1.2,
+                                  display: "block",
+                                  overflow: "hidden",
+                                  textOverflow: "ellipsis",
+                                  whiteSpace: "nowrap",
+                                  fontWeight: 500
+                                }}
+                              >
+                                {agent.company_name}
+                              </Typography>
+                            </Box>
+                          </Stack>
                         </MenuItem>
-                      ))}
+                        ))
+                      ) : searchTerm ? (
+                        <MenuItem disabled>
+                          <Stack direction="row" alignItems="center" spacing={1}>
+                            <SearchIcon sx={{ fontSize: 18, color: "#64748b" }} />
+                            <Typography variant="body2" sx={{ color: "#64748b", fontStyle: "italic" }}>
+                              No agents found matching "{searchTerm}"
+                            </Typography>
+                          </Stack>
+                        </MenuItem>
+                      ) : null}
                     </Select>
                   )}
                 </FormControl>
@@ -1549,81 +1947,85 @@ dispatch(fetchHotels({ start: 0, limit: 10 }));
               mb: 1
             }}
           >
-            <Button 
-              type="submit"
-              variant="contained" 
-              size="large"
-              startIcon={<SearchIcon sx={{ fontSize: 24 }} />}
-              sx={{ 
-                borderRadius: 3,
-                px: 6,
-                py: 2.5,
-                fontSize: '1.1rem',
-                fontWeight: 700,
-                textTransform: 'none',
-                minWidth: '280px',
-                background: isDataFromEnquiryDetail
-                  ? 'linear-gradient(135deg, #6b7280 0%, #4b5563 100%)'
-                  : isUpdatingExistingPackage 
-                    ? 'linear-gradient(135deg, #10b981 0%, #059669 100%)' 
-                    : 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
-                boxShadow: isDataFromEnquiryDetail
-                  ? '0 8px 32px rgba(107, 114, 128, 0.4)'
-                  : isUpdatingExistingPackage
-                    ? '0 8px 32px rgba(16, 185, 129, 0.4)'
-                    : '0 8px 32px rgba(102, 126, 234, 0.4)',
-                position: 'relative',
-                overflow: 'hidden',
-                color: 'white',
-                '&::before': {
-                  content: '""',
-                  position: 'absolute',
-                  top: 0,
-                  left: '-100%',
-                  width: '100%',
-                  height: '100%',
-                  background: 'linear-gradient(90deg, transparent, rgba(255,255,255,0.3), transparent)',
-                  transition: 'left 0.5s ease'
-                },
-                '&:hover': {
+            {!isButtonHidden && (
+              <Button 
+                type="submit"
+                variant="contained" 
+                size="large"
+                startIcon={<SearchIcon sx={{ fontSize: 24 }} />}
+                sx={{ 
+                  borderRadius: 3,
+                  px: 6,
+                  py: 2.5,
+                  fontSize: '1.1rem',
+                  fontWeight: 700,
+                  textTransform: 'none',
+                  minWidth: '280px',
                   background: isDataFromEnquiryDetail
-                    ? 'linear-gradient(135deg, #4b5563 0%, #374151 100%)'
-                    : isUpdatingExistingPackage
-                      ? 'linear-gradient(135deg, #059669 0%, #047857 100%)'
-                      : 'linear-gradient(135deg, #5a67d8 0%, #6b46c1 100%)',
+                    ? 'linear-gradient(135deg, #6b7280 0%, #4b5563 100%)'
+                    : isUpdatingExistingPackage 
+                      ? 'linear-gradient(135deg, #10b981 0%, #059669 100%)' 
+                      : 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
                   boxShadow: isDataFromEnquiryDetail
-                    ? '0 12px 40px rgba(107, 114, 128, 0.6)'
+                    ? '0 8px 32px rgba(107, 114, 128, 0.4)'
                     : isUpdatingExistingPackage
-                      ? '0 12px 40px rgba(16, 185, 129, 0.6)'
-                      : '0 12px 40px rgba(102, 126, 234, 0.6)',
-                  transform: isDataFromEnquiryDetail ? 'none' : 'translateY(-3px) scale(1.02)',
+                      ? '0 8px 32px rgba(16, 185, 129, 0.4)'
+                      : '0 8px 32px rgba(102, 126, 234, 0.4)',
+                  position: 'relative',
+                  overflow: 'hidden',
+                  color: 'white',
                   '&::before': {
-                    left: '100%'
-                  }
-                },
-                '&:active': {
-                  transform: isDataFromEnquiryDetail ? 'none' : 'translateY(-1px) scale(1.01)'
-                },
-                transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)'
-              }}
-            >
-              {getButtonText()}
-            </Button>
+                    content: '""',
+                    position: 'absolute',
+                    top: 0,
+                    left: '-100%',
+                    width: '100%',
+                    height: '100%',
+                    background: 'linear-gradient(90deg, transparent, rgba(255,255,255,0.3), transparent)',
+                    transition: 'left 0.5s ease'
+                  },
+                  '&:hover': {
+                    background: isDataFromEnquiryDetail
+                      ? 'linear-gradient(135deg, #4b5563 0%, #374151 100%)'
+                      : isUpdatingExistingPackage
+                        ? 'linear-gradient(135deg, #059669 0%, #047857 100%)'
+                        : 'linear-gradient(135deg, #5a67d8 0%, #6b46c1 100%)',
+                    boxShadow: isDataFromEnquiryDetail
+                      ? '0 12px 40px rgba(107, 114, 128, 0.6)'
+                      : isUpdatingExistingPackage
+                        ? '0 12px 40px rgba(16, 185, 129, 0.6)'
+                        : '0 12px 40px rgba(102, 126, 234, 0.6)',
+                    transform: isDataFromEnquiryDetail ? 'none' : 'translateY(-3px) scale(1.02)',
+                    '&::before': {
+                      left: '100%'
+                    }
+                  },
+                  '&:active': {
+                    transform: isDataFromEnquiryDetail ? 'none' : 'translateY(-1px) scale(1.01)'
+                  },
+                  transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)'
+                }}
+              >
+                {getButtonText()}
+              </Button>
+            )}
           </Box>
           
           {/* Optional: Add helpful text below button */}
-          <Box sx={{ textAlign: 'center', mt: 1 }}>
-            <Typography 
-              variant="caption" 
-              sx={{ 
-                color: '#6b7280',
-                fontSize: '0.75rem',
-                fontStyle: 'italic'
-              }}
-            >
-              {getButtonSubtext()}
-            </Typography>
-          </Box>
+          {!isButtonHidden && (
+            <Box sx={{ textAlign: 'center', mt: 1 }}>
+              <Typography 
+                variant="caption" 
+                sx={{ 
+                  color: '#6b7280',
+                  fontSize: '0.75rem',
+                  fontStyle: 'italic'
+                }}
+              >
+                {getButtonSubtext()}
+              </Typography>
+            </Box>
+          )}
         </Grid>
       </Grid>
       

@@ -8,14 +8,16 @@ import { useLocation } from "react-router-dom";
 import {
   Avatar,
 } from "@mui/material";
+import { selectSelectedDmcLogo, selectSelectedDmcCompanyName } from "../../../slice/dmc/dmcSlice"; // Import DMC slice selectors
 
 const OrderSubmittedInfo = () => {
   const navigate = useNavigate();
   const location = useLocation();
   const bookingResponse = location.state?.bookingResponse;
 
-  // Add DMC selectors
-  const { DmcName, DmcLogo } = useSelector((state) => state.auth);
+  // Get DMC logo and company name from DMC slice instead of auth slice
+  const dmcLogo = useSelector(selectSelectedDmcLogo);
+  const dmcCompanyName = useSelector(selectSelectedDmcCompanyName) || 'DMC';
 
   // Add these selectors at the top with other selectors
   const priceMode = useSelector((state) => state.hotels.searchState.priceMode) || 'dmc';
@@ -93,9 +95,9 @@ const OrderSubmittedInfo = () => {
             <div className="border-type-1 rounded-8 px-50 py-35 mt-40">
               <div className="row">
                 <div className="col-lg-3 col-md-6">
-                  <div className="text-15 lh-12">Booking Number</div>
+                  <div className="text-15 lh-12">Tour ID </div>
                   <div className="text-15 lh-12 fw-500 text-blue-1 mt-10">
-                    {order?.booking_id}
+                    {order?.tour_id}
                   </div>
                 </div>
                 {/* End .col */}
@@ -148,18 +150,21 @@ const OrderSubmittedInfo = () => {
                               {index > 0 && ", "}
                               <div className="d-flex flex-column" style={{ gap: '2px' }}>
                                 <div style={{ fontWeight: 'bold', color: '#3554D1' }}>
-                                  {currencyCode} {formatPrice(convertedGrandTotal)} <span style={{ fontWeight: 'normal', opacity: 0.75 }}>(incl. {currentTax}% tax)</span>
+                                  {currencyCode} {formatPrice(convertedPrice)}
+                                   {/* <span style={{ fontWeight: 'normal', opacity: 0.75 }}>(incl. {currentTax}% tax)</span> */}
                                 </div>
                                 
                                 {currencyCode !== 'USD' && (
                                   <div className="text-14" style={{ color: '#697488', marginTop: '1px' }}>
-                                    USD {formatPrice(usdGrandTotal)} <span className="text-12" style={{ opacity: 0.75 }}>(incl. {usdTax}% tax)</span>
+                                    USD {formatPrice(usdPrice)}
+                                     {/* <span className="text-12" style={{ opacity: 0.75 }}>(incl. {usdTax}% tax)</span> */}
                                   </div>
                                 )}
                                 
                                 {currencyCode !== 'SGD' && (
                                   <div className="text-14" style={{ color: '#697488', marginTop: '1px' }}>
-                                    SGD {formatPrice(sgdGrandTotal)} <span className="text-12" style={{ opacity: 0.75 }}>(incl. {sgdTax}% tax)</span>
+                                    SGD {formatPrice(sgdPrice)}
+                                     {/* <span className="text-12" style={{ opacity: 0.75 }}>(incl. {sgdTax}% tax)</span> */}
                                   </div>
                                 )}
                               </div>
@@ -182,17 +187,17 @@ const OrderSubmittedInfo = () => {
                               {index > 0 && ", "}
                               {type === "dmc" ? (
                                 <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                                  {DmcLogo && (
+                                  {dmcLogo && (
                                     <Avatar
-                                      src={DmcLogo}
-                                      alt="DMC Logo"
+                                      src={dmcLogo}
+                                      alt={`${dmcCompanyName} Logo`}
                                       sx={{ 
                                         width: 24, 
                                         height: 24,
                                       }}
                                     />
                                   )}
-                                  <span>{`${DmcName || "DMC"}'s Mode`}</span>
+                                  <span>{`${dmcCompanyName}'s Mode`}</span>
                                 </div>
                               ) : type === "travClicks" || type === "travclicks" ? (
                                 "Travclicks"

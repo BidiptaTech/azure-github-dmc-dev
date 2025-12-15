@@ -19,8 +19,8 @@ import { ToastContainer, toast } from "react-toastify";
 import dayjs from "dayjs";
 import { setPriceMode } from "@/slice/hotel/CategorySlice";
 //import { setHotelService } from "@/slice/common/BookingSlice";
-import { setUserInfo, setBookingResponse } from "@/slice/common/customerInfo";
-import { setBookingType, setIsNavigating } from "@/slice/common/commonSlice";
+import { setUserInfo, setBookingResponse, clearUserInfo } from "@/slice/common/customerInfo";
+import { setBookingType, setHaveBooking, setIsNavigating } from "@/slice/common/commonSlice";
 
 const Index = () => {
   const location1 = useLocation();
@@ -34,6 +34,8 @@ const Index = () => {
 
   const [responseData, setResponseData] = useState(null);
   const [formData, setFormData] = useState({});
+  const [isEnquirySubmitting, setIsEnquirySubmitting] = useState(false);
+  const [isSubmitting, setIsSubmitting] = useState(false);
   // Add enquiry-related state
   // const [enquiryAmount, setEnquiryAmount] = useState(() => {
   //   return totalPrice || 0;
@@ -73,7 +75,12 @@ const Index = () => {
 
   const customerInfoRef = useRef(null);
 
-  const handleSubmit = () => {
+  const handleSubmit = async () => {
+    // Prevent multiple submissions
+    if (isSubmitting) {
+      return;
+    }
+
     if (!customerInfoRef.current?.isFormValid()) {
       toast.error("Please fill all required fields correctly");
       return;
@@ -83,7 +90,14 @@ const Index = () => {
       toast.error("Customer information is missing");
       return;
     }
+    
+    console.log("📝 Starting booking submission from index.jsx");
+    setIsSubmitting(true);
+    
+    // Set isNavigating to prevent parent from switching to index2.jsx
+    // Don't clear userInfo here - we want to keep it for next booking
     dispatch(setIsNavigating(true));
+    console.log("✅ Set isNavigating to TRUE");
     const payload = {
       ...formData,
       rooms: rooms || [],
@@ -96,7 +110,7 @@ const Index = () => {
         hotel_name: hotelDetails?.hotel_name || "",
         checkInTime: hotelDetails?.check_in_time || "",
         checkOutTime: hotelDetails?.check_out_time || "",
-        location: hotelDetails?.location || "",
+        location: tourDetails?.destination || "",
         image: hotelDetails?.image || "",
         cancellation_charge: hotelDetails?.cancellation_charge || "",
       },
@@ -112,9 +126,11 @@ const Index = () => {
     )
       .unwrap()
       .then((response) => {
+        console.log("🎉 Booking API SUCCESS from index.jsx");
         setResponseData(response);
         dispatch(setBookingType(response.order?.bookingType));
-        dispatch(setIsNavigating(false));
+        dispatch(setHaveBooking(true));
+        
         if (response?.service?.date_service) {
           dispatch(setDateService(response.service.date_service));
           dispatch(setHotelService(response?.service?.data));
@@ -124,24 +140,42 @@ const Index = () => {
             autoClose: 3000,
           });
         }
-        dispatch(setUserInfo(response?.service?.data));
+        
+        console.log("📦 Setting booking response");
         dispatch(setBookingResponse(response));
         dispatch(setPriceMode("both"));
-
-        navigate("/dashboard/db-dashboard/thank-you", { replace: true });
+        
+        // Store user info for next booking (don't clear it)
+        dispatch(setUserInfo(formData));
+        
+        console.log("🚀 Navigating to thank-you page NOW");
+        navigate("/dashboard/db-dashboard/thank-you", { 
+          replace: true,
+          state: { bookingResponse: response }
+        });
+        console.log("✅ Navigate function called");
       })
       .catch((error) => {
         console.error("API call failed:", error);
         dispatch(setIsNavigating(false));
+        setIsSubmitting(false);
         toast.error("Something went wrong. Please try again later.", {
           position: "top-center",
           autoClose: 3000,
         });
+      })
+      .finally(() => {
+        setIsSubmitting(false);
       });
   };
 
   // Add a separate function for handling enquiry submission
   const handleEnquirySubmit = () => {
+    // Prevent multiple submissions
+    if (isEnquirySubmitting) {
+      return;
+    }
+
     if (!customerInfoRef.current?.isFormValid()) {
       toast.error("Please fill all required fields correctly");
       return;
@@ -156,6 +190,11 @@ const Index = () => {
     //   toast.error("Please enter a comment for your enquiry");
     //   return;
     // }
+    
+    setIsEnquirySubmitting(true);
+    
+    // Set isNavigating to prevent parent from switching to index2.jsx
+    // Don't clear userInfo here - we want to keep it for next booking
     dispatch(setIsNavigating(true));
     // Create a payload with enquiry-specific data
     const payload = {
@@ -173,7 +212,7 @@ const Index = () => {
         hotel_name: hotelDetails?.hotel_name || "",
         checkInTime: hotelDetails?.check_in_time || "",
         checkOutTime: hotelDetails?.check_out_time || "",
-        location: hotelDetails?.location || "",
+        location: tourDetails?.destination || "",
         image: hotelDetails?.image || "",
         cancellation_charge: hotelDetails?.cancellation_charge || "",
       },
@@ -200,7 +239,8 @@ const Index = () => {
       .then((response) => {
         setResponseData(response);
         dispatch(setBookingType(response.order?.bookingType));
-        dispatch(setIsNavigating(false));
+        dispatch(setHaveBooking(true));
+        
         if (response?.service?.date_service) {
           dispatch(setDateService(response.service.date_service));
           dispatch(setHotelService(response?.service?.data));
@@ -210,19 +250,29 @@ const Index = () => {
             autoClose: 3000,
           });
         }
-        dispatch(setUserInfo(response?.service?.data));
+        
         dispatch(setBookingResponse(response));
         dispatch(setPriceMode("both"));
+        
+        // Store user info for next booking (don't clear it)
+        dispatch(setUserInfo(formData));
 
-        navigate("/dashboard/db-dashboard/thank-you", { replace: true });
+        navigate("/dashboard/db-dashboard/thank-you", { 
+          replace: true,
+          state: { bookingResponse: response }
+        });
       })
       .catch((error) => {
         console.error("API call failed:", error);
         dispatch(setIsNavigating(false));
+        setIsEnquirySubmitting(false);
         toast.error("Something went wrong. Please try again later.", {
           position: "top-center",
           autoClose: 3000,
         });
+      })
+      .finally(() => {
+        setIsEnquirySubmitting(false);
       });
   };
 
@@ -240,20 +290,22 @@ const Index = () => {
           ← Back To Details
         </button>
         <div className="row x-gap-40">
-          <CustomerInfo
-            ref={customerInfoRef}
-            roomDetails={rooms}
-            tourDetails={tourDetails}
-            totalPrice={totalPrice}
-            onFormChange={handleFormChange}
-            responseData={responseData}
-            handleSubmit={handleSubmit}
-            handleEnquirySubmit={handleEnquirySubmit}
-            //enquiryAmount={enquiryAmount}
-            //enquiryComment={enquiryComment}
-            // onEnquiryAmountChange={handleEnquiryAmountChange}
-            // onEnquiryCommentChange={handleEnquiryCommentChange}
-          />
+                     <CustomerInfo
+             ref={customerInfoRef}
+             roomDetails={rooms}
+             tourDetails={tourDetails}
+             totalPrice={totalPrice}
+             onFormChange={handleFormChange}
+             responseData={responseData}
+             handleSubmit={handleSubmit}
+             handleEnquirySubmit={handleEnquirySubmit}
+             isEnquirySubmitting={isEnquirySubmitting}
+             isSubmitting={isSubmitting}
+             //enquiryAmount={enquiryAmount}
+             //enquiryComment={enquiryComment}
+             // onEnquiryAmountChange={handleEnquiryAmountChange}
+             // onEnquiryCommentChange={handleEnquiryCommentChange}
+           />
         </div>
       </section>
 

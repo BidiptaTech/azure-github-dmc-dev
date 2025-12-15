@@ -48,7 +48,9 @@ import {
   setBookingType,
   setBookingMode,
   setIsNavigating,
+  setHaveBooking,
 } from "../../../slice/common/commonSlice";
+import { selectSelectedDmcLogo, selectSelectedDmcCompanyName } from "../../../slice/dmc/dmcSlice"; // Import DMC slice selectors
 
 // Styled components for cards and headers
 const RoomCard = styled(Card)(({ theme }) => ({
@@ -113,19 +115,52 @@ export default function Index2() {
   const attractionBookings = useSelector(
     (state) => state.attractions?.attractionBookings || []
   );
-  console.log("attractionBookings in index2:", attractionBookings);
+  // console.log("attractionBookings in index2:", attractionBookings);
   // console.log('Current bookingMode in index2:', bookingMode);
 
   const attractionDetails = useSelector(
     (state) => state.attractions.attractionDetails
   );
-   console.log('attractionDetails srk................................................',attractionDetails);
+   // console.log('attractionDetails srk................................................',attractionDetails);
 
   const tourdetails = useSelector((state) => state.hotels.tourdetails);
-  const { DmcName, DmcLogo } = useSelector((state) => state.auth);
+  // Get DMC logo and company name from DMC slice instead of auth slice
+  const dmcLogo = useSelector(selectSelectedDmcLogo);
+  const dmcCompanyName = useSelector(selectSelectedDmcCompanyName) || "DMC";
   const bookingType = useSelector((state) => state.common.bookingType);
+  
+  // Get searchLocation and user_country for destination
+  const searchLocation = useSelector((state) => state.bookings.searchLocation || []);
+  const user_country = useSelector((state) => state.auth?.user_country || []);
+  const bookings = useSelector((state) => state.bookings || {});
+  
+  // Helper function to build destination from searchLocation
+  const buildDestination = () => {
+    if (!searchLocation || (Array.isArray(searchLocation) && searchLocation.length === 0)) {
+      return "";
+    }
+    
+    // Build country code to name mapping
+    const countryCodeToName = {};
+    if (user_country && Array.isArray(user_country)) {
+      user_country.forEach((country) => {
+        if (country && country.name && country.code) {
+          countryCodeToName[country.code] = country.name;
+          countryCodeToName[country.code.toLowerCase()] = country.name;
+        }
+      });
+    }
+    
+    // Convert searchLocation to destination string
+    const locationArray = Array.isArray(searchLocation) ? searchLocation : [searchLocation];
+    const destination = locationArray
+      .map((loc) => countryCodeToName[loc] || loc)
+      .join(", ");
+    
+    return destination;
+  };
 
-  // console.log('DmcName, DmcLogo in index2:', { DmcName, DmcLogo });
+  // console.log('dmcLogo, dmcCompanyName in index2:', { dmcLogo, dmcCompanyName });
 
   // State for enquiry form
   const [showEnquiry, setShowEnquiry] = useState(false);
@@ -229,7 +264,11 @@ export default function Index2() {
 
       const isPackageBooking = attractionBookings?.[0]?.data?.[0]?.package_type === 1;
       
-   
+      // Get bookings state for tour meta
+      const bGuests = bookings.guests || {};
+      
+      // Build destination
+      const destination = buildDestination();
       
       // Get package details if it's a package booking
       const packageDetails = isPackageBooking ? {
@@ -242,6 +281,9 @@ export default function Index2() {
         package_senior_price: attractionBookings?.[0]?.data?.[0]?.dmc_senior_price || 0,
         package_total_attractions: attractionBookings?.[0]?.data?.[0]?.packageDetails?.attractions?.length || 0
       } : null;
+      
+      const tourId = parseInt(tourdetails?.tour_id, 10) || 0;
+      const hasTourId = tourId > 0;
       
       const bookingDetails = {
         agent_id: Cookies.get("AgentId") || "0",
@@ -288,21 +330,31 @@ export default function Index2() {
             prices: {
               price: attractionBookings?.[0]?.data?.[0]?.totalPrice,
             },
-            dmc_id: attractionBookings?.[0]?.data?.[0]?.dmc_id || null,
             bookingType: "booking",
             package_type: attractionBookings?.[0]?.data?.[0]?.package_type || 0,
             package_attraction_id:attractionDetails?.packages?.[0]?.package_attraction_id || null,
             ...(isPackageBooking && packageDetails && { package_details: packageDetails })
           },
         ],
-        tour_id: parseInt(tourdetails?.tour_id, 10) || 0,
-        type: isPackageBooking ? "attraction_package" : "attraction",
-        type: isPackageBooking ? "attraction_package" : "attraction",
+        tour_id: tourId,
         type: isPackageBooking ? "attraction_package" : "attraction",
         bookingType: "booking",
         // Add a source flag to track which component sent the request
         requestSource: "index2",
       };
+      
+      // Add tour meta fields when no tour_id exists (same as attractionSlice.js)
+      if (!hasTourId && destination) {
+        bookingDetails.destination = destination;
+        bookingDetails.check_in = bookings.checkIn || "";
+        bookingDetails.check_out = bookings.checkOut || "";
+        bookingDetails.adult = bGuests.adults ?? attractionBookings?.[0]?.data?.[0]?.adultCount ?? 1;
+        bookingDetails.child = bGuests.children ?? attractionBookings?.[0]?.data?.[0]?.childCount ?? 0;
+        bookingDetails.infant = bGuests.infant ?? 0;
+        bookingDetails.male = bGuests.maleCount ?? 0;
+        bookingDetails.female = bGuests.femaleCount ?? 0;
+        bookingDetails.children_ages = (bGuests.childrenAges || []).join(", ");
+      }
 
       // Force a direct field for PHP's $price variable
       bookingDetails.price = bookingDetails.data[0].totalPrice;
@@ -348,6 +400,7 @@ export default function Index2() {
         dispatch(setUserInfo(formData));
         dispatch(setBookingResponse(response));
         dispatch(setBookingType(response?.order?.bookingType));
+        dispatch(setHaveBooking(true));
 
         toast.success("Booking successful!", {
           position: "top-center",
@@ -430,6 +483,12 @@ export default function Index2() {
 
       const isPackageBooking = attractionBookings?.[0]?.data?.[0]?.package_type === 1;
       
+      // Get bookings state for tour meta
+      const bGuests = bookings.guests || {};
+      
+      // Build destination
+      const destination = buildDestination();
+      
       // Get package details if it's a package booking
       const packageDetails = isPackageBooking ? {
         package_id: attractionBookings?.[0]?.data?.[0]?.package_attraction_id,
@@ -441,6 +500,9 @@ export default function Index2() {
         package_senior_price: attractionBookings?.[0]?.data?.[0]?.dmc_senior_price || 0,
         package_total_attractions: attractionBookings?.[0]?.data?.[0]?.packageDetails?.attractions?.length || 0
       } : null;
+      
+      const tourId = parseInt(tourdetails?.tour_id, 10) || 0;
+      const hasTourId = tourId > 0;
       
       const enquiryDetails = {
         agent_id: Cookies.get("AgentId") || "0",
@@ -487,19 +549,29 @@ export default function Index2() {
             prices: {
               price: attractionBookings?.[0]?.data?.[0]?.totalPrice,
             },
-            dmc_id: attractionBookings?.[0]?.data?.[0]?.dmc_id || null,
             bookingType: "enquiry",
             package_type: attractionBookings?.[0]?.data?.[0]?.package_type || 0,
-            package_attraction_id: attractionDetails.packages[0].package_attraction_id || null,
+            package_attraction_id: attractionDetails?.packages?.[0]?.package_attraction_id || null,
             ...(isPackageBooking && packageDetails && { package_details: packageDetails })
           },
         ],
-        tour_id: parseInt(tourdetails?.tour_id, 10) || 0,
-        type: isPackageBooking ? "attraction_package" : "attraction",
-        type: isPackageBooking ? "attraction_package" : "attraction",
+        tour_id: tourId,
         type: isPackageBooking ? "attraction_package" : "attraction",
         bookingType: "enquiry",
       };
+      
+      // Add tour meta fields when no tour_id exists (same as attractionSlice.js)
+      if (!hasTourId && destination) {
+        enquiryDetails.destination = destination;
+        enquiryDetails.check_in = bookings.checkIn || "";
+        enquiryDetails.check_out = bookings.checkOut || "";
+        enquiryDetails.adult = bGuests.adults ?? attractionBookings?.[0]?.data?.[0]?.adultCount ?? 1;
+        enquiryDetails.child = bGuests.children ?? attractionBookings?.[0]?.data?.[0]?.childCount ?? 0;
+        enquiryDetails.infant = bGuests.infant ?? 0;
+        enquiryDetails.male = bGuests.maleCount ?? 0;
+        enquiryDetails.female = bGuests.femaleCount ?? 0;
+        enquiryDetails.children_ages = (bGuests.childrenAges || []).join(", ");
+      }
 
       // Force a direct field for PHP's $price variable
       enquiryDetails.price = enquiryDetails.data[0].totalPrice;
@@ -515,7 +587,7 @@ export default function Index2() {
         dispatch(setUserInfo(formData));
         dispatch(setBookingResponse(response));
         dispatch(setBookingType(response?.order?.bookingType));
-
+        dispatch(setHaveBooking(true));
         toast.success("Enquiry submitted successfully!", {
           position: "top-center",
           autoClose: 3000,
@@ -1344,10 +1416,10 @@ export default function Index2() {
                               gap: 0.8,
                             }}
                           >
-                            {DmcLogo ? (
+                            {dmcLogo ? (
                               <Avatar
-                                src={DmcLogo}
-                                alt="DMC Logo"
+                                src={dmcLogo}
+                                alt={`${dmcCompanyName} Logo`}
                                 sx={{ width: 24, height: 24 }}
                               />
                             ) : (
@@ -1360,7 +1432,7 @@ export default function Index2() {
                                   fontSize: "12px",
                                 }}
                               >
-                                {DmcName?.charAt(0) || "D"}
+                                {dmcCompanyName?.charAt(0) || "D"}
                               </Avatar>
                             )}
                             <Typography
@@ -1368,7 +1440,7 @@ export default function Index2() {
                               fontWeight="medium"
                               color="#E65100"
                             >
-                              {`${DmcName || "DMC"}'s Mode`}
+                              {`${dmcCompanyName}'s Mode`}
                             </Typography>
                           </Box>
                         ) : (
@@ -1401,10 +1473,10 @@ export default function Index2() {
                               gap: 0.8,
                             }}
                           >
-                            {DmcLogo ? (
+                            {dmcLogo ? (
                               <Avatar
-                                src={DmcLogo}
-                                alt="DMC Logo"
+                                src={dmcLogo}
+                                alt={`${dmcCompanyName} Logo`}
                                 sx={{ width: 24, height: 24 }}
                               />
                             ) : (
@@ -1417,7 +1489,7 @@ export default function Index2() {
                                   fontSize: "12px",
                                 }}
                               >
-                                {DmcName?.charAt(0) || "D"}
+                                {dmcCompanyName?.charAt(0) || "D"}
                               </Avatar>
                             )}
                             <Typography
@@ -1425,7 +1497,7 @@ export default function Index2() {
                               fontWeight="medium"
                               color="#E65100"
                             >
-                              {`${DmcName || "DMC"}'s Mode`}
+                              {`${dmcCompanyName}'s Mode`}
                             </Typography>
                           </Box>
                         )
@@ -1599,7 +1671,7 @@ export default function Index2() {
                                           color: "rgba(255, 255, 255, 0.7)",
                                         }}
                                       >
-                                        Tour Price
+                                        Total Price
                                       </Typography>
                                       <Typography
                                         sx={{
@@ -1608,11 +1680,11 @@ export default function Index2() {
                                         }}
                                       >
                                         {currencyCode}{" "}
-                                        {formatPrice(tourPrice * exchangeRate)}
+                                        {formatPrice(Math.ceil(tourPrice * exchangeRate))}
                                       </Typography>
                                     </Box>
 
-                                    {transportPrice > 0 && (
+                                    {/* {transportPrice > 0 && (
                                       <Box
                                         sx={{
                                           display: "flex",
@@ -1642,10 +1714,10 @@ export default function Index2() {
                                           )}
                                         </Typography>
                                       </Box>
-                                    )}
+                                    )} */}
 
                                     {/* Base price (what's sent to the server) */}
-                                    <Box
+                                    {/* <Box
                                       sx={{
                                         display: "flex",
                                         justifyContent: "space-between",
@@ -1675,10 +1747,10 @@ export default function Index2() {
                                         {currencyCode}{" "}
                                         {formatPrice(convertedPrice)}
                                       </Typography>
-                                    </Box>
+                                    </Box> */}
 
                                     {/* Tax amount - display only */}
-                                    <Box
+                                    {/* <Box
                                       sx={{
                                         display: "flex",
                                         justifyContent: "space-between",
@@ -1703,10 +1775,10 @@ export default function Index2() {
                                       >
                                         {currencyCode} {formatPrice(taxAmount)}
                                       </Typography>
-                                    </Box>
+                                    </Box> */}
 
                                     {/* Total with tax (for display only) */}
-                                    <Box
+                                    {/* <Box
                                       sx={{
                                         display: "flex",
                                         justifyContent: "space-between",
@@ -1736,7 +1808,7 @@ export default function Index2() {
                                       >
                                         {currencyCode} {formatPrice(grandTotal)}
                                       </Typography>
-                                    </Box>
+                                    </Box> */}
 
                                     {/* USD Equivalent - always show if not USD */}
                                     {currencyCode !== "USD" && (
@@ -1755,7 +1827,7 @@ export default function Index2() {
                                             color: "rgba(255, 255, 255, 0.7)",
                                           }}
                                         >
-                                          USD Total (with {usdTax}% tax)
+                                          USD Total
                                         </Typography>
                                         <Typography
                                           sx={{
@@ -1764,7 +1836,7 @@ export default function Index2() {
                                           }}
                                         >
                                           USD{" "}
-                                          {formatPrice(usdPrice + usdTaxAmount)}
+                                          {formatPrice(Math.ceil(usdPrice))}
                                         </Typography>
                                       </Box>
                                     )}
@@ -1785,7 +1857,7 @@ export default function Index2() {
                                             color: "rgba(255, 255, 255, 0.7)",
                                           }}
                                         >
-                                          SGD Total (with {sgdTax}% tax)
+                                          SGD Total
                                         </Typography>
                                         <Typography
                                           sx={{
@@ -1794,7 +1866,7 @@ export default function Index2() {
                                           }}
                                         >
                                           SGD{" "}
-                                          {formatPrice(sgdPrice + sgdTaxAmount)}
+                                          {formatPrice(Math.ceil(sgdPrice))}
                                         </Typography>
                                       </Box>
                                     )}

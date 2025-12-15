@@ -110,7 +110,7 @@ const BlogNewsSection = () => {
         </Box>
 
         {/* Blog Grid */}
-        <Grid container spacing={4}>
+        <Grid container spacing={{ xs: 2, sm: 3, md: 4 }}>
           {blogPosts.map((post) => (
             <Grid item xs={12} sm={6} lg={3} key={post.id}>
               <Card
@@ -131,10 +131,13 @@ const BlogNewsSection = () => {
                 <Box sx={{ position: 'relative' }}>
                   <CardMedia
                     component="img"
-                    height="220"
+                    height={220}
                     image={post.image}
                     alt={post.title}
-                    sx={{ objectFit: 'cover' }}
+                    sx={{ 
+                      objectFit: 'cover',
+                      height: { xs: 180, sm: 200, md: 220 }
+                    }}
                   />
                   
                   {/* Date Badge */}
@@ -176,7 +179,7 @@ const BlogNewsSection = () => {
                 </Box>
 
                 {/* Card Content */}
-                <CardContent sx={{ p: 3 }}>
+                <CardContent sx={{ p: { xs: 2, sm: 2.5, md: 3 } }}>
                   {/* Author and Category */}
                   <Stack direction="row" spacing={3} sx={{ mb: 2 }}>
                     <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>

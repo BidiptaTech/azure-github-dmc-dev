@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useCallback } from "react";
 import { useDispatch } from "react-redux";
 import LocationSearch from "./LocationSearch";
 import {
@@ -27,8 +27,10 @@ import Pickuptime from "@/components/activity-single/filter-box1/Pickuptime";
 import Pickuptime1 from "@/components/activity-single/filter-box2/Pickuptime1";
 import { useSelector } from "react-redux";
 import { Typography } from "@mui/material";
+import { triggerSearch, clearTriggerSearch } from "@/slice/common/stepsSlice";
 
 const MainFilterSearchBox = ({ Location }) => {
+  console.log('🔍 Port MainFilterSearchBox - Component rendered/mounted');
   const dispatch = useDispatch();
 
   // State for storing the pickup and dropoff locations
@@ -42,9 +44,9 @@ const MainFilterSearchBox = ({ Location }) => {
   const selectedPort = useSelector((state) => state.pickupDrop.selectedPort);
 
   const [pickUpLatLng, setPickupLatLng] = useState(""); // New state for pick-up place_id
-  console.log("pickUpLatLng", pickUpLatLng);
+ 
   const [dropOffLatLng, setDropoffLatLng] = useState(""); // New state for drop-off place_id
-  console.log("dropOffLatLng", dropOffLatLng);
+ 
   const [entryytime, setentryytime] = useState("");
   const [entryytime1, setentryytime1] = useState("");
 
@@ -61,8 +63,16 @@ const MainFilterSearchBox = ({ Location }) => {
 
   const [time, setTime] = useState(false);
   const [time1, setTime1] = useState(false);
+  
   // Handler for the button search click event
-  const buttonsearch = () => {
+  const buttonsearch = useCallback(() => {
+    console.log('🔍 Port MainFilterSearchBox - buttonsearch called');
+    console.log('🔍 Port MainFilterSearchBox - selectedPort:', selectedPort);
+    console.log('🔍 Port MainFilterSearchBox - pickUpLocation:', pickUpLocation);
+    console.log('🔍 Port MainFilterSearchBox - dropOffLocation:', dropOffLocation);
+    console.log('🔍 Port MainFilterSearchBox - selectedDate:', selectedDate);
+    console.log('🔍 Port MainFilterSearchBox - entryytime:', entryytime);
+    
     // Set validation triggered to true when search button is clicked
     setValidationTriggered(true);
     dispatch(setPortZoneType(""));
@@ -81,9 +91,12 @@ const MainFilterSearchBox = ({ Location }) => {
 
       // Only fetch vehicles if both locations are valid
       if (locationsValid && time) {
+        console.log('🔍 Port MainFilterSearchBox - Fetching vehicles for Entry Port');
         setTimeout(() => {
-          dispatch(fetchVehicles());
+          dispatch(fetchVehicles({ start: 0, limit: 5 }));
         }, 500);
+      } else {
+        console.log('🔍 Port MainFilterSearchBox - Entry Port search skipped - locationsValid:', locationsValid, 'time:', time);
       }
     } else if (selectedPort === "Exit Port") {
       // Only proceed if both locations are selected from autocomplete
@@ -102,12 +115,56 @@ const MainFilterSearchBox = ({ Location }) => {
 
       // Only fetch vehicles if both locations are valid
       if (locationsValid && time1) {
+        console.log('🔍 Port MainFilterSearchBox - Fetching vehicles for Exit Port');
         setTimeout(() => {
-          dispatch(fetchVehicles());
+          dispatch(fetchVehicles({ start: 0, limit: 5 }));
         }, 500);
+      } else {
+        console.log('🔍 Port MainFilterSearchBox - Exit Port search skipped - locationsValid:', locationsValid, 'time1:', time1);
       }
+    } else {
+      console.log('🔍 Port MainFilterSearchBox - No port selected');
     }
-  };
+  }, [
+    selectedPort,
+    pickUpLocation,
+    dropOffLocation,
+    exitpickUpLocation,
+    exitdropOffLocation,
+    selectedDate,
+    selectedDate1,
+    entryytime,
+    entryytime1,
+    pickupFromAutocomplete,
+    dropoffFromAutocomplete,
+    exitPickupFromAutocomplete,
+    exitDropoffFromAutocomplete,
+    time,
+    time1,
+    pickUpLatLng,
+    dropOffLatLng,
+    dispatch
+  ]);
+
+  // Listen for triggerSearch from Redux and call buttonsearch when port step is triggered
+  const searchTrigger = useSelector((state) => {
+    const trigger = state.steps.triggerSearch;
+    console.log('🔍 Port MainFilterSearchBox - Selector called, searchTrigger:', trigger);
+    return trigger;
+  });
+  
+  useEffect(() => {
+    console.log('🔍 Port MainFilterSearchBox - useEffect triggered, searchTrigger:', searchTrigger);
+    console.log('🔍 Port MainFilterSearchBox - Component is mounted and listening for triggers');
+    
+    if (searchTrigger === 'port') {
+      console.log('🔍 Port MainFilterSearchBox - Trigger search received for port, calling buttonsearch');
+      buttonsearch();
+      // Clear the trigger after handling
+      dispatch(clearTriggerSearch());
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [searchTrigger, dispatch]);
 
   return (
     <>

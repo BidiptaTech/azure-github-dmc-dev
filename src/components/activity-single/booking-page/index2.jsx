@@ -23,7 +23,7 @@ import {
   selectUserInfo,
   selectBookingResponse,
 } from "@/slice/common/customerInfo";
-import { setBookingType } from "@/slice/common/commonSlice";
+import { setBookingType, setHaveBooking } from "@/slice/common/commonSlice";
 import {
   createBooking,
   setRestaurantsService,
@@ -147,6 +147,7 @@ export default function Index2() {
   const pointzoneData = useSelector(selectUserInfo);
   const image = useSelector((state) => state.tourguide.image);
   const guideBookingDetails = useSelector((state) => state.tourguide.details);
+  console.log("guideBookingDetails", guideBookingDetails);
   const entryportBookingDetails = useSelector(
     (state) => state.pickupDrop.details
   );
@@ -198,6 +199,7 @@ export default function Index2() {
   //   }, [userInfo, navigate]);
 
   // Handle form change and dispatch actions based on type
+  console.log("bookingDetailsindex2", bookingDetails);
   const handleFormChange = () => {
     // Determine which data to update based on type
     let currentData;
@@ -412,6 +414,7 @@ export default function Index2() {
       dispatch(setResponse(response));
 
       dispatch(setBookingType(response.order?.bookingType));
+      dispatch(setHaveBooking(true));
       // Check that service exists and has the expected structure
       if (response.service && response.service.date_service) {
         dispatch(setDateService(response.service.date_service));
@@ -521,7 +524,7 @@ export default function Index2() {
       if (response) {
         dispatch(setResponse(response));
         dispatch(setBookingType(response.order?.bookingType));
-
+        dispatch(setHaveBooking(true));
         // If the response contains a service date, update Redux state
         if (response?.service?.date_service) {
           dispatch(setDateService(response.service.date_service));
