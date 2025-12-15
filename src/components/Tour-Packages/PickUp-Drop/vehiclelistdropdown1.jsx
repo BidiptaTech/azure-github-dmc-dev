@@ -288,7 +288,8 @@ const VehicleListDropdown1 = ({ selectedVehicle, onVehicleChange, exitVehicles =
   // Get existing services from Redux state
   const existingServices = useSelector((state) => state.tourPackages.AllServices || []);
   const searchParams = useSelector((state) => state.tourPackages.searchCriteria);
-  
+  const tourStatus = useSelector((state) => state.tourPackages.tourStatus);
+ 
   // Use optional chaining for safe access to nested properties
   const adultsMax = searchParams?.guests?.adults || 1;
   const childrenMax = searchParams?.guests?.children || 0;
@@ -1428,6 +1429,7 @@ const VehicleListDropdown1 = ({ selectedVehicle, onVehicleChange, exitVehicles =
                     </Box>
                     
                     <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                      {(tourStatus !== "Confirmed" && tourStatus !== "Definite" && tourStatus !== "Actual") && (
                       <Tooltip title="Remove this service">
                         <IconButton 
                           size="small" 
@@ -1443,7 +1445,7 @@ const VehicleListDropdown1 = ({ selectedVehicle, onVehicleChange, exitVehicles =
                           <DeleteIcon sx={{ fontSize: 18, color: '#f44336' }} />
                         </IconButton>
                       </Tooltip>
-                      
+                      )}
                       <Button
                         variant="outlined"
                         size="large"

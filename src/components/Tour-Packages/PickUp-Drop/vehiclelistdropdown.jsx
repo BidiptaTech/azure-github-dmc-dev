@@ -273,7 +273,8 @@ const VehicleListDropdown = ({ selectedVehicle, onVehicleChange, entryPorts, tou
   const searchParams = useSelector((state) => state.tourPackages.searchCriteria);
   // Make sure we're only working with entry ports
   const validEntryPorts = entryPorts && entryPorts.filter(port => port.type === "entry_port");
-  
+  const tourStatus = useSelector((state) => state.tourPackages.tourStatus);
+  console.log("tourStatus5", tourStatus);
   
   // Redux state for locations and times
   const entryPickup = useSelector((state) => state.pickupDrop.entrypickup);
@@ -1466,6 +1467,7 @@ const VehicleListDropdown = ({ selectedVehicle, onVehicleChange, entryPorts, tou
                     </Box>
                     
                     <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                      {(tourStatus !== "Confirmed" && tourStatus !== "Definite" && tourStatus !== "Actual") && (
                       <Tooltip title="Remove this service">
                         <IconButton 
                           size="small" 
@@ -1481,7 +1483,7 @@ const VehicleListDropdown = ({ selectedVehicle, onVehicleChange, entryPorts, tou
                           <DeleteIcon sx={{ fontSize: 18, color: '#f44336' }} />
                         </IconButton>
                       </Tooltip>
-                      
+                      )}
                       <Button
                         variant="outlined"
                         size="large"

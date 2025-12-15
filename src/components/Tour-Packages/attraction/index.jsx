@@ -60,7 +60,7 @@ export default function AttractionComponent({ date, dayIndex, attractionspack, t
   const agentId = useSelector((state) => state.editing?.agentId);
   const tourId = useSelector((state) => state.hotels.id);
   const existingServices = useSelector((state) => state.tourPackages.AllServices || []);
-  
+  const tourStatus = useSelector((state) => state.tourPackages.tourStatus);
   
   console.log('Attraction update', attractionspack);
   console.log('AttractionDetails:', attractionDetails);
@@ -1720,7 +1720,7 @@ export default function AttractionComponent({ date, dayIndex, attractionspack, t
                               View Summary
                             </Button>
                       )}
-                                  
+                      {(tourStatus !== "Confirmed" && tourStatus !== "Definite" && tourStatus !== "Actual") && (
                       <Tooltip title="Remove Booking">
                         <IconButton 
                           size="small"
@@ -1734,6 +1734,7 @@ export default function AttractionComponent({ date, dayIndex, attractionspack, t
                           <DeleteIcon sx={{ fontSize: 16 }} />
                         </IconButton>
                       </Tooltip>
+                      )}
                     </Box>
                   </Box>
 

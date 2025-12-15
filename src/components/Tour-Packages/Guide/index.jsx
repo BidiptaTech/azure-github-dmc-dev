@@ -68,7 +68,7 @@ export default function GuideComponent({ date, dayIndex, guidespack, tourDates =
   const agentId = useSelector((state) => state.editing?.agentId);
   const tourId = useSelector((state) => state.hotels.id);
   const globalTourId = useSelector((state) => state.auth?.tourId || state.steps?.id);
-  
+  const tourStatus = useSelector((state) => state.tourPackages.tourStatus);
   // Extract numeric part from tour_id
   const numericTourId = React.useMemo(() => {
     const effectiveTourId = globalTourId || tourId;
@@ -1518,7 +1518,7 @@ export default function GuideComponent({ date, dayIndex, guidespack, tourDates =
                           View Summary
                         </Button>
                       )}
-                                  
+                      {(tourStatus !== "Confirmed" && tourStatus !== "Definite" && tourStatus !== "Actual") && (
                       <Tooltip title="Remove Booking">
                         <IconButton 
                           size="small"
@@ -1532,6 +1532,7 @@ export default function GuideComponent({ date, dayIndex, guidespack, tourDates =
                           <DeleteIcon sx={{ fontSize: 16 }} />
                         </IconButton>
                       </Tooltip>
+                      )}
                     </Box>
                   </Box>
 
