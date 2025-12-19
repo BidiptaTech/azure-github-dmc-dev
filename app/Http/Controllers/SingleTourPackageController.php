@@ -3179,9 +3179,25 @@ class SingleTourPackageController extends Controller
                                         // Price field for database storage
                                         'price' => $hotelBooking['totalPrice'] ?? 0,
                                         
+                                        // Transfer Options
+                                        'transfer_options' => $hotelBooking['transfer_options'] ?? null,
+                                        
                                         // Tour ID
                                         'tour_id' => $tourId
                                     ];
+                                    
+                                    // Log transfer options for debugging
+                                    if (isset($hotelBooking['transfer_options'])) {
+                                        \Log::info("Hotel transfer options found:", [
+                                            'transfer_options' => $hotelBooking['transfer_options'],
+                                            'hotel_name' => $enhancedHotelData['hotelDetails']['hotel_name']
+                                        ]);
+                                    } else {
+                                        \Log::info("No transfer options in hotel booking data", [
+                                            'hotel_name' => $enhancedHotelData['hotelDetails']['hotel_name'],
+                                            'available_keys' => array_keys($hotelBooking)
+                                        ]);
+                                    }
                                     
                                     // Generate new booking ID for each hotel
                                     $newHotelBookingId = $this->getNextBookingId();
