@@ -474,6 +474,60 @@
                                 </div>
                                 
                             </div>
+                            
+                            <!-- Transfer Required Section -->
+                            <div class="row g-3 mt-2">
+                                <div class="col-md-2">
+                                    <label class="form-label fw-semibold">
+                                        <i class="ri-car-line me-1"></i>Transfer Required?
+                                    </label>
+                                    <select class="form-select" id="hotel_transfer_required" name="hotel_transfer_required" onchange="toggleHotelTransferFields()">
+                                        <option value="No">No</option>
+                                        <option value="Yes">Yes</option>
+                                    </select>
+                                </div>
+                                
+                                <!-- Transfer Options (Hidden by default) -->
+                                <div class="col-md-2 hotel-transfer-fields" id="hotel_transfer_type_field" style="display: none;">
+                                    <label class="form-label fw-semibold">Type</label>
+                                    <select class="form-select" id="hotel_transfer_type" name="hotel_transfer_type">
+                                        <option value="">Select Type</option>
+                                        <option value="Private">Private</option>
+                                        <option value="Shared">Shared</option>
+                                    </select>
+                                </div>
+                                <div class="col-md-2 hotel-transfer-fields" id="hotel_transfer_way_field" style="display: none;">
+                                    <label class="form-label fw-semibold">Way</label>
+                                    <select class="form-select" id="hotel_transfer_way" name="hotel_transfer_way">
+                                        <option value="">Select Way</option>
+                                        <option value="One Way">One Way</option>
+                                        <option value="Both Way">Both Way</option>
+                                    </select>
+                                </div>
+                                <div class="col-md-3 hotel-transfer-fields" id="hotel_transfer_vehicle_field" style="display: none;">
+                                    <label class="form-label fw-semibold">Vehicle</label>
+                                    <select class="form-select" id="hotel_transfer_vehicle" name="hotel_transfer_vehicle">
+                                        <option value="">Select Vehicle</option>
+                                    </select>
+                                </div>
+                                <div class="col-md-3 hotel-transfer-fields" id="hotel_transfer_cost_field" style="display: none;">
+                                    <label class="form-label fw-semibold">Cost</label>
+                                    <input type="number" class="form-control" id="hotel_transfer_cost" name="hotel_transfer_cost" min="0" step="0.01" placeholder="0.00">
+                                </div>
+                            </div>
+                            
+                            <!-- Transfer Pickup Location and Destination Row -->
+                            <div class="row g-3 mt-2">
+                                
+                                <div class="col-md-6 hotel-transfer-fields" id="hotel_transfer_destination_field" style="display: none;">
+                                    <label class="form-label fw-semibold">
+                                        <i class="ri-map-pin-2-line me-1"></i>Destination
+                                    </label>
+                                    <select class="form-select" id="hotel_transfer_destination" name="hotel_transfer_destination">
+                                        <option value="">Select Destination</option>
+                                    </select>
+                                </div>
+                            </div>
 
                             <!-- Night Selection -->
                             <div class="mb-4">
@@ -1327,6 +1381,73 @@
                     return totalMealCost;
                 };
 
+                // Helper function to capture transfer options from form fields
+                window.captureTransferOptions = function() {
+                    const transferRequired = document.getElementById('hotel_transfer_required')?.value || 'No';
+                    let transferOptions = null;
+                    
+                    if (transferRequired === 'Yes') {
+                        const transferType = document.getElementById('hotel_transfer_type')?.value || '';
+                        const transferWay = document.getElementById('hotel_transfer_way')?.value || '';
+                        const transferVehicle = document.getElementById('hotel_transfer_vehicle')?.value || '';
+                        const transferCost = parseFloat(document.getElementById('hotel_transfer_cost')?.value || 0);
+                        const transferPickupLocation = document.getElementById('hotel_transfer_pickup_location')?.value || '';
+                        const transferDestination = document.getElementById('hotel_transfer_destination')?.value || '';
+                        
+                        // Get pickup location name
+                        let pickupLocationName = '';
+                        if (transferPickupLocation) {
+                            const pickupSelect = document.getElementById('hotel_transfer_pickup_location');
+                            const selectedPickupOption = pickupSelect ? pickupSelect.options[pickupSelect.selectedIndex] : null;
+                            if (selectedPickupOption) {
+                                pickupLocationName = selectedPickupOption.text || '';
+                            }
+                        }
+                        
+                        // Get destination name
+                        let destinationName = '';
+                        if (transferDestination) {
+                            const destinationSelect = document.getElementById('hotel_transfer_destination');
+                            const selectedDestinationOption = destinationSelect ? destinationSelect.options[destinationSelect.selectedIndex] : null;
+                            if (selectedDestinationOption) {
+                                destinationName = selectedDestinationOption.text || '';
+                            }
+                        }
+                        
+                        // Get vehicle details if vehicle is selected
+                        let vehicleDetails = null;
+                        if (transferVehicle) {
+                            const vehicleSelect = document.getElementById('hotel_transfer_vehicle');
+                            const selectedVehicleOption = vehicleSelect ? vehicleSelect.options[vehicleSelect.selectedIndex] : null;
+                            if (selectedVehicleOption) {
+                                vehicleDetails = {
+                                    vehicle_id: transferVehicle,
+                                    vehicle_name: selectedVehicleOption.getAttribute('data-vehicle-name') || '',
+                                    vehicle_type: selectedVehicleOption.getAttribute('data-vehicle-type') || '',
+                                    seating_capacity: selectedVehicleOption.getAttribute('data-seating-capacity') || '',
+                                    private_price: selectedVehicleOption.getAttribute('data-private-price') || '',
+                                    shared_price: selectedVehicleOption.getAttribute('data-shared-price') || ''
+                                };
+                            }
+                        }
+                        
+                        transferOptions = {
+                            transfer_required: true,
+                            type: transferType,
+                            way: transferWay,
+                            vehicle_id: transferVehicle,
+                            vehicle_details: vehicleDetails,
+                            cost: transferCost,
+                            destination_id: transferDestination,
+                            destination_name: destinationName
+                        };
+                        
+                        console.log('Transfer options captured:', transferOptions);
+                    }
+                    
+                    return transferOptions;
+                };
+
                 // Function to collect hotel data when hotels are selected
                 window.updateHotelDataField = function() {
                     // Safety check: ensure selectedHotels is an array
@@ -1510,7 +1631,10 @@
                             })(),
                             
                             // Tour ID as integer
-                            tour_id: parseInt(hotel.tour_id) || 0
+                            tour_id: parseInt(hotel.tour_id) || 0,
+                            
+                            // Transfer Options - Use stored transfer options from when hotel was added
+                            transfer_options: hotel.transferOptions || null
                         };
                     });
                     
@@ -1529,7 +1653,29 @@
                             console.log(`  - Bed type: ${hotel.rooms[0].beds[0].bed_type}`);
                             console.log(`  - Tour ID: ${hotel.tour_id}`);
                             console.log(`  - Price Mode ID: ${hotel.priceModeId}`);
+                            console.log(`  - Transfer Options:`, hotel.transfer_options);
                         });
+                        
+                        // Verify transfer options are in the JSON string
+                        const jsonString = hotelDataField.value;
+                        console.log('=== VERIFYING TRANSFER OPTIONS IN JSON ===');
+                        if (jsonString.includes('transfer_options')) {
+                            console.log('✅ transfer_options found in JSON string');
+                            try {
+                                const parsed = JSON.parse(jsonString);
+                                parsed.forEach((hotel, index) => {
+                                    if (hotel.transfer_options) {
+                                        console.log(`✅ Hotel ${index + 1} has transfer_options:`, hotel.transfer_options);
+                                    } else {
+                                        console.warn(`⚠️ Hotel ${index + 1} is missing transfer_options`);
+                                    }
+                                });
+                            } catch (e) {
+                                console.error('Error parsing hotel data JSON:', e);
+                            }
+                        } else {
+                            console.warn('⚠️ transfer_options NOT found in JSON string');
+                        }
                     }
                     
                     // Update package total price display
@@ -1610,6 +1756,56 @@
                                 const ticketSelect = document.getElementById(`day${day}_attraction_${index}_ticket`);
                                 const ticketName = ticketSelect ? ticketSelect.options[ticketSelect.selectedIndex]?.text || `Ticket ${ticketId}` : `Ticket ${ticketId}`;
                                 
+                                // Get transfer options
+                                const transferRequired = document.getElementById(`day${day}_attraction_${index}_transfer_required`)?.value || 'No';
+                                let transferOptions = null;
+                                
+                                if (transferRequired === 'Yes') {
+                                    const transferType = document.getElementById(`day${day}_attraction_${index}_transfer_type`)?.value || '';
+                                    const transferWay = document.getElementById(`day${day}_attraction_${index}_transfer_way`)?.value || '';
+                                    const transferVehicle = document.getElementById(`day${day}_attraction_${index}_transfer_vehicle`)?.value || '';
+                                    const transferCost = parseFloat(document.getElementById(`day${day}_attraction_${index}_transfer_cost`)?.value || 0);
+                                    const transferPickupLocation = document.getElementById(`day${day}_attraction_${index}_transfer_pickup_location`)?.value || '';
+                                    
+                                    // Get pickup location name
+                                    let pickupLocationName = '';
+                                    if (transferPickupLocation) {
+                                        const pickupSelect = document.getElementById(`day${day}_attraction_${index}_transfer_pickup_location`);
+                                        const selectedPickupOption = pickupSelect ? pickupSelect.options[pickupSelect.selectedIndex] : null;
+                                        if (selectedPickupOption) {
+                                            pickupLocationName = selectedPickupOption.text || '';
+                                        }
+                                    }
+                                    
+                                    // Get vehicle details if vehicle is selected
+                                    let vehicleDetails = null;
+                                    if (transferVehicle) {
+                                        const vehicleSelect = document.getElementById(`day${day}_attraction_${index}_transfer_vehicle`);
+                                        const selectedVehicleOption = vehicleSelect ? vehicleSelect.options[vehicleSelect.selectedIndex] : null;
+                                        if (selectedVehicleOption) {
+                                            vehicleDetails = {
+                                                vehicle_id: transferVehicle,
+                                                vehicle_name: selectedVehicleOption.getAttribute('data-vehicle-name') || '',
+                                                vehicle_type: selectedVehicleOption.getAttribute('data-vehicle-type') || '',
+                                                seating_capacity: selectedVehicleOption.getAttribute('data-seating-capacity') || '',
+                                                private_price: selectedVehicleOption.getAttribute('data-private-price') || '',
+                                                shared_price: selectedVehicleOption.getAttribute('data-shared-price') || ''
+                                            };
+                                        }
+                                    }
+                                    
+                                    transferOptions = {
+                                        transfer_required: true,
+                                        type: transferType,
+                                        way: transferWay,
+                                        vehicle_id: transferVehicle,
+                                        vehicle_details: vehicleDetails,
+                                        cost: transferCost,
+                                        pickup_location_id: transferPickupLocation,
+                                        pickup_location_name: pickupLocationName
+                                    };
+                                }
+                                
                                 // Get attraction details and calculate prices
                                 // Get prices from the selected TICKET option data attributes (not attraction)
                                 const selectedTicketOption = ticketSelect ? ticketSelect.options[ticketSelect.selectedIndex] : null;
@@ -1686,7 +1882,53 @@
                                     user_role: dmcInfo.role_id,
                                     bookingType: document.getElementById(`day${day}_attraction_${index}_booking_type`)?.value || "booking",
                                     package_type: parseInt(document.getElementById(`day${day}_attraction_${index}_package_type`)?.value || 0),
-                                    package_attraction_id: parseInt(document.getElementById(`day${day}_attraction_${index}_package_attraction_id`)?.value || null)
+                                    package_attraction_id: parseInt(document.getElementById(`day${day}_attraction_${index}_package_attraction_id`)?.value || null),
+                                    
+                                    // Transfer Options
+                                    transfer_options: transferOptions,
+                                    
+                                    // Guide Options
+                                    guide_options: (() => {
+                                        const guideRequired = document.getElementById(`day${day}_attraction_${index}_guide_required`)?.value || 'No';
+                                        if (guideRequired === 'Yes') {
+                                            const guideId = document.getElementById(`day${day}_attraction_${index}_guide`)?.value || '';
+                                            const guideSelect = document.getElementById(`day${day}_attraction_${index}_guide`);
+                                            const guideName = guideSelect ? guideSelect.options[guideSelect.selectedIndex]?.text || '' : '';
+                                            
+                                            // Get pickup time - try hidden input first, then fallback to Select2 element
+                                            let pickupTime = document.getElementById(`day${day}_attraction_${index}_guide_pickup_time`)?.value || '';
+                                            if (!pickupTime) {
+                                                // Fallback: try to get from Select2 element
+                                                const pickupTimeSelect = document.getElementById(`day${day}_attraction_${index}_guide_pickup_time_select`);
+                                                if (pickupTimeSelect) {
+                                                    pickupTime = pickupTimeSelect.value || '';
+                                                    // If Select2 is initialized, try to get the value from Select2
+                                                    if (typeof jQuery !== 'undefined' && jQuery(pickupTimeSelect).data('select2')) {
+                                                        pickupTime = jQuery(pickupTimeSelect).val() || '';
+                                                    }
+                                                }
+                                            }
+                                            
+                                            const packageHours = document.getElementById(`day${day}_attraction_${index}_guide_package`)?.value || '';
+                                            const basePrice = parseFloat(document.getElementById(`day${day}_attraction_${index}_guide_base_price`)?.value || 0);
+                                            const hours = parseInt(document.getElementById(`day${day}_attraction_${index}_guide_hours`)?.value || 0);
+                                            const surcharge = parseFloat(document.getElementById(`day${day}_attraction_${index}_guide_surcharge`)?.value || 0);
+                                            const totalPrice = parseFloat(document.getElementById(`day${day}_attraction_${index}_guide_total_price`)?.value || 0);
+                                            
+                                            return {
+                                                guide_required: true,
+                                                guide_id: guideId,
+                                                guide_name: guideName,
+                                                pickup_time: pickupTime,
+                                                package_hours: packageHours,
+                                                base_price: basePrice,
+                                                hours: hours,
+                                                surcharge: surcharge,
+                                                total_price: totalPrice
+                                            };
+                                        }
+                                        return null;
+                                    })()
                                 });
                             }
                         }
@@ -1908,6 +2150,56 @@
                                 const selectedDishOption = dishSelect?.options[dishSelect?.selectedIndex];
                                 const selectedDishText = selectedDishOption?.text || selectedDishValue || '';
                                 
+                                // Get transfer options
+                                const transferRequired = document.getElementById(`day${day}_restaurant_${index}_transfer_required`)?.value || 'No';
+                                let transferOptions = null;
+                                
+                                if (transferRequired === 'Yes') {
+                                    const transferType = document.getElementById(`day${day}_restaurant_${index}_transfer_type`)?.value || '';
+                                    const transferWay = document.getElementById(`day${day}_restaurant_${index}_transfer_way`)?.value || '';
+                                    const transferVehicle = document.getElementById(`day${day}_restaurant_${index}_transfer_vehicle`)?.value || '';
+                                    const transferCost = parseFloat(document.getElementById(`day${day}_restaurant_${index}_transfer_cost`)?.value || 0);
+                                    const transferPickupLocation = document.getElementById(`day${day}_restaurant_${index}_transfer_pickup_location`)?.value || '';
+                                    
+                                    // Get pickup location name
+                                    let pickupLocationName = '';
+                                    if (transferPickupLocation) {
+                                        const pickupSelect = document.getElementById(`day${day}_restaurant_${index}_transfer_pickup_location`);
+                                        const selectedPickupOption = pickupSelect ? pickupSelect.options[pickupSelect.selectedIndex] : null;
+                                        if (selectedPickupOption) {
+                                            pickupLocationName = selectedPickupOption.text || '';
+                                        }
+                                    }
+                                    
+                                    // Get vehicle details if vehicle is selected
+                                    let vehicleDetails = null;
+                                    if (transferVehicle) {
+                                        const vehicleSelect = document.getElementById(`day${day}_restaurant_${index}_transfer_vehicle`);
+                                        const selectedVehicleOption = vehicleSelect ? vehicleSelect.options[vehicleSelect.selectedIndex] : null;
+                                        if (selectedVehicleOption) {
+                                            vehicleDetails = {
+                                                vehicle_id: transferVehicle,
+                                                vehicle_name: selectedVehicleOption.getAttribute('data-vehicle-name') || '',
+                                                vehicle_type: selectedVehicleOption.getAttribute('data-vehicle-type') || '',
+                                                seating_capacity: selectedVehicleOption.getAttribute('data-seating-capacity') || '',
+                                                private_price: selectedVehicleOption.getAttribute('data-private-price') || '',
+                                                shared_price: selectedVehicleOption.getAttribute('data-shared-price') || ''
+                                            };
+                                        }
+                                    }
+                                    
+                                    transferOptions = {
+                                        transfer_required: true,
+                                        type: transferType,
+                                        way: transferWay,
+                                        vehicle_id: transferVehicle,
+                                        vehicle_details: vehicleDetails,
+                                        cost: transferCost,
+                                        pickup_location_id: transferPickupLocation,
+                                        pickup_location_name: pickupLocationName
+                                    };
+                                }
+                                
                                 console.log(`Restaurant pricing for day ${day}, index ${index}:`);
                                 console.log(`- Total Price: $${totalPrice}`);
                                 console.log(`- Meal ID: ${mealId}`);
@@ -1991,7 +2283,10 @@
                                     // Price Types and DMC
                                     priceTypes: [document.getElementById(`day${day}_restaurant_price_type_${index}`)?.value || "dmc"],
                                     dmc_id: String(document.getElementById('dmc_id')?.value || "4"),
-                                    bookingType: normalizeBookingType(document.getElementById(`day${day}_restaurant_booking_type_${index}`)?.value)
+                                    bookingType: normalizeBookingType(document.getElementById(`day${day}_restaurant_booking_type_${index}`)?.value),
+                                    
+                                    // Transfer Options
+                                    transfer_options: transferOptions
                                 });
                             }
                         }
@@ -4827,6 +5122,17 @@
                 } else {
                     console.error('loadHotelsForCity function is not defined');
                 }
+                
+                // Load vehicles and locations for transfer if transfer is enabled
+                const transferRequired = document.getElementById('hotel_transfer_required');
+                if (transferRequired && transferRequired.value === 'Yes') {
+                    if (typeof window.loadHotelTransferVehicles === 'function') {
+                        window.loadHotelTransferVehicles(selectedCity);
+                    }
+                    if (typeof window.loadHotelTransferLocations === 'function') {
+                        window.loadHotelTransferLocations(selectedCity);
+                    }
+                }
             } else {
                 // Disable hotel selection
                 hotelSelect.disabled = true;
@@ -6294,6 +6600,12 @@ document.addEventListener('DOMContentLoaded', function() {
                 const day = match[1];
                 const index = match[2];
                 loadAttractionsForCity(day, selectedCity, index);
+                
+                // Also load guides if guide is required
+                const guideRequired = document.getElementById(`day${day}_attraction_${index}_guide_required`);
+                if (guideRequired && guideRequired.value === 'Yes') {
+                    loadAttractionGuidesForCity(day, selectedCity, index);
+                }
             }
         }
         
@@ -6392,6 +6704,13 @@ document.addEventListener('DOMContentLoaded', function() {
                     }
                     
                     attractionSelect.disabled = false;
+                    
+                    // Load vehicles for transfer if transfer is enabled
+                    const transferRequired = document.getElementById(`day${day}_attraction_${index}_transfer_required`);
+                    if (transferRequired && transferRequired.value === 'Yes') {
+                        loadAttractionTransferVehicles(day, cityName, index);
+                        loadAttractionTransferPickupLocations(day, cityName, index);
+                    }
                 })
                 .catch(error => {
                     console.error('Error loading attractions for city:', error);
@@ -6405,6 +6724,771 @@ document.addEventListener('DOMContentLoaded', function() {
         }
     }
 
+    // Function to toggle attraction transfer fields visibility
+    window.toggleAttractionTransferFields = function(day, index) {
+        const transferRequired = document.getElementById(`day${day}_attraction_${index}_transfer_required`);
+        const transferTypeField = document.getElementById(`day${day}_attraction_${index}_transfer_type_field`);
+        const transferWayField = document.getElementById(`day${day}_attraction_${index}_transfer_way_field`);
+        const transferVehicleField = document.getElementById(`day${day}_attraction_${index}_transfer_vehicle_field`);
+        const transferCostField = document.getElementById(`day${day}_attraction_${index}_transfer_cost_field`);
+        const transferPickupField = document.getElementById(`day${day}_attraction_${index}_transfer_pickup_field`);
+        
+        if (transferRequired) {
+            if (transferRequired.value === 'Yes') {
+                // Show all transfer fields
+                if (transferTypeField) transferTypeField.style.display = 'block';
+                if (transferWayField) transferWayField.style.display = 'block';
+                if (transferVehicleField) transferVehicleField.style.display = 'block';
+                if (transferCostField) transferCostField.style.display = 'block';
+                if (transferPickupField) transferPickupField.style.display = 'block';
+                
+                // Load vehicles if city is already selected
+                const citySelect = document.getElementById(`day${day}_attraction_city_${index}`);
+                if (citySelect && citySelect.value) {
+                    loadAttractionTransferVehicles(day, citySelect.value, index);
+                    loadAttractionTransferPickupLocations(day, citySelect.value, index);
+                }
+            } else {
+                // Hide all transfer fields
+                if (transferTypeField) transferTypeField.style.display = 'none';
+                if (transferWayField) transferWayField.style.display = 'none';
+                if (transferVehicleField) transferVehicleField.style.display = 'none';
+                if (transferCostField) transferCostField.style.display = 'none';
+                if (transferPickupField) transferPickupField.style.display = 'none';
+                
+                // Reset transfer fields
+                const typeSelect = document.getElementById(`day${day}_attraction_${index}_transfer_type`);
+                const waySelect = document.getElementById(`day${day}_attraction_${index}_transfer_way`);
+                const vehicleSelect = document.getElementById(`day${day}_attraction_${index}_transfer_vehicle`);
+                const costInput = document.getElementById(`day${day}_attraction_${index}_transfer_cost`);
+                const pickupSelect = document.getElementById(`day${day}_attraction_${index}_transfer_pickup_location`);
+                
+                if (typeSelect) typeSelect.value = '';
+                if (waySelect) waySelect.value = '';
+                if (vehicleSelect) vehicleSelect.innerHTML = '<option value="">Select Vehicle</option>';
+                if (costInput) costInput.value = '';
+                if (pickupSelect) pickupSelect.innerHTML = '<option value="">Select Pickup Location</option>';
+            }
+        }
+    }
+    
+    // Function to toggle attraction guide fields
+    window.toggleAttractionGuideFields = function(day, index) {
+        const guideRequired = document.getElementById(`day${day}_attraction_${index}_guide_required`);
+        const guideSelectField = document.getElementById(`day${day}_attraction_${index}_guide_select_field`);
+        const guidePickupTimeField = document.getElementById(`day${day}_attraction_${index}_guide_pickup_time_field`);
+        const guidePackageField = document.getElementById(`day${day}_attraction_${index}_guide_package_field`);
+        
+        if (guideRequired) {
+            if (guideRequired.value === 'Yes') {
+                // Show all guide fields
+                if (guideSelectField) guideSelectField.style.display = 'block';
+                if (guidePickupTimeField) guidePickupTimeField.style.display = 'block';
+                if (guidePackageField) guidePackageField.style.display = 'block';
+                
+                // Load guides if city is already selected
+                const citySelect = document.getElementById(`day${day}_attraction_city_${index}`);
+                if (citySelect && citySelect.value) {
+                    loadAttractionGuidesForCity(day, citySelect.value, index);
+                }
+            } else {
+                // Hide all guide fields
+                if (guideSelectField) guideSelectField.style.display = 'none';
+                if (guidePickupTimeField) guidePickupTimeField.style.display = 'none';
+                if (guidePackageField) guidePackageField.style.display = 'none';
+                
+                // Reset guide fields
+                const guideSelect = document.getElementById(`day${day}_attraction_${index}_guide`);
+                const packageSelect = document.getElementById(`day${day}_attraction_${index}_guide_package`);
+                const pickupTimeContainer = document.getElementById(`day${day}_attraction_${index}_guide_pickup_time_options`);
+                const priceDisplay = document.getElementById(`day${day}_attraction_${index}_guide_price_display`);
+                
+                if (guideSelect) {
+                    guideSelect.value = '';
+                    guideSelect.disabled = true;
+                    guideSelect.innerHTML = '<option value="">Select city first</option>';
+                }
+                if (packageSelect) {
+                    packageSelect.value = '';
+                    packageSelect.innerHTML = '<option value="">Select Duration</option>';
+                }
+                if (pickupTimeContainer) {
+                    pickupTimeContainer.innerHTML = '<select class="form-select" disabled><option value="">Select guide first</option></select>';
+                }
+                if (priceDisplay) {
+                    priceDisplay.style.display = 'none';
+                }
+                
+                // Reset hidden fields
+                document.getElementById(`day${day}_attraction_${index}_guide_pickup_time`).value = '';
+                document.getElementById(`day${day}_attraction_${index}_guide_base_price`).value = '0';
+                document.getElementById(`day${day}_attraction_${index}_guide_hours`).value = '0';
+                document.getElementById(`day${day}_attraction_${index}_guide_surcharge`).value = '0';
+                document.getElementById(`day${day}_attraction_${index}_guide_total_price`).value = '0';
+            }
+        }
+    };
+    
+    // Function to load guides for attraction based on city
+    window.loadAttractionGuidesForCity = function(day, cityName, index) {
+        const guideSelect = document.getElementById(`day${day}_attraction_${index}_guide`);
+        const guideRequired = document.getElementById(`day${day}_attraction_${index}_guide_required`);
+        
+        if (!guideSelect || !guideRequired || guideRequired.value !== 'Yes') {
+            return;
+        }
+        
+        // Check if Select2 is initialized
+        const isSelect2Initialized = $(guideSelect).hasClass('select2-hidden-accessible');
+        
+        if (cityName) {
+            guideSelect.disabled = false;
+            
+            // Destroy Select2 if initialized before updating options
+            if (isSelect2Initialized) {
+                $(guideSelect).select2('destroy');
+            }
+            
+            guideSelect.innerHTML = '<option value="">Loading guides...</option>';
+            
+            // Reinitialize Select2 with loading state
+            if (isSelect2Initialized) {
+                $(guideSelect).select2({
+                    placeholder: "Loading guides...",
+                    allowClear: true,
+                    width: '100%'
+                });
+            }
+            
+            // Load guides for the specific city
+            const currentDmcId = '{{ $finalDmcId }}';
+            
+            fetch(`{{ route('fetch-guides-by-dmc') }}?city=${encodeURIComponent(cityName)}&dmc_id=${currentDmcId}`)
+                .then(response => response.json())
+                .then(data => {
+                    // Destroy Select2 before updating options
+                    if (isSelect2Initialized) {
+                        $(guideSelect).select2('destroy');
+                    }
+                    
+                    guideSelect.innerHTML = '<option value="">Search Guide</option>';
+                    
+                    if (data.success && data.guides) {
+                        data.guides.forEach(guide => {
+                            const option = document.createElement('option');
+                            option.value = guide.guide_id;
+                            // Extract language names from the languages relationship
+                            const languageNames = guide.languages ? guide.languages.map(lang => lang.language).join(', ') : 'Languages not specified';
+                            option.textContent = `${guide.name} - ${languageNames}`;
+                            option.dataset.city = guide.city;
+                            option.dataset.image = guide.image || '';
+                            option.dataset.languages = guide.languages ? JSON.stringify(guide.languages.map(lang => lang.language)) : JSON.stringify([]);
+                            option.dataset.experience = guide.experience || 0;
+                            
+                            // Add pricing data attributes
+                            option.dataset.nightStartTime = guide.night_start_time;
+                            option.dataset.nightEndTime = guide.night_end_time;
+                            option.dataset.dayRate = 0;
+                            option.dataset.nightSurcharge = guide.night_surcharge;
+                            option.dataset.hourlyPrice = guide.hourly_price;
+                            option.dataset.twoHourPrice = guide.two_hour_price;
+                            option.dataset.fourHourPrice = guide.four_hour_price;
+                            option.dataset.sixHourPrice = guide.six_hour_price;
+                            option.dataset.eightHourPrice = guide.eight_hour_price;
+                            option.dataset.tenHourPrice = guide.ten_hour_price;
+                            option.dataset.twelveHourPrice = guide.twelve_hour_price;
+                            
+                            guideSelect.appendChild(option);
+                        });
+                        console.log(`Loaded ${data.guides.length} guides for attraction in ${cityName}`);
+                    } else {
+                        guideSelect.innerHTML += '<option disabled>No guides found in this city</option>';
+                    }
+                    
+                    guideSelect.disabled = false;
+                    
+                    // Reinitialize Select2 after populating options
+                    if (isSelect2Initialized || typeof jQuery !== 'undefined' && typeof jQuery.fn.select2 !== 'undefined') {
+                        $(guideSelect).select2({
+                            placeholder: "Search Guide",
+                            allowClear: true,
+                            width: '100%'
+                        });
+                    }
+                })
+                .catch(error => {
+                    console.error('Error loading guides for attraction:', error);
+                    guideSelect.innerHTML = '<option disabled>Error loading guides</option>';
+                    guideSelect.disabled = false;
+                });
+        } else {
+            guideSelect.disabled = true;
+            guideSelect.innerHTML = '<option value="">Select city first</option>';
+        }
+    };
+    
+    // Load guide details and setup pickup time for attraction
+    window.loadAttractionGuideDetails = function(day, guideId, index) {
+        console.log('loadAttractionGuideDetails called for attraction:', day, guideId, index);
+        
+        if (!guideId) {
+            // Clear package dropdown if no guide selected
+            const packageSelect = document.getElementById(`day${day}_attraction_${index}_guide_package`);
+            if (packageSelect) {
+                packageSelect.innerHTML = '<option value="">Select Duration</option>';
+            }
+            const pickupTimeContainer = document.getElementById(`day${day}_attraction_${index}_guide_pickup_time_options`);
+            if (pickupTimeContainer) {
+                pickupTimeContainer.innerHTML = '<select class="form-select" disabled><option value="">Select guide first</option></select>';
+            }
+            return;
+        }
+        
+        // Get night hours from selected guide
+        const guideSelect = document.getElementById(`day${day}_attraction_${index}_guide`);
+        if (!guideSelect) {
+            console.error('Guide select not found:', `day${day}_attraction_${index}_guide`);
+            return;
+        }
+        
+        const selectedOption = guideSelect.options[guideSelect.selectedIndex];
+        const nightStartTime = selectedOption.dataset.nightStartTime || null;
+        const nightEndTime = selectedOption.dataset.nightEndTime || null;
+        
+        console.log('Night hours for attraction guide:', nightStartTime, 'to', nightEndTime);
+        
+        // Setup pickup time dropdown with night hours highlighting
+        setupAttractionGuidePickupTimeDropdown(day, index, nightStartTime, nightEndTime);
+        
+        // Initialize dropdown functionality
+        initializeAttractionGuidePickupTimeDropdown(day, index);
+        
+        // Initialize package options with day rates (default)
+        updateAttractionGuidePackagePrices(day, index, false);
+        
+        // If there's already a package selected, update the pricing
+        const packageSelect = document.getElementById(`day${day}_attraction_${index}_guide_package`);
+        if (packageSelect && packageSelect.value) {
+            console.log('Package already selected, updating pricing...');
+            updateAttractionGuidePricing(day, index);
+        }
+    };
+    
+    // Setup pickup time dropdown for attraction guide
+    function setupAttractionGuidePickupTimeDropdown(day, index, nightStartTime, nightEndTime) {
+        const timeOptionsContainer = document.getElementById(`day${day}_attraction_${index}_guide_pickup_time_options`);
+        if (!timeOptionsContainer) {
+            console.error('Time options container not found:', `day${day}_attraction_${index}_guide_pickup_time_options`);
+            return;
+        }
+        
+        timeOptionsContainer.innerHTML = '';
+        
+        // Parse night hours from HH:MM:SS format
+        let nightStart = null;
+        let nightEnd = null;
+        
+        if (nightStartTime && nightStartTime !== '00:00:00') {
+            nightStart = parseInt(nightStartTime.split(':')[0]);
+        }
+        if (nightEndTime && nightEndTime !== '00:00:00') {
+            nightEnd = parseInt(nightEndTime.split(':')[0]) - 1; // Subtract 1 hour from end time for logic
+        }
+        
+        // Create a select dropdown for time selection
+        const selectElement = document.createElement('select');
+        selectElement.className = 'form-select';
+        selectElement.id = `day${day}_attraction_${index}_guide_pickup_time_select`;
+        
+        // Add default empty option
+        const defaultOption = document.createElement('option');
+        defaultOption.value = '';
+        defaultOption.textContent = 'Select pickup time';
+        selectElement.appendChild(defaultOption);
+        
+        // Generate all hours for 24-hour format (00:00 to 23:00)
+        for (let hour = 0; hour < 24; hour++) {
+            // Format hours for display and value
+            const hourStr = hour.toString().padStart(2, '0');
+            const timeValue = `${hourStr}:00:00`;
+            const timeDisplay = formatTo12Hour(hour);
+            
+            // Check if this hour is in night range
+            const isNightHour = nightStart !== null && nightEnd !== null && 
+                               isTimeInNightRange(hour, nightStart, nightEnd);
+            
+            const option = document.createElement('option');
+            option.value = timeValue;
+            option.textContent = timeDisplay + (isNightHour ? ' (Night Hours)' : '');
+            option.className = isNightHour ? 'text-danger' : '';
+            
+            selectElement.appendChild(option);
+        }
+        
+        // Add change event listener for native select
+        selectElement.addEventListener('change', function() {
+            const selectedTime = this.value;
+            const selectedTimeDisplay = selectedTime ? formatTo12Hour(parseInt(selectedTime.split(':')[0], 10)) : '';
+            console.log('Native change event fired for attraction guide pickup time select:', selectedTime);
+            selectAttractionGuidePickupTime(day, index, selectedTime, selectedTimeDisplay);
+        });
+        
+        // Add night hours info at top if night hours exist
+        if (nightStart !== null && nightEnd !== null && nightEnd >= 0) {
+            // Get original end time for display (without the -1 adjustment)
+            const originalNightEnd = parseInt(nightEndTime.split(':')[0]);
+            
+            const nightInfo = document.createElement('div');
+            nightInfo.className = 'alert alert-warning py-2 mb-2';
+            nightInfo.innerHTML = `
+                <i class="ri-moon-line me-1"></i>
+                <strong>Night Hours:</strong> ${formatTo12Hour(nightStart)} - ${formatTo12Hour(originalNightEnd)}
+                <br><small>Night surcharge applies during these hours</small>
+            `;
+            timeOptionsContainer.appendChild(nightInfo);
+        }
+        
+        // Append the select element to the container
+        timeOptionsContainer.appendChild(selectElement);
+        
+        // Initialize Select2 on the newly created select element and attach event listeners
+        setTimeout(() => {
+            if (typeof jQuery !== 'undefined' && typeof jQuery.fn.select2 !== 'undefined') {
+                jQuery(selectElement).select2({
+                    placeholder: "Select pickup time",
+                    allowClear: true,
+                    width: '100%',
+                    dropdownParent: jQuery(timeOptionsContainer)
+                });
+                
+                console.log('Select2 initialized for attraction guide pickup time:', selectElement.id);
+                
+                // Attach Select2 event listeners after initialization
+                jQuery(selectElement).on('select2:select', function(e) {
+                    const selectedTime = e.params.data.id;
+                    const selectedTimeDisplay = selectedTime ? formatTo12Hour(parseInt(selectedTime.split(':')[0], 10)) : '';
+                    console.log('Select2 select event fired for attraction guide pickup time:', selectedTime);
+                    selectAttractionGuidePickupTime(day, index, selectedTime, selectedTimeDisplay);
+                });
+                
+                jQuery(selectElement).on('select2:unselect select2:clear', function() {
+                    console.log('Select2 unselect/clear event fired for attraction guide pickup time');
+                    selectAttractionGuidePickupTime(day, index, '', '');
+                });
+            }
+        }, 100);
+    }
+    
+    // Initialize pickup time dropdown for attraction guide
+    function initializeAttractionGuidePickupTimeDropdown(day, index) {
+        // This function can be used for additional initialization if needed
+        console.log('Initialized attraction guide pickup time dropdown for day', day, 'index', index);
+    }
+    
+    // Select pickup time for attraction guide
+    function selectAttractionGuidePickupTime(day, index, timeValue, timeDisplay) {
+        const hiddenInputId = `day${day}_attraction_${index}_guide_pickup_time`;
+        let hiddenInput = document.getElementById(hiddenInputId);
+        
+        console.log('selectAttractionGuidePickupTime called:', { day, index, timeValue, timeDisplay, hiddenInputId, hiddenInputFound: !!hiddenInput });
+        
+        // If hidden input doesn't exist, try to find or create it
+        if (!hiddenInput) {
+            const pickupTimeField = document.getElementById(`day${day}_attraction_${index}_guide_pickup_time_field`);
+            if (pickupTimeField) {
+                // Check if hidden input exists but wasn't found by ID
+                hiddenInput = pickupTimeField.querySelector(`input[name="day${day}_attraction_${index}_guide_pickup_time"]`);
+                
+                // If still not found, create it
+                if (!hiddenInput) {
+                    hiddenInput = document.createElement('input');
+                    hiddenInput.type = 'hidden';
+                    hiddenInput.name = `day${day}_attraction_${index}_guide_pickup_time`;
+                    hiddenInput.id = hiddenInputId;
+                    pickupTimeField.appendChild(hiddenInput);
+                    console.log('Created hidden input for pickup time:', hiddenInputId);
+                }
+            }
+        }
+        
+        if (hiddenInput) {
+            hiddenInput.value = timeValue;
+            console.log('Updated hidden input:', hiddenInputId, 'with value:', timeValue);
+        } else {
+            console.error('Hidden input not found and could not be created:', hiddenInputId);
+        }
+        
+        // Also update the Select2 element value if it exists (for consistency)
+        const pickupTimeSelect = document.getElementById(`day${day}_attraction_${index}_guide_pickup_time_select`);
+        if (pickupTimeSelect && timeValue) {
+            if (typeof jQuery !== 'undefined' && jQuery(pickupTimeSelect).data('select2')) {
+                jQuery(pickupTimeSelect).val(timeValue).trigger('change');
+            } else {
+                pickupTimeSelect.value = timeValue;
+            }
+        }
+        
+        // Update package prices based on selected time
+        updateAttractionGuidePackagePricesForTime(day, index, timeValue);
+    }
+    
+    // Update package prices based on selected pickup time for attraction guide
+    window.updateAttractionGuidePackagePricesForTime = function(day, index, selectedTimeValue) {
+        if (!selectedTimeValue) return;
+        
+        // Extract hour from time value (HH:MM:SS format)
+        const selectedHour = parseInt(selectedTimeValue.split(':')[0]);
+        
+        // Get guide data
+        const guideSelect = document.getElementById(`day${day}_attraction_${index}_guide`);
+        if (!guideSelect || !guideSelect.selectedOptions[0]) return;
+        
+        const selectedOption = guideSelect.selectedOptions[0];
+        const nightStartTime = selectedOption.dataset.nightStartTime;
+        const nightEndTime = selectedOption.dataset.nightEndTime;
+        
+        // Determine if selected time is in night range
+        let nightStart = null;
+        let nightEnd = null;
+        
+        if (nightStartTime && nightStartTime !== '00:00:00') {
+            nightStart = parseInt(nightStartTime.split(':')[0]);
+        }
+        if (nightEndTime && nightEndTime !== '00:00:00') {
+            nightEnd = parseInt(nightEndTime.split(':')[0]) - 1; // Subtract 1 hour from end time
+        }
+        
+        const isNightTime = nightStart !== null && nightEnd !== null && 
+                           isTimeInNightRange(selectedHour, nightStart, nightEnd);
+        
+        // Update package prices
+        updateAttractionGuidePackagePrices(day, index, isNightTime);
+    };
+    
+    // Update package dropdown with calculated prices for attraction guide
+    window.updateAttractionGuidePackagePrices = function(day, index, isNightTime) {
+        const packageSelect = document.getElementById(`day${day}_attraction_${index}_guide_package`);
+        const guideSelect = document.getElementById(`day${day}_attraction_${index}_guide`);
+        
+        if (!packageSelect || !guideSelect || !guideSelect.selectedOptions[0]) return;
+        
+        const selectedOption = guideSelect.selectedOptions[0];
+        const dayRate = parseFloat(selectedOption.dataset.dayRate) || 0;
+        const nightSurcharge = parseFloat(selectedOption.dataset.nightSurcharge) || 0;
+        const hourlyPrice = parseFloat(selectedOption.dataset.hourlyPrice) || 0;
+        const twoHourPrice = parseFloat(selectedOption.dataset.twoHourPrice) || 0;
+        const fourHourPrice = parseFloat(selectedOption.dataset.fourHourPrice) || 0;
+        const sixHourPrice = parseFloat(selectedOption.dataset.sixHourPrice) || 0;
+        const eightHourPrice = parseFloat(selectedOption.dataset.eightHourPrice) || 0;
+        const tenHourPrice = parseFloat(selectedOption.dataset.tenHourPrice) || 0;
+        const twelveHourPrice = parseFloat(selectedOption.dataset.twelveHourPrice) || 0;
+        
+        // Calculate base rate (always use day rate, night surcharge will be added separately)
+        const baseRate = dayRate || hourlyPrice;
+        
+        // Package options with hours and prices
+        const packages = [
+            { hours: 1, price: hourlyPrice || baseRate, label: '1 Hour' },
+            { hours: 2, price: twoHourPrice || (baseRate * 2), label: '2 Hours' },
+            { hours: 4, price: fourHourPrice || (baseRate * 4), label: '4 Hours' },
+            { hours: 6, price: sixHourPrice || (baseRate * 6), label: '6 Hours' },
+            { hours: 8, price: eightHourPrice || (baseRate * 8), label: '8 Hours' },
+            { hours: 10, price: tenHourPrice || (baseRate * 10), label: '10 Hours' },
+            { hours: 12, price: twelveHourPrice || (baseRate * 12), label: '12 Hours' }
+        ];
+        
+        // Store current selection
+        const currentValue = packageSelect.value;
+        
+        // Clear and repopulate
+        packageSelect.innerHTML = '<option value="">Select Duration</option>';
+        
+        packages.forEach(pkg => {
+            if (pkg.price > 0) {
+                const option = document.createElement('option');
+                option.value = pkg.hours;
+                option.textContent = `${pkg.label} - $${pkg.price.toFixed(2)}`;
+                option.dataset.hours = pkg.hours;
+                option.dataset.price = pkg.price;
+                option.dataset.basePrice = pkg.price;
+                packageSelect.appendChild(option);
+            }
+        });
+        
+        // Restore selection if it still exists
+        if (currentValue) {
+            packageSelect.value = currentValue;
+        }
+        
+        // Update pricing if package is already selected
+        if (packageSelect.value) {
+            updateAttractionGuidePricing(day, index);
+        }
+    };
+    
+    // Function to update attraction guide pricing when package is selected
+    window.updateAttractionGuidePricing = function(day, index) {
+        console.log(`updateAttractionGuidePricing called for Day ${day}, Index ${index}`);
+        
+        const packageSelect = document.getElementById(`day${day}_attraction_${index}_guide_package`);
+        const guideSelect = document.getElementById(`day${day}_attraction_${index}_guide`);
+        
+        console.log('Package select found:', !!packageSelect);
+        console.log('Guide select found:', !!guideSelect);
+        console.log('Package value:', packageSelect?.value);
+        console.log('Guide value:', guideSelect?.value);
+        
+        if (!packageSelect || !guideSelect || !packageSelect.value) {
+            // Clear pricing if no package selected
+            document.getElementById(`day${day}_attraction_${index}_guide_base_price`).value = '0';
+            document.getElementById(`day${day}_attraction_${index}_guide_hours`).value = '0';
+            document.getElementById(`day${day}_attraction_${index}_guide_surcharge`).value = '0';
+            document.getElementById(`day${day}_attraction_${index}_guide_total_price`).value = '0';
+            
+            // Hide price display
+            const priceDisplay = document.getElementById(`day${day}_attraction_${index}_guide_price_display`);
+            if (priceDisplay) {
+                priceDisplay.style.display = 'none';
+            }
+            return;
+        }
+        
+        const selectedPackage = packageSelect.options[packageSelect.selectedIndex];
+        const selectedGuide = guideSelect.options[guideSelect.selectedIndex];
+        
+        if (!selectedPackage || !selectedGuide) return;
+        
+        // Get package pricing data
+        const packagePrice = parseFloat(selectedPackage.dataset.price) || 0;
+        const hours = parseInt(selectedPackage.dataset.hours) || 0;
+        const basePrice = parseFloat(selectedPackage.dataset.basePrice) || 0;
+        // Store the total package price, not just the hourly rate
+        const totalPackagePrice = packagePrice;
+        
+        console.log('Package pricing data:', {
+            packagePrice: packagePrice,
+            hours: hours,
+            basePrice: basePrice,
+            totalPackagePrice: totalPackagePrice
+        });
+        
+        // Get guide data for surcharge calculation
+        const dayRate = parseFloat(selectedGuide.dataset.dayRate) || 0;
+        const nightSurcharge = parseFloat(selectedGuide.dataset.nightSurcharge) || 0;
+        
+        // Calculate surcharge based on pickup time
+        const pickupTime = document.getElementById(`day${day}_attraction_${index}_guide_pickup_time`)?.value || '';
+        let surcharge = 0;
+        
+        if (pickupTime) {
+            const pickupHour = parseInt(pickupTime.split(':')[0]);
+            const nightStartTime = selectedGuide.dataset.nightStartTime;
+            const nightEndTime = selectedGuide.dataset.nightEndTime;
+            
+            if (nightStartTime && nightEndTime) {
+                const nightStart = parseInt(nightStartTime.split(':')[0]);
+                const nightEnd = parseInt(nightEndTime.split(':')[0]) - 1;
+                
+                const isNightTime = isTimeInNightRange(pickupHour, nightStart, nightEnd);
+                surcharge = isNightTime ? nightSurcharge : 0;
+            }
+        }
+        
+        // Update hidden fields
+        const basePriceField = document.getElementById(`day${day}_attraction_${index}_guide_base_price`);
+        const hoursField = document.getElementById(`day${day}_attraction_${index}_guide_hours`);
+        const surchargeField = document.getElementById(`day${day}_attraction_${index}_guide_surcharge`);
+        const totalPriceField = document.getElementById(`day${day}_attraction_${index}_guide_total_price`);
+        
+        if (basePriceField) basePriceField.value = totalPackagePrice.toFixed(2);
+        if (hoursField) hoursField.value = hours.toString();
+        if (surchargeField) surchargeField.value = surcharge.toFixed(2);
+        if (totalPriceField) totalPriceField.value = (totalPackagePrice + surcharge).toFixed(2);
+        
+        console.log('Hidden fields updated:', {
+            basePriceField: basePriceField ? 'EXISTS' : 'MISSING',
+            hoursField: hoursField ? 'EXISTS' : 'MISSING',
+            surchargeField: surchargeField ? 'EXISTS' : 'MISSING',
+            totalPriceField: totalPriceField ? 'EXISTS' : 'MISSING',
+            basePriceValue: basePriceField?.value,
+            hoursValue: hoursField?.value,
+            surchargeValue: surchargeField?.value,
+            totalPriceValue: totalPriceField?.value
+        });
+        
+        // Update price display with detailed breakdown
+        const priceDisplay = document.getElementById(`day${day}_attraction_${index}_guide_price_display`);
+        if (priceDisplay) {
+            priceDisplay.style.display = 'block';
+            
+            // Update guide name
+            const guideNameElement = document.getElementById(`day${day}_attraction_${index}_guide_guide_name`);
+            if (guideNameElement) {
+                guideNameElement.textContent = selectedGuide.text;
+            }
+            
+            // Update pricing breakdown
+            const packagePriceDisplay = document.getElementById(`day${day}_attraction_${index}_guide_package_price_display`);
+            const hoursDisplay = document.getElementById(`day${day}_attraction_${index}_guide_hours_display`);
+            const surchargeDisplay = document.getElementById(`day${day}_attraction_${index}_guide_surcharge_display`);
+            const totalPriceDisplay = document.getElementById(`day${day}_attraction_${index}_guide_total_price_display`);
+            const surchargeRow = document.getElementById(`day${day}_attraction_${index}_guide_surcharge_row`);
+            
+            if (packagePriceDisplay) packagePriceDisplay.textContent = `$${totalPackagePrice.toFixed(2)}`;
+            if (hoursDisplay) hoursDisplay.textContent = `${hours} hours`;
+            if (surchargeDisplay) surchargeDisplay.textContent = `$${surcharge.toFixed(2)}`;
+            if (totalPriceDisplay) totalPriceDisplay.textContent = `$${(totalPackagePrice + surcharge).toFixed(2)}`;
+            
+            // Show/hide surcharge row based on whether there's a surcharge
+            if (surchargeRow) {
+                if (surcharge > 0) {
+                    surchargeRow.style.display = 'flex';
+                } else {
+                    surchargeRow.style.display = 'none';
+                }
+            }
+        }
+        
+        console.log(`Attraction guide pricing updated for Day ${day}, Index ${index}:`, {
+            basePrice: basePrice.toFixed(2),
+            hours: hours,
+            surcharge: surcharge.toFixed(2),
+            totalPackagePrice: totalPackagePrice.toFixed(2),
+            finalTotalPrice: (totalPackagePrice + surcharge).toFixed(2)
+        });
+    };
+    
+    // Function to load vehicles for attraction transfer
+    window.loadAttractionTransferVehicles = function(day, cityName, index) {
+        const vehicleSelect = document.getElementById(`day${day}_attraction_${index}_transfer_vehicle`);
+        
+        if (!vehicleSelect || !cityName) {
+            return;
+        }
+        
+        vehicleSelect.innerHTML = '<option value="">Loading vehicles...</option>';
+        vehicleSelect.disabled = true;
+        
+        fetch(`{{ route('fetch-vehicles-by-city-dmc') }}?city=${encodeURIComponent(cityName)}`)
+            .then(response => response.json())
+            .then(data => {
+                vehicleSelect.innerHTML = '<option value="">Select Vehicle</option>';
+                
+                if (data.success && data.vehicles && data.vehicles.length > 0) {
+                    data.vehicles.forEach(vehicle => {
+                        const vehicleInfo = `${vehicle.vehicle_name} (${vehicle.vehicle_type}) - ${vehicle.seating_capacity} seats`;
+                        const option = document.createElement('option');
+                        option.value = vehicle.vehicle_id;
+                        option.textContent = vehicleInfo;
+                        option.setAttribute('data-vehicle-name', vehicle.vehicle_name || '');
+                        option.setAttribute('data-vehicle-type', vehicle.vehicle_type || '');
+                        option.setAttribute('data-seating-capacity', vehicle.seating_capacity || '');
+                        option.setAttribute('data-private-price', vehicle.private_price || '');
+                        option.setAttribute('data-shared-price', vehicle.shared_price || '');
+                        vehicleSelect.appendChild(option);
+                    });
+                    console.log(`Loaded ${data.vehicles.length} vehicles for attraction transfer in ${cityName}`);
+                } else {
+                    vehicleSelect.innerHTML += '<option disabled>No vehicles available</option>';
+                }
+                
+                vehicleSelect.disabled = false;
+            })
+            .catch(error => {
+                console.error('Error loading vehicles for attraction transfer:', error);
+                vehicleSelect.innerHTML = '<option disabled>Error loading vehicles</option>';
+                vehicleSelect.disabled = false;
+            });
+    }
+    
+    // Function to load pickup locations for attraction transfer
+    window.loadAttractionTransferPickupLocations = function(day, cityName, index) {
+        const pickupSelect = document.getElementById(`day${day}_attraction_${index}_transfer_pickup_location`);
+        
+        if (!pickupSelect || !cityName) {
+            return;
+        }
+        
+        pickupSelect.innerHTML = '<option value="">Loading locations...</option>';
+        pickupSelect.disabled = true;
+        
+        // Get DMC ID for the requests
+        const dmcId = '{{ $finalDmcId }}';
+        
+        // Make AJAX calls for attractions, hotels and restaurants (same as entry_dropoff_location_select)
+        Promise.all([
+            fetch(`{{ route('fetch-hotels-by-dmc') }}?city=${encodeURIComponent(cityName)}&dmc_id=${dmcId}`)
+                .then(response => response.json()),
+            fetch(`{{ route('fetch-attractions-by-dmc') }}?city=${encodeURIComponent(cityName)}&dmc_id=${dmcId}`)
+                .then(response => response.json()),
+            fetch(`{{ route('fetch-restaurants-by-dmc') }}?city=${encodeURIComponent(cityName)}&dmc_id=${dmcId}`)
+                .then(response => response.json())
+        ])
+        .then(([hotelsData, attractionsData, restaurantsData]) => {
+            // Clear the dropdown
+            pickupSelect.innerHTML = '<option value="">Select Pickup Location</option>';
+            
+            // Add Hotels
+            if (hotelsData.success && hotelsData.hotels && hotelsData.hotels.length > 0) {
+                const hotelGroup = document.createElement('optgroup');
+                hotelGroup.label = 'Hotels';
+                
+                hotelsData.hotels.forEach(hotel => {
+                    const option = document.createElement('option');
+                    option.value = hotel.hotel_unique_id;
+                    option.textContent = hotel.name;
+                    option.setAttribute('data-type', 'Hotel');
+                    option.setAttribute('data-hotel', JSON.stringify(hotel));
+                    hotelGroup.appendChild(option);
+                });
+                
+                pickupSelect.appendChild(hotelGroup);
+            }
+            
+            // Add Attractions
+            if (attractionsData.success && attractionsData.attractions && attractionsData.attractions.length > 0) {
+                const attractionGroup = document.createElement('optgroup');
+                attractionGroup.label = 'Attractions';
+                
+                attractionsData.attractions.forEach(attraction => {
+                    const option = document.createElement('option');
+                    option.value = attraction.attraction_id;
+                    option.textContent = attraction.name;
+                    option.setAttribute('data-type', 'Attraction');
+                    option.setAttribute('data-attraction', JSON.stringify(attraction));
+                    attractionGroup.appendChild(option);
+                });
+                
+                pickupSelect.appendChild(attractionGroup);
+            }
+            
+            // Add Restaurants
+            if (restaurantsData.success && restaurantsData.restaurants && restaurantsData.restaurants.length > 0) {
+                const restaurantGroup = document.createElement('optgroup');
+                restaurantGroup.label = 'Restaurants';
+                
+                restaurantsData.restaurants.forEach(restaurant => {
+                    const option = document.createElement('option');
+                    option.value = restaurant.restaurant_id;
+                    option.textContent = restaurant.name;
+                    option.setAttribute('data-type', 'Restaurant');
+                    option.setAttribute('data-restaurant', JSON.stringify(restaurant));
+                    restaurantGroup.appendChild(option);
+                });
+                
+                pickupSelect.appendChild(restaurantGroup);
+            }
+            
+            pickupSelect.disabled = false;
+            console.log(`Loaded pickup locations for attraction transfer in ${cityName}`);
+        })
+        .catch(error => {
+            console.error('Error loading pickup locations for attraction transfer:', error);
+            pickupSelect.innerHTML = '<option disabled>Error loading locations</option>';
+            pickupSelect.disabled = false;
+        });
+    }
+    
     window.loadGuidesForCity = function(day, cityName, index) {
         const guideSelect = document.getElementById(`day${day}_guide_${index}`);
         const cityMessage = document.getElementById(`day${day}_guide_city_message_${index}`);
@@ -6568,6 +7652,13 @@ document.addEventListener('DOMContentLoaded', function() {
                     }
                     
                     restaurantSelect.disabled = false;
+                    
+                    // Load vehicles for transfer if transfer is enabled
+                    const transferRequired = document.getElementById(`day${day}_restaurant_${index}_transfer_required`);
+                    if (transferRequired && transferRequired.value === 'Yes') {
+                        loadRestaurantTransferVehicles(day, cityName, index);
+                        loadRestaurantTransferPickupLocations(day, cityName, index);
+                    }
                 })
                 .catch(error => {
                     console.error('Error loading restaurants for city:', error);
@@ -6579,6 +7670,185 @@ document.addEventListener('DOMContentLoaded', function() {
             restaurantSelect.innerHTML = '<option value="">Select city first</option>';
             cityMessage.style.display = 'block';
         }
+    }
+    
+    // Function to toggle restaurant transfer fields visibility
+    window.toggleRestaurantTransferFields = function(day, index) {
+        const transferRequired = document.getElementById(`day${day}_restaurant_${index}_transfer_required`);
+        const transferTypeField = document.getElementById(`day${day}_restaurant_${index}_transfer_type_field`);
+        const transferWayField = document.getElementById(`day${day}_restaurant_${index}_transfer_way_field`);
+        const transferVehicleField = document.getElementById(`day${day}_restaurant_${index}_transfer_vehicle_field`);
+        const transferCostField = document.getElementById(`day${day}_restaurant_${index}_transfer_cost_field`);
+        const transferPickupField = document.getElementById(`day${day}_restaurant_${index}_transfer_pickup_field`);
+        
+        if (transferRequired) {
+            if (transferRequired.value === 'Yes') {
+                // Show all transfer fields
+                if (transferTypeField) transferTypeField.style.display = 'block';
+                if (transferWayField) transferWayField.style.display = 'block';
+                if (transferVehicleField) transferVehicleField.style.display = 'block';
+                if (transferCostField) transferCostField.style.display = 'block';
+                if (transferPickupField) transferPickupField.style.display = 'block';
+                
+                // Load vehicles if city is already selected
+                const citySelect = document.getElementById(`day${day}_restaurant_city_${index}`);
+                if (citySelect && citySelect.value) {
+                    loadRestaurantTransferVehicles(day, citySelect.value, index);
+                    loadRestaurantTransferPickupLocations(day, citySelect.value, index);
+                }
+            } else {
+                // Hide all transfer fields
+                if (transferTypeField) transferTypeField.style.display = 'none';
+                if (transferWayField) transferWayField.style.display = 'none';
+                if (transferVehicleField) transferVehicleField.style.display = 'none';
+                if (transferCostField) transferCostField.style.display = 'none';
+                if (transferPickupField) transferPickupField.style.display = 'none';
+                
+                // Reset transfer fields
+                const typeSelect = document.getElementById(`day${day}_restaurant_${index}_transfer_type`);
+                const waySelect = document.getElementById(`day${day}_restaurant_${index}_transfer_way`);
+                const vehicleSelect = document.getElementById(`day${day}_restaurant_${index}_transfer_vehicle`);
+                const costInput = document.getElementById(`day${day}_restaurant_${index}_transfer_cost`);
+                const pickupSelect = document.getElementById(`day${day}_restaurant_${index}_transfer_pickup_location`);
+                
+                if (typeSelect) typeSelect.value = '';
+                if (waySelect) waySelect.value = '';
+                if (vehicleSelect) vehicleSelect.innerHTML = '<option value="">Select Vehicle</option>';
+                if (costInput) costInput.value = '';
+                if (pickupSelect) pickupSelect.innerHTML = '<option value="">Select Pickup Location</option>';
+            }
+        }
+    }
+    
+    // Function to load vehicles for restaurant transfer
+    window.loadRestaurantTransferVehicles = function(day, cityName, index) {
+        const vehicleSelect = document.getElementById(`day${day}_restaurant_${index}_transfer_vehicle`);
+        
+        if (!vehicleSelect || !cityName) {
+            return;
+        }
+        
+        vehicleSelect.innerHTML = '<option value="">Loading vehicles...</option>';
+        vehicleSelect.disabled = true;
+        
+        fetch(`{{ route('fetch-vehicles-by-city-dmc') }}?city=${encodeURIComponent(cityName)}`)
+            .then(response => response.json())
+            .then(data => {
+                vehicleSelect.innerHTML = '<option value="">Select Vehicle</option>';
+                
+                if (data.success && data.vehicles && data.vehicles.length > 0) {
+                    data.vehicles.forEach(vehicle => {
+                        const vehicleInfo = `${vehicle.vehicle_name} (${vehicle.vehicle_type}) - ${vehicle.seating_capacity} seats`;
+                        const option = document.createElement('option');
+                        option.value = vehicle.vehicle_id;
+                        option.textContent = vehicleInfo;
+                        option.setAttribute('data-vehicle-name', vehicle.vehicle_name || '');
+                        option.setAttribute('data-vehicle-type', vehicle.vehicle_type || '');
+                        option.setAttribute('data-seating-capacity', vehicle.seating_capacity || '');
+                        option.setAttribute('data-private-price', vehicle.private_price || '');
+                        option.setAttribute('data-shared-price', vehicle.shared_price || '');
+                        vehicleSelect.appendChild(option);
+                    });
+                    console.log(`Loaded ${data.vehicles.length} vehicles for restaurant transfer in ${cityName}`);
+                } else {
+                    vehicleSelect.innerHTML += '<option disabled>No vehicles available</option>';
+                }
+                
+                vehicleSelect.disabled = false;
+            })
+            .catch(error => {
+                console.error('Error loading vehicles for restaurant transfer:', error);
+                vehicleSelect.innerHTML = '<option disabled>Error loading vehicles</option>';
+                vehicleSelect.disabled = false;
+            });
+    }
+    
+    // Function to load pickup locations for restaurant transfer
+    window.loadRestaurantTransferPickupLocations = function(day, cityName, index) {
+        const pickupSelect = document.getElementById(`day${day}_restaurant_${index}_transfer_pickup_location`);
+        
+        if (!pickupSelect || !cityName) {
+            return;
+        }
+        
+        pickupSelect.innerHTML = '<option value="">Loading locations...</option>';
+        pickupSelect.disabled = true;
+        
+        // Get DMC ID for the requests
+        const dmcId = '{{ $finalDmcId }}';
+        
+        // Make AJAX calls for attractions, hotels and restaurants (same as entry_dropoff_location_select)
+        Promise.all([
+            fetch(`{{ route('fetch-hotels-by-dmc') }}?city=${encodeURIComponent(cityName)}&dmc_id=${dmcId}`)
+                .then(response => response.json()),
+            fetch(`{{ route('fetch-attractions-by-dmc') }}?city=${encodeURIComponent(cityName)}&dmc_id=${dmcId}`)
+                .then(response => response.json()),
+            fetch(`{{ route('fetch-restaurants-by-dmc') }}?city=${encodeURIComponent(cityName)}&dmc_id=${dmcId}`)
+                .then(response => response.json())
+        ])
+        .then(([hotelsData, attractionsData, restaurantsData]) => {
+            // Clear the dropdown
+            pickupSelect.innerHTML = '<option value="">Select Pickup Location</option>';
+            
+            // Add Hotels
+            if (hotelsData.success && hotelsData.hotels && hotelsData.hotels.length > 0) {
+                const hotelGroup = document.createElement('optgroup');
+                hotelGroup.label = 'Hotels';
+                
+                hotelsData.hotels.forEach(hotel => {
+                    const option = document.createElement('option');
+                    option.value = hotel.hotel_unique_id;
+                    option.textContent = hotel.name;
+                    option.setAttribute('data-type', 'Hotel');
+                    option.setAttribute('data-hotel', JSON.stringify(hotel));
+                    hotelGroup.appendChild(option);
+                });
+                
+                pickupSelect.appendChild(hotelGroup);
+            }
+            
+            // Add Attractions
+            if (attractionsData.success && attractionsData.attractions && attractionsData.attractions.length > 0) {
+                const attractionGroup = document.createElement('optgroup');
+                attractionGroup.label = 'Attractions';
+                
+                attractionsData.attractions.forEach(attraction => {
+                    const option = document.createElement('option');
+                    option.value = attraction.attraction_id;
+                    option.textContent = attraction.name;
+                    option.setAttribute('data-type', 'Attraction');
+                    option.setAttribute('data-attraction', JSON.stringify(attraction));
+                    attractionGroup.appendChild(option);
+                });
+                
+                pickupSelect.appendChild(attractionGroup);
+            }
+            
+            // Add Restaurants
+            if (restaurantsData.success && restaurantsData.restaurants && restaurantsData.restaurants.length > 0) {
+                const restaurantGroup = document.createElement('optgroup');
+                restaurantGroup.label = 'Restaurants';
+                
+                restaurantsData.restaurants.forEach(restaurant => {
+                    const option = document.createElement('option');
+                    option.value = restaurant.restaurant_id;
+                    option.textContent = restaurant.name;
+                    option.setAttribute('data-type', 'Restaurant');
+                    option.setAttribute('data-restaurant', JSON.stringify(restaurant));
+                    restaurantGroup.appendChild(option);
+                });
+                
+                pickupSelect.appendChild(restaurantGroup);
+            }
+            
+            pickupSelect.disabled = false;
+            console.log(`Loaded pickup locations for restaurant transfer in ${cityName}`);
+        })
+        .catch(error => {
+            console.error('Error loading pickup locations for restaurant transfer:', error);
+            pickupSelect.innerHTML = '<option disabled>Error loading locations</option>';
+            pickupSelect.disabled = false;
+        });
     }
 
     window.loadTransportZonesForCity = function(day, cityName, index) {
@@ -7631,6 +8901,12 @@ document.addEventListener('DOMContentLoaded', function() {
                         clearRoomSelectionForm();
                         updateHotelDependentDropdowns(this.value);
                     };
+                    
+                    // Load vehicles for transfer if transfer is enabled
+                    const transferRequired = document.getElementById('hotel_transfer_required');
+                    if (transferRequired && transferRequired.value === 'Yes') {
+                        loadHotelTransferVehicles(cityName);
+                    }
                 } 
                 else {
                     hotelData = [];
@@ -7661,6 +8937,214 @@ document.addEventListener('DOMContentLoaded', function() {
                 }
             });
     };
+    
+    // Function to toggle hotel transfer fields visibility
+    window.toggleHotelTransferFields = function() {
+        const transferRequired = document.getElementById('hotel_transfer_required');
+        const transferTypeField = document.getElementById('hotel_transfer_type_field');
+        const transferWayField = document.getElementById('hotel_transfer_way_field');
+        const transferVehicleField = document.getElementById('hotel_transfer_vehicle_field');
+        const transferCostField = document.getElementById('hotel_transfer_cost_field');
+        const transferPickupField = document.getElementById('hotel_transfer_pickup_field');
+        const transferDestinationField = document.getElementById('hotel_transfer_destination_field');
+        
+        if (transferRequired) {
+            if (transferRequired.value === 'Yes') {
+                // Show all transfer fields
+                if (transferTypeField) transferTypeField.style.display = 'block';
+                if (transferWayField) transferWayField.style.display = 'block';
+                if (transferVehicleField) transferVehicleField.style.display = 'block';
+                if (transferCostField) transferCostField.style.display = 'block';
+                if (transferPickupField) transferPickupField.style.display = 'block';
+                if (transferDestinationField) transferDestinationField.style.display = 'block';
+                
+                // Load vehicles and locations if city is already selected
+                const citySelect = document.getElementById('hotelCitySelect');
+                if (citySelect && citySelect.value) {
+                    loadHotelTransferVehicles(citySelect.value);
+                    loadHotelTransferLocations(citySelect.value);
+                }
+            } else {
+                // Hide all transfer fields
+                if (transferTypeField) transferTypeField.style.display = 'none';
+                if (transferWayField) transferWayField.style.display = 'none';
+                if (transferVehicleField) transferVehicleField.style.display = 'none';
+                if (transferCostField) transferCostField.style.display = 'none';
+                if (transferPickupField) transferPickupField.style.display = 'none';
+                if (transferDestinationField) transferDestinationField.style.display = 'none';
+                
+                // Reset transfer fields
+                const typeSelect = document.getElementById('hotel_transfer_type');
+                const waySelect = document.getElementById('hotel_transfer_way');
+                const vehicleSelect = document.getElementById('hotel_transfer_vehicle');
+                const costInput = document.getElementById('hotel_transfer_cost');
+                const pickupSelect = document.getElementById('hotel_transfer_pickup_location');
+                const destinationSelect = document.getElementById('hotel_transfer_destination');
+                
+                if (typeSelect) typeSelect.value = '';
+                if (waySelect) waySelect.value = '';
+                if (vehicleSelect) vehicleSelect.innerHTML = '<option value="">Select Vehicle</option>';
+                if (costInput) costInput.value = '';
+                if (pickupSelect) pickupSelect.innerHTML = '<option value="">Select Pickup Location</option>';
+                if (destinationSelect) destinationSelect.innerHTML = '<option value="">Select Destination</option>';
+            }
+        }
+    }
+    
+    // Function to load vehicles for hotel transfer
+    window.loadHotelTransferVehicles = function(cityName) {
+        const vehicleSelect = document.getElementById('hotel_transfer_vehicle');
+        
+        if (!vehicleSelect || !cityName) {
+            return;
+        }
+        
+        vehicleSelect.innerHTML = '<option value="">Loading vehicles...</option>';
+        vehicleSelect.disabled = true;
+        
+        fetch(`{{ route('fetch-vehicles-by-city-dmc') }}?city=${encodeURIComponent(cityName)}`)
+            .then(response => response.json())
+            .then(data => {
+                vehicleSelect.innerHTML = '<option value="">Select Vehicle</option>';
+                
+                if (data.success && data.vehicles && data.vehicles.length > 0) {
+                    data.vehicles.forEach(vehicle => {
+                        const vehicleInfo = `${vehicle.vehicle_name} (${vehicle.vehicle_type}) - ${vehicle.seating_capacity} seats`;
+                        const option = document.createElement('option');
+                        option.value = vehicle.vehicle_id;
+                        option.textContent = vehicleInfo;
+                        option.setAttribute('data-vehicle-name', vehicle.vehicle_name || '');
+                        option.setAttribute('data-vehicle-type', vehicle.vehicle_type || '');
+                        option.setAttribute('data-seating-capacity', vehicle.seating_capacity || '');
+                        option.setAttribute('data-private-price', vehicle.private_price || '');
+                        option.setAttribute('data-shared-price', vehicle.shared_price || '');
+                        vehicleSelect.appendChild(option);
+                    });
+                    console.log(`Loaded ${data.vehicles.length} vehicles for hotel transfer in ${cityName}`);
+                } else {
+                    vehicleSelect.innerHTML += '<option disabled>No vehicles available</option>';
+                }
+                
+                vehicleSelect.disabled = false;
+            })
+            .catch(error => {
+                console.error('Error loading vehicles for hotel transfer:', error);
+                vehicleSelect.innerHTML = '<option disabled>Error loading vehicles</option>';
+                vehicleSelect.disabled = false;
+            });
+    }
+    
+    // Function to load pickup and destination locations for hotel transfer
+    window.loadHotelTransferLocations = function(cityName) {
+        const pickupSelect = document.getElementById('hotel_transfer_pickup_location');
+        const destinationSelect = document.getElementById('hotel_transfer_destination');
+        
+        if ((!pickupSelect && !destinationSelect) || !cityName) {
+            return;
+        }
+        
+        // Show loading state
+        if (pickupSelect) {
+            pickupSelect.innerHTML = '<option value="">Loading locations...</option>';
+            pickupSelect.disabled = true;
+        }
+        if (destinationSelect) {
+            destinationSelect.innerHTML = '<option value="">Loading locations...</option>';
+            destinationSelect.disabled = true;
+        }
+        
+        // Get DMC ID for the requests
+        const dmcId = '{{ $finalDmcId }}';
+        
+        // Make AJAX calls for attractions, hotels and restaurants (same as entry_dropoff_location_select)
+        Promise.all([
+            fetch(`{{ route('fetch-hotels-by-dmc') }}?city=${encodeURIComponent(cityName)}&dmc_id=${dmcId}`)
+                .then(response => response.json()),
+            fetch(`{{ route('fetch-attractions-by-dmc') }}?city=${encodeURIComponent(cityName)}&dmc_id=${dmcId}`)
+                .then(response => response.json()),
+            fetch(`{{ route('fetch-restaurants-by-dmc') }}?city=${encodeURIComponent(cityName)}&dmc_id=${dmcId}`)
+                .then(response => response.json())
+        ])
+        .then(([hotelsData, attractionsData, restaurantsData]) => {
+            // Function to populate a select element
+            const populateSelect = (select) => {
+                if (!select) return;
+                
+                // Clear the dropdown
+                select.innerHTML = '<option value="">Select Location</option>';
+                
+                // Add Hotels
+                if (hotelsData.success && hotelsData.hotels && hotelsData.hotels.length > 0) {
+                    const hotelGroup = document.createElement('optgroup');
+                    hotelGroup.label = 'Hotels';
+                    
+                    hotelsData.hotels.forEach(hotel => {
+                        const option = document.createElement('option');
+                        option.value = hotel.hotel_unique_id;
+                        option.textContent = hotel.name;
+                        option.setAttribute('data-type', 'Hotel');
+                        option.setAttribute('data-hotel', JSON.stringify(hotel));
+                        hotelGroup.appendChild(option);
+                    });
+                    
+                    select.appendChild(hotelGroup);
+                }
+                
+                // Add Attractions
+                if (attractionsData.success && attractionsData.attractions && attractionsData.attractions.length > 0) {
+                    const attractionGroup = document.createElement('optgroup');
+                    attractionGroup.label = 'Attractions';
+                    
+                    attractionsData.attractions.forEach(attraction => {
+                        const option = document.createElement('option');
+                        option.value = attraction.attraction_id;
+                        option.textContent = attraction.name;
+                        option.setAttribute('data-type', 'Attraction');
+                        option.setAttribute('data-attraction', JSON.stringify(attraction));
+                        attractionGroup.appendChild(option);
+                    });
+                    
+                    select.appendChild(attractionGroup);
+                }
+                
+                // Add Restaurants
+                if (restaurantsData.success && restaurantsData.restaurants && restaurantsData.restaurants.length > 0) {
+                    const restaurantGroup = document.createElement('optgroup');
+                    restaurantGroup.label = 'Restaurants';
+                    
+                    restaurantsData.restaurants.forEach(restaurant => {
+                        const option = document.createElement('option');
+                        option.value = restaurant.restaurant_id;
+                        option.textContent = restaurant.name;
+                        option.setAttribute('data-type', 'Restaurant');
+                        option.setAttribute('data-restaurant', JSON.stringify(restaurant));
+                        restaurantGroup.appendChild(option);
+                    });
+                    
+                    select.appendChild(restaurantGroup);
+                }
+                
+                select.disabled = false;
+            };
+            
+            // Populate both selects
+            populateSelect(pickupSelect);
+            populateSelect(destinationSelect);
+            
+            console.log(`Loaded pickup and destination locations for hotel transfer in ${cityName}`);
+        })
+        .catch(error => {
+            console.error('Error loading locations for hotel transfer:', error);
+            if (pickupSelect) {
+                pickupSelect.innerHTML = '<option disabled>Error loading locations</option>';
+                pickupSelect.disabled = false;
+            }
+            if (destinationSelect) {
+                destinationSelect.innerHTML = '<option disabled>Error loading locations</option>';
+                destinationSelect.disabled = false;
+            }
+        });
+    }
     
     // Update hotel dependent dropdowns by fetching rooms
     window.updateHotelDependentDropdowns = function(hotelId) {
@@ -9131,6 +10615,10 @@ document.addEventListener('DOMContentLoaded', function() {
          }
          console.log('Bed type in hotel data===:', bedInfo.bedType);
         
+        // Capture transfer options at the time this hotel is added
+        const transferOptions = window.captureTransferOptions ? window.captureTransferOptions() : null;
+        console.log('Transfer options captured for this hotel:', transferOptions);
+        
         // Store weekday and weekend prices for recalculation
         let storedWeekdayPrice = 0;
         let storedWeekendPrice = 0;
@@ -9202,7 +10690,8 @@ document.addEventListener('DOMContentLoaded', function() {
             nights: nightNumbers,
             checkInDate: checkInDate.format('MMM DD'),
             checkOutDate: checkOutDate.format('MMM DD'),
-            totalNights: nightNumbers.length
+            totalNights: nightNumbers.length,
+            transferOptions: transferOptions // Store transfer options with this hotel
         };
         
         console.log('=== ADDING HOTEL ===');
@@ -9237,6 +10726,37 @@ document.addEventListener('DOMContentLoaded', function() {
          $('#bedTypeSelect').val(null).trigger('change');
          $('#mealPlanSelect').val(null).trigger('change');
          document.getElementById('numberOfRooms').value = '1';
+         
+         // Reset transfer options form fields
+         const transferRequiredSelect = document.getElementById('hotel_transfer_required');
+         if (transferRequiredSelect) {
+             transferRequiredSelect.value = 'No';
+             // Trigger change to hide transfer fields
+             if (typeof toggleHotelTransferFields === 'function') {
+                 toggleHotelTransferFields();
+             }
+         }
+         
+         // Clear transfer option fields
+         const transferTypeSelect = document.getElementById('hotel_transfer_type');
+         const transferWaySelect = document.getElementById('hotel_transfer_way');
+         const transferVehicleSelect = document.getElementById('hotel_transfer_vehicle');
+         const transferCostInput = document.getElementById('hotel_transfer_cost');
+         const transferPickupSelect = document.getElementById('hotel_transfer_pickup_location');
+         const transferDestinationSelect = document.getElementById('hotel_transfer_destination');
+         
+         if (transferTypeSelect) transferTypeSelect.value = '';
+         if (transferWaySelect) transferWaySelect.value = '';
+         if (transferVehicleSelect) {
+             $('#hotel_transfer_vehicle').val(null).trigger('change');
+         }
+         if (transferCostInput) transferCostInput.value = '';
+         if (transferPickupSelect) {
+             $('#hotel_transfer_pickup_location').val(null).trigger('change');
+         }
+         if (transferDestinationSelect) {
+             $('#hotel_transfer_destination').val(null).trigger('change');
+         }
          
          // Clear hotel loading status
          const hotelLoadingStatus = document.getElementById('hotelLoadingStatus');
@@ -10037,6 +11557,136 @@ document.addEventListener('DOMContentLoaded', function() {
                                      </div>
                                  </div>
                                  
+                                 <!-- Transfer Required Section -->
+                                 <div class="row g-3 mt-2">
+                                     <div class="col-md-2">
+                                         <label class="form-label fw-semibold">
+                                             <i class="ri-car-line me-1"></i>Transfer Required?
+                                         </label>
+                                         <select class="form-select" name="day${day}_attraction_1_transfer_required" id="day${day}_attraction_1_transfer_required" onchange="toggleAttractionTransferFields(${day}, 1)">
+                                             <option value="No">No</option>
+                                             <option value="Yes">Yes</option>
+                                         </select>
+                                     </div>
+                                     
+                                     <!-- Transfer Options (Hidden by default) -->
+                                     <div class="col-md-2 attraction-transfer-fields" id="day${day}_attraction_1_transfer_type_field" style="display: none;">
+                                         <label class="form-label fw-semibold">Type</label>
+                                         <select class="form-select" name="day${day}_attraction_1_transfer_type" id="day${day}_attraction_1_transfer_type">
+                                             <option value="">Select Type</option>
+                                             <option value="Private">Private</option>
+                                             <option value="Shared">Shared</option>
+                                         </select>
+                                     </div>
+                                     <div class="col-md-2 attraction-transfer-fields" id="day${day}_attraction_1_transfer_way_field" style="display: none;">
+                                         <label class="form-label fw-semibold">Way</label>
+                                         <select class="form-select" name="day${day}_attraction_1_transfer_way" id="day${day}_attraction_1_transfer_way">
+                                             <option value="">Select Way</option>
+                                             <option value="One Way">One Way</option>
+                                             <option value="Both Way">Both Way</option>
+                                         </select>
+                                     </div>
+                                     <div class="col-md-3 attraction-transfer-fields" id="day${day}_attraction_1_transfer_vehicle_field" style="display: none;">
+                                         <label class="form-label fw-semibold">Vehicle</label>
+                                         <select class="form-select" name="day${day}_attraction_1_transfer_vehicle" id="day${day}_attraction_1_transfer_vehicle">
+                                             <option value="">Select Vehicle</option>
+                                         </select>
+                                     </div>
+                                     <div class="col-md-3 attraction-transfer-fields" id="day${day}_attraction_1_transfer_cost_field" style="display: none;">
+                                         <label class="form-label fw-semibold">Cost</label>
+                                         <input type="number" class="form-control" name="day${day}_attraction_1_transfer_cost" id="day${day}_attraction_1_transfer_cost" min="0" step="0.01" placeholder="0.00">
+                                     </div>
+                                 </div>
+                                 
+                                 <!-- Transfer Pickup Location Row -->
+                                 <div class="row g-3 mt-2">
+                                     <div class="col-md-12 attraction-transfer-fields" id="day${day}_attraction_1_transfer_pickup_field" style="display: none;">
+                                         <label class="form-label fw-semibold">
+                                             <i class="ri-map-pin-line me-1"></i>Pickup Location
+                                         </label>
+                                         <select class="form-select" name="day${day}_attraction_1_transfer_pickup_location" id="day${day}_attraction_1_transfer_pickup_location">
+                                             <option value="">Select Pickup Location</option>
+                                         </select>
+                                     </div>
+                                 </div>
+                                 
+                                 <!-- Guide Required Section -->
+                                 <div class="row g-3 mt-2">
+                                     <div class="col-md-2">
+                                         <label class="form-label fw-semibold">
+                                             <i class="ri-user-star-line me-1"></i>Need Guide?
+                                         </label>
+                                         <select class="form-select" name="day${day}_attraction_1_guide_required" id="day${day}_attraction_1_guide_required" onchange="toggleAttractionGuideFields(${day}, 1)">
+                                             <option value="No">No</option>
+                                             <option value="Yes">Yes</option>
+                                         </select>
+                                     </div>
+                                     
+                                     <!-- Guide Options (Hidden by default) -->
+                                     <div class="col-md-3 attraction-guide-fields" id="day${day}_attraction_1_guide_select_field" style="display: none;">
+                                         <label class="form-label fw-semibold">Select Guide</label>
+                                         <select class="form-select attraction-guide-select" name="day${day}_attraction_1_guide" id="day${day}_attraction_1_guide" onchange="loadAttractionGuideDetails(${day}, this.value, 1)" disabled>
+                                             <option value="">Select city first</option>
+                                         </select>
+                                     </div>
+                                     <div class="col-md-3 attraction-guide-fields" id="day${day}_attraction_1_guide_pickup_time_field" style="display: none;">
+                                         <label class="form-label fw-semibold">Pickup Time</label>
+                                         <div id="day${day}_attraction_1_guide_pickup_time_options">
+                                             <select class="form-select" disabled>
+                                                 <option value="">Select guide first</option>
+                                             </select>
+                                         </div>
+                                         <input type="hidden" name="day${day}_attraction_1_guide_pickup_time" id="day${day}_attraction_1_guide_pickup_time">
+                                     </div>
+                                     <div class="col-md-3 attraction-guide-fields" id="day${day}_attraction_1_guide_package_field" style="display: none;">
+                                         <label class="form-label fw-semibold">Select Package</label>
+                                         <select class="form-select" name="day${day}_attraction_1_guide_package" id="day${day}_attraction_1_guide_package" onchange="updateAttractionGuidePricing(${day}, 1)">
+                                             <option value="">Select Duration</option>
+                                         </select>
+                                         
+                                         <!-- Guide Price Display Section -->
+                                         <div id="day${day}_attraction_1_guide_price_display" class="mt-3" style="display: none;">
+                                             <div class="p-3 rounded-3" style="background-color: #e3f2fd; border: 1px solid #bbdefb; border-radius: 8px;">
+                                                 <h6 class="text-primary mb-3 fw-bold">
+                                                     <i class="ri-user-line me-2"></i>Guide Pricing: <span id="day${day}_attraction_1_guide_guide_name">Guide Name</span>
+                                                 </h6>
+                                                 
+                                                 <div class="row">
+                                                     <div class="col-12">
+                                                         <div class="d-flex justify-content-between align-items-center mb-2">
+                                                             <span class="text-primary">Package Price:</span>
+                                                             <span class="fw-semibold text-primary" id="day${day}_attraction_1_guide_package_price_display">$0.00</span>
+                                                         </div>
+                                                         
+                                                         <div class="d-flex justify-content-between align-items-center mb-2">
+                                                             <span class="text-primary">Duration:</span>
+                                                             <span class="fw-semibold text-primary" id="day${day}_attraction_1_guide_hours_display">0 hours</span>
+                                                         </div>
+                                                         
+                                                         <div class="d-flex justify-content-between align-items-center mb-2" id="day${day}_attraction_1_guide_surcharge_row" style="display: none;">
+                                                             <span class="text-primary">Night Surcharge:</span>
+                                                             <span class="fw-semibold text-warning" id="day${day}_attraction_1_guide_surcharge_display">$0.00</span>
+                                                         </div>
+                                                         
+                                                         <hr class="my-3" style="border-color: #bbdefb;">
+                                                         
+                                                         <div class="d-flex justify-content-between align-items-center">
+                                                             <span class="fw-bold text-primary">Total Price:</span>
+                                                             <span class="fw-bold text-success fs-5" id="day${day}_attraction_1_guide_total_price_display">$0.00</span>
+                                                         </div>
+                                                     </div>
+                                                 </div>
+                                             </div>
+                                         </div>
+                                         
+                                         <!-- Hidden fields for pricing -->
+                                         <input type="hidden" id="day${day}_attraction_1_guide_base_price" name="day${day}_attraction_1_guide_base_price" value="0">
+                                         <input type="hidden" id="day${day}_attraction_1_guide_hours" name="day${day}_attraction_1_guide_hours" value="0">
+                                         <input type="hidden" id="day${day}_attraction_1_guide_surcharge" name="day${day}_attraction_1_guide_surcharge" value="0">
+                                         <input type="hidden" id="day${day}_attraction_1_guide_total_price" name="day${day}_attraction_1_guide_total_price" value="0">
+                                     </div>
+                                 </div>
+                                 
                                  <!-- Attraction Price Display -->
                                  <div class="col-12 mt-3">
                                      <div id="day${day}_attraction_1_price_display" class="alert alert-info">
@@ -10127,7 +11777,7 @@ document.addEventListener('DOMContentLoaded', function() {
                                                      </button>
                                                  </div>
                                                  <div class="guest-badges mt-1">
-                                                     <span class="badge bg-primary">4</span>
+                                                     <span class="badge bg-primary">1</span>
                                                      <span class="badge bg-success">0</span>
                                                      <span class="badge bg-warning text-dark">0</span>
                                                  </div>
@@ -10264,7 +11914,7 @@ document.addEventListener('DOMContentLoaded', function() {
                                                      </button>
                                                  </div>
                                                  <div class="guest-badges mt-1">
-                                                     <span class="badge bg-primary">4</span>
+                                                     <span class="badge bg-primary">1</span>
                                                      <span class="badge bg-success">0</span>
                                                      <span class="badge bg-warning text-dark">0</span>
                                                  </div>
@@ -10296,6 +11946,59 @@ document.addEventListener('DOMContentLoaded', function() {
                                              <option value="">Select Time Slot</option>
                                          </select>
                                          <small class="text-muted">Available time slots</small>
+                                     </div>
+                                 </div>
+                                 
+                                 <!-- Transfer Required Section -->
+                                 <div class="row g-3 mt-2">
+                                     <div class="col-md-2">
+                                         <label class="form-label fw-semibold">
+                                             <i class="ri-car-line me-1"></i>Transfer Required?
+                                         </label>
+                                         <select class="form-select" name="day${day}_restaurant_1_transfer_required" id="day${day}_restaurant_1_transfer_required" onchange="toggleRestaurantTransferFields(${day}, 1)">
+                                             <option value="No">No</option>
+                                             <option value="Yes">Yes</option>
+                                         </select>
+                                     </div>
+                                     
+                                     <!-- Transfer Options (Hidden by default) -->
+                                     <div class="col-md-2 restaurant-transfer-fields" id="day${day}_restaurant_1_transfer_type_field" style="display: none;">
+                                         <label class="form-label fw-semibold">Type</label>
+                                         <select class="form-select" name="day${day}_restaurant_1_transfer_type" id="day${day}_restaurant_1_transfer_type">
+                                             <option value="">Select Type</option>
+                                             <option value="Private">Private</option>
+                                             <option value="Shared">Shared</option>
+                                         </select>
+                                     </div>
+                                     <div class="col-md-2 restaurant-transfer-fields" id="day${day}_restaurant_1_transfer_way_field" style="display: none;">
+                                         <label class="form-label fw-semibold">Way</label>
+                                         <select class="form-select" name="day${day}_restaurant_1_transfer_way" id="day${day}_restaurant_1_transfer_way">
+                                             <option value="">Select Way</option>
+                                             <option value="One Way">One Way</option>
+                                             <option value="Both Way">Both Way</option>
+                                         </select>
+                                     </div>
+                                     <div class="col-md-3 restaurant-transfer-fields" id="day${day}_restaurant_1_transfer_vehicle_field" style="display: none;">
+                                         <label class="form-label fw-semibold">Vehicle</label>
+                                         <select class="form-select" name="day${day}_restaurant_1_transfer_vehicle" id="day${day}_restaurant_1_transfer_vehicle">
+                                             <option value="">Select Vehicle</option>
+                                         </select>
+                                     </div>
+                                     <div class="col-md-3 restaurant-transfer-fields" id="day${day}_restaurant_1_transfer_cost_field" style="display: none;">
+                                         <label class="form-label fw-semibold">Cost</label>
+                                         <input type="number" class="form-control" name="day${day}_restaurant_1_transfer_cost" id="day${day}_restaurant_1_transfer_cost" min="0" step="0.01" placeholder="0.00">
+                                     </div>
+                                 </div>
+                                 
+                                 <!-- Transfer Pickup Location Row -->
+                                 <div class="row g-3 mt-2">
+                                     <div class="col-md-12 restaurant-transfer-fields" id="day${day}_restaurant_1_transfer_pickup_field" style="display: none;">
+                                         <label class="form-label fw-semibold">
+                                             <i class="ri-map-pin-line me-1"></i>Pickup Location
+                                         </label>
+                                         <select class="form-select" name="day${day}_restaurant_1_transfer_pickup_location" id="day${day}_restaurant_1_transfer_pickup_location">
+                                             <option value="">Select Pickup Location</option>
+                                         </select>
                                      </div>
                                  </div>
                                  
@@ -11399,6 +13102,136 @@ document.addEventListener('DOMContentLoaded', function() {
                             <select class="form-select" name="day${day}_attraction_${newIndex}_ticket" id="day${day}_attraction_${newIndex}_ticket" onchange="updateAttractionPricing(${day}, ${newIndex})">
                                 <option value="">Select Ticket</option>
                             </select>
+                        </div>
+                    </div>
+                    
+                    <!-- Transfer Required Section -->
+                    <div class="row g-3 mt-2">
+                        <div class="col-md-2">
+                            <label class="form-label fw-semibold">
+                                <i class="ri-car-line me-1"></i>Transfer Required?
+                            </label>
+                            <select class="form-select" name="day${day}_attraction_${newIndex}_transfer_required" id="day${day}_attraction_${newIndex}_transfer_required" onchange="toggleAttractionTransferFields(${day}, ${newIndex})">
+                                <option value="No">No</option>
+                                <option value="Yes">Yes</option>
+                            </select>
+                        </div>
+                        
+                        <!-- Transfer Options (Hidden by default) -->
+                        <div class="col-md-2 attraction-transfer-fields" id="day${day}_attraction_${newIndex}_transfer_type_field" style="display: none;">
+                            <label class="form-label fw-semibold">Type</label>
+                            <select class="form-select" name="day${day}_attraction_${newIndex}_transfer_type" id="day${day}_attraction_${newIndex}_transfer_type">
+                                <option value="">Select Type</option>
+                                <option value="Private">Private</option>
+                                <option value="Shared">Shared</option>
+                            </select>
+                        </div>
+                        <div class="col-md-2 attraction-transfer-fields" id="day${day}_attraction_${newIndex}_transfer_way_field" style="display: none;">
+                            <label class="form-label fw-semibold">Way</label>
+                            <select class="form-select" name="day${day}_attraction_${newIndex}_transfer_way" id="day${day}_attraction_${newIndex}_transfer_way">
+                                <option value="">Select Way</option>
+                                <option value="One Way">One Way</option>
+                                <option value="Both Way">Both Way</option>
+                            </select>
+                        </div>
+                        <div class="col-md-3 attraction-transfer-fields" id="day${day}_attraction_${newIndex}_transfer_vehicle_field" style="display: none;">
+                            <label class="form-label fw-semibold">Vehicle</label>
+                            <select class="form-select" name="day${day}_attraction_${newIndex}_transfer_vehicle" id="day${day}_attraction_${newIndex}_transfer_vehicle">
+                                <option value="">Select Vehicle</option>
+                            </select>
+                        </div>
+                        <div class="col-md-3 attraction-transfer-fields" id="day${day}_attraction_${newIndex}_transfer_cost_field" style="display: none;">
+                            <label class="form-label fw-semibold">Cost</label>
+                            <input type="number" class="form-control" name="day${day}_attraction_${newIndex}_transfer_cost" id="day${day}_attraction_${newIndex}_transfer_cost" min="0" step="0.01" placeholder="0.00">
+                        </div>
+                    </div>
+                    
+                    <!-- Transfer Pickup Location Row -->
+                    <div class="row g-3 mt-2">
+                        <div class="col-md-12 attraction-transfer-fields" id="day${day}_attraction_${newIndex}_transfer_pickup_field" style="display: none;">
+                            <label class="form-label fw-semibold">
+                                <i class="ri-map-pin-line me-1"></i>Pickup Location
+                            </label>
+                            <select class="form-select" name="day${day}_attraction_${newIndex}_transfer_pickup_location" id="day${day}_attraction_${newIndex}_transfer_pickup_location">
+                                <option value="">Select Pickup Location</option>
+                            </select>
+                        </div>
+                    </div>
+                    
+                    <!-- Guide Required Section -->
+                    <div class="row g-3 mt-2">
+                        <div class="col-md-2">
+                            <label class="form-label fw-semibold">
+                                <i class="ri-user-star-line me-1"></i>Need Guide?
+                            </label>
+                            <select class="form-select" name="day${day}_attraction_${newIndex}_guide_required" id="day${day}_attraction_${newIndex}_guide_required" onchange="toggleAttractionGuideFields(${day}, ${newIndex})">
+                                <option value="No">No</option>
+                                <option value="Yes">Yes</option>
+                            </select>
+                        </div>
+                        
+                        <!-- Guide Options (Hidden by default) -->
+                        <div class="col-md-3 attraction-guide-fields" id="day${day}_attraction_${newIndex}_guide_select_field" style="display: none;">
+                            <label class="form-label fw-semibold">Select Guide</label>
+                            <select class="form-select attraction-guide-select" name="day${day}_attraction_${newIndex}_guide" id="day${day}_attraction_${newIndex}_guide" onchange="loadAttractionGuideDetails(${day}, this.value, ${newIndex})" disabled>
+                                <option value="">Select city first</option>
+                            </select>
+                        </div>
+                        <div class="col-md-3 attraction-guide-fields" id="day${day}_attraction_${newIndex}_guide_pickup_time_field" style="display: none;">
+                            <label class="form-label fw-semibold">Pickup Time</label>
+                            <div id="day${day}_attraction_${newIndex}_guide_pickup_time_options">
+                                <select class="form-select" disabled>
+                                    <option value="">Select guide first</option>
+                                </select>
+                            </div>
+                            <input type="hidden" name="day${day}_attraction_${newIndex}_guide_pickup_time" id="day${day}_attraction_${newIndex}_guide_pickup_time">
+                        </div>
+                        <div class="col-md-3 attraction-guide-fields" id="day${day}_attraction_${newIndex}_guide_package_field" style="display: none;">
+                            <label class="form-label fw-semibold">Select Package</label>
+                            <select class="form-select" name="day${day}_attraction_${newIndex}_guide_package" id="day${day}_attraction_${newIndex}_guide_package" onchange="updateAttractionGuidePricing(${day}, ${newIndex})">
+                                <option value="">Select Duration</option>
+                            </select>
+                            
+                            <!-- Guide Price Display Section -->
+                            <div id="day${day}_attraction_${newIndex}_guide_price_display" class="mt-3" style="display: none;">
+                                <div class="p-3 rounded-3" style="background-color: #e3f2fd; border: 1px solid #bbdefb; border-radius: 8px;">
+                                    <h6 class="text-primary mb-3 fw-bold">
+                                        <i class="ri-user-line me-2"></i>Guide Pricing: <span id="day${day}_attraction_${newIndex}_guide_guide_name">Guide Name</span>
+                                    </h6>
+                                    
+                                    <div class="row">
+                                        <div class="col-12">
+                                            <div class="d-flex justify-content-between align-items-center mb-2">
+                                                <span class="text-primary">Package Price:</span>
+                                                <span class="fw-semibold text-primary" id="day${day}_attraction_${newIndex}_guide_package_price_display">$0.00</span>
+                                            </div>
+                                            
+                                            <div class="d-flex justify-content-between align-items-center mb-2">
+                                                <span class="text-primary">Duration:</span>
+                                                <span class="fw-semibold text-primary" id="day${day}_attraction_${newIndex}_guide_hours_display">0 hours</span>
+                                            </div>
+                                            
+                                            <div class="d-flex justify-content-between align-items-center mb-2" id="day${day}_attraction_${newIndex}_guide_surcharge_row" style="display: none;">
+                                                <span class="text-primary">Night Surcharge:</span>
+                                                <span class="fw-semibold text-warning" id="day${day}_attraction_${newIndex}_guide_surcharge_display">$0.00</span>
+                                            </div>
+                                            
+                                            <hr class="my-3" style="border-color: #bbdefb;">
+                                            
+                                            <div class="d-flex justify-content-between align-items-center">
+                                                <span class="fw-bold text-primary">Total Price:</span>
+                                                <span class="fw-bold text-success fs-5" id="day${day}_attraction_${newIndex}_guide_total_price_display">$0.00</span>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                            
+                            <!-- Hidden fields for pricing -->
+                            <input type="hidden" id="day${day}_attraction_${newIndex}_guide_base_price" name="day${day}_attraction_${newIndex}_guide_base_price" value="0">
+                            <input type="hidden" id="day${day}_attraction_${newIndex}_guide_hours" name="day${day}_attraction_${newIndex}_guide_hours" value="0">
+                            <input type="hidden" id="day${day}_attraction_${newIndex}_guide_surcharge" name="day${day}_attraction_${newIndex}_guide_surcharge" value="0">
+                            <input type="hidden" id="day${day}_attraction_${newIndex}_guide_total_price" name="day${day}_attraction_${newIndex}_guide_total_price" value="0">
                         </div>
                     </div>
                     
@@ -12622,7 +14455,7 @@ document.addEventListener('DOMContentLoaded', function() {
                                         </button>
                                     </div>
                                     <div class="guest-badges mt-1">
-                                        <span class="badge bg-primary">4</span>
+                                        <span class="badge bg-primary">1</span>
                                         <span class="badge bg-success">0</span>
                                         <span class="badge bg-warning text-dark">0</span>
                                     </div>
@@ -12657,6 +14490,59 @@ document.addEventListener('DOMContentLoaded', function() {
                          </div>
                     </div>
                     
+                    <!-- Transfer Required Section -->
+                    <div class="row g-3 mt-2">
+                        <div class="col-md-2">
+                            <label class="form-label fw-semibold">
+                                <i class="ri-car-line me-1"></i>Transfer Required?
+                            </label>
+                            <select class="form-select" name="day${day}_restaurant_${newIndex}_transfer_required" id="day${day}_restaurant_${newIndex}_transfer_required" onchange="toggleRestaurantTransferFields(${day}, ${newIndex})">
+                                <option value="No">No</option>
+                                <option value="Yes">Yes</option>
+                            </select>
+                        </div>
+                        
+                        <!-- Transfer Options (Hidden by default) -->
+                        <div class="col-md-2 restaurant-transfer-fields" id="day${day}_restaurant_${newIndex}_transfer_type_field" style="display: none;">
+                            <label class="form-label fw-semibold">Type</label>
+                            <select class="form-select" name="day${day}_restaurant_${newIndex}_transfer_type" id="day${day}_restaurant_${newIndex}_transfer_type">
+                                <option value="">Select Type</option>
+                                <option value="Private">Private</option>
+                                <option value="Shared">Shared</option>
+                            </select>
+                        </div>
+                        <div class="col-md-2 restaurant-transfer-fields" id="day${day}_restaurant_${newIndex}_transfer_way_field" style="display: none;">
+                            <label class="form-label fw-semibold">Way</label>
+                            <select class="form-select" name="day${day}_restaurant_${newIndex}_transfer_way" id="day${day}_restaurant_${newIndex}_transfer_way">
+                                <option value="">Select Way</option>
+                                <option value="One Way">One Way</option>
+                                <option value="Both Way">Both Way</option>
+                            </select>
+                        </div>
+                        <div class="col-md-3 restaurant-transfer-fields" id="day${day}_restaurant_${newIndex}_transfer_vehicle_field" style="display: none;">
+                            <label class="form-label fw-semibold">Vehicle</label>
+                            <select class="form-select" name="day${day}_restaurant_${newIndex}_transfer_vehicle" id="day${day}_restaurant_${newIndex}_transfer_vehicle">
+                                <option value="">Select Vehicle</option>
+                            </select>
+                        </div>
+                        <div class="col-md-3 restaurant-transfer-fields" id="day${day}_restaurant_${newIndex}_transfer_cost_field" style="display: none;">
+                            <label class="form-label fw-semibold">Cost</label>
+                            <input type="number" class="form-control" name="day${day}_restaurant_${newIndex}_transfer_cost" id="day${day}_restaurant_${newIndex}_transfer_cost" min="0" step="0.01" placeholder="0.00">
+                        </div>
+                    </div>
+                    
+                    <!-- Transfer Pickup Location Row -->
+                    <div class="row g-3 mt-2">
+                        <div class="col-md-12 restaurant-transfer-fields" id="day${day}_restaurant_${newIndex}_transfer_pickup_field" style="display: none;">
+                            <label class="form-label fw-semibold">
+                                <i class="ri-map-pin-line me-1"></i>Pickup Location
+                            </label>
+                            <select class="form-select" name="day${day}_restaurant_${newIndex}_transfer_pickup_location" id="day${day}_restaurant_${newIndex}_transfer_pickup_location">
+                                <option value="">Select Pickup Location</option>
+                            </select>
+                        </div>
+                    </div>
+                    
                     <!-- Restaurant Pricing Section -->
                     <div id="day${day}_restaurant_${newIndex}_price_display" class="mt-3" style="display: none;">
                         <div class="alert alert-success">
@@ -12685,7 +14571,7 @@ document.addEventListener('DOMContentLoaded', function() {
         
         // Note: Restaurant dropdown will be loaded when city is selected
         
-        // Update guest summary for the new restaurant with current main guest selection
+        // Update guest summary and badges for the new restaurant with current main guest selection
         const mainMale = parseInt(document.getElementById('male')?.value) || 0;
         const mainFemale = parseInt(document.getElementById('female')?.value) || 0;
         const mainChildren = parseInt(document.getElementById('children')?.value) || 0;
@@ -12695,6 +14581,17 @@ document.addEventListener('DOMContentLoaded', function() {
         if (summaryElement) {
             const adults = mainMale + mainFemale;
             summaryElement.textContent = `${adults} adults (${mainMale} male, ${mainFemale} female), ${mainChildren} children - ${mainInfants} infants`;
+            
+            // Update badges
+            const guestDisplay = summaryElement.closest('.guest-display');
+            if (guestDisplay) {
+                const badges = guestDisplay.querySelectorAll('.guest-badges .badge');
+                if (badges.length >= 3) {
+                    badges[0].textContent = adults; // Total adults
+                    badges[1].textContent = mainChildren; // Children
+                    badges[2].textContent = mainInfants; // Infants
+                }
+            }
         }
         
         showNotification(`Restaurant Booking #${newIndex} added for Day ${day}`, 'success');
@@ -13243,7 +15140,7 @@ document.addEventListener('DOMContentLoaded', function() {
                                         </button>
                                     </div>
                                     <div class="guest-badges mt-1">
-                                        <span class="badge bg-primary">4</span>
+                                        <span class="badge bg-primary">1</span>
                                         <span class="badge bg-success">0</span>
                                         <span class="badge bg-warning text-dark">0</span>
                                     </div>
@@ -13344,7 +15241,7 @@ document.addEventListener('DOMContentLoaded', function() {
         
         // Note: Guide dropdown will be loaded when city is selected
         
-        // Update guest summary for the new guide with current main guest selection
+        // Update guest summary and badges for the new guide with current main guest selection
         const mainMale = parseInt(document.getElementById('male')?.value) || 0;
         const mainFemale = parseInt(document.getElementById('female')?.value) || 0;
         const mainChildren = parseInt(document.getElementById('children')?.value) || 0;
@@ -13354,6 +15251,17 @@ document.addEventListener('DOMContentLoaded', function() {
         if (summaryElement) {
             const adults = mainMale + mainFemale;
             summaryElement.textContent = `${adults} adults (${mainMale} male, ${mainFemale} female), ${mainChildren} children - ${mainInfants} infants`;
+            
+            // Update badges
+            const guestDisplay = summaryElement.closest('.guest-display');
+            if (guestDisplay) {
+                const badges = guestDisplay.querySelectorAll('.guest-badges .badge');
+                if (badges.length >= 3) {
+                    badges[0].textContent = adults; // Total adults
+                    badges[1].textContent = mainChildren; // Children
+                    badges[2].textContent = mainInfants; // Infants
+                }
+            }
         }
         
         showNotification(`Tour Guide Booking #${newIndex} added for Day ${day}`, 'success');
@@ -19188,29 +21096,131 @@ window.saveService = function(day, type) {
             return;
         }
         
+        // Get transfer options
+        const transferRequired = document.getElementById(`day${day}_attraction_1_transfer_required`)?.value || 'No';
+        let transferOptions = null;
+        
+        if (transferRequired === 'Yes') {
+            const transferType = document.getElementById(`day${day}_attraction_1_transfer_type`)?.value || '';
+            const transferWay = document.getElementById(`day${day}_attraction_1_transfer_way`)?.value || '';
+            const transferVehicle = document.getElementById(`day${day}_attraction_1_transfer_vehicle`)?.value || '';
+            const transferCost = parseFloat(document.getElementById(`day${day}_attraction_1_transfer_cost`)?.value || 0);
+            const transferPickupLocation = document.getElementById(`day${day}_attraction_1_transfer_pickup_location`)?.value || '';
+            
+            // Get pickup location name
+            let pickupLocationName = '';
+            if (transferPickupLocation) {
+                const pickupSelect = document.getElementById(`day${day}_attraction_1_transfer_pickup_location`);
+                const selectedPickupOption = pickupSelect ? pickupSelect.options[pickupSelect.selectedIndex] : null;
+                if (selectedPickupOption) {
+                    pickupLocationName = selectedPickupOption.text || '';
+                }
+            }
+            
+            // Get vehicle details if vehicle is selected
+            let vehicleDetails = null;
+            if (transferVehicle) {
+                const vehicleSelect = document.getElementById(`day${day}_attraction_1_transfer_vehicle`);
+                const selectedVehicleOption = vehicleSelect ? vehicleSelect.options[vehicleSelect.selectedIndex] : null;
+                if (selectedVehicleOption) {
+                    vehicleDetails = {
+                        vehicle_id: transferVehicle,
+                        vehicle_name: selectedVehicleOption.getAttribute('data-vehicle-name') || '',
+                        vehicle_type: selectedVehicleOption.getAttribute('data-vehicle-type') || '',
+                        seating_capacity: selectedVehicleOption.getAttribute('data-seating-capacity') || '',
+                        private_price: selectedVehicleOption.getAttribute('data-private-price') || '',
+                        shared_price: selectedVehicleOption.getAttribute('data-shared-price') || ''
+                    };
+                }
+            }
+            
+            transferOptions = {
+                transfer_required: true,
+                type: transferType,
+                way: transferWay,
+                vehicle_id: transferVehicle,
+                vehicle_details: vehicleDetails,
+                cost: transferCost,
+                pickup_location_id: transferPickupLocation,
+                pickup_location_name: pickupLocationName
+            };
+        }
+        
         data = {
             attraction_id: attractionId,
             ticket_id: ticketId,
             time_slot: timeSlot,
-            day: day
+            day: day,
+            transfer_options: transferOptions
         };
     }
     else if (type === 'restaurant') {
         section = 'restaurant';
         const restaurantId = document.querySelector(`select[name="day${day}_restaurant_1"]`).value;
-        const mealType = document.querySelector(`select[name="day${day}_restaurant_1_meal_type"]`).value;
-        const mealTime = document.querySelector(`select[name="day${day}_restaurant_1_time"]`).value;
+        const mealType = document.querySelector(`select[name="day${day}_meal_type_1"]`).value;
+        const mealTime = document.querySelector(`select[name="day${day}_time_slot_1"]`).value;
         
         if (!restaurantId || !mealType || !mealTime) {
             showNotification('Please fill in all required fields for restaurant service.', 'error');
             return;
         }
         
+        // Get transfer options
+        const transferRequired = document.getElementById(`day${day}_restaurant_1_transfer_required`)?.value || 'No';
+        let transferOptions = null;
+        
+        if (transferRequired === 'Yes') {
+            const transferType = document.getElementById(`day${day}_restaurant_1_transfer_type`)?.value || '';
+            const transferWay = document.getElementById(`day${day}_restaurant_1_transfer_way`)?.value || '';
+            const transferVehicle = document.getElementById(`day${day}_restaurant_1_transfer_vehicle`)?.value || '';
+            const transferCost = parseFloat(document.getElementById(`day${day}_restaurant_1_transfer_cost`)?.value || 0);
+            const transferPickupLocation = document.getElementById(`day${day}_restaurant_1_transfer_pickup_location`)?.value || '';
+            
+            // Get pickup location name
+            let pickupLocationName = '';
+            if (transferPickupLocation) {
+                const pickupSelect = document.getElementById(`day${day}_restaurant_1_transfer_pickup_location`);
+                const selectedPickupOption = pickupSelect ? pickupSelect.options[pickupSelect.selectedIndex] : null;
+                if (selectedPickupOption) {
+                    pickupLocationName = selectedPickupOption.text || '';
+                }
+            }
+            
+            // Get vehicle details if vehicle is selected
+            let vehicleDetails = null;
+            if (transferVehicle) {
+                const vehicleSelect = document.getElementById(`day${day}_restaurant_1_transfer_vehicle`);
+                const selectedVehicleOption = vehicleSelect ? vehicleSelect.options[vehicleSelect.selectedIndex] : null;
+                if (selectedVehicleOption) {
+                    vehicleDetails = {
+                        vehicle_id: transferVehicle,
+                        vehicle_name: selectedVehicleOption.getAttribute('data-vehicle-name') || '',
+                        vehicle_type: selectedVehicleOption.getAttribute('data-vehicle-type') || '',
+                        seating_capacity: selectedVehicleOption.getAttribute('data-seating-capacity') || '',
+                        private_price: selectedVehicleOption.getAttribute('data-private-price') || '',
+                        shared_price: selectedVehicleOption.getAttribute('data-shared-price') || ''
+                    };
+                }
+            }
+            
+            transferOptions = {
+                transfer_required: true,
+                type: transferType,
+                way: transferWay,
+                vehicle_id: transferVehicle,
+                vehicle_details: vehicleDetails,
+                cost: transferCost,
+                pickup_location_id: transferPickupLocation,
+                pickup_location_name: pickupLocationName
+            };
+        }
+        
         data = {
             restaurant_id: restaurantId,
             meal_type: mealType,
             meal_time: mealTime,
-            day: day
+            day: day,
+            transfer_options: transferOptions
         };
     }
     
