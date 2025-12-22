@@ -624,6 +624,20 @@ class EditTourController extends Controller
                 $currentPayload['days_display'] = $validated['days_display'] ?? '';
             }
 
+            // Step 9.5: Process transfer_options if provided
+            if ($request->has('transfer_options')) {
+                $transferOptionsJson = $request->input('transfer_options');
+                if (!empty($transferOptionsJson)) {
+                    $transferOptions = json_decode($transferOptionsJson, true);
+                    if (json_last_error() === JSON_ERROR_NONE && is_array($transferOptions)) {
+                        $currentPayload['transfer_options'] = $transferOptions;
+                    }
+                } else {
+                    // If empty, set transfer_required to false
+                    $currentPayload['transfer_options'] = ['transfer_required' => false];
+                }
+            }
+
             // Step 10: Restructure payload to match desired order (same as SingleTourPackageController)
             // Order: customer info, specialRequests, rooms, booking info, hotelDetails, bookingDate
             // Remove unwanted fields: id, price, tour_id, days_display
@@ -649,6 +663,8 @@ class EditTourController extends Controller
                 'hotelDetails' => is_array($currentPayload['hotelDetails'] ?? []) ? $currentPayload['hotelDetails'] : [],
                 // Booking date at the end - ensure it's always an array
                 'bookingDate' => is_array($currentPayload['bookingDate'] ?? []) ? $currentPayload['bookingDate'] : [],
+                // Transfer options if provided
+                'transfer_options' => $currentPayload['transfer_options'] ?? ['transfer_required' => false],
             ];
             
             // Ensure hotelDetails has all required fields
@@ -778,6 +794,23 @@ class EditTourController extends Controller
                     $newBookingData = [$newBookingData];
                 }
 
+                // Merge transfer_options if provided
+                if ($request->has('transfer_options')) {
+                    $transferOptionsJson = $request->input('transfer_options');
+                    if (!empty($transferOptionsJson)) {
+                        $transferOptions = json_decode($transferOptionsJson, true);
+                        if (json_last_error() === JSON_ERROR_NONE && is_array($transferOptions)) {
+                            // Add transfer_options to each item in the array
+                            foreach ($newBookingData as &$item) {
+                                if (is_array($item)) {
+                                    $item['transfer_options'] = $transferOptions;
+                                }
+                            }
+                            unset($item);
+                        }
+                    }
+                }
+
                 // Completely replace the data
                 $order->data = $newBookingData;
                 $successMessage = 'Attraction booking data replaced successfully.';
@@ -819,6 +852,24 @@ class EditTourController extends Controller
 
                 if (!empty($validated['notes'])) {
                     $currentPayload['notes'] = $validated['notes'];
+                }
+
+                // Process transfer_options if provided
+                if ($request->has('transfer_options')) {
+                    $transferOptionsJson = $request->input('transfer_options');
+                    if (!empty($transferOptionsJson)) {
+                        $transferOptions = json_decode($transferOptionsJson, true);
+                        if (json_last_error() === JSON_ERROR_NONE && is_array($transferOptions)) {
+                            $currentPayload['transfer_options'] = $transferOptions;
+                        }
+                    } else {
+                        $currentPayload['transfer_options'] = ['transfer_required' => false];
+                    }
+                } else {
+                    // Preserve existing transfer_options if not provided
+                    if (!isset($currentPayload['transfer_options'])) {
+                        $currentPayload['transfer_options'] = ['transfer_required' => false];
+                    }
                 }
 
                 $order->data = [$currentPayload];
@@ -1022,6 +1073,23 @@ class EditTourController extends Controller
                     $newBookingData = [$newBookingData];
                 }
 
+                // Merge transfer_options if provided
+                if ($request->has('transfer_options')) {
+                    $transferOptionsJson = $request->input('transfer_options');
+                    if (!empty($transferOptionsJson)) {
+                        $transferOptions = json_decode($transferOptionsJson, true);
+                        if (json_last_error() === JSON_ERROR_NONE && is_array($transferOptions)) {
+                            // Add transfer_options to each item in the array
+                            foreach ($newBookingData as &$item) {
+                                if (is_array($item)) {
+                                    $item['transfer_options'] = $transferOptions;
+                                }
+                            }
+                            unset($item);
+                        }
+                    }
+                }
+
                 // Completely replace the data
                 $order->data = $newBookingData;
                 $successMessage = 'Restaurant booking data replaced successfully.';
@@ -1069,6 +1137,24 @@ class EditTourController extends Controller
                         throw new \Exception('Meal details JSON is invalid.');
                     }
                     $currentPayload['MealDescription'] = $decodedMeals;
+                }
+
+                // Process transfer_options if provided
+                if ($request->has('transfer_options')) {
+                    $transferOptionsJson = $request->input('transfer_options');
+                    if (!empty($transferOptionsJson)) {
+                        $transferOptions = json_decode($transferOptionsJson, true);
+                        if (json_last_error() === JSON_ERROR_NONE && is_array($transferOptions)) {
+                            $currentPayload['transfer_options'] = $transferOptions;
+                        }
+                    } else {
+                        $currentPayload['transfer_options'] = ['transfer_required' => false];
+                    }
+                } else {
+                    // Preserve existing transfer_options if not provided
+                    if (!isset($currentPayload['transfer_options'])) {
+                        $currentPayload['transfer_options'] = ['transfer_required' => false];
+                    }
                 }
 
                 $order->data = [$currentPayload];
