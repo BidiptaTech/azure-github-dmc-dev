@@ -176,236 +176,9 @@
             border-color: #6c757d;
             color: #fff;
         }
-        
-        /* Excel-like Simple Design */
-        .excel-form {
-            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-        }
-        
-        /* Excel-like Input Fields */
-        .excel-form .form-control,
-        .excel-form .form-select {
-            font-size: 13px;
-            padding: 4px 8px;
-            height: 28px;
-            border: 1px solid #d1d5db;
-            border-radius: 2px;
-            background-color: #ffffff;
-            transition: border-color 0.15s ease-in-out;
-        }
-        
-        .excel-form .form-control:focus,
-        .excel-form .form-select:focus {
-            border-color: #2563eb;
-            outline: 1px solid #2563eb;
-            outline-offset: -1px;
-            box-shadow: none;
-        }
-        
-        .excel-form .form-control:disabled {
-            background-color: #f3f4f6;
-            color: #6b7280;
-        }
-        
-        /* Excel-like Labels */
-        .excel-form .form-label {
-            font-size: 12px;
-            font-weight: 500;
-            color: #374151;
-            margin-bottom: 3px;
-            line-height: 1.2;
-        }
-        
-        /* Compact Checkboxes and Radio Buttons */
-        .excel-form .form-check-input {
-            width: 16px;
-            height: 16px;
-            margin-top: 0.2rem;
-            cursor: pointer;
-        }
-        
-        .excel-form .form-check-label {
-            font-size: 13px;
-            margin-left: 0.35rem;
-            cursor: pointer;
-        }
-        
-        .excel-form .btn-check {
-            width: 18px;
-            height: 18px;
-        }
-        
-        .excel-form .btn-group-sm .btn {
-            font-size: 12px;
-            padding: 3px 10px;
-            height: 24px;
-            line-height: 1.2;
-        }
-        
-        /* Excel-like Card/Table Structure */
-        .excel-form .card {
-            border: 1px solid #e5e7eb;
-            border-radius: 4px;
-            box-shadow: 0 1px 2px rgba(0,0,0,0.05);
-            margin-bottom: 12px;
-        }
-        
-        .excel-form .card-header {
-            background-color: #f9fafb;
-            border-bottom: 1px solid #e5e7eb;
-            padding: 8px 12px;
-            font-size: 13px;
-            font-weight: 600;
-        }
-        
-        .excel-form .card-body {
-            padding: 12px;
-        }
-        
-        /* Excel-like Grid Layout */
-        .excel-form .row {
-            margin-bottom: 8px;
-        }
-        
-        .excel-form .row.g-3 {
-            --bs-gutter-x: 0.75rem;
-            --bs-gutter-y: 0.5rem;
-        }
-        
-        .excel-form .row.g-3 > * {
-            padding-right: calc(var(--bs-gutter-x) * 0.5);
-            padding-left: calc(var(--bs-gutter-x) * 0.5);
-            margin-top: calc(var(--bs-gutter-y) * 0.5);
-        }
-        
-        /* Excel-like Service Items */
-        .excel-form .service-item {
-            border: 1px solid #e5e7eb;
-            border-radius: 3px;
-            padding: 10px;
-            margin-bottom: 10px;
-            background-color: #ffffff;
-        }
-        
-        .excel-form .hotel-edit-form {
-            border: 1px solid #e5e7eb;
-            border-radius: 3px;
-            padding: 12px;
-            background-color: #ffffff;
-        }
-        
-        /* Compact Buttons */
-        .excel-form .btn {
-            font-size: 12px;
-            padding: 4px 12px;
-            height: 26px;
-            line-height: 1.2;
-            border-radius: 3px;
-        }
-        
-        .excel-form .btn-sm {
-            font-size: 11px;
-            padding: 3px 8px;
-            height: 24px;
-        }
-        
-        /* Excel-like Input Groups */
-        .excel-form .input-group {
-            height: 28px;
-        }
-        
-        .excel-form .input-group-text {
-            font-size: 12px;
-            padding: 4px 8px;
-            height: 28px;
-            line-height: 1.5;
-            background-color: #f9fafb;
-            border: 1px solid #d1d5db;
-            border-radius: 2px 0 0 2px;
-            display: flex;
-            align-items: center;
-        }
-        
-        .excel-form .input-group > .form-control {
-            height: 28px;
-            border-left: none;
-            border-radius: 0 2px 2px 0;
-            font-size: 13px;
-            padding: 4px 8px;
-        }
-        
-        /* Remove excessive shadows and gradients */
-        .excel-form .shadow-sm {
-            box-shadow: 0 1px 2px rgba(0,0,0,0.05) !important;
-        }
-        
-        .excel-form .bg-gradient-primary,
-        .excel-form .bg-gradient-warning,
-        .excel-form .bg-gradient-success {
-            background: #f9fafb !important;
-            color: #374151 !important;
-        }
-        
-        /* Compact spacing */
-        .excel-form .mb-3 {
-            margin-bottom: 10px !important;
-        }
-        
-        .excel-form .mb-4 {
-            margin-bottom: 12px !important;
-        }
-        
-        .excel-form .mt-3 {
-            margin-top: 10px !important;
-        }
-        
-        .excel-form .p-3 {
-            padding: 10px !important;
-        }
-        
-        .excel-form .p-4 {
-            padding: 12px !important;
-        }
-        
-        /* Small text */
-        .excel-form small,
-        .excel-form .form-text {
-            font-size: 11px;
-            color: #6b7280;
-        }
-        
-        /* Table-like borders for transport sections */
-        .excel-form .border.rounded-3 {
-            border: 1px solid #e5e7eb !important;
-            border-radius: 3px !important;
-            padding: 8px !important;
-            background-color: #f9fafb;
-        }
-        
-        /* Remove rounded corners for more Excel-like look */
-        .excel-form .rounded,
-        .excel-form .rounded-3 {
-            border-radius: 3px !important;
-        }
-        
-        /* Compact header */
-        .excel-form h6 {
-            font-size: 13px;
-            font-weight: 600;
-            margin-bottom: 8px;
-        }
-        
-        /* Excel-like select dropdowns */
-        .excel-form select.form-select {
-            background-image: url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3e%3cpath fill='none' stroke='%23343a40' stroke-linecap='round' stroke-linejoin='round' stroke-width='2' d='M2 5l6 6 6-6'/%3e%3c/svg%3e");
-            background-repeat: no-repeat;
-            background-position: right 6px center;
-            background-size: 12px;
-            padding-right: 28px;
-        }
     </style>
 
-<div class="content-wrapper excel-form">
+<div class="content-wrapper">
     <div class="container-xxl flex-grow-1 container-p-y">
         <div style="z-index: 1050; position: relative;">
             <x-alert />
@@ -413,13 +186,13 @@
         <!-- Header Section -->
         <div class="row mb-4">
             <div class="col-12">
-                <div>
-                    <div class="card-header text-white" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); border-bottom: 3px solid #764ba2;">
+                <div class="card border-0 shadow-sm">
+                    <div class="card-header bg-gradient-primary text-white">
                         <div class="d-flex align-items-center">
-                            <i class="ri-map-pin-line me-3 fs-3"></i>
+                            <i class="ri-map-pin-line me-3 fs-4"></i>
                             <div>
-                            <h3 class="mb-2 fw-bold text-white" style="font-size: 1.5rem; text-shadow: 0 2px 4px rgba(0,0,0,0.2);">Edit Tour Services</h3>
-                            <p class="mb-0 text-white" style="font-size: 0.95rem; opacity: 0.95; font-weight: 500;">Manage and add services to existing tour: <strong>{{ $tour->display_id ?? 'N/A' }}</strong></p>
+                            <h4 class="mb-1 text-white">Edit Tour Services</h4>
+                            <p class="mb-0 opacity-75">Manage and add services to existing tour: {{ $tour->display_id ?? 'N/A' }}</p>
                             </div>
                         </div>
                     </div>
@@ -507,7 +280,7 @@
             <div class="row mb-4">
                 <div class="col-12">
                     <div class="card shadow-sm border-0">
-                        <div class="card-header text-white" style="background: linear-gradient(135deg, #4facfe 0%, #00c9ff 100%); border-bottom: 1px solid #3b82f6;">
+                        <div class="card-header bg-gradient-primary text-white">
                             <h6 class="mb-0 fw-bold">
                                 <i class="ri-settings-3-line me-2"></i>Tour Information
                             </h6>
@@ -639,25 +412,17 @@
             <!-- Service Action Buttons -->
 
             <!-- Hotel Accommodation Section -->
-            <div class="accordion mb-4" id="servicesAccordion">
-            <div class="accordion-item border-0">
-                <div class="card shadow-sm border-0">
-                    <div class="card-header text-dark d-flex justify-content-between align-items-center" role="button" data-bs-toggle="collapse" data-bs-target="#hotelAccommodationsSection" aria-expanded="true" aria-controls="hotelAccommodationsSection" style="cursor: pointer; background: linear-gradient(135deg, #e5e7eb 0%, #d1d5db 100%); border: 1px solid #9ca3af;">
-                        <div class="d-flex align-items-center">
-                            <span class="service-icon me-3">
-                                <i class="ri-hotel-line fs-4"></i>
-                            </span>
-                            <div>
-                                <h6 class="mb-0 fw-bold">🏨 Hotel Accommodations</h6>
-                                <small class="text-muted">Manage hotel bookings and room configurations</small>
-                            </div>
+            @if(isset($hotelOrders) && count($hotelOrders) > 0)
+            <div class="row mb-4">
+                <div class="col-12">
+                    <div class="card shadow-sm border-0">
+                        <div class="card-header bg-gradient-warning text-white">
+                            <h6 class="mb-0 fw-bold">
+                                <i class="ri-hotel-line me-2"></i>Hotel Accommodations
+                            </h6>
                         </div>
-                        <i class="ri-arrow-up-s-line ms-2 fs-5"></i>
-                    </div>
-                    <div id="hotelAccommodationsSection" class="collapse show">
-                    <div class="card-body mt-3">
+                        <div class="card-body">
                             <div class="row">
-                                @if(isset($hotelOrders) && count($hotelOrders) > 0)
                                 @foreach($hotelOrders as $hotelOrder)
                                 @php
                                     $hotelData = $hotelOrder->processed_data;
@@ -749,17 +514,9 @@
                                                 <h6 class="card-title mb-1 fw-bold text-warning"><i class="ri-hotel-line me-2"></i>Hotel Booking #{{ $loop->iteration }}</h6>
                                                 <small class="text-muted">Booking ID: {{ $hotelOrder->booking_id }}</small>
                                             </div>
-                                            <div class="d-flex flex-column align-items-end gap-2">
-                                                <div class="text-end">
-                                                    <span class="d-block text-muted small">Total Price</span>
-                                                    <span class="fw-bold text-success" style="font-size: 1.05rem;">
-                                                        {{ $tour->currency ?? '$' }} {{ number_format((float)$totalPrice, 2, '.', ',') }}
-                                                    </span>
-                                                </div>
-                                                <button type="button" class="btn btn-sm btn-outline-danger" onclick="removeHotelService({{ $hotelOrder->booking_id }})">
-                                                    <i class="ri-delete-bin-line"></i>
-                                                </button>
-                                            </div>
+                                            <button type="button" class="btn btn-sm btn-outline-danger" onclick="removeHotelService({{ $hotelOrder->booking_id }})">
+                                                <i class="ri-delete-bin-line"></i>
+                                            </button>
                                         </div>
                                         <!-- Transport for this hotel -->
                                         <!-- <div class="border rounded-3 p-3 bg-light mb-3">
@@ -1608,10 +1365,10 @@
                                                     <i class="ri-money-dollar-circle-line me-1 text-success"></i>Total Price
                                                 </label>
                                                 <div class="input-group">
-                                                    <span class="input-group-text" style="height:28px">$</span>
+                                                    <span class="input-group-text">$</span>
                                                     <input type="number" class="form-control" name="total_price" id="total_price_{{ $hotelOrder->booking_id }}" step="0.01" min="0" value="{{ number_format((float)$totalPrice, 2, '.', '') }}" placeholder="0.00" data-manual-edit="false">
                                                 </div>
-                                                <small class="text-muted d-block mt-1" style="font-size: 0.7rem; line-height: 1.2; word-wrap: break-word;">Price per room & rooms</small>
+                                                <small class="text-muted">Price per room type and number of rooms</small>
                                             </div>
                                         </div>
                                         <div class="d-flex justify-content-end align-items-center gap-3 mt-4">
@@ -1624,34 +1381,27 @@
                                     </div>
                                 </div>
                                 @endforeach
-                                @else
-                                <div class="col-12">
-                                    <div class="text-center py-5 text-muted">
-                                        <i class="ri-hotel-line fs-1 mb-3" style="color: #cbd5e1;"></i>
-                                        <p class="mb-4">No hotel bookings yet</p>
-                                    </div>
-                                </div>
-                                @endif
-                            </div>
-                        </div> <!-- end card-body -->
-                        <div class="card-footer bg-light">
-                            <div class="text-center py-3">
-                                <button type="button" class="btn btn-gradient-primary btn-lg shadow-sm px-5 py-3" onclick="addHotelService()" style="
-                                    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-                                    border: none;
-                                    color: white;
-                                    font-weight: 600;
-                                    letter-spacing: 0.5px;
-                                    transition: all 0.3s ease;
-                                    border-radius: 8px;
-                                    box-shadow: 0 4px 15px rgba(102, 126, 234, 0.4);
-                                " onmouseover="this.style.transform='translateY(-2px)'; this.style.boxShadow='0 6px 20px rgba(102, 126, 234, 0.6)';" onmouseout="this.style.transform='translateY(0)'; this.style.boxShadow='0 4px 15px rgba(102, 126, 234, 0.4)';">
-                                    <i class="ri-add-circle-line me-2" style="font-size: 1.2em;"></i>{{ isset($hotelOrders) && count($hotelOrders) > 0 ? 'Add More Hotels' : 'Add Hotel' }}
-                                </button>
                             </div>
                         </div>
-                        </div> <!-- end hotelAccommodationsSection collapse -->
                     </div>
+                </div>
+                
+            </div>
+            @endif
+            <div class="card-footer bg-light">
+                <div class="text-center py-3">
+                    <button type="button" class="btn btn-gradient-primary btn-lg shadow-sm px-5 py-3" onclick="addHotelService()" style="
+                        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+                        border: none;
+                        color: white;
+                        font-weight: 600;
+                        letter-spacing: 0.5px;
+                        transition: all 0.3s ease;
+                        border-radius: 8px;
+                        box-shadow: 0 4px 15px rgba(102, 126, 234, 0.4);
+                    " onmouseover="this.style.transform='translateY(-2px)'; this.style.boxShadow='0 6px 20px rgba(102, 126, 234, 0.6)';" onmouseout="this.style.transform='translateY(0)'; this.style.boxShadow='0 4px 15px rgba(102, 126, 234, 0.4)';">
+                        <i class="ri-add-circle-line me-2" style="font-size: 1.2em;"></i>Add More Hotels
+                    </button>
                 </div>
             </div>
             
@@ -1669,20 +1419,18 @@
             @endphp
             <div class="row mb-4">
                 <div class="col-12">
-                    <div>
-                        <div class="card-header text-dark d-flex justify-content-between align-items-center" role="button" data-bs-toggle="collapse" data-bs-target="#arrivalTransportSection" aria-expanded="false" aria-controls="arrivalTransportSection" style="cursor: pointer; background: linear-gradient(135deg, #e5e7eb 0%, #d1d5db 100%); border: 1px solid #9ca3af;">
+                    <div class="card border-success shadow-sm">
+                        <div class="card-header bg-success text-white">
                             <div class="d-flex align-items-center">
                                 <span class="service-icon me-3">
                                     <i class="ri-login-circle-line fs-4"></i>
                                 </span>
                                 <div>
-                                    <h6 class="mb-0 fw-bold">🚌 Arrival Transport Services</h6>
-                                    <small class="text-muted">Edit entry port transfers</small>
+                                    <h6 class="mb-0 fw-bold">Arrival Transport Services</h6>
+                                    <small class="opacity-75">Edit entry port transfers</small>
                                 </div>
                             </div>
-                            <i class="ri-arrow-down-s-line ms-2 fs-5"></i>
                         </div>
-                        <div id="arrivalTransportSection" class="collapse">
                         <div class="card-body mt-3">
                             @if(count($allArrivalServices) > 0)
                                 @foreach($allArrivalServices as $index => $order)
@@ -1807,6 +1555,7 @@
                                 </div>
                             @endif
                         </div>
+                        <!-- Arrival Services Add More Section (Static) -->
                         <div class="card-footer bg-light">
                             <div class="text-center py-3">
                                 <button type="button" class="btn btn-gradient-primary btn-lg shadow-sm px-5 py-3" onclick="addArrivalService()" style="
@@ -1819,11 +1568,10 @@
                                     border-radius: 8px;
                                     box-shadow: 0 4px 15px rgba(17, 153, 142, 0.4);
                                 " onmouseover="this.style.transform='translateY(-2px)'; this.style.boxShadow='0 6px 20px rgba(17, 153, 142, 0.6)';" onmouseout="this.style.transform='translateY(0)'; this.style.boxShadow='0 4px 15px rgba(17, 153, 142, 0.4)';">
-                                    <i class="ri-add-circle-line me-2" style="font-size: 1.2em;"></i>{{ count($allArrivalServices) > 0 ? 'Add More Arrival Services' : 'Add Arrival Service' }}
+                                    <i class="ri-add-circle-line me-2" style="font-size: 1.2em;"></i>Add More Arrival Services
                                 </button>
                             </div>
                         </div>
-                        </div> <!-- end arrivalTransportSection collapse -->
                     </div>
                 </div>
             </div>
@@ -1842,12 +1590,11 @@
             <div class="row mb-4">
                 <div class="col-12">
                     <div class="card shadow-sm border-0">
-                        <div class="card-body p-0 mb-4">
+                        <div class="card-body mb-4">
                             @php
-                                // Collect all attractions, guides, restaurants, and transport services from all days
+                                // Collect all attractions, guides, and transport services from all days
                                 $allAttractions = [];
                                 $allGuides = [];
-                                $allRestaurants = [];
                                 $allTransportHourly = [];
                                 $allTransportPoint = [];
                                 $allLocalTransport = [];
@@ -1858,8 +1605,6 @@
                                             $allAttractions[] = $order;
                                         } elseif ($order->type === 'guide') {
                                             $allGuides[] = $order;
-                                        } elseif ($order->type === 'restaurant') {
-                                            $allRestaurants[] = $order;
                                         } elseif ($order->type === 'travel_hourly') {
                                             $allTransportHourly[] = $order;
                                         } elseif ($order->type === 'travel_point') {
@@ -1880,12 +1625,12 @@
                                     <i class="ri-calendar-check-line me-2"></i>Day {{ $dayInfo['day_number'] }} ({{ $dayInfo['date']->format('l, jS F Y') }})
                                 </h6> -->
                                     @php
-                                        // Group this day's orders by type (excluding attractions, guides, and restaurants)
+                                        // Group this day's orders by type (excluding attractions and guides)
                                         $dayOrdersByType = [];
                                         foreach($dayInfo['orders'] as $order) {
                                             $type = $order->type;
-                                            // Skip attractions, guides, and restaurants as they will be shown separately
-                                            if ($type === 'attraction' || $type === 'guide' || $type === 'restaurant') {
+                                            // Skip attractions and guides as they will be shown separately
+                                            if ($type === 'attraction' || $type === 'guide') {
                                                 continue;
                                             }
                                             if (!isset($dayOrdersByType[$type])) {
@@ -1894,316 +1639,312 @@
                                             $dayOrdersByType[$type][] = $order;
                                         }
                                     @endphp
+
+                                <!-- Restaurant Services Section -->
+                                @if(isset($dayOrdersByType['restaurant']))
+                                <div class="service-section mb-3">
+                                    <div class="card border-success shadow-sm">
+                                        <div class="card-header bg-success text-white">
+                                            <div class="d-flex align-items-center">
+                                                <span class="service-icon me-3">
+                                                    <i class="ri-restaurant-2-line fs-4"></i>
+                                                </span>
+                                                <div>
+                                                    <h6 class="mb-0 fw-bold">Book Restaurant Services</h6>
+                                                    <small class="opacity-75">Select restaurants and configure your dining experience</small>
+                                                </div>
+                                            </div>
+                                        </div>
+                                        <div class="card-body mt-3">
+                                            @foreach($dayOrdersByType['restaurant'] as $index => $order)
+                                            @php
+                                                $restaurantData = $order->processed_data;
+                                                $payload = [];
+                                                if (is_array($restaurantData)) {
+                                                    $payload = isset($restaurantData[0]) ? $restaurantData[0] : $restaurantData;
+                                                }
+                                                $restaurantName = $payload['restaurantName'] ?? 'N/A';
+                                                $mealType = $payload['mealType'] ?? '';
+                                                $mealSpecificType = $payload['mealSpecificType'] ?? '';
+                                                $timeSlot = $payload['visitTime'] ?? '';
+                                                $adultCount = $payload['adultCount'] ?? 0;
+                                                $childCount = $payload['childCount'] ?? 0;
+                                                $totalPrice = $payload['totalPrice'] ?? 0;
+                                                $mealDescription = $payload['MealDescription'] ?? null;
+                                                $restaurantNotes = $payload['notes'] ?? '';
+
+                                                if ($totalPrice <= 0 && is_array($mealDescription)) {
+                                                    $calculatedTotal = 0;
+                                                    foreach ($mealDescription as $meal) {
+                                                        $mealPrice = $meal['price'] ?? 0;
+                                                        $quantity = $meal['quantity'] ?? 1;
+                                                        $calculatedTotal += $mealPrice * $quantity;
+                                                    }
+                                                    if ($calculatedTotal > 0) {
+                                                        $totalPrice = $calculatedTotal;
+                                                    }
+                                                }
+                                                
+                                                // Extract transport options
+                                                $transferOptions = $payload['transfer_options'] ?? [];
+                                                $transferRequired = isset($transferOptions['transfer_required']) && $transferOptions['transfer_required'] === true;
+                                                $transportType = $transferOptions['type'] ?? '';
+                                                $transportVehicle = $transferOptions['vehicle_id'] ?? $transferOptions['vehicle_name'] ?? '';
+                                                $transportDestination = $transferOptions['destination'] ?? '';
+                                                $transportSeats = $transferOptions['seats'] ?? '';
+                                                $transportPassengers = $transferOptions['passengers'] ?? '';
+                                                $transportPrice = $transferOptions['price'] ?? 0;
+                                                $transportWay = $transferOptions['way'] ?? 'One Way';
+                                                $transportReturn = ($transportWay === 'Two Way');
+                                            @endphp
+                                            <form class="service-item mb-3 p-3 border rounded shadow-sm bg-white restaurant-edit-form" data-update-url="{{ route('edit-tour.update-restaurant', $order->booking_id) }}" onsubmit="updateExistingRestaurant(event, {{ $order->booking_id }})">
+                                                @csrf
+                                                <input type="hidden" name="type" value="restaurant">
+                                                <div class="d-flex justify-content-between align-items-center mb-3">
+                                                    <h6 class="mb-0 fw-bold text-success"><i class="ri-restaurant-line me-2"></i>Restaurant Booking #{{ $index + 1 }}</h6>
+                                                    <div class="d-flex gap-2">
+                                                        <button type="button" class="btn btn-sm btn-outline-danger" onclick="removeRestaurantService({{ $order->booking_id }})">
+                                                            <i class="ri-delete-bin-line"></i> Remove
+                                                        </button>
+                                                    </div>
+                                                </div>
+                                                <!-- Transport for this restaurant -->
+                                                <div class="border rounded-3 p-3 bg-light mb-3">
+                                                    <div class="row g-2 align-items-center">
+                                                        <div class="col-md-4">
+                                                            <label class="form-label fw-semibold d-block mb-1">Need transport for this restaurant?</label>
+                                                            <div class="btn-group btn-group-sm" role="group" aria-label="Need restaurant transport toggle">
+                                                                <input type="radio" class="btn-check" name="need_restaurant_transport_{{ $order->booking_id }}" id="need_restaurant_transport_no_{{ $order->booking_id }}" value="no" autocomplete="off" {{ !$transferRequired ? 'checked' : '' }}>
+                                                                <label class="btn btn-outline-secondary" for="need_restaurant_transport_no_{{ $order->booking_id }}">No</label>
+                                                                
+                                                                <input type="radio" class="btn-check" name="need_restaurant_transport_{{ $order->booking_id }}" id="need_restaurant_transport_yes_{{ $order->booking_id }}" value="yes" autocomplete="off" {{ $transferRequired ? 'checked' : '' }}>
+                                                                <label class="btn btn-outline-primary" for="need_restaurant_transport_yes_{{ $order->booking_id }}">Yes</label>
+                                                            </div>
+                                                        </div>
+                                                    </div>
+                                                    <div id="restaurant_transport_details_{{ $order->booking_id }}" class="border rounded-3 p-3 bg-white mt-2 {{ $transferRequired ? '' : 'd-none' }}">
+                                                        @php
+                                                            $transportVehicles = $vehicles ?? collect();
+                                                            $tourCountry = $tour->destination ?? '';
+                                                            $filteredVehicles = $transportVehicles;
+                                                            if ($tourCountry) {
+                                                                $filteredVehicles = $transportVehicles->filter(function($vehicle) use ($tourCountry) {
+                                                                    $vehicleCountry = strtolower(trim($vehicle->country ?? $vehicle->service_country ?? ''));
+                                                                    return $vehicleCountry === strtolower(trim($tourCountry));
+                                                                });
+                                                                if ($filteredVehicles->isEmpty()) {
+                                                                    $filteredVehicles = $transportVehicles;
+                                                                }
+                                                            }
+                                                        @endphp
+                                                        <div class="row g-3">
+                                                            <!-- First Row: Transport Type, Vehicle, Destination -->
+                                                            <div class="col-md-3">
+                                                                <label class="form-label fw-semibold">Transport Type</label>
+                                                                <select class="form-select" name="restaurant_transport_type_{{ $order->booking_id }}">
+                                                                    <option value="">Select type</option>
+                                                                    <option value="shared" {{ $transportType === 'shared' || $transportType === 'Shared' ? 'selected' : '' }}>Shared</option>
+                                                                    <option value="private" {{ $transportType === 'private' || $transportType === 'Private' ? 'selected' : '' }}>Private</option>
+                                                                </select>
+                                                            </div>
+                                                            <div class="col-md-4">
+                                                                <label class="form-label fw-semibold">Vehicle (by country)</label>
+                                                                <select class="form-select restaurant-transport-vehicle-select" name="restaurant_transport_vehicle_{{ $order->booking_id }}" id="restaurant_transport_vehicle_{{ $order->booking_id }}" data-booking-id="{{ $order->booking_id }}">
+                                                                    <option value="">Select vehicle</option>
+                                                                    @foreach($filteredVehicles as $vehicle)
+                                                                        @php
+                                                                            $vehicleName = $vehicle->vehicle_name ?? $vehicle->vehicle_id ?? 'Vehicle';
+                                                                            $vehicleType = $vehicle->vehicle_type ?? '';
+                                                                            $seatingCapacity = $vehicle->seating_capacity ?? '';
+                                                                            $isSelected = ($transportVehicle === $vehicleName || $transportVehicle === ($vehicle->vehicle_id ?? ''));
+                                                                        @endphp
+                                                                        <option value="{{ $vehicleName }}" data-seating-capacity="{{ $seatingCapacity }}" {{ $isSelected ? 'selected' : '' }}>
+                                                                            {{ $vehicleName }}
+                                                                            @if($vehicleType)
+                                                                                ({{ $vehicleType }})
+                                                                            @endif
+                                                                            @if($seatingCapacity)
+                                                                                - {{ $seatingCapacity }} seats
+                                                                            @endif
+                                                                        </option>
+                                                                    @endforeach
+                                                                </select>
+                                                            </div>
+                                                            <div class="col-md-5">
+                                                                <label class="form-label fw-semibold">Destination</label>
+                                                                @php
+                                                                    $destHotels = $hotels ?? collect();
+                                                                    $destAttractions = $attractions ?? collect();
+                                                                    $destRestaurants = $restaurants ?? collect();
+                                                                @endphp
+                                                                <select class="form-select" name="restaurant_transport_destination_{{ $order->booking_id }}">
+                                                                    <option value="">Search & select destination</option>
+                                                                    <optgroup label="Hotels">
+                                                                        @foreach($destHotels as $h)
+                                                                            <option value="{{ $h->name ?? '' }}" {{ ($transportDestination === ($h->name ?? '')) ? 'selected' : '' }}>{{ $h->name ?? '' }}</option>
+                                                                        @endforeach
+                                                                    </optgroup>
+                                                                    <optgroup label="Attractions">
+                                                                        @foreach($destAttractions as $a)
+                                                                            <option value="{{ $a->name ?? '' }}" {{ ($transportDestination === ($a->name ?? '')) ? 'selected' : '' }}>{{ $a->name ?? '' }}</option>
+                                                                        @endforeach
+                                                                    </optgroup>
+                                                                    <optgroup label="Restaurants">
+                                                                        @foreach($destRestaurants as $r)
+                                                                            <option value="{{ $r->name ?? '' }}" {{ ($transportDestination === ($r->name ?? '')) ? 'selected' : '' }}>{{ $r->name ?? '' }}</option>
+                                                                        @endforeach
+                                                                    </optgroup>
+                                                                </select>
+                                                            </div>
+                                                        </div>
+                                                        <div class="row g-3 mt-2">
+                                                            <!-- Second Row: Seats, Passengers, Price -->
+                                                            <div class="col-md-2">
+                                                                <label class="form-label fw-semibold">Seats</label>
+                                                                <input type="number" min="1" class="form-control" name="restaurant_transport_seats_{{ $order->booking_id }}" id="restaurant_transport_seats_{{ $order->booking_id }}" placeholder="0" value="{{ $transportSeats }}" readonly>
+                                                            </div>
+                                                            <div class="col-md-4">
+                                                                <label class="form-label fw-semibold">Passengers</label>
+                                                                <input type="number" min="1" class="form-control" name="restaurant_transport_passengers_{{ $order->booking_id }}" id="restaurant_transport_passengers_{{ $order->booking_id }}" placeholder="0" value="{{ $transportPassengers }}" data-booking-id="{{ $order->booking_id }}" data-transport-type="restaurant">
+                                                                <div class="form-check mt-2">
+                                                                    <input class="form-check-input restaurant-transport-return-checkbox" type="checkbox" name="restaurant_transport_return_{{ $order->booking_id }}" id="restaurant_transport_return_{{ $order->booking_id }}" data-booking-id="{{ $order->booking_id }}" {{ $transportReturn ? 'checked' : '' }}>
+                                                                    <label class="form-check-label fw-semibold" for="restaurant_transport_return_{{ $order->booking_id }}">
+                                                                        Return
+                                                                    </label>
+                                                                </div>
+                                                                <small class="text-danger d-none" id="restaurant_passenger_error_{{ $order->booking_id }}">Passengers must be less than or equal to seats</small>
+                                                            </div>
+                                                            <div class="col-md-6">
+                                                                <label class="form-label fw-semibold">Estimated Price</label>
+                                                                <div class="input-group">
+                                                                    <span class="input-group-text">{{ $tour->currency ?? '$' }}</span>
+                                                                    <input type="number" min="0" step="0.01" class="form-control" name="restaurant_transport_price_{{ $order->booking_id }}" id="restaurant_transport_price_{{ $order->booking_id }}" placeholder="0.00" value="{{ number_format((float)$transportPrice, 2, '.', '') }}" data-original-price="{{ $transportReturn ? number_format((float)$transportPrice / 2, 2, '.', '') : number_format((float)$transportPrice, 2, '.', '') }}">
+                                                                </div>
+                                                                <small class="text-muted">Optional, can be adjusted later.</small>
+                                                            </div>
+                                                        </div>
+                                                    </div>
+                                                </div>
+                                                <div class="row g-3">
+                                                    <div class="col-md-6">
+                                                        <label class="form-label fw-semibold text-muted mb-1"><i class="ri-restaurant-line me-1 text-primary"></i>Restaurant Name</label>
+                                                        <select class="form-select border-2" name="restaurant_name" id="restaurant_name_{{ $order->booking_id }}" onchange="loadRestaurantMealsForEdit({{ $order->booking_id }})" required>
+                                                            <option value="">Select Restaurant</option>
+                                                            @php
+                                                                $tourCountry = $tour->destination ?? '';
+                                                                $filteredRestaurants = collect($restaurants ?? [])->filter(function($restaurant) use ($tourCountry) {
+                                                                    // Check if restaurant has country field directly
+                                                                    if (isset($restaurant->country) && $restaurant->country == $tourCountry) {
+                                                                        return true;
+                                                                    }
+                                                                    // If no country filter available, include all restaurants
+                                                                    return empty($tourCountry);
+                                                                });
+                                                            @endphp
+                                                            @foreach($filteredRestaurants as $restaurant)
+                                                                <option value="{{ $restaurant->name }}" {{ $restaurantName == $restaurant->name ? 'selected' : '' }} 
+                                                                    data-restaurant-id="{{ $restaurant->restaurant_id ?? '' }}"
+                                                                    data-restaurant-data="{{ json_encode($restaurant) }}">
+                                                                    {{ $restaurant->name }}
+                                                                    @if(isset($restaurant->city))
+                                                                        - {{ $restaurant->city }}
+                                                                    @endif
+                                                                    @if(isset($restaurant->cuisine))
+                                                                        ({{ $restaurant->cuisine }})
+                                                                    @endif
+                                                                </option>
+                                                            @endforeach
+                                                            @if($restaurantName && !$filteredRestaurants->pluck('name')->contains($restaurantName))
+                                                                <option value="{{ $restaurantName }}" selected>{{ $restaurantName }}</option>
+                                                            @endif
+                                                        </select>
+                                                    </div>
+                                                    <div class="col-md-3">
+                                                        <label class="form-label fw-semibold text-muted mb-1"><i class="ri-cup-line me-1 text-warning"></i>Meal Type</label>
+                                                        <select class="form-select border-2" name="meal_type" id="meal_type_{{ $order->booking_id }}" onchange="loadDishTypesForEdit({{ $order->booking_id }})" required>
+                                                            <option value="">Select Restaurant First</option>
+                                                            @if($mealType)
+                                                                <option value="{{ $mealType }}" selected>{{ $mealType }}</option>
+                                                            @endif
+                                                        </select>
+                                                        <input type="hidden" id="current_meal_type_{{ $order->booking_id }}" value="{{ $mealType }}">
+                                                    </div>
+                                                    <div class="col-md-3">
+                                                        <label class="form-label fw-semibold text-muted mb-1"><i class="ri-cup-line me-1 text-info"></i>Dish Type</label>
+                                                        <select class="form-select border-2" name="meal_specific_type" id="meal_specific_type_{{ $order->booking_id }}" required>
+                                                            <option value="">Select Meal Type First</option>
+                                                            @if($mealSpecificType)
+                                                                <option value="{{ $mealSpecificType }}" selected>{{ $mealSpecificType }}</option>
+                                                            @endif
+                                                        </select>
+                                                        <input type="hidden" id="current_dish_type_{{ $order->booking_id }}" value="{{ $mealSpecificType }}">
+                                                    </div>
+                                                    <div class="col-md-3">
+                                                        <label class="form-label fw-semibold text-muted mb-1"><i class="ri-time-line me-1 text-warning"></i>Time Slot</label>
+                                                        <input type="text" class="form-control border-2" name="time_slot" value="{{ $timeSlot }}" placeholder="e.g. 07:00 AM">
+                                                        <small class="text-muted">Available time slots</small>
+                                                    </div>
+                                                    <div class="col-md-3">
+                                                        <label class="form-label fw-semibold text-muted mb-1"><i class="ri-user-line me-1 text-secondary"></i>Adults</label>
+                                                        <input type="number" class="form-control border-2" name="adult_count" min="0" value="{{ $adultCount }}" required>
+                                                    </div>
+                                                    <div class="col-md-3">
+                                                        <label class="form-label fw-semibold text-muted mb-1"><i class="ri-user-smile-line me-1 text-secondary"></i>Children</label>
+                                                        <input type="number" class="form-control border-2" name="child_count" min="0" value="{{ $childCount }}" required>
+                                                    </div>
+                                                </div>
+                                                <div class="d-flex justify-content-end align-items-center gap-3 mt-3">
+                                                    <div class="text-muted small" id="restaurant_feedback_{{ $order->booking_id }}"></div>
+                                                    <button type="submit" class="btn btn-sm btn-primary d-flex align-items-center gap-2">
+                                                        <span class="spinner-border spinner-border-sm d-none" id="restaurant_spinner_{{ $order->booking_id }}"></span>
+                                                        <span>Save Changes</span>
+                                                    </button>
+                                                </div>
+                                            </form>
+                                            @endforeach
+                                        </div>
+                                    </div>
+                                </div>
+                                @endif
+                            </div>
                                 @endif
                             @endforeach
                             
-                            <!-- All Restaurant Services Section (Unified) -->
-                            <div class="service-section mb-3">
-                                <div>
-                                    <div class="card-header text-dark d-flex justify-content-between align-items-center" role="button" data-bs-toggle="collapse" data-bs-target="#restaurantServicesSection" aria-expanded="false" aria-controls="restaurantServicesSection" style="cursor: pointer; background: linear-gradient(135deg, #e5e7eb 0%, #d1d5db 100%); border: 1px solid #9ca3af;">
-                                        <div class="d-flex align-items-center">
-                                            <span class="service-icon me-3">
-                                                <i class="ri-restaurant-2-line fs-4"></i>
-                                            </span>
-                                            <div>
-                                                <h6 class="mb-0 fw-bold">🍽️ All Restaurant Services</h6>
-                                                <small class="text-muted">All restaurants from all days in one place</small>
-                                            </div>
-                                        </div>
-                                        <i class="ri-arrow-down-s-line ms-2 fs-5"></i>
-                                    </div>
-                                    <div id="restaurantServicesSection" class="collapse">
-                                    <div class="card-body mt-3">
-                                        @if(count($allRestaurants) > 0)
-                                        @foreach($allRestaurants as $index => $order)
-                                        @php
-                                            $restaurantData = $order->processed_data;
-                                            $payload = [];
-                                            if (is_array($restaurantData)) {
-                                                $payload = isset($restaurantData[0]) ? $restaurantData[0] : $restaurantData;
-                                            }
-                                            $restaurantName = $payload['restaurantName'] ?? 'N/A';
-                                            $mealType = $payload['mealType'] ?? '';
-                                            $mealSpecificType = $payload['mealSpecificType'] ?? '';
-                                            $timeSlot = $payload['visitTime'] ?? '';
-                                            $adultCount = $payload['adultCount'] ?? 0;
-                                            $childCount = $payload['childCount'] ?? 0;
-                                            $totalPrice = $payload['totalPrice'] ?? 0;
-                                            $mealDescription = $payload['MealDescription'] ?? null;
-                                            $restaurantNotes = $payload['notes'] ?? '';
-
-                                            if ($totalPrice <= 0 && is_array($mealDescription)) {
-                                                $calculatedTotal = 0;
-                                                foreach ($mealDescription as $meal) {
-                                                    $mealPrice = $meal['price'] ?? 0;
-                                                    $quantity = $meal['quantity'] ?? 1;
-                                                    $calculatedTotal += $mealPrice * $quantity;
-                                                }
-                                                if ($calculatedTotal > 0) {
-                                                    $totalPrice = $calculatedTotal;
-                                                }
-                                            }
-                                            
-                                            // Extract transport options
-                                            $transferOptions = $payload['transfer_options'] ?? [];
-                                            $transferRequired = isset($transferOptions['transfer_required']) && $transferOptions['transfer_required'] === true;
-                                            $transportType = $transferOptions['type'] ?? '';
-                                            $transportVehicle = $transferOptions['vehicle_id'] ?? $transferOptions['vehicle_name'] ?? '';
-                                            $transportDestination = $transferOptions['destination'] ?? '';
-                                            $transportSeats = $transferOptions['seats'] ?? '';
-                                            $transportPassengers = $transferOptions['passengers'] ?? '';
-                                            $transportPrice = $transferOptions['price'] ?? 0;
-                                            $transportWay = $transferOptions['way'] ?? 'One Way';
-                                            $transportReturn = ($transportWay === 'Two Way');
-                                        @endphp
-                                        <form class="service-item mb-3 p-3 border rounded shadow-sm bg-white restaurant-edit-form" data-update-url="{{ route('edit-tour.update-restaurant', $order->booking_id) }}" onsubmit="updateExistingRestaurant(event, {{ $order->booking_id }})">
-                                            @csrf
-                                            <input type="hidden" name="type" value="restaurant">
-                                            <div class="d-flex justify-content-between align-items-center mb-3">
-                                                <h6 class="mb-0 fw-bold text-success"><i class="ri-restaurant-line me-2"></i>Restaurant Booking #{{ $index + 1 }}</h6>
-                                                <div class="d-flex gap-2">
-                                                    <button type="button" class="btn btn-sm btn-outline-danger" onclick="removeRestaurantService({{ $order->booking_id }})">
-                                                        <i class="ri-delete-bin-line"></i> Remove
-                                                    </button>
-                                                </div>
-                                            </div>
-                                            <!-- Transport for this restaurant -->
-                                            <div class="border rounded-3 p-3 bg-light mb-3">
-                                                <div class="row g-2 align-items-center">
-                                                    <div class="col-md-4">
-                                                        <label class="form-label fw-semibold d-block mb-1">Need transport for this restaurant?</label>
-                                                        <div class="btn-group btn-group-sm" role="group" aria-label="Need restaurant transport toggle">
-                                                            <input type="radio" class="btn-check" name="need_restaurant_transport_{{ $order->booking_id }}" id="need_restaurant_transport_no_{{ $order->booking_id }}" value="no" autocomplete="off" {{ !$transferRequired ? 'checked' : '' }}>
-                                                            <label class="btn btn-outline-secondary" for="need_restaurant_transport_no_{{ $order->booking_id }}">No</label>
-                                                            
-                                                            <input type="radio" class="btn-check" name="need_restaurant_transport_{{ $order->booking_id }}" id="need_restaurant_transport_yes_{{ $order->booking_id }}" value="yes" autocomplete="off" {{ $transferRequired ? 'checked' : '' }}>
-                                                            <label class="btn btn-outline-primary" for="need_restaurant_transport_yes_{{ $order->booking_id }}">Yes</label>
-                                                        </div>
-                                                    </div>
-                                                </div>
-                                                <div id="restaurant_transport_details_{{ $order->booking_id }}" class="border rounded-3 p-3 bg-white mt-2 {{ $transferRequired ? '' : 'd-none' }}">
-                                                    @php
-                                                        $transportVehicles = $vehicles ?? collect();
-                                                        $tourCountry = $tour->destination ?? '';
-                                                        $filteredVehicles = $transportVehicles;
-                                                        if ($tourCountry) {
-                                                            $filteredVehicles = $transportVehicles->filter(function($vehicle) use ($tourCountry) {
-                                                                $vehicleCountry = strtolower(trim($vehicle->country ?? $vehicle->service_country ?? ''));
-                                                                return $vehicleCountry === strtolower(trim($tourCountry));
-                                                            });
-                                                            if ($filteredVehicles->isEmpty()) {
-                                                                $filteredVehicles = $transportVehicles;
-                                                            }
-                                                        }
-                                                    @endphp
-                                                    <div class="row g-3">
-                                                        <!-- First Row: Transport Type, Vehicle, Destination -->
-                                                        <div class="col-md-3">
-                                                            <label class="form-label fw-semibold">Transport Type</label>
-                                                            <select class="form-select" name="restaurant_transport_type_{{ $order->booking_id }}">
-                                                                <option value="">Select type</option>
-                                                                <option value="shared" {{ $transportType === 'shared' || $transportType === 'Shared' ? 'selected' : '' }}>Shared</option>
-                                                                <option value="private" {{ $transportType === 'private' || $transportType === 'Private' ? 'selected' : '' }}>Private</option>
-                                                            </select>
-                                                        </div>
-                                                        <div class="col-md-4">
-                                                            <label class="form-label fw-semibold">Vehicle (by country)</label>
-                                                            <select class="form-select restaurant-transport-vehicle-select" name="restaurant_transport_vehicle_{{ $order->booking_id }}" id="restaurant_transport_vehicle_{{ $order->booking_id }}" data-booking-id="{{ $order->booking_id }}">
-                                                                <option value="">Select vehicle</option>
-                                                                @foreach($filteredVehicles as $vehicle)
-                                                                    @php
-                                                                        $vehicleName = $vehicle->vehicle_name ?? $vehicle->vehicle_id ?? 'Vehicle';
-                                                                        $vehicleType = $vehicle->vehicle_type ?? '';
-                                                                        $seatingCapacity = $vehicle->seating_capacity ?? '';
-                                                                        $isSelected = ($transportVehicle === $vehicleName || $transportVehicle === ($vehicle->vehicle_id ?? ''));
-                                                                    @endphp
-                                                                    <option value="{{ $vehicleName }}" data-seating-capacity="{{ $seatingCapacity }}" {{ $isSelected ? 'selected' : '' }}>
-                                                                        {{ $vehicleName }}
-                                                                        @if($vehicleType)
-                                                                            ({{ $vehicleType }})
-                                                                        @endif
-                                                                        @if($seatingCapacity)
-                                                                            - {{ $seatingCapacity }} seats
-                                                                        @endif
-                                                                    </option>
-                                                                @endforeach
-                                                            </select>
-                                                        </div>
-                                                        <div class="col-md-5">
-                                                            <label class="form-label fw-semibold">Destination</label>
-                                                            @php
-                                                                $destHotels = $hotels ?? collect();
-                                                                $destAttractions = $attractions ?? collect();
-                                                                $destRestaurants = $restaurants ?? collect();
-                                                            @endphp
-                                                            <select class="form-select" name="restaurant_transport_destination_{{ $order->booking_id }}">
-                                                                <option value="">Search & select destination</option>
-                                                                <optgroup label="Hotels">
-                                                                    @foreach($destHotels as $h)
-                                                                        <option value="{{ $h->name ?? '' }}" {{ ($transportDestination === ($h->name ?? '')) ? 'selected' : '' }}>{{ $h->name ?? '' }}</option>
-                                                                    @endforeach
-                                                                </optgroup>
-                                                                <optgroup label="Attractions">
-                                                                    @foreach($destAttractions as $a)
-                                                                        <option value="{{ $a->name ?? '' }}" {{ ($transportDestination === ($a->name ?? '')) ? 'selected' : '' }}>{{ $a->name ?? '' }}</option>
-                                                                    @endforeach
-                                                                </optgroup>
-                                                                <optgroup label="Restaurants">
-                                                                    @foreach($destRestaurants as $r)
-                                                                        <option value="{{ $r->name ?? '' }}" {{ ($transportDestination === ($r->name ?? '')) ? 'selected' : '' }}>{{ $r->name ?? '' }}</option>
-                                                                    @endforeach
-                                                                </optgroup>
-                                                            </select>
-                                                        </div>
-                                                    </div>
-                                                    <div class="row g-3 mt-2">
-                                                        <!-- Second Row: Seats, Passengers, Price -->
-                                                        <div class="col-md-2">
-                                                            <label class="form-label fw-semibold">Seats</label>
-                                                            <input type="number" min="1" class="form-control" name="restaurant_transport_seats_{{ $order->booking_id }}" id="restaurant_transport_seats_{{ $order->booking_id }}" placeholder="0" value="{{ $transportSeats }}" readonly>
-                                                        </div>
-                                                        <div class="col-md-4">
-                                                            <label class="form-label fw-semibold">Passengers</label>
-                                                            <input type="number" min="1" class="form-control" name="restaurant_transport_passengers_{{ $order->booking_id }}" id="restaurant_transport_passengers_{{ $order->booking_id }}" placeholder="0" value="{{ $transportPassengers }}" data-booking-id="{{ $order->booking_id }}" data-transport-type="restaurant">
-                                                            <div class="form-check mt-2">
-                                                                <input class="form-check-input restaurant-transport-return-checkbox" type="checkbox" name="restaurant_transport_return_{{ $order->booking_id }}" id="restaurant_transport_return_{{ $order->booking_id }}" data-booking-id="{{ $order->booking_id }}" {{ $transportReturn ? 'checked' : '' }}>
-                                                                <label class="form-check-label fw-semibold" for="restaurant_transport_return_{{ $order->booking_id }}">
-                                                                    Return
-                                                                </label>
-                                                            </div>
-                                                            <small class="text-danger d-none" id="restaurant_passenger_error_{{ $order->booking_id }}">Passengers must be less than or equal to seats</small>
-                                                        </div>
-                                                        <div class="col-md-6">
-                                                            <label class="form-label fw-semibold">Estimated Price</label>
-                                                            <div class="input-group">
-                                                                <span class="input-group-text">{{ $tour->currency ?? '$' }}</span>
-                                                                <input type="number" min="0" step="0.01" class="form-control" name="restaurant_transport_price_{{ $order->booking_id }}" id="restaurant_transport_price_{{ $order->booking_id }}" placeholder="0.00" value="{{ number_format((float)$transportPrice, 2, '.', '') }}" data-original-price="{{ $transportReturn ? number_format((float)$transportPrice / 2, 2, '.', '') : number_format((float)$transportPrice, 2, '.', '') }}">
-                                                            </div>
-                                                            <small class="text-muted">Optional, can be adjusted later.</small>
-                                                        </div>
-                                                    </div>
-                                                </div>
-                                            </div>
-                                            <div class="row g-3">
-                                                <div class="col-md-6">
-                                                    <label class="form-label fw-semibold text-muted mb-1"><i class="ri-restaurant-line me-1 text-primary"></i>Restaurant Name</label>
-                                                    <select class="form-select border-2" name="restaurant_name" id="restaurant_name_{{ $order->booking_id }}" onchange="loadRestaurantMealsForEdit({{ $order->booking_id }})" required>
-                                                        <option value="">Select Restaurant</option>
-                                                        @php
-                                                            $tourCountry = $tour->destination ?? '';
-                                                            $filteredRestaurants = collect($restaurants ?? [])->filter(function($restaurant) use ($tourCountry) {
-                                                                // Check if restaurant has country field directly
-                                                                if (isset($restaurant->country) && $restaurant->country == $tourCountry) {
-                                                                    return true;
-                                                                }
-                                                                // If no country filter available, include all restaurants
-                                                                return empty($tourCountry);
-                                                            });
-                                                        @endphp
-                                                        @foreach($filteredRestaurants as $restaurant)
-                                                            <option value="{{ $restaurant->name }}" {{ $restaurantName == $restaurant->name ? 'selected' : '' }} 
-                                                                data-restaurant-id="{{ $restaurant->restaurant_id ?? '' }}"
-                                                                data-restaurant-data="{{ json_encode($restaurant) }}">
-                                                                {{ $restaurant->name }}
-                                                                @if(isset($restaurant->city))
-                                                                    - {{ $restaurant->city }}
-                                                                @endif
-                                                                @if(isset($restaurant->cuisine))
-                                                                    ({{ $restaurant->cuisine }})
-                                                                @endif
-                                                            </option>
-                                                        @endforeach
-                                                        @if($restaurantName && !$filteredRestaurants->pluck('name')->contains($restaurantName))
-                                                            <option value="{{ $restaurantName }}" selected>{{ $restaurantName }}</option>
-                                                        @endif
-                                                    </select>
-                                                </div>
-                                                <div class="col-md-3">
-                                                    <label class="form-label fw-semibold text-muted mb-1"><i class="ri-cup-line me-1 text-warning"></i>Meal Type</label>
-                                                    <select class="form-select border-2" name="meal_type" id="meal_type_{{ $order->booking_id }}" onchange="loadDishTypesForEdit({{ $order->booking_id }})" required>
-                                                        <option value="">Select Restaurant First</option>
-                                                        @if($mealType)
-                                                            <option value="{{ $mealType }}" selected>{{ $mealType }}</option>
-                                                        @endif
-                                                    </select>
-                                                    <input type="hidden" id="current_meal_type_{{ $order->booking_id }}" value="{{ $mealType }}">
-                                                </div>
-                                                <div class="col-md-3">
-                                                    <label class="form-label fw-semibold text-muted mb-1"><i class="ri-cup-line me-1 text-info"></i>Dish Type</label>
-                                                    <select class="form-select border-2" name="meal_specific_type" id="meal_specific_type_{{ $order->booking_id }}" required>
-                                                        <option value="">Select Meal Type First</option>
-                                                        @if($mealSpecificType)
-                                                            <option value="{{ $mealSpecificType }}" selected>{{ $mealSpecificType }}</option>
-                                                        @endif
-                                                    </select>
-                                                    <input type="hidden" id="current_dish_type_{{ $order->booking_id }}" value="{{ $mealSpecificType }}">
-                                                </div>
-                                                <div class="col-md-3">
-                                                    <label class="form-label fw-semibold text-muted mb-1"><i class="ri-time-line me-1 text-warning"></i>Time Slot</label>
-                                                    <input type="text" class="form-control border-2" name="time_slot" value="{{ $timeSlot }}" placeholder="e.g. 07:00 AM">
-                                                    <small class="text-muted">Available time slots</small>
-                                                </div>
-                                                <div class="col-md-3">
-                                                    <label class="form-label fw-semibold text-muted mb-1"><i class="ri-user-line me-1 text-secondary"></i>Adults</label>
-                                                    <input type="number" class="form-control border-2" name="adult_count" min="0" value="{{ $adultCount }}" required>
-                                                </div>
-                                                <div class="col-md-3">
-                                                    <label class="form-label fw-semibold text-muted mb-1"><i class="ri-user-smile-line me-1 text-secondary"></i>Children</label>
-                                                    <input type="number" class="form-control border-2" name="child_count" min="0" value="{{ $childCount }}" required>
-                                                </div>
-                                            </div>
-                                            <div class="d-flex justify-content-end align-items-center gap-3 mt-3">
-                                                <div class="text-muted small" id="restaurant_feedback_{{ $order->booking_id }}"></div>
-                                                <button type="submit" class="btn btn-sm btn-primary d-flex align-items-center gap-2">
-                                                    <span class="spinner-border spinner-border-sm d-none" id="restaurant_spinner_{{ $order->booking_id }}"></span>
-                                                    <span>Save Changes</span>
-                                                </button>
-                                            </div>
-                                        </form>
-                                        @endforeach
-                                        @else
-                                        <div class="text-center py-5 text-muted">
-                                            <i class="ri-restaurant-2-line fs-1 mb-3" style="color: #cbd5e1;"></i>
-                                            <p class="mb-4">No restaurant bookings yet</p>
-                                        </div>
-                                        @endif
-                                    </div>
-                                    <div class="card-footer bg-light">
-                                        <div class="text-center py-3">
-                                            <button type="button" class="btn btn-gradient-primary btn-lg shadow-sm px-5 py-3" onclick="addRestaurantService()" style="
-                                                background: linear-gradient(135deg, #43e97b 0%, #38f9d7 100%);
-                                                border: none;
-                                                color: white;
-                                                font-weight: 600;
-                                                letter-spacing: 0.5px;
-                                                transition: all 0.3s ease;
-                                                border-radius: 8px;
-                                                box-shadow: 0 4px 15px rgba(67, 233, 123, 0.4);
-                                            " onmouseover="this.style.transform='translateY(-2px)'; this.style.boxShadow='0 6px 20px rgba(67, 233, 123, 0.6)';" onmouseout="this.style.transform='translateY(0)'; this.style.boxShadow='0 4px 15px rgba(67, 233, 123, 0.4)';">
-                                                <i class="ri-add-circle-line me-2" style="font-size: 1.2em;"></i>{{ count($allRestaurants) > 0 ? 'Add More Restaurants' : 'Add Restaurant' }}
-                                            </button>
-                                        </div>
-                                    </div>
-                                    </div> <!-- end restaurantServicesSection collapse -->
+                            
+                            
+                            <!-- Restaurant Services Add More Section (Static) -->
+                            <div class="card-footer bg-light">
+                                <div class="text-center py-3">
+                                    <button type="button" class="btn btn-gradient-primary btn-lg shadow-sm px-5 py-3" onclick="addRestaurantService()" style="
+                                        background: linear-gradient(135deg, #43e97b 0%, #38f9d7 100%);
+                                        border: none;
+                                        color: white;
+                                        font-weight: 600;
+                                        letter-spacing: 0.5px;
+                                        transition: all 0.3s ease;
+                                        border-radius: 8px;
+                                        box-shadow: 0 4px 15px rgba(67, 233, 123, 0.4);
+                                    " onmouseover="this.style.transform='translateY(-2px)'; this.style.boxShadow='0 6px 20px rgba(67, 233, 123, 0.6)';" onmouseout="this.style.transform='translateY(0)'; this.style.boxShadow='0 4px 15px rgba(67, 233, 123, 0.4)';">
+                                        <i class="ri-add-circle-line me-2" style="font-size: 1.2em;"></i>Add More Restaurants
+                                    </button>
                                 </div>
                             </div>
                             
                             <!-- Other Transport Services Section (Unified) -->
+                            @if(count($allTransportHourly) > 0 || count($allTransportPoint) > 0 || count($allLocalTransport) > 0)
                             <div class="service-section mb-3">
-                                <div>
-                                    <div class="card-header text-dark d-flex justify-content-between align-items-center" role="button" data-bs-toggle="collapse" data-bs-target="#otherTransportSection" aria-expanded="false" aria-controls="otherTransportSection" style="cursor: pointer; background: linear-gradient(135deg, #e5e7eb 0%, #d1d5db 100%); border: 1px solid #9ca3af;">
+                                <div class="card border-warning shadow-sm">
+                                    <div class="card-header bg-warning text-dark">
                                         <div class="d-flex align-items-center">
                                             <span class="service-icon me-3">
                                                 <i class="ri-car-line fs-4"></i>
                                             </span>
                                             <div>
-                                                <h6 class="mb-0 fw-bold">🚗 Other Transport Services</h6>
-                                                <small class="text-muted">Local transfers and other transport services from all days</small>
+                                                <h6 class="mb-0 fw-bold">Other Transport Services</h6>
+                                                <small class="opacity-75">Local transfers and other transport services from all days</small>
                                             </div>
                                         </div>
-                                        <i class="ri-arrow-down-s-line ms-2 fs-5"></i>
                                     </div>
-                                    <div id="otherTransportSection" class="collapse">
                                     <div class="card-body mt-3">
                                         @if(count($allTransportHourly) > 0)
                                             @foreach($allTransportHourly as $index => $order)
@@ -2701,44 +2442,43 @@
                                             @endforeach
                                         @endif
                                     </div>
-                                    <div class="card-footer bg-light">
-                                        <div class="text-center py-3">
-                                            <button type="button" class="btn btn-gradient-primary btn-lg shadow-sm px-5 py-3" onclick="addMoreTransportService()" style="
-                                                background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-                                                border: none;
-                                                color: white;
-                                                font-weight: 600;
-                                                letter-spacing: 0.5px;
-                                                transition: all 0.3s ease;
-                                                border-radius: 8px;
-                                                box-shadow: 0 4px 15px rgba(102, 126, 234, 0.4);
-                                            " onmouseover="this.style.transform='translateY(-2px)'; this.style.boxShadow='0 6px 20px rgba(102, 126, 234, 0.6)';" onmouseout="this.style.transform='translateY(0)'; this.style.boxShadow='0 4px 15px rgba(102, 126, 234, 0.4)';">
-                                                <i class="ri-add-circle-line me-2" style="font-size: 1.2em;"></i>Add More Transport Service
-                                            </button>
-                                        </div>
-                                    </div>
-                                    </div>
+                                </div>
+                            </div>
+                            @endif
+                            <!-- Other Transport Services Add More Section (Static) -->
+                            <div class="card-footer bg-light">
+                                <div class="text-center py-3">
+                                    <button type="button" class="btn btn-gradient-primary btn-lg shadow-sm px-5 py-3" onclick="addMoreTransportService()" style="
+                                        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+                                        border: none;
+                                        color: white;
+                                        font-weight: 600;
+                                        letter-spacing: 0.5px;
+                                        transition: all 0.3s ease;
+                                        border-radius: 8px;
+                                        box-shadow: 0 4px 15px rgba(102, 126, 234, 0.4);
+                                    " onmouseover="this.style.transform='translateY(-2px)'; this.style.boxShadow='0 6px 20px rgba(102, 126, 234, 0.6)';" onmouseout="this.style.transform='translateY(0)'; this.style.boxShadow='0 4px 15px rgba(102, 126, 234, 0.4)';">
+                                        <i class="ri-add-circle-line me-2" style="font-size: 1.2em;"></i>Add More Transport Service
+                                    </button>
                                 </div>
                             </div>
                             
                             <!-- All Attractions Section (Unified) -->
+                            @if(count($allAttractions) > 0)
                             <div class="service-section mb-3">
-                                <div>
-                                    <div class="card-header text-dark d-flex justify-content-between align-items-center" role="button" data-bs-toggle="collapse" data-bs-target="#allAttractionsSection" aria-expanded="false" aria-controls="allAttractionsSection" style="cursor: pointer; background: linear-gradient(135deg, #e5e7eb 0%, #d1d5db 100%); border: 1px solid #9ca3af;">
+                                <div class="card border-danger shadow-sm">
+                                    <div class="card-header bg-danger text-white">
                                         <div class="d-flex align-items-center">
                                             <span class="service-icon me-3">
                                                 <i class="ri-ticket-line fs-4"></i>
                                             </span>
                                             <div>
-                                                <h6 class="mb-0 fw-bold">🎫 All Attraction Tickets</h6>
-                                                <small class="text-muted">All attractions from all days in one place</small>
+                                                <h6 class="mb-0 fw-bold">All Attraction Tickets</h6>
+                                                <small class="opacity-75">All attractions from all days in one place</small>
                                             </div>
                                         </div>
-                                        <i class="ri-arrow-down-s-line ms-2 fs-5"></i>
                                     </div>
-                                    <div id="allAttractionsSection" class="collapse">
                                     <div class="card-body mt-3">
-                                        @if(count($allAttractions) > 0)
                                         @foreach($allAttractions as $index => $order)
                                         @php
                                             $attractionData = $order->processed_data;
@@ -2900,107 +2640,6 @@
                                                 </div>
                                             </div>
                                         </div>
-                                        
-                                        <!-- Guide Section for this attraction -->
-                                        <div class="border rounded-3 p-3 bg-light mb-2 mt-2">
-                                            <div class="row g-2 align-items-center">
-                                                <div class="col-md-4">
-                                                    <label class="form-label fw-semibold d-block mb-1">Do you want a guide?</label>
-                                                    <div class="btn-group btn-group-sm" role="group" aria-label="Need attraction guide toggle">
-                                                        <input type="radio" class="btn-check" name="need_attraction_guide_{{ $order->booking_id }}" id="need_attraction_guide_no_{{ $order->booking_id }}" value="no" autocomplete="off" checked>
-                                                        <label class="btn btn-outline-secondary" for="need_attraction_guide_no_{{ $order->booking_id }}">No</label>
-                                                        
-                                                        <input type="radio" class="btn-check" name="need_attraction_guide_{{ $order->booking_id }}" id="need_attraction_guide_yes_{{ $order->booking_id }}" value="yes" autocomplete="off">
-                                                        <label class="btn btn-outline-primary" for="need_attraction_guide_yes_{{ $order->booking_id }}">Yes</label>
-                                                    </div>
-                                                </div>
-                                            </div>
-                                            <div id="attraction_guide_details_{{ $order->booking_id }}" class="border rounded-3 p-3 bg-white mt-2 d-none">
-                                                @php
-                                                    $availableGuides = $guides ?? collect();
-                                                    $tourCountry = $tour->destination ?? '';
-                                                    $filteredGuides = $availableGuides;
-                                                    if ($tourCountry) {
-                                                        $filteredGuides = $availableGuides->filter(function($guide) use ($tourCountry) {
-                                                            if (isset($guide->country) && $guide->country == $tourCountry) {
-                                                                return true;
-                                                            }
-                                                            if (isset($guide->city) && is_object($guide->city) && isset($guide->city->country)) {
-                                                                return $guide->city->country == $tourCountry;
-                                                            }
-                                                            return empty($tourCountry);
-                                                        });
-                                                    }
-                                                @endphp
-                                                <div class="row g-3">
-                                                    <div class="col-md-6">
-                                                        <label class="form-label small fw-semibold mb-1">Language</label>
-                                                        <select class="form-select form-select-sm" name="attraction_guide_language_{{ $order->booking_id }}" id="attraction_guide_language_{{ $order->booking_id }}" data-no-select2="true">
-                                                            <option value="">Select Language</option>
-                                                            @php
-                                                                $allLanguages = [];
-                                                                foreach($filteredGuides as $guide) {
-                                                                    if (isset($guide->languages) && is_iterable($guide->languages)) {
-                                                                        foreach ($guide->languages as $lang) {
-                                                                            if (is_object($lang) && isset($lang->language)) {
-                                                                                $allLanguages[] = $lang->language;
-                                                                            } elseif (is_array($lang) && isset($lang['language'])) {
-                                                                                $allLanguages[] = $lang['language'];
-                                                                            }
-                                                                        }
-                                                                    }
-                                                                }
-                                                                $uniqueLanguages = array_unique($allLanguages);
-                                                                sort($uniqueLanguages);
-                                                            @endphp
-                                                            @foreach($uniqueLanguages as $language)
-                                                                <option value="{{ $language }}">{{ $language }}</option>
-                                                            @endforeach
-                                                        </select>
-                                                    </div>
-                                                    <div class="col-md-6">
-                                                        <label class="form-label small fw-semibold mb-1">Guide</label>
-                                                        <select class="form-select form-select-sm" name="attraction_guide_name_{{ $order->booking_id }}" id="attraction_guide_name_{{ $order->booking_id }}" data-no-select2="true">
-                                                            <option value="">Select Language First</option>
-                                                        </select>
-                                                    </div>
-                                                </div>
-                                                <div class="row g-3 mt-2">
-                                                    <div class="col-md-6">
-                                                        <label class="form-label small fw-semibold mb-1">Package (Hours)</label>
-                                                        <select class="form-select form-select-sm" name="attraction_guide_hours_{{ $order->booking_id }}" id="attraction_guide_hours_{{ $order->booking_id }}" data-no-select2="true">
-                                                            <option value="">Select Hours</option>
-                                                            <option value="1">1 Hour</option>
-                                                            <option value="2">2 Hours</option>
-                                                            <option value="3">3 Hours</option>
-                                                            <option value="4">4 Hours</option>
-                                                            <option value="5">5 Hours</option>
-                                                            <option value="6">6 Hours</option>
-                                                            <option value="7">7 Hours</option>
-                                                            <option value="8">8 Hours</option>
-                                                            <option value="9">9 Hours</option>
-                                                            <option value="10">10 Hours</option>
-                                                            <option value="11">11 Hours</option>
-                                                            <option value="12">12 Hours</option>
-                                                            <option value="custom">Custom Hours</option>
-                                                        </select>
-                                                        <input type="number" min="1" class="form-control form-control-sm mt-2" name="attraction_guide_custom_hours_{{ $order->booking_id }}" id="attraction_guide_custom_hours_{{ $order->booking_id }}" placeholder="Enter custom hours" style="display: none;">
-                                                    </div>
-                                                    <div class="col-md-6">
-                                                        <label class="form-label small fw-semibold mb-1">Guide Price</label>
-                                                        <div class="position-relative">
-                                                            <span class="position-absolute" style="left: 10px; top: 50%; transform: translateY(-50%); z-index: 5; color: #6c757d; font-weight: 500;">{{ $tour->currency ?? '$' }}</span>
-                                                            <input type="number" min="0" step="0.01" class="form-control form-control-sm" name="attraction_guide_price_{{ $order->booking_id }}" id="attraction_guide_price_{{ $order->booking_id }}" placeholder="0.00" readonly style="padding-left: 30px;">
-                                                        </div>
-                                                        <small class="text-muted" style="font-size: 0.75rem; line-height: 1.2;">
-                                                            <span id="attraction_guide_price_breakdown_{{ $order->booking_id }}" style="display: none;"></span>
-                                                            <span id="attraction_guide_price_note_{{ $order->booking_id }}">Select guide and enter hours to see price</span>
-                                                        </small>
-                                                    </div>
-                                                </div>
-                                            </div>
-                                        </div>
-                                        
                                             <div class="row g-3">
                                                 <div class="col-md-6">
                                                     <label class="form-label fw-semibold text-muted mb-1"><i class="ri-map-pin-line me-1 text-primary"></i>Attraction Name</label>
@@ -3190,51 +2829,44 @@
                                             </div>
                                         </form>
                                         @endforeach
-                                        @else
-                                        <div class="text-center py-5 text-muted">
-                                            <i class="ri-ticket-line fs-1 mb-3" style="color: #cbd5e1;"></i>
-                                            <p class="mb-4">No attraction bookings yet</p>
-                                        </div>
-                                        @endif
                                     </div>
-                                    <div class="card-footer bg-light">
-                                        <div class="text-center py-3">
-                                            <button type="button" class="btn btn-gradient-primary btn-lg shadow-sm px-5 py-3" onclick="addAttractionService()" style="
-                                                background: linear-gradient(135deg, #fa709a 0%, #fee140 100%);
-                                                border: none;
-                                                color: white;
-                                                font-weight: 600;
-                                                letter-spacing: 0.5px;
-                                                transition: all 0.3s ease;
-                                                border-radius: 8px;
-                                                box-shadow: 0 4px 15px rgba(250, 112, 154, 0.4);
-                                            " onmouseover="this.style.transform='translateY(-2px)'; this.style.boxShadow='0 6px 20px rgba(250, 112, 154, 0.6)';" onmouseout="this.style.transform='translateY(0)'; this.style.boxShadow='0 4px 15px rgba(250, 112, 154, 0.4)';">
-                                                <i class="ri-add-circle-line me-2" style="font-size: 1.2em;"></i>{{ count($allAttractions) > 0 ? 'Add More Attractions' : 'Add Attraction' }}
-                                            </button>
-                                        </div>
-                                    </div>
-                                    </div> <!-- end allAttractionsSection collapse -->
+                                </div>
+                            </div>
+                            @endif
+                            <!-- All Attractions Add More Section (Static) -->
+                            <div class="card-footer bg-light">
+                                <div class="text-center py-3">
+                                    <button type="button" class="btn btn-gradient-primary btn-lg shadow-sm px-5 py-3" onclick="addAttractionService()" style="
+                                        background: linear-gradient(135deg, #fa709a 0%, #fee140 100%);
+                                        border: none;
+                                        color: white;
+                                        font-weight: 600;
+                                        letter-spacing: 0.5px;
+                                        transition: all 0.3s ease;
+                                        border-radius: 8px;
+                                        box-shadow: 0 4px 15px rgba(250, 112, 154, 0.4);
+                                    " onmouseover="this.style.transform='translateY(-2px)'; this.style.boxShadow='0 6px 20px rgba(250, 112, 154, 0.6)';" onmouseout="this.style.transform='translateY(0)'; this.style.boxShadow='0 4px 15px rgba(250, 112, 154, 0.4)';">
+                                        <i class="ri-add-circle-line me-2" style="font-size: 1.2em;"></i>Add More Attractions
+                                    </button>
                                 </div>
                             </div>
 
                             <!-- All Guides Section (Unified) -->
+                            @if(count($allGuides) > 0)
                             <div class="service-section mb-3">
-                                <div >
-                                    <div class="card-header text-dark d-flex justify-content-between align-items-center" role="button" data-bs-toggle="collapse" data-bs-target="#allGuidesSection" aria-expanded="false" aria-controls="allGuidesSection" style="cursor: pointer; background: linear-gradient(135deg, #e5e7eb 0%, #d1d5db 100%); border: 1px solid #9ca3af;">
+                                <div class="card border-info shadow-sm">
+                                    <div class="card-header bg-info text-white">
                                         <div class="d-flex align-items-center">
                                             <span class="service-icon me-3">
                                                 <i class="ri-user-star-line fs-4"></i>
                                             </span>
                                             <div>
-                                                <h6 class="mb-0 fw-bold">👤 All Tour Guide Services</h6>
-                                                <small class="text-muted">All guides from all days in one place</small>
+                                                <h6 class="mb-0 fw-bold">All Tour Guide Services</h6>
+                                                <small class="opacity-75">All guides from all days in one place</small>
                                             </div>
                                         </div>
-                                        <i class="ri-arrow-down-s-line ms-2 fs-5"></i>
                                     </div>
-                                    <div id="allGuidesSection" class="collapse">
                                     <div class="card-body mt-3">
-                                        @if(count($allGuides) > 0)
                                         @foreach($allGuides as $index => $order)
                                         @php
                                             $guideData = $order->processed_data;
@@ -3275,7 +2907,7 @@
                                                 </div>
                                             </div>
                                             <div class="row g-3">
-                                                <div class="col-md-4">
+                                                <div class="col-md-6">
                                                     <label class="form-label fw-semibold text-muted mb-1"><i class="ri-user-star-line me-1 text-primary"></i>Guide Name</label>
                                                     <select class="form-select border-2" name="guide_name" id="guide_name_{{ $order->booking_id }}" required>
                                                         <option value="">Select Guide</option>
@@ -3319,11 +2951,11 @@
                                                         @endif
                                                     </select>
                                                 </div>
-                                                <div class="col-md-4">
+                                                <div class="col-md-6">
                                                     <label class="form-label fw-semibold text-muted mb-1"><i class="ri-time-line me-1 text-warning"></i>Package (Hours)</label>
                                                     <input type="text" class="form-control border-2" name="package_hours" value="{{ $packageHours }}" placeholder="e.g. 4">
                                                 </div>
-                                                <div class="col-md-4">
+                                                <div class="col-md-6">
                                                     <label class="form-label fw-semibold text-muted mb-1"><i class="ri-time-line me-1 text-info"></i>Pickup Time</label>
                                                     <select class="form-select border-2" name="pickup_time" id="guide_pickup_time_{{ $order->booking_id }}" required>
                                                         <option value="">Select Guide First</option>
@@ -3334,7 +2966,7 @@
                                                     <small class="text-muted">Available times from selected guide</small>
                                                 </div>
                                             </div>
-                                            <div class="d-flex justify-content-end align-items-center">
+                                            <div class="d-flex justify-content-end align-items-center gap-3 mt-3">
                                                 <div class="text-muted small" id="guide_feedback_{{ $order->booking_id }}"></div>
                                                 <button type="submit" class="btn btn-sm btn-primary d-flex align-items-center gap-2">
                                                     <span class="spinner-border spinner-border-sm d-none" id="guide_spinner_{{ $order->booking_id }}"></span>
@@ -3343,52 +2975,45 @@
                                             </div>
                                         </form>
                                         @endforeach
-                                        @else
-                                        <div class="text-center py-5 text-muted">
-                                            <i class="ri-user-star-line fs-1 mb-3" style="color: #cbd5e1;"></i>
-                                            <p class="mb-4">No guide bookings yet</p>
-                                        </div>
-                                        @endif
                                     </div>
-                                    <div class="card-footer bg-light">
-                                        <div class="text-center py-3">
-                                            <button type="button" class="btn btn-gradient-primary btn-lg shadow-sm px-5 py-3" onclick="addGuideService()" style="
-                                                background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%);
-                                                border: none;
-                                                color: white;
-                                                font-weight: 600;
-                                                letter-spacing: 0.5px;
-                                                transition: all 0.3s ease;
-                                                border-radius: 8px;
-                                                box-shadow: 0 4px 15px rgba(79, 172, 254, 0.4);
-                                            " onmouseover="this.style.transform='translateY(-2px)'; this.style.boxShadow='0 6px 20px rgba(79, 172, 254, 0.6)';" onmouseout="this.style.transform='translateY(0)'; this.style.boxShadow='0 4px 15px rgba(79, 172, 254, 0.4)';">
-                                                <i class="ri-add-circle-line me-2" style="font-size: 1.2em;"></i>{{ count($allGuides) > 0 ? 'Add More Guides' : 'Add Guide' }}
-                                            </button>
-                                        </div>
-                                    </div>
-                                    </div> <!-- end allGuidesSection collapse -->
+                                </div>
+                            </div>
+                            @endif
+                            <!-- All Guides Add More Section (Static) -->
+                            <div class="card-footer bg-light">
+                                <div class="text-center py-3">
+                                    <button type="button" class="btn btn-gradient-primary btn-lg shadow-sm px-5 py-3" onclick="addGuideService()" style="
+                                        background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%);
+                                        border: none;
+                                        color: white;
+                                        font-weight: 600;
+                                        letter-spacing: 0.5px;
+                                        transition: all 0.3s ease;
+                                        border-radius: 8px;
+                                        box-shadow: 0 4px 15px rgba(79, 172, 254, 0.4);
+                                    " onmouseover="this.style.transform='translateY(-2px)'; this.style.boxShadow='0 6px 20px rgba(79, 172, 254, 0.6)';" onmouseout="this.style.transform='translateY(0)'; this.style.boxShadow='0 4px 15px rgba(79, 172, 254, 0.4)';">
+                                        <i class="ri-add-circle-line me-2" style="font-size: 1.2em;"></i>Add More Guides
+                                    </button>
                                 </div>
                             </div>
 
                             <!-- Departure Transport Services Section -->
-                            <div class="service-section mb-3">
-                                <div>
-                                    <div class="card-header text-dark d-flex justify-content-between align-items-center" role="button" data-bs-toggle="collapse" data-bs-target="#departureTransportSection" aria-expanded="false" aria-controls="departureTransportSection" style="cursor: pointer; background: linear-gradient(135deg, #e5e7eb 0%, #d1d5db 100%); border: 1px solid #9ca3af;">
-                                        <div class="d-flex align-items-center">
-                                            <span class="service-icon me-3">
-                                                <i class="ri-logout-circle-line fs-4"></i>
-                                            </span>
-                                            <div>
-                                                <h6 class="mb-0 fw-bold">✈️ Departure Transport Services</h6>
-                                                <small class="text-muted">Edit exit port transfers</small>
+                            @if(isset($dayOrdersByType['exit_port']))
+                                <div class="service-section mb-3">
+                                    <div class="card border-danger shadow-sm">
+                                        <div class="card-header bg-danger text-white">
+                                            <div class="d-flex align-items-center">
+                                                <span class="service-icon me-3">
+                                                    <i class="ri-logout-circle-line fs-4"></i>
+                                                </span>
+                                                <div>
+                                                    <h6 class="mb-0 fw-bold">Departure Transport Services</h6>
+                                                    <small class="opacity-75">Edit exit port transfers</small>
+                                                </div>
                                             </div>
                                         </div>
-                                        <i class="ri-arrow-down-s-line ms-2 fs-5"></i>
-                                    </div>
-                                    <div id="departureTransportSection" class="collapse">
-                                    <div class="card-body mt-3">
-                                        @if(isset($dayOrdersByType['exit_port']) && count($dayOrdersByType['exit_port']) > 0)
-                                        @foreach($dayOrdersByType['exit_port'] as $index => $order)
+                                        <div class="card-body mt-3">
+                                            @foreach($dayOrdersByType['exit_port'] as $index => $order)
                                                 @php
                                                     $transportData = is_array($order->processed_data) ? $order->processed_data : json_decode($order->processed_data, true);
                                                     if (isset($transportData[0])) {
@@ -3534,22 +3159,27 @@
                                                         </button>
                                                     </div>
                                                 </form>
-                                        @endforeach
-                                        @else
-                                        <div class="text-center py-5 text-muted">
-                                            <i class="ri-logout-circle-line fs-1 mb-3" style="color: #cbd5e1;"></i>
-                                            <p class="mb-4">No departure transport services yet</p>
-                                        </div>
-                                        @endif
-                                    </div>
-                                    <div class="card-footer bg-light border-0 pt-2 pb-3">
-                                        <div class="text-end">
-                                            <button type="button" class="btn btn-sm btn-outline-primary" onclick="addDepartureService()">
-                                                <i class="ri-add-line me-1"></i>{{ isset($dayOrdersByType['exit_port']) && count($dayOrdersByType['exit_port']) > 0 ? 'Add More Departure Services' : 'Add Departure Service' }}
-                                            </button>
+                                            @endforeach
                                         </div>
                                     </div>
-                                    </div> <!-- end departureTransportSection collapse -->
+                                </div>
+                                @endif
+                            
+                            <!-- Departure Transport Services Add More Section (Static) -->
+                            <div class="card-footer bg-light">
+                                <div class="text-center py-3">
+                                    <button type="button" class="btn btn-gradient-primary btn-lg shadow-sm px-5 py-3" onclick="addDepartureService()" style="
+                                        background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
+                                        border: none;
+                                        color: white;
+                                        font-weight: 600;
+                                        letter-spacing: 0.5px;
+                                        transition: all 0.3s ease;
+                                        border-radius: 8px;
+                                        box-shadow: 0 4px 15px rgba(245, 87, 108, 0.4);
+                                    " onmouseover="this.style.transform='translateY(-2px)'; this.style.boxShadow='0 6px 20px rgba(245, 87, 108, 0.6)';" onmouseout="this.style.transform='translateY(0)'; this.style.boxShadow='0 4px 15px rgba(245, 87, 108, 0.4)';">
+                                        <i class="ri-add-circle-line me-2" style="font-size: 1.2em;"></i>Add More Departure Services
+                                    </button>
                                 </div>
                             </div>
                         </div>
@@ -3659,7 +3289,7 @@
 
                         <!-- Guide Details Display -->
                         <div class="col-12" id="guide_details_container" style="display: none;">
-                            <div >
+                            <div class="card border-info bg-light">
                                 <div class="card-body p-3">
                                     <div class="row align-items-center">
                                         <div class="col-md-2">
@@ -3996,7 +3626,7 @@
 
 <!-- Restaurant Selection Modal -->
 <div class="modal fade" id="restaurantSelectionModal" tabindex="-1" aria-labelledby="restaurantSelectionModalLabel" aria-hidden="true">
-    <div class="modal-dialog modal-dialog-centered modal-xl">
+    <div class="modal-dialog modal-dialog-centered modal-md">
         <div class="modal-content">
             <div class="modal-header bg-gradient-success text-white py-2">
                 <h6 class="modal-title mb-0" id="restaurantSelectionModalLabel">
@@ -4025,7 +3655,7 @@
                 <form id="restaurantSelectionForm">
                     <div class="row g-2">
                         <!-- City Selection -->
-                        <div class="col-md-3">
+                        <div class="col-md-6">
                             <label class="form-label small fw-semibold mb-1">
                                 <i class="ri-map-pin-line text-success me-1"></i>City
                             </label>
@@ -4037,7 +3667,7 @@
                             </select>
                         </div>
                         <!-- Restaurant Selection -->
-                        <div class="col-md-5">
+                        <div class="col-md-6">
                             <label for="modal_restaurant_select" class="form-label small fw-semibold mb-1">
                                 <i class="ri-restaurant-2-line me-1"></i>Restaurant
                             </label>
@@ -4050,7 +3680,7 @@
                         </div>
 
                         <!-- Guest Selector -->
-                        <div class="col-md-4">
+                        <div class="col-12">
                             <label class="form-label small fw-semibold mb-1">Guests</label>
                             <div class="guest-selector">
                                 <div class="guest-display p-2 border rounded bg-light">
@@ -4079,7 +3709,7 @@
                         </div>
 
                         <!-- Dining Date Selection -->
-                        <div class="col-md-3">
+                        <div class="col-md-6">
                             <label for="modal_restaurant_dining_date" class="form-label small fw-semibold mb-1">
                                 <i class="ri-calendar-line me-1"></i>Dining Date
                             </label>
@@ -4087,7 +3717,7 @@
                         </div>
 
                         <!-- Meal Type Selection -->
-                        <div class="col-md-3">
+                        <div class="col-md-6">
                             <label for="modal_restaurant_meal_type" class="form-label small fw-semibold mb-1">
                                 <i class="ri-time-line me-1"></i>Meal Type
                             </label>
@@ -4098,7 +3728,7 @@
                         </div>
 
                         <!-- Select Dish -->
-                        <div class="col-md-3">
+                        <div class="col-md-6">
                             <label for="modal_restaurant_dish" class="form-label small fw-semibold mb-1">Dish</label>
                             <select class="form-select form-select-sm" name="modal_restaurant_dish" id="modal_restaurant_dish" data-no-select2="true">
                                 <option value="">Select Dish</option>
@@ -4106,7 +3736,7 @@
                         </div>
 
                         <!-- Time Slot -->
-                        <div class="col-md-3">
+                        <div class="col-md-6">
                             <label for="modal_restaurant_time_slot" class="form-label small fw-semibold mb-1">Time Slot</label>
                             <select class="form-select form-select-sm" name="modal_restaurant_time_slot" id="modal_restaurant_time_slot" data-no-select2="true">
                                 <option value="">Select Time Slot</option>
@@ -4115,7 +3745,7 @@
 
                         <!-- Restaurant Details Display -->
                         <div class="col-12" id="restaurant_details_container" style="display: none;">
-                            <div>
+                            <div class="card border-success bg-light mb-0">
                                 <div class="card-body p-2">
                                     <div class="row align-items-center">
                                         <div class="col-auto">
@@ -4142,7 +3772,7 @@
                         
                         <!-- Transport for this restaurant -->
                         <div class="col-12">
-                            <div class="border rounded-3 p-3 bg-light mb-3 mt-3">
+                            <div class="border rounded-3 p-3 bg-light mb-2 mt-2">
                                 <div class="row g-2 align-items-center">
                                     <div class="col-md-4">
                                         <label class="form-label fw-semibold d-block mb-1">Need transport for this restaurant?</label>
@@ -4174,7 +3804,7 @@
                                         <!-- First Row: Transport Type, Vehicle, Destination -->
                                         <div class="col-md-3">
                                             <label class="form-label fw-semibold">Transport Type</label>
-                                            <select class="form-select form-select-sm" name="modal_restaurant_transport_type" id="modal_restaurant_transport_type" data-no-select2="true">
+                                            <select class="form-select form-select-sm" name="modal_restaurant_transport_type" id="modal_restaurant_transport_type">
                                                 <option value="">Select type</option>
                                                 <option value="shared">Shared</option>
                                                 <option value="private">Private</option>
@@ -4182,7 +3812,7 @@
                                         </div>
                                         <div class="col-md-4">
                                             <label class="form-label fw-semibold">Vehicle (by country)</label>
-                                            <select class="form-select form-select-sm modal-restaurant-transport-vehicle-select" name="modal_restaurant_transport_vehicle" id="modal_restaurant_transport_vehicle" data-no-select2="true">
+                                            <select class="form-select form-select-sm modal-restaurant-transport-vehicle-select" name="modal_restaurant_transport_vehicle" id="modal_restaurant_transport_vehicle">
                                                 <option value="">Select vehicle</option>
                                                 @foreach($filteredVehicles as $vehicle)
                                                     @php
@@ -4209,7 +3839,7 @@
                                                 $destAttractions = $attractions ?? collect();
                                                 $destRestaurants = $restaurants ?? collect();
                                             @endphp
-                                            <select class="form-select form-select-sm" name="modal_restaurant_transport_destination" id="modal_restaurant_transport_destination" data-no-select2="true">
+                                            <select class="form-select form-select-sm" name="modal_restaurant_transport_destination" id="modal_restaurant_transport_destination">
                                                 <option value="">Search & select destination</option>
                                                 <optgroup label="Hotels">
                                                     @foreach($destHotels as $h)
@@ -4283,8 +3913,8 @@
                 <div class="row g-3">
                     <!-- Left Section: Adults -->
                     <div class="col-md-6">
-                        <div class="border rounded" style="border-color: #bae6fd !important; border-width: 1px !important;">
-                            <div class="p-3 rounded-top" style="background-color: #e0f2fe; color: #0c4a6e;">
+                        <div class="border rounded" style="border-color: #6366f1 !important; border-width: 2px !important;">
+                            <div class="p-3 rounded-top" style="background-color: #4f46e5; color: white;">
                                 <h6 class="mb-0 fw-semibold">
                                     <i class="ri-user-line me-2"></i>Adults
                                 </h6>
@@ -4293,15 +3923,15 @@
                                 <!-- Male Sub-section -->
                                 <div class="mb-3">
                                     <div class="d-flex align-items-center mb-2">
-                                        <i class="ri-user-line me-2" style="color: #38bdf8; font-size: 1.2rem;"></i>
+                                        <i class="ri-user-line me-2" style="color: #6366f1; font-size: 1.2rem;"></i>
                                         <label class="form-label mb-0 fw-semibold">Male</label>
                                     </div>
                                     <div class="d-flex align-items-center">
-                                        <button type="button" class="btn btn-sm" onclick="decrementTourCount('tour_male_count')" style="background-color: #e0f2fe; color: #0284c7; width: 40px; height: 40px; border: 1px solid #bae6fd; border-radius: 4px; font-weight: bold;">
+                                        <button type="button" class="btn btn-sm" onclick="decrementTourCount('tour_male_count')" style="background-color: #e0e7ff; color: #6366f1; width: 40px; height: 40px; border: none; border-radius: 4px; font-weight: bold;">
                                             <i class="ri-subtract-line"></i>
                                         </button>
-                                        <input type="number" class="form-control text-center mx-2" id="tour_male_count" name="tour_male_count" value="{{ isset($tour->male_count) ? $tour->male_count : ($tour->adult ?? 1) }}" min="0" max="20" readonly style="width: 60px; height: 40px; border: 1px solid #bae6fd; background-color: white;">
-                                        <button type="button" class="btn btn-sm" onclick="incrementTourCount('tour_male_count')" style="background-color: #bae6fd; color: #0284c7; width: 40px; height: 40px; border: 1px solid #7dd3fc; border-radius: 4px; font-weight: bold;">
+                                        <input type="number" class="form-control text-center mx-2" id="tour_male_count" name="tour_male_count" value="{{ isset($tour->male_count) ? $tour->male_count : ($tour->adult ?? 1) }}" min="0" max="20" readonly style="width: 60px; height: 40px; border: 1px solid #ddd; background-color: white;">
+                                        <button type="button" class="btn btn-sm" onclick="incrementTourCount('tour_male_count')" style="background-color: #6366f1; color: white; width: 40px; height: 40px; border: none; border-radius: 4px; font-weight: bold;">
                                             <i class="ri-add-line"></i>
                                         </button>
                                     </div>
@@ -4310,15 +3940,15 @@
                                 <!-- Female Sub-section -->
                                 <div>
                                     <div class="d-flex align-items-center mb-2">
-                                        <i class="ri-user-line me-2" style="color: #38bdf8; font-size: 1.2rem;"></i>
+                                        <i class="ri-user-line me-2" style="color: #ef4444; font-size: 1.2rem;"></i>
                                         <label class="form-label mb-0 fw-semibold">Female</label>
                                     </div>
                                     <div class="d-flex align-items-center">
-                                        <button type="button" class="btn btn-sm" onclick="decrementTourCount('tour_female_count')" style="background-color: #e0f2fe; color: #0284c7; width: 40px; height: 40px; border: 1px solid #bae6fd; border-radius: 4px; font-weight: bold;">
+                                        <button type="button" class="btn btn-sm" onclick="decrementTourCount('tour_female_count')" style="background-color: #fee2e2; color: #ef4444; width: 40px; height: 40px; border: none; border-radius: 4px; font-weight: bold;">
                                             <i class="ri-subtract-line"></i>
                                         </button>
-                                        <input type="number" class="form-control text-center mx-2" id="tour_female_count" name="tour_female_count" value="{{ isset($tour->female_count) ? $tour->female_count : 0 }}" min="0" max="20" readonly style="width: 60px; height: 40px; border: 1px solid #bae6fd; background-color: white;">
-                                        <button type="button" class="btn btn-sm" onclick="incrementTourCount('tour_female_count')" style="background-color: #bae6fd; color: #0284c7; width: 40px; height: 40px; border: 1px solid #7dd3fc; border-radius: 4px; font-weight: bold;">
+                                        <input type="number" class="form-control text-center mx-2" id="tour_female_count" name="tour_female_count" value="{{ isset($tour->female_count) ? $tour->female_count : 0 }}" min="0" max="20" readonly style="width: 60px; height: 40px; border: 1px solid #ddd; background-color: white;">
+                                        <button type="button" class="btn btn-sm" onclick="incrementTourCount('tour_female_count')" style="background-color: #ef4444; color: white; width: 40px; height: 40px; border: none; border-radius: 4px; font-weight: bold;">
                                             <i class="ri-add-line"></i>
                                         </button>
                                     </div>
@@ -4327,10 +3957,10 @@
                         </div>
                     </div>
                     
-                    <!-- Right Section: Children & Infants (light sky blue styling) -->
+                    <!-- Right Section: Children & Infants -->
                     <div class="col-md-6">
-                        <div class="border rounded" style="border-color: #bae6fd !important; border-width: 1px !important;">
-                            <div class="p-3 rounded-top" style="background-color: #e0f2fe; color: #0c4a6e;">
+                        <div class="border rounded" style="border-color: #10b981 !important; border-width: 2px !important;">
+                            <div class="p-3 rounded-top" style="background-color: #059669; color: white;">
                                 <h6 class="mb-0 fw-semibold">
                                     <i class="ri-user-smile-line me-2"></i>Children & Infants
                                 </h6>
@@ -4339,15 +3969,15 @@
                                 <!-- Children Sub-section -->
                                 <div class="mb-3">
                                     <div class="d-flex align-items-center mb-2">
-                                        <i class="ri-user-smile-line me-2" style="color: #38bdf8; font-size: 1.2rem;"></i>
+                                        <i class="ri-user-smile-line me-2" style="color: #10b981; font-size: 1.2rem;"></i>
                                         <label class="form-label mb-0 fw-semibold">Children (Ages 1-17)</label>
                                     </div>
                                     <div class="d-flex align-items-center">
-                                        <button type="button" class="btn btn-sm" onclick="decrementTourCount('tour_children_count')" style="background-color: #e0f2fe; color: #0284c7; width: 40px; height: 40px; border: 1px solid #bae6fd; border-radius: 4px; font-weight: bold;">
+                                        <button type="button" class="btn btn-sm" onclick="decrementTourCount('tour_children_count')" style="background-color: #d1fae5; color: #10b981; width: 40px; height: 40px; border: none; border-radius: 4px; font-weight: bold;">
                                             <i class="ri-subtract-line"></i>
                                         </button>
-                                        <input type="number" class="form-control text-center mx-2" id="tour_children_count" name="tour_children_count" value="{{ $tour->child ?? 0 }}" min="0" max="20" readonly style="width: 60px; height: 40px; border: 1px solid #bae6fd; background-color: white;">
-                                        <button type="button" class="btn btn-sm" onclick="incrementTourCount('tour_children_count')" style="background-color: #bae6fd; color: #0284c7; width: 40px; height: 40px; border: 1px solid #7dd3fc; border-radius: 4px; font-weight: bold;">
+                                        <input type="number" class="form-control text-center mx-2" id="tour_children_count" name="tour_children_count" value="{{ $tour->child ?? 0 }}" min="0" max="20" readonly style="width: 60px; height: 40px; border: 1px solid #ddd; background-color: white;">
+                                        <button type="button" class="btn btn-sm" onclick="incrementTourCount('tour_children_count')" style="background-color: #10b981; color: white; width: 40px; height: 40px; border: none; border-radius: 4px; font-weight: bold;">
                                             <i class="ri-add-line"></i>
                                         </button>
                                     </div>
@@ -4356,7 +3986,7 @@
                                 <!-- Child Ages Selection -->
                                 <div id="tour_child_ages_container" class="mb-3" style="display: none;">
                                     <div class="d-flex align-items-center mb-2">
-                                        <i class="ri-user-line me-2" style="color: #38bdf8; font-size: 1.1rem;"></i>
+                                        <i class="ri-user-line me-2" style="color: #10b981; font-size: 1.1rem;"></i>
                                         <label class="form-label mb-0 fw-semibold">Select Ages for Children</label>
                                     </div>
                                     <div id="tour_child_ages_list">
@@ -4367,15 +3997,15 @@
                                 <!-- Infants Sub-section -->
                                 <div>
                                     <div class="d-flex align-items-center mb-2">
-                                        <i class="ri-baby-carriage-line me-2" style="color: #38bdf8; font-size: 1.2rem;"></i>
+                                        <i class="ri-baby-carriage-line me-2" style="color: #f97316; font-size: 1.2rem;"></i>
                                         <label class="form-label mb-0 fw-semibold">Infants (Under 1 year)</label>
                                     </div>
                                     <div class="d-flex align-items-center">
-                                        <button type="button" class="btn btn-sm" onclick="decrementTourCount('tour_infants_count')" style="background-color: #e0f2fe; color: #0284c7; width: 40px; height: 40px; border: 1px solid #bae6fd; border-radius: 4px; font-weight: bold;">
+                                        <button type="button" class="btn btn-sm" onclick="decrementTourCount('tour_infants_count')" style="background-color: #fed7aa; color: #f97316; width: 40px; height: 40px; border: none; border-radius: 4px; font-weight: bold;">
                                             <i class="ri-subtract-line"></i>
                                         </button>
-                                        <input type="number" class="form-control text-center mx-2" id="tour_infants_count" name="tour_infants_count" value="{{ $tour->infant ?? 0 }}" min="0" max="10" readonly style="width: 60px; height: 40px; border: 1px solid #bae6fd; background-color: white;">
-                                        <button type="button" class="btn btn-sm" onclick="incrementTourCount('tour_infants_count')" style="background-color: #bae6fd; color: #0284c7; width: 40px; height: 40px; border: 1px solid #7dd3fc; border-radius: 4px; font-weight: bold;">
+                                        <input type="number" class="form-control text-center mx-2" id="tour_infants_count" name="tour_infants_count" value="{{ $tour->infant ?? 0 }}" min="0" max="10" readonly style="width: 60px; height: 40px; border: 1px solid #ddd; background-color: white;">
+                                        <button type="button" class="btn btn-sm" onclick="incrementTourCount('tour_infants_count')" style="background-color: #f97316; color: white; width: 40px; height: 40px; border: none; border-radius: 4px; font-weight: bold;">
                                             <i class="ri-add-line"></i>
                                         </button>
                                     </div>
@@ -4387,7 +4017,7 @@
             </div>
             <div class="modal-footer border-0 pt-3">
                 <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Cancel</button>
-                <button type="button" class="btn" onclick="confirmTourGuestSelection()" style="background-color: #10b981; color: white; border: none;">
+                <button type="button" class="btn" onclick="confirmTourGuestSelection()" style="background-color: #6366f1; color: white;">
                     <i class="ri-check-line me-1"></i>Apply Selection
                 </button>
             </div>
@@ -4536,7 +4166,7 @@
                     <!-- Attraction Details Display -->
                     <div class="row mb-3" id="attraction_details_container" style="display: none;">
                         <div class="col-12">
-                            <div >
+                            <div class="card border-danger bg-light mb-0">
                                 <div class="card-body p-2">
                                     <div class="row align-items-center">
                                         <div class="col-auto">
@@ -4549,6 +4179,7 @@
                                         </div>
                                         <div class="col-auto text-end">
                                             <div class="attraction-rating mb-1">
+                                                <i class="ri-star-fill text-warning"></i>
                                                 <span id="selected_attraction_rating" class="fw-semibold small"></span>
                                             </div>
                                             <div class="attraction-price-range">
@@ -4564,7 +4195,7 @@
                     <!-- Below: Guest Selector, Visit Date, Time Slot, Ticket -->
                     <div class="row g-3">
                         <!-- Guest Selector -->
-                        <div class="col-12 col-md-3">
+                        <div class="col-12 col-md-6">
                             <label class="form-label small fw-semibold mb-1">Guests</label>
                             <div class="guest-selector">
                                 <div class="guest-display p-2 border rounded bg-light">
@@ -4595,7 +4226,7 @@
                         </div>
 
                         <!-- Visit Date -->
-                        <div class="col-12 col-md-3">
+                        <div class="col-12 col-md-6">
                             <label for="modal_attraction_visit_date" class="form-label small fw-semibold mb-1">
                                 <i class="ri-calendar-line me-1"></i>Visit Date
                             </label>
@@ -4603,7 +4234,7 @@
                         </div>
 
                         <!-- Time Slot -->
-                        <div class="col-12 col-md-3">
+                        <div class="col-12 col-md-6">
                             <label for="modal_attraction_time_slot" class="form-label small fw-semibold mb-1">
                                 <i class="ri-time-line me-1"></i>Time Slot
                             </label>
@@ -4614,7 +4245,7 @@
                         </div>
 
                         <!-- Ticket Selection -->
-                        <div class="col-12 col-md-3">
+                        <div class="col-12 col-md-6">
                             <label for="modal_attraction_ticket" class="form-label small fw-semibold mb-1">Ticket</label>
                             <select class="form-select form-select-sm" name="modal_attraction_ticket" id="modal_attraction_ticket" onchange="onTicketSelection(); updateAttractionPricing();" data-no-select2="true">
                                 <option value="">Select Ticket</option>
@@ -4630,107 +4261,6 @@
                                     <div>
                                         <strong>Attraction Pricing</strong>
                                         <div id="attraction_price_details" class="small">Select an attraction and configure guests to see pricing</div>
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
-                        
-                        <!-- Guide Section for this attraction -->
-                        <div class="col-12">
-                            <div class="border rounded-3 p-3 bg-light mb-2 mt-2">
-                                <div class="row g-2 align-items-center">
-                                    <div class="col-md-4">
-                                        <label class="form-label fw-semibold d-block mb-1">Do you want a guide?</label>
-                                        <div class="btn-group btn-group-sm" role="group" aria-label="Need guide toggle">
-                                            <input type="radio" class="btn-check" name="modal_need_attraction_guide" id="modal_need_attraction_guide_no" value="no" autocomplete="off" checked>
-                                            <label class="btn btn-outline-secondary" for="modal_need_attraction_guide_no">No</label>
-                                            
-                                            <input type="radio" class="btn-check" name="modal_need_attraction_guide" id="modal_need_attraction_guide_yes" value="yes" autocomplete="off">
-                                            <label class="btn btn-outline-primary" for="modal_need_attraction_guide_yes">Yes</label>
-                                        </div>
-                                    </div>
-                                </div>
-                                <div id="modal_attraction_guide_details" class="border rounded-3 p-3 bg-white mt-2 d-none">
-                                    @php
-                                        $availableGuides = $guides ?? collect();
-                                        $tourCountry = $tour->destination ?? '';
-                                        $filteredGuides = $availableGuides;
-                                        if ($tourCountry) {
-                                            $filteredGuides = $availableGuides->filter(function($guide) use ($tourCountry) {
-                                                if (isset($guide->country) && $guide->country == $tourCountry) {
-                                                    return true;
-                                                }
-                                                if (isset($guide->city) && is_object($guide->city) && isset($guide->city->country)) {
-                                                    return $guide->city->country == $tourCountry;
-                                                }
-                                                return empty($tourCountry);
-                                            });
-                                        }
-                                    @endphp
-                                    <div class="row g-3">
-                                        <div class="col-md-6">
-                                            <label class="form-label small fw-semibold mb-1">Language</label>
-                                            <select class="form-select form-select-sm" name="modal_attraction_guide_language" id="modal_attraction_guide_language" data-no-select2="true">
-                                                <option value="">Select Language</option>
-                                                @php
-                                                    $allLanguages = [];
-                                                    foreach($filteredGuides as $guide) {
-                                                        if (isset($guide->languages) && is_iterable($guide->languages)) {
-                                                            foreach ($guide->languages as $lang) {
-                                                                if (is_object($lang) && isset($lang->language)) {
-                                                                    $allLanguages[] = $lang->language;
-                                                                } elseif (is_array($lang) && isset($lang['language'])) {
-                                                                    $allLanguages[] = $lang['language'];
-                                                                }
-                                                            }
-                                                        }
-                                                    }
-                                                    $uniqueLanguages = array_unique($allLanguages);
-                                                    sort($uniqueLanguages);
-                                                @endphp
-                                                @foreach($uniqueLanguages as $language)
-                                                    <option value="{{ $language }}">{{ $language }}</option>
-                                                @endforeach
-                                            </select>
-                                        </div>
-                                        <div class="col-md-6">
-                                            <label class="form-label small fw-semibold mb-1">Guide</label>
-                                            <select class="form-select form-select-sm" name="modal_attraction_guide_name" id="modal_attraction_guide_name" data-no-select2="true">
-                                                <option value="">Select Language First</option>
-                                            </select>
-                                        </div>
-                                    </div>
-                                    <div class="row g-3 mt-2">
-                                        <div class="col-md-6">
-                                            <label class="form-label small fw-semibold mb-1">Package (Hours)</label>
-                                            <select class="form-select form-select-sm" name="modal_attraction_guide_hours" id="modal_attraction_guide_hours" data-no-select2="true">
-                                                <option value="">Select Hours</option>
-                                                <option value="1">1 Hour</option>
-                                                <option value="2">2 Hours</option>
-                                                <option value="3">3 Hours</option>
-                                                <option value="4">4 Hours</option>
-                                                <option value="5">5 Hours</option>
-                                                <option value="6">6 Hours</option>
-                                                <option value="7">7 Hours</option>
-                                                <option value="8">8 Hours</option>
-                                                <option value="9">9 Hours</option>
-                                                <option value="10">10 Hours</option>
-                                                <option value="11">11 Hours</option>
-                                                <option value="12">12 Hours</option>
-                                            </select>
-                                            <input type="number" min="1" class="form-control form-control-sm mt-2" name="modal_attraction_guide_custom_hours" id="modal_attraction_guide_custom_hours" placeholder="Enter custom hours" style="display: none;">
-                                        </div>
-                                        <div class="col-md-6">
-                                            <label class="form-label small fw-semibold mb-1">Guide Price</label>
-                                            <div class="position-relative">
-                                                <span class="position-absolute" style="left: 10px; top: 50%; transform: translateY(-50%); z-index: 5; color: #6c757d; font-weight: 500;">{{ $tour->currency ?? '$' }}</span>
-                                                <input type="number" min="0" step="0.01" class="form-control form-control-sm" name="modal_attraction_guide_price" id="modal_attraction_guide_price" placeholder="0.00" readonly style="padding-left: 30px;">
-                                            </div>
-                                            <small class="text-muted" style="font-size: 0.75rem; line-height: 1.2;">
-                                                <span id="modal_attraction_guide_price_breakdown" style="display: none;"></span>
-                                                <span id="modal_attraction_guide_price_note">Select guide and enter hours to see price</span>
-                                            </small>
-                                        </div>
                                     </div>
                                 </div>
                             </div>
@@ -4770,7 +4300,7 @@
                                         <!-- First Row: Transport Type, Vehicle, Destination -->
                                         <div class="col-md-3">
                                             <label class="form-label fw-semibold">Transport Type</label>
-                                            <select class="form-select form-select-sm" name="modal_attraction_transport_type" id="modal_attraction_transport_type" data-no-select2="true">
+                                            <select class="form-select form-select-sm" name="modal_attraction_transport_type" id="modal_attraction_transport_type">
                                                 <option value="">Select type</option>
                                                 <option value="shared">Shared</option>
                                                 <option value="private">Private</option>
@@ -4778,7 +4308,7 @@
                                         </div>
                                         <div class="col-md-4">
                                             <label class="form-label fw-semibold">Vehicle (by country)</label>
-                                            <select class="form-select form-select-sm modal-attraction-transport-vehicle-select" name="modal_attraction_transport_vehicle" id="modal_attraction_transport_vehicle" data-no-select2="true">
+                                            <select class="form-select form-select-sm modal-attraction-transport-vehicle-select" name="modal_attraction_transport_vehicle" id="modal_attraction_transport_vehicle">
                                                 <option value="">Select vehicle</option>
                                                 @foreach($filteredVehicles as $vehicle)
                                                     @php
@@ -4805,7 +4335,7 @@
                                                 $destAttractions = $attractions ?? collect();
                                                 $destRestaurants = $restaurants ?? collect();
                                             @endphp
-                                            <select class="form-select form-select-sm" name="modal_attraction_transport_destination" id="modal_attraction_transport_destination" data-no-select2="true">
+                                            <select class="form-select form-select-sm" name="modal_attraction_transport_destination" id="modal_attraction_transport_destination">
                                                 <option value="">Search & select destination</option>
                                                 <optgroup label="Hotels">
                                                     @foreach($destHotels as $h)
@@ -4844,9 +4374,9 @@
                                         </div>
                                         <div class="col-md-6">
                                             <label class="form-label fw-semibold">Estimated Price</label>
-                                            <div class="position-relative">
-                                                <span class="position-absolute" style="left: 10px; top: 50%; transform: translateY(-50%); z-index: 5; color: #6c757d; font-weight: 500;">{{ $tour->currency ?? '$' }}</span>
-                                                <input type="number" min="0" step="0.01" class="form-control form-control-sm" name="modal_attraction_transport_price" id="modal_attraction_transport_price" placeholder="0.00" data-original-price="" style="padding-left: 30px;">
+                                            <div class="input-group input-group-sm">
+                                                <span class="input-group-text">{{ $tour->currency ?? '$' }}</span>
+                                                <input type="number" min="0" step="0.01" class="form-control form-control-sm" name="modal_attraction_transport_price" id="modal_attraction_transport_price" placeholder="0.00" data-original-price="">
                                             </div>
                                             <small class="text-muted">Optional, can be adjusted later.</small>
                                         </div>
@@ -4966,7 +4496,7 @@
                     <input type="hidden" id="modal_transport_end_date" name="end_date">
                     <input type="hidden" id="modal_transport_type" name="transport_type" value="entry_port">
                     
-                    <div>
+                    <div class="card border-primary shadow-sm mb-4">
                         <div class="card-header bg-primary text-white">
                             <div class="d-flex align-items-center">
                                 <span class="service-icon me-3">
@@ -5235,7 +4765,7 @@
                     <input type="hidden" id="local_transfer_start_date" name="start_date">
                     <input type="hidden" id="local_transfer_end_date" name="end_date">
                     
-                    <div>
+                    <div class="card border-info shadow-sm mb-4">
                         <div class="card-header bg-info text-white">
                             <div class="d-flex align-items-center">
                                 <span class="service-icon me-3">
@@ -5740,7 +5270,7 @@
                     <input type="hidden" id="modal_dropoff_transport_start_date" name="start_date">
                     <input type="hidden" id="modal_dropoff_transport_end_date" name="end_date">
                     
-                    <div>
+                    <div class="card border-success shadow-sm mb-4">
                         <div class="card-header bg-success text-white">
                             <div class="d-flex align-items-center">
                                 <span class="service-icon me-3">
@@ -6029,16 +5559,6 @@
                 'attraction_transport_details_' + suffix
             );
         });
-        
-        // Setup guide toggle for attraction booking sections
-        document.querySelectorAll("input[id^='need_attraction_guide_yes_']").forEach(function(yesRadio) {
-            const suffix = yesRadio.id.replace('need_attraction_guide_yes_', '');
-            setupInlineTransportToggle(
-                'need_attraction_guide_yes_' + suffix,
-                'need_attraction_guide_no_' + suffix,
-                'attraction_guide_details_' + suffix
-            );
-        });
 
         // Restaurants
         document.querySelectorAll("input[id^='need_restaurant_transport_yes_']").forEach(function(yesRadio) {
@@ -6054,436 +5574,7 @@
         setupInlineTransportToggle('modal_need_hotel_transport_yes', 'modal_need_hotel_transport_no', 'modal_hotel_transport_details');
         setupInlineTransportToggle('modal_need_restaurant_transport_yes', 'modal_need_restaurant_transport_no', 'modal_restaurant_transport_details');
         setupInlineTransportToggle('modal_need_attraction_transport_yes', 'modal_need_attraction_transport_no', 'modal_attraction_transport_details');
-        
-        // Setup guide toggle for attraction modal
-        setupInlineTransportToggle('modal_need_attraction_guide_yes', 'modal_need_attraction_guide_no', 'modal_attraction_guide_details');
     }
-    
-    // Store guide data globally for attraction modal
-    window.attractionModalGuideData = null;
-    
-    // Handle guide language selection for attraction modal
-    $(document).on('change', '#modal_attraction_guide_language', function() {
-        const selectedLanguage = $(this).val();
-        const guideSelect = $('#modal_attraction_guide_name');
-        guideSelect.html('<option value="">Select Language First</option>');
-        window.attractionModalGuideData = null;
-        $('#modal_attraction_guide_price').val('0.00');
-        $('#modal_attraction_guide_price_breakdown').hide();
-        $('#modal_attraction_guide_price_note').text('Select guide and enter hours to see price').show();
-        
-        if (!selectedLanguage) {
-            return;
-        }
-        
-        // Get all guides from PHP
-        const allGuides = @json($guides ?? []);
-        const tourCountry = '{{ $tour->destination ?? '' }}';
-        
-        // Filter guides by language and country
-        const filteredGuides = allGuides.filter(function(guide) {
-            // Check country match
-            let countryMatch = false;
-            if (tourCountry) {
-                if (guide.country && guide.country == tourCountry) {
-                    countryMatch = true;
-                } else if (guide.city && guide.city.country && guide.city.country == tourCountry) {
-                    countryMatch = true;
-                }
-            } else {
-                countryMatch = true;
-            }
-            
-            if (!countryMatch) return false;
-            
-            // Check language match
-            if (guide.languages && Array.isArray(guide.languages)) {
-                return guide.languages.some(function(lang) {
-                    const langName = lang.language || (typeof lang === 'string' ? lang : '');
-                    return langName === selectedLanguage;
-                });
-            }
-            return false;
-        });
-        
-        // Populate guide select
-        guideSelect.html('<option value="">Select Guide</option>');
-        filteredGuides.forEach(function(guide) {
-            // Prepare guide data with all pricing fields
-            const guideData = {
-                guide_id: guide.guide_id || '',
-                name: guide.name || '',
-                hourly_price: guide.hourly_price || guide.price_per_hour || 0,
-                two_hour_price: guide.two_hour_price || 0,
-                four_hour_price: guide.four_hour_price || 0,
-                six_hour_price: guide.six_hour_price || 0,
-                eight_hour_price: guide.eight_hour_price || 0,
-                ten_hour_price: guide.ten_hour_price || 0,
-                twelve_hour_price: guide.twelve_hour_price || 0,
-                night_surcharge: guide.night_surcharge || 0,
-                night_start_time: guide.night_start_time || '22:00',
-                night_end_time: guide.night_end_time || '08:00'
-            };
-            
-            const option = $('<option></option>')
-                .attr('value', guide.name)
-                .attr('data-guide-id', guide.guide_id || '')
-                .data('guide-data', guideData)
-                .text(guide.name);
-            guideSelect.append(option);
-        });
-    });
-    
-    // Handle guide selection and store guide data
-    $(document).on('change', '#modal_attraction_guide_name', function() {
-        const selectedOption = $(this).find('option:selected');
-        const guideData = selectedOption.data('guide-data');
-        
-        if (guideData) {
-            window.attractionModalGuideData = guideData;
-            // Recalculate price if hours are already entered
-            calculateAttractionGuidePrice();
-        } else {
-            window.attractionModalGuideData = null;
-            $('#modal_attraction_guide_price').val('0.00');
-            $('#modal_attraction_guide_price_breakdown').hide();
-            $('#modal_attraction_guide_price_note').text('Select guide and enter hours to see price').show();
-        }
-    });
-    
-    // Function to calculate guide price based on hours and surge charge
-    function calculateAttractionGuidePrice() {
-        const guideData = window.attractionModalGuideData;
-        const hoursInput = $('#modal_attraction_guide_hours');
-        const priceInput = $('#modal_attraction_guide_price');
-        const priceBreakdown = $('#modal_attraction_guide_price_breakdown');
-        const priceNote = $('#modal_attraction_guide_price_note');
-        
-        if (!guideData) {
-            priceInput.val('0.00');
-            priceBreakdown.hide();
-            priceNote.text('Select guide and enter hours to see price').show();
-            return;
-        }
-        
-        // Get hours from select or custom input
-        let hoursNum = 0;
-        const hoursSelect = $('#modal_attraction_guide_hours');
-        const customHoursInput = $('#modal_attraction_guide_custom_hours');
-        
-        if (hoursSelect.val() === 'custom') {
-            hoursNum = parseFloat(customHoursInput.val()) || 0;
-        } else {
-            hoursNum = parseFloat(hoursSelect.val()) || 0;
-        }
-        
-        if (hoursNum <= 0) {
-            priceInput.val('0.00');
-            priceBreakdown.hide();
-            priceNote.text('Select hours to see price').show();
-            return;
-        }
-        
-        // Calculate base price based on hours
-        let basePrice = 0;
-        if (hoursNum == 1) {
-            basePrice = parseFloat(guideData.hourly_price || guideData.price_per_hour || 0);
-        } else if (hoursNum <= 2) {
-            basePrice = parseFloat(guideData.two_hour_price || guideData.hourly_price * 2 || 0);
-        } else if (hoursNum <= 4) {
-            basePrice = parseFloat(guideData.four_hour_price || guideData.hourly_price * 4 || 0);
-        } else if (hoursNum <= 6) {
-            basePrice = parseFloat(guideData.six_hour_price || guideData.hourly_price * 6 || 0);
-        } else if (hoursNum <= 8) {
-            basePrice = parseFloat(guideData.eight_hour_price || guideData.hourly_price * 8 || 0);
-        } else if (hoursNum <= 10) {
-            basePrice = parseFloat(guideData.ten_hour_price || guideData.hourly_price * 10 || 0);
-        } else if (hoursNum <= 12) {
-            basePrice = parseFloat(guideData.twelve_hour_price || guideData.hourly_price * 12 || 0);
-        } else {
-            // For custom hours beyond 12, calculate using hourly rate
-            basePrice = parseFloat(guideData.hourly_price || guideData.price_per_hour || 0) * hoursNum;
-        }
-        
-        // Calculate surge charge (night surcharge) based on time slot and hours
-        let surcharge = 0;
-        const timeSlotSelect = $('#modal_attraction_time_slot');
-        const selectedTimeSlot = timeSlotSelect.val();
-        
-        if (selectedTimeSlot && guideData.night_surcharge && hoursNum > 0) {
-            // Extract time from time slot (format might be "09:00 AM" or "09:00")
-            let pickupHour = 0;
-            let pickupMinutes = 0;
-            const timeMatch = selectedTimeSlot.match(/(\d{1,2}):(\d{2})/);
-            if (timeMatch) {
-                pickupHour = parseInt(timeMatch[1]);
-                pickupMinutes = parseInt(timeMatch[2]);
-                const isPM = selectedTimeSlot.toUpperCase().includes('PM') && pickupHour !== 12;
-                if (isPM) {
-                    pickupHour = pickupHour === 12 ? 12 : pickupHour + 12;
-                }
-            }
-            
-            // Get night hours from guide data
-            const nightStartTime = guideData.night_start_time || '22:00';
-            const nightEndTime = guideData.night_end_time || '08:00';
-            const nightStartParts = nightStartTime.split(':');
-            const nightEndParts = nightEndTime.split(':');
-            const nightStartHour = parseInt(nightStartParts[0]) || 22;
-            const nightStartMin = parseInt(nightStartParts[1]) || 0;
-            const nightEndHour = parseInt(nightEndParts[0]) || 8;
-            const nightEndMin = parseInt(nightEndParts[1]) || 0;
-            
-            // Calculate how many hours fall within night time
-            let nightHours = 0;
-            const pickupTimeMinutes = pickupHour * 60 + pickupMinutes;
-            const nightStartMinutes = nightStartHour * 60 + nightStartMin;
-            const nightEndMinutes = nightEndHour * 60 + nightEndMin;
-            
-            // Check if pickup time falls within night hours
-            let isNightTime = false;
-            if (nightStartMinutes < nightEndMinutes) {
-                // Normal range (e.g., 22:00 to 08:00 next day) - this shouldn't happen, but handle it
-                isNightTime = (pickupTimeMinutes >= nightStartMinutes || pickupTimeMinutes < nightEndMinutes);
-            } else {
-                // Range crosses midnight (e.g., 22:00 to 08:00)
-                isNightTime = (pickupTimeMinutes >= nightStartMinutes || pickupTimeMinutes < nightEndMinutes);
-            }
-            
-            if (isNightTime) {
-                // Calculate how many hours from pickup time fall within night hours
-                // For simplicity, if pickup is in night time, apply surcharge for all hours
-                // Or calculate actual night hours within the duration
-                const nightSurchargePerHour = parseFloat(guideData.night_surcharge || 0);
-                // Apply surcharge for all hours if pickup is during night time
-                surcharge = nightSurchargePerHour * hoursNum;
-            }
-        }
-        
-        const totalPrice = basePrice + surcharge;
-        priceInput.val(totalPrice.toFixed(2));
-        
-        // Show price breakdown
-        if (surcharge > 0) {
-            priceBreakdown.html(`Base: ${basePrice.toFixed(2)} + Surge: ${surcharge.toFixed(2)} = ${totalPrice.toFixed(2)}`).show();
-            priceNote.hide();
-        } else {
-            priceBreakdown.hide();
-            priceNote.text(`Price for ${hoursNum} hour(s)`).show();
-        }
-    }
-    
-    // Handle guide hours change
-    $(document).on('change', '#modal_attraction_guide_hours', function() {
-        const selectedValue = $(this).val();
-        const customHoursInput = $('#modal_attraction_guide_custom_hours');
-        
-        if (selectedValue === 'custom') {
-            customHoursInput.show();
-            customHoursInput.focus();
-        } else {
-            customHoursInput.hide();
-            customHoursInput.val('');
-            calculateAttractionGuidePrice();
-        }
-    });
-    
-    // Handle custom hours input
-    $(document).on('input change', '#modal_attraction_guide_custom_hours', function() {
-        calculateAttractionGuidePrice();
-    });
-    
-    // Handle time slot change to recalculate surge charge
-    $(document).on('change', '#modal_attraction_time_slot', function() {
-        if (window.attractionModalGuideData) {
-            calculateAttractionGuidePrice();
-        }
-    });
-    
-    // Handle guide language selection for attraction booking sections
-    $(document).on('change', 'select[id^="attraction_guide_language_"]', function() {
-        const bookingId = $(this).attr('id').replace('attraction_guide_language_', '');
-        const selectedLanguage = $(this).val();
-        const guideSelect = $(`#attraction_guide_name_${bookingId}`);
-        guideSelect.html('<option value="">Select Language First</option>');
-        $(`#attraction_guide_price_${bookingId}`).val('0.00');
-        $(`#attraction_guide_price_breakdown_${bookingId}`).hide();
-        $(`#attraction_guide_price_note_${bookingId}`).text('Select guide and enter hours to see price').show();
-        
-        if (!selectedLanguage) {
-            return;
-        }
-        
-        // Get all guides from PHP
-        const allGuides = @json($guides ?? []);
-        const tourCountry = '{{ $tour->destination ?? '' }}';
-        
-        // Filter guides by language and country
-        const filteredGuides = allGuides.filter(function(guide) {
-            // Check country match
-            let countryMatch = false;
-            if (tourCountry) {
-                if (guide.country && guide.country == tourCountry) {
-                    countryMatch = true;
-                } else if (guide.city && guide.city.country && guide.city.country == tourCountry) {
-                    countryMatch = true;
-                }
-            } else {
-                countryMatch = true;
-            }
-            
-            if (!countryMatch) return false;
-            
-            // Check language match
-            if (guide.languages && Array.isArray(guide.languages)) {
-                return guide.languages.some(function(lang) {
-                    const langName = lang.language || (typeof lang === 'string' ? lang : '');
-                    return langName === selectedLanguage;
-                });
-            }
-            return false;
-        });
-        
-        // Populate guide select
-        guideSelect.html('<option value="">Select Guide</option>');
-        filteredGuides.forEach(function(guide) {
-            // Prepare guide data with all pricing fields
-            const guideData = {
-                guide_id: guide.guide_id || '',
-                name: guide.name || '',
-                hourly_price: guide.hourly_price || guide.price_per_hour || 0,
-                two_hour_price: guide.two_hour_price || 0,
-                four_hour_price: guide.four_hour_price || 0,
-                six_hour_price: guide.six_hour_price || 0,
-                eight_hour_price: guide.eight_hour_price || 0,
-                ten_hour_price: guide.ten_hour_price || 0,
-                twelve_hour_price: guide.twelve_hour_price || 0,
-                night_surcharge: guide.night_surcharge || 0,
-                night_start_time: guide.night_start_time || '22:00',
-                night_end_time: guide.night_end_time || '08:00'
-            };
-            
-            const option = $('<option></option>')
-                .attr('value', guide.name)
-                .attr('data-guide-id', guide.guide_id || '')
-                .data('guide-data', guideData)
-                .text(guide.name);
-            guideSelect.append(option);
-        });
-    });
-    
-    // Handle guide selection for attraction booking sections
-    $(document).on('change', 'select[id^="attraction_guide_name_"]', function() {
-        const bookingId = $(this).attr('id').replace('attraction_guide_name_', '');
-        const selectedOption = $(this).find('option:selected');
-        const guideData = selectedOption.data('guide-data');
-        
-        if (guideData) {
-            // Store guide data in the select element's data
-            $(this).data('selected-guide-data', guideData);
-            // Recalculate price if hours are already entered
-            calculateAttractionBookingGuidePrice(bookingId);
-        } else {
-            $(this).data('selected-guide-data', null);
-            $(`#attraction_guide_price_${bookingId}`).val('0.00');
-            $(`#attraction_guide_price_breakdown_${bookingId}`).hide();
-            $(`#attraction_guide_price_note_${bookingId}`).text('Select guide and enter hours to see price').show();
-        }
-    });
-    
-    // Calculate guide price for attraction booking section
-    function calculateAttractionBookingGuidePrice(bookingId) {
-        const guideSelect = $(`#attraction_guide_name_${bookingId}`);
-        const guideData = guideSelect.data('selected-guide-data');
-        const hoursSelect = $(`#attraction_guide_hours_${bookingId}`);
-        const customHoursInput = $(`#attraction_guide_custom_hours_${bookingId}`);
-        const priceInput = $(`#attraction_guide_price_${bookingId}`);
-        const priceBreakdown = $(`#attraction_guide_price_breakdown_${bookingId}`);
-        const priceNote = $(`#attraction_guide_price_note_${bookingId}`);
-        
-        if (!guideData) {
-            priceInput.val('0.00');
-            priceBreakdown.hide();
-            priceNote.text('Select guide and enter hours to see price').show();
-            return;
-        }
-        
-        // Get hours
-        let hoursNum = 0;
-        const selectedHours = hoursSelect.val();
-        if (selectedHours === 'custom') {
-            hoursNum = parseFloat(customHoursInput.val()) || 0;
-        } else {
-            hoursNum = parseFloat(selectedHours) || 0;
-        }
-        
-        if (hoursNum <= 0) {
-            priceInput.val('0.00');
-            priceBreakdown.hide();
-            priceNote.text('Select hours to see price').show();
-            return;
-        }
-        
-        // Calculate base price based on hours
-        let basePrice = 0;
-        if (hoursNum <= 1) {
-            basePrice = parseFloat(guideData.hourly_price || guideData.price_per_hour || 0);
-        } else if (hoursNum <= 2) {
-            basePrice = parseFloat(guideData.two_hour_price || guideData.hourly_price * 2 || 0);
-        } else if (hoursNum <= 4) {
-            basePrice = parseFloat(guideData.four_hour_price || guideData.hourly_price * 4 || 0);
-        } else if (hoursNum <= 6) {
-            basePrice = parseFloat(guideData.six_hour_price || guideData.hourly_price * 6 || 0);
-        } else if (hoursNum <= 8) {
-            basePrice = parseFloat(guideData.eight_hour_price || guideData.hourly_price * 8 || 0);
-        } else if (hoursNum <= 10) {
-            basePrice = parseFloat(guideData.ten_hour_price || guideData.hourly_price * 10 || 0);
-        } else if (hoursNum <= 12) {
-            basePrice = parseFloat(guideData.twelve_hour_price || guideData.hourly_price * 12 || 0);
-        } else {
-            // For custom hours beyond 12, calculate using hourly rate
-            basePrice = parseFloat(guideData.hourly_price || guideData.price_per_hour || 0) * hoursNum;
-        }
-        
-        // Calculate surge charge (night surcharge) - simplified for booking section
-        let surcharge = 0;
-        // Note: Time slot is not directly available in booking section, so we skip night surcharge calculation
-        // If needed, you can get time slot from the visit_time field
-        
-        const totalPrice = basePrice + surcharge;
-        priceInput.val(totalPrice.toFixed(2));
-        
-        // Show price breakdown
-        if (surcharge > 0) {
-            priceBreakdown.html(`Base: ${basePrice.toFixed(2)} + Surge: ${surcharge.toFixed(2)} = ${totalPrice.toFixed(2)}`).show();
-            priceNote.hide();
-        } else {
-            priceBreakdown.hide();
-            priceNote.text(`Price for ${hoursNum} hour(s)`).show();
-        }
-    }
-    
-    // Handle guide hours change for attraction booking sections
-    $(document).on('change', 'select[id^="attraction_guide_hours_"]', function() {
-        const bookingId = $(this).attr('id').replace('attraction_guide_hours_', '');
-        const selectedValue = $(this).val();
-        const customHoursInput = $(`#attraction_guide_custom_hours_${bookingId}`);
-        
-        if (selectedValue === 'custom') {
-            customHoursInput.show();
-            customHoursInput.focus();
-        } else {
-            customHoursInput.hide();
-            customHoursInput.val('');
-            calculateAttractionBookingGuidePrice(bookingId);
-        }
-    });
-    
-    // Handle custom hours input for attraction booking sections
-    $(document).on('input change', 'input[id^="attraction_guide_custom_hours_"]', function() {
-        const bookingId = $(this).attr('id').replace('attraction_guide_custom_hours_', '');
-        calculateAttractionBookingGuidePrice(bookingId);
-    });
 
     // Initialize dynamic seats and return price doubling
     function initializeTransportDynamicFeatures() {
@@ -7641,8 +6732,8 @@
                 if (nameEl) nameEl.textContent = attractionData.name;
                 if (categoryEl) categoryEl.textContent = (attractionData.category || 'General') + ' Category';
                 if (locationEl) locationEl.textContent = attractionData.location || '';
-                // if (ratingEl) ratingEl.textContent = attractionData.rating || 'N/A';
-                // if (priceRangeEl) priceRangeEl.textContent = attractionData.price_range || 'Price on request';
+                if (ratingEl) ratingEl.textContent = attractionData.rating || 'N/A';
+                if (priceRangeEl) priceRangeEl.textContent = attractionData.price_range || 'Price on request';
                 
                 console.log('Attraction selected:', attractionData);
 
