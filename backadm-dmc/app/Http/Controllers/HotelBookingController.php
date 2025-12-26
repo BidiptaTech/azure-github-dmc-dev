@@ -428,6 +428,10 @@ class HotelBookingController extends Controller
                         'selection' => $booking['Selection'] ?? null,
                         'ticket_details' => $booking['ticket_details'] ?? [],
                         'attraction_details' => $booking,
+                        // Transfer Options
+                        'transfer_options' => $booking['transfer_options'] ?? null,
+                        // Guide Options
+                        'guide_options' => $booking['guide_options'] ?? null,
                         // Approval status
                         'is_approve' => (bool)($attractionOrder->is_approve ?? false),
                         'reference_id' => $attractionOrder->reference_id ?? null,
@@ -731,7 +735,9 @@ class HotelBookingController extends Controller
                         'is_approve' => $restaurantOrder->is_approve ?? false,
                         'reference_id' => $restaurantOrder->reference_id ?? null,
                         'display_due_date' => $restaurantOrder->display_due_date ?? null,
-                        'restaurant_details' => $booking // This contains the full JSON data
+                        'restaurant_details' => $booking, // This contains the full JSON data
+                        // Transfer Options
+                        'transfer_options' => $booking['transfer_options'] ?? null
                     ]
                 ]
             ]);
@@ -1177,6 +1183,8 @@ class HotelBookingController extends Controller
                         // Room details
                         'rooms' => $booking['rooms'] ?? [],
                         'hotel_details' => $booking['hotelDetails'] ?? [],
+                        // Transfer Options
+                        'transfer_options' => $booking['transfer_options'] ?? null,
                         // Approval status
                         'is_approve' => (bool)($hotelOrder->is_approve ?? false),
                         'reference_id' => $hotelOrder->reference_id ?? null,
