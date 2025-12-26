@@ -1446,6 +1446,95 @@
                                             </div>
                                         @endif
 
+                                        <!-- Transfer Options -->
+                                        @if(isset($booking['transfer_options']) && is_array($booking['transfer_options']) && isset($booking['transfer_options']['transfer_required']) && ($booking['transfer_options']['transfer_required'] === true || $booking['transfer_options']['transfer_required'] === 'true' || $booking['transfer_options']['transfer_required'] === 'Yes'))
+                                            <div class="bg-white rounded p-3 shadow-sm mb-4">
+                                                <div class="d-flex align-items-center mb-3">
+                                                    <div class="bg-success rounded-circle p-2 me-3">
+                                                        <i class="ri-car-line text-white"></i>
+                                                    </div>
+                                                    <h6 class="fw-bold mb-0 text-dark">Transfer Details</h6>
+                                                </div>
+                                                
+                                                <div class="row">
+                                                    <div class="col-md-6 mb-3">
+                                                        <div class="bg-light rounded p-3 h-100">
+                                                            <div class="mb-2">
+                                                                <small class="text-muted d-block">Transfer Type</small>
+                                                                <div class="fw-medium">
+                                                                    <span class="badge bg-primary">{{ $booking['transfer_options']['type'] ?? 'N/A' }}</span>
+                                                                </div>
+                                                            </div>
+                                                            <div class="mb-2">
+                                                                <small class="text-muted d-block">Transfer Way</small>
+                                                                <div class="fw-medium">
+                                                                    <span class="badge bg-info">{{ $booking['transfer_options']['way'] ?? 'N/A' }}</span>
+                                                                </div>
+                                                            </div>
+                                                            @if(isset($booking['transfer_options']['destination_name']) && !empty($booking['transfer_options']['destination_name']))
+                                                            <div class="mb-0">
+                                                                <small class="text-muted d-block">Destination</small>
+                                                                <div class="fw-medium text-primary">
+                                                                    <i class="ri-map-pin-line me-1"></i>{{ $booking['transfer_options']['destination_name'] }}
+                                                                </div>
+                                                            </div>
+                                                            @endif
+                                                        </div>
+                                                    </div>
+                                                    
+                                                    <div class="col-md-6 mb-3">
+                                                        <div class="bg-light rounded p-3 h-100">
+                                                            @if(isset($booking['transfer_options']['vehicle_details']) && is_array($booking['transfer_options']['vehicle_details']))
+                                                                <div class="mb-2">
+                                                                    <small class="text-muted d-block">Vehicle</small>
+                                                                    <div class="fw-medium">
+                                                                        <i class="ri-car-line me-1"></i>{{ $booking['transfer_options']['vehicle_details']['vehicle_name'] ?? 'N/A' }}
+                                                                    </div>
+                                                                    @if(isset($booking['transfer_options']['vehicle_details']['vehicle_type']))
+                                                                        <small class="text-muted">Type: {{ $booking['transfer_options']['vehicle_details']['vehicle_type'] }}</small>
+                                                                    @endif
+                                                                </div>
+                                                                @if(isset($booking['transfer_options']['vehicle_details']['seating_capacity']))
+                                                                <div class="mb-2">
+                                                                    <small class="text-muted d-block">Seating Capacity</small>
+                                                                    <div class="fw-medium">
+                                                                        <i class="ri-user-line me-1"></i>{{ $booking['transfer_options']['vehicle_details']['seating_capacity'] }} passengers
+                                                                    </div>
+                                                                </div>
+                                                                @endif
+                                                            @elseif(isset($booking['transfer_options']['vehicle_id']))
+                                                                <div class="mb-2">
+                                                                    <small class="text-muted d-block">Vehicle ID</small>
+                                                                    <div class="fw-medium">{{ $booking['transfer_options']['vehicle_id'] }}</div>
+                                                                </div>
+                                                            @endif
+                                                            
+                                                            @if(isset($booking['transfer_options']['cost']) && $booking['transfer_options']['cost'] > 0)
+                                                            <div class="mb-0">
+                                                                <small class="text-muted d-block">Transfer Cost</small>
+                                                                <div class="fs-5 fw-bold text-success">
+                                                                    <i class="ri-money-dollar-circle-line me-1"></i>SGD {{ number_format($booking['transfer_options']['cost'], 2) }}
+                                                                </div>
+                                                            </div>
+                                                            @endif
+                                                        </div>
+                                                    </div>
+                                                </div>
+                                                
+                                                @if(isset($booking['transfer_options']['pickup_location_name']) && !empty($booking['transfer_options']['pickup_location_name']))
+                                                <div class="bg-info bg-opacity-10 rounded p-3 mt-3">
+                                                    <div class="d-flex align-items-center">
+                                                        <i class="ri-map-pin-2-line text-info me-2 fs-5"></i>
+                                                        <div>
+                                                            <small class="text-muted d-block">Pickup Location</small>
+                                                            <div class="fw-medium text-info">{{ $booking['transfer_options']['pickup_location_name'] }}</div>
+                                                        </div>
+                                                    </div>
+                                                </div>
+                                                @endif
+                                            </div>
+                                        @endif
+
                                         <!-- Special Requests -->
                                         @if(isset($booking['specialRequests']) && !empty($booking['specialRequests']))
                                             <div class="bg-white rounded p-3 shadow-sm">
@@ -2003,6 +2092,147 @@
                                         </div>
                                         @endif
 
+                                        <!-- Transfer Options -->
+                                        @if(isset($booking['transfer_options']) && is_array($booking['transfer_options']) && isset($booking['transfer_options']['transfer_required']) && ($booking['transfer_options']['transfer_required'] === true || $booking['transfer_options']['transfer_required'] === 'true' || $booking['transfer_options']['transfer_required'] === 'Yes'))
+                                            <div class="bg-white rounded p-3 shadow-sm mb-4">
+                                                <div class="d-flex align-items-center mb-3">
+                                                    <div class="bg-success rounded-circle p-2 me-3">
+                                                        <i class="ri-car-line text-white"></i>
+                                                    </div>
+                                                    <h6 class="fw-bold mb-0 text-dark">Transfer Details</h6>
+                                                </div>
+                                                
+                                                <div class="row">
+                                                    <div class="col-md-6 mb-3">
+                                                        <div class="bg-light rounded p-3 h-100">
+                                                            <div class="mb-2">
+                                                                <small class="text-muted d-block">Transfer Type</small>
+                                                                <div class="fw-medium">
+                                                                    <span class="badge bg-primary">{{ $booking['transfer_options']['type'] ?? 'N/A' }}</span>
+                                                                </div>
+                                                            </div>
+                                                            <div class="mb-2">
+                                                                <small class="text-muted d-block">Transfer Way</small>
+                                                                <div class="fw-medium">
+                                                                    <span class="badge bg-info">{{ $booking['transfer_options']['way'] ?? 'N/A' }}</span>
+                                                                </div>
+                                                            </div>
+                                                            @if(isset($booking['transfer_options']['pickup_location_name']) && !empty($booking['transfer_options']['pickup_location_name']))
+                                                            <div class="mb-0">
+                                                                <small class="text-muted d-block">Pickup Location</small>
+                                                                <div class="fw-medium text-primary">
+                                                                    <i class="ri-map-pin-line me-1"></i>{{ $booking['transfer_options']['pickup_location_name'] }}
+                                                                </div>
+                                                            </div>
+                                                            @endif
+                                                        </div>
+                                                    </div>
+                                                    
+                                                    <div class="col-md-6 mb-3">
+                                                        <div class="bg-light rounded p-3 h-100">
+                                                            @if(isset($booking['transfer_options']['vehicle_details']) && is_array($booking['transfer_options']['vehicle_details']))
+                                                                <div class="mb-2">
+                                                                    <small class="text-muted d-block">Vehicle</small>
+                                                                    <div class="fw-medium">
+                                                                        <i class="ri-car-line me-1"></i>{{ $booking['transfer_options']['vehicle_details']['vehicle_name'] ?? 'N/A' }}
+                                                                    </div>
+                                                                    @if(isset($booking['transfer_options']['vehicle_details']['vehicle_type']))
+                                                                        <small class="text-muted">Type: {{ $booking['transfer_options']['vehicle_details']['vehicle_type'] }}</small>
+                                                                    @endif
+                                                                </div>
+                                                                @if(isset($booking['transfer_options']['vehicle_details']['seating_capacity']))
+                                                                <div class="mb-2">
+                                                                    <small class="text-muted d-block">Seating Capacity</small>
+                                                                    <div class="fw-medium">
+                                                                        <i class="ri-user-line me-1"></i>{{ $booking['transfer_options']['vehicle_details']['seating_capacity'] }} passengers
+                                                                    </div>
+                                                                </div>
+                                                                @endif
+                                                            @elseif(isset($booking['transfer_options']['vehicle_id']))
+                                                                <div class="mb-2">
+                                                                    <small class="text-muted d-block">Vehicle ID</small>
+                                                                    <div class="fw-medium">{{ $booking['transfer_options']['vehicle_id'] }}</div>
+                                                                </div>
+                                                            @endif
+                                                            
+                                                            @if(isset($booking['transfer_options']['cost']) && $booking['transfer_options']['cost'] > 0)
+                                                            <div class="mb-0">
+                                                                <small class="text-muted d-block">Transfer Cost</small>
+                                                                <div class="fs-5 fw-bold text-success">
+                                                                    <i class="ri-money-dollar-circle-line me-1"></i>SGD {{ number_format($booking['transfer_options']['cost'], 2) }}
+                                                                </div>
+                                                            </div>
+                                                            @endif
+                                                        </div>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        @endif
+
+                                        <!-- Guide Options -->
+                                        @if(isset($booking['guide_options']) && is_array($booking['guide_options']) && isset($booking['guide_options']['guide_required']) && ($booking['guide_options']['guide_required'] === true || $booking['guide_options']['guide_required'] === 'true' || $booking['guide_options']['guide_required'] === 'Yes'))
+                                            <div class="bg-white rounded p-3 shadow-sm mb-4">
+                                                <div class="d-flex align-items-center mb-3">
+                                                    <div class="bg-info rounded-circle p-2 me-3">
+                                                        <i class="ri-user-star-line text-white"></i>
+                                                    </div>
+                                                    <h6 class="fw-bold mb-0 text-dark">Guide Details</h6>
+                                                </div>
+                                                
+                                                <div class="row">
+                                                    <div class="col-md-6 mb-3">
+                                                        <div class="bg-light rounded p-3 h-100">
+                                                            <div class="mb-2">
+                                                                <small class="text-muted d-block">Guide Name</small>
+                                                                <div class="fw-medium text-primary">
+                                                                    <i class="ri-user-line me-1"></i>{{ $booking['guide_options']['guide_name'] ?? 'N/A' }}
+                                                                </div>
+                                                            </div>
+                                                            <div class="mb-2">
+                                                                <small class="text-muted d-block">Package Duration</small>
+                                                                <div class="fw-medium">
+                                                                    <span class="badge bg-info">{{ $booking['guide_options']['package_hours'] ?? 'N/A' }} Hours</span>
+                                                                </div>
+                                                            </div>
+                                                            @if(isset($booking['guide_options']['pickup_time']) && !empty($booking['guide_options']['pickup_time']))
+                                                            <div class="mb-0">
+                                                                <small class="text-muted d-block">Pickup Time</small>
+                                                                <div class="fw-medium text-success">
+                                                                    <i class="ri-time-line me-1"></i>{{ \Carbon\Carbon::parse($booking['guide_options']['pickup_time'])->format('h:i A') }}
+                                                                </div>
+                                                            </div>
+                                                            @endif
+                                                        </div>
+                                                    </div>
+                                                    
+                                                    <div class="col-md-6 mb-3">
+                                                        <div class="bg-light rounded p-3 h-100">
+                                                            <div class="mb-2">
+                                                                <small class="text-muted d-block">Base Price</small>
+                                                                <div class="fw-medium text-primary">
+                                                                    <i class="ri-money-dollar-circle-line me-1"></i>SGD {{ number_format($booking['guide_options']['base_price'] ?? 0, 2) }}
+                                                                </div>
+                                                            </div>
+                                                            @if(isset($booking['guide_options']['surcharge']) && $booking['guide_options']['surcharge'] > 0)
+                                                            <div class="mb-2">
+                                                                <small class="text-muted d-block">Night Surcharge</small>
+                                                                <div class="fw-medium text-warning">
+                                                                    <i class="ri-moon-line me-1"></i>SGD {{ number_format($booking['guide_options']['surcharge'], 2) }}
+                                                                </div>
+                                                            </div>
+                                                            @endif
+                                                            <div class="mb-0">
+                                                                <small class="text-muted d-block">Total Guide Cost</small>
+                                                                <div class="fs-5 fw-bold text-success">
+                                                                    <i class="ri-money-dollar-circle-line me-1"></i>SGD {{ number_format($booking['guide_options']['total_price'] ?? 0, 2) }}
+                                                                </div>
+                                                            </div>
+                                                        </div>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        @endif
+
                                         <!-- Special Requests -->
                                         @if(isset($booking['specialRequests']) && !empty($booking['specialRequests']))
                                             <div class="bg-white rounded p-3 shadow-sm mb-4">
@@ -2440,6 +2670,83 @@
                                                 </div>
                                             </div>
                                         </div>
+                                        @endif
+
+                                        <!-- Transfer Options -->
+                                        @if(isset($booking['transfer_options']) && is_array($booking['transfer_options']) && isset($booking['transfer_options']['transfer_required']) && ($booking['transfer_options']['transfer_required'] === true || $booking['transfer_options']['transfer_required'] === 'true' || $booking['transfer_options']['transfer_required'] === 'Yes'))
+                                            <div class="bg-white rounded p-3 shadow-sm mb-4">
+                                                <div class="d-flex align-items-center mb-3">
+                                                    <div class="bg-success rounded-circle p-2 me-3">
+                                                        <i class="ri-car-line text-white"></i>
+                                                    </div>
+                                                    <h6 class="fw-bold mb-0 text-dark">Transfer Details</h6>
+                                                </div>
+                                                
+                                                <div class="row">
+                                                    <div class="col-md-6 mb-3">
+                                                        <div class="bg-light rounded p-3 h-100">
+                                                            <div class="mb-2">
+                                                                <small class="text-muted d-block">Transfer Type</small>
+                                                                <div class="fw-medium">
+                                                                    <span class="badge bg-primary">{{ $booking['transfer_options']['type'] ?? 'N/A' }}</span>
+                                                                </div>
+                                                            </div>
+                                                            <div class="mb-2">
+                                                                <small class="text-muted d-block">Transfer Way</small>
+                                                                <div class="fw-medium">
+                                                                    <span class="badge bg-info">{{ $booking['transfer_options']['way'] ?? 'N/A' }}</span>
+                                                                </div>
+                                                            </div>
+                                                            @if(isset($booking['transfer_options']['pickup_location_name']) && !empty($booking['transfer_options']['pickup_location_name']))
+                                                            <div class="mb-0">
+                                                                <small class="text-muted d-block">Pickup Location</small>
+                                                                <div class="fw-medium text-primary">
+                                                                    <i class="ri-map-pin-line me-1"></i>{{ $booking['transfer_options']['pickup_location_name'] }}
+                                                                </div>
+                                                            </div>
+                                                            @endif
+                                                        </div>
+                                                    </div>
+                                                    
+                                                    <div class="col-md-6 mb-3">
+                                                        <div class="bg-light rounded p-3 h-100">
+                                                            @if(isset($booking['transfer_options']['vehicle_details']) && is_array($booking['transfer_options']['vehicle_details']))
+                                                                <div class="mb-2">
+                                                                    <small class="text-muted d-block">Vehicle</small>
+                                                                    <div class="fw-medium">
+                                                                        <i class="ri-car-line me-1"></i>{{ $booking['transfer_options']['vehicle_details']['vehicle_name'] ?? 'N/A' }}
+                                                                    </div>
+                                                                    @if(isset($booking['transfer_options']['vehicle_details']['vehicle_type']))
+                                                                        <small class="text-muted">Type: {{ $booking['transfer_options']['vehicle_details']['vehicle_type'] }}</small>
+                                                                    @endif
+                                                                </div>
+                                                                @if(isset($booking['transfer_options']['vehicle_details']['seating_capacity']))
+                                                                <div class="mb-2">
+                                                                    <small class="text-muted d-block">Seating Capacity</small>
+                                                                    <div class="fw-medium">
+                                                                        <i class="ri-user-line me-1"></i>{{ $booking['transfer_options']['vehicle_details']['seating_capacity'] }} passengers
+                                                                    </div>
+                                                                </div>
+                                                                @endif
+                                                            @elseif(isset($booking['transfer_options']['vehicle_id']))
+                                                                <div class="mb-2">
+                                                                    <small class="text-muted d-block">Vehicle ID</small>
+                                                                    <div class="fw-medium">{{ $booking['transfer_options']['vehicle_id'] }}</div>
+                                                                </div>
+                                                            @endif
+                                                            
+                                                            @if(isset($booking['transfer_options']['cost']) && $booking['transfer_options']['cost'] > 0)
+                                                            <div class="mb-0">
+                                                                <small class="text-muted d-block">Transfer Cost</small>
+                                                                <div class="fs-5 fw-bold text-success">
+                                                                    <i class="ri-money-dollar-circle-line me-1"></i>SGD {{ number_format($booking['transfer_options']['cost'], 2) }}
+                                                                </div>
+                                                            </div>
+                                                            @endif
+                                                        </div>
+                                                    </div>
+                                                </div>
+                                            </div>
                                         @endif
 
                                         <!-- Special Requests -->
@@ -8338,6 +8645,8 @@ function loadIndividualHotelContent(tourId, hotelOrderIndex, bookingIndex, modal
                     hotelData.rooms[0].beds[0].bed_type || 'N/A' : 'N/A',
                 mealPlan: hotelData.rooms && hotelData.rooms.length > 0 && hotelData.rooms[0].beds && hotelData.rooms[0].beds.length > 0 && hotelData.rooms[0].beds[0].mealTypes && hotelData.rooms[0].beds[0].mealTypes.length > 0 ? 
                     hotelData.rooms[0].beds[0].mealTypes[0] : 'Room Only',
+                // Transfer Options
+                transferOptions: hotelData.transfer_options || null,
                 // Approval status
                 isApprove: hotelData.is_approve || false,
                 referenceId: hotelData.reference_id || null,
@@ -8347,6 +8656,9 @@ function loadIndividualHotelContent(tourId, hotelOrderIndex, bookingIndex, modal
             };
             
             console.log('✅ Hotel booking data prepared for display', hotelBooking);
+            console.log('🔍 Transfer options in hotel booking:', hotelBooking.transferOptions);
+            console.log('🔍 Transfer required value:', hotelBooking.transferOptions?.transfer_required);
+            console.log('🔍 Transfer required type:', typeof hotelBooking.transferOptions?.transfer_required);
             generateIndividualHotelContent(hotelBooking, modalId, tourId, hotelOrderIndex, bookingIndex, autoCancelDate);
         } else {
             console.error('❌ Hotel data fetch failed', data);
@@ -8514,6 +8826,95 @@ function generateIndividualHotelContent(hotelBooking, modalId, tourId, hotelOrde
                 </div>
             </div>
         </div>
+
+        <!-- Transfer Options -->
+        ${hotelBooking.transferOptions && (hotelBooking.transferOptions.transfer_required === true || hotelBooking.transferOptions.transfer_required === 'true' || hotelBooking.transferOptions.transfer_required === 'Yes') ? `
+        <div class="bg-white rounded p-3 shadow-sm mb-4">
+            <div class="d-flex align-items-center mb-3">
+                <div class="bg-success rounded-circle p-2 me-3">
+                    <i class="ri-car-line text-white"></i>
+                </div>
+                <h6 class="fw-bold mb-0 text-dark">Transfer Details</h6>
+            </div>
+            
+            <div class="row">
+                <div class="col-md-6 mb-3">
+                    <div class="bg-light rounded p-3 h-100">
+                        <div class="mb-2">
+                            <small class="text-muted d-block">Transfer Type</small>
+                            <div class="fw-medium">
+                                <span class="badge bg-primary">${hotelBooking.transferOptions.type || 'N/A'}</span>
+                            </div>
+                        </div>
+                        <div class="mb-2">
+                            <small class="text-muted d-block">Transfer Way</small>
+                            <div class="fw-medium">
+                                <span class="badge bg-info">${hotelBooking.transferOptions.way || 'N/A'}</span>
+                            </div>
+                        </div>
+                        ${hotelBooking.transferOptions.destination_name ? `
+                        <div class="mb-0">
+                            <small class="text-muted d-block">Destination</small>
+                            <div class="fw-medium text-primary">
+                                <i class="ri-map-pin-line me-1"></i>${hotelBooking.transferOptions.destination_name}
+                            </div>
+                        </div>
+                        ` : ''}
+                    </div>
+                </div>
+                
+                <div class="col-md-6 mb-3">
+                    <div class="bg-light rounded p-3 h-100">
+                        ${hotelBooking.transferOptions.vehicle_details ? `
+                            <div class="mb-2">
+                                <small class="text-muted d-block">Vehicle</small>
+                                <div class="fw-medium">
+                                    <i class="ri-car-line me-1"></i>${hotelBooking.transferOptions.vehicle_details.vehicle_name || 'N/A'}
+                                </div>
+                                ${hotelBooking.transferOptions.vehicle_details.vehicle_type ? `
+                                    <small class="text-muted">Type: ${hotelBooking.transferOptions.vehicle_details.vehicle_type}</small>
+                                ` : ''}
+                            </div>
+                            ${hotelBooking.transferOptions.vehicle_details.seating_capacity ? `
+                            <div class="mb-2">
+                                <small class="text-muted d-block">Seating Capacity</small>
+                                <div class="fw-medium">
+                                    <i class="ri-user-line me-1"></i>${hotelBooking.transferOptions.vehicle_details.seating_capacity} passengers
+                                </div>
+                            </div>
+                            ` : ''}
+                        ` : hotelBooking.transferOptions.vehicle_id ? `
+                            <div class="mb-2">
+                                <small class="text-muted d-block">Vehicle ID</small>
+                                <div class="fw-medium">${hotelBooking.transferOptions.vehicle_id}</div>
+                            </div>
+                        ` : ''}
+                        
+                        ${hotelBooking.transferOptions.cost && hotelBooking.transferOptions.cost > 0 ? `
+                        <div class="mb-0">
+                            <small class="text-muted d-block">Transfer Cost</small>
+                            <div class="fs-5 fw-bold text-success">
+                                <i class="ri-money-dollar-circle-line me-1"></i>SGD ${parseFloat(hotelBooking.transferOptions.cost).toFixed(2)}
+                            </div>
+                        </div>
+                        ` : ''}
+                    </div>
+                </div>
+            </div>
+            
+            ${hotelBooking.transferOptions.pickup_location_name ? `
+            <div class="bg-info bg-opacity-10 rounded p-3 mt-3">
+                <div class="d-flex align-items-center">
+                    <i class="ri-map-pin-2-line text-info me-2 fs-5"></i>
+                    <div>
+                        <small class="text-muted d-block">Pickup Location</small>
+                        <div class="fw-medium text-info">${hotelBooking.transferOptions.pickup_location_name}</div>
+                    </div>
+                </div>
+            </div>
+            ` : ''}
+        </div>
+        ` : ''}
 
         <!-- Special Requests -->
         ${hotelBooking.specialRequests ? `
@@ -9383,6 +9784,9 @@ function loadIndividualAttractionContent(modalId, tourId, attractionOrderIndex, 
                 ticketDetails: attractionData.ticket_details || {},
                 transport: attractionData.transport,
                 selection: attractionData.selection,
+                // Transfer and Guide Options
+                transferOptions: attractionData.transfer_options || null,
+                guideOptions: attractionData.guide_options || null,
                 // Approval status
                 isApprove: attractionData.is_approve || false,
                 referenceId: attractionData.reference_id || null,
@@ -9392,6 +9796,10 @@ function loadIndividualAttractionContent(modalId, tourId, attractionOrderIndex, 
             };
             
             console.log('✅ Attraction booking data prepared for display', attractionBooking);
+            console.log('🔍 Transfer options in attraction booking:', attractionBooking.transferOptions);
+            console.log('🔍 Guide options in attraction booking:', attractionBooking.guideOptions);
+            console.log('🔍 Transfer required value:', attractionBooking.transferOptions?.transfer_required);
+            console.log('🔍 Guide required value:', attractionBooking.guideOptions?.guide_required);
             generateIndividualAttractionContent(attractionBooking, modalId, tourId, attractionOrderIndex, bookingIndex, autoCancelDate);
         } else {
             console.error('❌ Attraction data fetch failed', data);
@@ -9624,6 +10032,147 @@ function generateIndividualAttractionContent(attractionBooking, modalId, tourId,
                         <div class="text-muted">${attractionBooking.ticketDetails.description}</div>
                     </div>
                     ` : ''}
+                </div>
+                ` : ''}
+
+                <!-- Transfer Options -->
+                ${attractionBooking.transferOptions && attractionBooking.transferOptions.transfer_required && (attractionBooking.transferOptions.transfer_required === true || attractionBooking.transferOptions.transfer_required === 'true' || attractionBooking.transferOptions.transfer_required === 'Yes' || attractionBooking.transferOptions.transfer_required === 1) ? `
+                <div class="bg-white rounded p-3 shadow-sm mb-4">
+                    <div class="d-flex align-items-center mb-3">
+                        <div class="bg-success rounded-circle p-2 me-3">
+                            <i class="ri-car-line text-white"></i>
+                        </div>
+                        <h6 class="fw-bold mb-0 text-dark">Transfer Details</h6>
+                    </div>
+                    
+                    <div class="row">
+                        <div class="col-md-6 mb-3">
+                            <div class="bg-light rounded p-3 h-100">
+                                <div class="mb-2">
+                                    <small class="text-muted d-block">Transfer Type</small>
+                                    <div class="fw-medium">
+                                        <span class="badge bg-primary">${attractionBooking.transferOptions.type || 'N/A'}</span>
+                                    </div>
+                                </div>
+                                <div class="mb-2">
+                                    <small class="text-muted d-block">Transfer Way</small>
+                                    <div class="fw-medium">
+                                        <span class="badge bg-info">${attractionBooking.transferOptions.way || 'N/A'}</span>
+                                    </div>
+                                </div>
+                                ${attractionBooking.transferOptions.pickup_location_name ? `
+                                <div class="mb-0">
+                                    <small class="text-muted d-block">Pickup Location</small>
+                                    <div class="fw-medium text-primary">
+                                        <i class="ri-map-pin-line me-1"></i>${attractionBooking.transferOptions.pickup_location_name}
+                                    </div>
+                                </div>
+                                ` : ''}
+                            </div>
+                        </div>
+                        
+                        <div class="col-md-6 mb-3">
+                            <div class="bg-light rounded p-3 h-100">
+                                ${attractionBooking.transferOptions.vehicle_details ? `
+                                    <div class="mb-2">
+                                        <small class="text-muted d-block">Vehicle</small>
+                                        <div class="fw-medium">
+                                            <i class="ri-car-line me-1"></i>${attractionBooking.transferOptions.vehicle_details.vehicle_name || 'N/A'}
+                                        </div>
+                                        ${attractionBooking.transferOptions.vehicle_details.vehicle_type ? `
+                                            <small class="text-muted">Type: ${attractionBooking.transferOptions.vehicle_details.vehicle_type}</small>
+                                        ` : ''}
+                                    </div>
+                                    ${attractionBooking.transferOptions.vehicle_details.seating_capacity ? `
+                                    <div class="mb-2">
+                                        <small class="text-muted d-block">Seating Capacity</small>
+                                        <div class="fw-medium">
+                                            <i class="ri-user-line me-1"></i>${attractionBooking.transferOptions.vehicle_details.seating_capacity} passengers
+                                        </div>
+                                    </div>
+                                    ` : ''}
+                                ` : attractionBooking.transferOptions.vehicle_id ? `
+                                    <div class="mb-2">
+                                        <small class="text-muted d-block">Vehicle ID</small>
+                                        <div class="fw-medium">${attractionBooking.transferOptions.vehicle_id}</div>
+                                    </div>
+                                ` : ''}
+                                
+                                ${attractionBooking.transferOptions.cost && attractionBooking.transferOptions.cost > 0 ? `
+                                <div class="mb-0">
+                                    <small class="text-muted d-block">Transfer Cost</small>
+                                    <div class="fs-5 fw-bold text-success">
+                                        <i class="ri-money-dollar-circle-line me-1"></i>SGD ${parseFloat(attractionBooking.transferOptions.cost).toFixed(2)}
+                                    </div>
+                                </div>
+                                ` : ''}
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                ` : ''}
+
+                <!-- Guide Options -->
+                ${attractionBooking.guideOptions && attractionBooking.guideOptions.guide_required && (attractionBooking.guideOptions.guide_required === true || attractionBooking.guideOptions.guide_required === 'true' || attractionBooking.guideOptions.guide_required === 'Yes' || attractionBooking.guideOptions.guide_required === 1) ? `
+                <div class="bg-white rounded p-3 shadow-sm mb-4">
+                    <div class="d-flex align-items-center mb-3">
+                        <div class="bg-info rounded-circle p-2 me-3">
+                            <i class="ri-user-star-line text-white"></i>
+                        </div>
+                        <h6 class="fw-bold mb-0 text-dark">Guide Details</h6>
+                    </div>
+                    
+                    <div class="row">
+                        <div class="col-md-6 mb-3">
+                            <div class="bg-light rounded p-3 h-100">
+                                <div class="mb-2">
+                                    <small class="text-muted d-block">Guide Name</small>
+                                    <div class="fw-medium text-primary">
+                                        <i class="ri-user-line me-1"></i>${attractionBooking.guideOptions.guide_name || 'N/A'}
+                                    </div>
+                                </div>
+                                <div class="mb-2">
+                                    <small class="text-muted d-block">Package Duration</small>
+                                    <div class="fw-medium">
+                                        <span class="badge bg-info">${attractionBooking.guideOptions.package_hours || 'N/A'} Hours</span>
+                                    </div>
+                                </div>
+                                ${attractionBooking.guideOptions.pickup_time ? `
+                                <div class="mb-0">
+                                    <small class="text-muted d-block">Pickup Time</small>
+                                    <div class="fw-medium text-success">
+                                        <i class="ri-time-line me-1"></i>${attractionBooking.guideOptions.pickup_time ? new Date('2000-01-01T' + attractionBooking.guideOptions.pickup_time).toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', hour12: true }) : 'N/A'}
+                                    </div>
+                                </div>
+                                ` : ''}
+                            </div>
+                        </div>
+                        
+                        <div class="col-md-6 mb-3">
+                            <div class="bg-light rounded p-3 h-100">
+                                <div class="mb-2">
+                                    <small class="text-muted d-block">Base Price</small>
+                                    <div class="fw-medium text-primary">
+                                        <i class="ri-money-dollar-circle-line me-1"></i>SGD ${parseFloat(attractionBooking.guideOptions.base_price || 0).toFixed(2)}
+                                    </div>
+                                </div>
+                                ${attractionBooking.guideOptions.surcharge && attractionBooking.guideOptions.surcharge > 0 ? `
+                                <div class="mb-2">
+                                    <small class="text-muted d-block">Night Surcharge</small>
+                                    <div class="fw-medium text-warning">
+                                        <i class="ri-moon-line me-1"></i>SGD ${parseFloat(attractionBooking.guideOptions.surcharge).toFixed(2)}
+                                    </div>
+                                </div>
+                                ` : ''}
+                                <div class="mb-0">
+                                    <small class="text-muted d-block">Total Guide Cost</small>
+                                    <div class="fs-5 fw-bold text-success">
+                                        <i class="ri-money-dollar-circle-line me-1"></i>SGD ${parseFloat(attractionBooking.guideOptions.total_price || 0).toFixed(2)}
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
                 </div>
                 ` : ''}
 
@@ -10288,6 +10837,81 @@ function generateIndividualRestaurantContent(booking, tourId, restaurantOrderInd
                         </div>
                     </div>
                 </div>
+
+                <!-- Transfer Options -->
+                ${(booking.transferOptions || fullBooking.transfer_options) && (booking.transferOptions?.transfer_required || fullBooking.transfer_options?.transfer_required) && (booking.transferOptions?.transfer_required === true || booking.transferOptions?.transfer_required === 'true' || booking.transferOptions?.transfer_required === 'Yes' || booking.transferOptions?.transfer_required === 1 || fullBooking.transfer_options?.transfer_required === true || fullBooking.transfer_options?.transfer_required === 'true' || fullBooking.transfer_options?.transfer_required === 'Yes' || fullBooking.transfer_options?.transfer_required === 1) ? `
+                <div class="bg-white rounded p-3 shadow-sm mb-4">
+                    <div class="d-flex align-items-center mb-3">
+                        <div class="bg-success rounded-circle p-2 me-3">
+                            <i class="ri-car-line text-white"></i>
+                        </div>
+                        <h6 class="fw-bold mb-0 text-dark">Transfer Details</h6>
+                    </div>
+                    
+                    <div class="row">
+                        <div class="col-md-6 mb-3">
+                            <div class="bg-light rounded p-3 h-100">
+                                <div class="mb-2">
+                                    <small class="text-muted d-block">Transfer Type</small>
+                                    <div class="fw-medium">
+                                        <span class="badge bg-primary">${(booking.transferOptions?.type || fullBooking.transfer_options?.type) || 'N/A'}</span>
+                                    </div>
+                                </div>
+                                <div class="mb-2">
+                                    <small class="text-muted d-block">Transfer Way</small>
+                                    <div class="fw-medium">
+                                        <span class="badge bg-info">${(booking.transferOptions?.way || fullBooking.transfer_options?.way) || 'N/A'}</span>
+                                    </div>
+                                </div>
+                                ${(booking.transferOptions?.pickup_location_name || fullBooking.transfer_options?.pickup_location_name) ? `
+                                <div class="mb-0">
+                                    <small class="text-muted d-block">Pickup Location</small>
+                                    <div class="fw-medium text-info">
+                                        <i class="ri-map-pin-line me-1"></i>${booking.transferOptions?.pickup_location_name || fullBooking.transfer_options?.pickup_location_name}
+                                    </div>
+                                </div>
+                                ` : ''}
+                            </div>
+                        </div>
+                        <div class="col-md-6 mb-3">
+                            <div class="bg-light rounded p-3 h-100">
+                                ${(booking.transferOptions?.vehicle_details || fullBooking.transfer_options?.vehicle_details) ? `
+                                <div class="mb-2">
+                                    <small class="text-muted d-block">Vehicle Details</small>
+                                    <div class="fw-medium">
+                                        <i class="ri-car-line me-1"></i>${(booking.transferOptions?.vehicle_details?.vehicle_name || fullBooking.transfer_options?.vehicle_details?.vehicle_name) || 'N/A'}
+                                    </div>
+                                    ${(booking.transferOptions?.vehicle_details?.vehicle_type || fullBooking.transfer_options?.vehicle_details?.vehicle_type) ? `
+                                    <small class="text-muted">Type: ${booking.transferOptions?.vehicle_details?.vehicle_type || fullBooking.transfer_options?.vehicle_details?.vehicle_type}</small>
+                                    ` : ''}
+                                </div>
+                                ${(booking.transferOptions?.vehicle_details?.seating_capacity || fullBooking.transfer_options?.vehicle_details?.seating_capacity) ? `
+                                <div class="mb-2">
+                                    <small class="text-muted d-block">Seating Capacity</small>
+                                    <div class="fw-medium">
+                                        <i class="ri-user-line me-1"></i>${booking.transferOptions?.vehicle_details?.seating_capacity || fullBooking.transfer_options?.vehicle_details?.seating_capacity} passengers
+                                    </div>
+                                </div>
+                                ` : ''}
+                                ` : (booking.transferOptions?.vehicle_id || fullBooking.transfer_options?.vehicle_id) ? `
+                                <div class="mb-2">
+                                    <small class="text-muted d-block">Vehicle ID</small>
+                                    <div class="fw-medium">${booking.transferOptions?.vehicle_id || fullBooking.transfer_options?.vehicle_id}</div>
+                                </div>
+                                ` : ''}
+                                ${(booking.transferOptions?.cost || fullBooking.transfer_options?.cost) ? `
+                                <div class="mb-0">
+                                    <small class="text-muted d-block">Transfer Cost</small>
+                                    <div class="fw-bold text-success fs-5">
+                                        <i class="ri-money-dollar-circle-line me-1"></i>SGD ${((booking.transferOptions?.cost || fullBooking.transfer_options?.cost) || 0).toFixed(2)}
+                                    </div>
+                                </div>
+                                ` : ''}
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                ` : ''}
 
                 ${fullBooking.MealDescription && fullBooking.MealDescription.length > 0 ? `
                 <!-- Menu Items -->
@@ -24514,9 +25138,12 @@ function getRestaurantServiceData(tourId, restaurantOrderIndex, bookingIndex) {
                     },
                     totalPrice: restaurantBooking.total_price || 0,
                     // Include the full restaurant details for complete data access
-                    restaurant_details: restaurantBooking.restaurant_details || {}
+                    restaurant_details: restaurantBooking.restaurant_details || {},
+                    // Transfer Options
+                    transferOptions: restaurantBooking.restaurant_details?.transfer_options || restaurantBooking.transfer_options || null
                 };
                 console.log('Resolved restaurant data:', restaurantData);
+                console.log('🔍 Transfer options in restaurant data:', restaurantData.transferOptions);
                 resolve(restaurantData);
             } else {
                 console.warn('Server returned unsuccessful response:', data);
