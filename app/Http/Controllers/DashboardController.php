@@ -173,7 +173,7 @@ class DashboardController extends Controller
     private function canViewBusinessMetrics($user)
     {
         // Product managers and product head cannot see business metrics, only sales and upper roles can
-        return in_array($user->role_id, [1, 2, 10, 11, 19, 20, 33, 12, 37, 38, 128, 129, 130, 134, 135, 136, 138]); // Exclude product managers and product head
+        return in_array($user->role_id, [1, 2, 10, 11, 19, 20, 33, 12, 37, 38, 34, 36, 126, 127, 124, 125, 126, 127, 128, 129, 131, 132, 130, 134, 135, 136, 137, 138]); // Exclude product managers and product head
     }
     
     /**
@@ -269,6 +269,7 @@ class DashboardController extends Controller
             $counts['tours'] = $this->getTourCounts($dateRanges, $user);
             $counts['bookings'] = $this->getBookingCounts($dateRanges, $user);
             $counts['orders'] = $this->getOrderCounts($dateRanges, $user);
+            $counts['bookingStatus'] = $this->getBookingStatusCounts($dateRanges, $user);
         }
         
         // Enquiries - separate check with additional role restrictions
@@ -591,6 +592,76 @@ class DashboardController extends Controller
             'this_month' => $thisMonth,
             'confirmed' => $confirmed,
             'pending' => $pending
+        ];
+    }
+    
+    /**
+     * Get booking status counts (New Enquiries, Prospect, Tentative, Confirmed)
+     * Uses the same DMC filtering logic as BookingsController
+     */
+    private function getBookingStatusCounts($dateRanges, $user)
+    {
+        $query = Tour::query();
+        $dmc_id = null;
+        
+        // Apply DMC filtering based on user role (same logic as BookingsController::newEnquiries)
+        if (in_array($user->role_id, [1, 2, 3, 4])) {
+            // Admin, Super Admin, etc. - no DMC filter
+            $dmc_id = null;
+        } elseif ($user->role_id == 11) {
+            // DMC
+            $dmc_id = $user->userId;
+        } elseif (in_array($user->role_id, [33, 34, 36, 128, 129, 130, 134, 135, 136, 138])) {
+            // Sales Head and similar roles
+            $dmc_id = $user->created_by;
+        } elseif ($user->role_id == 37) {
+            // Sales Manager
+            $sales_head = User::where('userId', $user->created_by)->first();
+            $dmc_id = $sales_head ? $sales_head->created_by : null;
+        } elseif ($user->role_id == 38) {
+            // Assistant Sales Manager
+            $sales_manager = User::where('userId', $user->created_by)->first();
+            if ($sales_manager) {
+                $sales_head = User::where('userId', $sales_manager->created_by)->first();
+                $dmc_id = $sales_head ? $sales_head->created_by : null;
+            }
+        }
+        
+        // Apply DMC filter if DMC ID is set
+        if ($dmc_id) {
+            $query->where('dmc_id', $dmc_id);
+        }
+        
+        // Get counts based on period
+        if ($dateRanges) {
+            $query->whereBetween('created_at', [$dateRanges['start'], $dateRanges['end']]);
+        }
+        
+        // New Enquiries (tour_status = 'New Enquiry')
+        $newEnquiries = (clone $query)
+            ->where('tour_status', 'New Enquiry')
+            ->count();
+        
+        // Prospect (tour_status = 'Prospect')
+        $prospect = (clone $query)
+            ->where('tour_status', 'Prospect')
+            ->count();
+        
+        // Tentative/Follow Ups (tour_status = 'Tentative')
+        $tentative = (clone $query)
+            ->where('tour_status', 'Tentative')
+            ->count();
+        
+        // Confirmed (tour_status = 'Confirmed')
+        $confirmed = (clone $query)
+            ->where('tour_status', 'Confirmed')
+            ->count();
+        
+        return [
+            'new_enquiries' => $newEnquiries,
+            'prospect' => $prospect,
+            'tentative' => $tentative,
+            'confirmed' => $confirmed
         ];
     }
     

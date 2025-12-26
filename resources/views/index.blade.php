@@ -541,6 +541,91 @@
     </div>
     @endif
 
+    <!-- Booking Status Statistics Cards - Show for users who can view business metrics -->
+    @if($userPermissions['canViewBusinessMetrics'] && isset($counts['bookingStatus']))
+    <div class="row">
+        <div class="col-12">
+            <h3 class="section-title mt-4">
+                <i class="ri-bookmark-3-line"></i>
+                Booking Status Overview - {{ ucfirst($period) }}
+            </h3>
+        </div>
+
+        @php
+            $roleIds = [34, 124, 125, 36, 126, 127];
+        @endphp
+        @if(!in_array(Auth::user()->role_id, $roleIds))
+        <div class="col-xl-3 col-lg-6 col-md-6">
+            <div class="stats-card" style="--card-color: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);">
+                <div class="stats-icon" style="background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);">
+                    <i class="ri-questionnaire-line"></i>
+                </div>
+                <div class="stats-number" id="new-enquiries-count">
+                    {{ $counts['bookingStatus']['new_enquiries'] ?? 0 }}
+                </div>
+                <div class="stats-label">New Enquiries</div>
+                <div class="stats-detail">
+                    <a href="{{ route('bookings.new-enquiries') }}" style="color: #718096; text-decoration: none;">
+                        <i class="ri-eye-line"></i> View Details
+                    </a>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-xl-3 col-lg-6 col-md-6">
+            <div class="stats-card" style="--card-color: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%);">
+                <div class="stats-icon" style="background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%);">
+                    <i class="ri-user-search-line"></i>
+                </div>
+                <div class="stats-number" id="prospect-count">
+                    {{ $counts['bookingStatus']['prospect'] ?? 0 }}
+                </div>
+                <div class="stats-label">Prospect (Follow Ups)</div>
+                <div class="stats-detail">
+                    <a href="{{ route('bookings.follow-ups') }}" style="color: #718096; text-decoration: none;">
+                        <i class="ri-eye-line"></i> View Details
+                    </a>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-xl-3 col-lg-6 col-md-6">
+            <div class="stats-card" style="--card-color: linear-gradient(135deg, #43e97b 0%, #38f9d7 100%);">
+                <div class="stats-icon" style="background: linear-gradient(135deg, #43e97b 0%, #38f9d7 100%);">
+                    <i class="ri-time-line"></i>
+                </div>
+                <div class="stats-number" id="tentative-count">
+                    {{ $counts['bookingStatus']['tentative'] ?? 0 }}
+                </div>
+                <div class="stats-label">Tentative (Follow Ups)</div>
+                <div class="stats-detail">
+                    <a href="{{ route('bookings.follow-ups') }}" style="color: #718096; text-decoration: none;">
+                        <i class="ri-eye-line"></i> View Details
+                    </a>
+                </div>
+            </div>
+        </div>
+        @endif
+
+        <div class="col-xl-3 col-lg-6 col-md-6">
+            <div class="stats-card" style="--card-color: linear-gradient(135deg, #fa709a 0%, #fee140 100%);">
+                <div class="stats-icon" style="background: linear-gradient(135deg, #fa709a 0%, #fee140 100%);">
+                    <i class="ri-checkbox-circle-line"></i>
+                </div>
+                <div class="stats-number" id="confirmed-count">
+                    {{ $counts['bookingStatus']['confirmed'] ?? 0 }}
+                </div>
+                <div class="stats-label">Confirmed Tours</div>
+                <div class="stats-detail">
+                    <a href="{{ route('bookings.confirmed') }}" style="color: #718096; text-decoration: none;">
+                        <i class="ri-eye-line"></i> View Details
+                    </a>
+                </div>
+            </div>
+        </div>
+    </div>
+    @endif
+
     <!-- Product Statistics Cards - Show based on user permissions -->
     <div class="row">
         @if($userPermissions['canViewHotels'])
@@ -822,7 +907,7 @@
 
         @if($userPermissions['canViewEnquiries'])
         <div class="col-lg-2 col-md-4 col-sm-6">
-            <a href="{{ route('enquirylist.index') }}" class="quick-action-btn">
+            <a href="{{ route('bookings.new-enquiries') }}" class="quick-action-btn">
                 <div class="quick-action-icon">
                     <i class="ri-questionnaire-line"></i>
                 </div>
@@ -1596,6 +1681,14 @@ function updateCounts(counts) {
     }
     if (counts.hotels) {
         updateElementCount('hotel-count', counts.hotels.total || 0);
+    }
+    
+    // Update booking status counts
+    if (counts.bookingStatus) {
+        updateElementCount('new-enquiries-count', counts.bookingStatus.new_enquiries || 0);
+        updateElementCount('prospect-count', counts.bookingStatus.prospect || 0);
+        updateElementCount('tentative-count', counts.bookingStatus.tentative || 0);
+        updateElementCount('confirmed-count', counts.bookingStatus.confirmed || 0);
     }
     
     // Update all other counts dynamically
