@@ -35,4 +35,22 @@ class VehicleZoneMapping extends Model
     {
         return $this->belongsTo(Zone::class, 'to_zone_id', 'zone_id');
     }
+    public function scopeBidirectionalZone(
+        $query,
+        $fromId,
+        $toId,
+        $fromType,
+        $toType
+    ) {
+        return $query->where(function ($q) use ($fromId, $toId, $fromType, $toType) {
+            
+            $q->where([
+                ['from_zone_id', $fromId],
+                ['to_zone_id', $toId],
+            ])->orWhere([
+                ['from_zone_id', $toId],
+                ['to_zone_id', $fromId],
+            ]);
+        });
+    }
 }

@@ -467,16 +467,16 @@
                                     </div>
                                 </div>
                                 
-                                <div class="col-md-1 d-flex align-items-end">
+                                {{-- <div class="col-md-1 d-flex align-items-end">
                                     <button type="button" class="btn btn-success w-100" onclick="addHotel()">
                                         <i class="ri-add-line"></i>
                                     </button>
-                                </div>
+                                </div> --}}
                                 
                             </div>
                             
                             <!-- Transfer Required Section -->
-                            <div class="row g-3 mt-2">
+                            {{-- <div class="row g-3 mt-2">
                                 <div class="col-md-2">
                                     <label class="form-label fw-semibold">
                                         <i class="ri-car-line me-1"></i>Transfer Required?
@@ -527,7 +527,7 @@
                                         <option value="">Select Destination</option>
                                     </select>
                                 </div>
-                            </div>
+                            </div> --}}
 
                             <!-- Night Selection -->
                             <div class="mb-4">
@@ -537,7 +537,7 @@
                                 </label>
                                 
                                 <!-- Color Legend -->
-                                <div class="mb-3 p-2 bg-light rounded">
+                                {{-- <div class="mb-3 p-2 bg-light rounded">
                                     <small class="fw-bold text-muted d-block mb-1">Night Selection Guide:</small>
                                     <div class="d-flex gap-3">
                                         <div class="d-flex align-items-center">
@@ -549,11 +549,18 @@
                                             <small>Auto-Required (for consecutive nights)</small>
                                         </div>
                                     </div>
+                                </div> --}}
+                                <div id="nightSelectionWrapper" class="night-grid mb-3">
+                                    <div id="nightSelection">
+                                        <!-- night buttons -->
+                                    </div>
+                                
+                                    <button type="button" class="btn btn-success add-btn" onclick="addHotel()">
+                                        <i class="ri-add-line me-1"></i> Add
+                                    </button>
                                 </div>
                                 
-                                <div id="nightSelection" class="d-flex flex-wrap gap-2 mb-3">
-                                    <!-- Night options will be populated by JavaScript -->
-                                </div>
+                                
                                 <div id="nightSelectionSummary">
                                     <div class="alert alert-info">
                                         <i class="ri-information-line me-2"></i>
@@ -571,7 +578,7 @@
                             </div>
 
                             <!-- Hotel Summary -->
-                            <div class="row mt-4">
+                            {{-- <div class="row mt-4">
                                 <div class="col-12">
                                     <div class="card bg-light">
                                         <div class="card-body">
@@ -589,10 +596,10 @@
                                         </div>
                                     </div>
                                 </div>
-                            </div>
+                            </div> --}}
 
                             <!-- Package Total Price Summary -->
-                            <div class="row mt-3">
+                            {{-- <div class="row mt-3">
                                 <div class="col-12">
                                     <div class="card bg-success text-white">
                                         <div class="card-body">
@@ -610,7 +617,7 @@
                                         </div>
                                     </div>
                                 </div>
-                            </div>
+                            </div> --}}
                             
                         </div>
                     </div>
@@ -4816,6 +4823,23 @@
         box-shadow: 0 10px 30px rgba(0,0,0,0.2) !important;
         overflow: hidden;
     }
+    .night-grid {
+    display: grid;
+    grid-template-columns: 1fr auto;
+    align-items: end;
+    gap: 10px;
+    }
+
+    #nightSelection {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 10px;
+    }
+
+    .add-btn {
+        white-space: nowrap;
+    }
+
     
     .enquiry-sidebar .card-header {
         background: linear-gradient(135deg, #36d1dc 0%, #5b86e5 100%) !important;
@@ -6801,7 +6825,12 @@ document.addEventListener('DOMContentLoaded', function() {
                 const guideSelect = document.getElementById(`day${day}_attraction_${index}_guide`);
                 const packageSelect = document.getElementById(`day${day}_attraction_${index}_guide_package`);
                 const pickupTimeContainer = document.getElementById(`day${day}_attraction_${index}_guide_pickup_time_options`);
-                const priceDisplay = document.getElementById(`day${day}_attraction_${index}_guide_price_display`);
+                
+                // Clear guide pricing content in the pricing column
+                const guidePricingContent = document.getElementById(`day${day}_attraction_${index}_guide_pricing_content`);
+                if (guidePricingContent) {
+                    guidePricingContent.innerHTML = '<div class="text-muted small">No guide selected</div>';
+                }
                 
                 if (guideSelect) {
                     guideSelect.value = '';
@@ -6815,8 +6844,15 @@ document.addEventListener('DOMContentLoaded', function() {
                 if (pickupTimeContainer) {
                     pickupTimeContainer.innerHTML = '<select class="form-select" disabled><option value="">Select guide first</option></select>';
                 }
-                if (priceDisplay) {
-                    priceDisplay.style.display = 'none';
+                
+                // Clear guide pricing content
+                if (guidePricingContent) {
+                    guidePricingContent.innerHTML = '<div class="text-muted small">No guide selected</div>';
+                }
+                
+                // Update total price
+                if (typeof updateAttractionTotalPrice === 'function') {
+                    updateAttractionTotalPrice(day, index);
                 }
                 
                 // Reset hidden fields
@@ -7033,13 +7069,16 @@ document.addEventListener('DOMContentLoaded', function() {
             selectAttractionGuidePickupTime(day, index, selectedTime, selectedTimeDisplay);
         });
         
-        // Add night hours info at top if night hours exist
+        // Append the select element to the container first
+        timeOptionsContainer.appendChild(selectElement);
+        
+        // Add night hours info below the select field if night hours exist
         if (nightStart !== null && nightEnd !== null && nightEnd >= 0) {
             // Get original end time for display (without the -1 adjustment)
             const originalNightEnd = parseInt(nightEndTime.split(':')[0]);
             
             const nightInfo = document.createElement('div');
-            nightInfo.className = 'alert alert-warning py-2 mb-2';
+            nightInfo.className = 'alert alert-warning py-2 mb-2 mt-2';
             nightInfo.innerHTML = `
                 <i class="ri-moon-line me-1"></i>
                 <strong>Night Hours:</strong> ${formatTo12Hour(nightStart)} - ${formatTo12Hour(originalNightEnd)}
@@ -7047,9 +7086,6 @@ document.addEventListener('DOMContentLoaded', function() {
             `;
             timeOptionsContainer.appendChild(nightInfo);
         }
-        
-        // Append the select element to the container
-        timeOptionsContainer.appendChild(selectElement);
         
         // Initialize Select2 on the newly created select element and attach event listeners
         setTimeout(() => {
@@ -7245,11 +7281,14 @@ document.addEventListener('DOMContentLoaded', function() {
             document.getElementById(`day${day}_attraction_${index}_guide_surcharge`).value = '0';
             document.getElementById(`day${day}_attraction_${index}_guide_total_price`).value = '0';
             
-            // Hide price display
-            const priceDisplay = document.getElementById(`day${day}_attraction_${index}_guide_price_display`);
-            if (priceDisplay) {
-                priceDisplay.style.display = 'none';
+            // Clear guide pricing column
+            const guidePricingContent = document.getElementById(`day${day}_attraction_${index}_guide_pricing_content`);
+            if (guidePricingContent) {
+                guidePricingContent.innerHTML = '<div class="text-muted small">No guide selected</div>';
             }
+            
+            // Update total price
+            updateAttractionTotalPrice(day, index);
             return;
         }
         
@@ -7316,38 +7355,37 @@ document.addEventListener('DOMContentLoaded', function() {
             totalPriceValue: totalPriceField?.value
         });
         
-        // Update price display with detailed breakdown
-        const priceDisplay = document.getElementById(`day${day}_attraction_${index}_guide_price_display`);
-        if (priceDisplay) {
-            priceDisplay.style.display = 'block';
+        // Update guide pricing column in the attraction pricing display
+        const guidePricingContent = document.getElementById(`day${day}_attraction_${index}_guide_pricing_content`);
+        if (guidePricingContent) {
+            let guideHtml = `
+                <div class="small">
+                    <div class="mb-2"><strong>${selectedGuide.text}</strong></div>
+                    <div class="mb-1">Package: $${totalPackagePrice.toFixed(2)}</div>
+                    <div class="mb-1">Duration: ${hours} hours</div>
+            `;
             
-            // Update guide name
-            const guideNameElement = document.getElementById(`day${day}_attraction_${index}_guide_guide_name`);
-            if (guideNameElement) {
-                guideNameElement.textContent = selectedGuide.text;
+            if (surcharge > 0) {
+                guideHtml += `<div class="mb-1 text-warning">Night Surcharge: $${surcharge.toFixed(2)}</div>`;
             }
             
-            // Update pricing breakdown
-            const packagePriceDisplay = document.getElementById(`day${day}_attraction_${index}_guide_package_price_display`);
-            const hoursDisplay = document.getElementById(`day${day}_attraction_${index}_guide_hours_display`);
-            const surchargeDisplay = document.getElementById(`day${day}_attraction_${index}_guide_surcharge_display`);
-            const totalPriceDisplay = document.getElementById(`day${day}_attraction_${index}_guide_total_price_display`);
-            const surchargeRow = document.getElementById(`day${day}_attraction_${index}_guide_surcharge_row`);
+            guideHtml += `
+                    <hr class="my-2">
+                    <div class="fw-bold text-primary">Total: $${(totalPackagePrice + surcharge).toFixed(2)}</div>
+                </div>
+            `;
             
-            if (packagePriceDisplay) packagePriceDisplay.textContent = `$${totalPackagePrice.toFixed(2)}`;
-            if (hoursDisplay) hoursDisplay.textContent = `${hours} hours`;
-            if (surchargeDisplay) surchargeDisplay.textContent = `$${surcharge.toFixed(2)}`;
-            if (totalPriceDisplay) totalPriceDisplay.textContent = `$${(totalPackagePrice + surcharge).toFixed(2)}`;
+            guidePricingContent.innerHTML = guideHtml;
             
-            // Show/hide surcharge row based on whether there's a surcharge
-            if (surchargeRow) {
-                if (surcharge > 0) {
-                    surchargeRow.style.display = 'flex';
-                } else {
-                    surchargeRow.style.display = 'none';
-                }
+            // Show pricing columns if not already shown
+            const pricingColumns = document.getElementById(`day${day}_attraction_${index}_pricing_columns`);
+            if (pricingColumns) {
+                pricingColumns.style.display = 'flex';
             }
         }
+        
+        // Update total price
+        updateAttractionTotalPrice(day, index);
         
         console.log(`Attraction guide pricing updated for Day ${day}, Index ${index}:`, {
             basePrice: basePrice.toFixed(2),
@@ -7399,6 +7437,93 @@ document.addEventListener('DOMContentLoaded', function() {
                 vehicleSelect.innerHTML = '<option disabled>Error loading vehicles</option>';
                 vehicleSelect.disabled = false;
             });
+    }
+    
+    // Function to handle vehicle selection change and prepopulate cost
+    window.handleAttractionVehicleChange = function(day, index) {
+        const vehicleSelect = document.getElementById(`day${day}_attraction_${index}_transfer_vehicle`);
+        const costField = document.getElementById(`day${day}_attraction_${index}_transfer_cost`);
+        const transferType = document.getElementById(`day${day}_attraction_${index}_transfer_type`);
+        const transferWay = document.getElementById(`day${day}_attraction_${index}_transfer_way`);
+        const pickupLocationSelect = document.getElementById(`day${day}_attraction_${index}_transfer_pickup_location`);
+        const attractionSelect = document.getElementById(`day${day}_attraction_${index}`);
+        
+        if (!vehicleSelect || !costField) return;
+        
+        // PRIORITY: If pickup location is already selected, ALWAYS use AJAX pricing (NEVER use vehicle base price from attributes)
+        if (pickupLocationSelect && pickupLocationSelect.value) {
+            // Check if all required fields are present for AJAX call
+            if (transferType && transferType.value && 
+                transferWay && transferWay.value &&
+                attractionSelect && attractionSelect.value &&
+                vehicleSelect && vehicleSelect.value) {
+                // All required fields are selected, use zone-based pricing from AJAX
+                console.log('Vehicle changed, fetching zone-based pricing from AJAX (pickup location already selected - NOT using vehicle base price)...');
+                // Clear failure flag to allow retry when vehicle changes
+                if (costField) {
+                    costField.removeAttribute('data-pricing-fetch-failed');
+                    costField.removeAttribute('data-pricing-error-message');
+                    costField.removeAttribute('data-failed-pickup-location-id');
+                }
+                fetchAttractionTransferPricing(day, index);
+                return;
+            } else {
+                // Not all fields ready yet, but pickup location is selected - clear cost and wait for AJAX
+                console.log('Pickup location selected but other fields missing, clearing cost field (will use AJAX pricing when ready)...');
+                costField.value = '';
+                // Clear any vehicle base price data attributes to ensure we don't use them
+                costField.removeAttribute('data-ajax-base-price');
+                costField.removeAttribute('data-ajax-final-price');
+                // Clear failure flag to allow retry when fields are ready
+                costField.removeAttribute('data-pricing-fetch-failed');
+                costField.removeAttribute('data-pricing-error-message');
+                updateAttractionTransportPricing(day, index);
+                return;
+            }
+        }
+        
+        // Pickup location is NOT selected yet - use vehicle base price as temporary fallback ONLY
+        // This is just a placeholder until pickup location is selected
+        if (vehicleSelect.value && vehicleSelect.selectedOptions[0]) {
+            const selectedOption = vehicleSelect.selectedOptions[0];
+            const transferTypeValue = transferType ? transferType.value : '';
+            const transferWayValue = transferWay ? transferWay.value : '';
+            
+            // Determine which price to use based on transfer type
+            let vehiclePrice = 0;
+            if (transferTypeValue === 'Private') {
+                vehiclePrice = parseFloat(selectedOption.getAttribute('data-private-price')) || 0;
+            } else if (transferTypeValue === 'Shared') {
+                vehiclePrice = parseFloat(selectedOption.getAttribute('data-shared-price')) || 0;
+            } else {
+                // Default to private price if type not set
+                vehiclePrice = parseFloat(selectedOption.getAttribute('data-private-price')) || 0;
+            }
+            
+            // Calculate cost based on way (One Way = 1x, Both Way = 2x)
+            let totalCost = vehiclePrice;
+            if (transferWayValue === 'Both Way') {
+                totalCost = vehiclePrice * 2;
+            }
+            
+            // Prepopulate cost field (only when pickup location is NOT selected)
+            // This is just a temporary placeholder - will be replaced by AJAX price when pickup location is selected
+            if (totalCost > 0) {
+                costField.value = totalCost.toFixed(2);
+                // Mark this as temporary vehicle base price (not AJAX)
+                costField.removeAttribute('data-ajax-base-price');
+                costField.removeAttribute('data-ajax-final-price');
+                console.log(`⚠️ Prepopulated transport cost for day ${day}, index ${index}: $${totalCost.toFixed(2)} (TEMPORARY vehicle base price - will be replaced by AJAX when pickup location is selected)`);
+            }
+        } else {
+            // Clear cost if no vehicle selected
+            costField.value = '';
+            costField.removeAttribute('data-ajax-base-price');
+            costField.removeAttribute('data-ajax-final-price');
+        }
+        
+        // Update transport pricing display
+        updateAttractionTransportPricing(day, index);
     }
     
     // Function to load pickup locations for attraction transfer
@@ -7488,6 +7613,730 @@ document.addEventListener('DOMContentLoaded', function() {
             pickupSelect.disabled = false;
         });
     }
+    
+    // Function to handle transfer type or way change - prioritize AJAX pricing if pickup location is selected
+    window.handleAttractionTransferTypeOrWayChange = function(day, index) {
+        const pickupLocationSelect = document.getElementById(`day${day}_attraction_${index}_transfer_pickup_location`);
+        const vehicleSelect = document.getElementById(`day${day}_attraction_${index}_transfer_vehicle`);
+        const transferType = document.getElementById(`day${day}_attraction_${index}_transfer_type`);
+        const transferWay = document.getElementById(`day${day}_attraction_${index}_transfer_way`);
+        const attractionSelect = document.getElementById(`day${day}_attraction_${index}`);
+        const costField = document.getElementById(`day${day}_attraction_${index}_transfer_cost`);
+        
+        // If pickup location is already selected, ALWAYS use AJAX pricing
+        if (pickupLocationSelect && pickupLocationSelect.value) {
+            // Check if all required fields are present for AJAX call
+            if (vehicleSelect && vehicleSelect.value &&
+                transferType && transferType.value && 
+                transferWay && transferWay.value &&
+                attractionSelect && attractionSelect.value) {
+                
+                // Check if only the way changed and we have stored AJAX base price
+                const storedBasePrice = costField ? costField.getAttribute('data-ajax-base-price') : null;
+                const storedTransferType = costField ? costField.getAttribute('data-ajax-transfer-type') : null;
+                const storedVehicleId = costField ? costField.getAttribute('data-ajax-vehicle-id') : null;
+                const currentVehicleId = vehicleSelect.value;
+                const currentTransferType = transferType.value;
+                
+                // If only way changed (not vehicle or type), and we have stored base price, recalculate locally
+                if (storedBasePrice && 
+                    storedTransferType === currentTransferType && 
+                    storedVehicleId === currentVehicleId &&
+                    costField && costField.value) {
+                    // Only way changed - recalculate from stored base price
+                    const basePrice = parseFloat(storedBasePrice);
+                    let finalPrice = basePrice;
+                    if (transferWay.value === 'Both Way') {
+                        finalPrice = basePrice * 2;
+                    }
+                    costField.value = finalPrice.toFixed(2);
+                    costField.setAttribute('data-ajax-final-price', finalPrice.toFixed(2));
+                    costField.setAttribute('data-ajax-transfer-way', transferWay.value);
+                    console.log(`Way changed, recalculated from stored AJAX base price: $${finalPrice.toFixed(2)} (base: $${basePrice.toFixed(2)}, way: ${transferWay.value})`);
+                    updateAttractionTransportPricing(day, index);
+                    return;
+                }
+                
+                // Vehicle or type changed, or no stored price - make new AJAX call
+                console.log('Transfer type/way changed, fetching zone-based pricing from AJAX...');
+                // Clear failure flag to allow retry when transfer type/way changes
+                if (costField) {
+                    costField.removeAttribute('data-pricing-fetch-failed');
+                    costField.removeAttribute('data-pricing-error-message');
+                    costField.removeAttribute('data-failed-pickup-location-id');
+                }
+                fetchAttractionTransferPricing(day, index);
+                return;
+            } else {
+                // Not all fields ready yet, but pickup location is selected - clear cost and wait
+                if (costField) {
+                    costField.value = '';
+                    // Clear failure flag to allow retry when fields are ready
+                    costField.removeAttribute('data-pricing-fetch-failed');
+                    costField.removeAttribute('data-pricing-error-message');
+                    costField.removeAttribute('data-failed-pickup-location-id');
+                }
+                updateAttractionTransportPricing(day, index);
+                return;
+            }
+        }
+        
+        // Pickup location not selected yet, use vehicle base price logic
+        handleAttractionVehicleChange(day, index);
+    }
+    
+    // Function to fetch transfer pricing from vehicle_zone_mappings
+    window.fetchAttractionTransferPricing = function(day, index) {
+        const vehicleSelect = document.getElementById(`day${day}_attraction_${index}_transfer_vehicle`);
+        const attractionSelect = document.getElementById(`day${day}_attraction_${index}`);
+        const pickupLocationSelect = document.getElementById(`day${day}_attraction_${index}_transfer_pickup_location`);
+        const transferTypeSelect = document.getElementById(`day${day}_attraction_${index}_transfer_type`);
+        const transferWaySelect = document.getElementById(`day${day}_attraction_${index}_transfer_way`);
+        const costField = document.getElementById(`day${day}_attraction_${index}_transfer_cost`);
+        const citySelect = document.getElementById(`day${day}_attraction_city_${index}`);
+        
+        // Check if pricing fetch has already failed - but allow retry if pickup location changed
+        if (costField && costField.getAttribute('data-pricing-fetch-failed') === 'true') {
+            const failedPickupLocationId = costField.getAttribute('data-failed-pickup-location-id');
+            const currentPickupLocationId = pickupLocationSelect ? pickupLocationSelect.value : '';
+            
+            // If pickup location has changed, clear the failure flag and allow retry
+            if (failedPickupLocationId !== currentPickupLocationId) {
+                console.log('🔄 Pickup location changed, clearing failure flag to allow retry');
+                costField.removeAttribute('data-pricing-fetch-failed');
+                costField.removeAttribute('data-pricing-error-message');
+                costField.removeAttribute('data-failed-pickup-location-id');
+            } else {
+                // Same pickup location that failed - prevent infinite loop
+                const errorMsg = costField.getAttribute('data-pricing-error-message') || 'No pricing found';
+                console.log('🚫 Pricing fetch previously failed for this pickup location, skipping retry to prevent infinite loop. Error:', errorMsg);
+                // Update the display to show the error
+                const transportPricingContent = document.getElementById(`day${day}_attraction_${index}_transport_pricing_content`);
+                if (transportPricingContent) {
+                    transportPricingContent.innerHTML = `<div class="text-danger small"><i class="ri-error-warning-line me-1"></i>${errorMsg}</div>`;
+                }
+                return;
+            }
+        }
+        
+        // Check if all required fields are selected
+        if (!vehicleSelect || !vehicleSelect.value) {
+            console.log('Vehicle not selected yet');
+            return;
+        }
+        
+        if (!attractionSelect || !attractionSelect.value) {
+            console.log('Attraction not selected yet');
+            return;
+        }
+        
+        if (!pickupLocationSelect || !pickupLocationSelect.value) {
+            console.log('Pickup location not selected yet');
+            if (costField) {
+                costField.value = '';
+                // Clear AJAX metadata when pickup location is cleared
+                costField.removeAttribute('data-ajax-base-price');
+                costField.removeAttribute('data-ajax-final-price');
+                costField.removeAttribute('data-ajax-transfer-type');
+                costField.removeAttribute('data-ajax-transfer-way');
+                costField.removeAttribute('data-ajax-vehicle-id');
+                costField.removeAttribute('data-ajax-pickup-location-id');
+                // Clear failure flag when pickup location is cleared
+                costField.removeAttribute('data-pricing-fetch-failed');
+                costField.removeAttribute('data-pricing-error-message');
+            }
+            updateAttractionTransportPricing(day, index);
+            return;
+        }
+        
+        if (!transferTypeSelect || !transferTypeSelect.value) {
+            console.log('Transfer type not selected yet');
+            return;
+        }
+        
+        if (!transferWaySelect || !transferWaySelect.value) {
+            console.log('Transfer way not selected yet');
+            return;
+        }
+        
+        // Get selected values
+        const vehicleId = vehicleSelect.value;
+        const attractionId = attractionSelect.value;
+        const pickupLocationId = pickupLocationSelect.value;
+        const pickupLocationOption = pickupLocationSelect.options[pickupLocationSelect.selectedIndex];
+        const pickupLocationType = pickupLocationOption ? pickupLocationOption.getAttribute('data-type') : '';
+        const transferType = transferTypeSelect.value; // Private or Shared
+        const transferWay = transferWaySelect.value; // One Way or Both Way
+        const cityName = citySelect ? citySelect.value : '';
+        
+        // Get attraction data - try to fetch from API if not in option
+        const attractionOption = attractionSelect.options[attractionSelect.selectedIndex];
+        let country = '';
+        
+        // Try to get country from city select or fetch attraction details
+        if (citySelect && citySelect.value) {
+            // We'll get country from the backend response
+        }
+        
+        // For now, we'll let the backend handle country lookup
+        
+        console.log('Fetching transfer pricing:', {
+            vehicleId,
+            attractionId,
+            pickupLocationId,
+            pickupLocationType,
+            transferType,
+            transferWay,
+            cityName,
+            country
+        });
+        
+        // Show loading state
+        if (costField) {
+            costField.value = 'Loading...';
+            costField.disabled = true;
+        }
+        
+        // Make AJAX call
+        fetch('{{ route("fetch-attraction-transfer-pricing") }}', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') || '',
+                'Accept': 'application/json'
+            },
+            body: JSON.stringify({
+                vehicle_id: vehicleId,
+                attraction_id: attractionId,
+                pickup_location_id: pickupLocationId,
+                pickup_location_type: pickupLocationType,
+                transfer_type: transferType,
+                transfer_way: transferWay,
+                city: cityName,
+                country: country
+            })
+        })
+        .then(response => response.json())
+        .then(data => {
+            console.log('Transfer pricing response:', data);
+            
+            if (costField) {
+                costField.disabled = false;
+            }
+            
+            if (data.success && data.price !== undefined) {
+                let basePrice = parseFloat(data.price) || 0;
+                let finalPrice = basePrice;
+                
+                // If Both Way, multiply by 2
+                if (transferWay === 'Both Way') {
+                    finalPrice = basePrice * 2;
+                }
+                
+                if (costField) {
+                    costField.value = finalPrice.toFixed(2);
+                    // Store the AJAX base price and metadata for reference
+                    costField.setAttribute('data-ajax-base-price', basePrice.toFixed(2));
+                    costField.setAttribute('data-ajax-final-price', finalPrice.toFixed(2));
+                    costField.setAttribute('data-ajax-transfer-type', transferType);
+                    costField.setAttribute('data-ajax-transfer-way', transferWay);
+                    costField.setAttribute('data-ajax-vehicle-id', vehicleId);
+                    costField.setAttribute('data-ajax-pickup-location-id', pickupLocationId);
+                    // Clear any previous failure flag since pricing was successfully fetched
+                    costField.removeAttribute('data-pricing-fetch-failed');
+                    costField.removeAttribute('data-pricing-error-message');
+                    costField.removeAttribute('data-failed-pickup-location-id');
+                    console.log(`✅ Transfer pricing set from AJAX: $${finalPrice.toFixed(2)} (${transferType}, ${transferWay}, base: $${basePrice.toFixed(2)})`);
+                }
+                
+                // Update transport pricing display
+                updateAttractionTransportPricing(day, index);
+            } else {
+                console.error('❌ Failed to fetch pricing:', data.message || 'Unknown error');
+                if (costField) {
+                    costField.value = '';
+                    // Clear stored AJAX price data
+                    costField.removeAttribute('data-ajax-base-price');
+                    costField.removeAttribute('data-ajax-final-price');
+                    costField.removeAttribute('data-ajax-transfer-type');
+                    costField.removeAttribute('data-ajax-transfer-way');
+                    costField.removeAttribute('data-ajax-vehicle-id');
+                    costField.removeAttribute('data-ajax-pickup-location-id');
+                    // Mark that pricing fetch has failed to prevent infinite retry loop
+                    costField.setAttribute('data-pricing-fetch-failed', 'true');
+                    costField.setAttribute('data-pricing-error-message', data.message || 'No pricing found');
+                    // Store the pickup location ID that failed so we can detect if user changes it
+                    costField.setAttribute('data-failed-pickup-location-id', pickupLocationId || '');
+                    console.log('🚫 Failure flag set to prevent infinite loop. Error:', data.message || 'No pricing found');
+                }
+                updateAttractionTransportPricing(day, index);
+            }
+        })
+        .catch(error => {
+            console.error('Error fetching transfer pricing:', error);
+            if (costField) {
+                costField.value = '';
+                costField.disabled = false;
+                // Mark that pricing fetch has failed to prevent infinite retry loop
+                costField.setAttribute('data-pricing-fetch-failed', 'true');
+                costField.setAttribute('data-pricing-error-message', 'Error fetching pricing');
+                // Store the pickup location ID that failed so we can detect if user changes it
+                costField.setAttribute('data-failed-pickup-location-id', pickupLocationId || '');
+                console.log('🚫 Failure flag set to prevent infinite loop (network error)');
+            }
+            updateAttractionTransportPricing(day, index);
+        });
+    }
+    
+    // ==================== RESTAURANT TRANSFER PRICING FUNCTIONS ====================
+    
+    // Function to handle restaurant vehicle selection change
+    window.handleRestaurantVehicleChange = function(day, index) {
+        const vehicleSelect = document.getElementById(`day${day}_restaurant_${index}_transfer_vehicle`);
+        const costField = document.getElementById(`day${day}_restaurant_${index}_transfer_cost`);
+        const transferType = document.getElementById(`day${day}_restaurant_${index}_transfer_type`);
+        const transferWay = document.getElementById(`day${day}_restaurant_${index}_transfer_way`);
+        const pickupLocationSelect = document.getElementById(`day${day}_restaurant_${index}_transfer_pickup_location`);
+        const restaurantSelect = document.getElementById(`day${day}_restaurant_${index}`);
+        
+        if (!vehicleSelect || !costField) return;
+        
+        // PRIORITY: If pickup location is already selected, ALWAYS use AJAX pricing (NEVER use vehicle base price from attributes)
+        if (pickupLocationSelect && pickupLocationSelect.value) {
+            // Check if all required fields are present for AJAX call
+            if (transferType && transferType.value && 
+                transferWay && transferWay.value &&
+                restaurantSelect && restaurantSelect.value &&
+                vehicleSelect && vehicleSelect.value) {
+                // All required fields are selected, use zone-based pricing from AJAX
+                console.log('Restaurant vehicle changed, fetching zone-based pricing from AJAX (pickup location already selected - NOT using vehicle base price)...');
+                // Clear failure flag to allow retry when vehicle changes
+                if (costField) {
+                    costField.removeAttribute('data-pricing-fetch-failed');
+                    costField.removeAttribute('data-pricing-error-message');
+                    costField.removeAttribute('data-failed-pickup-location-id');
+                }
+                fetchRestaurantTransferPricing(day, index);
+                return;
+            } else {
+                // Not all fields ready yet, but pickup location is selected - clear cost and wait for AJAX
+                console.log('Restaurant pickup location selected but other fields missing, clearing cost field (will use AJAX pricing when ready)...');
+                costField.value = '';
+                // Clear any vehicle base price data attributes to ensure we don't use them
+                costField.removeAttribute('data-ajax-base-price');
+                costField.removeAttribute('data-ajax-final-price');
+                // Clear failure flag to allow retry when fields are ready
+                costField.removeAttribute('data-pricing-fetch-failed');
+                costField.removeAttribute('data-pricing-error-message');
+                costField.removeAttribute('data-failed-pickup-location-id');
+                updateRestaurantTransportPricing(day, index);
+                return;
+            }
+        }
+        
+        // Pickup location is NOT selected yet - use vehicle base price as temporary fallback ONLY
+        // This is just a placeholder until pickup location is selected
+        if (vehicleSelect.value && vehicleSelect.selectedOptions[0]) {
+            const selectedOption = vehicleSelect.selectedOptions[0];
+            const transferTypeValue = transferType ? transferType.value : '';
+            const transferWayValue = transferWay ? transferWay.value : '';
+            
+            // Determine which price to use based on transfer type
+            let vehiclePrice = 0;
+            if (transferTypeValue === 'Private') {
+                vehiclePrice = parseFloat(selectedOption.getAttribute('data-private-price')) || 0;
+            } else if (transferTypeValue === 'Shared') {
+                vehiclePrice = parseFloat(selectedOption.getAttribute('data-shared-price')) || 0;
+            } else {
+                // Default to private price if type not set
+                vehiclePrice = parseFloat(selectedOption.getAttribute('data-private-price')) || 0;
+            }
+            
+            // Apply way multiplier
+            let finalPrice = vehiclePrice;
+            if (transferWayValue === 'Both Way') {
+                finalPrice = vehiclePrice * 2;
+            }
+            
+            costField.value = finalPrice > 0 ? finalPrice.toFixed(2) : '';
+            updateRestaurantTransportPricing(day, index);
+        } else {
+            costField.value = '';
+            updateRestaurantTransportPricing(day, index);
+        }
+    }
+    
+    // Function to handle restaurant transfer type or way change - prioritize AJAX pricing if pickup location is selected
+    window.handleRestaurantTransferTypeOrWayChange = function(day, index) {
+        const pickupLocationSelect = document.getElementById(`day${day}_restaurant_${index}_transfer_pickup_location`);
+        const vehicleSelect = document.getElementById(`day${day}_restaurant_${index}_transfer_vehicle`);
+        const transferType = document.getElementById(`day${day}_restaurant_${index}_transfer_type`);
+        const transferWay = document.getElementById(`day${day}_restaurant_${index}_transfer_way`);
+        const restaurantSelect = document.getElementById(`day${day}_restaurant_${index}`);
+        const costField = document.getElementById(`day${day}_restaurant_${index}_transfer_cost`);
+        
+        // If pickup location is already selected, ALWAYS use AJAX pricing
+        if (pickupLocationSelect && pickupLocationSelect.value) {
+            // Check if all required fields are present for AJAX call
+            if (vehicleSelect && vehicleSelect.value &&
+                transferType && transferType.value && 
+                transferWay && transferWay.value &&
+                restaurantSelect && restaurantSelect.value) {
+                
+                // Check if only the way changed and we have stored AJAX base price
+                const storedBasePrice = costField ? costField.getAttribute('data-ajax-base-price') : null;
+                const storedTransferType = costField ? costField.getAttribute('data-ajax-transfer-type') : null;
+                const storedVehicleId = costField ? costField.getAttribute('data-ajax-vehicle-id') : null;
+                const currentVehicleId = vehicleSelect.value;
+                const currentTransferType = transferType.value;
+                
+                // If only way changed (not vehicle or type), and we have stored base price, recalculate locally
+                if (storedBasePrice && 
+                    storedTransferType === currentTransferType && 
+                    storedVehicleId === currentVehicleId &&
+                    costField && costField.value) {
+                    // Only way changed - recalculate from stored base price
+                    const basePrice = parseFloat(storedBasePrice);
+                    let finalPrice = basePrice;
+                    if (transferWay.value === 'Both Way') {
+                        finalPrice = basePrice * 2;
+                    }
+                    costField.value = finalPrice.toFixed(2);
+                    costField.setAttribute('data-ajax-final-price', finalPrice.toFixed(2));
+                    costField.setAttribute('data-ajax-transfer-way', transferWay.value);
+                    console.log(`Restaurant way changed, recalculated from stored AJAX base price: $${finalPrice.toFixed(2)} (base: $${basePrice.toFixed(2)}, way: ${transferWay.value})`);
+                    updateRestaurantTransportPricing(day, index);
+                    return;
+                }
+                
+                // Vehicle or type changed, or no stored price - make new AJAX call
+                console.log('Restaurant transfer type/way changed, fetching zone-based pricing from AJAX...');
+                // Clear failure flag to allow retry when transfer type/way changes
+                if (costField) {
+                    costField.removeAttribute('data-pricing-fetch-failed');
+                    costField.removeAttribute('data-pricing-error-message');
+                    costField.removeAttribute('data-failed-pickup-location-id');
+                }
+                fetchRestaurantTransferPricing(day, index);
+                return;
+            } else {
+                // Not all fields ready yet, but pickup location is selected - clear cost and wait
+                if (costField) {
+                    costField.value = '';
+                    // Clear failure flag to allow retry when fields are ready
+                    costField.removeAttribute('data-pricing-fetch-failed');
+                    costField.removeAttribute('data-pricing-error-message');
+                    costField.removeAttribute('data-failed-pickup-location-id');
+                }
+                updateRestaurantTransportPricing(day, index);
+                return;
+            }
+        }
+        
+        // Pickup location not selected yet, use vehicle base price logic
+        handleRestaurantVehicleChange(day, index);
+    }
+    
+    // Function to fetch restaurant transfer pricing from vehicle_zone_mappings
+    window.fetchRestaurantTransferPricing = function(day, index) {
+        const vehicleSelect = document.getElementById(`day${day}_restaurant_${index}_transfer_vehicle`);
+        const restaurantSelect = document.getElementById(`day${day}_restaurant_${index}`);
+        const pickupLocationSelect = document.getElementById(`day${day}_restaurant_${index}_transfer_pickup_location`);
+        const transferTypeSelect = document.getElementById(`day${day}_restaurant_${index}_transfer_type`);
+        const transferWaySelect = document.getElementById(`day${day}_restaurant_${index}_transfer_way`);
+        const costField = document.getElementById(`day${day}_restaurant_${index}_transfer_cost`);
+        const citySelect = document.getElementById(`day${day}_restaurant_city_${index}`);
+        
+        // Check if pricing fetch has already failed - but allow retry if pickup location changed
+        if (costField && costField.getAttribute('data-pricing-fetch-failed') === 'true') {
+            const failedPickupLocationId = costField.getAttribute('data-failed-pickup-location-id');
+            const currentPickupLocationId = pickupLocationSelect ? pickupLocationSelect.value : '';
+            
+            // If pickup location has changed, clear the failure flag and allow retry
+            if (failedPickupLocationId !== currentPickupLocationId) {
+                console.log('🔄 Restaurant pickup location changed, clearing failure flag to allow retry');
+                costField.removeAttribute('data-pricing-fetch-failed');
+                costField.removeAttribute('data-pricing-error-message');
+                costField.removeAttribute('data-failed-pickup-location-id');
+            } else {
+                // Same pickup location that failed - prevent infinite loop
+                const errorMsg = costField.getAttribute('data-pricing-error-message') || 'No pricing found';
+                console.log('🚫 Restaurant pricing fetch previously failed for this pickup location, skipping retry to prevent infinite loop. Error:', errorMsg);
+                // Update the display to show the error
+                const transportPricingContent = document.getElementById(`day${day}_restaurant_${index}_transport_pricing_content`);
+                if (transportPricingContent) {
+                    transportPricingContent.innerHTML = `<div class="text-danger small"><i class="ri-error-warning-line me-1"></i>${errorMsg}</div>`;
+                }
+                return;
+            }
+        }
+        
+        // Check if all required fields are selected
+        if (!vehicleSelect || !vehicleSelect.value) {
+            console.log('Restaurant vehicle not selected yet');
+            return;
+        }
+        
+        if (!restaurantSelect || !restaurantSelect.value) {
+            console.log('Restaurant not selected yet');
+            return;
+        }
+        
+        if (!pickupLocationSelect || !pickupLocationSelect.value) {
+            console.log('Restaurant pickup location not selected yet');
+            if (costField) {
+                costField.value = '';
+                // Clear AJAX metadata when pickup location is cleared
+                costField.removeAttribute('data-ajax-base-price');
+                costField.removeAttribute('data-ajax-final-price');
+                costField.removeAttribute('data-ajax-transfer-type');
+                costField.removeAttribute('data-ajax-transfer-way');
+                costField.removeAttribute('data-ajax-vehicle-id');
+                costField.removeAttribute('data-ajax-pickup-location-id');
+                // Clear failure flag when pickup location is cleared
+                costField.removeAttribute('data-pricing-fetch-failed');
+                costField.removeAttribute('data-pricing-error-message');
+                costField.removeAttribute('data-failed-pickup-location-id');
+            }
+            updateRestaurantTransportPricing(day, index);
+            return;
+        }
+        
+        if (!transferTypeSelect || !transferTypeSelect.value) {
+            console.log('Restaurant transfer type not selected yet');
+            return;
+        }
+        
+        if (!transferWaySelect || !transferWaySelect.value) {
+            console.log('Restaurant transfer way not selected yet');
+            return;
+        }
+        
+        // Get selected values
+        const vehicleId = vehicleSelect.value;
+        const restaurantId = restaurantSelect.value;
+        const pickupLocationId = pickupLocationSelect.value;
+        const pickupLocationOption = pickupLocationSelect.options[pickupLocationSelect.selectedIndex];
+        const pickupLocationType = pickupLocationOption ? pickupLocationOption.getAttribute('data-type') : '';
+        const transferType = transferTypeSelect.value; // Private or Shared
+        const transferWay = transferWaySelect.value; // One Way or Both Way
+        const cityName = citySelect ? citySelect.value : '';
+        
+        // Get restaurant data
+        const restaurantOption = restaurantSelect.options[restaurantSelect.selectedIndex];
+        let country = '';
+        
+        // Try to get country from city select or fetch restaurant details
+        if (citySelect && citySelect.value) {
+            // We'll get country from the backend response
+        }
+        
+        // For now, we'll let the backend handle country lookup
+        
+        console.log('Fetching restaurant transfer pricing:', {
+            vehicleId,
+            restaurantId,
+            pickupLocationId,
+            pickupLocationType,
+            transferType,
+            transferWay,
+            cityName,
+            country
+        });
+        
+        // Show loading state
+        if (costField) {
+            costField.value = 'Loading...';
+            costField.disabled = true;
+        }
+        
+        // Make AJAX call
+        fetch('{{ route("fetch-restaurant-transfer-pricing") }}', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') || '',
+                'Accept': 'application/json'
+            },
+            body: JSON.stringify({
+                vehicle_id: vehicleId,
+                restaurant_id: restaurantId,
+                pickup_location_id: pickupLocationId,
+                pickup_location_type: pickupLocationType,
+                transfer_type: transferType,
+                transfer_way: transferWay,
+                city: cityName,
+                country: country
+            })
+        })
+        .then(response => response.json())
+        .then(data => {
+            console.log('Restaurant transfer pricing response:', data);
+            
+            if (costField) {
+                costField.disabled = false;
+            }
+            
+            if (data.success && data.price !== undefined) {
+                let basePrice = parseFloat(data.price) || 0;
+                let finalPrice = basePrice;
+                
+                // If Both Way, multiply by 2
+                if (transferWay === 'Both Way') {
+                    finalPrice = basePrice * 2;
+                }
+                
+                if (costField) {
+                    costField.value = finalPrice.toFixed(2);
+                    // Store the AJAX base price and metadata for reference
+                    costField.setAttribute('data-ajax-base-price', basePrice.toFixed(2));
+                    costField.setAttribute('data-ajax-final-price', finalPrice.toFixed(2));
+                    costField.setAttribute('data-ajax-transfer-type', transferType);
+                    costField.setAttribute('data-ajax-transfer-way', transferWay);
+                    costField.setAttribute('data-ajax-vehicle-id', vehicleId);
+                    costField.setAttribute('data-ajax-pickup-location-id', pickupLocationId);
+                    // Clear any previous failure flag since pricing was successfully fetched
+                    costField.removeAttribute('data-pricing-fetch-failed');
+                    costField.removeAttribute('data-pricing-error-message');
+                    costField.removeAttribute('data-failed-pickup-location-id');
+                    console.log(`✅ Restaurant transfer pricing set from AJAX: $${finalPrice.toFixed(2)} (${transferType}, ${transferWay}, base: $${basePrice.toFixed(2)})`);
+                }
+                
+                // Update transport pricing display
+                updateRestaurantTransportPricing(day, index);
+            } else {
+                console.error('❌ Failed to fetch restaurant pricing:', data.message || 'Unknown error');
+                if (costField) {
+                    costField.value = '';
+                    // Clear stored AJAX price data
+                    costField.removeAttribute('data-ajax-base-price');
+                    costField.removeAttribute('data-ajax-final-price');
+                    costField.removeAttribute('data-ajax-transfer-type');
+                    costField.removeAttribute('data-ajax-transfer-way');
+                    costField.removeAttribute('data-ajax-vehicle-id');
+                    costField.removeAttribute('data-ajax-pickup-location-id');
+                    // Mark that pricing fetch has failed to prevent infinite retry loop
+                    costField.setAttribute('data-pricing-fetch-failed', 'true');
+                    costField.setAttribute('data-pricing-error-message', data.message || 'No pricing found');
+                    // Store the pickup location ID that failed so we can detect if user changes it
+                    costField.setAttribute('data-failed-pickup-location-id', pickupLocationId || '');
+                    console.log('🚫 Restaurant failure flag set to prevent infinite loop. Error:', data.message || 'No pricing found');
+                }
+                updateRestaurantTransportPricing(day, index);
+            }
+        })
+        .catch(error => {
+            console.error('Error fetching restaurant transfer pricing:', error);
+            if (costField) {
+                costField.value = '';
+                costField.disabled = false;
+                // Mark that pricing fetch has failed to prevent infinite retry loop
+                costField.setAttribute('data-pricing-fetch-failed', 'true');
+                costField.setAttribute('data-pricing-error-message', 'Error fetching pricing');
+                // Store the pickup location ID that failed so we can detect if user changes it
+                costField.setAttribute('data-failed-pickup-location-id', pickupLocationId || '');
+                console.log('🚫 Restaurant failure flag set to prevent infinite loop (network error)');
+            }
+            updateRestaurantTransportPricing(day, index);
+        });
+    }
+    
+    // Function to update restaurant transport pricing column
+    window.updateRestaurantTransportPricing = function(day, index) {
+        const transportCostField = document.getElementById(`day${day}_restaurant_${index}_transfer_cost`);
+        const transportPricingContent = document.getElementById(`day${day}_restaurant_${index}_transport_pricing_content`);
+        const transferRequired = document.getElementById(`day${day}_restaurant_${index}_transfer_required`);
+        const transferType = document.getElementById(`day${day}_restaurant_${index}_transfer_type`);
+        const transferWay = document.getElementById(`day${day}_restaurant_${index}_transfer_way`);
+        const transferVehicle = document.getElementById(`day${day}_restaurant_${index}_transfer_vehicle`);
+        const pickupLocationSelect = document.getElementById(`day${day}_restaurant_${index}_transfer_pickup_location`);
+        
+        if (!transportPricingContent) return;
+        
+        // Check if transfer is required
+        if (!transferRequired || transferRequired.value !== 'Yes') {
+            transportPricingContent.innerHTML = '<div class="text-muted small">No transport selected</div>';
+            // Update total display (transport is 0)
+            updateRestaurantTotalDisplay(day, index);
+            return;
+        }
+        
+        const cost = transportCostField ? (parseFloat(transportCostField.value) || 0) : 0;
+        const type = transferType ? transferType.value : '';
+        const way = transferWay ? transferWay.value : '';
+        const vehicleSelect = transferVehicle;
+        let vehicleName = 'N/A';
+        
+        if (vehicleSelect && vehicleSelect.value) {
+            const selectedOption = vehicleSelect.options[vehicleSelect.selectedIndex];
+            if (selectedOption) {
+                vehicleName = selectedOption.textContent || 'N/A';
+            }
+        }
+        
+        // Check if this price came from AJAX (zone-based pricing)
+        const isAjaxPrice = transportCostField && transportCostField.getAttribute('data-ajax-base-price');
+        const priceSource = isAjaxPrice ? ' (Zone-based)' : '';
+        
+        if (cost > 0) {
+            let transportHtml = `
+                <div class="small">
+                    <div><strong>Type:</strong> ${type || 'N/A'}</div>
+                    <div><strong>Way:</strong> ${way || 'N/A'}</div>
+                    <div><strong>Vehicle:</strong> ${vehicleName}</div>
+                    ${isAjaxPrice ? '<div class="text-info"><small><i class="ri-checkbox-circle-line me-1"></i>Zone-based pricing</small></div>' : ''}
+                    <div class="mt-2"><strong class="text-success">$${cost.toFixed(2)}${priceSource}</strong></div>
+                </div>
+            `;
+            transportPricingContent.innerHTML = transportHtml;
+            // Update total display (restaurant + transport)
+            updateRestaurantTotalDisplay(day, index);
+        } else {
+            // If pickup location is selected but cost is 0, try to fetch pricing
+            if (pickupLocationSelect && pickupLocationSelect.value &&
+                vehicleSelect && vehicleSelect.value &&
+                transferType && transferType.value &&
+                transferWay && transferWay.value) {
+                
+                // Check if pricing fetch has already failed to prevent infinite loop
+                const pricingFetchFailed = transportCostField && transportCostField.getAttribute('data-pricing-fetch-failed') === 'true';
+                const errorMessage = transportCostField ? transportCostField.getAttribute('data-pricing-error-message') : null;
+                
+                if (pricingFetchFailed) {
+                    // Pricing fetch already failed, show error message instead of retrying
+                    transportPricingContent.innerHTML = `<div class="text-danger small"><i class="ri-error-warning-line me-1"></i>${errorMessage || 'No pricing found'}</div>`;
+                } else {
+                    transportPricingContent.innerHTML = '<div class="text-muted small">Fetching pricing...</div>';
+                    // Trigger AJAX call to get pricing
+                    fetchRestaurantTransferPricing(day, index);
+                }
+            } else {
+                transportPricingContent.innerHTML = '<div class="text-muted small">Transport selected but cost not set</div>';
+            }
+            // Update total display even when cost is 0
+            updateRestaurantTotalDisplay(day, index);
+        }
+    }
+    
+    // Function to update restaurant total display (restaurant pricing + transport pricing)
+    window.updateRestaurantTotalDisplay = function(day, index) {
+        const totalDisplay = document.getElementById(`day${day}_restaurant_${index}_total_display`);
+        if (!totalDisplay) return;
+        
+        // Get restaurant pricing from hidden field
+        const restaurantTotalField = document.getElementById(`day${day}_restaurant_${index}_total_price`);
+        const restaurantTotal = restaurantTotalField ? (parseFloat(restaurantTotalField.value) || 0) : 0;
+        
+        // Get transport pricing from cost field
+        const transportCostField = document.getElementById(`day${day}_restaurant_${index}_transfer_cost`);
+        const transportTotal = transportCostField ? (parseFloat(transportCostField.value) || 0) : 0;
+        
+        // Calculate and display total
+        const grandTotal = restaurantTotal + transportTotal;
+        totalDisplay.textContent = grandTotal.toFixed(2);
+    }
+    
+    // ==================== END RESTAURANT TRANSFER PRICING FUNCTIONS ====================
     
     window.loadGuidesForCity = function(day, cityName, index) {
         const guideSelect = document.getElementById(`day${day}_guide_${index}`);
@@ -10719,13 +11568,134 @@ document.addEventListener('DOMContentLoaded', function() {
          // Show success notification
          showNotification(`Hotel "${hotelData.name}" added successfully for ${hotelData.totalNights} nights!`, 'success');
          
-         // Reset form - Clear all Select2 dropdowns
-         $('#hotelCitySelect').val(null).trigger('change');
-         $('#hotelSelect').val(null).trigger('change');
-         $('#roomTypeSelect').val(null).trigger('change');
-         $('#bedTypeSelect').val(null).trigger('change');
-         $('#mealPlanSelect').val(null).trigger('change');
-         document.getElementById('numberOfRooms').value = '1';
+         // Reset all hotel form fields to empty/initial state
+         try {
+             // Reset hotel city select - this will trigger change handler to disable hotel select
+             $('#hotelCitySelect').val(null).trigger('change');
+             
+             // Reset hotel select - clear options, disable, and reset Select2
+             const hotelSelectEl = document.getElementById('hotelSelect');
+             if (hotelSelectEl) {
+                 // Destroy Select2 first, then reset DOM
+                 if ($('#hotelSelect').hasClass('select2-hidden-accessible')) {
+                     $('#hotelSelect').select2('destroy');
+                 }
+                 hotelSelectEl.innerHTML = '<option value="">Select a city first to load hotels</option>';
+                 hotelSelectEl.value = '';
+                 hotelSelectEl.disabled = true;
+                 // Reinitialize Select2
+                 $('#hotelSelect').select2({
+                     placeholder: "Select a city first to load hotels",
+                     allowClear: true,
+                     width: '100%'
+                 });
+                 $('#hotelSelect').prop('disabled', true);
+             }
+             
+             // Reset room type select
+             const roomTypeSelectEl = document.getElementById('roomTypeSelect');
+             if (roomTypeSelectEl) {
+                 if ($('#roomTypeSelect').hasClass('select2-hidden-accessible')) {
+                     $('#roomTypeSelect').select2('destroy');
+                 }
+                 roomTypeSelectEl.innerHTML = '<option value="">Room Type</option>';
+                 roomTypeSelectEl.value = '';
+                 $('#roomTypeSelect').select2({
+                     placeholder: "Room Type",
+                     allowClear: true,
+                     width: '100%'
+                 });
+             }
+             
+             // Reset bed type select
+             const bedTypeSelectEl = document.getElementById('bedTypeSelect');
+             if (bedTypeSelectEl) {
+                 if ($('#bedTypeSelect').hasClass('select2-hidden-accessible')) {
+                     $('#bedTypeSelect').select2('destroy');
+                 }
+                 bedTypeSelectEl.innerHTML = '<option value="">Bed Type</option>';
+                 bedTypeSelectEl.value = '';
+                 $('#bedTypeSelect').select2({
+                     placeholder: "Bed Type",
+                     allowClear: true,
+                     width: '100%'
+                 });
+             }
+             
+             // Reset meal plan select
+             const mealPlanSelectEl = document.getElementById('mealPlanSelect');
+             if (mealPlanSelectEl) {
+                 if ($('#mealPlanSelect').hasClass('select2-hidden-accessible')) {
+                     $('#mealPlanSelect').select2('destroy');
+                 }
+                 mealPlanSelectEl.innerHTML = '<option value="">Select Meal Plans</option>';
+                 mealPlanSelectEl.value = '';
+                 $('#mealPlanSelect').select2({
+                     placeholder: "Select Meal Plans",
+                     allowClear: true,
+                     width: '100%'
+                 });
+             }
+         } catch (error) {
+             console.error('Error resetting Select2 dropdowns:', error);
+         }
+         
+         // Reset number of rooms
+         const numberOfRoomsEl = document.getElementById('numberOfRooms');
+         if (numberOfRoomsEl) {
+             numberOfRoomsEl.value = '1';
+         }
+         
+         // Reset bed price display
+         const bedPriceDisplay = document.getElementById('bedPriceDisplay');
+         if (bedPriceDisplay) {
+             bedPriceDisplay.style.display = 'none';
+             const priceSpan = bedPriceDisplay.querySelector('span');
+             if (priceSpan) {
+                 priceSpan.textContent = '$0.00';
+             }
+         }
+         
+         // Reset person selector
+         const personSelector = document.getElementById('personSelector');
+         if (personSelector) {
+             personSelector.innerHTML = '<div class="text-muted small">Select bed type first</div>';
+         }
+         
+         // Reset selected persons
+         const selectedPersonsInput = document.getElementById('selectedPersons');
+         if (selectedPersonsInput) {
+             selectedPersonsInput.value = '1';
+         }
+         
+         // Reset room price display
+         const roomPriceDisplay = document.getElementById('roomPriceDisplay');
+         if (roomPriceDisplay) {
+             roomPriceDisplay.value = '0.00';
+             if (roomPriceDisplay.dataset) {
+                 roomPriceDisplay.dataset.manuallyEdited = 'false';
+             }
+         }
+         
+         // Clear selected bed info
+         window.selectedBedInfo = null;
+         
+         // Reset hotel city loader and message
+         const hotelCityLoader = document.getElementById('hotelCityLoader');
+         if (hotelCityLoader) {
+             hotelCityLoader.style.display = 'none';
+         }
+         
+         const hotelCityMessage = document.getElementById('hotelCityMessage');
+         if (hotelCityMessage) {
+             hotelCityMessage.style.display = 'none';
+         }
+         
+         // Clear hotel loading status
+         const hotelLoadingStatus = document.getElementById('hotelLoadingStatus');
+         if (hotelLoadingStatus) {
+             hotelLoadingStatus.innerHTML = '';
+         }
          
          // Reset transfer options form fields
          const transferRequiredSelect = document.getElementById('hotel_transfer_required');
@@ -10756,12 +11726,6 @@ document.addEventListener('DOMContentLoaded', function() {
          }
          if (transferDestinationSelect) {
              $('#hotel_transfer_destination').val(null).trigger('change');
-         }
-         
-         // Clear hotel loading status
-         const hotelLoadingStatus = document.getElementById('hotelLoadingStatus');
-         if (hotelLoadingStatus) {
-             hotelLoadingStatus.innerHTML = '';
          }
          
          // Clear night selection
@@ -10981,9 +11945,15 @@ document.addEventListener('DOMContentLoaded', function() {
          }
          
          // Update summary
-         document.getElementById('totalHotels').textContent = selectedHotels.length;
+         const totalHotelsEl = document.getElementById('totalHotels');
+         if (totalHotelsEl) {
+             totalHotelsEl.textContent = selectedHotels.length;
+         }
          const totalNights = selectedHotels.reduce((sum, hotel) => sum + hotel.totalNights, 0);
-         document.getElementById('totalNights').textContent = totalNights + ' Nights';
+         const totalNightsEl = document.getElementById('totalNights');
+         if (totalNightsEl) {
+             totalNightsEl.textContent = totalNights + ' Nights';
+         }
     }
 
          // Generate daily services based on tour dates
@@ -11559,9 +12529,9 @@ document.addEventListener('DOMContentLoaded', function() {
                                  
                                  <!-- Transfer Required Section -->
                                  <div class="row g-3 mt-2">
-                                     <div class="col-md-2">
+                                     <div class="col-md-1">
                                          <label class="form-label fw-semibold">
-                                             <i class="ri-car-line me-1"></i>Transfer Required?
+                                             <i class="ri-car-line me-1"></i>Transfer?
                                          </label>
                                          <select class="form-select" name="day${day}_attraction_1_transfer_required" id="day${day}_attraction_1_transfer_required" onchange="toggleAttractionTransferFields(${day}, 1)">
                                              <option value="No">No</option>
@@ -11572,7 +12542,7 @@ document.addEventListener('DOMContentLoaded', function() {
                                      <!-- Transfer Options (Hidden by default) -->
                                      <div class="col-md-2 attraction-transfer-fields" id="day${day}_attraction_1_transfer_type_field" style="display: none;">
                                          <label class="form-label fw-semibold">Type</label>
-                                         <select class="form-select" name="day${day}_attraction_1_transfer_type" id="day${day}_attraction_1_transfer_type">
+                                         <select class="form-select" name="day${day}_attraction_1_transfer_type" id="day${day}_attraction_1_transfer_type" onchange="handleAttractionTransferTypeOrWayChange(${day}, 1)">
                                              <option value="">Select Type</option>
                                              <option value="Private">Private</option>
                                              <option value="Shared">Shared</option>
@@ -11580,7 +12550,7 @@ document.addEventListener('DOMContentLoaded', function() {
                                      </div>
                                      <div class="col-md-2 attraction-transfer-fields" id="day${day}_attraction_1_transfer_way_field" style="display: none;">
                                          <label class="form-label fw-semibold">Way</label>
-                                         <select class="form-select" name="day${day}_attraction_1_transfer_way" id="day${day}_attraction_1_transfer_way">
+                                         <select class="form-select" name="day${day}_attraction_1_transfer_way" id="day${day}_attraction_1_transfer_way" onchange="handleAttractionTransferTypeOrWayChange(${day}, 1)">
                                              <option value="">Select Way</option>
                                              <option value="One Way">One Way</option>
                                              <option value="Both Way">Both Way</option>
@@ -11588,33 +12558,30 @@ document.addEventListener('DOMContentLoaded', function() {
                                      </div>
                                      <div class="col-md-3 attraction-transfer-fields" id="day${day}_attraction_1_transfer_vehicle_field" style="display: none;">
                                          <label class="form-label fw-semibold">Vehicle</label>
-                                         <select class="form-select" name="day${day}_attraction_1_transfer_vehicle" id="day${day}_attraction_1_transfer_vehicle">
+                                         <select class="form-select" name="day${day}_attraction_1_transfer_vehicle" id="day${day}_attraction_1_transfer_vehicle" onchange="handleAttractionVehicleChange(${day}, 1)">
                                              <option value="">Select Vehicle</option>
                                          </select>
                                      </div>
-                                     <div class="col-md-3 attraction-transfer-fields" id="day${day}_attraction_1_transfer_cost_field" style="display: none;">
-                                         <label class="form-label fw-semibold">Cost</label>
-                                         <input type="number" class="form-control" name="day${day}_attraction_1_transfer_cost" id="day${day}_attraction_1_transfer_cost" min="0" step="0.01" placeholder="0.00">
-                                     </div>
-                                 </div>
-                                 
-                                 <!-- Transfer Pickup Location Row -->
-                                 <div class="row g-3 mt-2">
-                                     <div class="col-md-12 attraction-transfer-fields" id="day${day}_attraction_1_transfer_pickup_field" style="display: none;">
+                                     <div class="col-md-3 attraction-transfer-fields" id="day${day}_attraction_1_transfer_pickup_field" style="display: none;">
                                          <label class="form-label fw-semibold">
                                              <i class="ri-map-pin-line me-1"></i>Pickup Location
                                          </label>
-                                         <select class="form-select" name="day${day}_attraction_1_transfer_pickup_location" id="day${day}_attraction_1_transfer_pickup_location">
+                                         <select class="form-select" name="day${day}_attraction_1_transfer_pickup_location" id="day${day}_attraction_1_transfer_pickup_location" onchange="fetchAttractionTransferPricing(${day}, 1)">
                                              <option value="">Select Pickup Location</option>
                                          </select>
                                      </div>
+                                     <div class="col-md-1 attraction-transfer-fields" id="day${day}_attraction_1_transfer_cost_field" style="display: none;">
+                                         <label class="form-label fw-semibold">Cost</label>
+                                         <input type="number" class="form-control" name="day${day}_attraction_1_transfer_cost" id="day${day}_attraction_1_transfer_cost" min="0" step="0.01" placeholder="0.00" onchange="updateAttractionTransportPricing(${day}, 1)" oninput="updateAttractionTransportPricing(${day}, 1)">
+                                     </div>
                                  </div>
+                                 
                                  
                                  <!-- Guide Required Section -->
                                  <div class="row g-3 mt-2">
-                                     <div class="col-md-2">
+                                     <div class="col-md-1">
                                          <label class="form-label fw-semibold">
-                                             <i class="ri-user-star-line me-1"></i>Need Guide?
+                                             <i class="ri-user-star-line me-1"></i>Guide?
                                          </label>
                                          <select class="form-select" name="day${day}_attraction_1_guide_required" id="day${day}_attraction_1_guide_required" onchange="toggleAttractionGuideFields(${day}, 1)">
                                              <option value="No">No</option>
@@ -11623,7 +12590,7 @@ document.addEventListener('DOMContentLoaded', function() {
                                      </div>
                                      
                                      <!-- Guide Options (Hidden by default) -->
-                                     <div class="col-md-3 attraction-guide-fields" id="day${day}_attraction_1_guide_select_field" style="display: none;">
+                                     <div class="col-md-4 attraction-guide-fields" id="day${day}_attraction_1_guide_select_field" style="display: none;">
                                          <label class="form-label fw-semibold">Select Guide</label>
                                          <select class="form-select attraction-guide-select" name="day${day}_attraction_1_guide" id="day${day}_attraction_1_guide" onchange="loadAttractionGuideDetails(${day}, this.value, 1)" disabled>
                                              <option value="">Select city first</option>
@@ -11644,41 +12611,6 @@ document.addEventListener('DOMContentLoaded', function() {
                                              <option value="">Select Duration</option>
                                          </select>
                                          
-                                         <!-- Guide Price Display Section -->
-                                         <div id="day${day}_attraction_1_guide_price_display" class="mt-3" style="display: none;">
-                                             <div class="p-3 rounded-3" style="background-color: #e3f2fd; border: 1px solid #bbdefb; border-radius: 8px;">
-                                                 <h6 class="text-primary mb-3 fw-bold">
-                                                     <i class="ri-user-line me-2"></i>Guide Pricing: <span id="day${day}_attraction_1_guide_guide_name">Guide Name</span>
-                                                 </h6>
-                                                 
-                                                 <div class="row">
-                                                     <div class="col-12">
-                                                         <div class="d-flex justify-content-between align-items-center mb-2">
-                                                             <span class="text-primary">Package Price:</span>
-                                                             <span class="fw-semibold text-primary" id="day${day}_attraction_1_guide_package_price_display">$0.00</span>
-                                                         </div>
-                                                         
-                                                         <div class="d-flex justify-content-between align-items-center mb-2">
-                                                             <span class="text-primary">Duration:</span>
-                                                             <span class="fw-semibold text-primary" id="day${day}_attraction_1_guide_hours_display">0 hours</span>
-                                                         </div>
-                                                         
-                                                         <div class="d-flex justify-content-between align-items-center mb-2" id="day${day}_attraction_1_guide_surcharge_row" style="display: none;">
-                                                             <span class="text-primary">Night Surcharge:</span>
-                                                             <span class="fw-semibold text-warning" id="day${day}_attraction_1_guide_surcharge_display">$0.00</span>
-                                                         </div>
-                                                         
-                                                         <hr class="my-3" style="border-color: #bbdefb;">
-                                                         
-                                                         <div class="d-flex justify-content-between align-items-center">
-                                                             <span class="fw-bold text-primary">Total Price:</span>
-                                                             <span class="fw-bold text-success fs-5" id="day${day}_attraction_1_guide_total_price_display">$0.00</span>
-                                                         </div>
-                                                     </div>
-                                                 </div>
-                                             </div>
-                                         </div>
-                                         
                                          <!-- Hidden fields for pricing -->
                                          <input type="hidden" id="day${day}_attraction_1_guide_base_price" name="day${day}_attraction_1_guide_base_price" value="0">
                                          <input type="hidden" id="day${day}_attraction_1_guide_hours" name="day${day}_attraction_1_guide_hours" value="0">
@@ -11687,10 +12619,10 @@ document.addEventListener('DOMContentLoaded', function() {
                                      </div>
                                  </div>
                                  
-                                 <!-- Attraction Price Display -->
+                                 <!-- Attraction Price Display with 3 columns -->
                                  <div class="col-12 mt-3">
                                      <div id="day${day}_attraction_1_price_display" class="alert alert-info">
-                                         <div class="d-flex align-items-center justify-content-between">
+                                         <div class="d-flex align-items-center justify-content-between mb-3">
                                              <div class="d-flex align-items-center">
                                                  <i class="ri-money-dollar-circle-line me-2 fs-4"></i>
                                                  <div>
@@ -11701,6 +12633,59 @@ document.addEventListener('DOMContentLoaded', function() {
                                              <button type="button" class="btn btn-sm btn-outline-primary" onclick="forceUpdateAttractionPricing(${day}, 1)" title="Refresh Pricing">
                                                  <i class="ri-refresh-line"></i>
                                              </button>
+                                         </div>
+                                         
+                                         <!-- Three Column Pricing Layout -->
+                                         <div class="row g-3" id="day${day}_attraction_1_pricing_columns" style="display: none;">
+                                             <!-- Column 1: Attraction/Ticket Pricing -->
+                                             <div class="col-md-4">
+                                                 <div class="p-3 rounded-3 bg-white border border-info">
+                                                     <h6 class="text-info mb-3 fw-bold">
+                                                         <i class="ri-ticket-line me-2"></i>Ticket Pricing
+                                                     </h6>
+                                                     <div id="day${day}_attraction_1_ticket_pricing_content">
+                                                         <div class="text-muted small">Select ticket to see pricing</div>
+                                                     </div>
+                                                 </div>
+                                             </div>
+                                             
+                                             <!-- Column 2: Guide Pricing -->
+                                             <div class="col-md-4">
+                                                 <div class="p-3 rounded-3 bg-white border border-primary">
+                                                     <h6 class="text-primary mb-3 fw-bold">
+                                                         <i class="ri-user-line me-2"></i>Guide Pricing
+                                                     </h6>
+                                                     <div id="day${day}_attraction_1_guide_pricing_content">
+                                                         <div class="text-muted small">No guide selected</div>
+                                                     </div>
+                                                 </div>
+                                             </div>
+                                             
+                                             <!-- Column 3: Transport Pricing -->
+                                             <div class="col-md-4">
+                                                 <div class="p-3 rounded-3 bg-white border border-success">
+                                                     <h6 class="text-success mb-3 fw-bold">
+                                                         <i class="ri-car-line me-2"></i>Transport Pricing
+                                                     </h6>
+                                                     <div id="day${day}_attraction_1_transport_pricing_content">
+                                                         <div class="text-muted small">No transport selected</div>
+                                                     </div>
+                                                 </div>
+                                             </div>
+                                         </div>
+                                         
+                                         <!-- Total Price Row -->
+                                         <div class="row mt-3" id="day${day}_attraction_1_total_price_row" style="display: none;">
+                                             <div class="col-12">
+                                                 <div class="p-3 rounded-3 bg-success text-white">
+                                                     <div class="d-flex justify-content-between align-items-center">
+                                                         <h6 class="mb-0 fw-bold">
+                                                             <i class="ri-calculator-line me-2"></i>Total Price
+                                                         </h6>
+                                                         <span class="fw-bold fs-4" id="day${day}_attraction_1_total_price_display">$0.00</span>
+                                                     </div>
+                                                 </div>
+                                             </div>
                                          </div>
                                      </div>
                                  </div>
@@ -11951,9 +12936,9 @@ document.addEventListener('DOMContentLoaded', function() {
                                  
                                  <!-- Transfer Required Section -->
                                  <div class="row g-3 mt-2">
-                                     <div class="col-md-2">
+                                     <div class="col-md-1">
                                          <label class="form-label fw-semibold">
-                                             <i class="ri-car-line me-1"></i>Transfer Required?
+                                             <i class="ri-car-line me-1"></i>Transfer?
                                          </label>
                                          <select class="form-select" name="day${day}_restaurant_1_transfer_required" id="day${day}_restaurant_1_transfer_required" onchange="toggleRestaurantTransferFields(${day}, 1)">
                                              <option value="No">No</option>
@@ -11964,7 +12949,7 @@ document.addEventListener('DOMContentLoaded', function() {
                                      <!-- Transfer Options (Hidden by default) -->
                                      <div class="col-md-2 restaurant-transfer-fields" id="day${day}_restaurant_1_transfer_type_field" style="display: none;">
                                          <label class="form-label fw-semibold">Type</label>
-                                         <select class="form-select" name="day${day}_restaurant_1_transfer_type" id="day${day}_restaurant_1_transfer_type">
+                                         <select class="form-select" name="day${day}_restaurant_1_transfer_type" id="day${day}_restaurant_1_transfer_type" onchange="handleRestaurantTransferTypeOrWayChange(${day}, 1)">
                                              <option value="">Select Type</option>
                                              <option value="Private">Private</option>
                                              <option value="Shared">Shared</option>
@@ -11972,7 +12957,7 @@ document.addEventListener('DOMContentLoaded', function() {
                                      </div>
                                      <div class="col-md-2 restaurant-transfer-fields" id="day${day}_restaurant_1_transfer_way_field" style="display: none;">
                                          <label class="form-label fw-semibold">Way</label>
-                                         <select class="form-select" name="day${day}_restaurant_1_transfer_way" id="day${day}_restaurant_1_transfer_way">
+                                         <select class="form-select" name="day${day}_restaurant_1_transfer_way" id="day${day}_restaurant_1_transfer_way" onchange="handleRestaurantTransferTypeOrWayChange(${day}, 1)">
                                              <option value="">Select Way</option>
                                              <option value="One Way">One Way</option>
                                              <option value="Both Way">Both Way</option>
@@ -11980,42 +12965,61 @@ document.addEventListener('DOMContentLoaded', function() {
                                      </div>
                                      <div class="col-md-3 restaurant-transfer-fields" id="day${day}_restaurant_1_transfer_vehicle_field" style="display: none;">
                                          <label class="form-label fw-semibold">Vehicle</label>
-                                         <select class="form-select" name="day${day}_restaurant_1_transfer_vehicle" id="day${day}_restaurant_1_transfer_vehicle">
+                                         <select class="form-select" name="day${day}_restaurant_1_transfer_vehicle" id="day${day}_restaurant_1_transfer_vehicle" onchange="handleRestaurantVehicleChange(${day}, 1)">
                                              <option value="">Select Vehicle</option>
                                          </select>
                                      </div>
-                                     <div class="col-md-3 restaurant-transfer-fields" id="day${day}_restaurant_1_transfer_cost_field" style="display: none;">
-                                         <label class="form-label fw-semibold">Cost</label>
-                                         <input type="number" class="form-control" name="day${day}_restaurant_1_transfer_cost" id="day${day}_restaurant_1_transfer_cost" min="0" step="0.01" placeholder="0.00">
-                                     </div>
-                                 </div>
-                                 
-                                 <!-- Transfer Pickup Location Row -->
-                                 <div class="row g-3 mt-2">
-                                     <div class="col-md-12 restaurant-transfer-fields" id="day${day}_restaurant_1_transfer_pickup_field" style="display: none;">
+                                     <div class="col-md-3 restaurant-transfer-fields" id="day${day}_restaurant_1_transfer_pickup_field" style="display: none;">
                                          <label class="form-label fw-semibold">
                                              <i class="ri-map-pin-line me-1"></i>Pickup Location
                                          </label>
-                                         <select class="form-select" name="day${day}_restaurant_1_transfer_pickup_location" id="day${day}_restaurant_1_transfer_pickup_location">
+                                         <select class="form-select" name="day${day}_restaurant_1_transfer_pickup_location" id="day${day}_restaurant_1_transfer_pickup_location" onchange="fetchRestaurantTransferPricing(${day}, 1)">
                                              <option value="">Select Pickup Location</option>
                                          </select>
                                      </div>
-                                 </div>
-                                 
-                                 <!-- Restaurant Pricing Section -->
-                                 <div id="day${day}_restaurant_1_price_display" class="mt-3" style="display: none;">
-                                     <div class="alert alert-success">
-                                         <div class="d-flex align-items-center">
-                                             <i class="ri-restaurant-line me-2 fs-4"></i>
-                                             <div>
-                                                 <strong>Restaurant Pricing: <span id="day${day}_restaurant_1_restaurant_name">Restaurant Name</span></strong>
-                                                 <div class="small" id="day${day}_restaurant_1_pricing_details">
-                                                     Select a restaurant and configure guests to see pricing
-                                                 </div>
-                                             </div>
-                                         </div>
+                                     <div class="col-md-1 restaurant-transfer-fields" id="day${day}_restaurant_1_transfer_cost_field" style="display: none;">
+                                         <label class="form-label fw-semibold">Cost</label>
+                                         <input type="number" class="form-control" name="day${day}_restaurant_1_transfer_cost" id="day${day}_restaurant_1_transfer_cost" min="0" step="0.01" placeholder="0.00" onchange="updateRestaurantTransportPricing(${day}, 1)" oninput="updateRestaurantTransportPricing(${day}, 1)">
                                      </div>
                                  </div>
+
+                                <!-- Restaurant Pricing Section -->
+                                <div id="day${day}_restaurant_1_price_display" class="mt-3" style="display: none;">
+                                    <div class="alert alert-success">
+                                        <div class="d-flex align-items-center mb-3">
+                                            <i class="ri-restaurant-line me-2 fs-4"></i>
+                                            <div>
+                                               <strong>Restaurant Pricing: <span id="day${day}_restaurant_1_restaurant_name">Restaurant Name</span></strong>
+                                            </div>
+                                        </div>
+                                        <div class="row g-3">
+                                            <div class="col-md-9">
+                                                <div class="text-end">
+                                                    <strong class="d-block mb-2">Restaurant Pricing</strong>
+                                                    <div class="small" id="day${day}_restaurant_1_pricing_details" style="text-align: right;">
+                                                        Select a restaurant and configure guests to see pricing
+                                                    </div>
+                                                </div>
+                                            </div>
+                                            <div class="col-md-3">
+                                                <div class="text-end">
+                                                    <strong class="d-block mb-2">Transfer Pricing</strong>
+                                                    <div id="day${day}_restaurant_1_transport_pricing_content" style="text-align: right;">
+                                                        <div class="text-muted small">No transport selected</div>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        </div>
+                                        <hr class="my-2">
+                                        <div class="row">
+                                            <div class="col-12">
+                                                <div class="text-end">
+                                                    <strong class="fs-5 text-success">Total: $<span id="day${day}_restaurant_1_total_display">0.00</span></strong>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
                                  
                                  </div>
                                      </div>
@@ -12797,41 +13801,65 @@ document.addEventListener('DOMContentLoaded', function() {
         }
         
         const selectedAttraction = attractionSelect.options[attractionSelect.selectedIndex];
-        const selectedTicket = ticketSelect ? ticketSelect.options[ticketSelect.selectedIndex] : null;
+        const selectedTicket = ticketSelect && ticketSelect.selectedIndex >= 0 ? ticketSelect.options[ticketSelect.selectedIndex] : null;
         
         console.log('Selected values:', {
             attractionValue: selectedAttraction?.value,
             attractionText: selectedAttraction?.text,
             ticketValue: selectedTicket?.value,
-            ticketText: selectedTicket?.text
+            ticketText: selectedTicket?.text,
+            ticketSelectedIndex: ticketSelect?.selectedIndex,
+            ticketSelectLength: ticketSelect?.options?.length
         });
         
-        if (!selectedAttraction.value) {
+        if (!selectedAttraction || !selectedAttraction.value) {
             console.log('No attraction selected, hiding price display');
-            priceDisplay.style.display = 'none';
+            priceDisplay.style.display = 'block';
+            const ticketPricingContent = document.getElementById(`day${day}_attraction_${index}_ticket_pricing_content`);
+            if (ticketPricingContent) {
+                ticketPricingContent.innerHTML = '<div class="text-muted small">Please select an attraction</div>';
+            }
+            const pricingColumns = document.getElementById(`day${day}_attraction_${index}_pricing_columns`);
+            const totalPriceRow = document.getElementById(`day${day}_attraction_${index}_total_price_row`);
+            if (pricingColumns) pricingColumns.style.display = 'none';
+            if (totalPriceRow) totalPriceRow.style.display = 'none';
             return;
         }
         
         // Check if ticket is selected (required for pricing)
-        if (!selectedTicket || !selectedTicket.value) {
+        // Check both value and text to handle cases where value might be empty but text exists
+        const hasTicketValue = selectedTicket && selectedTicket.value && selectedTicket.value.trim() !== '';
+        const hasTicketText = selectedTicket && selectedTicket.text && selectedTicket.text.trim() !== '' && selectedTicket.text.trim() !== 'Select Ticket';
+        
+        if (!selectedTicket || (!hasTicketValue && !hasTicketText)) {
             console.log('No ticket selected, showing info message');
             priceDisplay.style.display = 'block';
-            priceDisplay.innerHTML = `
-                <div class="d-flex align-items-center">
-                    <i class="ri-information-line me-2 fs-4"></i>
-                    <div>
-                        <strong>Attraction Selected: ${selectedAttraction.text}</strong>
-                        <div class="small text-muted">Please select a ticket to see pricing information</div>
+            
+            // Update ticket pricing column with message
+            const ticketPricingContent = document.getElementById(`day${day}_attraction_${index}_ticket_pricing_content`);
+            if (ticketPricingContent) {
+                ticketPricingContent.innerHTML = `
+                    <div class="text-muted small">
+                        <strong>Attraction Selected: ${selectedAttraction.text}</strong><br>
+                        Please select a ticket to see pricing information
                     </div>
-                </div>
-            `;
+                `;
+            }
+            
+            // Hide pricing columns and total row
+            const pricingColumns = document.getElementById(`day${day}_attraction_${index}_pricing_columns`);
+            const totalPriceRow = document.getElementById(`day${day}_attraction_${index}_total_price_row`);
+            if (pricingColumns) pricingColumns.style.display = 'none';
+            if (totalPriceRow) totalPriceRow.style.display = 'none';
+            
             return;
         }
         
         // Get pricing data from the selected ticket option
-        let adultPrice = parseFloat(selectedTicket.dataset.adultPrice) || 0;
-        let childPrice = parseFloat(selectedTicket.dataset.childPrice) || 0;
-        let seniorPrice = parseFloat(selectedTicket.dataset.seniorPrice) || 0;
+        // Try multiple ways to get the pricing data
+        let adultPrice = parseFloat(selectedTicket.dataset.adultPrice || selectedTicket.dataset.adult_price || selectedTicket.getAttribute('data-adult-price') || '0') || 0;
+        let childPrice = parseFloat(selectedTicket.dataset.childPrice || selectedTicket.dataset.child_price || selectedTicket.getAttribute('data-child-price') || '0') || 0;
+        let seniorPrice = parseFloat(selectedTicket.dataset.seniorPrice || selectedTicket.dataset.senior_price || selectedTicket.getAttribute('data-senior-price') || '0') || 0;
         
         // If no pricing data in dataset, try to extract from ticket text content
         if (adultPrice === 0 && childPrice === 0 && seniorPrice === 0) {
@@ -12872,14 +13900,30 @@ document.addEventListener('DOMContentLoaded', function() {
         // Get current guest counts from the guest summary
         const guestSummaryElement = document.getElementById(`day${day}_attraction_${index}_guest_summary`);
         if (!guestSummaryElement) {
-            priceDisplay.style.display = 'none';
+            priceDisplay.style.display = 'block';
+            const ticketPricingContent = document.getElementById(`day${day}_attraction_${index}_ticket_pricing_content`);
+            if (ticketPricingContent) {
+                ticketPricingContent.innerHTML = '<div class="text-muted small">Please configure guests to see pricing</div>';
+            }
+            const pricingColumns = document.getElementById(`day${day}_attraction_${index}_pricing_columns`);
+            const totalPriceRow = document.getElementById(`day${day}_attraction_${index}_total_price_row`);
+            if (pricingColumns) pricingColumns.style.display = 'none';
+            if (totalPriceRow) totalPriceRow.style.display = 'none';
             return;
         }
         
         const guestInfo = parseGuestSummary(guestSummaryElement.textContent);
         
         if (guestInfo.adults === 0 && guestInfo.children === 0 && guestInfo.seniors === 0) {
-            priceDisplay.style.display = 'none';
+            priceDisplay.style.display = 'block';
+            const ticketPricingContent = document.getElementById(`day${day}_attraction_${index}_ticket_pricing_content`);
+            if (ticketPricingContent) {
+                ticketPricingContent.innerHTML = '<div class="text-muted small">Please configure guests to see pricing</div>';
+            }
+            const pricingColumns = document.getElementById(`day${day}_attraction_${index}_pricing_columns`);
+            const totalPriceRow = document.getElementById(`day${day}_attraction_${index}_total_price_row`);
+            if (pricingColumns) pricingColumns.style.display = 'none';
+            if (totalPriceRow) totalPriceRow.style.display = 'none';
             return;
         }
         
@@ -12888,27 +13932,170 @@ document.addEventListener('DOMContentLoaded', function() {
                           (guestInfo.children * childPrice) + 
                           (guestInfo.seniors * seniorPrice);
         
-        if (totalPrice > 0) {
-            priceDisplay.style.display = 'block';
-            priceDisplay.innerHTML = `
-                <div class="d-flex align-items-center">
-                    <i class="ri-money-dollar-circle-line me-2 fs-4"></i>
-                    <div>
-                        <strong>Ticket Pricing: ${selectedTicket.text}</strong>
-                        <div class="small">
-                            <strong>Adult Price:</strong> $${adultPrice.toFixed(2)} × ${guestInfo.adults} = $${(adultPrice * guestInfo.adults).toFixed(2)}<br>
-                            <strong>Child Price:</strong> $${childPrice.toFixed(2)} × ${guestInfo.children} = $${(childPrice * guestInfo.children).toFixed(2)}<br>
-                            <strong>Senior Price:</strong> $${seniorPrice.toFixed(2)} × ${guestInfo.seniors} = $${(seniorPrice * guestInfo.seniors).toFixed(2)}<br>
-                            <strong>Total Price:</strong> <span class="text-success fw-bold">$${totalPrice.toFixed(2)}</span>
-                        </div>
+        // Always show the price display when we have data
+        priceDisplay.style.display = 'block';
+        
+        // Update ticket pricing column
+        const ticketPricingContent = document.getElementById(`day${day}_attraction_${index}_ticket_pricing_content`);
+        if (ticketPricingContent) {
+            if (totalPrice > 0) {
+                ticketPricingContent.innerHTML = `
+                    <div class="small">
+                        <div class="mb-2"><strong>${selectedTicket.text}</strong></div>
+                        <div class="mb-1">Adult: $${adultPrice.toFixed(2)} × ${guestInfo.adults} = $${(adultPrice * guestInfo.adults).toFixed(2)}</div>
+                        <div class="mb-1">Child: $${childPrice.toFixed(2)} × ${guestInfo.children} = $${(childPrice * guestInfo.children).toFixed(2)}</div>
+                        <div class="mb-2">Senior: $${seniorPrice.toFixed(2)} × ${guestInfo.seniors} = $${(seniorPrice * guestInfo.seniors).toFixed(2)}</div>
+                        <hr class="my-2">
+                        <div class="fw-bold text-info">Total: $${totalPrice.toFixed(2)}</div>
                     </div>
+                `;
+            } else {
+                ticketPricingContent.innerHTML = '<div class="text-muted small">No pricing available</div>';
+            }
+        }
+        
+        // Show pricing columns
+        const pricingColumns = document.getElementById(`day${day}_attraction_${index}_pricing_columns`);
+        if (pricingColumns) {
+            pricingColumns.style.display = 'flex';
+        }
+        
+        // Update guide and transport pricing columns
+        updateAttractionGuidePricing(day, index);
+        updateAttractionTransportPricing(day, index);
+        
+        // Update total price
+        updateAttractionTotalPrice(day, index);
+        
+        console.log(`Ticket pricing updated for day ${day}, index ${index}: Total: $${totalPrice}`);
+    }
+    
+    // Function to update total price (attraction + guide + transport)
+    window.updateAttractionTotalPrice = function(day, index) {
+        // Get ticket pricing
+        let ticketPrice = 0;
+        const ticketPricingContent = document.getElementById(`day${day}_attraction_${index}_ticket_pricing_content`);
+        if (ticketPricingContent) {
+            const ticketTotalMatch = ticketPricingContent.textContent.match(/Total:\s*\$([\d.]+)/);
+            if (ticketTotalMatch) {
+                ticketPrice = parseFloat(ticketTotalMatch[1]) || 0;
+            }
+        }
+        
+        // Get guide pricing
+        let guidePrice = 0;
+        const guideTotalPriceField = document.getElementById(`day${day}_attraction_${index}_guide_total_price`);
+        if (guideTotalPriceField) {
+            guidePrice = parseFloat(guideTotalPriceField.value) || 0;
+        }
+        
+        // Get transport pricing
+        let transportPrice = 0;
+        const transportCostField = document.getElementById(`day${day}_attraction_${index}_transfer_cost`);
+        if (transportCostField && transportCostField.value) {
+            transportPrice = parseFloat(transportCostField.value) || 0;
+        }
+        
+        // Calculate total
+        const totalPrice = ticketPrice + guidePrice + transportPrice;
+        
+        // Update total price display
+        const totalPriceDisplay = document.getElementById(`day${day}_attraction_${index}_total_price_display`);
+        const totalPriceRow = document.getElementById(`day${day}_attraction_${index}_total_price_row`);
+        
+        if (totalPriceDisplay) {
+            totalPriceDisplay.textContent = `$${totalPrice.toFixed(2)}`;
+        }
+        
+        if (totalPriceRow && totalPrice > 0) {
+            totalPriceRow.style.display = 'block';
+        } else if (totalPriceRow) {
+            totalPriceRow.style.display = 'none';
+        }
+        
+        console.log(`Total price updated for day ${day}, index ${index}: Ticket: $${ticketPrice}, Guide: $${guidePrice}, Transport: $${transportPrice}, Total: $${totalPrice}`);
+    }
+    
+    // Function to update transport pricing column
+    window.updateAttractionTransportPricing = function(day, index) {
+        const transportCostField = document.getElementById(`day${day}_attraction_${index}_transfer_cost`);
+        const transportPricingContent = document.getElementById(`day${day}_attraction_${index}_transport_pricing_content`);
+        const transferRequired = document.getElementById(`day${day}_attraction_${index}_transfer_required`);
+        const transferType = document.getElementById(`day${day}_attraction_${index}_transfer_type`);
+        const transferWay = document.getElementById(`day${day}_attraction_${index}_transfer_way`);
+        const transferVehicle = document.getElementById(`day${day}_attraction_${index}_transfer_vehicle`);
+        const pickupLocationSelect = document.getElementById(`day${day}_attraction_${index}_transfer_pickup_location`);
+        
+        if (!transportPricingContent) return;
+        
+        // Check if transfer is required
+        if (!transferRequired || transferRequired.value !== 'Yes') {
+            transportPricingContent.innerHTML = '<div class="text-muted small">No transport selected</div>';
+            updateAttractionTotalPrice(day, index);
+            return;
+        }
+        
+        const cost = transportCostField ? (parseFloat(transportCostField.value) || 0) : 0;
+        const type = transferType ? transferType.value : '';
+        const way = transferWay ? transferWay.value : '';
+        const vehicleSelect = transferVehicle;
+        let vehicleName = 'N/A';
+        
+        if (vehicleSelect && vehicleSelect.value) {
+            const selectedOption = vehicleSelect.options[vehicleSelect.selectedIndex];
+            if (selectedOption) {
+                vehicleName = selectedOption.textContent || 'N/A';
+            }
+        }
+        
+        // Check if this price came from AJAX (zone-based pricing)
+        const isAjaxPrice = transportCostField && transportCostField.getAttribute('data-ajax-base-price');
+        const priceSource = isAjaxPrice ? ' (Zone-based)' : '';
+        
+        if (cost > 0) {
+            let transportHtml = `
+                <div class="small">
+                    <div class="mb-1"><strong>Type:</strong> ${type || 'N/A'}</div>
+                    <div class="mb-1"><strong>Way:</strong> ${way || 'N/A'}</div>
+                    <div class="mb-1"><strong>Vehicle:</strong> ${vehicleName}</div>
+                    ${isAjaxPrice ? '<div class="mb-1 text-info"><small><i class="ri-checkbox-circle-line me-1"></i>Zone-based pricing</small></div>' : ''}
+                    <hr class="my-2">
+                    <div class="fw-bold text-success">Total: $${cost.toFixed(2)}${priceSource}</div>
                 </div>
             `;
+            transportPricingContent.innerHTML = transportHtml;
             
-            console.log(`Ticket pricing updated for day ${day}, index ${index}: Total: $${totalPrice}`);
+            // Show pricing columns if not already shown
+            const pricingColumns = document.getElementById(`day${day}_attraction_${index}_pricing_columns`);
+            if (pricingColumns) {
+                pricingColumns.style.display = 'flex';
+            }
         } else {
-            priceDisplay.style.display = 'none';
+            // If pickup location is selected but cost is 0, try to fetch pricing
+            if (pickupLocationSelect && pickupLocationSelect.value &&
+                vehicleSelect && vehicleSelect.value &&
+                transferType && transferType.value &&
+                transferWay && transferWay.value) {
+                
+                // Check if pricing fetch has already failed to prevent infinite loop
+                const pricingFetchFailed = transportCostField && transportCostField.getAttribute('data-pricing-fetch-failed') === 'true';
+                const errorMessage = transportCostField ? transportCostField.getAttribute('data-pricing-error-message') : null;
+                
+                if (pricingFetchFailed) {
+                    // Pricing fetch already failed, show error message instead of retrying
+                    transportPricingContent.innerHTML = `<div class="text-danger small"><i class="ri-error-warning-line me-1"></i>${errorMessage || 'No pricing found'}</div>`;
+                } else {
+                    transportPricingContent.innerHTML = '<div class="text-muted small">Fetching pricing...</div>';
+                    // Trigger AJAX call to get pricing
+                    fetchAttractionTransferPricing(day, index);
+                }
+            } else {
+                transportPricingContent.innerHTML = '<div class="text-muted small">Transport selected but cost not set</div>';
+            }
         }
+        
+        // Update total price
+        updateAttractionTotalPrice(day, index);
     }
     
     // Load tickets for specific attraction
@@ -13107,9 +14294,9 @@ document.addEventListener('DOMContentLoaded', function() {
                     
                     <!-- Transfer Required Section -->
                     <div class="row g-3 mt-2">
-                        <div class="col-md-2">
+                        <div class="col-md-1">
                             <label class="form-label fw-semibold">
-                                <i class="ri-car-line me-1"></i>Transfer Required?
+                                <i class="ri-car-line me-1"></i>Transfer?
                             </label>
                             <select class="form-select" name="day${day}_attraction_${newIndex}_transfer_required" id="day${day}_attraction_${newIndex}_transfer_required" onchange="toggleAttractionTransferFields(${day}, ${newIndex})">
                                 <option value="No">No</option>
@@ -13120,7 +14307,7 @@ document.addEventListener('DOMContentLoaded', function() {
                         <!-- Transfer Options (Hidden by default) -->
                         <div class="col-md-2 attraction-transfer-fields" id="day${day}_attraction_${newIndex}_transfer_type_field" style="display: none;">
                             <label class="form-label fw-semibold">Type</label>
-                            <select class="form-select" name="day${day}_attraction_${newIndex}_transfer_type" id="day${day}_attraction_${newIndex}_transfer_type">
+                            <select class="form-select" name="day${day}_attraction_${newIndex}_transfer_type" id="day${day}_attraction_${newIndex}_transfer_type" onchange="handleAttractionTransferTypeOrWayChange(${day}, ${newIndex})">
                                 <option value="">Select Type</option>
                                 <option value="Private">Private</option>
                                 <option value="Shared">Shared</option>
@@ -13128,7 +14315,7 @@ document.addEventListener('DOMContentLoaded', function() {
                         </div>
                         <div class="col-md-2 attraction-transfer-fields" id="day${day}_attraction_${newIndex}_transfer_way_field" style="display: none;">
                             <label class="form-label fw-semibold">Way</label>
-                            <select class="form-select" name="day${day}_attraction_${newIndex}_transfer_way" id="day${day}_attraction_${newIndex}_transfer_way">
+                            <select class="form-select" name="day${day}_attraction_${newIndex}_transfer_way" id="day${day}_attraction_${newIndex}_transfer_way" onchange="handleAttractionTransferTypeOrWayChange(${day}, ${newIndex})">
                                 <option value="">Select Way</option>
                                 <option value="One Way">One Way</option>
                                 <option value="Both Way">Both Way</option>
@@ -13136,33 +14323,32 @@ document.addEventListener('DOMContentLoaded', function() {
                         </div>
                         <div class="col-md-3 attraction-transfer-fields" id="day${day}_attraction_${newIndex}_transfer_vehicle_field" style="display: none;">
                             <label class="form-label fw-semibold">Vehicle</label>
-                            <select class="form-select" name="day${day}_attraction_${newIndex}_transfer_vehicle" id="day${day}_attraction_${newIndex}_transfer_vehicle">
+                            <select class="form-select" name="day${day}_attraction_${newIndex}_transfer_vehicle" id="day${day}_attraction_${newIndex}_transfer_vehicle" onchange="handleAttractionVehicleChange(${day}, ${newIndex})">
                                 <option value="">Select Vehicle</option>
                             </select>
                         </div>
-                        <div class="col-md-3 attraction-transfer-fields" id="day${day}_attraction_${newIndex}_transfer_cost_field" style="display: none;">
-                            <label class="form-label fw-semibold">Cost</label>
-                            <input type="number" class="form-control" name="day${day}_attraction_${newIndex}_transfer_cost" id="day${day}_attraction_${newIndex}_transfer_cost" min="0" step="0.01" placeholder="0.00">
-                        </div>
-                    </div>
-                    
-                    <!-- Transfer Pickup Location Row -->
-                    <div class="row g-3 mt-2">
-                        <div class="col-md-12 attraction-transfer-fields" id="day${day}_attraction_${newIndex}_transfer_pickup_field" style="display: none;">
+                        <div class="col-md-3 attraction-transfer-fields" id="day${day}_attraction_${newIndex}_transfer_pickup_field" style="display: none;">
                             <label class="form-label fw-semibold">
                                 <i class="ri-map-pin-line me-1"></i>Pickup Location
                             </label>
-                            <select class="form-select" name="day${day}_attraction_${newIndex}_transfer_pickup_location" id="day${day}_attraction_${newIndex}_transfer_pickup_location">
+                            <select class="form-select" name="day${day}_attraction_${newIndex}_transfer_pickup_location" id="day${day}_attraction_${newIndex}_transfer_pickup_location" onchange="fetchAttractionTransferPricing(${day}, ${newIndex})">
                                 <option value="">Select Pickup Location</option>
                             </select>
                         </div>
+                        <div class="col-md-1 attraction-transfer-fields" id="day${day}_attraction_${newIndex}_transfer_cost_field" style="display: none;">
+                            <label class="form-label fw-semibold">Cost</label>
+                            <input type="number" class="form-control" name="day${day}_attraction_${newIndex}_transfer_cost" id="day${day}_attraction_${newIndex}_transfer_cost" min="0" step="0.01" placeholder="0.00" onchange="updateAttractionTransportPricing(${day}, ${newIndex})" oninput="updateAttractionTransportPricing(${day}, ${newIndex})">
+                        </div>
+                        
                     </div>
+                    
+
                     
                     <!-- Guide Required Section -->
                     <div class="row g-3 mt-2">
-                        <div class="col-md-2">
+                        <div class="col-md-1">
                             <label class="form-label fw-semibold">
-                                <i class="ri-user-star-line me-1"></i>Need Guide?
+                                <i class="ri-user-star-line me-1"></i>Guide?
                             </label>
                             <select class="form-select" name="day${day}_attraction_${newIndex}_guide_required" id="day${day}_attraction_${newIndex}_guide_required" onchange="toggleAttractionGuideFields(${day}, ${newIndex})">
                                 <option value="No">No</option>
@@ -13171,7 +14357,7 @@ document.addEventListener('DOMContentLoaded', function() {
                         </div>
                         
                         <!-- Guide Options (Hidden by default) -->
-                        <div class="col-md-3 attraction-guide-fields" id="day${day}_attraction_${newIndex}_guide_select_field" style="display: none;">
+                        <div class="col-md-4 attraction-guide-fields" id="day${day}_attraction_${newIndex}_guide_select_field" style="display: none;">
                             <label class="form-label fw-semibold">Select Guide</label>
                             <select class="form-select attraction-guide-select" name="day${day}_attraction_${newIndex}_guide" id="day${day}_attraction_${newIndex}_guide" onchange="loadAttractionGuideDetails(${day}, this.value, ${newIndex})" disabled>
                                 <option value="">Select city first</option>
@@ -13192,40 +14378,6 @@ document.addEventListener('DOMContentLoaded', function() {
                                 <option value="">Select Duration</option>
                             </select>
                             
-                            <!-- Guide Price Display Section -->
-                            <div id="day${day}_attraction_${newIndex}_guide_price_display" class="mt-3" style="display: none;">
-                                <div class="p-3 rounded-3" style="background-color: #e3f2fd; border: 1px solid #bbdefb; border-radius: 8px;">
-                                    <h6 class="text-primary mb-3 fw-bold">
-                                        <i class="ri-user-line me-2"></i>Guide Pricing: <span id="day${day}_attraction_${newIndex}_guide_guide_name">Guide Name</span>
-                                    </h6>
-                                    
-                                    <div class="row">
-                                        <div class="col-12">
-                                            <div class="d-flex justify-content-between align-items-center mb-2">
-                                                <span class="text-primary">Package Price:</span>
-                                                <span class="fw-semibold text-primary" id="day${day}_attraction_${newIndex}_guide_package_price_display">$0.00</span>
-                                            </div>
-                                            
-                                            <div class="d-flex justify-content-between align-items-center mb-2">
-                                                <span class="text-primary">Duration:</span>
-                                                <span class="fw-semibold text-primary" id="day${day}_attraction_${newIndex}_guide_hours_display">0 hours</span>
-                                            </div>
-                                            
-                                            <div class="d-flex justify-content-between align-items-center mb-2" id="day${day}_attraction_${newIndex}_guide_surcharge_row" style="display: none;">
-                                                <span class="text-primary">Night Surcharge:</span>
-                                                <span class="fw-semibold text-warning" id="day${day}_attraction_${newIndex}_guide_surcharge_display">$0.00</span>
-                                            </div>
-                                            
-                                            <hr class="my-3" style="border-color: #bbdefb;">
-                                            
-                                            <div class="d-flex justify-content-between align-items-center">
-                                                <span class="fw-bold text-primary">Total Price:</span>
-                                                <span class="fw-bold text-success fs-5" id="day${day}_attraction_${newIndex}_guide_total_price_display">$0.00</span>
-                                            </div>
-                                        </div>
-                                    </div>
-                                </div>
-                            </div>
                             
                             <!-- Hidden fields for pricing -->
                             <input type="hidden" id="day${day}_attraction_${newIndex}_guide_base_price" name="day${day}_attraction_${newIndex}_guide_base_price" value="0">
@@ -13235,14 +14387,72 @@ document.addEventListener('DOMContentLoaded', function() {
                         </div>
                     </div>
                     
-                    <!-- Attraction Price Display -->
+                    <!-- Attraction Price Display with 3 columns -->
                     <div class="col-12 mt-3">
                         <div id="day${day}_attraction_${newIndex}_price_display" class="alert alert-info" style="display: none;">
-                            <div class="d-flex align-items-center">
-                                <i class="ri-money-dollar-circle-line me-2 fs-4"></i>
-                                <div>
-                                    <strong>Attraction Pricing</strong>
-                                    <div class="small">Select an attraction and configure guests to see pricing</div>
+                            <div class="d-flex align-items-center justify-content-between mb-3">
+                                <div class="d-flex align-items-center">
+                                    <i class="ri-money-dollar-circle-line me-2 fs-4"></i>
+                                    <div>
+                                        <strong>Attraction Pricing</strong>
+                                        <div class="small">Select an attraction and configure guests to see pricing</div>
+                                    </div>
+                                </div>
+                                <button type="button" class="btn btn-sm btn-outline-primary" onclick="forceUpdateAttractionPricing(${day}, ${newIndex})" title="Refresh Pricing">
+                                    <i class="ri-refresh-line"></i>
+                                </button>
+                            </div>
+                            
+                            <!-- Three Column Pricing Layout -->
+                            <div class="row g-3" id="day${day}_attraction_${newIndex}_pricing_columns" style="display: none;">
+                                <!-- Column 1: Attraction/Ticket Pricing -->
+                                <div class="col-md-4">
+                                    <div class="p-3 rounded-3 bg-white border border-info">
+                                        <h6 class="text-info mb-3 fw-bold">
+                                            <i class="ri-ticket-line me-2"></i>Ticket Pricing
+                                        </h6>
+                                        <div id="day${day}_attraction_${newIndex}_ticket_pricing_content">
+                                            <div class="text-muted small">Select ticket to see pricing</div>
+                                        </div>
+                                    </div>
+                                </div>
+                                
+                                <!-- Column 2: Guide Pricing -->
+                                <div class="col-md-4">
+                                    <div class="p-3 rounded-3 bg-white border border-primary">
+                                        <h6 class="text-primary mb-3 fw-bold">
+                                            <i class="ri-user-line me-2"></i>Guide Pricing
+                                        </h6>
+                                        <div id="day${day}_attraction_${newIndex}_guide_pricing_content">
+                                            <div class="text-muted small">No guide selected</div>
+                                        </div>
+                                    </div>
+                                </div>
+                                
+                                <!-- Column 3: Transport Pricing -->
+                                <div class="col-md-4">
+                                    <div class="p-3 rounded-3 bg-white border border-success">
+                                        <h6 class="text-success mb-3 fw-bold">
+                                            <i class="ri-car-line me-2"></i>Transport Pricing
+                                        </h6>
+                                        <div id="day${day}_attraction_${newIndex}_transport_pricing_content">
+                                            <div class="text-muted small">No transport selected</div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                            
+                            <!-- Total Price Row -->
+                            <div class="row mt-3" id="day${day}_attraction_${newIndex}_total_price_row" style="display: none;">
+                                <div class="col-12">
+                                    <div class="p-3 rounded-3 bg-success text-white">
+                                        <div class="d-flex justify-content-between align-items-center">
+                                            <h6 class="mb-0 fw-bold">
+                                                <i class="ri-calculator-line me-2"></i>Total Price
+                                            </h6>
+                                            <span class="fw-bold fs-4" id="day${day}_attraction_${newIndex}_total_price_display">$0.00</span>
+                                        </div>
+                                    </div>
                                 </div>
                             </div>
                         </div>
@@ -14307,6 +15517,8 @@ document.addEventListener('DOMContentLoaded', function() {
         if (!selectedRestaurant || !selectedRestaurant.value) {
             console.log('No restaurant selected, hiding pricing');
             priceDisplay.style.display = 'none';
+            // Update total display (restaurant is 0)
+            updateRestaurantTotalDisplay(day, index);
             return;
         }
         
@@ -14321,10 +15533,12 @@ document.addEventListener('DOMContentLoaded', function() {
             priceDisplay.style.display = 'block';
             if (pricingDetailsDisplay) {
                 pricingDetailsDisplay.innerHTML = `
-                    <strong>Restaurant Selected: ${selectedRestaurant.text}</strong><br>
-                    <span class="text-muted">Please select a dish to see pricing information</span>
+                    <div><strong>Restaurant Selected: ${selectedRestaurant.text}</strong></div>
+                    <div class="text-muted">Please select a dish to see pricing information</div>
                 `;
             }
+            // Update total display (restaurant is 0, but transport might have value)
+            updateRestaurantTotalDisplay(day, index);
             return;
         }
         
@@ -14364,11 +15578,11 @@ document.addEventListener('DOMContentLoaded', function() {
             priceDisplay.style.display = 'block';
             if (pricingDetailsDisplay) {
                 pricingDetailsDisplay.innerHTML = `
-                    <strong>Restaurant Selected: ${selectedRestaurant.text}</strong><br>
-                    <strong>Dish: ${selectedDish.text}</strong><br>
-                    ${adults > 0 ? `${adults} Adults × $${adultPrice.toFixed(2)} = $${adultTotal.toFixed(2)}<br>` : ''}
-                    ${children > 0 ? `${children} Children × $${childPrice.toFixed(2)} = $${childTotal.toFixed(2)}<br>` : ''}
-                    <strong class="text-success">Total: $${totalPrice.toFixed(2)}</strong>
+                    <div><strong>Restaurant Selected: ${selectedRestaurant.text}</strong></div>
+                    <div><strong>Dish: ${selectedDish.text}</strong></div>
+                    ${adults > 0 ? `<div>${adults} Adults × $${adultPrice.toFixed(2)} = $${adultTotal.toFixed(2)}</div>` : ''}
+                    ${children > 0 ? `<div>${children} Children × $${childPrice.toFixed(2)} = $${childTotal.toFixed(2)}</div>` : ''}
+                    <div class="mt-2"><strong class="text-success">$${totalPrice.toFixed(2)}</strong></div>
                 `;
             }
             
@@ -14378,9 +15592,14 @@ document.addEventListener('DOMContentLoaded', function() {
                 totalPriceField.value = totalPrice.toFixed(2);
             }
             
+            // Update total display (restaurant + transport)
+            updateRestaurantTotalDisplay(day, index);
+            
             console.log(`Restaurant pricing updated for day ${day}, index ${index}: Total: $${totalPrice}`);
         } else {
             priceDisplay.style.display = 'none';
+            // Update total display even when no pricing
+            updateRestaurantTotalDisplay(day, index);
         }
     }
     
@@ -14492,9 +15711,9 @@ document.addEventListener('DOMContentLoaded', function() {
                     
                     <!-- Transfer Required Section -->
                     <div class="row g-3 mt-2">
-                        <div class="col-md-2">
+                        <div class="col-md-1">
                             <label class="form-label fw-semibold">
-                                <i class="ri-car-line me-1"></i>Transfer Required?
+                                <i class="ri-car-line me-1"></i>Transfer?
                             </label>
                             <select class="form-select" name="day${day}_restaurant_${newIndex}_transfer_required" id="day${day}_restaurant_${newIndex}_transfer_required" onchange="toggleRestaurantTransferFields(${day}, ${newIndex})">
                                 <option value="No">No</option>
@@ -14505,7 +15724,7 @@ document.addEventListener('DOMContentLoaded', function() {
                         <!-- Transfer Options (Hidden by default) -->
                         <div class="col-md-2 restaurant-transfer-fields" id="day${day}_restaurant_${newIndex}_transfer_type_field" style="display: none;">
                             <label class="form-label fw-semibold">Type</label>
-                            <select class="form-select" name="day${day}_restaurant_${newIndex}_transfer_type" id="day${day}_restaurant_${newIndex}_transfer_type">
+                            <select class="form-select" name="day${day}_restaurant_${newIndex}_transfer_type" id="day${day}_restaurant_${newIndex}_transfer_type" onchange="handleRestaurantTransferTypeOrWayChange(${day}, ${newIndex})">
                                 <option value="">Select Type</option>
                                 <option value="Private">Private</option>
                                 <option value="Shared">Shared</option>
@@ -14513,7 +15732,7 @@ document.addEventListener('DOMContentLoaded', function() {
                         </div>
                         <div class="col-md-2 restaurant-transfer-fields" id="day${day}_restaurant_${newIndex}_transfer_way_field" style="display: none;">
                             <label class="form-label fw-semibold">Way</label>
-                            <select class="form-select" name="day${day}_restaurant_${newIndex}_transfer_way" id="day${day}_restaurant_${newIndex}_transfer_way">
+                            <select class="form-select" name="day${day}_restaurant_${newIndex}_transfer_way" id="day${day}_restaurant_${newIndex}_transfer_way" onchange="handleRestaurantTransferTypeOrWayChange(${day}, ${newIndex})">
                                 <option value="">Select Way</option>
                                 <option value="One Way">One Way</option>
                                 <option value="Both Way">Both Way</option>
@@ -14521,37 +15740,57 @@ document.addEventListener('DOMContentLoaded', function() {
                         </div>
                         <div class="col-md-3 restaurant-transfer-fields" id="day${day}_restaurant_${newIndex}_transfer_vehicle_field" style="display: none;">
                             <label class="form-label fw-semibold">Vehicle</label>
-                            <select class="form-select" name="day${day}_restaurant_${newIndex}_transfer_vehicle" id="day${day}_restaurant_${newIndex}_transfer_vehicle">
+                            <select class="form-select" name="day${day}_restaurant_${newIndex}_transfer_vehicle" id="day${day}_restaurant_${newIndex}_transfer_vehicle" onchange="handleRestaurantVehicleChange(${day}, ${newIndex})">
                                 <option value="">Select Vehicle</option>
                             </select>
                         </div>
-                        <div class="col-md-3 restaurant-transfer-fields" id="day${day}_restaurant_${newIndex}_transfer_cost_field" style="display: none;">
-                            <label class="form-label fw-semibold">Cost</label>
-                            <input type="number" class="form-control" name="day${day}_restaurant_${newIndex}_transfer_cost" id="day${day}_restaurant_${newIndex}_transfer_cost" min="0" step="0.01" placeholder="0.00">
-                        </div>
-                    </div>
-                    
-                    <!-- Transfer Pickup Location Row -->
-                    <div class="row g-3 mt-2">
-                        <div class="col-md-12 restaurant-transfer-fields" id="day${day}_restaurant_${newIndex}_transfer_pickup_field" style="display: none;">
+                        
+                        <div class="col-md-3 restaurant-transfer-fields" id="day${day}_restaurant_${newIndex}_transfer_pickup_field" style="display: none;">
                             <label class="form-label fw-semibold">
                                 <i class="ri-map-pin-line me-1"></i>Pickup Location
                             </label>
-                            <select class="form-select" name="day${day}_restaurant_${newIndex}_transfer_pickup_location" id="day${day}_restaurant_${newIndex}_transfer_pickup_location">
+                            <select class="form-select" name="day${day}_restaurant_${newIndex}_transfer_pickup_location" id="day${day}_restaurant_${newIndex}_transfer_pickup_location" onchange="fetchRestaurantTransferPricing(${day}, ${newIndex})">
                                 <option value="">Select Pickup Location</option>
                             </select>
+                        </div>
+                        <div class="col-md-1 restaurant-transfer-fields" id="day${day}_restaurant_${newIndex}_transfer_cost_field" style="display: none;">
+                            <label class="form-label fw-semibold">Cost</label>
+                            <input type="number" class="form-control" name="day${day}_restaurant_${newIndex}_transfer_cost" id="day${day}_restaurant_${newIndex}_transfer_cost" min="0" step="0.01" placeholder="0.00" onchange="updateRestaurantTransportPricing(${day}, ${newIndex})" oninput="updateRestaurantTransportPricing(${day}, ${newIndex})">
                         </div>
                     </div>
                     
                     <!-- Restaurant Pricing Section -->
                     <div id="day${day}_restaurant_${newIndex}_price_display" class="mt-3" style="display: none;">
                         <div class="alert alert-success">
-                            <div class="d-flex align-items-center">
+                            <div class="d-flex align-items-center mb-3">
                                 <i class="ri-restaurant-line me-2 fs-4"></i>
                                 <div>
                                     <strong>Restaurant Pricing: <span id="day${day}_restaurant_${newIndex}_restaurant_name">Restaurant Name</span></strong>
-                                    <div class="small" id="day${day}_restaurant_${newIndex}_pricing_details">
-                                        Select a restaurant and configure guests to see pricing
+                                </div>
+                            </div>
+                            <div class="row g-3">
+                                <div class="col-md-9">
+                                    <div class="text-end">
+                                        <strong class="d-block mb-2">Restaurant Pricing</strong>
+                                        <div class="small" id="day${day}_restaurant_${newIndex}_pricing_details" style="text-align: right;">
+                                            Select a restaurant and configure guests to see pricing
+                                        </div>
+                                    </div>
+                                </div>
+                                <div class="col-md-3">
+                                    <div class="text-end">
+                                        <strong class="d-block mb-2">Transfer Pricing</strong>
+                                        <div id="day${day}_restaurant_${newIndex}_transport_pricing_content" style="text-align: right;">
+                                            <div class="text-muted small">No transport selected</div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                            <hr class="my-2">
+                            <div class="row">
+                                <div class="col-12">
+                                    <div class="text-end">
+                                        <strong class="fs-5 text-success">Total: $<span id="day${day}_restaurant_${newIndex}_total_display">0.00</span></strong>
                                     </div>
                                 </div>
                             </div>
@@ -14984,13 +16223,16 @@ document.addEventListener('DOMContentLoaded', function() {
             }
         }, 100);
         
-        // Add night hours info at top if night hours exist
+        // Append the select element to the container first
+        timeOptionsContainer.appendChild(selectElement);
+        
+        // Add night hours info below the select field if night hours exist
         if (nightStart !== null && nightEnd !== null && nightEnd >= 0) {
             // Get original end time for display (without the -1 adjustment)
             const originalNightEnd = parseInt(nightEndTime.split(':')[0]);
             
             const nightInfo = document.createElement('div');
-            nightInfo.className = 'alert alert-warning py-2 mb-2';
+            nightInfo.className = 'alert alert-warning py-2 mb-2 mt-2';
             nightInfo.innerHTML = `
                 <i class="ri-moon-line me-1"></i>
                 <strong>Night Hours:</strong> ${formatTo12Hour(nightStart)} - ${formatTo12Hour(originalNightEnd)}
@@ -14998,9 +16240,6 @@ document.addEventListener('DOMContentLoaded', function() {
             `;
             timeOptionsContainer.appendChild(nightInfo);
         }
-        
-        // Append the select element to the container
-        timeOptionsContainer.appendChild(selectElement);
         
         // Initialize Select2 on the newly created select element
         setTimeout(() => {
@@ -20616,7 +21855,6 @@ window.updateExitPortCustomPricing = function(day, section) {
     } else {
         // Hide price display if no custom price
         priceDisplay.style.display = 'none';
-        
         // Clear hidden fields
         const basePriceField = document.getElementById(`day${day}_${section}_base_price`);
         const totalPriceField = document.getElementById(`day${day}_${section}_total_price`);
