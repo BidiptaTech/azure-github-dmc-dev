@@ -227,6 +227,57 @@
             font-weight: bold;
             color: #0d6efd;
         }
+
+        .tour-toggle {
+            position: relative;
+            display: flex;
+            background: #e9ecef;
+            border-radius: 30px;
+            padding: 4px;
+            width: 100%;
+            height: 42px;
+            align-items: center;
+        }
+
+        .tour-toggle input {
+            display: none;
+        }
+
+        .tour-toggle label {
+            flex: 1;
+            text-align: center;
+            cursor: pointer;
+            font-weight: 600;
+            font-size: 14px;
+            z-index: 2;
+            color: #6c757d;
+            transition: color 0.3s ease;
+        }
+
+        .tour-toggle .slider {
+            position: absolute;
+            top: 4px;
+            bottom: 4px;
+            left: 4px;
+            width: calc(50% - 4px);
+            background: linear-gradient(135deg, #198754, #20c997);
+            border-radius: 30px;
+            transition: all 0.3s ease;
+            z-index: 1;
+        }
+
+        .tour-toggle input#fit:checked ~ .slider {
+            left: 4px;
+        }
+
+        .tour-toggle input#group:checked ~ .slider {
+            left: 50%;
+        }
+
+        .tour-toggle input:checked + label {
+            color: #fff;
+        }
+
     </style>
     
     {{-- 
@@ -250,9 +301,28 @@
                                 <h4 class="mb-1 text-white">Create Single Tour Package</h4>
                                 <p class="mb-0 opacity-75">Design personalized tour experiences for your clients</p>
                             </div>
+
+                            <div class="col-md-2 ms-auto">
+                                <label class="form-label fw-semibold d-flex">
+                                    <i class="ri-group-line me-1"></i> Tour Type
+                                </label>
+                            
+                                <div class="tour-toggle ms-auto">
+                                    <input type="radio" name="tour_type" id="fit" value="FIT" checked>
+                                    <label for="fit">FIT</label>
+                            
+                                    <input type="radio" name="tour_type" id="group" value="GROUP">
+                                    <label for="group">GROUP</label>
+                            
+                                    <span class="slider"></span>
+                                </div>
+                            </div>
+                            
                         </div>
+                        
                     </div>
                 </div>
+                
             </div>
         </div>
 
@@ -378,6 +448,8 @@
                                         <input type="hidden" name="agent_id" value="{{ $enquiry->agent_id }}">
                                     @endif
                                 </div>
+
+                                
 
                             </div>
                         </div>
@@ -12529,7 +12601,7 @@ document.addEventListener('DOMContentLoaded', function() {
                                  
                                  <!-- Transfer Required Section -->
                                  <div class="row g-3 mt-2">
-                                     <div class="col-md-1">
+                                     <div class="col-md-2">
                                          <label class="form-label fw-semibold">
                                              <i class="ri-car-line me-1"></i>Transfer?
                                          </label>
@@ -12570,7 +12642,7 @@ document.addEventListener('DOMContentLoaded', function() {
                                              <option value="">Select Pickup Location</option>
                                          </select>
                                      </div>
-                                     <div class="col-md-1 attraction-transfer-fields" id="day${day}_attraction_1_transfer_cost_field" style="display: none;">
+                                     <div class="col-md-2 attraction-transfer-fields" id="day${day}_attraction_1_transfer_cost_field" style="display: none;">
                                          <label class="form-label fw-semibold">Cost</label>
                                          <input type="number" class="form-control" name="day${day}_attraction_1_transfer_cost" id="day${day}_attraction_1_transfer_cost" min="0" step="0.01" placeholder="0.00" onchange="updateAttractionTransportPricing(${day}, 1)" oninput="updateAttractionTransportPricing(${day}, 1)">
                                      </div>
@@ -12579,7 +12651,7 @@ document.addEventListener('DOMContentLoaded', function() {
                                  
                                  <!-- Guide Required Section -->
                                  <div class="row g-3 mt-2">
-                                     <div class="col-md-1">
+                                     <div class="col-md-2">
                                          <label class="form-label fw-semibold">
                                              <i class="ri-user-star-line me-1"></i>Guide?
                                          </label>
@@ -12778,42 +12850,43 @@ document.addEventListener('DOMContentLoaded', function() {
                                         </div>
                                         <input type="hidden" name="day${day}_guide_1_pickup_time" id="day${day}_guide_1_pickup_time">
                                     </div>
-                                     <div class="col-md-3">
-                                         <label class="form-label fw-semibold">Select Package</label>
-                                         <select class="form-select" name="day${day}_guide_1_package" id="day${day}_guide_1_package" onchange="updateGuidePricing(${day}, 1)">
-                                             <option value="">Select Duration</option>
-                                         </select>
+                                    <div class="col-md-3">
+                                        <label class="form-label fw-semibold">Select Package</label>
+                                        <select class="form-select" name="day${day}_guide_1_package" id="day${day}_guide_1_package" onchange="updateGuidePricing(${day}, 1)">
+                                            <option value="">Select Duration</option>
+                                        </select>
+                                    </div>
+                                     <div class="col-md-12">
+                                         
                                          
                                          <!-- Guide Price Display Section -->
-                                         <div id="day${day}_guide_1_price_display" class="mt-3" style="display: none;" >
-                                             <div class="p-3 rounded-3" style="background-color: #e3f2fd; border: 1px solid #bbdefb; border-radius: 8px;">
-                                                 <h6 class="text-primary mb-3 fw-bold">
+                                         <div id="day${day}_guide_1_price_display" class="mt-3" style="display: none;">
+                                             <div class="p-2 rounded-3" style="background-color: #e3f2fd; border: 1px solid #bbdefb; border-radius: 8px;">
+                                                 <h6 class="text-primary mb-2 fw-bold">
                                                      <i class="ri-user-line me-2"></i>Guide Pricing: <span id="day${day}_guide_1_guide_name">Guide Name</span>
                                                  </h6>
                                                  
-                                                 <div class="row">
-                                                     <div class="col-12">
-                                                         <div class="d-flex justify-content-between align-items-center mb-2">
-                                                             <span class="text-primary">Package Price:</span>
-                                                             <span class="fw-semibold text-primary" id="day${day}_guide_1_package_price_display">$0.00</span>
-                                                         </div>
-                                                         
-                                                         <div class="d-flex justify-content-between align-items-center mb-2">
-                                                             <span class="text-primary">Duration:</span>
-                                                             <span class="fw-semibold text-primary" id="day${day}_guide_1_hours_display">0 hours</span>
-                                                         </div>
-                                                         
-                                                         <div class="d-flex justify-content-between align-items-center mb-2" id="day${day}_guide_1_surcharge_row" style="display: none;">
-                                                             <span class="text-primary">Night Surcharge:</span>
-                                                             <span class="fw-semibold text-warning" id="day${day}_guide_1_surcharge_display">$0.00</span>
-                                                         </div>
-                                                         
-                                                         <hr class="my-3" style="border-color: #bbdefb;">
-                                                         
-                                                         <div class="d-flex justify-content-between align-items-center">
-                                                             <span class="fw-bold text-primary">Total Price:</span>
-                                                             <span class="fw-bold text-success fs-5" id="day${day}_guide_1_total_price_display">$0.00</span>
-                                                         </div>
+                                                 <div>
+                                                     <div class="d-flex align-items-center mb-1">
+                                                         <span class="text-primary small me-2">Package Price:</span>
+                                                         <span class="fw-semibold text-primary" id="day${day}_guide_1_package_price_display">$0.00</span>
+                                                     </div>
+                                                     
+                                                     <div class="d-flex align-items-center mb-1">
+                                                         <span class="text-primary small me-2">Duration:</span>
+                                                         <span class="fw-semibold text-primary" id="day${day}_guide_1_hours_display">0 hours</span>
+                                                     </div>
+                                                     
+                                                     <div class="d-flex align-items-center mb-1" id="day${day}_guide_1_surcharge_row" style="display: none;">
+                                                         <span class="text-primary small me-2">Night Surcharge:</span>
+                                                         <span class="fw-semibold text-warning" id="day${day}_guide_1_surcharge_display">$0.00</span>
+                                                     </div>
+                                                     
+                                                     <hr class="my-1" style="border-color: #bbdefb;">
+                                                     
+                                                     <div class="d-flex align-items-center">
+                                                         <span class="fw-bold text-primary me-2">Total Price:</span>
+                                                         <span class="fw-bold text-success fs-6" id="day${day}_guide_1_total_price_display">$0.00</span>
                                                      </div>
                                                  </div>
                                              </div>
@@ -12936,7 +13009,7 @@ document.addEventListener('DOMContentLoaded', function() {
                                  
                                  <!-- Transfer Required Section -->
                                  <div class="row g-3 mt-2">
-                                     <div class="col-md-1">
+                                     <div class="col-md-2">
                                          <label class="form-label fw-semibold">
                                              <i class="ri-car-line me-1"></i>Transfer?
                                          </label>
@@ -12977,7 +13050,7 @@ document.addEventListener('DOMContentLoaded', function() {
                                              <option value="">Select Pickup Location</option>
                                          </select>
                                      </div>
-                                     <div class="col-md-1 restaurant-transfer-fields" id="day${day}_restaurant_1_transfer_cost_field" style="display: none;">
+                                     <div class="col-md-2 restaurant-transfer-fields" id="day${day}_restaurant_1_transfer_cost_field" style="display: none;">
                                          <label class="form-label fw-semibold">Cost</label>
                                          <input type="number" class="form-control" name="day${day}_restaurant_1_transfer_cost" id="day${day}_restaurant_1_transfer_cost" min="0" step="0.01" placeholder="0.00" onchange="updateRestaurantTransportPricing(${day}, 1)" oninput="updateRestaurantTransportPricing(${day}, 1)">
                                      </div>
@@ -12994,17 +13067,17 @@ document.addEventListener('DOMContentLoaded', function() {
                                         </div>
                                         <div class="row g-3">
                                             <div class="col-md-9">
-                                                <div class="text-end">
+                                                <div>
                                                     <strong class="d-block mb-2">Restaurant Pricing</strong>
-                                                    <div class="small" id="day${day}_restaurant_1_pricing_details" style="text-align: right;">
+                                                    <div class="small" id="day${day}_restaurant_1_pricing_details">
                                                         Select a restaurant and configure guests to see pricing
                                                     </div>
                                                 </div>
                                             </div>
                                             <div class="col-md-3">
-                                                <div class="text-end">
+                                                <div>
                                                     <strong class="d-block mb-2">Transfer Pricing</strong>
-                                                    <div id="day${day}_restaurant_1_transport_pricing_content" style="text-align: right;">
+                                                    <div id="day${day}_restaurant_1_transport_pricing_content" >
                                                         <div class="text-muted small">No transport selected</div>
                                                     </div>
                                                 </div>
@@ -14294,7 +14367,7 @@ document.addEventListener('DOMContentLoaded', function() {
                     
                     <!-- Transfer Required Section -->
                     <div class="row g-3 mt-2">
-                        <div class="col-md-1">
+                        <div class="col-md-2">
                             <label class="form-label fw-semibold">
                                 <i class="ri-car-line me-1"></i>Transfer?
                             </label>
@@ -14335,7 +14408,7 @@ document.addEventListener('DOMContentLoaded', function() {
                                 <option value="">Select Pickup Location</option>
                             </select>
                         </div>
-                        <div class="col-md-1 attraction-transfer-fields" id="day${day}_attraction_${newIndex}_transfer_cost_field" style="display: none;">
+                        <div class="col-md-2 attraction-transfer-fields" id="day${day}_attraction_${newIndex}_transfer_cost_field" style="display: none;">
                             <label class="form-label fw-semibold">Cost</label>
                             <input type="number" class="form-control" name="day${day}_attraction_${newIndex}_transfer_cost" id="day${day}_attraction_${newIndex}_transfer_cost" min="0" step="0.01" placeholder="0.00" onchange="updateAttractionTransportPricing(${day}, ${newIndex})" oninput="updateAttractionTransportPricing(${day}, ${newIndex})">
                         </div>
@@ -14346,7 +14419,7 @@ document.addEventListener('DOMContentLoaded', function() {
                     
                     <!-- Guide Required Section -->
                     <div class="row g-3 mt-2">
-                        <div class="col-md-1">
+                        <div class="col-md-2">
                             <label class="form-label fw-semibold">
                                 <i class="ri-user-star-line me-1"></i>Guide?
                             </label>
@@ -15711,7 +15784,7 @@ document.addEventListener('DOMContentLoaded', function() {
                     
                     <!-- Transfer Required Section -->
                     <div class="row g-3 mt-2">
-                        <div class="col-md-1">
+                        <div class="col-md-2">
                             <label class="form-label fw-semibold">
                                 <i class="ri-car-line me-1"></i>Transfer?
                             </label>
@@ -15770,17 +15843,17 @@ document.addEventListener('DOMContentLoaded', function() {
                             </div>
                             <div class="row g-3">
                                 <div class="col-md-9">
-                                    <div class="text-end">
+                                    <div>
                                         <strong class="d-block mb-2">Restaurant Pricing</strong>
-                                        <div class="small" id="day${day}_restaurant_${newIndex}_pricing_details" style="text-align: right;">
+                                        <div class="small" id="day${day}_restaurant_${newIndex}_pricing_details">
                                             Select a restaurant and configure guests to see pricing
                                         </div>
                                     </div>
                                 </div>
                                 <div class="col-md-3">
-                                    <div class="text-end">
+                                    <div>
                                         <strong class="d-block mb-2">Transfer Pricing</strong>
-                                        <div id="day${day}_restaurant_${newIndex}_transport_pricing_content" style="text-align: right;">
+                                        <div id="day${day}_restaurant_${newIndex}_transport_pricing_content">
                                             <div class="text-muted small">No transport selected</div>
                                         </div>
                                     </div>
@@ -16395,43 +16468,42 @@ document.addEventListener('DOMContentLoaded', function() {
                              </div>
                              <input type="hidden" name="day${day}_guide_${newIndex}_pickup_time" id="day${day}_guide_${newIndex}_pickup_time">
                          </div>
-                        <div class="col-md-3">
-                            <label class="form-label fw-semibold">Select Package</label>
-                            <select class="form-select" name="day${day}_guide_${newIndex}_package" id="day${day}_guide_${newIndex}_package" onchange="updateGuidePricing(${day}, ${newIndex})">
-                                <option value="">Select Duration</option>
-                            </select>
+                         <div class="col-md-3">
+                             <label class="form-label fw-semibold">Select Package</label>
+                             <select class="form-select" name="day${day}_guide_${newIndex}_package" id="day${day}_guide_${newIndex}_package" onchange="updateGuidePricing(${day}, ${newIndex})">
+                                 <option value="">Select Duration</option>
+                             </select>
+                         </div>
+                        <div class="col-md-12">
+                            
                             <!-- Guide Price Display Section -->
                             <div id="day${day}_guide_${newIndex}_price_display" class="mt-3" style="display: none;">
-                                <div class="card border-0" style="background-color: #e3f2fd;">
-                                    <div class="card-body p-3">
-                                        <h6 class="card-title text-primary mb-3">
-                                            <i class="ri-user-line me-2"></i>Guide Pricing: <span id="day${day}_guide_${newIndex}_guide_name">Guide Name</span>
-                                        </h6>
+                                <div class="p-2 rounded-3 w-100" style="background-color: #e3f2fd; border: 1px solid #bbdefb; border-radius: 8px;">
+                                    <h6 class="text-primary mb-2 fw-bold">
+                                        <i class="ri-user-line me-2"></i>Guide Pricing: <span id="day${day}_guide_${newIndex}_guide_name">Guide Name</span>
+                                    </h6>
+                                    
+                                    <div>
+                                        <div class="d-flex align-items-center mb-1">
+                                            <span class="text-primary small me-2">Package Price:</span>
+                                            <span class="fw-semibold text-primary" id="day${day}_guide_${newIndex}_package_price_display">$0.00</span>
+                                        </div>
                                         
-                                        <div class="row">
-                                            <div class="col-12">
-                                                <div class="d-flex justify-content-between align-items-center mb-2">
-                                                    <span class="text-muted">Package Price:</span>
-                                                    <span class="fw-semibold" id="day${day}_guide_${newIndex}_package_price_display">$0.00</span>
-                                                </div>
-                                                
-                                                <div class="d-flex justify-content-between align-items-center mb-2">
-                                                    <span class="text-muted">Duration:</span>
-                                                    <span class="fw-semibold" id="day${day}_guide_${newIndex}_hours_display">0 hours</span>
-                                                </div>
-                                                
-                                                <div class="d-flex justify-content-between align-items-center mb-2" id="day${day}_guide_${newIndex}_surcharge_row" style="display: none;">
-                                                    <span class="text-muted">Night Surcharge:</span>
-                                                    <span class="fw-semibold text-warning" id="day${day}_guide_${newIndex}_surcharge_display">$0.00</span>
-                                                </div>
-                                                
-                                                <hr class="my-2">
-                                                
-                                                <div class="d-flex justify-content-between align-items-center">
-                                                    <span class="fw-bold text-primary">Total Price:</span>
-                                                    <span class="fw-bold text-success fs-5" id="day${day}_guide_${newIndex}_total_price_display">$0.00</span>
-                                                </div>
-                                            </div>
+                                        <div class="d-flex align-items-center mb-1">
+                                            <span class="text-primary small me-2">Duration:</span>
+                                            <span class="fw-semibold text-primary" id="day${day}_guide_${newIndex}_hours_display">0 hours</span>
+                                        </div>
+                                        
+                                        <div class="d-flex align-items-center mb-1" id="day${day}_guide_${newIndex}_surcharge_row" style="display: none;">
+                                            <span class="text-primary small me-2">Night Surcharge:</span>
+                                            <span class="fw-semibold text-warning" id="day${day}_guide_${newIndex}_surcharge_display">$0.00</span>
+                                        </div>
+                                        
+                                        <hr class="my-1" style="border-color: #bbdefb;">
+                                        
+                                        <div class="d-flex align-items-center">
+                                            <span class="fw-bold text-primary me-2">Total Price:</span>
+                                            <span class="fw-bold text-success fs-6" id="day${day}_guide_${newIndex}_total_price_display">$0.00</span>
                                         </div>
                                     </div>
                                 </div>
