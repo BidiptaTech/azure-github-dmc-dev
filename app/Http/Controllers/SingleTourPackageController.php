@@ -811,10 +811,6 @@ class SingleTourPackageController extends Controller
             return redirect()->back()->with('error', 'Tour not found.');
         }
 
-        $tourAgent = Agent::select('name', 'agent_id')->where('agent_id', $tour->agent_id)->first();
-        $agent_name = $tourAgent->name ?? null;
-        $agent_id = $tourAgent->agent_id ?? null;
-
         $userDmcId = CommonHelper::getDmcId(Auth::user());
         $UserDmc = User::select('userId', 'zone_on')->where('userId', $userDmcId)->first();
 
@@ -859,10 +855,7 @@ class SingleTourPackageController extends Controller
         $countries = Country::where('is_active', 1)->orderBy('name')->get();
         $portsQuery = Port::query();
         if ($tour->destination) {
-            $country = Country::where('name', $tour->destination)->first();
-            if ($country) {
-                $portsQuery->where('country', $country->name);
-            }
+            $portsQuery->where('country', $tour->destination);
         }
         $cities = City::where('country', $tour->destination)->get();
         if ($cities->isEmpty()) {
@@ -874,8 +867,6 @@ class SingleTourPackageController extends Controller
         $agents = Agent::whereIn('agency_id', $agencies->pluck('agency_id'))
             ->orderBy('name')
             ->get();
-
-        $selectedCountry = $request->input('country', $tour->destination);
 
         $orders = Order::where('tour_id', $tourId)
             ->whereNull('deleted_at')
@@ -900,7 +891,6 @@ class SingleTourPackageController extends Controller
             $customer_info['specialRequests'] = $firstOrderData['specialRequests'] ?? '';
         }
 
-        $ordersByType = [];
         $hotelOrders = [];
 
         $checkInDate = \Carbon\Carbon::parse($tour->check_in_time);
@@ -928,11 +918,6 @@ class SingleTourPackageController extends Controller
                 $hotelOrders[] = $order;
                 continue;
             }
-
-            if (!isset($ordersByType[$type])) {
-                $ordersByType[$type] = [];
-            }
-            $ordersByType[$type][] = $order;
 
             $bookingDate = null;
             if (isset($orderData[0]['bookingDate'])) {
@@ -977,15 +962,11 @@ class SingleTourPackageController extends Controller
             'countries',
             'agents',
             'ports',
-            'selectedCountry',
-            'ordersByType',
-            'agent_name',
             'hotels',
             'guides',
             'restaurants',
             'attractions',
             'customer_info',
-            'agent_id',
             'vehicles',
             'hotelOrders',
             'tourDays',
