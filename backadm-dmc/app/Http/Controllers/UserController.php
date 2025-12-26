@@ -789,8 +789,8 @@ class UserController extends Controller
         
             // Final sorted result
             $users = $allUsers->sortBy('userId')->values();
-        }elseif($this->auth_user->role_id == 124){
-            // Recursive approach to get all users directly and indirectly created by role_id 124
+        }elseif($this->auth_user->role_id == 124 || $this->auth_user->role_id == 126){
+            // Recursive approach to get all users directly and indirectly created by role_id 124 or 126
             $allUsers = collect(); // Final result
             $creatorIds = collect([$this->auth_user->userId]); // Start with current user
         
