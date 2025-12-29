@@ -10,6 +10,7 @@ class Attraction extends Model
     use HasFactory;
     use SoftDeletes;
     protected $table = 'attractions'; 
+    protected $primaryKey = 'attraction_id';
     protected $guarded = [];
 
     protected $casts = [

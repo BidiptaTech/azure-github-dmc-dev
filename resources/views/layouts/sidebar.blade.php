@@ -1244,7 +1244,7 @@
                 <!-- Product Configuration -->
             
                 @if(hasPermission('view facility') || hasPermission('view category') || Auth::user()->role_id == 11 || Auth::user()->role_id == 35 || Auth::user()->role_id == 76 || Auth::user()->role_id == 111 || Auth::user()->role_id == 139 || Auth::user()->role_id == 140 || Auth::user()->role_id == 130 || Auth::user()->role_id == 132 || Auth::user()->role_id == 133 || Auth::user()->role_id == 135 || Auth::user()->role_id == 136 || Auth::user()->role_id == 137 || Auth::user()->role_id == 138)
-                <li class="menu-item @if(Request::is('category*') || Request::is('facility*') || Request::is('zones*') || Request::is('ports*')) open @endif">
+                <li class="menu-item @if(Request::is('category*') || Request::is('facility*') || Request::is('zones*') || Request::is('ports*') || Request::is('miscellaneous*')) open @endif">
                     <a href="#" class="menu-link menu-toggle" title="Product Configuration">
                         {{-- <i class="menu-icon tf-icons ri-function-line"></i> --}}
                         <div data-i18n="Product Configuration">Product Configuration</div>
@@ -1271,6 +1271,16 @@
                             </a>
                         </li>
                         @endif
+                        
+                        <!-- Miscellaneous Items - Admin Only -->
+                        <li class="menu-item @if(Request::is('miscellaneous') || Request::is('miscellaneous/*')) active @endif">
+                            <a href="{{ route('miscellaneous.index') }}" class="menu-link" title="Miscellaneous Items">
+                                <div data-i18n="Miscellaneous Items" class="menu-tooltip">
+                                    <span class="menu-text-with-tooltip">Miscellaneous Items</span>
+                                    <span class="tooltip-text">Miscellaneous Items</span>
+                                </div>
+                            </a>
+                        </li>
                         @endif
                         @if(Auth::user()->role_id == 1 || Auth::user()->role_id == 2)
                         <!-- Show Port -->
@@ -1635,6 +1645,18 @@
                         <li class="menu-item @if(Request::is('services/agencies')) active @endif">
                             <a href="{{ route('services.agencies') }}" class="menu-link">
                                 <div data-i18n="Select Agencies">Select Agencies</div>
+                            </a>
+                        </li>
+                        @endif
+                        
+                        <!-- DMC Miscellaneous Selection -->
+                        @php
+                            $allowedRoles = [11, 35, 77, 78, 84, 120, 130, 132, 133, 135, 136, 137, 138, 139, 140];
+                        @endphp
+                        @if(in_array(Auth::user()->role_id, $allowedRoles))
+                        <li class="menu-item @if(Request::is('services/miscellaneous')) active @endif">
+                            <a href="{{ route('services.miscellaneous') }}" class="menu-link">
+                                <div data-i18n="Select Miscellaneous">Select Miscellaneous</div>
                             </a>
                         </li>
                         @endif
@@ -2245,7 +2267,7 @@
                             <label class="form-label small mb-0 d-flex align-items-center" style="font-size: 10px;">
                                 Destination <span class="text-danger">*</span>
                                 <div class="form-check form-check-inline ms-3 mb-0">
-                                    <input class="form-check-input" type="checkbox" id="multipleDestination" name="multiple_destination" style="margin-top: 0;">
+                                    <input class="form-check-input" type="checkbox" id="multipleDestination" name="multiple_destination" value="1" style="margin-top: 0;">
                                     <label class="form-check-label" for="multipleDestination" style="font-size: 10px;">Multiple Cities</label>
                                 </div>
                             </label>
