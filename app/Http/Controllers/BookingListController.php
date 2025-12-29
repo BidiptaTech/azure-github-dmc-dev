@@ -1075,11 +1075,107 @@ class BookingListController extends Controller
         // Sort dates
         ksort($itineraryByDate);
         
+        // Get DMC price_hide setting based on user hierarchy
+        $priceHide = 1; // Default to show prices
+        $currentUser = auth()->user();
+        
+        if ($currentUser) {
+            $dmcId = $this->getDmcIdByUserRole($currentUser);
+            if ($dmcId) {
+                $dmc = \App\Models\User::where('userId', $dmcId)->first();
+                if ($dmc) {
+                    $priceHide = $dmc->price_hide ?? 0; // Default to 0 (show prices) if not set
+                }
+            }
+        }
+        
         return view('bookingList.itinerary', [
             'tourId' => $tourId,
             'itineraryByDate' => $itineraryByDate,
-            'tourDetails' => $tourDetails
+            'tourDetails' => $tourDetails,
+            'priceHide' => $priceHide
         ]);
+    }
+    
+    /**
+     * Get DMC ID based on user role hierarchy
+     */
+    private function getDmcIdByUserRole($user)
+    {
+        switch ($user->role_id) {
+            case 11: // DMC
+                return $user->userId;
+                
+            case 33: // Sales Head
+            case 128:
+            case 129:
+            case 130:
+            case 134:
+            case 135:
+            case 136:
+            case 138:
+                $dmcUser = \App\Models\User::where('userId', $user->created_by)->first();
+                return ($dmcUser && $dmcUser->role_id == 11) ? $dmcUser->userId : null;
+                
+            case 37: // Sales Manager
+                $salesHead = \App\Models\User::where('userId', $user->created_by)->first();
+                if ($salesHead) {
+                    $dmcUser = \App\Models\User::where('userId', $salesHead->created_by)->first();
+                    return ($dmcUser && $dmcUser->role_id == 11) ? $dmcUser->userId : null;
+                }
+                break;
+                
+            case 38: // Assistant Sales Manager
+                $salesManager = \App\Models\User::where('userId', $user->created_by)->first();
+                if ($salesManager) {
+                    $salesHead = \App\Models\User::where('userId', $salesManager->created_by)->first();
+                    if ($salesHead) {
+                        $dmcUser = \App\Models\User::where('userId', $salesHead->created_by)->first();
+                        return ($dmcUser && $dmcUser->role_id == 11) ? $dmcUser->userId : null;
+                    }
+                }
+                break;
+        }
+        
+        return null;
+    }
+    
+    /**
+     * API endpoint to check current price_hide value for the DMC
+     */
+    public function checkPriceHide()
+    {
+        try {
+            $currentUser = auth()->user();
+            $priceHide = 0; // Default to show prices (0 = show, 1 = hide)
+            $dmcId = null;
+            
+            if ($currentUser) {
+                $dmcId = $this->getDmcIdByUserRole($currentUser);
+                if ($dmcId) {
+                    $dmc = \App\Models\User::where('userId', $dmcId)->first();
+                    if ($dmc) {
+                        // Ensure price_hide is returned as integer (0 or 1)
+                        // 0 = show prices, 1 = hide prices
+                        $priceHide = (int)($dmc->price_hide ?? 0);
+                    }
+                }
+            }
+            
+            return response()->json([
+                'success' => true,
+                'price_hide' => $priceHide, // Return as integer: 0 or 1
+                'dmc_id' => $dmcId,
+                'timestamp' => now()->toDateTimeString()
+            ]);
+        } catch (\Exception $e) {
+            \Log::error('Error in checkPriceHide: ' . $e->getMessage());
+            return response()->json([
+                'success' => false,
+                'error' => 'Failed to check price hide status',
+                'price_hide' => 0 // Default to show prices on error (0 = show, 1 = hide)
+            ], 500);
+        }
     }
     
     /**

@@ -267,7 +267,7 @@ class BookingsController extends Controller
 
             $tour->update(['tour_status' => $newStatus]);
 
-            return back()->with('success', 'Tour cancelled successfully! Status has been updated to ' . $newStatus . '.');
+            return back()->with('success', 'Tour #' . $tour->tour_id . ' cancelled successfully! Status has been updated to ' . $newStatus . '.');
         }
 
         if ($action === 'confirm') {
@@ -295,7 +295,7 @@ class BookingsController extends Controller
                     ->update(['deleted_at' => now()]);
             }
 
-            return back()->with('success', 'Tour confirmed successfully! Status has been updated to Confirmed and booking has been finalized.');
+            return back()->with('success', 'Tour #' . $tour->tour_id . ' confirmed successfully! Status has been updated to Confirmed and booking has been finalized.');
         }
 
         return back()->with('error', 'Unsupported action requested.');

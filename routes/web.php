@@ -191,7 +191,6 @@ Route::get('/clear', function () {
             Route::post('/package-store-orders', [SingleTourPackageController::class, 'storeServiceOrders'])->name('single-tour-package.store-orders');
             Route::post('/single-tour-package/orders/{order}/update', [SingleTourPackageController::class, 'updateServiceOrder'])->name('single-tour-package.orders.update');
             Route::post('/single-tour-package/{tour}/info', [EditTourController::class, 'updateTour'])->name('single-tour-package.update-info');
-            
             // Service update routes via EditTourController
             Route::post('/edit-tour/hotel/{order}', [EditTourController::class, 'updateHotel'])->name('edit-tour.update-hotel');
             Route::post('/edit-tour/attraction/{order}', [EditTourController::class, 'updateAttraction'])->name('edit-tour.update-attraction');
@@ -302,6 +301,8 @@ Route::get('/clear', function () {
             Route::get('/fetch-zone-assigned-locations', [SingleTourPackageController::class, 'fetchZoneAssignedLocations'])->name('fetch-zone-assigned-locations');
             Route::get('/fetch-attractions-by-dmc', [SingleTourPackageController::class, 'fetchAttractionsByDmc'])->name('fetch-attractions-by-dmc');
             Route::get('/fetch-tickets-by-attraction', [SingleTourPackageController::class, 'fetchTickets'])->name('fetch-tickets-by-attraction');
+            Route::post('/fetch-attraction-transfer-pricing', [SingleTourPackageController::class, 'fetchAttractionTransferPricing'])->name('fetch-attraction-transfer-pricing');
+            Route::post('/fetch-restaurant-transfer-pricing', [SingleTourPackageController::class, 'fetchRestaurantTransferPricing'])->name('fetch-restaurant-transfer-pricing');
             Route::get('/fetch-hotels-by-dmc', [SingleTourPackageController::class, 'fetchHotels'])->name('fetch-hotels-by-dmc');
             Route::get('/fetch-rooms-by-hotel', [SingleTourPackageController::class, 'fetchRooms'])->name('fetch-rooms-by-hotel');
             Route::get('/fetch-beds-by-room', [SingleTourPackageController::class, 'fetchBeds'])->name('fetch-beds-by-room');
@@ -481,7 +482,7 @@ Route::get('/clear', function () {
         Route::get('jobsheet/view', [JobSheetController::class, 'viewJobsheets'])->name('jobsheet.view');
 
         Route::get('get-dmcs/{masterDmcId}', [JobSheetController::class, 'getDmcsByMaster'])->name('get.dmcs');
-        Route::get('get-drivers/{dmcId}', [JobSheetController::class, 'getDriversByDmc'])->name('get.drivers');
+        Route::get('get-drivers/{dmcId}', [JobSheetController::class, 'getDriversByDmc'])->name('get.drqivers');
         Route::get('get-driver-schedule/{driverId}', [JobSheetController::class, 'getDriverSchedule'])->name('get.driver.schedule');
         Route::get('get-tour-details/{tourId}', [JobSheetController::class, 'getTourDetails'])->name('get.tour.details');
         Route::get('get-tour-orders/{tourId}/{date}', [JobSheetController::class, 'getTourOrders'])->name('get.tour.orders');
@@ -611,6 +612,7 @@ Route::get('/clear', function () {
         Route::get('/enquiries', [BookingListController::class, 'enquiry'])->name('bookinglist.enquiry');
         Route::get('tour-itinerary/{tourId}', [BookingListController::class, 'showItinerary'])->name('tour.itinerary');
         Route::post('bookinglist/update-date', [BookingListController::class, 'updateDate'])->name('bookinglist.updateDate');
+        Route::get('bookinglist/check-price-hide', [BookingListController::class, 'checkPriceHide'])->name('bookinglist.checkPriceHide');
 
         Route::resource('enquirylist', EnquiryListController::class);
 

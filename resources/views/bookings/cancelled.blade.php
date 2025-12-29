@@ -2,6 +2,42 @@
 @section('title', 'Cancelled Bookings')
 @extends('layouts.datatablecss')
 
+<!-- Select2 CSS -->
+<link href="https://cdn.jsdelivr.net/npm/select2@4.0.13/dist/css/select2.min.css" rel="stylesheet" />
+<!-- jQuery -->
+<script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+
+<style>
+    /* Select2 Bootstrap Integration */
+    .select2-container--default .select2-selection--single {
+        height: 50px;
+        border: 1px solid #d9dee3;
+        border-radius: 0.375rem;
+    }
+    .select2-container--default .select2-selection--single .select2-selection__rendered {
+        line-height: 50px;
+        padding-left: 12px;
+        padding-right: 50px; /* Space for clear button and arrow */
+    }
+    .select2-container--default .select2-selection--single .select2-selection__arrow {
+        height: 48px;
+        right: 10px;
+    }
+    /* Style and position the clear button (X icon) */
+    .select2-container--default .select2-selection--single .select2-selection__clear {
+        position: absolute;
+        right: 35px; /* Position it before the dropdown arrow */
+        top: 50%;
+        transform: translateY(-50%);
+        cursor: pointer;
+        font-size: 18px;
+        color: #6c757d;
+    }
+    .select2-container--default .select2-selection--single .select2-selection__clear:hover {
+        color: #dc3545;
+    }
+</style>
+
 
 @section('content')
 <div class="container-xxl flex-grow-1 container-p-y">
@@ -117,14 +153,26 @@
                         <option value="Tentative">Cancel - Tentative</option>
                         <option value="New Enquiry">Cancel - New Enquiry</option>
                         <option value="Confirmed">Cancel - Confirmed</option>
-                        <option value="Definite">Cancel - Definite</option>
                     </select>
                 </div>
                 <div class="col-md-2">
                     <label class="form-label">Destination</label>
                     <select class="form-select" id="destinationFilter">
                         <option value="">All Destinations</option>
-                        @foreach($tours->pluck('destination')->unique()->filter() as $destination)
+                        @php
+                            $allDestinations = [];
+                            foreach($tours as $tour) {
+                                if($tour->destination) {
+                                    // Split by comma to get individual destinations
+                                    $destinations = array_map('trim', explode(',', $tour->destination));
+                                    $allDestinations = array_merge($allDestinations, $destinations);
+                                }
+                            }
+                            // Get unique destinations
+                            $uniqueDestinations = array_unique(array_filter($allDestinations));
+                            sort($uniqueDestinations);
+                        @endphp
+                        @foreach($uniqueDestinations as $destination)
                             <option value="{{ $destination }}">{{ $destination }}</option>
                         @endforeach
                     </select>
@@ -410,8 +458,15 @@ function filterTable() {
             show = false;
         }
         
-        if (destinationFilter && destination !== destinationFilter) {
-            show = false;
+        // Destination filter - use LIKE operator logic (contains)
+        // This works for multi-country destinations like "India, Singapore"
+        if (destinationFilter) {
+            // Split destination by comma and trim spaces
+            const destinationCountries = destination.split(',').map(c => c.trim());
+            // Check if the selected destination is in the destination list
+            if (!destinationCountries.includes(destinationFilter)) {
+                show = false;
+            }
         }
         
         if (agentFilter && agent !== agentFilter) {
@@ -533,8 +588,20 @@ function resetFilters() {
 
     if (searchInput) searchInput.value = '';
     if (statusSelect) statusSelect.value = '';
-    if (destinationSelect) destinationSelect.value = '';
-    if (agentSelect) agentSelect.value = '';
+    
+    // Reset Select2 dropdowns properly
+    if (destinationSelect && $('#destinationFilter').hasClass('select2-hidden-accessible')) {
+        $('#destinationFilter').val(null).trigger('change');
+    } else if (destinationSelect) {
+        destinationSelect.value = '';
+    }
+    
+    if (agentSelect && $('#agentFilter').hasClass('select2-hidden-accessible')) {
+        $('#agentFilter').val(null).trigger('change');
+    } else if (agentSelect) {
+        agentSelect.value = '';
+    }
+    
     if (timeSelect) timeSelect.value = '';
 
     if (startDateInput) {
@@ -566,8 +633,8 @@ document.addEventListener('DOMContentLoaded', function() {
     // Add event listeners
     if (searchInput) searchInput.addEventListener('input', filterTable);
     if (statusFilter) statusFilter.addEventListener('change', filterTable);
-    if (destinationFilter) destinationFilter.addEventListener('change', filterTable);
-    if (agentFilter) agentFilter.addEventListener('change', filterTable);
+    // Note: destinationFilter and agentFilter event listeners are handled by Select2 initialization
+    // They will trigger filterTable when changed via Select2's change event
     if (timeFilter) timeFilter.addEventListener('change', filterTable);
     if (startDateFilter) {
         startDateFilter.setAttribute('max', today);
@@ -609,16 +676,40 @@ document.addEventListener('DOMContentLoaded', function() {
 @endsection
 
 @section('scripts')
+<script src="https://cdn.jsdelivr.net/npm/select2@4.0.13/dist/js/select2.min.js"></script>
 <script src="{{ env('APP_URL') . '/assets/vendor/libs/datatables-bs5/datatables-bootstrap5.js' }}"></script>
 <script>
     // Wait for all scripts to load before initializing
     $(document).ready(function() {
         // Small delay to ensure all scripts are loaded
         setTimeout(function() {
+            initializeSelect2();
             initializeDataTable();
             filterTable();
         }, 200);
     });
+    
+    function initializeSelect2() {
+        // Initialize Select2 for Destination filter
+        $('#destinationFilter').select2({
+            placeholder: 'All Destinations',
+            allowClear: true,
+            width: '100%'
+        });
+        
+        // Initialize Select2 for Agent filter
+        $('#agentFilter').select2({
+            placeholder: 'All Agents',
+            allowClear: true,
+            width: '100%'
+        });
+        
+        // Trigger filterTable when Select2 values change (including when cleared)
+        $('#destinationFilter, #agentFilter').on('change', function() {
+            // When cleared, the value will be empty string, which shows all results
+            filterTable();
+        });
+    }
     var table;
     function initializeDataTable() {
         // Check if DataTable is already initialized

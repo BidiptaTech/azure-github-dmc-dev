@@ -274,8 +274,137 @@
                                             finalDmcId: {{ $finalDmcId }},
                                             createdBy: {{ $createdBy ?? 'null' }},
                                             isPointToPoint: {{ $isPointToPoint ? 'true' : 'false' }}
-                                        });
-                                    </script>
+    });
+    
+    // Transport Toggle Function
+    function setupInlineTransportToggle(yesId, noId, wrapperId) {
+        const yesRadio = document.getElementById(yesId);
+        const noRadio = document.getElementById(noId);
+        const wrapper = document.getElementById(wrapperId);
+
+        if (!yesRadio || !noRadio || !wrapper) return;
+
+        function updateVisibility() {
+            if (yesRadio.checked) {
+                wrapper.classList.remove('d-none');
+            } else {
+                wrapper.classList.add('d-none');
+            }
+        }
+
+        yesRadio.addEventListener('change', updateVisibility);
+        noRadio.addEventListener('change', updateVisibility);
+
+        // Initial state
+        updateVisibility();
+    }
+    
+    // Initialize Transport Dynamic Features
+    function initializeTransportDynamicFeatures() {
+        // Initialize seats for pre-selected vehicles on page load (including modals)
+        const vehicleSelects = document.querySelectorAll('.modal-hotel-transport-vehicle-select');
+        vehicleSelects.forEach(select => {
+            const selectedOption = select.options[select.selectedIndex];
+            if (selectedOption && selectedOption.value) {
+                const seatingCapacity = selectedOption.getAttribute('data-seating-capacity') || '';
+                const seatsInput = document.getElementById('modal_hotel_transport_seats');
+                if (seatsInput && seatingCapacity) {
+                    seatsInput.value = seatingCapacity;
+                }
+            }
+        });
+        
+        // Handle vehicle selection to update seats dynamically
+        document.addEventListener('change', function(e) {
+            if (e.target.classList.contains('modal-hotel-transport-vehicle-select')) {
+                const select = e.target;
+                const selectedOption = select.options[select.selectedIndex];
+                const seatingCapacity = selectedOption ? selectedOption.getAttribute('data-seating-capacity') || '' : '';
+                const seatsInput = document.getElementById('modal_hotel_transport_seats');
+                
+                if (seatsInput) {
+                    seatsInput.value = seatingCapacity;
+                    // Trigger passenger validation
+                    const passengersInput = document.getElementById('modal_hotel_transport_passengers');
+                    if (passengersInput) {
+                        passengersInput.dispatchEvent(new Event('input'));
+                    }
+                }
+            }
+        });
+        
+        // Handle return checkbox to double/restore price
+        document.addEventListener('change', function(e) {
+            if (e.target.classList.contains('modal-hotel-transport-return-checkbox')) {
+                const checkbox = e.target;
+                const priceInput = document.getElementById('modal_hotel_transport_price');
+                
+                if (priceInput) {
+                    const currentValue = parseFloat(priceInput.value) || 0;
+                    let originalPrice = parseFloat(priceInput.getAttribute('data-original-price')) || currentValue;
+                    
+                    // Store original price if not already stored
+                    if (!priceInput.getAttribute('data-original-price') && currentValue > 0) {
+                        priceInput.setAttribute('data-original-price', currentValue);
+                        originalPrice = currentValue;
+                    }
+                    
+                    if (checkbox.checked) {
+                        // Double the price
+                        const doubledPrice = originalPrice * 2;
+                        priceInput.value = doubledPrice.toFixed(2);
+                    } else {
+                        // Restore original price
+                        priceInput.value = originalPrice.toFixed(2);
+                    }
+                }
+            }
+        });
+        
+        // Store original price when user manually enters price
+        const priceInput = document.getElementById('modal_hotel_transport_price');
+        if (priceInput) {
+            priceInput.addEventListener('input', function() {
+                const returnCheckbox = document.getElementById('modal_hotel_transport_return');
+                const currentValue = parseFloat(this.value) || 0;
+                
+                // Only update original price if return is not checked
+                if (!returnCheckbox || !returnCheckbox.checked) {
+                    if (currentValue > 0) {
+                        this.setAttribute('data-original-price', currentValue);
+                    }
+                }
+            });
+        }
+        
+        // Validate passengers must be less than or equal to seats
+        const passengersInput = document.getElementById('modal_hotel_transport_passengers');
+        if (passengersInput) {
+            passengersInput.addEventListener('input', function() {
+                const seatsInput = document.getElementById('modal_hotel_transport_seats');
+                const errorElement = document.getElementById('modal_hotel_passenger_error');
+                const passengers = parseInt(this.value) || 0;
+                const seats = parseInt(seatsInput ? seatsInput.value : 0) || 0;
+                
+                if (seatsInput && errorElement && seats > 0 && passengers > 0) {
+                    if (passengers > seats) {
+                        // Show error - passengers exceed seats
+                        errorElement.classList.remove('d-none');
+                        this.classList.add('is-invalid');
+                    } else {
+                        // Hide error - passengers are within limit
+                        errorElement.classList.add('d-none');
+                        this.classList.remove('is-invalid');
+                    }
+                } else if (errorElement) {
+                    // Hide error if seats or passengers not set
+                    errorElement.classList.add('d-none');
+                    this.classList.remove('is-invalid');
+                }
+            });
+        }
+    }
+</script>
                                 </div>
 
                                 <!-- Country Display -->
@@ -1464,6 +1593,140 @@
                         </div>
                     </div>
 
+                    <!-- Transport for this hotel -->
+                    <div class="border rounded-3 p-3 bg-light mb-2 mt-3">
+                        <div class="row g-2 align-items-center">
+                            <div class="col-md-4">
+                                <label class="form-label fw-semibold d-block mb-1">Need transport for this hotel?</label>
+                                <div class="btn-group btn-group-sm" role="group" aria-label="Need hotel transport toggle">
+                                    <input
+                                        type="radio"
+                                        class="btn-check"
+                                        name="modal_need_hotel_transport"
+                                        id="modal_need_hotel_transport_no"
+                                        value="no"
+                                        autocomplete="off"
+                                        checked
+                                        onclick="document.getElementById('modal_hotel_transport_details')?.classList.add('d-none');"
+                                    >
+                                    <label class="btn btn-outline-secondary" for="modal_need_hotel_transport_no">No</label>
+                                    
+                                    <input
+                                        type="radio"
+                                        class="btn-check"
+                                        name="modal_need_hotel_transport"
+                                        id="modal_need_hotel_transport_yes"
+                                        value="yes"
+                                        autocomplete="off"
+                                        onclick="document.getElementById('modal_hotel_transport_details')?.classList.remove('d-none');"
+                                    >
+                                    <label class="btn btn-outline-primary" for="modal_need_hotel_transport_yes">Yes</label>
+                                </div>
+                            </div>
+                        </div>
+                        <div id="modal_hotel_transport_details" class="border rounded-3 p-3 bg-white mt-2 d-none">
+                            @php
+                                $transportVehicles = $vehicles ?? collect();
+                                $tourCountry = $tour->destination ?? '';
+                                $filteredVehicles = $transportVehicles;
+                                if ($tourCountry) {
+                                    $filteredVehicles = $transportVehicles->filter(function($vehicle) use ($tourCountry) {
+                                        $vehicleCountry = strtolower(trim($vehicle->country ?? $vehicle->service_country ?? ''));
+                                        return $vehicleCountry === strtolower(trim($tourCountry));
+                                    });
+                                    if ($filteredVehicles->isEmpty()) {
+                                        $filteredVehicles = $transportVehicles;
+                                    }
+                                }
+                            @endphp
+                            <div class="row g-3">
+                                <!-- First Row: Transport Type, Vehicle, Destination -->
+                                <div class="col-md-3">
+                                    <label class="form-label fw-semibold">Transport Type</label>
+                                    <select class="form-select form-select-sm" name="modal_hotel_transport_type" id="modal_hotel_transport_type">
+                                        <option value="">Select type</option>
+                                        <option value="shared">Shared</option>
+                                        <option value="private">Private</option>
+                                    </select>
+                                </div>
+                                <div class="col-md-4">
+                                    <label class="form-label fw-semibold">Vehicle (by country)</label>
+                                    <select class="form-select form-select-sm modal-hotel-transport-vehicle-select" name="modal_hotel_transport_vehicle" id="modal_hotel_transport_vehicle">
+                                        <option value="">Select vehicle</option>
+                                        @foreach($filteredVehicles as $vehicle)
+                                            @php
+                                                $vehicleName = $vehicle->vehicle_name ?? $vehicle->vehicle_id ?? 'Vehicle';
+                                                $vehicleType = $vehicle->vehicle_type ?? '';
+                                                $seatingCapacity = $vehicle->seating_capacity ?? '';
+                                            @endphp
+                                            <option value="{{ $vehicleName }}" data-seating-capacity="{{ $seatingCapacity }}">
+                                                {{ $vehicleName }}
+                                                @if($vehicleType)
+                                                    ({{ $vehicleType }})
+                                                @endif
+                                                @if($seatingCapacity)
+                                                    - {{ $seatingCapacity }} seats
+                                                @endif
+                                            </option>
+                                        @endforeach
+                                    </select>
+                                </div>
+                                <div class="col-md-5">
+                                    <label class="form-label fw-semibold">Destination</label>
+                                    @php
+                                        $destHotels = $hotels ?? collect();
+                                        $destAttractions = $attractions ?? collect();
+                                        $destRestaurants = $restaurants ?? collect();
+                                    @endphp
+                                    <select class="form-select form-select-sm" name="modal_hotel_transport_destination" id="modal_hotel_transport_destination">
+                                        <option value="">Search & select destination</option>
+                                        <optgroup label="Hotels">
+                                            @foreach($destHotels as $h)
+                                                <option value="{{ $h->name ?? '' }}">{{ $h->name ?? '' }}</option>
+                                            @endforeach
+                                        </optgroup>
+                                        <optgroup label="Attractions">
+                                            @foreach($destAttractions as $a)
+                                                <option value="{{ $a->name ?? '' }}">{{ $a->name ?? '' }}</option>
+                                            @endforeach
+                                        </optgroup>
+                                        <optgroup label="Restaurants">
+                                            @foreach($destRestaurants as $r)
+                                                <option value="{{ $r->name ?? '' }}">{{ $r->name ?? '' }}</option>
+                                            @endforeach
+                                        </optgroup>
+                                    </select>
+                                </div>
+                            </div>
+                            <div class="row g-3 mt-2">
+                                <!-- Second Row: Seats, Passengers, Price -->
+                                <div class="col-md-2">
+                                    <label class="form-label fw-semibold">Seats</label>
+                                    <input type="number" min="1" class="form-control form-control-sm" name="modal_hotel_transport_seats" id="modal_hotel_transport_seats" placeholder="0" readonly>
+                                </div>
+                                <div class="col-md-4">
+                                    <label class="form-label fw-semibold">Passengers</label>
+                                    <input type="number" min="1" class="form-control form-control-sm" name="modal_hotel_transport_passengers" id="modal_hotel_transport_passengers" placeholder="0" data-transport-type="hotel">
+                                    <div class="form-check mt-2">
+                                        <input class="form-check-input modal-hotel-transport-return-checkbox" type="checkbox" name="modal_hotel_transport_return" id="modal_hotel_transport_return">
+                                        <label class="form-check-label fw-semibold" for="modal_hotel_transport_return">
+                                            Return
+                                        </label>
+                                    </div>
+                                    <small class="text-danger d-none" id="modal_hotel_passenger_error">Passengers must be less than or equal to seats</small>
+                                </div>
+                                <div class="col-md-6">
+                                    <label class="form-label fw-semibold">Estimated Price</label>
+                                    <div class="input-group input-group-sm">
+                                        <span class="input-group-text">{{ $tour->currency ?? '$' }}</span>
+                                        <input type="number" min="0" step="0.01" class="form-control form-control-sm" name="modal_hotel_transport_price" id="modal_hotel_transport_price" placeholder="0.00" data-original-price="">
+                                    </div>
+                                    <small class="text-muted">Optional, can be adjusted later.</small>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
                     <!-- Information Alerts -->
                     <div class="alert alert-info" id="no_nights_alert" style="z-index: 1050; position: relative;">
                         <i class="ri-information-line me-2"></i>
@@ -1633,6 +1896,142 @@
                                             <div class="restaurant-price-range">
                                                 <span id="selected_restaurant_price_range" class="fw-bold text-success"></span>
                                             </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Transport for this restaurant -->
+                        <div class="col-12">
+                            <div class="border rounded-3 p-3 bg-light mb-2 mt-2">
+                                <div class="row g-2 align-items-center">
+                                    <div class="col-md-4">
+                                        <label class="form-label fw-semibold d-block mb-1">Need transport for this restaurant?</label>
+                                        <div class="btn-group btn-group-sm" role="group" aria-label="Need restaurant transport toggle">
+                                            <input
+                                                type="radio"
+                                                class="btn-check"
+                                                name="modal_need_restaurant_transport"
+                                                id="modal_need_restaurant_transport_no"
+                                                value="no"
+                                                autocomplete="off"
+                                                checked
+                                                onclick="document.getElementById('modal_restaurant_transport_details')?.classList.add('d-none');"
+                                            >
+                                            <label class="btn btn-outline-secondary" for="modal_need_restaurant_transport_no">No</label>
+                                            
+                                            <input
+                                                type="radio"
+                                                class="btn-check"
+                                                name="modal_need_restaurant_transport"
+                                                id="modal_need_restaurant_transport_yes"
+                                                value="yes"
+                                                autocomplete="off"
+                                                onclick="document.getElementById('modal_restaurant_transport_details')?.classList.remove('d-none');"
+                                            >
+                                            <label class="btn btn-outline-primary" for="modal_need_restaurant_transport_yes">Yes</label>
+                                        </div>
+                                    </div>
+                                </div>
+                                <div id="modal_restaurant_transport_details" class="border rounded-3 p-3 bg-white mt-2 d-none">
+                                    @php
+                                        $transportVehicles = $vehicles ?? collect();
+                                        $tourCountry = $tour->destination ?? '';
+                                        $filteredVehicles = $transportVehicles;
+                                        if ($tourCountry) {
+                                            $filteredVehicles = $transportVehicles->filter(function($vehicle) use ($tourCountry) {
+                                                $vehicleCountry = strtolower(trim($vehicle->country ?? $vehicle->service_country ?? ''));
+                                                return $vehicleCountry === strtolower(trim($tourCountry));
+                                            });
+                                            if ($filteredVehicles->isEmpty()) {
+                                                $filteredVehicles = $transportVehicles;
+                                            }
+                                        }
+                                    @endphp
+                                    <div class="row g-3">
+                                        <!-- First Row: Transport Type, Vehicle, Destination -->
+                                        <div class="col-md-3">
+                                            <label class="form-label fw-semibold">Transport Type</label>
+                                            <select class="form-select form-select-sm" name="modal_restaurant_transport_type" id="modal_restaurant_transport_type">
+                                                <option value="">Select type</option>
+                                                <option value="shared">Shared</option>
+                                                <option value="private">Private</option>
+                                            </select>
+                                        </div>
+                                        <div class="col-md-4">
+                                            <label class="form-label fw-semibold">Vehicle (by country)</label>
+                                            <select class="form-select form-select-sm modal-restaurant-transport-vehicle-select" name="modal_restaurant_transport_vehicle" id="modal_restaurant_transport_vehicle">
+                                                <option value="">Select vehicle</option>
+                                                @foreach($filteredVehicles as $vehicle)
+                                                    @php
+                                                        $vehicleName = $vehicle->vehicle_name ?? $vehicle->vehicle_id ?? 'Vehicle';
+                                                        $vehicleType = $vehicle->vehicle_type ?? '';
+                                                        $seatingCapacity = $vehicle->seating_capacity ?? '';
+                                                    @endphp
+                                                    <option value="{{ $vehicleName }}" data-seating-capacity="{{ $seatingCapacity }}">
+                                                        {{ $vehicleName }}
+                                                        @if($vehicleType)
+                                                            ({{ $vehicleType }})
+                                                        @endif
+                                                        @if($seatingCapacity)
+                                                            - {{ $seatingCapacity }} seats
+                                                        @endif
+                                                    </option>
+                                                @endforeach
+                                            </select>
+                                        </div>
+                                        <div class="col-md-5">
+                                            <label class="form-label fw-semibold">Destination</label>
+                                            @php
+                                                $destHotels = $hotels ?? collect();
+                                                $destAttractions = $attractions ?? collect();
+                                                $destRestaurants = $restaurants ?? collect();
+                                            @endphp
+                                            <select class="form-select form-select-sm" name="modal_restaurant_transport_destination" id="modal_restaurant_transport_destination">
+                                                <option value="">Search & select destination</option>
+                                                <optgroup label="Hotels">
+                                                    @foreach($destHotels as $h)
+                                                        <option value="{{ $h->name ?? '' }}">{{ $h->name ?? '' }}</option>
+                                                    @endforeach
+                                                </optgroup>
+                                                <optgroup label="Attractions">
+                                                    @foreach($destAttractions as $a)
+                                                        <option value="{{ $a->name ?? '' }}">{{ $a->name ?? '' }}</option>
+                                                    @endforeach
+                                                </optgroup>
+                                                <optgroup label="Restaurants">
+                                                    @foreach($destRestaurants as $r)
+                                                        <option value="{{ $r->name ?? '' }}">{{ $r->name ?? '' }}</option>
+                                                    @endforeach
+                                                </optgroup>
+                                            </select>
+                                        </div>
+                                    </div>
+                                    <div class="row g-3 mt-2">
+                                        <!-- Second Row: Seats, Passengers, Price -->
+                                        <div class="col-md-2">
+                                            <label class="form-label fw-semibold">Seats</label>
+                                            <input type="number" min="1" class="form-control form-control-sm" name="modal_restaurant_transport_seats" id="modal_restaurant_transport_seats" placeholder="0" readonly>
+                                        </div>
+                                        <div class="col-md-4">
+                                            <label class="form-label fw-semibold">Passengers</label>
+                                            <input type="number" min="1" class="form-control form-control-sm" name="modal_restaurant_transport_passengers" id="modal_restaurant_transport_passengers" placeholder="0" data-transport-type="restaurant">
+                                            <div class="form-check mt-2">
+                                                <input class="form-check-input modal-restaurant-transport-return-checkbox" type="checkbox" name="modal_restaurant_transport_return" id="modal_restaurant_transport_return">
+                                                <label class="form-check-label fw-semibold" for="modal_restaurant_transport_return">
+                                                    Return
+                                                </label>
+                                            </div>
+                                            <small class="text-danger d-none" id="modal_restaurant_passenger_error">Passengers must be less than or equal to seats</small>
+                                        </div>
+                                        <div class="col-md-6">
+                                            <label class="form-label fw-semibold">Estimated Price</label>
+                                            <div class="input-group input-group-sm">
+                                                <span class="input-group-text">{{ $tour->currency ?? '$' }}</span>
+                                                <input type="number" min="0" step="0.01" class="form-control form-control-sm" name="modal_restaurant_transport_price" id="modal_restaurant_transport_price" placeholder="0.00" data-original-price="">
+                                            </div>
+                                            <small class="text-muted">Optional, can be adjusted later.</small>
                                         </div>
                                     </div>
                                 </div>
@@ -1887,6 +2286,142 @@
                                     <div>
                                         <strong>Attraction Pricing</strong>
                                         <div id="attraction_price_details" class="small">Select an attraction and configure guests to see pricing</div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Transport for this attraction -->
+                        <div class="col-12">
+                            <div class="border rounded-3 p-3 bg-light mb-2 mt-2">
+                                <div class="row g-2 align-items-center">
+                                    <div class="col-md-4">
+                                        <label class="form-label fw-semibold d-block mb-1">Need transport for this attraction?</label>
+                                        <div class="btn-group btn-group-sm" role="group" aria-label="Need attraction transport toggle">
+                                            <input
+                                                type="radio"
+                                                class="btn-check"
+                                                name="modal_need_attraction_transport"
+                                                id="modal_need_attraction_transport_no"
+                                                value="no"
+                                                autocomplete="off"
+                                                checked
+                                                onclick="document.getElementById('modal_attraction_transport_details')?.classList.add('d-none');"
+                                            >
+                                            <label class="btn btn-outline-secondary" for="modal_need_attraction_transport_no">No</label>
+                                            
+                                            <input
+                                                type="radio"
+                                                class="btn-check"
+                                                name="modal_need_attraction_transport"
+                                                id="modal_need_attraction_transport_yes"
+                                                value="yes"
+                                                autocomplete="off"
+                                                onclick="document.getElementById('modal_attraction_transport_details')?.classList.remove('d-none');"
+                                            >
+                                            <label class="btn btn-outline-primary" for="modal_need_attraction_transport_yes">Yes</label>
+                                        </div>
+                                    </div>
+                                </div>
+                                <div id="modal_attraction_transport_details" class="border rounded-3 p-3 bg-white mt-2 d-none">
+                                    @php
+                                        $transportVehicles = $vehicles ?? collect();
+                                        $tourCountry = $tour->destination ?? '';
+                                        $filteredVehicles = $transportVehicles;
+                                        if ($tourCountry) {
+                                            $filteredVehicles = $transportVehicles->filter(function($vehicle) use ($tourCountry) {
+                                                $vehicleCountry = strtolower(trim($vehicle->country ?? $vehicle->service_country ?? ''));
+                                                return $vehicleCountry === strtolower(trim($tourCountry));
+                                            });
+                                            if ($filteredVehicles->isEmpty()) {
+                                                $filteredVehicles = $transportVehicles;
+                                            }
+                                        }
+                                    @endphp
+                                    <div class="row g-3">
+                                        <!-- First Row: Transport Type, Vehicle, Destination -->
+                                        <div class="col-md-3">
+                                            <label class="form-label fw-semibold">Transport Type</label>
+                                            <select class="form-select form-select-sm" name="modal_attraction_transport_type" id="modal_attraction_transport_type">
+                                                <option value="">Select type</option>
+                                                <option value="shared">Shared</option>
+                                                <option value="private">Private</option>
+                                            </select>
+                                        </div>
+                                        <div class="col-md-4">
+                                            <label class="form-label fw-semibold">Vehicle (by country)</label>
+                                            <select class="form-select form-select-sm modal-attraction-transport-vehicle-select" name="modal_attraction_transport_vehicle" id="modal_attraction_transport_vehicle">
+                                                <option value="">Select vehicle</option>
+                                                @foreach($filteredVehicles as $vehicle)
+                                                    @php
+                                                        $vehicleName = $vehicle->vehicle_name ?? $vehicle->vehicle_id ?? 'Vehicle';
+                                                        $vehicleType = $vehicle->vehicle_type ?? '';
+                                                        $seatingCapacity = $vehicle->seating_capacity ?? '';
+                                                    @endphp
+                                                    <option value="{{ $vehicleName }}" data-seating-capacity="{{ $seatingCapacity }}">
+                                                        {{ $vehicleName }}
+                                                        @if($vehicleType)
+                                                            ({{ $vehicleType }})
+                                                        @endif
+                                                        @if($seatingCapacity)
+                                                            - {{ $seatingCapacity }} seats
+                                                        @endif
+                                                    </option>
+                                                @endforeach
+                                            </select>
+                                        </div>
+                                        <div class="col-md-5">
+                                            <label class="form-label fw-semibold">Destination</label>
+                                            @php
+                                                $destHotels = $hotels ?? collect();
+                                                $destAttractions = $attractions ?? collect();
+                                                $destRestaurants = $restaurants ?? collect();
+                                            @endphp
+                                            <select class="form-select form-select-sm" name="modal_attraction_transport_destination" id="modal_attraction_transport_destination">
+                                                <option value="">Search & select destination</option>
+                                                <optgroup label="Hotels">
+                                                    @foreach($destHotels as $h)
+                                                        <option value="{{ $h->name ?? '' }}">{{ $h->name ?? '' }}</option>
+                                                    @endforeach
+                                                </optgroup>
+                                                <optgroup label="Attractions">
+                                                    @foreach($destAttractions as $a)
+                                                        <option value="{{ $a->name ?? '' }}">{{ $a->name ?? '' }}</option>
+                                                    @endforeach
+                                                </optgroup>
+                                                <optgroup label="Restaurants">
+                                                    @foreach($destRestaurants as $r)
+                                                        <option value="{{ $r->name ?? '' }}">{{ $r->name ?? '' }}</option>
+                                                    @endforeach
+                                                </optgroup>
+                                            </select>
+                                        </div>
+                                    </div>
+                                    <div class="row g-3 mt-2">
+                                        <!-- Second Row: Seats, Passengers, Price -->
+                                        <div class="col-md-2">
+                                            <label class="form-label fw-semibold">Seats</label>
+                                            <input type="number" min="1" class="form-control form-control-sm" name="modal_attraction_transport_seats" id="modal_attraction_transport_seats" placeholder="0" readonly>
+                                        </div>
+                                        <div class="col-md-4">
+                                            <label class="form-label fw-semibold">Passengers</label>
+                                            <input type="number" min="1" class="form-control form-control-sm" name="modal_attraction_transport_passengers" id="modal_attraction_transport_passengers" placeholder="0" data-transport-type="attraction">
+                                            <div class="form-check mt-2">
+                                                <input class="form-check-input modal-attraction-transport-return-checkbox" type="checkbox" name="modal_attraction_transport_return" id="modal_attraction_transport_return">
+                                                <label class="form-check-label fw-semibold" for="modal_attraction_transport_return">
+                                                    Return
+                                                </label>
+                                            </div>
+                                            <small class="text-danger d-none" id="modal_attraction_passenger_error">Passengers must be less than or equal to seats</small>
+                                        </div>
+                                        <div class="col-md-6">
+                                            <label class="form-label fw-semibold">Estimated Price</label>
+                                            <div class="input-group input-group-sm">
+                                                <span class="input-group-text">{{ $tour->currency ?? '$' }}</span>
+                                                <input type="number" min="0" step="0.01" class="form-control form-control-sm" name="modal_attraction_transport_price" id="modal_attraction_transport_price" placeholder="0.00" data-original-price="">
+                                            </div>
+                                            <small class="text-muted">Optional, can be adjusted later.</small>
+                                        </div>
                                     </div>
                                 </div>
                             </div>
@@ -6851,6 +7386,12 @@
         if (proceedBtn) {
             proceedBtn.addEventListener('click', proceedToHotelSelection);
         }
+        
+        // Initialize transport toggle for hotel modal
+        setupInlineTransportToggle('modal_need_hotel_transport_yes', 'modal_need_hotel_transport_no', 'modal_hotel_transport_details');
+        
+        // Initialize transport dynamic features (seats, passengers, pricing)
+        initializeTransportDynamicFeatures();
     }
     
     // Hotel Modal Functions - Chain-dependent dropdowns like create.blade.php
@@ -8082,6 +8623,45 @@
             },
             bookingDate: [checkIn, checkOut]
         };
+        
+        // Collect transport data if transport is required
+        const needTransportYes = document.getElementById('modal_need_hotel_transport_yes');
+        if (needTransportYes && needTransportYes.checked) {
+            const transportType = document.getElementById('modal_hotel_transport_type')?.value || '';
+            const transportVehicle = document.getElementById('modal_hotel_transport_vehicle')?.value || '';
+            const transportDestination = document.getElementById('modal_hotel_transport_destination')?.value || '';
+            const transportSeats = document.getElementById('modal_hotel_transport_seats')?.value || '';
+            const transportPassengers = document.getElementById('modal_hotel_transport_passengers')?.value || '';
+            const transportPrice = document.getElementById('modal_hotel_transport_price')?.value || '0';
+            const transportReturn = document.getElementById('modal_hotel_transport_return')?.checked || false;
+            
+            // Get vehicle details from selected option
+            const vehicleSelect = document.getElementById('modal_hotel_transport_vehicle');
+            let vehicleId = '';
+            let vehicleDetails = {};
+            if (vehicleSelect && vehicleSelect.selectedIndex > 0) {
+                const selectedOption = vehicleSelect.options[vehicleSelect.selectedIndex];
+                vehicleId = selectedOption.value;
+                vehicleDetails = {
+                    vehicle_name: vehicleId,
+                    seating_capacity: selectedOption.getAttribute('data-seating-capacity') || ''
+                };
+            }
+            
+            // Add transport options to booking data
+            bookingData.transfer_options = {
+                transfer_required: true,
+                type: transportType,
+                vehicle_id: vehicleId,
+                vehicle_name: transportVehicle,
+                destination: transportDestination,
+                seats: transportSeats,
+                passengers: transportPassengers,
+                price: parseFloat(transportPrice) || 0,
+                way: transportReturn ? 'Two Way' : 'One Way',
+                vehicle_details: vehicleDetails
+            };
+        }
         
         console.log('Booking data to be sent:', bookingData);
         
