@@ -485,13 +485,13 @@
         <!-- Header Section -->
         <div class="row mb-4">
             <div class="col-12">
-                <div>
-                    <div class="card-header text-white" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); border-bottom: 3px solid #764ba2;">
+                <div class="card border-0 shadow-sm">
+                    <div class="card-header text-white" style="background: linear-gradient(135deg, #4facfe 0%, #00c9ff 100%);">
                         <div class="d-flex align-items-center">
-                            <i class="ri-map-pin-line me-3 fs-3"></i>
+                            <i class="ri-map-pin-line me-3 fs-4"></i>
                             <div>
-                            <h3 class="mb-2 fw-bold text-white" style="font-size: 1.5rem; text-shadow: 0 2px 4px rgba(0,0,0,0.2);">Edit Tour Services</h3>
-                            <p class="mb-0 text-white" style="font-size: 0.95rem; opacity: 0.95; font-weight: 500;">Manage and add services to existing tour: <strong>{{ $tour->display_id ?? 'N/A' }}</strong></p>
+                                <h4 class="mb-1 text-white">Edit Tour Services</h4>
+                                <p class="mb-0 opacity-75">Manage and add services to existing tour: <strong>{{ $tour->display_id ?? 'N/A' }}</strong></p>
                             </div>
                         </div>
                     </div>
@@ -579,7 +579,7 @@
             <div class="row mb-4">
                 <div class="col-12">
                     <div class="card shadow-sm border-0">
-                        <div class="card-header text-white" style="background: linear-gradient(135deg, #4facfe 0%, #00c9ff 100%); border-bottom: 1px solid #3b82f6;">
+                        <div class="card-header bg-gradient-primary text-white">
                             <h6 class="mb-0 fw-bold">
                                 <i class="ri-settings-3-line me-2"></i>Tour Information
                             </h6>
@@ -591,7 +591,7 @@
                                     <label class="form-label fw-semibold">
                                         <i class="ri-hashtag me-1"></i>Tour ID
                                     </label>
-                                    <input type="text" class="form-control" name="display_id" id="display_id" value="{{ $tour->display_id ?? '' }}" placeholder="Enter tour reference" disabled>
+                                    <input type="text" style="height:38px" class="form-control" name="display_id" id="display_id" value="{{ $tour->display_id ?? '' }}" placeholder="Enter tour reference" disabled>
                                     <input type="hidden" id="tour_id" name="tour_id" value="{{ $tour->tour_id ?? '' }}">
                                     
                                     <!-- DMC Information -->
@@ -619,12 +619,12 @@
 
                                 <!-- Travel Dates -->
                                 <div class="col-md-3">
-                                    <label class="form-label fw-semibold">
-                                        <i class="ri-calendar-line me-1"></i>Travel Dates
+                                    <label class="form-label fw-semibold" >
+                                        <i class="ri-calendar-line me-1" ></i>Travel Dates
                                     </label>
                                     <div class="row g-2">
                                         <div class="col-6">
-                                            <input type="date" class="form-control" name="start_date" id="start_date" 
+                                            <input type="date" style="height:38px" class="form-control" name="start_date" id="start_date" 
                                                 value="{{ 
                                                     $tour->check_in_time 
                                                         ? (is_string($tour->check_in_time) ? date('Y-m-d', strtotime($tour->check_in_time)) : $tour->check_in_time->format('Y-m-d'))
@@ -633,7 +633,7 @@
                                                 min="{{ date('Y-m-d') }}">
                                         </div>
                                         <div class="col-6">
-                                            <input type="date" class="form-control" name="end_date" id="end_date" 
+                                            <input type="date" style="height:38px" class="form-control" name="end_date" id="end_date" 
                                                 value="{{ 
                                                     $tour->check_out_time 
                                                         ? (is_string($tour->check_out_time) ? date('Y-m-d', strtotime($tour->check_out_time)) : $tour->check_out_time->format('Y-m-d'))
@@ -1742,7 +1742,7 @@
             <div class="row mb-4">
                 <div class="col-12">
                     <div>
-                        <div class="card-header text-dark d-flex justify-content-between align-items-center" role="button" data-bs-toggle="collapse" data-bs-target="#arrivalTransportSection" aria-expanded="false" aria-controls="arrivalTransportSection" style="cursor: pointer; background: linear-gradient(135deg, #e5e7eb 0%, #d1d5db 100%); border: 1px solid #9ca3af;">
+                        <div class="card-header text-dark d-flex justify-content-between align-items-center" role="button" data-bs-toggle="collapse" data-bs-target="#arrivalTransportSection" aria-expanded="false" aria-controls="arrivalTransportSection" style="cursor: pointer; background: linear-gradient(135deg, #dbeafe 0%, #bfdbfe 100%); border: 1px solid #60a5fa; transition: all 0.3s ease;">
                             <div class="d-flex align-items-center">
                                 <span class="service-icon me-3">
                                     <i class="ri-login-circle-line fs-4"></i>
@@ -1977,7 +1977,7 @@
                             <!-- All Restaurant Services Section (Unified) -->
                             <div class="service-section mb-3">
                                 <div>
-                                    <div class="card-header text-dark d-flex justify-content-between align-items-center" role="button" data-bs-toggle="collapse" data-bs-target="#restaurantServicesSection" aria-expanded="false" aria-controls="restaurantServicesSection" style="cursor: pointer; background: linear-gradient(135deg, #e5e7eb 0%, #d1d5db 100%); border: 1px solid #9ca3af;">
+                                    <div class="card-header text-dark d-flex justify-content-between align-items-center" role="button" data-bs-toggle="collapse" data-bs-target="#restaurantServicesSection" aria-expanded="false" aria-controls="restaurantServicesSection" style="cursor: pointer; background: linear-gradient(135deg, #fef3c7 0%, #fde68a 100%); border: 1px solid #fbbf24; transition: all 0.3s ease;">
                                         <div class="d-flex align-items-center">
                                             <span class="service-icon me-3">
                                                 <i class="ri-restaurant-2-line fs-4"></i>
@@ -2292,7 +2292,7 @@
                             <!-- Other Transport Services Section (Unified) -->
                             <div class="service-section mb-3">
                                 <div>
-                                    <div class="card-header text-dark d-flex justify-content-between align-items-center" role="button" data-bs-toggle="collapse" data-bs-target="#otherTransportSection" aria-expanded="false" aria-controls="otherTransportSection" style="cursor: pointer; background: linear-gradient(135deg, #e5e7eb 0%, #d1d5db 100%); border: 1px solid #9ca3af;">
+                                    <div class="card-header text-dark d-flex justify-content-between align-items-center" role="button" data-bs-toggle="collapse" data-bs-target="#otherTransportSection" aria-expanded="false" aria-controls="otherTransportSection" style="cursor: pointer; background: linear-gradient(135deg, #ccfbf1 0%, #99f6e4 100%); border: 1px solid #5eead4; transition: all 0.3s ease;">
                                         <div class="d-flex align-items-center">
                                             <span class="service-icon me-3">
                                                 <i class="ri-car-line fs-4"></i>
@@ -2827,7 +2827,7 @@
                             <!-- All Attractions Section (Unified) -->
                             <div class="service-section mb-3">
                                 <div>
-                                    <div class="card-header text-dark d-flex justify-content-between align-items-center" role="button" data-bs-toggle="collapse" data-bs-target="#allAttractionsSection" aria-expanded="false" aria-controls="allAttractionsSection" style="cursor: pointer; background: linear-gradient(135deg, #e5e7eb 0%, #d1d5db 100%); border: 1px solid #9ca3af;">
+                                    <div class="card-header text-dark d-flex justify-content-between align-items-center" role="button" data-bs-toggle="collapse" data-bs-target="#allAttractionsSection" aria-expanded="false" aria-controls="allAttractionsSection" style="cursor: pointer; background: linear-gradient(135deg, #f3e8ff 0%, #e9d5ff 100%); border: 1px solid #c084fc; transition: all 0.3s ease;">
                                         <div class="d-flex align-items-center">
                                             <span class="service-icon me-3">
                                                 <i class="ri-ticket-line fs-4"></i>
@@ -3342,7 +3342,7 @@
                             <!-- All Guides Section (Unified) -->
                             <div class="service-section mb-3">
                                 <div >
-                                    <div class="card-header text-dark d-flex justify-content-between align-items-center" role="button" data-bs-toggle="collapse" data-bs-target="#allGuidesSection" aria-expanded="false" aria-controls="allGuidesSection" style="cursor: pointer; background: linear-gradient(135deg, #e5e7eb 0%, #d1d5db 100%); border: 1px solid #9ca3af;">
+                                    <div class="card-header text-dark d-flex justify-content-between align-items-center" role="button" data-bs-toggle="collapse" data-bs-target="#allGuidesSection" aria-expanded="false" aria-controls="allGuidesSection" style="cursor: pointer; background: linear-gradient(135deg, #d1fae5 0%, #a7f3d0 100%); border: 1px solid #34d399; transition: all 0.3s ease;">
                                         <div class="d-flex align-items-center">
                                             <span class="service-icon me-3">
                                                 <i class="ri-user-star-line fs-4"></i>
@@ -3500,7 +3500,7 @@
                             <!-- Departure Transport Services Section -->
                             <div class="service-section mb-3">
                                 <div>
-                                    <div class="card-header text-dark d-flex justify-content-between align-items-center" role="button" data-bs-toggle="collapse" data-bs-target="#departureTransportSection" aria-expanded="false" aria-controls="departureTransportSection" style="cursor: pointer; background: linear-gradient(135deg, #e5e7eb 0%, #d1d5db 100%); border: 1px solid #9ca3af;">
+                                    <div class="card-header text-dark d-flex justify-content-between align-items-center" role="button" data-bs-toggle="collapse" data-bs-target="#departureTransportSection" aria-expanded="false" aria-controls="departureTransportSection" style="cursor: pointer; background: linear-gradient(135deg, #dbeafe 0%, #bfdbfe 100%); border: 1px solid #60a5fa; transition: all 0.3s ease;">
                                         <div class="d-flex align-items-center">
                                             <span class="service-icon me-3">
                                                 <i class="ri-logout-circle-line fs-4"></i>
