@@ -365,7 +365,7 @@
                                     <label for="travel_dates" class="form-label fw-semibold">
                                         <i class="ri-calendar-line me-1"></i>Travel Dates
                                     </label>
-                                    <input type="text" id="travel_dates" class="form-control" placeholder="Select dates" readonly
+                                    <input type="text" id="travel_dates" style="height: 38px;" class="form-control" placeholder="Select dates" readonly
                                            value="@if($enquiry && $enquiry->check_in_time && $enquiry->check_out_time){{ \Carbon\Carbon::parse($enquiry->check_in_time)->format('M d, Y') }} - {{ \Carbon\Carbon::parse($enquiry->check_out_time)->format('M d, Y') }}@endif"
                                            {{ ($enquiry && $enquiry->check_in_time && $enquiry->check_out_time) ? 'style=background-color:#f8f9fa;cursor:not-allowed;pointer-events:none;' : '' }}
                                            {{ ($enquiry && $enquiry->check_in_time && $enquiry->check_out_time) ? 'data-locked=true' : 'data-locked=false' }}>
@@ -459,21 +459,28 @@
 
 
             <!-- Hotel Selection Section -->
-            <div class="row mb-4" id="hotelSection">
-                <div class="col-12">
+            <div class="accordion mb-4" id="servicesAccordion">
+                <div class="accordion-item border-0">
                     <div class="card shadow-sm border-0">
-                        <div class="card-header bg-gradient-success text-white">
-                            <div class="d-flex justify-content-between align-items-center">
-                                <h6 class="mb-0 fw-bold">
-                                    <i class="ri-hotel-line me-2"></i>Let's Book Your Hotels! 🏨
-                                </h6>
-                                <div class="d-flex align-items-center">
-                                    <span class="badge bg-light text-dark me-2" id="tourDates">Aug 03 - Aug 07, 2025</span>
-                                    <span class="badge bg-warning text-dark" id="hotelNights">4 Nights Selected</span>
+                        <div class="card-header text-dark d-flex justify-content-between align-items-center" role="button" data-bs-toggle="collapse" data-bs-target="#hotelAccommodationsSection" aria-expanded="true" aria-controls="hotelAccommodationsSection" style="cursor: pointer; background: linear-gradient(135deg, #e5e7eb 0%, #d1d5db 100%); border: 1px solid #9ca3af;">
+                            <div class="d-flex align-items-center">
+                                <span class="service-icon me-3">
+                                    <i class="ri-hotel-line fs-4"></i>
+                                </span>
+                                <div>
+                                    <h6 class="mb-0 fw-bold">🏨 Hotel Accommodations</h6>
+                                    <small class="text-muted">Manage hotel bookings and room configurations</small>
                                 </div>
                             </div>
+                            <div class="d-flex align-items-center">
+                                <span class="badge bg-light text-dark me-2" id="tourDates">Aug 03 - Aug 07, 2025</span>
+                                <span class="badge bg-warning text-dark me-2" id="hotelNights">4 Nights Selected</span>
+                                <i class="ri-arrow-up-s-line ms-2 fs-5"></i>
+                            </div>
                         </div>
-                        <div class="card-body">
+                        <div id="hotelAccommodationsSection" class="collapse show">
+                            <div class="card-body mt-3">
+                                <div class="row" id="hotelSection">
                             <!-- Hotel Selection Controls -->
                             <div class="row mb-3">
                                 <div class="col-md-2">
@@ -528,14 +535,14 @@
                                 
                                 <div class="col-md-2">
                                     <label class="form-label fw-semibold">Number of Rooms</label>
-                                    <input type="number" class="form-control" id="numberOfRooms" value="1" min="1"> 
+                                    <input type="number" style="height: 38px;" class="form-control" id="numberOfRooms" value="1" min="1"> 
                                 </div>
                                 
                                 <div class="col-md-2">
                                     <label class="form-label fw-semibold">Price</label>
                                     <div class="input-group">
-                                        <span class="input-group-text" style="background-color: #f8f9fa; font-size: 0.875rem;">SGD</span>
-                                        <input type="text" class="form-control" id="roomPriceDisplay" value="0.00" style="background-color: #f8f9fa; color: #198754; font-size: 0.875rem;"> 
+                                        <span class="input-group-text" style="background-color: #f8f9fa; font-size: 0.875rem;height: 38px;">SGD</span>
+                                        <input type="text" class="form-control" style="height: 38px;" id="roomPriceDisplay" value="0.00" style="background-color: #f8f9fa; color: #198754; font-size: 0.875rem;"> 
                                     </div>
                                 </div>
                                 
@@ -690,10 +697,13 @@
                                     </div>
                                 </div>
                             </div> --}}
-                            
+                                
+                                </div>
+                            </div>
                         </div>
                     </div>
                 </div>
+
             </div>
 
             <!-- Transports and Other Services Section -->
@@ -709,8 +719,10 @@
                             </div>
                         </div>
                         <div class="card-body p-0">
-                            <div id="dailyServicesContainer">
-                                <!-- Daily services will be populated by JavaScript -->
+                            <div class="accordion" id="servicesAccordionInner">
+                                <div id="dailyServicesContainer">
+                                    <!-- Daily services will be populated by JavaScript -->
+                                </div>
                             </div>
                         </div>
                     </div>
@@ -5188,6 +5200,36 @@
             placeholder: "Choose agent...",
             allowClear: true,
             width: '100%'
+        });
+        
+        // Accordion arrow icon rotation
+        $('#servicesAccordion').on('show.bs.collapse', function (e) {
+            const target = $(e.target);
+            const header = target.prev('.card-header');
+            const arrow = header.find('i[class*="ri-arrow"]');
+            arrow.removeClass('ri-arrow-down-s-line').addClass('ri-arrow-up-s-line');
+        });
+        
+        $('#servicesAccordion').on('hide.bs.collapse', function (e) {
+            const target = $(e.target);
+            const header = target.prev('.card-header');
+            const arrow = header.find('i[class*="ri-arrow"]');
+            arrow.removeClass('ri-arrow-up-s-line').addClass('ri-arrow-down-s-line');
+        });
+        
+        // Inner accordion arrow icon rotation (for services inside transport section)
+        $(document).on('show.bs.collapse', '#servicesAccordionInner .collapse', function (e) {
+            const target = $(e.target);
+            const header = target.prev('.card-header');
+            const arrow = header.find('i[class*="ri-arrow"]');
+            arrow.removeClass('ri-arrow-down-s-line').addClass('ri-arrow-up-s-line');
+        });
+        
+        $(document).on('hide.bs.collapse', '#servicesAccordionInner .collapse', function (e) {
+            const target = $(e.target);
+            const header = target.prev('.card-header');
+            const arrow = header.find('i[class*="ri-arrow"]');
+            arrow.removeClass('ri-arrow-up-s-line').addClass('ri-arrow-down-s-line');
         });
         
         // Hotel City Select
@@ -12057,81 +12099,68 @@ document.addEventListener('DOMContentLoaded', function() {
             const isLastDay = day === totalDays;
              
                          servicesHTML += `
-                <div class="daily-service-section border-bottom" id="day${day}">
-                     <div class="day-content p-4 bg-light">
+                <div class="daily-service-section" id="day${day}">
              `;
             // Entry Port Services (Only on Day 1)
             if (day === 1) {
                 servicesHTML += `
-                      <div class="service-card mb-4">
-                          <div class="service-header d-flex justify-content-between align-items-center mb-3 p-3 bg-white rounded-top border-bottom border-primary">
-                              <div>
-                                  <h6 class="text-primary mb-1 fw-bold">
-                                      <i class="ri-ship-line me-2"></i>Port Transport Services
-                                  </h6>
-                                  <small class="text-muted">Configure entry and exit port transportation services</small>
-                              </div>
-                          </div>
-                          
-                          <div class="card border-primary shadow-sm">
-                              <div class="card-header bg-primary text-white">
+                      <div class="accordion-item border-0 mb-4">
+                          <div class="card shadow-sm border-0 overflow-hidden">
+                              <div class="card-header text-dark d-flex justify-content-between align-items-center" role="button" data-bs-toggle="collapse" data-bs-target="#arrivalTransportSection" aria-expanded="false" aria-controls="arrivalTransportSection" style="cursor: pointer; background: linear-gradient(135deg, #dbeafe 0%, #bfdbfe 100%); border: 1px solid #60a5fa; transition: all 0.3s ease;">
                                   <div class="d-flex align-items-center">
-                                      <span class="service-icon me-3">
-                                          <i class="ri-login-circle-line fs-4"></i>
+                                      <span class="service-icon me-3 d-flex align-items-center justify-content-center rounded-circle" style="width: 45px; height: 45px; background: linear-gradient(135deg, #3b82f6 0%, #2563eb 100%); color: white;">
+                                          <i class="ri-login-circle-line fs-5"></i>
                                       </span>
                                       <div>
-                                          <h6 class="mb-0 fw-bold">Arrival Services</h6>
-                                          <small class="opacity-75">Arrival transportation</small>
+                                          <h6 class="mb-0 fw-bold text-dark">🚌 Arrival Transport Services</h6>
+                                          <small class="text-muted d-block">Edit entry port transfers</small>
                                       </div>
-                                      <span class="badge bg-success ms-auto">
-                                          <i class="ri-check-line me-1"></i>Active
-                                      </span>
                                   </div>
+                                  <i class="ri-arrow-down-s-line ms-2 fs-5 transition-transform"></i>
                               </div>
-                              <div class="card-body bg-white">
+                              <div id="arrivalTransportSection" class="collapse">
+                                  <div class="card-body bg-light p-4">
                                  
-                                 <div class="row g-4 align-items-end">
-                                     <div class="col-md-3">
-                                         <div class="form-group">
-                                             <label class="form-label fw-semibold text-muted mb-2">
-                                                    <i class="ri-map-pin-line text-success me-2"></i>City
+                                 <!-- Location & Time Information Section -->
+                                 <div class="mb-4">
+                                     <h6 class="text-primary fw-bold mb-3 d-flex align-items-center">
+                                         <i class="ri-information-line me-2"></i>Location & Time Information
+                                     </h6>
+                                     <div class="row g-3">
+                                         <div class="col-md-3">
+                                             <label class="form-label fw-semibold text-dark">
+                                                 <i class="ri-building-line me-1 text-primary"></i>City
                                              </label>
                                              <div class="position-relative">
-                                                    <select class="form-select border-2" id="modal_local_transfer_city" name="city" style="padding-left: 45px;" onchange="loadPortsForCity(this.value)">
-                                                        <option value="">Select city</option>
+                                                 <select class="form-select shadow-sm" style="height: 42px; font-size: 0.735rem;" id="modal_local_transfer_city" name="city" style="padding-left: 45px; border: 1px solid #e5e7eb;" onchange="loadPortsForCity(this.value)">
+                                                     <option value="">Select city</option>
                                                  </select>
-                                                 <i class="ri-map-pin-fill position-absolute text-success" style="left: 15px; top: 50%; transform: translateY(-50%); z-index: 5;"></i>
-                                                </div>
-                                            </div>
-                                        </div>
-                                     <div class="col-md-3">
-                                         <div class="form-group">
-                                             <label class="form-label fw-semibold text-muted mb-2">
-                                                 <i class="ri-map-pin-line text-success me-2"></i>Pick Up Location
+                                                 <i class="ri-map-pin-fill position-absolute text-primary" style="left: 15px; top: 50%; transform: translateY(-50%); z-index: 5;"></i>
+                                             </div>
+                                         </div>
+                                         <div class="col-md-3">
+                                             <label class="form-label fw-semibold text-dark">
+                                                 <i class="ri-map-pin-line me-1 text-primary"></i>Pick Up Location
                                              </label>
                                              <div class="position-relative" id="entry_pickup_container">
                                                  <!-- This will be populated based on zone_on value -->
                                              </div>
                                          </div>
-                                     </div>
-                                     <div class="col-md-3">
-                                         <div class="form-group">
-                                             <label class="form-label fw-semibold text-muted mb-2">
-                                                 <i class="ri-map-pin-line text-danger me-2"></i>Drop Off Location
+                                         <div class="col-md-3">
+                                             <label class="form-label fw-semibold text-dark">
+                                                 <i class="ri-map-pin-2-line me-1 text-primary"></i>Drop Off Location
                                              </label>
                                              <div class="position-relative" id="entry_dropoff_container">
                                                  <!-- This will be populated based on zone_on value -->
                                              </div>
                                          </div>
-                                     </div>
-                                     <div class="col-md-3">
-                                         <div class="form-group">
-                                             <label class="form-label fw-semibold text-muted mb-2">
-                                                 <i class="ri-time-line text-warning me-2"></i>Pick Up Time
+                                         <div class="col-md-2">
+                                             <label class="form-label fw-semibold text-dark">
+                                                 <i class="ri-time-line me-1 text-primary"></i>Pick Up Time
                                              </label>
                                              <div class="position-relative">
-                                                 <select class="form-select border-1" name="day${day}_entry_pickup_time" style="padding-left: 35px;" id="day${day}_entry_pickup_time" onchange="enableSearchButton(1, 'entry')">
-                                                     <option value="">Select The Time</option>
+                                                 <select class="form-select shadow-sm" name="day${day}_entry_pickup_time" style="padding-left: 40px; padding-right: 8px; border: 1px solid #e5e7eb; height: 42px; font-size: 0.735rem;" id="day${day}_entry_pickup_time" onchange="enableSearchButton(1, 'entry')">
+                                                     <option value="">Select Time</option>
                                                      <option value="12:00 AM">12:00 AM</option>
                                                      <option value="01:00 AM">01:00 AM</option>
                                                      <option value="02:00 AM">02:00 AM</option>
@@ -12157,82 +12186,95 @@ document.addEventListener('DOMContentLoaded', function() {
                                                      <option value="10:00 PM">10:00 PM</option>
                                                      <option value="11:00 PM">11:00 PM</option>
                                                  </select>
-                                                 <i class="ri-time-fill position-absolute text-warning" style="left: 15px; top: 50%; transform: translateY(-50%); z-index: 5;"></i>
+                                                 <i class="ri-time-fill position-absolute text-primary" style="left: 12px; top: 50%; transform: translateY(-50%); z-index: 5; pointer-events: none;"></i>
                                              </div>
                                          </div>
-                                     </div>
-                                     <div class="col-md-2">
-                                         <button type="button" class="btn btn-primary w-100 py-2" onclick="searchVehicles(${day}, 'entry', 0)" id="day${day}_entry_search_btn" disabled>
-                                             <i class="ri-search-line me-2"></i>Search Vehicles
-                                         </button>
+                                         <div class="col-md-1 d-flex align-items-end">
+                                             <button type="button" class="btn w-100 py-2 rounded-pill shadow-sm" onclick="searchVehicles(${day}, 'entry', 0)" id="day${day}_entry_search_btn" disabled style="background: linear-gradient(135deg, #3b82f6 0%, #2563eb 100%); border: none; color: white; font-weight: 600;">
+                                                 <i class="ri-search-line"></i>
+                                             </button>
+                                         </div>
                                      </div>
                                  </div>
                                  
                                  <!-- Vehicle Results Section (Hidden Initially) -->
                                  <div class="row mt-4" id="day${day}_entry_vehicle_results" style="display: none;">
-                                    <div class="col-12">
-                                        <div class="alert alert-info">
+                                    <div class="col-12 mb-3">
+                                        <div class="p-3 rounded-3 shadow-sm" style="background: linear-gradient(135deg, #dbeafe 0%, #bfdbfe 100%); border: 1px solid #60a5fa;">
                                             <div class="d-flex align-items-center">
-                                                <i class="ri-car-line me-2 fs-4"></i>
+                                                <div class="d-flex align-items-center justify-content-center rounded-circle me-3" style="width: 45px; height: 45px; background: linear-gradient(135deg, #3b82f6 0%, #2563eb 100%); color: white;">
+                                                    <i class="ri-car-line fs-5"></i>
+                                                </div>
                                                 <div>
-                                                    <strong>Available Vehicles</strong>
+                                                    <strong class="text-dark">Available Vehicles</strong>
                                                     <div class="small text-muted">Select your preferred vehicle and service type below</div>
                                                 </div>
                                             </div>
                                         </div>
                                     </div>
 
-                                    <!-- Vehicle + Service Type in one row -->
+                                    <!-- Vehicle Configuration Section -->
                                     <div class="col-12">
-                                        <div class="row">
-                                            <div class="col-md-6">
-                                                <label class="form-label fw-semibold">Vehicle</label>
-                                                <select class="form-select vehicle-select" 
-                                                        name="day${day}_entry_vehicle_id" id="day${day}_entry_0_vehicle_id"
-                                                        onchange="updateVehicleDetails(${day}, 'entry_0'); validatePassengerCapacity(${day}, 'entry_0'); updateTypeSelect(event, ${day}, 'entry_0')">
-                                                        
-                                                    <option value="">Choose vehicle</option>
-                                                </select>
-                                            </div>
-                                            <div class="col-md-6">
-                                                <label class="form-label fw-semibold">Service Type</label>
-                                                <select class="form-select service-type-select" 
-                                                        name="day${day}_entry_service_type" 
-                                                        id="day${day}_entry_0_service_type" onchange="updatePricing(${day}, 'entry_0')"
-                                                        >
-                                                    <option value="">Select service type</option>
-                                                    <option value="Shared">Shared</option>
-                                                    <option value="Private">Private</option>
-                                                </select>
-                                            </div>
-                                        </div>
-                                        
-                                        <!-- Guest Information -->
-                                        <div class="row mt-3">
-                                            <div class="col-md-12">
-                                                <div class="form-group">
-                                                    <label class="form-label fw-semibold">Number of Passengers</label>
-                                                    <div class="input-group">
-                                                        <span class="input-group-text"><i class="ri-user-line"></i></span>
+                                        <div class="card border-0 shadow-sm bg-white p-4 rounded-3 mb-3">
+                                            <h6 class="text-primary fw-bold mb-3 d-flex align-items-center">
+                                                <i class="ri-car-line me-2"></i>Vehicle Configuration
+                                            </h6>
+                                            <div class="row g-3">
+                                                <div class="col-md-6">
+                                                    <label class="form-label fw-semibold text-dark">
+                                                        <i class="ri-car-line me-1 text-primary"></i>Vehicle
+                                                    </label>
+                                                    <select class="form-select shadow-sm vehicle-select" 
+                                                            name="day${day}_entry_vehicle_id" id="day${day}_entry_0_vehicle_id"
+                                                            onchange="updateVehicleDetails(${day}, 'entry_0'); validatePassengerCapacity(${day}, 'entry_0'); updateTypeSelect(event, ${day}, 'entry_0')"
+                                                            style="border: 1px solid #e5e7eb;">
+                                                        <option value="">Choose vehicle</option>
+                                                    </select>
+                                                </div>
+                                                <div class="col-md-6">
+                                                    <label class="form-label fw-semibold text-dark">
+                                                        <i class="ri-service-line me-1 text-primary"></i>Service Type
+                                                    </label>
+                                                    <select class="form-select shadow-sm service-type-select" 
+                                                            name="day${day}_entry_service_type" 
+                                                            id="day${day}_entry_0_service_type" 
+                                                            onchange="updatePricing(${day}, 'entry_0')"
+                                                            style="border: 1px solid #e5e7eb; height: 42px; font-size: 0.735rem;">
+                                                        <option value="">Select service type</option>
+                                                        <option value="Shared">Shared</option>
+                                                        <option value="Private">Private</option>
+                                                    </select>
+                                                </div>
+                                                <div class="col-md-12">
+                                                    <label class="form-label fw-semibold text-dark">
+                                                        <i class="ri-group-line me-1 text-primary"></i>Number of Passengers
+                                                    </label>
+                                                    <div class="input-group shadow-sm">
+                                                        <span class="input-group-text" style="background: linear-gradient(135deg, #3b82f6 0%, #2563eb 100%); color: white; border: 1px solid #3b82f6;">
+                                                            <i class="ri-user-line"></i>
+                                                        </span>
                                                         <input type="number" class="form-control" id="day${day}_entry_0_passengers" name="day${day}_entry_0_passengers" min="1" max="50" value="" 
                                                         oninput="validatePassengerCapacity(${day}, 'entry_0'); updatePricing(${day}, 'entry_0')"
-                                                        onchange="validatePassengerCapacity(${day}, 'entry_0'); updatePricing(${day}, 'entry_0')">
+                                                        onchange="validatePassengerCapacity(${day}, 'entry_0'); updatePricing(${day}, 'entry_0')"
+                                                        style="border: 1px solid #e5e7eb; height: 42px; font-size: 0.735rem;">
                                                     </div>
-                                                    <small class="form-text text-muted">
-                                                        Enter number of passengers for this service
+                                                    <small class="form-text text-muted mt-1">
+                                                        <i class="ri-information-line me-1"></i>Enter number of passengers for this service
                                                     </small>
                                                 </div>
                                             </div>
                                         </div>
                                         
                                         <!-- Price Display for Entry Port -->
-                                        <div class="col-12 mt-3">
-                                            <div id="day${day}_entry_0_price_display" class="alert alert-success" style="display: none;">
-                                                <div class="d-flex align-items-center">
-                                                    <i class="ri-money-dollar-circle-line me-2 fs-4"></i>
+                                        <div class="col-12">
+                                            <div id="day${day}_entry_0_price_display" class="p-4 rounded-4 shadow-sm" style="display: none; background: linear-gradient(135deg, #ecfdf5 0%, #d1fae5 100%); border: 2px solid #10b981;">
+                                                <div class="d-flex align-items-center mb-3">
+                                                    <div class="d-flex align-items-center justify-content-center rounded-circle me-3" style="width: 50px; height: 50px; background: linear-gradient(135deg, #10b981 0%, #059669 100%); color: white;">
+                                                        <i class="ri-money-dollar-circle-line fs-4"></i>
+                                                    </div>
                                                     <div>
-                                                        <strong>Price Information</strong>
-                                                        <div class="small">Select a vehicle and service type to see pricing</div>
+                                                        <strong class="text-success fs-6">Price Information</strong>
+                                                        <div class="small text-muted">Vehicle pricing details</div>
                                                     </div>
                                                 </div>
                                             </div>
@@ -12266,94 +12308,83 @@ document.addEventListener('DOMContentLoaded', function() {
                                         </div>
                                     </div>
                                 </div>
-                            </div>
-                        </div>
-                        
-                        <!-- Container for additional entry port vehicles -->
-                        <div class="entry-ports-container"></div>
-                        
-                        <!-- Add More Button - Positioned below additional vehicles -->
-                        <div class="text-center mt-3">
-                            <button type="button" class="btn btn-light border" onclick="addMoreEntryPorts(${day})" style="color: #0c63e4; border-color: #b8daff !important; background-color: #f8f9fa;">
-                                <i class="ri-add-line me-2"></i>Add More Vehicles
-                            </button>
-                        </div>
-                     </div>
+                                    
+                                    <!-- Container for additional entry port vehicles -->
+                                    <div class="entry-ports-container"></div>
+                                    
+                                    <!-- Add More Button - Positioned below additional vehicles -->
+                                    <div class="text-center mt-4">
+                                        <button type="button" class="btn btn-lg rounded-pill px-5 py-3 shadow-sm" onclick="addMoreEntryPorts(${day})" style="background: linear-gradient(135deg, #3b82f6 0%, #2563eb 100%); border: none; color: white; font-weight: 600;">
+                                            <i class="ri-add-line me-2 fs-5"></i>Add More Vehicles
+                                        </button>
+                                    </div>
+                                  </div>
+                              </div>
+                          </div>
+                      </div>
                  `;
              }
              
                            // Exit Port Services (Only on last day and only if more than 1 day)
               if (day === totalDays && totalDays > 1) {
                                    servicesHTML += `
-                      <div class="service-card mb-4">
-                          <div class="service-header d-flex justify-content-between align-items-center mb-3 p-3 bg-white rounded-top border-bottom border-danger">
-                              <div>
-                                  <h6 class="text-danger mb-1 fw-bold">
-                                      <i class="ri-ship-line me-2"></i>Port Transport Services
-                                  </h6>
-                                  <small class="text-muted">Configure entry and exit port transportation services</small>
-                              </div>
-                          </div>
-                          
-                          <div class="card border-danger shadow-sm">
-                              <div class="card-header bg-danger text-white">
+                      <div class="accordion-item border-0 mb-4">
+                          <div class="card shadow-sm border-0 overflow-hidden">
+                              <div class="card-header text-dark d-flex justify-content-between align-items-center" role="button" data-bs-toggle="collapse" data-bs-target="#departureTransportSection" aria-expanded="false" aria-controls="departureTransportSection" style="cursor: pointer; background: linear-gradient(135deg, #dbeafe 0%, #bfdbfe 100%); border: 1px solid #60a5fa; transition: all 0.3s ease;">
                                   <div class="d-flex align-items-center">
-                                      <span class="service-icon me-3">
-                                          <i class="ri-logout-circle-line fs-4"></i>
+                                      <span class="service-icon me-3 d-flex align-items-center justify-content-center rounded-circle" style="width: 45px; height: 45px; background: linear-gradient(135deg, #3b82f6 0%, #2563eb 100%); color: white;">
+                                          <i class="ri-logout-circle-line fs-5"></i>
                                       </span>
                                       <div>
-                                          <h6 class="mb-0 fw-bold">Departure Services</h6>
-                                          <small class="opacity-75">Departure transportation</small>
+                                          <h6 class="mb-0 fw-bold text-dark">✈️ Departure Transport Services</h6>
+                                          <small class="text-muted d-block">Edit exit port transfers</small>
                                       </div>
-                                      <span class="badge bg-warning ms-auto">
-                                          <i class="ri-plane-line me-1"></i>Departure
-                                      </span>
                                   </div>
+                                  <i class="ri-arrow-down-s-line ms-2 fs-5 transition-transform"></i>
                               </div>
-                              <div class="card-body bg-white">
+                              <div id="departureTransportSection" class="collapse">
+                                  <div class="card-body bg-light p-4">
                                  
-                                 <div class="row g-4 align-items-end">
-                                     <div class="col-md-3">
-                                         <div class="form-group">
-                                             <label class="form-label fw-semibold text-muted mb-2">
-                                                 <i class="ri-map-pin-line text-success me-2"></i>City
+                                 <!-- Location & Time Information Section -->
+                                 <div class="mb-4">
+                                     <h6 class="text-primary fw-bold mb-3 d-flex align-items-center">
+                                         <i class="ri-information-line me-2"></i>Location & Time Information
+                                     </h6>
+                                     <div class="row g-3">
+                                         <div class="col-md-3">
+                                             <label class="form-label fw-semibold text-dark">
+                                                 <i class="ri-building-line me-1 text-primary"></i>City
                                              </label>
                                              <div class="position-relative">
-                                                 <select class="form-select border-2" id="modal_exit_city" name="city" style="padding-left: 45px;" onchange="loadExitPortsForCity(this.value)">
+                                                 <select class="form-select shadow-sm" id="modal_exit_city" name="city" style="padding-left: 45px; border: 1px solid #e5e7eb;" onchange="loadExitPortsForCity(this.value)">
                                                      <option value="">Select city</option>
                                                  </select>
-                                                 <i class="ri-map-pin-fill position-absolute text-success" style="left: 15px; top: 50%; transform: translateY(-50%); z-index: 5;"></i>
+                                                 <i class="ri-map-pin-fill position-absolute text-primary" style="left: 15px; top: 50%; transform: translateY(-50%); z-index: 5;"></i>
                                              </div>
                                          </div>
-                                     </div>
-                                     <div class="col-md-3">
-                                         <div class="form-group">
-                                             <label class="form-label fw-semibold text-muted mb-2">
-                                                 <i class="ri-map-pin-line text-success me-2"></i>Pick Up Location
+                                         <div class="col-md-3">
+                                             <label class="form-label fw-semibold text-dark">
+                                                 <i class="ri-map-pin-line me-1 text-primary"></i>Pick Up Location
                                              </label>
                                              <div class="position-relative" id="exit_pickup_container">
                                                  <!-- This will be populated based on zone_on value -->
                                              </div>
                                          </div>
-                                     </div>
-                                     <div class="col-md-3">
-                                         <div class="form-group">
-                                             <label class="form-label fw-semibold text-muted mb-2">
-                                                 <i class="ri-map-pin-line text-danger me-2"></i>Drop Off Location
+                                         <div class="col-md-3">
+                                             <label class="form-label fw-semibold text-dark">
+                                                 <i class="ri-map-pin-2-line me-1 text-primary"></i>Drop Off Location
                                              </label>
                                              <div class="position-relative" id="exit_dropoff_container">
                                                  <!-- This will be populated based on zone_on value -->
                                              </div>
                                          </div>
-                                     </div>
-                                     <div class="col-md-3">
-                                         <div class="form-group">
-                                             <label class="form-label fw-semibold text-muted mb-2">
-                                                 <i class="ri-time-line text-warning me-2"></i>Exit Time
+                                         <div class="col-md-2">
+                                             <label class="form-label fw-semibold text-dark">
+                                                 <i class="ri-time-line me-1 text-primary"></i>Exit Time
                                              </label>
                                              <div class="position-relative">
-                                                 <select class="form-select border-1" name="day${day}_exit_time" style="padding-left: 35px;" onchange="enableSearchButton(${day}, 'exit')">
-                                                     <option value="">Select The Time</option>
+                                                 <select class="form-select shadow-sm" name="day${day}_exit_time" style="padding-left: 40px; height: 42px; font-size: 0.735rem; padding-right: 8px; border: 1px solid #e5e7eb; height: 42px; font-size: 0.735rem;" onchange="enableSearchButton(${day}, 'exit')">
+                                                     <option value="">Select Time</option>
                                                      <option value="12:00 AM">12:00 AM</option>
                                                      <option value="01:00 AM">01:00 AM</option>
                                                      <option value="02:00 AM">02:00 AM</option>
@@ -12379,84 +12410,95 @@ document.addEventListener('DOMContentLoaded', function() {
                                                      <option value="10:00 PM">10:00 PM</option>
                                                      <option value="11:00 PM">11:00 PM</option>
                                                  </select>
-                                                 <i class="ri-time-fill position-absolute text-warning" style="left: 15px; top: 50%; transform: translateY(-50%); z-index: 5;"></i>
                                              </div>
                                          </div>
-                                     </div>
-                                     <div class="col-md-2">
-                                         <button type="button" class="btn btn-primary w-100 py-2" onclick="searchVehicles(${day}, 'exit', 0)" id="day${day}_exit_search_btn" disabled>
-                                             <i class="ri-search-line me-2"></i>Search Vehicles
-                                         </button>
+                                         <div class="col-md-1 d-flex align-items-end">
+                                             <button type="button" class="btn w-100 py-2 rounded-pill shadow-sm" onclick="searchVehicles(${day}, 'exit', 0)" id="day${day}_exit_search_btn" disabled style="background: linear-gradient(135deg, #3b82f6 0%, #2563eb 100%); border: none; color: white; font-weight: 600;">
+                                                 <i class="ri-search-line"></i>
+                                             </button>
+                                         </div>
                                      </div>
                                  </div>
                                  
                                                                  <!-- Vehicle Results Section (Hidden Initially) -->
                                 <div class="row mt-4" id="day${day}_exit_vehicle_results" style="display: none;">
-                                    <div class="col-12">
-                                        <div class="alert alert-info">
+                                    <div class="col-12 mb-3">
+                                        <div class="p-3 rounded-3 shadow-sm" style="background: linear-gradient(135deg, #dbeafe 0%, #bfdbfe 100%); border: 1px solid #60a5fa;">
                                             <div class="d-flex align-items-center">
-                                                <i class="ri-car-line me-2 fs-4"></i>
+                                                <div class="d-flex align-items-center justify-content-center rounded-circle me-3" style="width: 45px; height: 45px; background: linear-gradient(135deg, #3b82f6 0%, #2563eb 100%); color: white;">
+                                                    <i class="ri-car-line fs-5"></i>
+                                                </div>
                                                 <div>
-                                                    <strong>Available Vehicles</strong>
+                                                    <strong class="text-dark">Available Vehicles</strong>
                                                     <div class="small text-muted">Select your preferred vehicle and service type below</div>
                                                 </div>
                                             </div>
                                         </div>
                                     </div>
 
-                                    <!-- Vehicle + Service Type in one row -->
+                                    <!-- Vehicle Configuration Section -->
                                     <div class="col-12">
-                                        <div class="row">
-                                            <div class="col-md-6">
-                                                <label class="form-label fw-semibold">Vehicle</label>
-                                                <select class="form-select vehicle-select" 
-                                                        name="day${day}_exit_0_vehicle_id" 
-                                                        id="day${day}_exit_0_vehicle_id"
-                                                        
-                                                        onchange="updateVehicleDetails(${day}, 'exit_0'); validatePassengerCapacity(${day}, 'exit_0'); updateTypeSelect(event, ${day}, 'exit_0')">
-                                                    <option value="">Choose vehicle</option>
-                                                </select>
-                                            </div>
-                                            <div class="col-md-6">
-                                                <label class="form-label fw-semibold">Service Type</label>
-                                                <select class="form-select service-type-select" 
-                                                        name="day${day}_exit_0_service_type" 
-                                                        id="day${day}_exit_0_service_type"
-                                                        onchange="updatePassengerFeild(event,'exit_${day}', ${day}); updatePricing(${day}, 'exit_0')"
-                                                        >
-                                                    <option value="">Select service type</option>
-                                                    <option value="Shared">Shared</option>
-                                                    <option value="Private">Private</option>
-                                                </select>
-                                            </div>
-                                        </div>
-                                        
-                                        <!-- Guest Information -->
-                                        <div class="row mt-3">
-                                            <div class="col-md-12">
-                                                <div class="form-group">
-                                                    <label class="form-label fw-semibold">Number of Passengers</label>
-                                                    <div class="input-group">
-                                                        <span class="input-group-text"><i class="ri-user-line"></i></span>
-                                                        <input type="number" class="form-control" id="day${day}_exit_0_passengers" name="day${day}_exit_0_passengers" min="1" max="50" value="" 
+                                        <div class="card border-0 shadow-sm bg-white p-4 rounded-3 mb-3">
+                                            <h6 class="text-primary fw-bold mb-3 d-flex align-items-center">
+                                                <i class="ri-car-line me-2"></i>Vehicle Configuration
+                                            </h6>
+                                            <div class="row g-3">
+                                                <div class="col-md-6">
+                                                    <label class="form-label fw-semibold text-dark">
+                                                        <i class="ri-car-line me-1 text-primary"></i>Vehicle
+                                                    </label>
+                                                    <select class="form-select shadow-sm vehicle-select" style="height: 42px; font-size: 0.735rem;" 
+                                                            name="day${day}_exit_0_vehicle_id" 
+                                                            id="day${day}_exit_0_vehicle_id"
+                                                            onchange="updateVehicleDetails(${day}, 'exit_0'); validatePassengerCapacity(${day}, 'exit_0'); updateTypeSelect(event, ${day}, 'exit_0')"
+                                                            style="border: 1px solid #e5e7eb;">
+                                                        <option value="">Choose vehicle</option>
+                                                    </select>
+                                                </div>
+                                                <div class="col-md-6">
+                                                    <label class="form-label fw-semibold text-dark">
+                                                        <i class="ri-service-line me-1 text-primary"></i>Service Type
+                                                    </label>
+                                                    <select class="form-select shadow-sm service-type-select" style="height: 42px; font-size: 0.735rem;" 
+                                                            name="day${day}_exit_0_service_type" 
+                                                            id="day${day}_exit_0_service_type"
+                                                            onchange="updatePassengerFeild(event,'exit_${day}', ${day}); updatePricing(${day}, 'exit_0')"
+                                                            style="border: 1px solid #e5e7eb;">
+                                                        <option value="">Select service type</option>
+                                                        <option value="Shared">Shared</option>
+                                                        <option value="Private">Private</option>
+                                                    </select>
+                                                </div>
+                                                <div class="col-md-12">
+                                                    <label class="form-label fw-semibold text-dark">
+                                                        <i class="ri-group-line me-1 text-primary"></i>Number of Passengers
+                                                    </label>
+                                                    <div class="input-group shadow-sm">
+                                                        <span class="input-group-text" style="height: 42px; font-size: 0.735rem;" style="background: linear-gradient(135deg, #3b82f6 0%, #2563eb 100%); color: white; border: 1px solid #3b82f6;">
+                                                            <i class="ri-user-line"></i>
+                                                        </span>
+                                                        <input type="number" style="height: 42px; font-size: 0.735rem;" class="form-control" id="day${day}_exit_0_passengers" name="day${day}_exit_0_passengers" min="1" max="50" value="" 
                                                         oninput="validatePassengerCapacity(${day}, 'exit_0'); updatePricing(${day}, 'exit_0')"
-                                                        onchange="validatePassengerCapacity(${day}, 'exit_0'); updatePricing(${day}, 'exit_0')">
+                                                        onchange="validatePassengerCapacity(${day}, 'exit_0'); updatePricing(${day}, 'exit_0')"
+                                                        style="border: 1px solid #e5e7eb;">
                                                     </div>
-                                                    <small class="form-text text-muted">
-                                                        Enter number of passengers for this service
+                                                    <small class="form-text text-muted mt-1">
+                                                        <i class="ri-information-line me-1"></i>Enter number of passengers for this service
                                                     </small>
                                                 </div>
                                             </div>
                                         </div>
                                         
                                         <!-- Price Display for Exit Port -->
-                                        <div class="col-12 mt-3">
-                                            <div id="day${day}_exit_0_price_display" class="alert alert-success" style="display: none;">
-                                                <div class="d-flex align-items-center">
-                                                    <i class="ri-money-dollar-circle-line me-2 fs-4"></i>
+                                        <div class="col-12">
+                                            <div id="day${day}_exit_0_price_display" class="p-4 rounded-4 shadow-sm" style="display: none; background: linear-gradient(135deg, #ecfdf5 0%, #d1fae5 100%); border: 2px solid #10b981;">
+                                                <div class="d-flex align-items-center mb-3">
+                                                    <div class="d-flex align-items-center justify-content-center rounded-circle me-3" style="width: 50px; height: 50px; background: linear-gradient(135deg, #10b981 0%, #059669 100%); color: white;">
+                                                        <i class="ri-money-dollar-circle-line fs-4"></i>
+                                                    </div>
                                                     <div>
-                                                        <strong>Price Information</strong>
-                                                        <div class="small">Select a vehicle and service type to see pricing</div>
+                                                        <strong class="text-success fs-6">Price Information</strong>
+                                                        <div class="small text-muted">Vehicle pricing details</div>
                                                     </div>
                                                 </div>
                                             </div>
@@ -12488,19 +12530,20 @@ document.addEventListener('DOMContentLoaded', function() {
                                         </div>
                                     </div>
                                 </div>
-                            </div>
-                        </div>
-                        
-                        <!-- Container for additional exit port vehicles -->
-                        <div class="exit-ports-container"></div>
-                        
-                        <!-- Add More Button - Positioned below additional vehicles -->
-                        <div class="text-center mt-3">
-                            <button type="button" class="btn btn-light border" onclick="addMoreExitPorts(${day})" style="color: #dc3545; border-color: #f5c2c7 !important; background-color: #f8f9fa;">
-                                <i class="ri-add-line me-2"></i>Add More Vehicles
-                            </button>
-                        </div>
-                     </div>
+                                    
+                                    <!-- Container for additional exit port vehicles -->
+                                    <div class="exit-ports-container"></div>
+                                    
+                                    <!-- Add More Button - Positioned below additional vehicles -->
+                                    <div class="text-center mt-4 mb-3">
+                                        <button type="button" class="btn btn-lg rounded-pill px-5 py-3 shadow-sm" onclick="addMoreExitPorts(${day})" style="background: linear-gradient(135deg, #3b82f6 0%, #2563eb 100%); border: none; color: white; font-weight: 600;">
+                                            <i class="ri-add-line me-2 fs-5"></i>Add More Vehicles
+                                        </button>
+                                    </div>
+                                  </div>
+                              </div>
+                          </div>
+                      </div>
                  `;
              }
              
@@ -12516,36 +12559,25 @@ document.addEventListener('DOMContentLoaded', function() {
                   servicesHTML += `
                   <div class="services-container">
                       <!-- Attraction Tickets -->
-                      <div class="service-card mb-4">
-                          <div class="service-header d-flex justify-content-between align-items-center mb-3 p-3 bg-white rounded-top border-bottom border-danger">
-                              <div>
-                                  <h6 class="text-danger mb-1 fw-bold">
-                                      <i class="ri-ticket-line me-2"></i>Book Attraction Tickets
-                                  </h6>
-                                  <small class="text-muted">Select attractions and configure your perfect tour package</small>
-                              </div>
-                              <button type="button" class="btn btn-sm btn-outline-danger" onclick="updateAllAttractionPricing()" title="Refresh All Attraction Pricing">
-                                  <i class="ri-refresh-line me-1"></i>Refresh Pricing
-                              </button>
-                          </div>
-                          
-                          <div class="attractions-container" id="day${day}_attractions_container">
-                              <div class="card border-danger shadow-sm attraction-item mb-3" data-attraction-index="1">
-                              <div class="card-header bg-danger text-white">
+                      <div class="accordion-item border-0 mb-4">
+                          <div class="card shadow-sm border-0 overflow-hidden">
+                              <div class="card-header text-dark d-flex justify-content-between align-items-center" role="button" data-bs-toggle="collapse" data-bs-target="#allAttractionsSection" aria-expanded="false" aria-controls="allAttractionsSection" style="cursor: pointer; background: linear-gradient(135deg, #f3e8ff 0%, #e9d5ff 100%); border: 1px solid #c084fc; transition: all 0.3s ease;">
                                   <div class="d-flex align-items-center">
-                                      <span class="service-icon me-3">
-                                          <i class="ri-ticket-line fs-4"></i>
+                                      <span class="service-icon me-3 d-flex align-items-center justify-content-center rounded-circle" style="width: 45px; height: 45px; background: linear-gradient(135deg, #a855f7 0%, #9333ea 100%); color: white;">
+                                          <i class="ri-ticket-line fs-5"></i>
                                       </span>
                                       <div>
-                                          <h6 class="mb-0 fw-bold">Attraction Booking #1</h6>
-                                          <small class="opacity-75">Select your preferred attractions</small>
+                                          <h6 class="mb-0 fw-bold text-dark">🎫 All Attraction Tickets</h6>
+                                          <small class="text-muted d-block">All attractions from all days in one place</small>
                                       </div>
-                                      <span class="badge bg-warning ms-auto">
-                                          <i class="ri-edit-line me-1"></i>Configure
-                                      </span>
                                   </div>
+                                  <i class="ri-arrow-down-s-line ms-2 fs-5 transition-transform"></i>
                               </div>
-                              <div class="card-body bg-white">
+                              <div id="allAttractionsSection" class="collapse">
+                                  <div class="card-body bg-light p-4">
+                                      <div class="attractions-container" id="day${day}_attractions_container">
+                              <div class="card border-0 shadow-sm attraction-item mb-4 overflow-hidden" data-attraction-index="1" style="border-radius: 12px;">
+                              <div class="card-body bg-white p-4">
                                  
                                  <div class="row g-3">
                                      <div class="col-md-2">
@@ -12587,13 +12619,13 @@ document.addEventListener('DOMContentLoaded', function() {
                                     </div>
                                      <div class="col-md-3">
                                          <label class="form-label fw-semibold">Select Time Slot</label>
-                                         <select class="form-select" name="day${day}_attraction_1_time" id="day${day}_attraction_1_time">
+                                         <select class="form-select" style="height: 42px; font-size: 0.735rem;" name="day${day}_attraction_1_time" id="day${day}_attraction_1_time">
                                              <option value="">Select Time Slot</option>
                                          </select>
                                      </div>
                                      <div class="col-md-3">
                                          <label class="form-label fw-semibold">Select Ticket</label>
-                                         <select class="form-select" name="day${day}_attraction_1_ticket" id="day${day}_attraction_1_ticket" onchange="updateAttractionPricing(${day}, 1)">
+                                         <select class="form-select" style="height: 42px; font-size: 0.735rem;" name="day${day}_attraction_1_ticket" id="day${day}_attraction_1_ticket" onchange="updateAttractionPricing(${day}, 1)">
                                              <option value="">Select Ticket</option>
                                          </select>
                                      </div>
@@ -12605,7 +12637,7 @@ document.addEventListener('DOMContentLoaded', function() {
                                          <label class="form-label fw-semibold">
                                              <i class="ri-car-line me-1"></i>Transfer?
                                          </label>
-                                         <select class="form-select" name="day${day}_attraction_1_transfer_required" id="day${day}_attraction_1_transfer_required" onchange="toggleAttractionTransferFields(${day}, 1)">
+                                         <select class="form-select" style="height: 42px; font-size: 0.735rem;" name="day${day}_attraction_1_transfer_required" id="day${day}_attraction_1_transfer_required" onchange="toggleAttractionTransferFields(${day}, 1)">
                                              <option value="No">No</option>
                                              <option value="Yes">Yes</option>
                                          </select>
@@ -12614,7 +12646,7 @@ document.addEventListener('DOMContentLoaded', function() {
                                      <!-- Transfer Options (Hidden by default) -->
                                      <div class="col-md-2 attraction-transfer-fields" id="day${day}_attraction_1_transfer_type_field" style="display: none;">
                                          <label class="form-label fw-semibold">Type</label>
-                                         <select class="form-select" name="day${day}_attraction_1_transfer_type" id="day${day}_attraction_1_transfer_type" onchange="handleAttractionTransferTypeOrWayChange(${day}, 1)">
+                                         <select class="form-select" style="height: 42px; font-size: 0.735rem;" name="day${day}_attraction_1_transfer_type" id="day${day}_attraction_1_transfer_type" onchange="handleAttractionTransferTypeOrWayChange(${day}, 1)">
                                              <option value="">Select Type</option>
                                              <option value="Private">Private</option>
                                              <option value="Shared">Shared</option>
@@ -12622,7 +12654,7 @@ document.addEventListener('DOMContentLoaded', function() {
                                      </div>
                                      <div class="col-md-2 attraction-transfer-fields" id="day${day}_attraction_1_transfer_way_field" style="display: none;">
                                          <label class="form-label fw-semibold">Way</label>
-                                         <select class="form-select" name="day${day}_attraction_1_transfer_way" id="day${day}_attraction_1_transfer_way" onchange="handleAttractionTransferTypeOrWayChange(${day}, 1)">
+                                         <select class="form-select" style="height: 42px; font-size: 0.735rem;" name="day${day}_attraction_1_transfer_way" id="day${day}_attraction_1_transfer_way" onchange="handleAttractionTransferTypeOrWayChange(${day}, 1)">
                                              <option value="">Select Way</option>
                                              <option value="One Way">One Way</option>
                                              <option value="Both Way">Both Way</option>
@@ -12630,7 +12662,7 @@ document.addEventListener('DOMContentLoaded', function() {
                                      </div>
                                      <div class="col-md-3 attraction-transfer-fields" id="day${day}_attraction_1_transfer_vehicle_field" style="display: none;">
                                          <label class="form-label fw-semibold">Vehicle</label>
-                                         <select class="form-select" name="day${day}_attraction_1_transfer_vehicle" id="day${day}_attraction_1_transfer_vehicle" onchange="handleAttractionVehicleChange(${day}, 1)">
+                                         <select class="form-select" style="height: 42px; font-size: 0.735rem;" name="day${day}_attraction_1_transfer_vehicle" id="day${day}_attraction_1_transfer_vehicle" onchange="handleAttractionVehicleChange(${day}, 1)">
                                              <option value="">Select Vehicle</option>
                                          </select>
                                      </div>
@@ -12638,13 +12670,13 @@ document.addEventListener('DOMContentLoaded', function() {
                                          <label class="form-label fw-semibold">
                                              <i class="ri-map-pin-line me-1"></i>Pickup Location
                                          </label>
-                                         <select class="form-select" name="day${day}_attraction_1_transfer_pickup_location" id="day${day}_attraction_1_transfer_pickup_location" onchange="fetchAttractionTransferPricing(${day}, 1)">
+                                         <select class="form-select" style="height: 42px; font-size: 0.735rem;" name="day${day}_attraction_1_transfer_pickup_location" id="day${day}_attraction_1_transfer_pickup_location" onchange="fetchAttractionTransferPricing(${day}, 1)">
                                              <option value="">Select Pickup Location</option>
                                          </select>
                                      </div>
                                      <div class="col-md-2 attraction-transfer-fields" id="day${day}_attraction_1_transfer_cost_field" style="display: none;">
                                          <label class="form-label fw-semibold">Cost</label>
-                                         <input type="number" class="form-control" name="day${day}_attraction_1_transfer_cost" id="day${day}_attraction_1_transfer_cost" min="0" step="0.01" placeholder="0.00" onchange="updateAttractionTransportPricing(${day}, 1)" oninput="updateAttractionTransportPricing(${day}, 1)">
+                                         <input type="number" class="form-control" style="height: 42px; font-size: 0.735rem;" name="day${day}_attraction_1_transfer_cost" id="day${day}_attraction_1_transfer_cost" min="0" step="0.01" placeholder="0.00" onchange="updateAttractionTransportPricing(${day}, 1)" oninput="updateAttractionTransportPricing(${day}, 1)">
                                      </div>
                                  </div>
                                  
@@ -12655,7 +12687,7 @@ document.addEventListener('DOMContentLoaded', function() {
                                          <label class="form-label fw-semibold">
                                              <i class="ri-user-star-line me-1"></i>Guide?
                                          </label>
-                                         <select class="form-select" name="day${day}_attraction_1_guide_required" id="day${day}_attraction_1_guide_required" onchange="toggleAttractionGuideFields(${day}, 1)">
+                                         <select class="form-select" style="height: 42px; font-size: 0.735rem;" name="day${day}_attraction_1_guide_required" id="day${day}_attraction_1_guide_required" onchange="toggleAttractionGuideFields(${day}, 1)">
                                              <option value="No">No</option>
                                              <option value="Yes">Yes</option>
                                          </select>
@@ -12664,14 +12696,14 @@ document.addEventListener('DOMContentLoaded', function() {
                                      <!-- Guide Options (Hidden by default) -->
                                      <div class="col-md-4 attraction-guide-fields" id="day${day}_attraction_1_guide_select_field" style="display: none;">
                                          <label class="form-label fw-semibold">Select Guide</label>
-                                         <select class="form-select attraction-guide-select" name="day${day}_attraction_1_guide" id="day${day}_attraction_1_guide" onchange="loadAttractionGuideDetails(${day}, this.value, 1)" disabled>
+                                            <select class="form-select attraction-guide-select" style="height: 42px; font-size: 0.735rem;" name="day${day}_attraction_1_guide" id="day${day}_attraction_1_guide" onchange="loadAttractionGuideDetails(${day}, this.value, 1)" disabled>
                                              <option value="">Select city first</option>
                                          </select>
                                      </div>
                                      <div class="col-md-3 attraction-guide-fields" id="day${day}_attraction_1_guide_pickup_time_field" style="display: none;">
                                          <label class="form-label fw-semibold">Pickup Time</label>
                                          <div id="day${day}_attraction_1_guide_pickup_time_options">
-                                             <select class="form-select" disabled>
+                                             <select class="form-select" style="height: 42px; font-size: 0.735rem;" disabled>
                                                  <option value="">Select guide first</option>
                                              </select>
                                          </div>
@@ -12679,7 +12711,7 @@ document.addEventListener('DOMContentLoaded', function() {
                                      </div>
                                      <div class="col-md-3 attraction-guide-fields" id="day${day}_attraction_1_guide_package_field" style="display: none;">
                                          <label class="form-label fw-semibold">Select Package</label>
-                                         <select class="form-select" name="day${day}_attraction_1_guide_package" id="day${day}_attraction_1_guide_package" onchange="updateAttractionGuidePricing(${day}, 1)">
+                                         <select class="form-select" style="height: 42px; font-size: 0.735rem;" name="day${day}_attraction_1_guide_package" id="day${day}_attraction_1_guide_package" onchange="updateAttractionGuidePricing(${day}, 1)">
                                              <option value="">Select Duration</option>
                                          </select>
                                          
@@ -12766,42 +12798,36 @@ document.addEventListener('DOMContentLoaded', function() {
                               </div>
                           </div>
                           
-                                                   <div class="mt-3 text-center">
-                                         <button type="button" class="btn btn-sm btn-outline-danger" onclick="addMoreAttractions(${day})">
-                                             <i class="ri-add-line me-1"></i>Add More Attraction
+                                                   <div class="mt-4 text-center">
+                                         <button type="button" class="btn btn-lg rounded-pill px-5 py-3 shadow-sm" onclick="addMoreAttractions(${day})" style="background: linear-gradient(135deg, #a855f7 0%, #9333ea 100%); border: none; color: white; font-weight: 600;">
+                                             <i class="ri-add-line me-2 fs-5"></i>Add More Attraction
                                          </button>
-                            </div>
-                         </div>
-                     </div>
-                     
-                    <!-- Tour Guide Services -->
-                      <div class="service-card mb-4">
-                          <div class="service-header d-flex justify-content-between align-items-center mb-3 p-3 bg-white rounded-top border-bottom border-info">
-                              <div>
-                                  <h6 class="text-info mb-1 fw-bold">
-                                      <i class="ri-user-star-line me-2"></i>Book Tour Guide Services
-                                  </h6>
-                                  <small class="text-muted">Select professional guides and configure your tour package</small>
-                              </div>
-                          </div>
-                          
-                          <div class="guides-container" id="day${day}_guides_container">
-                              <div class="card border-info shadow-sm guide-item mb-3" data-guide-index="1">
-                              <div class="card-header bg-info text-white">
-                                  <div class="d-flex align-items-center">
-                                      <span class="service-icon me-3">
-                                          <i class="ri-user-star-line fs-4"></i>
-                                      </span>
-                                      <div>
-                                          <h6 class="mb-0 fw-bold">Tour Guide Booking #1</h6>
-                                          <small class="opacity-75">Professional guide services</small>
                                       </div>
-                                      <span class="badge bg-warning ms-auto">
-                                          <i class="ri-edit-line me-1"></i>Configure
-                                      </span>
                                   </div>
                               </div>
-                              <div class="card-body bg-white">
+                          </div>
+                      </div>
+                     
+                    <!-- Tour Guide Services -->
+                      <div class="accordion-item border-0 mb-4">
+                          <div class="card shadow-sm border-0 overflow-hidden">
+                              <div class="card-header text-dark d-flex justify-content-between align-items-center" role="button" data-bs-toggle="collapse" data-bs-target="#allGuidesSection" aria-expanded="false" aria-controls="allGuidesSection" style="cursor: pointer; background: linear-gradient(135deg, #d1fae5 0%, #a7f3d0 100%); border: 1px solid #34d399; transition: all 0.3s ease;">
+                                  <div class="d-flex align-items-center">
+                                      <span class="service-icon me-3 d-flex align-items-center justify-content-center rounded-circle" style="width: 45px; height: 45px; background: linear-gradient(135deg, #10b981 0%, #059669 100%); color: white;">
+                                          <i class="ri-user-star-line fs-5"></i>
+                                      </span>
+                                      <div>
+                                          <h6 class="mb-0 fw-bold text-dark">👤 All Tour Guide Services</h6>
+                                          <small class="text-muted d-block">All guides from all days in one place</small>
+                                      </div>
+                                  </div>
+                                  <i class="ri-arrow-down-s-line ms-2 fs-5 transition-transform"></i>
+                              </div>
+                              <div id="allGuidesSection" class="collapse">
+                                  <div class="card-body bg-light p-4">
+                                      <div class="guides-container" id="day${day}_guides_container">
+                              <div class="card border-0 shadow-sm guide-item mb-4 overflow-hidden" data-guide-index="1" style="border-radius: 12px;">
+                              <div class="card-body bg-white p-4">
                                  
                                  <div class="row g-3">
                                      <div class="col-md-2">
@@ -12815,7 +12841,7 @@ document.addEventListener('DOMContentLoaded', function() {
                                      </div>
                                      <div class="col-md-3">
                                          <label class="form-label fw-semibold">Select Guide</label>
-                                         <select class="form-select guide-select" name="day${day}_guide_1" id="day${day}_guide_1" onchange="loadGuideDetails(${day}, this.value, 1)" disabled>
+                                         <select class="form-select guide-select" style="height: 42px; font-size: 0.735rem;" name="day${day}_guide_1" id="day${day}_guide_1" onchange="loadGuideDetails(${day}, this.value, 1)" disabled>
                                              <option value="">Select city first</option>
                                          </select>
                                      </div>
@@ -12844,7 +12870,7 @@ document.addEventListener('DOMContentLoaded', function() {
                                     <div class="col-md-3">
                                         <label class="form-label fw-semibold">Pickup Time</label>
                                         <div id="day${day}_guide_1_pickup_time_options">
-                                            <select class="form-select" disabled>
+                                            <select class="form-select" style="height: 42px; font-size: 0.735rem;" disabled>
                                                 <option value="">Select guide first</option>
                                             </select>
                                         </div>
@@ -12852,7 +12878,7 @@ document.addEventListener('DOMContentLoaded', function() {
                                     </div>
                                     <div class="col-md-3">
                                         <label class="form-label fw-semibold">Select Package</label>
-                                        <select class="form-select" name="day${day}_guide_1_package" id="day${day}_guide_1_package" onchange="updateGuidePricing(${day}, 1)">
+                                        <select class="form-select" style="height: 42px; font-size: 0.735rem;" name="day${day}_guide_1_package" id="day${day}_guide_1_package" onchange="updateGuidePricing(${day}, 1)">
                                             <option value="">Select Duration</option>
                                         </select>
                                     </div>
@@ -12904,221 +12930,277 @@ document.addEventListener('DOMContentLoaded', function() {
                               </div>
                           </div>
                           
-                                                   <div class="mt-3 text-center">
-                                         <button type="button" class="btn btn-sm btn-outline-info" onclick="addMoreGuides(${day})">
-                                             <i class="ri-add-line me-1"></i>Add More Guide
-                                         </button>
-                            </div>
-                         </div>
-                     </div>
+                          <div class="mt-4 text-center">
+                              <button type="button" class="btn btn-lg rounded-pill px-5 py-3 shadow-sm" onclick="addMoreGuides(${day})" style="background: linear-gradient(135deg, #10b981 0%, #059669 100%); border: none; color: white; font-weight: 600;">
+                                  <i class="ri-add-line me-2 fs-5"></i>Add More Guide
+                              </button>
+                          </div>
+                                      </div>
+                                  </div>
+                              </div>
+                          </div>
+                      </div>
                      
                      <!-- Restaurant Services -->
-                     <div class="mb-4">
-                         <div class="service-header d-flex justify-content-between align-items-center mb-3 p-3 bg-white rounded-top border-bottom border-success">
-                             <div>
-                                 <h6 class="text-success mb-1 fw-bold">
-                                 <i class="ri-restaurant-line me-2"></i>Book Restaurant Services
-                             </h6>
-                                 <small class="text-muted">Select restaurants and configure your dining experience</small>
+                     <div class="accordion-item border-0 mb-4">
+                         <div class="card shadow-sm border-0 overflow-hidden">
+                             <div class="card-header text-dark d-flex justify-content-between align-items-center" role="button" data-bs-toggle="collapse" data-bs-target="#restaurantServicesSection" aria-expanded="false" aria-controls="restaurantServicesSection" style="cursor: pointer; background: linear-gradient(135deg, #fef3c7 0%, #fde68a 100%); border: 1px solid #fbbf24; transition: all 0.3s ease;">
+                                 <div class="d-flex align-items-center">
+                                     <span class="service-icon me-3 d-flex align-items-center justify-content-center rounded-circle" style="width: 45px; height: 45px; background: linear-gradient(135deg, #f59e0b 0%, #d97706 100%); color: white;">
+                                         <i class="ri-restaurant-2-line fs-5"></i>
+                                     </span>
+                                     <div>
+                                         <h6 class="mb-0 fw-bold text-dark">🍽️ All Restaurant Services</h6>
+                                         <small class="text-muted d-block">All restaurants from all days in one place</small>
+                                     </div>
+                                 </div>
+                                 <i class="ri-arrow-down-s-line ms-2 fs-5 transition-transform"></i>
                              </div>
-                         </div>
-                         
-                         <div class="restaurants-container" id="day${day}_restaurants_container">
-                             <div class="card border-success shadow-sm restaurant-item mb-3" data-restaurant-index="1">
-                                 <div class="card-header bg-success text-white">
-                                     <div class="d-flex align-items-center">
-                                         <span class="service-icon me-3">
-                                             <i class="ri-restaurant-line fs-4"></i>
-                                         </span>
-                                         <div>
-                                             <h6 class="mb-0 fw-bold">Restaurant Booking #1</h6>
-                                             <small class="opacity-75">Select your dining experience</small>
-                                 </div>
-                                         <span class="badge bg-warning ms-auto">
-                                             <i class="ri-edit-line me-1"></i>Configure
-                                         </span>
-                                     </div>
-                                 </div>
-                                 <div class="card-body bg-white">
-                                 
-                                 <div class="row g-3">
-                                     <div class="col-md-2">
-                                         <label class="form-label fw-semibold">
-                                             <i class="ri-building-line me-1"></i>City
-                                         </label>
-                                         <select class="form-select restaurant-city-select" name="day${day}_restaurant_city_1" id="day${day}_restaurant_city_1" onchange="loadRestaurantsForCity(${day}, this.value, 1)">
-                                             <option value="">Select City</option>
-                                         </select>
-                                         <small class="text-danger" style="display: none;" id="day${day}_restaurant_city_message_1">Please select a city first.</small>
-                                     </div>
-                                     <div class="col-md-3">
-                                         <label class="form-label fw-semibold">Select Restaurant</label>
-                                         <select class="form-select restaurant-select" name="day${day}_restaurant_1" id="day${day}_restaurant_1" onchange="console.log('Restaurant changed:', this.value); if(this.value) { loadRestaurantDetails(${day}, this.value, 1); updateRestaurantPricing(${day}, 1); }" disabled>
-                                             <option value="">Select city first</option>
-                                         </select>
-                                     </div>
-                                     <div class="col-md-3">
-                                         <label class="form-label fw-semibold">Select Guests</label>
-                                         <div class="guest-selector">
-                                             <div class="guest-display p-2 border rounded bg-light">
-                                                 <div class="d-flex align-items-center justify-content-between">
-                                                     <div class="guest-info">
-                                                         <span id="day${day}_restaurant_1_guest_summary" class="text-muted small">
-                                                             1 adults (1 male, 0 female), 0 children - 0 infants
-                                                         </span>
+                             <div id="restaurantServicesSection" class="collapse">
+                                 <div class="card-body bg-light p-4">
+                                     <div class="restaurants-container" id="day${day}_restaurants_container">
+                                         <div class="card border-0 shadow-sm restaurant-item mb-4 overflow-hidden" data-restaurant-index="1" style="border-radius: 12px;">
+                                             <div class="card-body bg-white p-4">
+                                                 <!-- Basic Information Section -->
+                                                 <div class="mb-4">
+                                                     <h6 class="text-primary fw-bold mb-3 d-flex align-items-center">
+                                                         <i class="ri-information-line me-2"></i>Basic Information
+                                                     </h6>
+                                                     <div class="row g-3">
+                                                         <div class="col-md-3">
+                                                             <label class="form-label fw-semibold text-dark">
+                                                                 <i class="ri-building-line me-1 text-primary"></i>City
+                                                             </label>
+                                                             <select class="form-select restaurant-city-select shadow-sm" name="day${day}_restaurant_city_1" id="day${day}_restaurant_city_1" onchange="loadRestaurantsForCity(${day}, this.value, 1)" style="border: 1px solid #e5e7eb;">
+                                                                 <option value="">Select City</option>
+                                                             </select>
+                                                             <small class="text-danger d-none" id="day${day}_restaurant_city_message_1">Please select a city first.</small>
+                                                         </div>
+                                                         <div class="col-md-4">
+                                                             <label class="form-label fw-semibold text-dark">
+                                                                 <i class="ri-restaurant-line me-1 text-primary"></i>Select Restaurant
+                                                             </label>
+                                                             <select class="form-select restaurant-select shadow-sm" name="day${day}_restaurant_1" id="day${day}_restaurant_1" onchange="console.log('Restaurant changed:', this.value); if(this.value) { loadRestaurantDetails(${day}, this.value, 1); updateRestaurantPricing(${day}, 1); }" disabled style="border: 1px solid #e5e7eb;">
+                                                                 <option value="">Select city first</option>
+                                                             </select>
+                                                         </div>
+                                                         <div class="col-md-5">
+                                                             <label class="form-label fw-semibold text-dark">
+                                                                 <i class="ri-group-line me-1 text-primary"></i>Select Guests
+                                                             </label>
+                                                             <div class="guest-selector">
+                                                                 <div class="guest-display p-3 border rounded shadow-sm" style="background: linear-gradient(135deg, #f8fafc 0%, #f1f5f9 100%); border: 1px solid #e2e8f0 !important;">
+                                                                     <div class="d-flex align-items-center justify-content-between mb-2">
+                                                                         <div class="guest-info">
+                                                                             <span id="day${day}_restaurant_1_guest_summary" class="text-dark small fw-medium">
+                                                                                 1 adults (1 male, 0 female), 0 children - 0 infants
+                                                                             </span>
+                                                                         </div>
+                                                                         <button type="button" class="btn btn-sm btn-primary rounded-pill px-3" onclick="openGuestSelector('day${day}_restaurant_1')" style="background: linear-gradient(135deg, #3b82f6 0%, #2563eb 100%); border: none;">
+                                                                             <i class="ri-edit-line me-1"></i>Edit
+                                                                         </button>
+                                                                     </div>
+                                                                     <div class="guest-badges d-flex gap-2">
+                                                                         <span class="badge rounded-pill px-3 py-1" style="background: linear-gradient(135deg, #3b82f6 0%, #2563eb 100%);">Adults: 1</span>
+                                                                         <span class="badge rounded-pill px-3 py-1" style="background: linear-gradient(135deg, #10b981 0%, #059669 100%);">Children: 0</span>
+                                                                         <span class="badge rounded-pill px-3 py-1" style="background: linear-gradient(135deg, #f59e0b 0%, #d97706 100%);">Infants: 0</span>
+                                                                     </div>
+                                                                 </div>
+                                                             </div>
+                                                             
+                                                             <!-- Hidden fields for restaurant pricing -->
+                                                             <input type="hidden" name="day${day}_restaurant_1_total_price" id="day${day}_restaurant_1_total_price" value="0">
+                                                             <input type="hidden" name="day${day}_restaurant_1_meal_id" id="day${day}_restaurant_1_meal_id" value="">
+                                                             <input type="hidden" name="day${day}_restaurant_1_dish_name" id="day${day}_restaurant_1_dish_name" value="">
+                                                         </div>
                                                      </div>
-                                                     <button type="button" class="btn btn-sm btn-outline-primary" onclick="openGuestSelector('day${day}_restaurant_1')">
-                                                         <i class="ri-edit-line"></i>
-                                                     </button>
                                                  </div>
-                                                 <div class="guest-badges mt-1">
-                                                     <span class="badge bg-primary">1</span>
-                                                     <span class="badge bg-success">0</span>
-                                                     <span class="badge bg-warning text-dark">0</span>
+
+                                                 <!-- Meal Configuration Section -->
+                                                 <div class="mb-4 pt-3 border-top">
+                                                     <h6 class="text-primary fw-bold mb-3 d-flex align-items-center">
+                                                         <i class="ri-bowl-line me-2"></i>Meal Configuration
+                                                     </h6>
+                                                     <div class="row g-3">
+                                                         <div class="col-md-4">
+                                                             <label class="form-label fw-semibold text-dark">
+                                                                 <i class="ri-restaurant-2-line me-1 text-primary"></i>Meal Type
+                                                             </label>
+                                                             <select class="form-select shadow-sm" style="height: 42px; font-size: 0.735rem;" name="day${day}_meal_type_1" id="day${day}_meal_type_1" style="border: 1px solid #e5e7eb;">
+                                                                 <option value="">Select Meal Type</option>
+                                                             </select>
+                                                             <small class="text-muted d-block mt-1">
+                                                                 <i class="ri-time-line me-1"></i>Available meal types with timings
+                                                             </small>
+                                                         </div>
+                                                         <div class="col-md-4" id="day${day}_dish_container_1" style="display: none;">
+                                                             <label class="form-label fw-semibold text-dark">
+                                                                 <i class="ri-menu-line me-1 text-primary"></i>Select Dish
+                                                             </label>
+                                                             <select class="form-select shadow-sm" style="height: 42px; font-size: 0.735rem;" name="day${day}_dish_1" id="day${day}_dish_1" onchange="updateRestaurantPricing(${day}, 1)" style="border: 1px solid #e5e7eb;">
+                                                                 <option value="">Select Dish</option>
+                                                             </select>
+                                                             <small class="text-muted d-block mt-1">
+                                                                 <i class="ri-information-line me-1"></i>Buffet or Set Menu options
+                                                             </small>
+                                                         </div>
+                                                         <div class="col-md-4">
+                                                             <label class="form-label fw-semibold text-dark">
+                                                                 <i class="ri-time-line me-1 text-primary"></i>Time Slot
+                                                             </label>
+                                                             <select class="form-select shadow-sm" style="height: 42px; font-size: 0.735rem;" name="day${day}_time_slot_1" id="day${day}_time_slot_1" style="border: 1px solid #e5e7eb;">
+                                                                 <option value="">Select Time Slot</option>
+                                                             </select>
+                                                             <small class="text-muted d-block mt-1">
+                                                                 <i class="ri-calendar-line me-1"></i>Available time slots
+                                                             </small>
+                                                         </div>
+                                                     </div>
+                                                 </div>
+                                                 
+                                                 <!-- Transfer Required Section -->
+                                                 <div class="mb-4 pt-3 border-top">
+                                                     <h6 class="text-primary fw-bold mb-3 d-flex align-items-center">
+                                                         <i class="ri-car-line me-2"></i>Transfer Options
+                                                     </h6>
+                                                     <div class="row g-3">
+                                                         <div class="col-md-3">
+                                                             <label class="form-label fw-semibold text-dark">
+                                                                 <i class="ri-question-line me-1 text-primary"></i>Transfer Required?
+                                                             </label>
+                                                             <select class="form-select shadow-sm" style="height: 42px; font-size: 0.735rem;" name="day${day}_restaurant_1_transfer_required" id="day${day}_restaurant_1_transfer_required" onchange="toggleRestaurantTransferFields(${day}, 1)" style="border: 1px solid #e5e7eb;">
+                                                                 <option value="No">No</option>
+                                                                 <option value="Yes">Yes</option>
+                                                             </select>
+                                                         </div>
+                                                         
+                                                         <!-- Transfer Options (Hidden by default) -->
+                                                         <div class="col-md-3 restaurant-transfer-fields" id="day${day}_restaurant_1_transfer_type_field" style="display: none;">
+                                                             <label class="form-label fw-semibold text-dark">
+                                                                 <i class="ri-user-line me-1 text-primary"></i>Transfer Type
+                                                             </label>
+                                                             <select class="form-select shadow-sm" style="height: 42px; font-size: 0.735rem;" name="day${day}_restaurant_1_transfer_type" id="day${day}_restaurant_1_transfer_type" onchange="handleRestaurantTransferTypeOrWayChange(${day}, 1)" style="border: 1px solid #e5e7eb;">
+                                                                 <option value="">Select Type</option>
+                                                                 <option value="Private">Private</option>
+                                                                 <option value="Shared">Shared</option>
+                                                             </select>
+                                                         </div>
+                                                         <div class="col-md-3 restaurant-transfer-fields" id="day${day}_restaurant_1_transfer_way_field" style="display: none;">
+                                                             <label class="form-label fw-semibold text-dark">
+                                                                 <i class="ri-arrow-left-right-line me-1 text-primary"></i>Transfer Way
+                                                             </label>
+                                                             <select class="form-select shadow-sm" style="height: 42px; font-size: 0.735rem;" name="day${day}_restaurant_1_transfer_way" id="day${day}_restaurant_1_transfer_way" onchange="handleRestaurantTransferTypeOrWayChange(${day}, 1)" style="border: 1px solid #e5e7eb;">
+                                                                 <option value="">Select Way</option>
+                                                                 <option value="One Way">One Way</option>
+                                                                 <option value="Both Way">Both Way</option>
+                                                             </select>
+                                                         </div>
+                                                         <div class="col-md-3 restaurant-transfer-fields" id="day${day}_restaurant_1_transfer_vehicle_field" style="display: none;">
+                                                             <label class="form-label fw-semibold text-dark">
+                                                                 <i class="ri-car-line me-1 text-primary"></i>Vehicle
+                                                             </label>
+                                                             <select class="form-select shadow-sm" style="height: 42px; font-size: 0.735rem;" name="day${day}_restaurant_1_transfer_vehicle" id="day${day}_restaurant_1_transfer_vehicle" onchange="handleRestaurantVehicleChange(${day}, 1)" style="border: 1px solid #e5e7eb;">
+                                                                 <option value="">Select Vehicle</option>
+                                                             </select>
+                                                         </div>
+                                                         <div class="col-md-4 restaurant-transfer-fields" id="day${day}_restaurant_1_transfer_pickup_field" style="display: none;">
+                                                             <label class="form-label fw-semibold text-dark">
+                                                                 <i class="ri-map-pin-line me-1 text-primary"></i>Pickup Location
+                                                             </label>
+                                                             <select class="form-select shadow-sm" style="height: 42px; font-size: 0.735rem;" name="day${day}_restaurant_1_transfer_pickup_location" id="day${day}_restaurant_1_transfer_pickup_location" onchange="fetchRestaurantTransferPricing(${day}, 1)" style="border: 1px solid #e5e7eb;">
+                                                                 <option value="">Select Pickup Location</option>
+                                                             </select>
+                                                         </div>
+                                                         <div class="col-md-2 restaurant-transfer-fields" id="day${day}_restaurant_1_transfer_cost_field" style="display: none;">
+                                                             <label class="form-label fw-semibold text-dark">
+                                                                 <i class="ri-money-dollar-circle-line me-1 text-primary"></i>Transfer Cost
+                                                             </label>
+                                                             <input type="number" style="height: 42px; font-size: 0.735rem;" class="form-control shadow-sm"  name="day${day}_restaurant_1_transfer_cost" id="day${day}_restaurant_1_transfer_cost" min="0" step="0.01" placeholder="0.00" onchange="updateRestaurantTransportPricing(${day}, 1)" oninput="updateRestaurantTransportPricing(${day}, 1)" style="border: 1px solid #e5e7eb;">
+                                                         </div>
+                                                     </div>
+                                                 </div>
+
+                                                 <!-- Restaurant Pricing Section -->
+                                                 <div id="day${day}_restaurant_1_price_display" class="mt-4 pt-3 border-top" style="display: none;">
+                                                     <div class="p-4 rounded-4 shadow-sm" style="background: linear-gradient(135deg, #ecfdf5 0%, #d1fae5 100%); border: 2px solid #10b981;">
+                                                         <div class="d-flex align-items-center mb-4">
+                                                             <div class="d-flex align-items-center justify-content-center rounded-circle me-3" style="width: 50px; height: 50px; background: linear-gradient(135deg, #10b981 0%, #059669 100%); color: white;">
+                                                                 <i class="ri-restaurant-line fs-4"></i>
+                                                             </div>
+                                                             <div>
+                                                                 <h5 class="mb-0 fw-bold text-success">Restaurant Pricing</h5>
+                                                                 <small class="text-muted">Restaurant: <span id="day${day}_restaurant_1_restaurant_name" class="fw-semibold text-dark">Restaurant Name</span></small>
+                                                             </div>
+                                                         </div>
+                                                         <div class="row g-4">
+                                                             <div class="col-md-8">
+                                                                 <div class="p-3 rounded-3 bg-white shadow-sm">
+                                                                     <h6 class="fw-bold text-primary mb-3 d-flex align-items-center">
+                                                                         <i class="ri-price-tag-3-line me-2"></i>Restaurant Pricing Details
+                                                                     </h6>
+                                                                     <div id="day${day}_restaurant_1_pricing_details" class="text-muted small">
+                                                                         Select a restaurant and configure guests to see pricing
+                                                                     </div>
+                                                                 </div>
+                                                             </div>
+                                                             <div class="col-md-4">
+                                                                 <div class="p-3 rounded-3 bg-white shadow-sm">
+                                                                     <h6 class="fw-bold text-info mb-3 d-flex align-items-center">
+                                                                         <i class="ri-car-line me-2"></i>Transfer Pricing
+                                                                     </h6>
+                                                                     <div id="day${day}_restaurant_1_transport_pricing_content">
+                                                                         <div class="text-muted small">
+                                                                             <i class="ri-information-line me-1"></i>No transport selected
+                                                                         </div>
+                                                                     </div>
+                                                                 </div>
+                                                             </div>
+                                                         </div>
+                                                         <hr class="my-4" style="border-color: #10b981; border-width: 2px;">
+                                                         <div class="d-flex align-items-center justify-content-between p-3 rounded-3" style="background: linear-gradient(135deg, #10b981 0%, #059669 100%);">
+                                                             <div class="d-flex align-items-center text-white">
+                                                                 <i class="ri-calculator-line me-2 fs-5"></i>
+                                                                 <span class="fw-bold fs-6">Total Amount:</span>
+                                                             </div>
+                                                             <div class="text-white">
+                                                                 <span class="fw-bold fs-4">$<span id="day${day}_restaurant_1_total_display">0.00</span></span>
+                                                             </div>
+                                                         </div>
+                                                     </div>
                                                  </div>
                                              </div>
                                          </div>
-                                         
-                                         <!-- Hidden fields for restaurant pricing -->
-                                         <input type="hidden" name="day${day}_restaurant_1_total_price" id="day${day}_restaurant_1_total_price" value="0">
-                                         <input type="hidden" name="day${day}_restaurant_1_meal_id" id="day${day}_restaurant_1_meal_id" value="">
-                                         <input type="hidden" name="day${day}_restaurant_1_dish_name" id="day${day}_restaurant_1_dish_name" value="">
-                                     </div>
-                                     <div class="col-md-2">
-                                         <label class="form-label fw-semibold">Meal Type</label>
-                                         <select class="form-select" name="day${day}_meal_type_1" id="day${day}_meal_type_1">
-                                             <option value="">Select Meal Type</option>
-                                         </select>
-                                         <small class="text-muted">Available meal types with timings</small>
-                                     </div>
-                                     <div class="col-md-2" id="day${day}_dish_container_1" style="display: none;">
-                                         <label class="form-label fw-semibold">Select Dish</label>
-                                         <select class="form-select" name="day${day}_dish_1" id="day${day}_dish_1" onchange="updateRestaurantPricing(${day}, 1)">
-                                             <option value="">Select Dish</option>
-                                         </select>
-                                         <small class="text-muted">Buffet or Set Menu options</small>
-                                     </div>
-                                     <div class="col-md-2">
-                                         <label class="form-label fw-semibold">Time Slot</label>
-                                         <select class="form-select" name="day${day}_time_slot_1" id="day${day}_time_slot_1">
-                                             <option value="">Select Time Slot</option>
-                                         </select>
-                                         <small class="text-muted">Available time slots</small>
-                                     </div>
-                                 </div>
-                                 
-                                 <!-- Transfer Required Section -->
-                                 <div class="row g-3 mt-2">
-                                     <div class="col-md-2">
-                                         <label class="form-label fw-semibold">
-                                             <i class="ri-car-line me-1"></i>Transfer?
-                                         </label>
-                                         <select class="form-select" name="day${day}_restaurant_1_transfer_required" id="day${day}_restaurant_1_transfer_required" onchange="toggleRestaurantTransferFields(${day}, 1)">
-                                             <option value="No">No</option>
-                                             <option value="Yes">Yes</option>
-                                         </select>
                                      </div>
                                      
-                                     <!-- Transfer Options (Hidden by default) -->
-                                     <div class="col-md-2 restaurant-transfer-fields" id="day${day}_restaurant_1_transfer_type_field" style="display: none;">
-                                         <label class="form-label fw-semibold">Type</label>
-                                         <select class="form-select" name="day${day}_restaurant_1_transfer_type" id="day${day}_restaurant_1_transfer_type" onchange="handleRestaurantTransferTypeOrWayChange(${day}, 1)">
-                                             <option value="">Select Type</option>
-                                             <option value="Private">Private</option>
-                                             <option value="Shared">Shared</option>
-                                         </select>
-                                     </div>
-                                     <div class="col-md-2 restaurant-transfer-fields" id="day${day}_restaurant_1_transfer_way_field" style="display: none;">
-                                         <label class="form-label fw-semibold">Way</label>
-                                         <select class="form-select" name="day${day}_restaurant_1_transfer_way" id="day${day}_restaurant_1_transfer_way" onchange="handleRestaurantTransferTypeOrWayChange(${day}, 1)">
-                                             <option value="">Select Way</option>
-                                             <option value="One Way">One Way</option>
-                                             <option value="Both Way">Both Way</option>
-                                         </select>
-                                     </div>
-                                     <div class="col-md-3 restaurant-transfer-fields" id="day${day}_restaurant_1_transfer_vehicle_field" style="display: none;">
-                                         <label class="form-label fw-semibold">Vehicle</label>
-                                         <select class="form-select" name="day${day}_restaurant_1_transfer_vehicle" id="day${day}_restaurant_1_transfer_vehicle" onchange="handleRestaurantVehicleChange(${day}, 1)">
-                                             <option value="">Select Vehicle</option>
-                                         </select>
-                                     </div>
-                                     <div class="col-md-3 restaurant-transfer-fields" id="day${day}_restaurant_1_transfer_pickup_field" style="display: none;">
-                                         <label class="form-label fw-semibold">
-                                             <i class="ri-map-pin-line me-1"></i>Pickup Location
-                                         </label>
-                                         <select class="form-select" name="day${day}_restaurant_1_transfer_pickup_location" id="day${day}_restaurant_1_transfer_pickup_location" onchange="fetchRestaurantTransferPricing(${day}, 1)">
-                                             <option value="">Select Pickup Location</option>
-                                         </select>
-                                     </div>
-                                     <div class="col-md-2 restaurant-transfer-fields" id="day${day}_restaurant_1_transfer_cost_field" style="display: none;">
-                                         <label class="form-label fw-semibold">Cost</label>
-                                         <input type="number" class="form-control" name="day${day}_restaurant_1_transfer_cost" id="day${day}_restaurant_1_transfer_cost" min="0" step="0.01" placeholder="0.00" onchange="updateRestaurantTransportPricing(${day}, 1)" oninput="updateRestaurantTransportPricing(${day}, 1)">
-                                     </div>
-                                 </div>
-
-                                <!-- Restaurant Pricing Section -->
-                                <div id="day${day}_restaurant_1_price_display" class="mt-3" style="display: none;">
-                                    <div class="alert alert-success">
-                                        <div class="d-flex align-items-center mb-3">
-                                            <i class="ri-restaurant-line me-2 fs-4"></i>
-                                            <div>
-                                               <strong>Restaurant Pricing: <span id="day${day}_restaurant_1_restaurant_name">Restaurant Name</span></strong>
-                                            </div>
-                                        </div>
-                                        <div class="row g-3">
-                                            <div class="col-md-9">
-                                                <div>
-                                                    <strong class="d-block mb-2">Restaurant Pricing</strong>
-                                                    <div class="small" id="day${day}_restaurant_1_pricing_details">
-                                                        Select a restaurant and configure guests to see pricing
-                                                    </div>
-                                                </div>
-                                            </div>
-                                            <div class="col-md-3">
-                                                <div>
-                                                    <strong class="d-block mb-2">Transfer Pricing</strong>
-                                                    <div id="day${day}_restaurant_1_transport_pricing_content" >
-                                                        <div class="text-muted small">No transport selected</div>
-                                                    </div>
-                                                </div>
-                                            </div>
-                                        </div>
-                                        <hr class="my-2">
-                                        <div class="row">
-                                            <div class="col-12">
-                                                <div class="text-end">
-                                                    <strong class="fs-5 text-success">Total: $<span id="day${day}_restaurant_1_total_display">0.00</span></strong>
-                                                </div>
-                                            </div>
-                                        </div>
-                                    </div>
-                                </div>
-                                 
-                                 </div>
-                                     </div>
-                                 </div>
-                                 
-                                                                 <div class="mt-3 text-center">
-                             <button type="button" class="btn btn-sm btn-outline-success" onclick="addMoreRestaurants(${day})">
-                                             <i class="ri-add-line me-1"></i>Add More Restaurant
+                                     <div class="mt-4 text-center">
+                                         <button type="button" class="btn btn-lg rounded-pill px-5 py-3 shadow-sm" onclick="addMoreRestaurants(${day})" style="background: linear-gradient(135deg, #10b981 0%, #059669 100%); border: none; color: white; font-weight: 600;">
+                                             <i class="ri-add-line me-2 fs-5"></i>Add More Restaurant
                                          </button>
-                            </div>
+                                     </div>
+                                 </div>
+                             </div>
                          </div>
                      </div>
                      
-                     <!-- Transport Services -->
-                     <div class="service-card mb-4">
-                         <div class="service-header d-flex justify-content-between align-items-center mb-3 p-3 bg-white rounded-top border-bottom border-warning">
-                             <div>
-                                 <h6 class="text-warning mb-1 fw-bold">
-                                     <i class="ri-car-line me-2"></i>Book Transport Services
-                                 </h6>
-                                 <small class="text-muted">Select professional transport and configure your tour package</small>
+                     <!-- Other Transport Services -->
+                     <div class="accordion-item border-0 mb-4">
+                         <div class="card shadow-sm border-0 overflow-hidden">
+                             <div class="card-header text-dark d-flex justify-content-between align-items-center" role="button" data-bs-toggle="collapse" data-bs-target="#otherTransportSection" aria-expanded="false" aria-controls="otherTransportSection" style="cursor: pointer; background: linear-gradient(135deg, #ccfbf1 0%, #99f6e4 100%); border: 1px solid #5eead4; transition: all 0.3s ease;">
+                                 <div class="d-flex align-items-center">
+                                     <span class="service-icon me-3 d-flex align-items-center justify-content-center rounded-circle" style="width: 45px; height: 45px; background: linear-gradient(135deg, #14b8a6 0%, #0d9488 100%); color: white;">
+                                         <i class="ri-car-line fs-5"></i>
+                                     </span>
+                                     <div>
+                                         <h6 class="mb-0 fw-bold text-dark">🚗 Other Transport Services</h6>
+                                         <small class="text-muted d-block">Local transfers and other transport services from all days</small>
+                                     </div>
+                                 </div>
+                                 <i class="ri-arrow-down-s-line ms-2 fs-5 transition-transform"></i>
                              </div>
-                         </div>
-                         
-                         <div class="transports-container" id="day${day}_transports_container">
-                            <div class="card border-warning shadow-sm transport-item mb-3" data-transport-index="1">
+                             <div id="otherTransportSection" class="collapse">
+                                 <div class="card-body bg-light p-4">
+                                     <div class="transports-container" id="day${day}_transports_container">
+                            <div class="card border shadow-sm transport-item mb-3" data-transport-index="1">
                             <div class="card-body">
                                 <!-- City Selection for Transport -->
                                 <div class="row mb-3">
@@ -13165,7 +13247,7 @@ document.addEventListener('DOMContentLoaded', function() {
                                                  <i class="ri-map-pin-line text-success me-2"></i>Pick Up Location
                                              </label>
                                              <div class="position-relative">
-                                                 <select class="form-select pickup-zone-select border-2" name="day${day}_transport_pickup_zone_id" style="padding-left: 45px;" onchange="handlePickupZoneChange(${day}, 'transport')" disabled>
+                                                 <select class="form-select pickup-zone-select border-2" style="height: 42px; font-size: 0.735rem;" name="day${day}_transport_pickup_zone_id" style="padding-left: 45px;" onchange="handlePickupZoneChange(${day}, 'transport')" disabled>
                                                      <option value="">Select city first</option>
                                                  </select>
                                                  <i class="ri-map-pin-fill position-absolute text-success" style="left: 15px; top: 50%; transform: translateY(-50%); z-index: 5;"></i>
@@ -13178,7 +13260,7 @@ document.addEventListener('DOMContentLoaded', function() {
                                                  <i class="ri-map-pin-line text-danger me-2"></i>Drop Off Location
                                              </label>
                                              <div class="position-relative">
-                                                 <select class="form-select dropoff-zone-select border-2" name="day${day}_transport_dropoff_zone_id" disabled style="padding-left: 45px; padding-right: 45px;">
+                                                 <select class="form-select dropoff-zone-select border-2" style="height: 42px; font-size: 0.735rem;" name="day${day}_transport_dropoff_zone_id" disabled style="padding-left: 45px; padding-right: 45px;">
                                                      <option value="">Select city and pickup location first</option>
                                      </select>
                                      <i class="ri-map-pin-fill position-absolute text-danger" style="left: 15px; top: 50%; transform: translateY(-50%); z-index: 5;"></i>
@@ -13191,7 +13273,7 @@ document.addEventListener('DOMContentLoaded', function() {
                                                  <i class="ri-time-line text-warning me-2"></i>Pick Up Time
                                              </label>
                                              <div class="position-relative">
-                                                 <select class="form-select border-1" name="day${day}_transport_pickup_time" style="padding-left: 35px;">
+                                                 <select class="form-select border-1" style="height: 42px; font-size: 0.735rem;" name="day${day}_transport_pickup_time" style="padding-left: 35px;">
                                                      <option value="">Select The Time</option>
                                                      <option value="12:00 AM">12:00 AM</option>
                                                      <option value="01:00 AM">01:00 AM</option>
@@ -13218,12 +13300,11 @@ document.addEventListener('DOMContentLoaded', function() {
                                                      <option value="10:00 PM">10:00 PM</option>
                                                      <option value="11:00 PM">11:00 PM</option>
                                                  </select>
-                                                 <i class="ri-time-fill position-absolute text-warning" style="left: 15px; top: 50%; transform: translateY(-50%); z-index: 5;"></i>
                                              </div>
                                          </div>
                                      </div>
                                      <div class="col-md-2 local-transfer-field" style="display: none;">
-                                         <button type="button" class="btn btn-primary w-100 py-2" onclick="searchVehicles(${day}, 'transport',0)" id="day${day}_transport_search_btn" disabled>
+                                         <button type="button" class="btn btn-primary w-100 py-2" style="height: 42px; font-size: 0.735rem;" onclick="searchVehicles(${day}, 'transport',0)" id="day${day}_transport_search_btn" disabled>
                                              <i class="ri-search-line me-2"></i>Search Vehicles
                                          </button>
                                      </div>
@@ -13235,8 +13316,7 @@ document.addEventListener('DOMContentLoaded', function() {
                                                  <i class="ri-map-pin-line text-success me-2"></i>Pick Up Location
                                              </label>
                                              <div class="position-relative location-input">
-                                                 <input type="text" class="form-control border-2 google-maps-autocomplete" name="day${day}_transport_pickup_location" id="day${day}_transport_pickup_location" placeholder="Search for pickup location..." style="padding-left: 45px;">
-                                                 <i class="ri-search-line position-absolute text-success location-icon"></i>
+                                                 <input type="text" class="form-control border-2 google-maps-autocomplete" style="height: 42px; font-size: 0.735rem;" name="day${day}_transport_pickup_location" id="day${day}_transport_pickup_location" placeholder="Search for pickup location..." style="padding-left: 45px;">
                                                  <input type="hidden" name="day${day}_transport_pickup_lat" id="day${day}_transport_pickup_lat">
                                                  <input type="hidden" name="day${day}_transport_pickup_lng" id="day${day}_transport_pickup_lng">
                                                  <input type="hidden" name="day${day}_transport_pickup_place_id" id="day${day}_transport_pickup_place_id">
@@ -13249,8 +13329,7 @@ document.addEventListener('DOMContentLoaded', function() {
                                                  <i class="ri-map-pin-line text-danger me-2"></i>Drop Off Location
                                              </label>
                                              <div class="position-relative location-input">
-                                                 <input type="text" class="form-control border-2 google-maps-autocomplete" name="day${day}_transport_dropoff_location" id="day${day}_transport_dropoff_location" placeholder="Search for dropoff location..." style="padding-left: 45px;">
-                                                 <i class="ri-map-pin-fill position-absolute text-danger location-icon"></i>
+                                                 <input type="text" class="form-control border-2 google-maps-autocomplete" style="height: 42px; font-size: 0.735rem;" name="day${day}_transport_dropoff_location" id="day${day}_transport_dropoff_location" placeholder="Search for dropoff location..." style="padding-left: 45px;">
                                                  <input type="hidden" name="day${day}_transport_dropoff_lat" id="day${day}_transport_dropoff_lat">
                                                  <input type="hidden" name="day${day}_transport_dropoff_lng" id="day${day}_transport_dropoff_lng">
                                                  <input type="hidden" name="day${day}_transport_dropoff_place_id" id="day${day}_transport_dropoff_place_id">
@@ -13263,7 +13342,7 @@ document.addEventListener('DOMContentLoaded', function() {
                                                  <i class="ri-time-line text-warning me-2"></i>Pick Up Time
                                              </label>
                                              <div class="position-relative">
-                                                 <select class="form-select border-1" name="day${day}_transport_additional_pickup_time" style="padding-left: 35px;">
+                                                 <select class="form-select border-1" style="height: 42px; font-size: 0.735rem;" name="day${day}_transport_additional_pickup_time" style="padding-left: 35px;">
                                                      <option value="">Select time</option>
                                                      <option value="12:00 AM">12:00 AM</option>
                                                      <option value="01:00 AM">01:00 AM</option>
@@ -13290,7 +13369,6 @@ document.addEventListener('DOMContentLoaded', function() {
                                                      <option value="10:00 PM">10:00 PM</option>
                                                      <option value="11:00 PM">11:00 PM</option>
                                                  </select>
-                                                 <i class="ri-time-fill position-absolute text-warning" style="left: 15px; top: 50%; transform: translateY(-50%); z-index: 5;"></i>
                                              </div>
                                          </div>
                                      </div>
@@ -13308,9 +13386,8 @@ document.addEventListener('DOMContentLoaded', function() {
                                                  <i class="ri-map-pin-line text-success me-2"></i>Pick Up Location
                                              </label>
                                              <div class="position-relative location-input">
-                                                 <input type="text" class="form-control border-2 google-maps-autocomplete" name="day${day}_transport_hourly_pickup_location" id="day${day}_transport_hourly_pickup_location" placeholder="Search for pickup location..." style="padding-left: 45px;">
-                                                 <i class="ri-search-line position-absolute text-success location-icon"></i>
-                                                 <input type="hidden" name="day${day}_transport_hourly_pickup_lat" id="day${day}_transport_hourly_pickup_lat">
+                                                 <input type="text" style="height: 42px; font-size: 0.735rem;" class="form-control border-2 google-maps-autocomplete" name="day${day}_transport_hourly_pickup_location" id="day${day}_transport_hourly_pickup_location" placeholder="Search for pickup location..." style="padding-left: 45px;">
+                                                 <input type="hidden" style="height: 42px; font-size: 0.735rem;" name="day${day}_transport_hourly_pickup_lat" id="day${day}_transport_hourly_pickup_lat">
                                                  <input type="hidden" name="day${day}_transport_hourly_pickup_lng" id="day${day}_transport_hourly_pickup_lng">
                                                  <input type="hidden" name="day${day}_transport_hourly_pickup_place_id" id="day${day}_transport_hourly_pickup_place_id">
                                              </div>
@@ -13322,7 +13399,7 @@ document.addEventListener('DOMContentLoaded', function() {
                                                  <i class="ri-time-line text-warning me-2"></i>Pick Up Time
                                              </label>
                                              <div class="position-relative">
-                                                 <select class="form-select border-1" name="day${day}_transport_hourly_pickup_time" style="padding-left: 35px;">
+                                                 <select class="form-select border-1" style="height: 42px; font-size: 0.735rem;" name="day${day}_transport_hourly_pickup_time" style="padding-left: 35px;">
                                                      <option value="">Select time</option>
                                                      <option value="12:00 AM">12:00 AM</option>
                                                      <option value="01:00 AM">01:00 AM</option>
@@ -13349,7 +13426,6 @@ document.addEventListener('DOMContentLoaded', function() {
                                                      <option value="10:00 PM">10:00 PM</option>
                                                      <option value="11:00 PM">11:00 PM</option>
                                                  </select>
-                                                 <i class="ri-time-fill position-absolute text-warning" style="left: 15px; top: 50%; transform: translateY(-50%); z-index: 5;"></i>
                                              </div>
                                          </div>
                                      </div>
@@ -13360,7 +13436,7 @@ document.addEventListener('DOMContentLoaded', function() {
                                                  <i class="ri-time-line text-primary me-2"></i>Number of Hours
                                              </label>
                                              <div class="position-relative">
-                                                 <select class="form-select border-1" name="day${day}_transport_hourly_selected_hours" style="padding-left: 35px;">
+                                                 <select class="form-select border-1" style="height: 42px; font-size: 0.735rem;" name="day${day}_transport_hourly_selected_hours" style="padding-left: 35px;">
                                                      <option value="">Select hours</option>
                                                      <option value="1">1 Hour</option>
                                                      <option value="2">2 Hours</option>
@@ -13376,7 +13452,6 @@ document.addEventListener('DOMContentLoaded', function() {
                                                      <option value="12">12 Hours</option>
                                                      <option value="24">24 Hours</option>
                                                  </select>
-                                                 <i class="ri-hourglass-line position-absolute text-primary" style="left: 15px; top: 50%; transform: translateY(-50%); z-index: 5;"></i>
                                              </div>
                                          </div>
                                      </div>
@@ -13407,7 +13482,7 @@ document.addEventListener('DOMContentLoaded', function() {
                                         <div class="row g-3">
                                             <div class="col-md-8">
                                                 <label class="form-label fw-semibold">Vehicle</label>
-                                                <select class="form-select vehicle-select" 
+                                                <select class="form-select vehicle-select" style="height: 42px; font-size: 0.735rem;" 
                                                         id="day${day}_transport_vehicle_id"
                                                         name="day${day}_transport_vehicle_id" 
                                                         onchange="updateVehicleDetails(${day}, 'transport'); validatePassengerCapacity(${day}, 'transport'); updateTypeSelect(event, ${day}, 'transport');">
@@ -13417,7 +13492,7 @@ document.addEventListener('DOMContentLoaded', function() {
 
                                             <div class="col-md-4">
                                                 <label class="form-label fw-semibold">Service Type</label>
-                                                <select class="form-select" 
+                                                <select class="form-select" style="height: 42px; font-size: 0.735rem;" 
                                                         id="day${day}_transport_service_type"
                                                         name="day${day}_transport_service_type" onchange="updatePricing(${day}, 'transport')" 
                                                         >
@@ -13434,8 +13509,8 @@ document.addEventListener('DOMContentLoaded', function() {
                                                 <div class="form-group">
                                                     <label class="form-label fw-semibold">Price <span class="text-danger">*</span></label>
                                                     <div class="input-group">
-                                                        <span class="input-group-text"><i class="ri-money-dollar-circle-line"></i></span>
-                                                        <input type="number" class="form-control" id="day${day}_transport_custom_price" name="day${day}_transport_custom_price" min="0" step="0.01" placeholder="Enter custom price" oninput="updatePricing(${day}, 'transport')" onchange="updatePricing(${day}, 'transport')">
+                                                        <span class="input-group-text" style="height: 42px; font-size: 0.735rem;"><i class="ri-money-dollar-circle-line"></i></span>
+                                                        <input type="number" style="height: 42px; font-size: 0.735rem;" class="form-control" id="day${day}_transport_custom_price" name="day${day}_transport_custom_price" min="0" step="0.01" placeholder="Enter custom price" oninput="updatePricing(${day}, 'transport')" onchange="updatePricing(${day}, 'transport')">
                                                     </div>
                                                     <small class="form-text text-muted">
                                                         Enter the custom price for this point-to-point service
@@ -13480,9 +13555,12 @@ document.addEventListener('DOMContentLoaded', function() {
                              <i class="ri-add-line me-1"></i>Add More Transport
                          </button>
                      </div>
+                                     </div>
+                                 </div>
+                             </div>
+                         </div>
+                     </div>
                  </div>
-             </div>
-                 
              </div>
          </div>
              `;
@@ -14295,8 +14373,8 @@ document.addEventListener('DOMContentLoaded', function() {
         const newIndex = existingAttractions.length + 1;
         
         const newAttractionHTML = `
-            <div class="card border-danger shadow-sm attraction-item mb-3" data-attraction-index="${newIndex}">
-                <div class="card-header bg-danger text-white">
+            <div class="card border shadow-sm attraction-item mb-3" data-attraction-index="${newIndex}">
+                <div class="card-header bg-light text-dark">
                     <div class="d-flex align-items-center justify-content-between">
                         <div class="d-flex align-items-center">
                             <span class="service-icon me-3">
@@ -15698,8 +15776,8 @@ document.addEventListener('DOMContentLoaded', function() {
         const newIndex = existingRestaurants.length + 1;
         
         const newRestaurantHTML = `
-            <div class="card border-success shadow-sm restaurant-item mb-3" data-restaurant-index="${newIndex}">
-                <div class="card-header bg-success text-white">
+            <div class="card border shadow-sm restaurant-item mb-3" data-restaurant-index="${newIndex}">
+                <div class="card-header bg-light text-dark">
                     <div class="d-flex align-items-center justify-content-between">
                         <div class="d-flex align-items-center">
                             <span class="service-icon me-3">
@@ -16403,8 +16481,8 @@ document.addEventListener('DOMContentLoaded', function() {
         const newIndex = existingGuides.length + 1;
         
         const newGuideHTML = `
-            <div class="card border-info shadow-sm guide-item mb-3" data-guide-index="${newIndex}">
-                <div class="card-header bg-info text-white">
+            <div class="card border shadow-sm guide-item mb-3" data-guide-index="${newIndex}">
+                <div class="card-header bg-light text-dark">
                     <div class="d-flex align-items-center justify-content-between">
                         <div class="d-flex align-items-center">
                             <span class="service-icon me-3">
@@ -16602,8 +16680,8 @@ document.addEventListener('DOMContentLoaded', function() {
          const newIndex = existingTransports.length + 1;
          
          const newTransportHTML = `
-             <div class="card border-warning shadow-sm transport-item mb-3" data-transport-index="${newIndex}">
-                 <div class="card-header bg-warning text-white">
+             <div class="card border shadow-sm transport-item mb-3" data-transport-index="${newIndex}">
+                 <div class="card-header bg-light text-dark">
                      <div class="d-flex align-items-center justify-content-between">
                          <div class="d-flex align-items-center">
                              <span class="service-icon me-3">
@@ -19611,7 +19689,7 @@ function populateEntryPortFields(day = 1) {
                    name="day1_entry_pickup_location" 
                    id="day1_entry_pickup_location" 
                    placeholder="Search for pickup location..." 
-                   style="padding-left: 45px;">
+                   style="padding-left: 45px; height: 42px; font-size: 0.735rem;">
             <i class="ri-map-pin-line position-absolute text-success" 
                style="left: 15px; top: 50%; transform: translateY(-50%); z-index: 5;"></i>
             <input type="hidden" name="day1_entry_pickup_lat" id="day1_entry_pickup_lat">
@@ -19626,7 +19704,7 @@ function populateEntryPortFields(day = 1) {
                    name="day1_entry_dropoff_location" 
                    id="day1_entry_dropoff_location" 
                    placeholder="Search for dropoff location..." 
-                   style="padding-left: 45px;">
+                   style="padding-left: 45px; height: 42px; font-size: 0.735rem;">
             <i class="ri-map-pin-line position-absolute text-danger" 
                style="left: 15px; top: 50%; transform: translateY(-50%); z-index: 5;"></i>
             <input type="hidden" name="day1_entry_dropoff_lat" id="day1_entry_dropoff_lat">
@@ -25910,5 +25988,6 @@ function updatePassengerFeild(event, section, day) {
 }
 
 </script>
+
 
 
