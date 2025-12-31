@@ -274,7 +274,9 @@ $(document).ready(function() {
             'travel_hourly': 'Local Transfer(Hourly)',
             'local_transport': 'Local Transfer',
             'entry_port': 'Arrival',
-            'exit_port': 'Departure'
+            'exit_port': 'Departure',
+            'attraction': 'Attraction Transfer',
+            'restaurant': 'Restaurant Transfer'
         };
         return orderTypeMap[orderType] || orderType;
     }
