@@ -485,13 +485,13 @@
         <!-- Header Section -->
         <div class="row mb-4">
             <div class="col-12">
-                <div>
-                    <div class="card-header text-white" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); border-bottom: 3px solid #764ba2;">
+                <div class="card border-0 shadow-sm">
+                    <div class="card-header text-white" style="background: linear-gradient(135deg, #4facfe 0%, #00c9ff 100%);">
                         <div class="d-flex align-items-center">
-                            <i class="ri-map-pin-line me-3 fs-3"></i>
+                            <i class="ri-map-pin-line me-3 fs-4"></i>
                             <div>
-                            <h3 class="mb-2 fw-bold text-white" style="font-size: 1.5rem; text-shadow: 0 2px 4px rgba(0,0,0,0.2);">Edit Tour Services</h3>
-                            <p class="mb-0 text-white" style="font-size: 0.95rem; opacity: 0.95; font-weight: 500;">Manage and add services to existing tour: <strong>{{ $tour->display_id ?? 'N/A' }}</strong></p>
+                                <h4 class="mb-1 text-white">Edit Tour Services</h4>
+                                <p class="mb-0 opacity-75">Manage and add services to existing tour: <strong>{{ $tour->display_id ?? 'N/A' }}</strong></p>
                             </div>
                         </div>
                     </div>
@@ -579,7 +579,7 @@
             <div class="row mb-4">
                 <div class="col-12">
                     <div class="card shadow-sm border-0">
-                        <div class="card-header text-white" style="background: linear-gradient(135deg, #4facfe 0%, #00c9ff 100%); border-bottom: 1px solid #3b82f6;">
+                        <div class="card-header bg-gradient-primary text-white">
                             <h6 class="mb-0 fw-bold">
                                 <i class="ri-settings-3-line me-2"></i>Tour Information
                             </h6>
@@ -591,7 +591,7 @@
                                     <label class="form-label fw-semibold">
                                         <i class="ri-hashtag me-1"></i>Tour ID
                                     </label>
-                                    <input type="text" class="form-control" name="display_id" id="display_id" value="{{ $tour->display_id ?? '' }}" placeholder="Enter tour reference" disabled>
+                                    <input type="text" style="height:38px" class="form-control" name="display_id" id="display_id" value="{{ $tour->display_id ?? '' }}" placeholder="Enter tour reference" disabled>
                                     <input type="hidden" id="tour_id" name="tour_id" value="{{ $tour->tour_id ?? '' }}">
                                     
                                     <!-- DMC Information -->
@@ -619,12 +619,12 @@
 
                                 <!-- Travel Dates -->
                                 <div class="col-md-3">
-                                    <label class="form-label fw-semibold">
-                                        <i class="ri-calendar-line me-1"></i>Travel Dates
+                                    <label class="form-label fw-semibold" >
+                                        <i class="ri-calendar-line me-1" ></i>Travel Dates
                                     </label>
                                     <div class="row g-2">
                                         <div class="col-6">
-                                            <input type="date" class="form-control" name="start_date" id="start_date" 
+                                            <input type="date" style="height:38px" class="form-control" name="start_date" id="start_date" 
                                                 value="{{ 
                                                     $tour->check_in_time 
                                                         ? (is_string($tour->check_in_time) ? date('Y-m-d', strtotime($tour->check_in_time)) : $tour->check_in_time->format('Y-m-d'))
@@ -633,7 +633,7 @@
                                                 min="{{ date('Y-m-d') }}">
                                         </div>
                                         <div class="col-6">
-                                            <input type="date" class="form-control" name="end_date" id="end_date" 
+                                            <input type="date" style="height:38px" class="form-control" name="end_date" id="end_date" 
                                                 value="{{ 
                                                     $tour->check_out_time 
                                                         ? (is_string($tour->check_out_time) ? date('Y-m-d', strtotime($tour->check_out_time)) : $tour->check_out_time->format('Y-m-d'))
@@ -1393,6 +1393,7 @@
                                                                     const mealPlanVariations = {
                                                                         'room only': ['room_only'],
                                                                         'bed & breakfast': ['bed_&_breakfast', 'bed_and_breakfast'],
+                                                                        'room with breakfast': ['bed_&_breakfast', 'bed_and_breakfast'],
                                                                         'breakfast only': ['breakfast_only'],
                                                                         'lunch only': ['lunch_only'],
                                                                         'dinner only': ['dinner_only'],
@@ -1406,6 +1407,13 @@
                                                                         if (existingValue.includes(key) && values.includes(planValue)) {
                                                                             variationMatch = true;
                                                                             break;
+                                                                        }
+                                                                    }
+                                                                    
+                                                                    // Explicit check for "room with breakfast" variations
+                                                                    if (!variationMatch && (existingValue.includes('room with breakfast') || existingValue.includes('room and breakfast'))) {
+                                                                        if (planValue === 'bed_&_breakfast' || planValue === 'bed_and_breakfast') {
+                                                                            variationMatch = true;
                                                                         }
                                                                     }
                                                                     
@@ -1742,7 +1750,7 @@
             <div class="row mb-4">
                 <div class="col-12">
                     <div>
-                        <div class="card-header text-dark d-flex justify-content-between align-items-center" role="button" data-bs-toggle="collapse" data-bs-target="#arrivalTransportSection" aria-expanded="false" aria-controls="arrivalTransportSection" style="cursor: pointer; background: linear-gradient(135deg, #e5e7eb 0%, #d1d5db 100%); border: 1px solid #9ca3af;">
+                        <div class="card-header text-dark d-flex justify-content-between align-items-center" role="button" data-bs-toggle="collapse" data-bs-target="#arrivalTransportSection" aria-expanded="false" aria-controls="arrivalTransportSection" style="cursor: pointer; background: linear-gradient(135deg, #dbeafe 0%, #bfdbfe 100%); border: 1px solid #60a5fa; transition: all 0.3s ease;">
                             <div class="d-flex align-items-center">
                                 <span class="service-icon me-3">
                                     <i class="ri-login-circle-line fs-4"></i>
@@ -1977,7 +1985,7 @@
                             <!-- All Restaurant Services Section (Unified) -->
                             <div class="service-section mb-3">
                                 <div>
-                                    <div class="card-header text-dark d-flex justify-content-between align-items-center" role="button" data-bs-toggle="collapse" data-bs-target="#restaurantServicesSection" aria-expanded="false" aria-controls="restaurantServicesSection" style="cursor: pointer; background: linear-gradient(135deg, #e5e7eb 0%, #d1d5db 100%); border: 1px solid #9ca3af;">
+                                    <div class="card-header text-dark d-flex justify-content-between align-items-center" role="button" data-bs-toggle="collapse" data-bs-target="#restaurantServicesSection" aria-expanded="false" aria-controls="restaurantServicesSection" style="cursor: pointer; background: linear-gradient(135deg, #fef3c7 0%, #fde68a 100%); border: 1px solid #fbbf24; transition: all 0.3s ease;">
                                         <div class="d-flex align-items-center">
                                             <span class="service-icon me-3">
                                                 <i class="ri-restaurant-2-line fs-4"></i>
@@ -2000,6 +2008,7 @@
                                                 $payload = isset($restaurantData[0]) ? $restaurantData[0] : $restaurantData;
                                             }
                                             $restaurantName = $payload['restaurantName'] ?? 'N/A';
+                                            $bookingDate = $payload['bookingDate'] ?? '';
                                             $mealType = $payload['mealType'] ?? '';
                                             $mealSpecificType = $payload['mealSpecificType'] ?? '';
                                             $timeSlot = $payload['visitTime'] ?? '';
@@ -2025,11 +2034,19 @@
                                             $transferOptions = $payload['transfer_options'] ?? [];
                                             $transferRequired = isset($transferOptions['transfer_required']) && $transferOptions['transfer_required'] === true;
                                             $transportType = $transferOptions['type'] ?? '';
-                                            $transportVehicle = $transferOptions['vehicle_id'] ?? $transferOptions['vehicle_name'] ?? '';
-                                            $transportDestination = $transferOptions['destination'] ?? '';
-                                            $transportSeats = $transferOptions['seats'] ?? '';
+                                            
+                                            // Get vehicle name from vehicle_details or vehicle_id/vehicle_name
+                                            $vehicleDetails = $transferOptions['vehicle_details'] ?? [];
+                                            $transportVehicle = $vehicleDetails['vehicle_name'] ?? $transferOptions['vehicle_name'] ?? $transferOptions['vehicle_id'] ?? '';
+                                            $transportVehicleId = $transferOptions['vehicle_id'] ?? '';
+                                            
+                                            // Get destination from pickup_location_name or destination
+                                            $transportDestination = $transferOptions['pickup_location_name'] ?? $transferOptions['destination'] ?? '';
+                                            $transportDestinationId = $transferOptions['pickup_location_id'] ?? '';
+                                            
+                                            $transportSeats = $vehicleDetails['seating_capacity'] ?? $transferOptions['seats'] ?? '';
                                             $transportPassengers = $transferOptions['passengers'] ?? '';
-                                            $transportPrice = $transferOptions['price'] ?? 0;
+                                            $transportPrice = $transferOptions['cost'] ?? $transferOptions['price'] ?? 0;
                                             $transportWay = $transferOptions['way'] ?? 'One Way';
                                             $transportReturn = ($transportWay === 'Two Way');
                                         @endphp
@@ -2100,19 +2117,23 @@
                                                     <input type="hidden" id="current_dish_type_{{ $order->booking_id }}" value="{{ $mealSpecificType }}">
                                                 </div>
                                                 <div class="col-md-3">
+                                                    <label class="form-label fw-semibold text-muted mb-1"><i class="ri-calendar-line me-1 text-primary"></i>Booking Date</label>
+                                                    <input type="date" class="form-control border-2" style="height: 38px;" name="booking_date" id="booking_date_{{ $order->booking_id }}" value="{{ $bookingDate }}" required>
+                                                </div>
+                                                <div class="col-md-3">
                                                     <label class="form-label fw-semibold text-muted mb-1"><i class="ri-time-line me-1 text-warning"></i>Time Slot</label>
                                                     <input type="text" class="form-control border-2" style="height: 38px;" name="time_slot" value="{{ $timeSlot }}" placeholder="e.g. 07:00 AM">
                                                     <small class="text-muted">Available time slots</small>
                                                 </div>
-                                                <div class="col-md-3">
+                                                <div class="col-md-2">
                                                     <label class="form-label fw-semibold text-muted mb-1"><i class="ri-user-line me-1 text-secondary"></i>Adults</label>
                                                     <input type="number" class="form-control border-2" style="height: 38px;" name="adult_count" min="0" value="{{ $adultCount }}" required>
                                                 </div>
-                                                <div class="col-md-3">
+                                                <div class="col-md-2">
                                                     <label class="form-label fw-semibold text-muted mb-1"><i class="ri-user-smile-line me-1 text-secondary"></i>Children</label>
                                                     <input type="number" class="form-control border-2" style="height: 38px;" name="child_count" min="0" value="{{ $childCount }}" required>
                                                 </div>
-                                                <div class="col-md-3">
+                                                <div class="col-md-2">
                                                     <label class="form-label fw-semibold text-muted mb-1"><i class="ri-money-dollar-circle-line me-1 text-success"></i>Total Price</label>
                                                     <input type="number" class="form-control border-2" style="height: 38px;" name="total_price" id="restaurant_total_price_{{ $order->booking_id }}" step="0.01" min="0" value="{{ number_format((float)$totalPrice, 2, '.', '') }}" placeholder="0.00" readonly>
                                                 </div>
@@ -2207,11 +2228,15 @@
                                                                 @foreach($filteredVehicles as $vehicle)
                                                                     @php
                                                                         $vehicleName = $vehicle->vehicle_name ?? $vehicle->vehicle_id ?? 'Vehicle';
+                                                                        $vehicleId = $vehicle->vehicle_id ?? '';
                                                                         $vehicleType = $vehicle->vehicle_type ?? '';
                                                                         $seatingCapacity = $vehicle->seating_capacity ?? '';
-                                                                        $isSelected = ($transportVehicle === $vehicleName || $transportVehicle === ($vehicle->vehicle_id ?? ''));
+                                                                        $isSelected = ($transportVehicle === $vehicleName || 
+                                                                                       $transportVehicle === $vehicleId || 
+                                                                                       $transportVehicleId === $vehicleId ||
+                                                                                       $transportVehicleId === (string)$vehicleId);
                                                                     @endphp
-                                                                    <option value="{{ $vehicleName }}" data-seating-capacity="{{ $seatingCapacity }}" {{ $isSelected ? 'selected' : '' }}>
+                                                                    <option value="{{ $vehicleName }}" data-vehicle-id="{{ $vehicleId }}" data-seating-capacity="{{ $seatingCapacity }}" {{ $isSelected ? 'selected' : '' }}>
                                                                         {{ $vehicleName }}
                                                                         @if($vehicleType)
                                                                             ({{ $vehicleType }})
@@ -2292,7 +2317,7 @@
                             <!-- Other Transport Services Section (Unified) -->
                             <div class="service-section mb-3">
                                 <div>
-                                    <div class="card-header text-dark d-flex justify-content-between align-items-center" role="button" data-bs-toggle="collapse" data-bs-target="#otherTransportSection" aria-expanded="false" aria-controls="otherTransportSection" style="cursor: pointer; background: linear-gradient(135deg, #e5e7eb 0%, #d1d5db 100%); border: 1px solid #9ca3af;">
+                                    <div class="card-header text-dark d-flex justify-content-between align-items-center" role="button" data-bs-toggle="collapse" data-bs-target="#otherTransportSection" aria-expanded="false" aria-controls="otherTransportSection" style="cursor: pointer; background: linear-gradient(135deg, #ccfbf1 0%, #99f6e4 100%); border: 1px solid #5eead4; transition: all 0.3s ease;">
                                         <div class="d-flex align-items-center">
                                             <span class="service-icon me-3">
                                                 <i class="ri-car-line fs-4"></i>
@@ -2827,7 +2852,7 @@
                             <!-- All Attractions Section (Unified) -->
                             <div class="service-section mb-3">
                                 <div>
-                                    <div class="card-header text-dark d-flex justify-content-between align-items-center" role="button" data-bs-toggle="collapse" data-bs-target="#allAttractionsSection" aria-expanded="false" aria-controls="allAttractionsSection" style="cursor: pointer; background: linear-gradient(135deg, #e5e7eb 0%, #d1d5db 100%); border: 1px solid #9ca3af;">
+                                    <div class="card-header text-dark d-flex justify-content-between align-items-center" role="button" data-bs-toggle="collapse" data-bs-target="#allAttractionsSection" aria-expanded="false" aria-controls="allAttractionsSection" style="cursor: pointer; background: linear-gradient(135deg, #f3e8ff 0%, #e9d5ff 100%); border: 1px solid #c084fc; transition: all 0.3s ease;">
                                         <div class="d-flex align-items-center">
                                             <span class="service-icon me-3">
                                                 <i class="ri-ticket-line fs-4"></i>
@@ -2850,6 +2875,7 @@
                                                 $payload = isset($attractionData[0]) ? $attractionData[0] : $attractionData;
                                             }
                                             $attractionName = $payload['AttractionName'] ?? 'N/A';
+                                            $bookingDate = $payload['bookingDate'] ?? '';
                                             $timeSlot = $payload['visitTime'] ?? 'N/A';
                                             $ticket = $payload['ticketName'] ?? 'N/A';
                                             $adultCount = $payload['adultCount'] ?? 0;
@@ -2867,13 +2893,43 @@
                                             $transferOptions = $payload['transfer_options'] ?? [];
                                             $transferRequired = isset($transferOptions['transfer_required']) && $transferOptions['transfer_required'] === true;
                                             $transportType = $transferOptions['type'] ?? '';
-                                            $transportVehicle = $transferOptions['vehicle_id'] ?? $transferOptions['vehicle_name'] ?? '';
-                                            $transportDestination = $transferOptions['destination'] ?? '';
-                                            $transportSeats = $transferOptions['seats'] ?? '';
+                                            
+                                            // Get vehicle name from vehicle_details or vehicle_id/vehicle_name
+                                            $vehicleDetails = $transferOptions['vehicle_details'] ?? [];
+                                            $transportVehicle = $vehicleDetails['vehicle_name'] ?? $transferOptions['vehicle_name'] ?? $transferOptions['vehicle_id'] ?? '';
+                                            $transportVehicleId = $transferOptions['vehicle_id'] ?? '';
+                                            
+                                            // Get destination from pickup_location_name or destination
+                                            $transportDestination = $transferOptions['pickup_location_name'] ?? $transferOptions['destination'] ?? '';
+                                            $transportDestinationId = $transferOptions['pickup_location_id'] ?? '';
+                                            
+                                            $transportSeats = $vehicleDetails['seating_capacity'] ?? $transferOptions['seats'] ?? '';
                                             $transportPassengers = $transferOptions['passengers'] ?? '';
-                                            $transportPrice = $transferOptions['price'] ?? 0;
+                                            $transportPrice = $transferOptions['cost'] ?? $transferOptions['price'] ?? 0;
                                             $transportWay = $transferOptions['way'] ?? 'One Way';
                                             $transportReturn = ($transportWay === 'Two Way');
+                                            
+                                            // Extract guide options
+                                            $guideOptions = $payload['guide_options'] ?? [];
+                                            $guideRequired = isset($guideOptions['guide_required']) && $guideOptions['guide_required'] === true;
+                                            $guideId = $guideOptions['guide_id'] ?? '';
+                                            $guideName = $guideOptions['guide_name'] ?? '';
+                                            
+                                            // Extract language from guide name (e.g., "AB - English" -> "English")
+                                            $guideLanguage = '';
+                                            if ($guideName && strpos($guideName, '-') !== false) {
+                                                $parts = explode('-', $guideName);
+                                                if (count($parts) > 1) {
+                                                    $guideLanguage = trim(end($parts));
+                                                }
+                                            }
+                                            
+                                            $guidePickupTime = $guideOptions['pickup_time'] ?? '';
+                                            $guidePackageHours = $guideOptions['package_hours'] ?? '';
+                                            $guideBasePrice = $guideOptions['base_price'] ?? 0;
+                                            $guideHours = $guideOptions['hours'] ?? 0;
+                                            $guideSurcharge = $guideOptions['surcharge'] ?? 0;
+                                            $guideTotalPrice = $guideOptions['total_price'] ?? 0;
                                         @endphp
                                         <form class="service-item mb-3 p-3 border rounded shadow-sm bg-white attraction-edit-form" data-update-url="{{ route('edit-tour.update-attraction', $order->booking_id) }}" onsubmit="updateExistingAttraction(event, {{ $order->booking_id }})">
                                             @csrf
@@ -2889,7 +2945,7 @@
                                         
                                         
                                             <div class="row g-3">
-                                                <div class="col-md-6">
+                                                <div class="col-md-5">
                                                     <label class="form-label fw-semibold text-muted mb-1"><i class="ri-map-pin-line me-1 text-primary"></i>Attraction Name</label>
                                                     <select class="form-select border-2" name="attraction_name" id="attraction_name_{{ $order->booking_id }}" onchange="populateTicketFromAttraction(this, 'ticket_name_{{ $order->booking_id }}')" required>
                                                         <option value="">Select Attraction</option>
@@ -2928,6 +2984,10 @@
                                                         @endif
                                                     </select>
                                                     <small class="text-muted">Select an attraction to see available tickets</small>
+                                                </div>
+                                                <div class="col-md-3">
+                                                    <label class="form-label fw-semibold text-muted mb-1"><i class="ri-calendar-line me-1 text-primary"></i>Booking Date</label>
+                                                    <input type="date" class="form-control border-2" style="height: 38px;" name="booking_date" id="booking_date_{{ $order->booking_id }}" value="{{ $bookingDate }}" required>
                                                 </div>
                                                 <div class="col-md-2">
                                                     <label class="form-label fw-semibold text-muted mb-1"><i class="ri-time-line me-1 text-warning"></i>Time Slot</label>
@@ -3049,11 +3109,11 @@
                                                     <small class="text-muted">Available time slots from database</small>
                                                 </div>
                                                 
-                                                <div class="col-md-3">
+                                                <div class="col-md-2">
                                                     <label class="form-label fw-semibold text-muted mb-1"><i class="ri-user-line me-1 text-secondary"></i>Adults</label>
                                                     <input type="number" class="form-control border-2" style="height: 38px;" name="adult_count" min="0" value="{{ $adultCount }}" required>
                                                 </div>
-                                                <div class="col-md-3">
+                                                <div class="col-md-2">
                                                     <label class="form-label fw-semibold text-muted mb-1"><i class="ri-user-smile-line me-1 text-secondary"></i>Children</label>
                                                     <input type="number" class="form-control border-2" style="height: 38px;" name="child_count" min="0" value="{{ $childCount }}" required>
                                                 </div>
@@ -3161,11 +3221,15 @@
                                                             @foreach($filteredVehicles as $vehicle)
                                                                 @php
                                                                     $vehicleName = $vehicle->vehicle_name ?? $vehicle->vehicle_id ?? 'Vehicle';
+                                                                    $vehicleId = $vehicle->vehicle_id ?? '';
                                                                     $vehicleType = $vehicle->vehicle_type ?? '';
                                                                     $seatingCapacity = $vehicle->seating_capacity ?? '';
-                                                                    $isSelected = ($transportVehicle === $vehicleName || $transportVehicle === ($vehicle->vehicle_id ?? ''));
+                                                                    $isSelected = ($transportVehicle === $vehicleName || 
+                                                                                   $transportVehicle === $vehicleId || 
+                                                                                   $transportVehicleId === $vehicleId ||
+                                                                                   $transportVehicleId === (string)$vehicleId);
                                                                 @endphp
-                                                                <option value="{{ $vehicleName }}" data-seating-capacity="{{ $seatingCapacity }}" {{ $isSelected ? 'selected' : '' }}>
+                                                                <option value="{{ $vehicleName }}" data-vehicle-id="{{ $vehicleId }}" data-seating-capacity="{{ $seatingCapacity }}" {{ $isSelected ? 'selected' : '' }}>
                                                                     {{ $vehicleName }}
                                                                     @if($vehicleType)
                                                                         ({{ $vehicleType }})
@@ -3211,14 +3275,14 @@
                                                     <div class="d-flex align-items-center gap-2">
                                                         <span class="text-muted small toggle-label" id="attraction_guide_no_{{ $order->booking_id }}">No</span>
                                                         <label class="toggle-switch" for="need_attraction_guide_{{ $order->booking_id }}">
-                                                            <input type="checkbox" class="toggle-switch-input" name="need_attraction_guide_{{ $order->booking_id }}" id="need_attraction_guide_{{ $order->booking_id }}" value="yes" autocomplete="off">
+                                                            <input type="checkbox" class="toggle-switch-input" name="need_attraction_guide_{{ $order->booking_id }}" id="need_attraction_guide_{{ $order->booking_id }}" value="yes" autocomplete="off" {{ $guideRequired ? 'checked' : '' }}>
                                                             <span class="toggle-switch-slider"></span>
                                                         </label>
                                                         <span class="text-muted small toggle-label" id="attraction_guide_yes_{{ $order->booking_id }}">Yes</span>
                                                     </div>
                                                 </div>
                                             </div>
-                                            <div id="attraction_guide_details_{{ $order->booking_id }}" class="border rounded-3 p-3 bg-white mt-2 d-none">
+                                            <div id="attraction_guide_details_{{ $order->booking_id }}" class="border rounded-3 p-3 bg-white mt-2 {{ $guideRequired ? '' : 'd-none' }}">
                                                 @php
                                                     $availableGuides = $guides ?? collect();
                                                     $tourCountry = $tour->destination ?? '';
@@ -3257,14 +3321,17 @@
                                                                 sort($uniqueLanguages);
                                                             @endphp
                                                             @foreach($uniqueLanguages as $language)
-                                                                <option value="{{ $language }}">{{ $language }}</option>
+                                                                <option value="{{ $language }}" {{ $guideLanguage && strtolower(trim($guideLanguage)) === strtolower(trim($language)) ? 'selected' : '' }}>{{ $language }}</option>
                                                             @endforeach
                                                         </select>
                                                     </div>
                                                     <div class="col-md-6">
                                                         <label class="form-label small fw-semibold mb-1">Guide</label>
-                                                        <select class="form-select form-select-sm" name="attraction_guide_name_{{ $order->booking_id }}" id="attraction_guide_name_{{ $order->booking_id }}" data-no-select2="true">
+                                                        <select class="form-select form-select-sm" name="attraction_guide_name_{{ $order->booking_id }}" id="attraction_guide_name_{{ $order->booking_id }}" data-no-select2="true" data-initial-guide-id="{{ $guideId }}" data-initial-guide-name="{{ $guideName }}">
                                                             <option value="">Select Language First</option>
+                                                            @if($guideName && $guideName != 'N/A')
+                                                                <option value="{{ $guideName }}" data-guide-id="{{ $guideId }}" selected>{{ $guideName }}</option>
+                                                            @endif
                                                         </select>
                                                     </div>
                                                 </div>
@@ -3273,27 +3340,27 @@
                                                         <label class="form-label small fw-semibold mb-1">Package (Hours)</label>
                                                         <select class="form-select form-select-sm" name="attraction_guide_hours_{{ $order->booking_id }}" id="attraction_guide_hours_{{ $order->booking_id }}" data-no-select2="true">
                                                             <option value="">Select Hours</option>
-                                                            <option value="1">1 Hour</option>
-                                                            <option value="2">2 Hours</option>
-                                                            <option value="3">3 Hours</option>
-                                                            <option value="4">4 Hours</option>
-                                                            <option value="5">5 Hours</option>
-                                                            <option value="6">6 Hours</option>
-                                                            <option value="7">7 Hours</option>
-                                                            <option value="8">8 Hours</option>
-                                                            <option value="9">9 Hours</option>
-                                                            <option value="10">10 Hours</option>
-                                                            <option value="11">11 Hours</option>
-                                                            <option value="12">12 Hours</option>
-                                                            <option value="custom">Custom Hours</option>
+                                                            <option value="1" {{ $guidePackageHours == '1' || $guideHours == 1 ? 'selected' : '' }}>1 Hour</option>
+                                                            <option value="2" {{ $guidePackageHours == '2' || $guideHours == 2 ? 'selected' : '' }}>2 Hours</option>
+                                                            <option value="3" {{ $guidePackageHours == '3' || $guideHours == 3 ? 'selected' : '' }}>3 Hours</option>
+                                                            <option value="4" {{ $guidePackageHours == '4' || $guideHours == 4 ? 'selected' : '' }}>4 Hours</option>
+                                                            <option value="5" {{ $guidePackageHours == '5' || $guideHours == 5 ? 'selected' : '' }}>5 Hours</option>
+                                                            <option value="6" {{ $guidePackageHours == '6' || $guideHours == 6 ? 'selected' : '' }}>6 Hours</option>
+                                                            <option value="7" {{ $guidePackageHours == '7' || $guideHours == 7 ? 'selected' : '' }}>7 Hours</option>
+                                                            <option value="8" {{ $guidePackageHours == '8' || $guideHours == 8 ? 'selected' : '' }}>8 Hours</option>
+                                                            <option value="9" {{ $guidePackageHours == '9' || $guideHours == 9 ? 'selected' : '' }}>9 Hours</option>
+                                                            <option value="10" {{ $guidePackageHours == '10' || $guideHours == 10 ? 'selected' : '' }}>10 Hours</option>
+                                                            <option value="11" {{ $guidePackageHours == '11' || $guideHours == 11 ? 'selected' : '' }}>11 Hours</option>
+                                                            <option value="12" {{ $guidePackageHours == '12' || $guideHours == 12 ? 'selected' : '' }}>12 Hours</option>
+                                                            <option value="custom" {{ ($guidePackageHours && !in_array($guidePackageHours, ['1','2','3','4','5','6','7','8','9','10','11','12'])) || ($guideHours && !in_array($guideHours, [1,2,3,4,5,6,7,8,9,10,11,12])) ? 'selected' : '' }}>Custom Hours</option>
                                                         </select>
-                                                        <input type="number" min="1" class="form-control form-control-sm mt-2" name="attraction_guide_custom_hours_{{ $order->booking_id }}" id="attraction_guide_custom_hours_{{ $order->booking_id }}" placeholder="Enter custom hours" style="display: none;">
+                                                        <input type="number" min="1" class="form-control form-control-sm mt-2" name="attraction_guide_custom_hours_{{ $order->booking_id }}" id="attraction_guide_custom_hours_{{ $order->booking_id }}" placeholder="Enter custom hours" value="{{ ($guidePackageHours && !in_array($guidePackageHours, ['1','2','3','4','5','6','7','8','9','10','11','12'])) ? $guidePackageHours : (($guideHours && !in_array($guideHours, [1,2,3,4,5,6,7,8,9,10,11,12])) ? $guideHours : '') }}" style="display: {{ ($guidePackageHours && !in_array($guidePackageHours, ['1','2','3','4','5','6','7','8','9','10','11','12'])) || ($guideHours && !in_array($guideHours, [1,2,3,4,5,6,7,8,9,10,11,12])) ? 'block' : 'none' }};">
                                                     </div>
                                                     <div class="col-md-6">
                                                         <label class="form-label small fw-semibold mb-1">Guide Price</label>
                                                         <div class="position-relative">
                                                             <span class="position-absolute" style="left: 10px; top: 50%; transform: translateY(-50%); z-index: 5; color: #6c757d; font-weight: 500;">{{ $tour->currency ?? '$' }}</span>
-                                                            <input type="number" min="0" step="0.01" class="form-control form-control-sm" name="attraction_guide_price_{{ $order->booking_id }}" id="attraction_guide_price_{{ $order->booking_id }}" placeholder="0.00" readonly style="padding-left: 30px;">
+                                                            <input type="number" min="0" step="0.01" class="form-control form-control-sm" name="attraction_guide_price_{{ $order->booking_id }}" id="attraction_guide_price_{{ $order->booking_id }}" placeholder="0.00" value="{{ $guideTotalPrice > 0 ? number_format((float)$guideTotalPrice, 2, '.', '') : '' }}" readonly style="padding-left: 30px;">
                                                         </div>
                                                         <small class="text-muted" style="font-size: 0.75rem; line-height: 1.2;">
                                                             <span id="attraction_guide_price_breakdown_{{ $order->booking_id }}" style="display: none;"></span>
@@ -3342,7 +3409,7 @@
                             <!-- All Guides Section (Unified) -->
                             <div class="service-section mb-3">
                                 <div >
-                                    <div class="card-header text-dark d-flex justify-content-between align-items-center" role="button" data-bs-toggle="collapse" data-bs-target="#allGuidesSection" aria-expanded="false" aria-controls="allGuidesSection" style="cursor: pointer; background: linear-gradient(135deg, #e5e7eb 0%, #d1d5db 100%); border: 1px solid #9ca3af;">
+                                    <div class="card-header text-dark d-flex justify-content-between align-items-center" role="button" data-bs-toggle="collapse" data-bs-target="#allGuidesSection" aria-expanded="false" aria-controls="allGuidesSection" style="cursor: pointer; background: linear-gradient(135deg, #d1fae5 0%, #a7f3d0 100%); border: 1px solid #34d399; transition: all 0.3s ease;">
                                         <div class="d-flex align-items-center">
                                             <span class="service-icon me-3">
                                                 <i class="ri-user-star-line fs-4"></i>
@@ -3366,22 +3433,32 @@
                                             }
                                             $guideName = $payload['guide_name'] ?? 'N/A';
                                             $packageHours = $payload['hours'] ?? '';
-                                            $pickupTime = $payload['entrytime'] ?? '';
+                                            $pickupTime = $payload['entrypickup'] ?? $payload['entrytime'] ?? '';
+                                            $pickupDate = $payload['pickupdate'] ?? '';
                                             $guestSummary = $payload['fullName'] ?? '';
                                             $guideNotes = $payload['notes'] ?? '';
                                             $totalPrice = $payload['totalPrice'] ?? $payload['price'] ?? 0;
+                                            
                                             // Convert pickup time to AM/PM format for display
                                             $pickupTimeAMPM = '';
                                             if ($pickupTime) {
                                                 try {
+                                                    // Try parsing as 24-hour format first (H:i)
                                                     $timeObj = \Carbon\Carbon::createFromFormat('H:i', $pickupTime);
                                                     $pickupTimeAMPM = $timeObj->format('h:i A');
                                                 } catch (\Exception $e) {
                                                     try {
-                                                        $timeObj = \Carbon\Carbon::parse($pickupTime);
+                                                        // Try parsing as 12-hour format (h:i A)
+                                                        $timeObj = \Carbon\Carbon::createFromFormat('h:i A', $pickupTime);
                                                         $pickupTimeAMPM = $timeObj->format('h:i A');
                                                     } catch (\Exception $e2) {
-                                                        $pickupTimeAMPM = $pickupTime; // Keep original if parsing fails
+                                                        try {
+                                                            // Try general parse
+                                                            $timeObj = \Carbon\Carbon::parse($pickupTime);
+                                                            $pickupTimeAMPM = $timeObj->format('h:i A');
+                                                        } catch (\Exception $e3) {
+                                                            $pickupTimeAMPM = $pickupTime; // Keep original if parsing fails
+                                                        }
                                                     }
                                                 }
                                             }
@@ -3443,7 +3520,11 @@
                                                     </select>
                                                 </div>
                                                 <div class="col-md-3">
-                                                    <label class="form-label fw-semibold text-muted mb-1"><i class="ri-time-line me-1 text-info"></i>Pickup Time</label>
+                                                    <label class="form-label fw-semibold text-muted mb-1"><i class="ri-calendar-line me-1 text-primary"></i>Pickup Date</label>
+                                                    <input type="date" class="form-control border-2" style="height: 38px;" name="pickup_date" id="pickup_date_{{ $order->booking_id }}" value="{{ $pickupDate }}" required>
+                                                </div>
+                                                <div class="col-md-3">
+                                                    <label class="form-label fw-semibold text-muted mb-1"><i class="ri-time-line me-1 text-info"></i>Entry Pickup Time</label>
                                                     <select class="form-select border-2" name="pickup_time" id="guide_pickup_time_{{ $order->booking_id }}" required>
                                                         <option value="">Select Guide First</option>
                                                         @if($pickupTimeAMPM)
@@ -3456,7 +3537,7 @@
                                                     <label class="form-label fw-semibold text-muted mb-1"><i class="ri-time-line me-1 text-warning"></i>Package (Hours)</label>
                                                     <input type="text" class="form-control border-2" style="height: 38px;" name="package_hours" value="{{ $packageHours }}" placeholder="e.g. 4">
                                                 </div>
-                                                <div class="col-md-2">
+                                                <div class="col-md-3">
                                                     <label class="form-label fw-semibold text-muted mb-1"><i class="ri-money-dollar-circle-line me-1 text-success"></i>Total Price</label>
                                                     <input type="number" class="form-control border-2" style="height: 38px;" name="total_price" id="guide_total_price_{{ $order->booking_id }}" step="0.01" min="0" value="{{ number_format((float)$totalPrice, 2, '.', '') }}" placeholder="0.00" readonly>
                                                 </div>
@@ -3500,7 +3581,7 @@
                             <!-- Departure Transport Services Section -->
                             <div class="service-section mb-3">
                                 <div>
-                                    <div class="card-header text-dark d-flex justify-content-between align-items-center" role="button" data-bs-toggle="collapse" data-bs-target="#departureTransportSection" aria-expanded="false" aria-controls="departureTransportSection" style="cursor: pointer; background: linear-gradient(135deg, #e5e7eb 0%, #d1d5db 100%); border: 1px solid #9ca3af;">
+                                    <div class="card-header text-dark d-flex justify-content-between align-items-center" role="button" data-bs-toggle="collapse" data-bs-target="#departureTransportSection" aria-expanded="false" aria-controls="departureTransportSection" style="cursor: pointer; background: linear-gradient(135deg, #dbeafe 0%, #bfdbfe 100%); border: 1px solid #60a5fa; transition: all 0.3s ease;">
                                         <div class="d-flex align-items-center">
                                             <span class="service-icon me-3">
                                                 <i class="ri-logout-circle-line fs-4"></i>
@@ -6645,6 +6726,7 @@
             const option = $('<option></option>')
                 .attr('value', guide.name)
                 .attr('data-guide-id', guide.guide_id || '')
+                .attr('data-guide-data', JSON.stringify(guideData))
                 .data('guide-data', guideData)
                 .text(guide.name);
             guideSelect.append(option);
@@ -17443,15 +17525,16 @@
                 const selectedOption = vehicleSelect.options[vehicleSelect.selectedIndex];
                 vehicleId = selectedOption.value || '';
                 const seatingCapacity = selectedOption.dataset.seatingCapacity || '';
+                const vehicleIdFromData = selectedOption.dataset.vehicleId || '';
                 
                 // Try to get full vehicle data from vehicles array (if available globally)
                 if (window.vehiclesData && Array.isArray(window.vehiclesData)) {
                     const vehicle = window.vehiclesData.find(v => 
-                        (v.vehicle_name === vehicleId || v.vehicle_id === vehicleId)
+                        (v.vehicle_name === vehicleId || v.vehicle_id === vehicleId || v.vehicle_id === vehicleIdFromData)
                     );
                     if (vehicle) {
                         vehicleDetails = {
-                            vehicle_id: vehicle.vehicle_id || vehicleId,
+                            vehicle_id: vehicle.vehicle_id || vehicleIdFromData || vehicleId,
                             vehicle_name: vehicle.vehicle_name || vehicleId,
                             vehicle_type: vehicle.vehicle_type || '',
                             seating_capacity: vehicle.seating_capacity || seatingCapacity || '',
@@ -17460,7 +17543,7 @@
                         };
                     } else {
                         vehicleDetails = {
-                            vehicle_id: vehicleId,
+                            vehicle_id: vehicleIdFromData || vehicleId,
                             vehicle_name: vehicleId,
                             vehicle_type: '',
                             seating_capacity: seatingCapacity || '',
@@ -17470,7 +17553,7 @@
                     }
                 } else {
                     vehicleDetails = {
-                        vehicle_id: vehicleId,
+                        vehicle_id: vehicleIdFromData || vehicleId,
                         vehicle_name: vehicleId,
                         vehicle_type: '',
                         seating_capacity: seatingCapacity || '',
@@ -17478,6 +17561,16 @@
                         shared_price: '0.00'
                     };
                 }
+            }
+            
+            // Get destination ID from selected option
+            const destinationSelect = document.querySelector(`select[name="restaurant_transport_destination_${bookingId}"]`);
+            let destinationId = '';
+            let destinationType = '';
+            if (destinationSelect && destinationSelect.selectedIndex > 0) {
+                const selectedOption = destinationSelect.options[destinationSelect.selectedIndex];
+                destinationId = selectedOption.dataset.destinationId || '';
+                destinationType = selectedOption.dataset.destinationType || '';
             }
             
             // Determine way (One Way or Two Way based on return checkbox)
@@ -17489,9 +17582,13 @@
                 type: transportType || 'Private',
                 way: way,
                 vehicle_id: vehicleDetails.vehicle_id || vehicleId || '',
+                vehicle_name: vehicleDetails.vehicle_name || vehicleId || '',
+                pickup_location_name: transportDestination || '',
+                pickup_location_id: destinationId || '',
                 destination: transportDestination || '',
                 seats: transportSeats || '',
                 passengers: transportPassengers || '',
+                cost: parseFloat(transportPrice) || 0,
                 price: parseFloat(transportPrice) || 0,
                 vehicle_details: vehicleDetails
             };
@@ -17585,15 +17682,16 @@
                 const selectedOption = vehicleSelect.options[vehicleSelect.selectedIndex];
                 vehicleId = selectedOption.value || '';
                 const seatingCapacity = selectedOption.dataset.seatingCapacity || '';
+                const vehicleIdFromData = selectedOption.dataset.vehicleId || '';
                 
                 // Try to get full vehicle data from vehicles array (if available globally)
                 if (window.vehiclesData && Array.isArray(window.vehiclesData)) {
                     const vehicle = window.vehiclesData.find(v => 
-                        (v.vehicle_name === vehicleId || v.vehicle_id === vehicleId)
+                        (v.vehicle_name === vehicleId || v.vehicle_id === vehicleId || v.vehicle_id === vehicleIdFromData)
                     );
                     if (vehicle) {
                         vehicleDetails = {
-                            vehicle_id: vehicle.vehicle_id || vehicleId,
+                            vehicle_id: vehicle.vehicle_id || vehicleIdFromData || vehicleId,
                             vehicle_name: vehicle.vehicle_name || vehicleId,
                             vehicle_type: vehicle.vehicle_type || '',
                             seating_capacity: vehicle.seating_capacity || seatingCapacity || '',
@@ -17602,7 +17700,7 @@
                         };
                     } else {
                         vehicleDetails = {
-                            vehicle_id: vehicleId,
+                            vehicle_id: vehicleIdFromData || vehicleId,
                             vehicle_name: vehicleId,
                             vehicle_type: '',
                             seating_capacity: seatingCapacity || '',
@@ -17612,7 +17710,7 @@
                     }
                 } else {
                     vehicleDetails = {
-                        vehicle_id: vehicleId,
+                        vehicle_id: vehicleIdFromData || vehicleId,
                         vehicle_name: vehicleId,
                         vehicle_type: '',
                         seating_capacity: seatingCapacity || '',
@@ -17620,6 +17718,16 @@
                         shared_price: '0.00'
                     };
                 }
+            }
+            
+            // Get destination ID from selected option
+            const destinationSelect = document.querySelector(`select[name="attraction_transport_destination_${bookingId}"]`);
+            let destinationId = '';
+            let destinationType = '';
+            if (destinationSelect && destinationSelect.selectedIndex > 0) {
+                const selectedOption = destinationSelect.options[destinationSelect.selectedIndex];
+                destinationId = selectedOption.dataset.destinationId || '';
+                destinationType = selectedOption.dataset.destinationType || '';
             }
             
             // Determine way (One Way or Two Way based on return checkbox)
@@ -17631,9 +17739,13 @@
                 type: transportType || 'Private',
                 way: way,
                 vehicle_id: vehicleDetails.vehicle_id || vehicleId || '',
+                vehicle_name: vehicleDetails.vehicle_name || vehicleId || '',
+                pickup_location_name: transportDestination || '',
+                pickup_location_id: destinationId || '',
                 destination: transportDestination || '',
                 seats: transportSeats || '',
                 passengers: transportPassengers || '',
+                cost: parseFloat(transportPrice) || 0,
                 price: parseFloat(transportPrice) || 0,
                 vehicle_details: vehicleDetails
             };
@@ -17643,6 +17755,64 @@
         } else {
             // If transport not required, set transfer_required to false
             formData.append('transfer_options', JSON.stringify({ transfer_required: false }));
+        }
+
+        // Collect guide data if guide is required
+        const needGuideToggle = document.querySelector(`#need_attraction_guide_${bookingId}`);
+        if (needGuideToggle && needGuideToggle.checked) {
+            const guideLanguage = document.querySelector(`select[name="attraction_guide_language_${bookingId}"]`)?.value || '';
+            const guideNameSelect = document.querySelector(`select[name="attraction_guide_name_${bookingId}"]`);
+            const guideName = guideNameSelect?.value || '';
+            const guideId = guideNameSelect?.options[guideNameSelect.selectedIndex]?.dataset?.guideId || '';
+            const guideHoursSelect = document.querySelector(`select[name="attraction_guide_hours_${bookingId}"]`);
+            const guideHours = guideHoursSelect?.value || '';
+            const guideCustomHours = document.querySelector(`input[name="attraction_guide_custom_hours_${bookingId}"]`)?.value || '';
+            const guidePrice = document.querySelector(`input[name="attraction_guide_price_${bookingId}"]`)?.value || '0';
+            
+            // Determine actual hours (use custom if selected, otherwise use selected hours)
+            let actualHours = 0;
+            if (guideHours === 'custom') {
+                actualHours = parseFloat(guideCustomHours) || 0;
+            } else {
+                actualHours = parseFloat(guideHours) || 0;
+            }
+            
+            // Get guide data from selected option
+            let guideData = {};
+            if (guideNameSelect && guideNameSelect.selectedIndex > 0) {
+                const selectedOption = guideNameSelect.options[guideNameSelect.selectedIndex];
+                const guideDataAttr = selectedOption.dataset.guideData;
+                if (guideDataAttr) {
+                    try {
+                        guideData = JSON.parse(guideDataAttr);
+                    } catch (e) {
+                        console.warn('Failed to parse guide data:', e);
+                    }
+                }
+                // Also try to get guide_id from data attribute
+                if (!guideId && selectedOption.dataset.guideId) {
+                    guideId = selectedOption.dataset.guideId;
+                }
+            }
+            
+            // Build guide_options object
+            const guideOptions = {
+                guide_required: true,
+                guide_id: guideId || guideData.guide_id || '',
+                guide_name: guideName || '',
+                pickup_time: '', // Can be added if needed
+                package_hours: guideHours === 'custom' ? guideCustomHours : guideHours,
+                hours: actualHours,
+                base_price: parseFloat(guideData.base_price || guideData.hourly_price || 0),
+                surcharge: 0, // Can be calculated if needed
+                total_price: parseFloat(guidePrice) || 0
+            };
+            
+            // Add guide_options as JSON string to formData
+            formData.append('guide_options', JSON.stringify(guideOptions));
+        } else {
+            // If guide not required, set guide_required to false
+            formData.append('guide_options', JSON.stringify({ guide_required: false }));
         }
 
         feedback.textContent = '';
