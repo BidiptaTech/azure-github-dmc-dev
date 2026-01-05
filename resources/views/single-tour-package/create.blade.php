@@ -355,7 +355,7 @@
                                         @endforeach
                                     </select>
                                     @if($enquiry && $enquiry->country)
-                                        <input type="hidden" name="user_country" value="{{ $enquiry->country }}">
+                                        <input type="hidden" name="user_country" value="{{ $enquiry->country_id }}">
                                     @endif
                                     <input type="hidden" name="country_id" id="country_id">
                                 </div>
@@ -1008,6 +1008,55 @@
                             select.appendChild(noPortsOption);
                         }
                     });
+                    
+                    // Special handling for entry dropoff location select (uses optgroups)
+                    const entryDropoffSelect = document.getElementById('entry_dropoff_location_select');
+                    if (entryDropoffSelect) {
+                        console.log('Updating ports in entry dropoff location select');
+                        
+                        // Find and remove existing Ports optgroup
+                        const existingPortGroup = entryDropoffSelect.querySelector('optgroup[label="Ports"]');
+                        if (existingPortGroup) {
+                            existingPortGroup.remove();
+                            console.log('Removed existing Ports optgroup');
+                        }
+                        
+                        // Add new Ports optgroup with updated ports
+                        if (ports && ports.length > 0) {
+                            const portGroup = document.createElement('optgroup');
+                            portGroup.label = 'Ports';
+                            
+                            ports.forEach(port => {
+                                const option = document.createElement('option');
+                                option.value = port.id;
+                                option.textContent = port.port_name;
+                                option.setAttribute('data-type', 'Port');
+                                option.setAttribute('data-port', JSON.stringify(port));
+                                option.dataset.portId = port.port_id;
+                                portGroup.appendChild(option);
+                            });
+                            
+                            // Insert Ports optgroup at the beginning (before Hotels, Attractions, Restaurants)
+                            const firstOption = entryDropoffSelect.querySelector('option[value=""]');
+                            if (firstOption && firstOption.nextSibling) {
+                                entryDropoffSelect.insertBefore(portGroup, firstOption.nextSibling);
+                            } else {
+                                entryDropoffSelect.appendChild(portGroup);
+                            }
+                            
+                            console.log(`Updated Ports optgroup with ${ports.length} ports in entry dropoff location`);
+                        }
+                        
+                        // Reinitialize Select2 if it's initialized on this select
+                        if (typeof jQuery !== 'undefined' && jQuery(entryDropoffSelect).data('select2')) {
+                            jQuery(entryDropoffSelect).select2('destroy');
+                            jQuery(entryDropoffSelect).select2({
+                                placeholder: entryDropoffSelect.querySelector('option[value=""]')?.textContent || "Select dropoff location",
+                                allowClear: true,
+                                width: '100%'
+                            });
+                        }
+                    }
                 }
                 
                 // Function to clear all port dropdowns
@@ -1027,6 +1076,27 @@
                         select.innerHTML = '<option value="">Select port...</option>';
                         }
                     });
+                    
+                    // Special handling for entry dropoff location select (uses optgroups)
+                    const entryDropoffSelect = document.getElementById('entry_dropoff_location_select');
+                    if (entryDropoffSelect) {
+                        // Remove only the Ports optgroup, preserve Hotels, Attractions, Restaurants
+                        const existingPortGroup = entryDropoffSelect.querySelector('optgroup[label="Ports"]');
+                        if (existingPortGroup) {
+                            existingPortGroup.remove();
+                            console.log('Removed Ports optgroup from entry dropoff location select');
+                        }
+                        
+                        // Reinitialize Select2 if it's initialized on this select
+                        if (typeof jQuery !== 'undefined' && jQuery(entryDropoffSelect).data('select2')) {
+                            jQuery(entryDropoffSelect).select2('destroy');
+                            jQuery(entryDropoffSelect).select2({
+                                placeholder: entryDropoffSelect.querySelector('option[value=""]')?.textContent || "Select dropoff location",
+                                allowClear: true,
+                                width: '100%'
+                            });
+                        }
+                    }
                 }
                 
                 // Function to populate ports dropdowns (now uses dynamic filtering)
@@ -8857,6 +8927,25 @@ document.addEventListener('DOMContentLoaded', function() {
                 console.log('City message hidden for index:', index);
             }
             
+            // Check if hourly service type is selected and validate hourly fields
+            const fieldIndex = (index === null || index === undefined) ? 0 : index;
+            // For static transport (index 0), service type radio name doesn't include index
+            // For dynamic transport (index > 0), service type radio name includes index
+            let hourlyRadio;
+            if (fieldIndex === 0) {
+                hourlyRadio = document.querySelector(`input[name="day${day}_transport_service_type"][value="hourly"]`);
+            } else {
+                hourlyRadio = document.querySelector(`input[name="day${day}_transport_${fieldIndex}_service_type"][value="hourly"]`);
+            }
+            
+            if (hourlyRadio && hourlyRadio.checked) {
+                // Hourly service is selected, check if all hourly fields are filled
+                const sectionName = fieldIndex === 0 ? 'transport_hourly' : `transport_${fieldIndex}_hourly`;
+                setTimeout(() => {
+                    enableSearchButton(day, sectionName, fieldIndex);
+                }, 100);
+            }
+            
             // Load zones for the specific city
             const currentDmcId = '{{ $finalDmcId }}';
             
@@ -8880,6 +8969,14 @@ document.addEventListener('DOMContentLoaded', function() {
                         pickupSelect.disabled = false;
                     } else {
                         console.log('No pickup select found to update with zones data');
+                    }
+                    
+                    // After zones are loaded, check hourly fields again if hourly service is selected
+                    if (hourlyRadio && hourlyRadio.checked) {
+                        const sectionName = fieldIndex === 0 ? 'transport_hourly' : `transport_${fieldIndex}_hourly`;
+                        setTimeout(() => {
+                            enableSearchButton(day, sectionName, fieldIndex);
+                        }, 100);
                     }
                 })
                 .catch(error => {
@@ -13457,7 +13554,7 @@ document.addEventListener('DOMContentLoaded', function() {
                                      </div>
                                      
                                      <div class="col-md-2 hourly-field" id="day${day}_transport_hourly_search_field" style="display: none;">
-                                         <button type="button" class="btn btn-danger w-100 py-2" onclick="searchVehicles(${day}, 'transport_hourly', 0)" id="day${day}_transport_hourly_search_btn">
+                                         <button type="button" class="btn btn-danger w-100 py-2" onclick="searchVehicles(${day}, 'transport_hourly', 0)" id="day${day}_transport_hourly_search_btn" disabled>
                                              <i class="ri-search-line me-2"></i>Search
                                          </button>
                                      </div>
@@ -13846,47 +13943,46 @@ document.addEventListener('DOMContentLoaded', function() {
         const timeSlotSelect = document.getElementById('day' + day + '_attraction_' + index + '_time');
         timeSlotSelect.innerHTML = '<option value="">Select Time Slot</option>';
         
-        if (openTime && closeTime) {
-            // Generate time slots dynamically between open and close time
-            generateTimeSlots(openTime, closeTime, timeSlotSelect);
-        } else {
-            // Fallback to pre-defined time slots if available
-            const timeSlotsData = selectedOption.dataset.timeSlots || '[]';
-            
-            let timeSlots = [];
-            try {
-                timeSlots = JSON.parse(timeSlotsData);
-            } catch (e) {
-                console.error('Error parsing time slots:', e);
-                timeSlots = [];
-            }
-            
-            if (timeSlots && timeSlots.length > 0) {
-                timeSlots.forEach(slot => {
-                    const option = document.createElement('option');
-                    // If slot has open and close times, format them properly
-                    if (slot.open && slot.close) {
-                        const openTime = parseTime(slot.open);
-                        const closeTime = parseTime(slot.close);
-                        if (openTime && closeTime) {
-                            const openDisplay = formatTime12(openTime);
-                            const closeDisplay = formatTime12(closeTime);
-                            option.value = formatTime24(openTime) + ' - ' + formatTime24(closeTime);
-                            option.textContent = openDisplay + ' - ' + closeDisplay;
-                        } else {
-                            option.value = slot.slot;
-                            option.textContent = slot.slot;
-                        }
+        // First, try to use pre-defined time slots if available
+        const timeSlotsData = selectedOption.dataset.timeSlots || '[]';
+        
+        let timeSlots = [];
+        try {
+            timeSlots = JSON.parse(timeSlotsData);
+        } catch (e) {
+            console.error('Error parsing time slots:', e);
+            timeSlots = [];
+        }
+        
+        if (timeSlots && timeSlots.length > 0) {
+            // Use the time slots array to populate all available time slots
+            timeSlots.forEach(slot => {
+                const option = document.createElement('option');
+                // If slot has open and close times, format them properly
+                if (slot.open && slot.close) {
+                    const slotOpenTime = parseTime(slot.open);
+                    const slotCloseTime = parseTime(slot.close);
+                    if (slotOpenTime && slotCloseTime) {
+                        const openDisplay = formatTime12(slotOpenTime);
+                        const closeDisplay = formatTime12(slotCloseTime);
+                        option.value = formatTime24(slotOpenTime) + ' - ' + formatTime24(slotCloseTime);
+                        option.textContent = openDisplay + ' - ' + closeDisplay;
                     } else {
                         option.value = slot.slot;
                         option.textContent = slot.slot;
                     }
-                    timeSlotSelect.appendChild(option);
-                });
-            } else {
-                timeSlotSelect.innerHTML += '<option value="" disabled>No time slots available</option>';
-                console.log('No time slots found for attraction');
-            }
+                } else {
+                    option.value = slot.slot;
+                    option.textContent = slot.slot;
+                }
+                timeSlotSelect.appendChild(option);
+            });
+        } else if (openTime && closeTime) {
+            // Fallback to generating time slots from operating hours if no time slots array is available
+            generateTimeSlots(openTime, closeTime, timeSlotSelect);
+        } else {
+            timeSlotSelect.innerHTML += '<option value="" disabled>No time slots available</option>';
+            console.log('No time slots found for attraction');
         }
         
         // Load tickets for the selected attraction
@@ -16889,7 +16985,7 @@ document.addEventListener('DOMContentLoaded', function() {
                              </div>
                          </div>
                          <div class="col-md-2 hourly-field" id="day${day}_transport_${newIndex}_hourly_search_field" style="display: none;">
-                             <button type="button" class="btn btn-danger w-100 py-2" onclick="searchVehicles(${day}, 'transport_${newIndex}_hourly',${newIndex})" id="day${day}_transport_${newIndex}_hourly_search_btn">
+                             <button type="button" class="btn btn-danger w-100 py-2" onclick="searchVehicles(${day}, 'transport_${newIndex}_hourly',${newIndex})" id="day${day}_transport_${newIndex}_hourly_search_btn" disabled>
                                  <i class="ri-search-line me-2"></i>Search
                              </button>
                          </div>
@@ -16907,7 +17003,7 @@ document.addEventListener('DOMContentLoaded', function() {
                                      </div>
                                  </div>
                              </div>
-                         </div>
+                         </div>   
                          <div class="col-12">
                              <div class="row g-3">
                                 <div class="col-md-8 vehicle-field">
@@ -17224,11 +17320,10 @@ document.addEventListener('DOMContentLoaded', function() {
              });
          }
          
-         const hourlyPickupTimeSelect = container.querySelector(`select[name="day${day}_transport_${newIndex}_hourly_pickup_time"]`);
-         if (hourlyPickupTimeSelect) {
-             hourlyPickupTimeSelect.addEventListener('change', function() {
-                 enableSearchButton(day, `transport_${newIndex}_hourly`, newIndex);
-             });
+         // Set up hourly field listeners for dynamically added transport
+         // This will set up all event listeners for hourly fields
+         if (typeof setupHourlyFieldListeners === 'function') {
+             setupHourlyFieldListeners(day, newIndex);
          }
          
          // Populate the city dropdown for the new transport section
@@ -17482,35 +17577,35 @@ document.addEventListener('DOMContentLoaded', function() {
      window.addMoreEntryPorts = function(day) {
          console.log('addMoreEntryPorts called for day:', day);
          
-         // Find the service card container for entry ports (contains primary/blue card)
+         // Find the day container
          const dayContainer = document.getElementById(`day${day}`);
          if (!dayContainer) {
              console.error('Day container not found for day', day);
              return;
          }
          
-         // Find the service card that contains the primary border card (entry port)
-         const serviceCards = dayContainer.querySelectorAll('.service-card');
-         let entryPortServiceCard = null;
+         // Find the arrival transport section (entry ports are in this section)
+         const arrivalSection = dayContainer.querySelector('#arrivalTransportSection');
+         if (!arrivalSection) {
+             showNotification(`Entry port section not found for Day ${day}. Entry ports are only available on the first day of the tour.`, 'warning');
+             console.error('Arrival transport section not found for day', day);
+             return;
+         }
          
-         serviceCards.forEach(card => {
-             if (card.querySelector('.card.border-primary.shadow-sm')) {
-                 entryPortServiceCard = card;
+         // Find existing entry port items container
+         let container = arrivalSection.querySelector('.entry-ports-container');
+         if (!container) {
+             console.error('Entry ports container not found for day', day);
+             // Try to find it in the card-body
+             const cardBody = arrivalSection.querySelector('.card-body');
+             if (cardBody) {
+                 container = cardBody.querySelector('.entry-ports-container');
              }
-         });
-         
-                 if (!entryPortServiceCard) {
-            showNotification(`Entry port service card not found for Day ${day}. Entry ports are only available on the first day of the tour.`, 'warning');
-            console.error('Entry port service card not found for day', day);
-            return;
-        }
-         
-                 // Find existing entry port items container (it's outside the service card)
-        let container = entryPortServiceCard.parentElement.querySelector('.entry-ports-container');
-        if (!container) {
-            console.error('Entry ports container not found for day', day);
-            return;
-        }
+             if (!container) {
+                 console.error('Entry ports container not found in card-body for day', day);
+                 return;
+             }
+         }
          
          const existingPorts = container.querySelectorAll('.entry-port-item');
          const newIndex = existingPorts.length + 1;
@@ -19060,19 +19155,77 @@ function enableSearchButton(day, section, index=null) {
             });
         }
     } else if (transportType === 'hourly') {
-        console.log('Hourly transport type detected', index);
-        const citySelect = document.getElementById(`day${day}_transport_city_${index}`);
+        console.log('Hourly transport type detected', index, 'transportIndex:', transportIndex);
         
-        if (citySelect && citySelect.value) {
+        // Use transportIndex instead of index (which might be null/undefined)
+        // For static transport, transportIndex will be 0
+        // For dynamic transport, transportIndex will be the actual index (e.g., 2, 3, etc.)
+        const fieldIndex = (transportIndex === null || transportIndex === undefined) ? 0 : transportIndex;
+        
+        // For static transport (index 0), field names don't include the index
+        // For dynamic transport (index > 0), field names include the index
+        const fieldNamePattern = fieldIndex === 0 ? `day${day}_transport` : `day${day}_transport_${fieldIndex}`;
+        
+        // Check city - city select always uses the index (0 for static, actual index for dynamic)
+        const citySelect = document.getElementById(`day${day}_transport_city_${fieldIndex}`);
+        const cityFilled = citySelect && citySelect.value && citySelect.value.trim() !== '';
+        
+        // Check pickup location (with coordinates)
+        const pickupLocationField = document.querySelector(`input[name="${fieldNamePattern}_hourly_pickup_location"]`);
+        const pickupLatField = document.getElementById(`${fieldNamePattern}_hourly_pickup_lat`);
+        const pickupLngField = document.getElementById(`${fieldNamePattern}_hourly_pickup_lng`);
+        const pickupLocationFilled = pickupLocationField && pickupLocationField.value && pickupLocationField.value.trim() !== '';
+        const pickupCoordinatesFilled = pickupLatField && pickupLngField && pickupLatField.value && pickupLngField.value && pickupLatField.value.trim() !== '' && pickupLngField.value.trim() !== '';
+        
+        // Check pickup time
+        const pickupTimeField = document.querySelector(`select[name="${fieldNamePattern}_hourly_pickup_time"]`);
+        const pickupTimeFilled = pickupTimeField && pickupTimeField.value && pickupTimeField.value.trim() !== '';
+        
+        // Check selected hours
+        const selectedHoursField = document.querySelector(`select[name="${fieldNamePattern}_hourly_selected_hours"]`);
+        const selectedHoursFilled = selectedHoursField && selectedHoursField.value && selectedHoursField.value.trim() !== '';
+        
+        console.log('Hourly transport validation:', {
+            cityFilled: cityFilled ? citySelect.value : false,
+            pickupLocationFilled: pickupLocationFilled ? pickupLocationField.value : false,
+            pickupCoordinatesFilled: pickupCoordinatesFilled ? `${pickupLatField.value}, ${pickupLngField.value}` : false,
+            pickupTimeFilled: pickupTimeFilled ? pickupTimeField.value : false,
+            selectedHoursFilled: selectedHoursFilled ? selectedHoursField.value : false,
+            fieldIndex: fieldIndex,
+            fieldNamePattern: fieldNamePattern,
+            citySelectId: `day${day}_transport_city_${fieldIndex}`,
+            citySelectFound: !!citySelect,
+            pickupLocationField: pickupLocationField ? pickupLocationField.name : 'NOT FOUND',
+            pickupLocationValue: pickupLocationField ? pickupLocationField.value : 'N/A',
+            pickupTimeField: pickupTimeField ? pickupTimeField.name : 'NOT FOUND',
+            pickupTimeValue: pickupTimeField ? pickupTimeField.value : 'N/A',
+            selectedHoursField: selectedHoursField ? selectedHoursField.name : 'NOT FOUND',
+            selectedHoursValue: selectedHoursField ? selectedHoursField.value : 'N/A'
+        });
+        
+        // All fields must be filled - if ANY field is missing, button should be disabled
+        const allFieldsFilled = cityFilled && 
+                               pickupLocationFilled && 
+                               pickupCoordinatesFilled && 
+                               pickupTimeFilled && 
+                               selectedHoursFilled;
+        
+        if (allFieldsFilled) {
             searchBtn.disabled = false;
             searchBtn.classList.remove('btn-secondary');
             searchBtn.classList.add('btn-primary');
-            console.log('Search button enabled for hourly');
+            console.log('Search button enabled for hourly - all fields filled');
         } else {
             searchBtn.disabled = true;
             searchBtn.classList.remove('btn-primary');
             searchBtn.classList.add('btn-secondary');
-            console.log('Search button disabled for hourly - missing city');
+            console.log('Search button disabled for hourly - missing fields:', {
+                cityFilled,
+                pickupLocationFilled,
+                pickupCoordinatesFilled,
+                pickupTimeFilled,
+                selectedHoursFilled
+            });
         }
     } else if (transportType === 'local_transfer') {
          // For local_transfer, only need pickup zone selected (dropoff will be populated based on pickup)
@@ -19471,6 +19624,29 @@ function loadPortsForCity(cityName) {
         
         // Clear the dropdown
         dropoffSelect.innerHTML = '<option value="">Select pickup port first</option>';
+        
+        // Add Ports first (use filtered ports from country selection if available, otherwise use static ports)
+        const ports = window.filteredPortsData || @json($ports ?? []);
+        if (ports && ports.length > 0) {
+            const portGroup = document.createElement('optgroup');
+            portGroup.label = 'Ports';
+            
+            ports.forEach(port => {
+                const option = document.createElement('option');
+                // Handle both filtered port format (port.id) and static port format (port.port_id)
+                option.value = port.id || port.port_id;
+                option.textContent = port.port_name;
+                option.setAttribute('data-type', 'Port');
+                option.setAttribute('data-port', JSON.stringify(port));
+                if (port.port_id) {
+                    option.dataset.portId = port.port_id;
+                }
+                portGroup.appendChild(option);
+            });
+            
+            dropoffSelect.appendChild(portGroup);
+            console.log(`Added ${ports.length} ports to entry dropoff location`);
+        }
         
         // Add Hotels
         if (hotelsData.success && hotelsData.hotels && hotelsData.hotels.length > 0) {
@@ -20458,6 +20634,29 @@ function loadDropoffZones(day, section) {
                         console.log('Zone-assigned locations fetched:', data.locations.length);
                         dropoffZoneSelect.innerHTML = '<option value="">Select dropoff location</option>';
                         
+                        // Add Ports first (use filtered ports from country selection if available, otherwise use static ports)
+                        const ports = window.filteredPortsData || @json($ports ?? []);
+                        if (ports && ports.length > 0) {
+                            const portGroup = document.createElement('optgroup');
+                            portGroup.label = 'Ports';
+                            
+                            ports.forEach(port => {
+                                const option = document.createElement('option');
+                                // Handle both filtered port format (port.id) and static port format (port.port_id)
+                                option.value = port.id || port.port_id;
+                                option.textContent = port.port_name;
+                                option.setAttribute('data-type', 'Port');
+                                option.setAttribute('data-port', JSON.stringify(port));
+                                if (port.port_id) {
+                                    option.dataset.portId = port.port_id;
+                                }
+                                portGroup.appendChild(option);
+                            });
+                            
+                            dropoffZoneSelect.appendChild(portGroup);
+                            console.log(`Added ${ports.length} ports to dropoff`);
+                        }
+                        
                         data.locations.forEach(location => {
                             const option = document.createElement('option');
                             option.value = location.id;
@@ -20677,6 +20876,29 @@ function loadDropoffZones(day, section) {
                     if (data.success && data.locations && Array.isArray(data.locations)) {
                         console.log('Zone-assigned locations fetched:', data.locations.length);
                         dropoffZoneSelect.innerHTML = '<option value="">Select dropoff location</option>';
+                        
+                        // Add Ports first (use filtered ports from country selection if available, otherwise use static ports)
+                        const ports = window.filteredPortsData || @json($ports ?? []);
+                        if (ports && ports.length > 0) {
+                            const portGroup = document.createElement('optgroup');
+                            portGroup.label = 'Ports';
+                            
+                            ports.forEach(port => {
+                                const option = document.createElement('option');
+                                // Handle both filtered port format (port.id) and static port format (port.port_id)
+                                option.value = port.id || port.port_id;
+                                option.textContent = port.port_name;
+                                option.setAttribute('data-type', 'Port');
+                                option.setAttribute('data-port', JSON.stringify(port));
+                                if (port.port_id) {
+                                    option.dataset.portId = port.port_id;
+                                }
+                                portGroup.appendChild(option);
+                            });
+                            
+                            dropoffZoneSelect.appendChild(portGroup);
+                            console.log(`Added ${ports.length} ports to dropoff`);
+                        }
                         
                         data.locations.forEach(location => {
                             const option = document.createElement('option');
@@ -21185,13 +21407,46 @@ function loadDropoffZones(day, section) {
      }
  }
     window.updateTypeSelect = function(event,day, section){
-        const serviceTypeSelect = document.getElementById(`day${day}_${section}_service_type`);
         const vehicleSelect = event.target;
         const selectedOption = vehicleSelect.options[vehicleSelect.selectedIndex];
         
-        // Check if hourly radio button is selected
-        const hourlyRadio = document.querySelector(`input[name="day${day}_transport_service_type"][value="hourly"]`);
-        const pointToPointRadio = document.querySelector(`input[name="day${day}_transport_service_type"][value="point_to_point"]`);
+        // Close Select2 dropdown if it's initialized on the vehicle select
+        if (typeof jQuery !== 'undefined' && jQuery(vehicleSelect).data('select2')) {
+            jQuery(vehicleSelect).select2('close');
+        }
+        
+        // Find service type select - handle both static and dynamic transport fields
+        let serviceTypeSelect;
+        if (section.startsWith('transport_')) {
+            // Dynamic transport field (e.g., transport_2, transport_3)
+            const transportIndex = section.split('_')[1];
+            serviceTypeSelect = document.getElementById(`day${day}_transport_${transportIndex}_service_type_select`) ||
+                               document.querySelector(`select[name="day${day}_transport_${transportIndex}_service_type"]`);
+        } else {
+            // Static transport field or other sections
+            serviceTypeSelect = document.getElementById(`day${day}_${section}_service_type`) ||
+                               document.querySelector(`select[name="day${day}_${section}_service_type"]`);
+        }
+        
+        // If service type select not found, return early to prevent errors
+        if (!serviceTypeSelect) {
+            console.warn(`Service type select not found for day ${day}, section ${section}`);
+            return;
+        }
+        
+        // Check if hourly or point-to-point radio button is selected
+        // Handle both static and dynamic transport fields
+        let hourlyRadio, pointToPointRadio;
+        if (section.startsWith('transport_')) {
+            // Dynamic transport field
+            const transportIndex = section.split('_')[1];
+            hourlyRadio = document.querySelector(`input[name="day${day}_transport_${transportIndex}_service_type"][value="hourly"]`);
+            pointToPointRadio = document.querySelector(`input[name="day${day}_transport_${transportIndex}_service_type"][value="point_to_point"]`);
+        } else if (section === 'transport') {
+            // Static transport field
+            hourlyRadio = document.querySelector(`input[name="day${day}_transport_service_type"][value="hourly"]`);
+            pointToPointRadio = document.querySelector(`input[name="day${day}_transport_service_type"][value="point_to_point"]`);
+        }
         
         serviceTypeSelect.innerHTML = '<option value="">Select service type</option>';
 
@@ -21219,13 +21474,13 @@ function loadDropoffZones(day, section) {
         } else {
             // For local transfer, show options based on vehicle sharable property
             console.log('Local transfer radio button is selected');
-            if(selectedOption.dataset.sharable == 1){
+            if(selectedOption && selectedOption.dataset.sharable == 1){
                 const privateOption = document.createElement('option');
                 privateOption.value = 'Private';
                 privateOption.textContent = 'Private';
                 serviceTypeSelect.appendChild(privateOption);
             }
-            else if(selectedOption.dataset.sharable == 2){
+            else if(selectedOption && selectedOption.dataset.sharable == 2){
                 const sharedOption = document.createElement('option');
                 sharedOption.value = 'Shared';
                 sharedOption.textContent = 'Shared';
@@ -21246,6 +21501,16 @@ function loadDropoffZones(day, section) {
             serviceTypeSelect.disabled = false;
             serviceTypeSelect.style.backgroundColor = '';
             serviceTypeSelect.style.cursor = '';
+        }
+        
+        // Reinitialize Select2 on service type select if it was initialized
+        if (typeof jQuery !== 'undefined' && jQuery(serviceTypeSelect).data('select2')) {
+            jQuery(serviceTypeSelect).select2('destroy');
+            jQuery(serviceTypeSelect).select2({
+                placeholder: "Select service type",
+                allowClear: true,
+                width: '100%'
+            });
         }
  }
 
@@ -24547,20 +24812,42 @@ window.saveService = function(day, type) {
                                      const dayMatch = inputId.match(/day(\d+)_transport/);
                                      if (dayMatch) {
                                          const day = parseInt(dayMatch[1]);
-                                         // Check if it's the initial transport (no index in field name) or dynamic transport
-                                         if (inputId.match(/day\d+_transport_(pickup|dropoff)_location$/)) {
-                                             // Initial transport (index 0) - pattern: dayX_transport_pickup_location or dayX_transport_dropoff_location
-                                             setTimeout(() => {
-                                                 enableSearchButton(day, 'transport_additional', 0);
-                                             }, 50);
-                                         } else {
-                                             // Dynamic transport - extract index from pattern: dayX_transport_Y_pickup_location
-                                             const indexMatch = inputId.match(/day\d+_transport_(\d+)_(pickup|dropoff)_location/);
-                                             if (indexMatch) {
-                                                 const index = parseInt(indexMatch[1]);
+                                         
+                                         // Check if it's hourly transport
+                                         if (inputId.includes('hourly_pickup_location')) {
+                                             // Hourly transport - extract index from pattern: dayX_transport_Y_hourly_pickup_location or dayX_transport_hourly_pickup_location
+                                             if (inputId.match(/day\d+_transport_hourly_pickup_location$/)) {
+                                                 // Initial transport (index 0) - pattern: dayX_transport_hourly_pickup_location
                                                  setTimeout(() => {
-                                                     enableSearchButton(day, `transport_${index}_additional`, index);
+                                                     enableSearchButton(day, 'transport_hourly', 0);
                                                  }, 50);
+                                             } else {
+                                                 // Dynamic transport - extract index from pattern: dayX_transport_Y_hourly_pickup_location
+                                                 const indexMatch = inputId.match(/day\d+_transport_(\d+)_hourly_pickup_location/);
+                                                 if (indexMatch) {
+                                                     const index = parseInt(indexMatch[1]);
+                                                     setTimeout(() => {
+                                                         enableSearchButton(day, `transport_${index}_hourly`, index);
+                                                     }, 50);
+                                                 }
+                                             }
+                                         } else {
+                                             // Point-to-point transport
+                                             // Check if it's the initial transport (no index in field name) or dynamic transport
+                                             if (inputId.match(/day\d+_transport_(pickup|dropoff)_location$/)) {
+                                                 // Initial transport (index 0) - pattern: dayX_transport_pickup_location or dayX_transport_dropoff_location
+                                                 setTimeout(() => {
+                                                     enableSearchButton(day, 'transport_additional', 0);
+                                                 }, 50);
+                                             } else {
+                                                 // Dynamic transport - extract index from pattern: dayX_transport_Y_pickup_location
+                                                 const indexMatch = inputId.match(/day\d+_transport_(\d+)_(pickup|dropoff)_location/);
+                                                 if (indexMatch) {
+                                                     const index = parseInt(indexMatch[1]);
+                                                     setTimeout(() => {
+                                                         enableSearchButton(day, `transport_${index}_additional`, index);
+                                                     }, 50);
+                                                 }
                                              }
                                          }
                                      }
@@ -25165,6 +25452,124 @@ window.saveService = function(day, type) {
                 });
 
 // Transport Service Type Handling Functions
+// Function to set up event listeners for hourly transport fields
+window.setupHourlyFieldListeners = function(day, index = 0) {
+    console.log(`Setting up hourly field listeners for day ${day}, index ${index}`);
+    
+    // Determine field index pattern - for static transport (index 0 or 1), use 0; for dynamic, use the index
+    const fieldIndex = (index === 0 || index === 1) ? 0 : index;
+    
+    // Determine section name for enableSearchButton
+    const sectionName = fieldIndex === 0 ? 'transport_hourly' : `transport_${fieldIndex}_hourly`;
+    
+    // City select - check if it exists and add listener
+    // For static transport, city select ID is day${day}_transport_city_0
+    // For dynamic transport, city select ID is day${day}_transport_city_${fieldIndex}
+    const citySelect = document.getElementById(`day${day}_transport_city_${fieldIndex}`);
+    if (citySelect) {
+        // Store the original onchange handler if it exists (for loadTransportZonesForCity)
+        const originalOnChange = citySelect.getAttribute('onchange');
+        
+        // Add our validation listener
+        citySelect.addEventListener('change', function() {
+            console.log(`City changed for hourly transport day ${day}, index ${fieldIndex}, value: ${this.value}`);
+            // Call validation after a short delay to ensure other handlers have run
+            setTimeout(() => {
+                enableSearchButton(day, sectionName, fieldIndex);
+            }, 150);
+        });
+    } else {
+        console.warn(`City select not found for day ${day}, index ${fieldIndex}: day${day}_transport_city_${fieldIndex}`);
+    }
+    
+    // Pickup location input - listen for changes and clearing
+    let pickupLocationField;
+    if (fieldIndex === 0) {
+        pickupLocationField = document.getElementById(`day${day}_transport_hourly_pickup_location`);
+    } else {
+        pickupLocationField = document.getElementById(`day${day}_transport_${fieldIndex}_hourly_pickup_location`);
+    }
+    
+    if (pickupLocationField) {
+        // Listen for input changes (when user types or clears)
+        pickupLocationField.addEventListener('input', function() {
+            console.log(`Pickup location input changed for hourly transport day ${day}, index ${fieldIndex}`);
+            enableSearchButton(day, sectionName, fieldIndex);
+        });
+        
+        // Listen for blur (when user leaves the field)
+        pickupLocationField.addEventListener('blur', function() {
+            console.log(`Pickup location blur for hourly transport day ${day}, index ${fieldIndex}`);
+            enableSearchButton(day, sectionName, fieldIndex);
+        });
+    }
+    
+    // Pickup time select
+    let pickupTimeSelect;
+    if (fieldIndex === 0) {
+        pickupTimeSelect = document.querySelector(`select[name="day${day}_transport_hourly_pickup_time"]`);
+    } else {
+        pickupTimeSelect = document.querySelector(`select[name="day${day}_transport_${fieldIndex}_hourly_pickup_time"]`);
+    }
+    
+    if (pickupTimeSelect) {
+        pickupTimeSelect.addEventListener('change', function() {
+            console.log(`Pickup time changed for hourly transport day ${day}, index ${fieldIndex}`);
+            enableSearchButton(day, sectionName, fieldIndex);
+        });
+    }
+    
+    // Selected hours select
+    let selectedHoursSelect;
+    if (fieldIndex === 0) {
+        selectedHoursSelect = document.querySelector(`select[name="day${day}_transport_hourly_selected_hours"]`);
+    } else {
+        selectedHoursSelect = document.querySelector(`select[name="day${day}_transport_${fieldIndex}_hourly_selected_hours"]`);
+    }
+    
+    if (selectedHoursSelect) {
+        selectedHoursSelect.addEventListener('change', function() {
+            console.log(`Selected hours changed for hourly transport day ${day}, index ${fieldIndex}`);
+            enableSearchButton(day, sectionName, fieldIndex);
+        });
+    }
+    
+    // Monitor hidden coordinate fields for changes (when Google Maps autocomplete updates them)
+    let pickupLatField, pickupLngField;
+    if (fieldIndex === 0) {
+        pickupLatField = document.getElementById(`day${day}_transport_hourly_pickup_lat`);
+        pickupLngField = document.getElementById(`day${day}_transport_hourly_pickup_lng`);
+    } else {
+        pickupLatField = document.getElementById(`day${day}_transport_${fieldIndex}_hourly_pickup_lat`);
+        pickupLngField = document.getElementById(`day${day}_transport_${fieldIndex}_hourly_pickup_lng`);
+    }
+    
+    if (pickupLatField && pickupLngField) {
+        // Poll for value changes in hidden fields (since they're updated programmatically)
+        let lastLatValue = pickupLatField.value || '';
+        let lastLngValue = pickupLngField.value || '';
+        
+        const checkCoordinates = setInterval(function() {
+            const currentLat = pickupLatField.value || '';
+            const currentLng = pickupLngField.value || '';
+            
+            if (currentLat !== lastLatValue || currentLng !== lastLngValue) {
+                lastLatValue = currentLat;
+                lastLngValue = currentLng;
+                console.log(`Coordinate fields changed for hourly transport day ${day}, index ${fieldIndex}`);
+                enableSearchButton(day, sectionName, fieldIndex);
+            }
+        }, 200);
+        
+        // Store interval ID for cleanup if needed
+        if (pickupLatField) {
+            pickupLatField.setAttribute('data-coordinate-check-interval', checkCoordinates);
+        }
+    }
+    
+    console.log(`Hourly field listeners set up for day ${day}, index ${fieldIndex}`);
+};
+
 function handleTransportServiceTypeChange(day, serviceType, index = 0) {
     console.log(`Transport service type changed to: ${serviceType} for day ${day}, index ${index}`);
     
@@ -25385,6 +25790,9 @@ function handleTransportServiceTypeChange(day, serviceType, index = 0) {
         if (priceField) {
             priceField.style.display = 'none';
         }
+        
+        // Set up event listeners for hourly fields
+        setupHourlyFieldListeners(day, index);
     }
 }
 

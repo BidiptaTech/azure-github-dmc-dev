@@ -2,6 +2,11 @@
 @section('title', 'Tour Itinerary')
 
 @section('content')
+<!-- Include html2pdf and html2canvas libraries -->
+<script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
+
 <style>
     @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
     
@@ -43,15 +48,23 @@
         max-width: 1400px;
         margin: 0 auto;
         min-height: 100vh;
-        line-height: 1.6;
+        line-height: 1.4;
     }
+    
+    /* Override Bootstrap margin utilities for compact layout */
+    .itinerary-container .mt-1 { margin-top: 0.15rem !important; }
+    .itinerary-container .mt-2 { margin-top: 0.25rem !important; }
+    .itinerary-container .mb-1 { margin-bottom: 0.15rem !important; }
+    .itinerary-container .mb-2 { margin-bottom: 0.25rem !important; }
+    .itinerary-container .me-1 { margin-right: 0.15rem !important; }
+    .itinerary-container .me-2 { margin-right: 0.25rem !important; }
     
     .itinerary-header {
         background: var(--background-primary);
-        padding: 32px 40px;
-        margin: 0 24px 32px 24px;
-        border-radius: 16px;
-        box-shadow: var(--shadow-lg);
+        padding: 12px 16px;
+        margin: 0 16px 12px 16px;
+        border-radius: 6px;
+        box-shadow: var(--shadow-sm);
         border: 1px solid var(--border-color);
         position: relative;
         overflow: hidden;
@@ -75,21 +88,21 @@
     }
     
     .header-info h4 {
-        font-size: 24px;
+        font-size: 16px;
         font-weight: 700;
         color: var(--text-primary);
-        margin: 0 0 8px 0;
-        letter-spacing: -0.025em;
+        margin: 0 0 4px 0;
+        letter-spacing: -0.02em;
     }
     
     .header-info h5 {
-        font-size: 16px;
+        font-size: 12px;
         font-weight: 500;
         color: var(--text-secondary);
         margin: 0;
         display: flex;
         align-items: center;
-        gap: 8px;
+        gap: 4px;
     }
     
     .header-actions {
@@ -101,11 +114,11 @@
     .btn-modern {
         display: inline-flex;
         align-items: center;
-        gap: 8px;
-        padding: 12px 20px;
-        border-radius: 10px;
+        gap: 6px;
+        padding: 8px 16px;
+        border-radius: 6px;
         font-weight: 500;
-        font-size: 14px;
+        font-size: 13px;
         text-decoration: none;
         transition: all 0.2s ease;
         border: none;
@@ -141,7 +154,7 @@
     }
     
     .timeline-container {
-        padding: 0 24px 24px 24px;
+        padding: 0 16px 16px 16px;
         position: relative;
         overflow: visible !important;
     }
@@ -149,180 +162,158 @@
     .day-indicator {
         display: flex;
         align-items: center;
-        margin-bottom: 16px;
+        margin-bottom: 2px;
         position: relative;
-        background: linear-gradient(135deg, #ffffff 0%, #f8faff 100%);
-        padding: 12px 16px;
-        border-radius: 12px;
-        box-shadow: 0 2px 8px rgba(0,0,0,0.06);
-        border: 1px solid #e1e8f0;
+        background: #ffffff;
+        padding: 2px 3px;
+        border-radius: 0;
+        border-bottom: 1px solid #e2e8f0;
+        border-left: 1px solid var(--primary-color);
+        height: 20px;
     }
     
     .day-circle {
-        min-width: 70px;
-        height: 36px;
-        border-radius: 18px;
+        min-width: 40px;
+        height: 20px;
+        border-radius: 2px;
         display: flex;
         align-items: center;
         justify-content: center;
         color: white;
         font-weight: 700;
         font-size: 12px;
-        margin-right: 16px;
+        margin-right: 8px;
         position: relative;
         z-index: 2;
         transition: all 0.2s ease;
         text-transform: uppercase;
         letter-spacing: 0.5px;
+        flex-direction: column;
+        line-height: 1.2;
     }
     
     .day-circle.day-1 { 
-        background: linear-gradient(135deg, #FF6B6B 0%, #FF5252 100%);
-        box-shadow: 0 3px 12px rgba(255,107,107,0.4);
+        background: #FF6B6B;
+        box-shadow: none;
     }
     .day-circle.day-2 { 
-        background: linear-gradient(135deg, #4ECDC4 0%, #26A69A 100%);
-        box-shadow: 0 3px 12px rgba(78,205,196,0.4);
+        background: #4ECDC4;
+        box-shadow: none;
     }
     .day-circle.day-3 { 
-        background: linear-gradient(135deg, #45B7D1 0%, #2196F3 100%);
-        box-shadow: 0 3px 12px rgba(69,183,209,0.4);
+        background: #45B7D1;
+        box-shadow: none;
     }
     .day-circle.day-4 { 
-        background: linear-gradient(135deg, #96CEB4 0%, #66BB6A 100%);
-        box-shadow: 0 3px 12px rgba(150,206,180,0.4);
+        background: #96CEB4;
+        box-shadow: none;
     }
     .day-circle.day-5 { 
-        background: linear-gradient(135deg, #FECA57 0%, #FFC107 100%);
-        box-shadow: 0 3px 12px rgba(254,202,87,0.4);
+        background: #FECA57;
+        box-shadow: none;
     }
     .day-circle.day-6 { 
-        background: linear-gradient(135deg, #FF9FF3 0%, #E91E63 100%);
-        box-shadow: 0 3px 12px rgba(255,159,243,0.4);
+        background: #FF9FF3;
+        box-shadow: none;
     }
     .day-circle.day-7 { 
-        background: linear-gradient(135deg, #54A0FF 0%, #3F51B5 100%);
-        box-shadow: 0 3px 12px rgba(84,160,255,0.4);
+        background: #54A0FF;
+        box-shadow: none;
     }
     .day-circle:nth-child(8n) { 
-        background: linear-gradient(135deg, #667EEA 0%, #764BA2 100%);
-        box-shadow: 0 3px 12px rgba(102,126,234,0.4);
+        background: #667EEA;
+        box-shadow: none;
     }
     
     .day-info {
         flex-grow: 1;
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
     }
     
     .day-title {
-        font-size: 16px;
+        font-size: 14px;
         font-weight: 600;
         color: var(--text-primary);
-        margin: 0 0 2px 0;
-        letter-spacing: -0.025em;
+        margin: 0;
+        letter-spacing: -0.01em;
     }
     
     .day-date {
-        font-size: 13px;
+        font-size: 12px;
         color: var(--text-secondary);
         margin: 0;
         font-weight: 500;
     }
     
+    .day-chevron {
+        font-size: 14px;
+        color: var(--text-tertiary);
+        margin-left: 8px;
+    }
+    
         .date-container {
         position: relative;
-        margin-bottom: 24px;
+        margin-bottom: 12px;
         overflow: visible !important;
+        width: 100%;
     }
     
     .timeline-line {
         position: absolute;
-        left: 51px;
-        top: 48px;
+        left: 43px;
+        top: 50px;
         bottom: -8px;
-        width: 3px;
+        width: 2px;
         z-index: 0;
         border-radius: 2px;
+        background: #e2e8f0;
     }
     
-    /* Day-specific timeline colors */
+    /* Adjust timeline for two-column layout */
+    .services-list::before {
+        content: '';
+        position: absolute;
+        left: -36px;
+        top: 0;
+        bottom: 0;
+        width: 2px;
+        background: #e2e8f0;
+        z-index: 1;
+    }
+    
+    /* Day-specific timeline colors - simplified solid line */
     .date-container.day-1 .timeline-line {
-        background: repeating-linear-gradient(
-            to bottom,
-            #FF6B6B 0px,
-            #FF6B6B 8px,
-            transparent 8px,
-            transparent 16px
-        );
+        background: #FF6B6B;
     }
     
     .date-container.day-2 .timeline-line {
-        background: repeating-linear-gradient(
-            to bottom,
-            #4ECDC4 0px,
-            #4ECDC4 8px,
-            transparent 8px,
-            transparent 16px
-        );
+        background: #4ECDC4;
     }
     
     .date-container.day-3 .timeline-line {
-        background: repeating-linear-gradient(
-            to bottom,
-            #45B7D1 0px,
-            #45B7D1 8px,
-            transparent 8px,
-            transparent 16px
-        );
+        background: #45B7D1;
     }
     
     .date-container.day-4 .timeline-line {
-        background: repeating-linear-gradient(
-            to bottom,
-            #96CEB4 0px,
-            #96CEB4 8px,
-            transparent 8px,
-            transparent 16px
-        );
+        background: #96CEB4;
     }
     
     .date-container.day-5 .timeline-line {
-        background: repeating-linear-gradient(
-            to bottom,
-            #FECA57 0px,
-            #FECA57 8px,
-            transparent 8px,
-            transparent 16px
-        );
+        background: #FECA57;
     }
     
     .date-container.day-6 .timeline-line {
-        background: repeating-linear-gradient(
-            to bottom,
-            #FF9FF3 0px,
-            #FF9FF3 8px,
-            transparent 8px,
-            transparent 16px
-        );
+        background: #FF9FF3;
     }
     
     .date-container.day-7 .timeline-line {
-        background: repeating-linear-gradient(
-            to bottom,
-            #54A0FF 0px,
-            #54A0FF 8px,
-            transparent 8px,
-            transparent 16px
-        );
+        background: #54A0FF;
     }
     
     .date-container:nth-child(8n) .timeline-line {
-        background: repeating-linear-gradient(
-            to bottom,
-            #667EEA 0px,
-            #667EEA 8px,
-            transparent 8px,
-            transparent 16px
-        );
+        background: #667EEA;
     }
     
     .date-container:last-child .timeline-line {
@@ -330,44 +321,89 @@
     }
     
     .services-list {
-        margin-left: 76px;
-        margin-top: 8px;
-        padding-left: 44px;
+        margin-left: 66px;
+        margin-top: 4px;
+        padding-left: 36px;
+        padding-right: 16px;
         position: relative;
         overflow: visible !important;
+        display: grid !important;
+        grid-template-columns: 1fr 1fr !important;
+        grid-auto-flow: row !important; /* Normal flow: left to right, top to bottom */
+        gap: 8px 12px !important;
+        align-items: start !important;
+        max-width: none !important;
+        box-sizing: border-box !important;
+        width: auto !important;
+        min-width: 0 !important;
+    }
+    
+    /* Make drop-zone-indicator not participate in grid layout */
+    .services-list > .drop-zone-indicator {
+        position: absolute !important;
+        grid-column: none !important;
+        grid-row: none !important;
+        pointer-events: none !important;
+        z-index: 1 !important;
+    }
+    
+    /* Force grid items to alternate columns - pattern: drop-zone (child 1,3,5...), service-item (child 2,4,6...) */
+    /* So service-items at positions 2,6,10... (4n-2) go to column 1, and 4,8,12... (4n) go to column 2 */
+    .services-list > .service-item:nth-child(4n-2) {
+        grid-column: 1 !important;
+    }
+    
+    .services-list > .service-item:nth-child(4n) {
+        grid-column: 2 !important;
     }
     
     .service-item {
         background: #ffffff;
-        border: 1px solid #e1e8f0;
-        border-radius: 8px;
-        margin-bottom: 8px;
+        border: none;
+        border-left: 2px solid #e2e8f0;
+        border-radius: 0;
+        margin-bottom: 0;
         padding: 0;
-        box-shadow: 0 1px 3px rgba(0,0,0,0.05);
+        box-shadow: none;
         transition: all 0.2s ease;
         position: relative;
         overflow: visible !important;
         transform: translateX(0);
+        min-height: fit-content;
+        min-width: 0 !important; /* Allow grid items to shrink below content size */
+        display: block !important; /* Ensure it's a block element for grid */
+        width: 100% !important; /* Ensure items fill their grid cell */
+    }
+    
+    .service-type-heading {
+        font-size: 9px;
+        font-weight: 600;
+        text-transform: uppercase;
+        color: #64748b;
+        margin-bottom: 3px;
+        letter-spacing: 0.5px;
+        padding: 1px 0;
+        line-height: 1.2;
     }
     
     /* Timeline service markers - black circles with white icons positioned directly on timeline */
     .service-item::before {
         content: '●'; /* default dot */
         position: absolute !important;
-        left: -83px !important; /* Position to center on timeline */
-        top: 50% !important;
-        transform: translateY(-50%) !important; /* Only center vertically */
-        width: 28px !important;
-        height: 28px !important;
+        left: -73px !important; /* Position to center on timeline */
+        top: 8px !important; /* Position near top for grid layout */
+        transform: none !important;
+        width: 20px !important;
+        height: 20px !important;
         border-radius: 50% !important;
         background: #000000 !important;
-        border: 3px solid #ffffff !important;
-        box-shadow: 0 3px 10px rgba(0,0,0,0.2) !important;
+        border: 2px solid #ffffff !important;
+        box-shadow: 0 2px 4px rgba(0,0,0,0.1) !important;
         z-index: 20 !important; /* Higher z-index to appear above timeline */
         display: flex !important;
         align-items: center !important;
         justify-content: center !important;
-        font-size: 14px !important;
+        font-size: 10px !important;
         color: white !important;
         line-height: 1 !important;
         font-family: Arial, sans-serif !important;
@@ -402,20 +438,22 @@
     }
     
     .service-item[data-service-type*="transfer"]::before,
-    .service-item[data-service-type*="travel"]::before {
+    .service-item[data-service-type*="travel"]::before,
+    .service-item[data-service-type="shared"]::before,
+    .service-item[data-service-type="private"]::before {
         content: '🚗' !important; /* car symbol */
         font-family: Arial, sans-serif !important;
         font-weight: normal !important;
     }
     
     .service-item[data-service-type="attraction"]::before {
-        content: '📍' !important; /* location pin */
+        content: '🚗' !important; /* car for attraction transfers */
         font-family: Arial, sans-serif !important;
         font-weight: normal !important;
     }
     
     .service-item[data-service-type="restaurant"]::before {
-        content: '🍽' !important; /* dining symbol */
+        content: '🚗' !important; /* car for restaurant transfers */
         font-family: Arial, sans-serif !important;
         font-weight: normal !important;
     }
@@ -438,9 +476,8 @@
 
     
     .service-item:hover {
-        transform: translateY(-1px) translateX(2px);
-        box-shadow: 0 4px 12px rgba(0,0,0,0.08);
-        border-color: #c7d2fe;
+        border-left-color: var(--primary-color);
+        background: #f8f9fa;
     }
     
     .service-item:last-child {
@@ -449,27 +486,15 @@
     
     .service-item-content {
         display: flex;
-        align-items: center;
-        padding: 12px 16px;
-        gap: 12px;
+        align-items: flex-start;
+        padding: 8px 12px;
+        gap: 0;
         position: relative;
+        min-width: 0 !important; /* Allow flex items to shrink */
     }
     
     .service-right-details {
-        position: absolute;
-        right: 12px;
-        top: 12px;
-        bottom: 12px;
-        width: 120px;
-        display: flex;
-        flex-direction: column;
-        align-items: center;
-        justify-content: center;
-        background: rgba(248,250,252,0.8);
-        border-radius: 8px;
-        border: 1px solid rgba(226,232,240,0.5);
-        padding: 8px;
-        text-align: center;
+        display: none; /* Hide right details to match screenshot design */
     }
     
     .service-right-image {
@@ -508,27 +533,28 @@
         width: 100%;
     }
     
-    /* Adjust main content to make room for right details */
+    /* Adjust main content - no margin needed since right details are hidden */
     .service-main-content {
         flex-grow: 1;
-        min-width: 0;
-        margin-right: 130px;
+        min-width: 0 !important; /* Allow content to shrink in grid */
+        overflow-wrap: break-word; /* Allow long text to wrap */
+        word-wrap: break-word;
     }
     
     /* Service priority styling */
     .service-item.hotel {
-        border-left: 4px solid #9c27b0;
-        background: linear-gradient(135deg, #faf5ff 0%, #ffffff 100%);
+        border-left: 2px solid #9c27b0;
+        background: #ffffff;
     }
     
     .service-item.entry-port {
-        border-left: 4px solid #2196f3;
-        background: linear-gradient(135deg, #f0f9ff 0%, #ffffff 100%);
+        border-left: 2px solid #2196f3;
+        background: #ffffff;
     }
     
     .service-item.exit-port {
-        border-left: 4px solid #f44336;
-        background: linear-gradient(135deg, #fef2f2 0%, #ffffff 100%);
+        border-left: 2px solid #f44336;
+        background: #ffffff;
     }
     
     .service-item.locked {
@@ -546,67 +572,57 @@
     }
     
     .service-left-icon {
-        width: 40px;
-        height: 40px;
-        border-radius: 8px;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        font-size: 18px;
-        flex-shrink: 0;
-        position: relative;
-        transition: all 0.2s ease;
-        box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+        display: none; /* Remove redundant icon - timeline marker already shows icon */
     }
     
     .service-left-icon.flight {
-        background: linear-gradient(135deg, #2196F3 0%, #1976D2 100%);
-        color: white;
+        background: transparent;
+        color: inherit;
     }
     
     .service-left-icon.hotel {
-        background: linear-gradient(135deg, #9C27B0 0%, #7B1FA2 100%);
-        color: white;
+        background: transparent;
+        color: inherit;
     }
     
     .service-left-icon.transfer {
-        background: linear-gradient(135deg, #FF9800 0%, #F57C00 100%);
-        color: white;
+        background: transparent;
+        color: inherit;
     }
     
     .service-left-icon.guide {
-        background: linear-gradient(135deg, #4CAF50 0%, #388E3C 100%);
-        color: white;
+        background: transparent;
+        color: inherit;
     }
     
     .service-left-icon.attraction {
-        background: linear-gradient(135deg, #00BCD4 0%, #0097A7 100%);
-        color: white;
+        background: transparent;
+        color: inherit;
     }
     
     .service-left-icon.restaurant {
-        background: linear-gradient(135deg, #FF5722 0%, #D84315 100%);
-        color: white;
+        background: transparent;
+        color: inherit;
     }
     
     .service-left-icon.entry {
-        background: linear-gradient(135deg, #2196F3 0%, #1565C0 100%);
-        color: white;
+        background: transparent;
+        color: inherit;
     }
     
     .service-left-icon.exit {
-        background: linear-gradient(135deg, #F44336 0%, #C62828 100%);
-        color: white;
+        background: transparent;
+        color: inherit;
     }
     
     .service-left-icon.entryport {
-        background: linear-gradient(135deg, #2196F3 0%, #1565C0 100%);
-        color: white;
+        background: transparent;
+        color: inherit;
     }
     
     .service-left-icon.exitport {
-        background: linear-gradient(135deg, #F44336 0%, #C62828 100%);
-        color: white;
+        background: transparent;
+        color: inherit;
     }
     
     .service-main-content {
@@ -615,16 +631,26 @@
     }
     
     .service-header {
-        margin-bottom: 6px;
+        margin-bottom: 3px;
+        line-height: 1.2;
+    }
+    
+    .service-time-display {
+        font-size: 12px;
+        font-weight: 600;
+        color: var(--text-primary);
+        margin-right: 6px;
+        display: inline;
     }
     
     .service-title {
-        font-size: 15px;
+        font-size: 12px;
         font-weight: 600;
         color: var(--text-primary);
-        margin: 0 0 3px 0;
-        line-height: 1.3;
-        letter-spacing: -0.025em;
+        margin: 0;
+        line-height: 1.2;
+        letter-spacing: -0.01em;
+        display: inline;
     }
     
     .service-details-row {
@@ -635,56 +661,70 @@
     }
     
     .service-time-badge {
-        background: #2563eb;
-        color: white;
-        padding: 4px 8px;
-        border-radius: 12px;
-        font-size: 11px;
-        font-weight: 600;
-        display: flex;
-        align-items: center;
-        gap: 4px;
-    }
-    
-    .service-time-badge::before {
-        content: '🕐';
-        font-size: 10px;
+        display: none; /* Hide time badge - time is now shown in service-time-display */
     }
     
     .service-pax-badge {
-        background: #10b981;
-        color: white;
-        padding: 4px 8px;
-        border-radius: 12px;
-        font-size: 11px;
-        font-weight: 600;
-        display: flex;
-        align-items: center;
-        gap: 4px;
-    }
-    
-    .service-pax-badge::before {
-        content: '👥';
-        font-size: 10px;
+        display: none; /* Hide pax badge to match screenshot design */
     }
     
     .service-description {
         color: var(--text-secondary);
-        font-size: 13px;
+        font-size: 12px;
         line-height: 1.4;
-        margin: 0;
+        margin: 2px 0 0 0;
         font-weight: 400;
     }
     
-    .service-type-tag {
+    .service-detail-line {
+        margin: 2px 0;
+        font-size: 12px;
+        line-height: 1.4;
+        color: var(--text-secondary);
+    }
+    
+    .service-detail-line.compact-line {
+        margin: 1px 0;
+        line-height: 1.3;
+    }
+    
+    .hotel-details-compact,
+    .guide-details-compact {
+        margin-top: 3px;
+    }
+    
+    .hotel-details-compact .service-detail-line,
+    .guide-details-compact .service-detail-line {
+        margin: 0;
+        padding: 0;
+    }
+    
+    .hotel-details-compact .badge,
+    .guide-details-compact .badge {
         display: inline-block;
-        padding: 4px 8px;
-        border-radius: 4px;
+        vertical-align: middle;
+        margin-left: 4px;
+    }
+    
+    .service-detail-label {
+        font-weight: 600;
+        color: var(--text-primary);
+        margin-right: 4px;
+    }
+    
+    .service-remark {
+        margin-top: 6px;
+        padding: 6px 8px;
+        background: #f8f9fa;
+        border-left: 2px solid var(--primary-color);
+        border-radius: 3px;
         font-size: 11px;
-        font-weight: 500;
-        text-transform: uppercase;
-        letter-spacing: 0.5px;
-        margin-bottom: 4px;
+        color: var(--text-secondary);
+        line-height: 1.4;
+    }
+    
+    .service-type-tag {
+        display: none; /* Hide service type tag to match screenshot design */
     }
     
     .service-type-tag.hotel {
@@ -742,6 +782,7 @@
         font-size: 14px;
         border: 2px dashed var(--border-color);
         position: relative;
+        grid-column: 1 / -1 !important; /* Span all columns */
     }
     
     .no-service::before {
@@ -817,7 +858,8 @@
     
     .drag-indicator {
         position: absolute;
-        left: 5px;
+        left: 1px;
+        right: 1px;
         top: 50%;
         transform: translateY(-50%);
         font-size: 16px;
@@ -1018,7 +1060,7 @@
         }
         
         .day-indicator {
-            padding: 8px 12px;
+            padding: 2px 3px;
         }
         
         .day-title {
@@ -1032,6 +1074,8 @@
         .services-list {
             margin-left: 60px;
             padding-left: 36px;
+            grid-template-columns: 1fr !important; /* Single column on mobile */
+            gap: 8px !important;
         }
         
         .service-item::before {
@@ -1040,7 +1084,8 @@
             height: 24px !important;
             font-size: 12px !important;
             border: 2px solid #ffffff !important;
-            transform: translateY(-50%) !important; /* Only center vertically */
+            top: 8px !important;
+            transform: none !important;
             z-index: 20 !important; /* Higher z-index to appear above timeline */
         }
         
@@ -1104,29 +1149,29 @@
     
     /* Hotel Details Styles - Enhanced & Compact */
     .hotel-details {
-        background: linear-gradient(135deg, rgba(37, 99, 235, 0.1), rgba(59, 130, 246, 0.05));
-        border-radius: 12px;
-        padding: 16px;
-        margin-top: 10px;
-        border: 1px solid rgba(37, 99, 235, 0.2);
-        box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+        background: #f8f9fa;
+        border-radius: 4px;
+        padding: 6px 8px;
+        margin-top: 4px;
+        border: 1px solid #e2e8f0;
     }
     
     .hotel-info-grid {
         display: grid;
         grid-template-columns: 1fr 1fr;
-        gap: 8px;
-        margin-bottom: 12px;
+        gap: 4px;
+        margin-bottom: 4px;
     }
     
     .hotel-info-item {
         background: rgba(255, 255, 255, 0.9);
-        border-radius: 8px;
-        padding: 8px 10px;
+        border-radius: 3px;
+        padding: 4px 6px;
         display: flex;
         align-items: center;
-        gap: 6px;
-        box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+        gap: 3px;
+        box-shadow: none;
+        font-size: 11px;
     }
     
     .hotel-info-item i {
@@ -1143,10 +1188,11 @@
     
     .rooms-summary {
         background: rgba(255, 255, 255, 0.8);
-        border-radius: 10px;
-        padding: 12px;
-        margin-top: 12px;
-        border: 1px solid rgba(37, 99, 235, 0.15);
+        border-radius: 3px;
+        padding: 6px 8px;
+        margin-top: 4px;
+        border: 1px solid #e2e8f0;
+        font-size: 11px;
     }
     
     .rooms-header {
@@ -1162,46 +1208,41 @@
     }
     
     .room-item {
-        background: linear-gradient(135deg, #f8fafc, #f1f5f9);
-        border-radius: 8px;
-        padding: 10px;
-        margin-bottom: 8px;
-        border-left: 4px solid #10b981;
-        box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+        background: #f8f9fa;
+        border-radius: 3px;
+        padding: 6px 8px;
+        margin-bottom: 4px;
+        border-left: 2px solid #10b981;
+        box-shadow: none;
         position: relative;
     }
     
     .room-item::before {
-        content: '';
-        position: absolute;
-        top: 8px;
-        right: 8px;
-        width: 8px;
-        height: 8px;
-        background: #10b981;
-        border-radius: 50%;
+        display: none;
     }
     
     .room-basic-info {
-        margin-bottom: 6px;
+        margin-bottom: 3px;
     }
     
     .room-basic-info small {
         color: #1f2937 !important;
         font-weight: 600;
+        font-size: 11px;
     }
     
     .bed-details {
-        margin-left: 8px;
-        padding-left: 8px;
-        border-left: 2px solid #e5e7eb;
+        margin-left: 4px;
+        padding-left: 4px;
+        border-left: 1px solid #e5e7eb;
     }
     
     .bed-info {
-        margin-bottom: 6px;
+        margin-bottom: 3px;
         background: rgba(255, 255, 255, 0.7);
-        border-radius: 6px;
-        padding: 6px 8px;
+        border-radius: 3px;
+        padding: 4px 6px;
+        font-size: 11px;
     }
     
     .bed-info small {
@@ -1211,8 +1252,10 @@
     
     .meal-info {
         margin-left: 0;
-        margin-top: 6px;
+        margin-top: 3px;
         display: flex;
+        flex-wrap: wrap;
+        gap: 3px;
         flex-wrap: wrap;
         gap: 4px;
     }
@@ -1220,7 +1263,9 @@
     .meal-badge {
         background: linear-gradient(135deg, #059669, #10b981) !important;
         color: white !important;
-        font-size: 11px !important;
+        font-size: 10px !important;
+        padding: 2px 5px !important;
+        margin: 0 !important;
         padding: 4px 8px !important;
         border-radius: 6px !important;
         font-weight: 600 !important;
@@ -1264,29 +1309,29 @@
     
     /* Attraction Details Styles - Similar to Hotel */
     .attraction-details {
-        background: linear-gradient(135deg, rgba(239, 68, 68, 0.1), rgba(248, 113, 113, 0.05));
-        border-radius: 12px;
-        padding: 16px;
-        margin-top: 10px;
-        border: 1px solid rgba(239, 68, 68, 0.2);
-        box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+        background: #f8f9fa;
+        border-radius: 4px;
+        padding: 6px 8px;
+        margin-top: 4px;
+        border: 1px solid #e2e8f0;
     }
     
     .attraction-info-grid {
         display: grid;
         grid-template-columns: 1fr 1fr;
-        gap: 8px;
-        margin-bottom: 12px;
+        gap: 4px;
+        margin-bottom: 4px;
     }
     
     .attraction-info-item {
         background: rgba(255, 255, 255, 0.9);
-        border-radius: 8px;
-        padding: 8px 10px;
+        border-radius: 3px;
+        padding: 4px 6px;
         display: flex;
         align-items: center;
-        gap: 6px;
-        box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+        gap: 3px;
+        box-shadow: none;
+        font-size: 11px;
     }
     
     .attraction-info-item i {
@@ -1303,10 +1348,11 @@
     
     .ticket-summary {
         background: rgba(255, 255, 255, 0.8);
-        border-radius: 10px;
-        padding: 12px;
-        margin-top: 12px;
-        border: 1px solid rgba(239, 68, 68, 0.15);
+        border-radius: 3px;
+        padding: 6px 8px;
+        margin-top: 4px;
+        border: 1px solid #e2e8f0;
+        font-size: 11px;
     }
     
     .ticket-header {
@@ -1422,29 +1468,29 @@
     
     /* Restaurant Details Styles - Similar to Hotel/Attraction */
     .restaurant-details {
-        background: linear-gradient(135deg, rgba(34, 197, 94, 0.1), rgba(74, 222, 128, 0.05));
-        border-radius: 12px;
-        padding: 16px;
-        margin-top: 10px;
-        border: 1px solid rgba(34, 197, 94, 0.2);
-        box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+        background: #f8f9fa;
+        border-radius: 4px;
+        padding: 6px 8px;
+        margin-top: 4px;
+        border: 1px solid #e2e8f0;
     }
     
     .restaurant-info-grid {
         display: grid;
         grid-template-columns: 1fr 1fr;
-        gap: 8px;
-        margin-bottom: 12px;
+        gap: 4px;
+        margin-bottom: 4px;
     }
     
     .restaurant-info-item {
         background: rgba(255, 255, 255, 0.9);
-        border-radius: 8px;
-        padding: 8px 10px;
+        border-radius: 3px;
+        padding: 4px 6px;
         display: flex;
         align-items: center;
-        gap: 6px;
-        box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+        gap: 3px;
+        box-shadow: none;
+        font-size: 11px;
     }
     
     .restaurant-info-item i {
@@ -1461,10 +1507,11 @@
     
     .meal-summary {
         background: rgba(255, 255, 255, 0.8);
-        border-radius: 10px;
-        padding: 12px;
-        margin-top: 12px;
-        border: 1px solid rgba(34, 197, 94, 0.15);
+        border-radius: 3px;
+        padding: 6px 8px;
+        margin-top: 4px;
+        border: 1px solid #e2e8f0;
+        font-size: 11px;
     }
     
     .meal-header {
@@ -1608,10 +1655,11 @@
     
     .guide-summary {
         background: rgba(255, 255, 255, 0.8);
-        border-radius: 10px;
-        padding: 12px;
-        margin-top: 12px;
-        border: 1px solid rgba(147, 51, 234, 0.15);
+        border-radius: 3px;
+        padding: 6px 8px;
+        margin-top: 4px;
+        border: 1px solid #e2e8f0;
+        font-size: 11px;
     }
     
     .guide-header {
@@ -1900,29 +1948,29 @@
     
     /* Transfer Details Styles - Purple/Indigo Theme */
     .transfer-details {
-        background: linear-gradient(135deg, rgba(99, 102, 241, 0.1), rgba(129, 140, 248, 0.05));
-        border-radius: 12px;
-        padding: 16px;
-        margin-top: 10px;
-        border: 1px solid rgba(99, 102, 241, 0.2);
-        box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+        background: #f8f9fa;
+        border-radius: 4px;
+        padding: 6px 8px;
+        margin-top: 4px;
+        border: 1px solid #e2e8f0;
     }
     
     .transfer-info-grid {
         display: grid;
         grid-template-columns: 1fr 1fr;
-        gap: 8px;
-        margin-bottom: 12px;
+        gap: 4px;
+        margin-bottom: 4px;
     }
     
     .transfer-info-item {
         background: rgba(255, 255, 255, 0.9);
-        border-radius: 8px;
-        padding: 8px 10px;
+        border-radius: 3px;
+        padding: 4px 6px;
         display: flex;
         align-items: center;
-        gap: 6px;
-        box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+        gap: 3px;
+        box-shadow: none;
+        font-size: 11px;
     }
     
     .transfer-info-item i {
@@ -1945,10 +1993,11 @@
     
     .transportation-summary {
         background: rgba(255, 255, 255, 0.6);
-        border-radius: 10px;
-        padding: 12px;
+        border-radius: 3px;
+        padding: 6px 8px;
         position: relative;
-        box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+        box-shadow: none;
+        font-size: 11px;
     }
     
     .transportation-summary::before {
@@ -2333,6 +2382,12 @@
                         {{-- <a href="{{ route('bookinglist.index') }}" class="btn-modern btn-secondary-modern">
                             <i class="fas fa-arrow-left"></i> Back to Bookings
                         </a> --}}
+                        <button id="downloadText" class="btn-modern btn-secondary-modern">
+                            <i class="fas fa-file-alt"></i> Download Itinerary
+                        </button>
+                        <button id="downloadPdf" class="btn-modern btn-secondary-modern">
+                            <i class="fas fa-download"></i> Download PDF
+                        </button>
                         <button id="printItinerary" class="btn-modern btn-primary-modern">
                             <i class="fas fa-print"></i> Print Itinerary
                         </button>
@@ -2649,8 +2704,10 @@
                                     Day {{ $dayCount }}
                                 </div>
                                 <div class="day-info">
-                                    <h3 class="day-title">{{ \Carbon\Carbon::parse($date)->format('l') }}</h3>
-                                    <p class="day-date">{{ \Carbon\Carbon::parse($date)->format('jS M Y') }}</p>
+                                    <div>
+                                        <h3 class="day-title">{{ \Carbon\Carbon::parse($date)->format('l') }}, {{ \Carbon\Carbon::parse($date)->format('F j, Y') }}</h3>
+                                    </div>
+                                    <span class="day-chevron">▼</span>
                                 </div>
                             </div>
                             
@@ -2875,6 +2932,14 @@
                                             } else {
                                                 $serviceName = 'Attraction';
                                             }
+                                            
+                                            // Check if attraction has transfer - if so, show transfer service name
+                                            if (isset($data['transfer_options']) && 
+                                                isset($data['transfer_options']['transfer_required']) && 
+                                                $data['transfer_options']['transfer_required'] === true) {
+                                                // For transfers, show the activity name as service
+                                                $serviceName = $data['AttractionName'] ?? $data['name'] ?? 'Attraction';
+                                            }
                                         } elseif (strtolower($serviceType) == 'restaurant') {
                                             // For restaurants
                                             if (!empty($data['restaurantName'])) {
@@ -2883,6 +2948,14 @@
                                                 $serviceName = $data['name'];
                                             } else {
                                                 $serviceName = 'Restaurant';
+                                            }
+                                            
+                                            // Check if restaurant has transfer - if so, show transfer service name
+                                            if (isset($data['transfer_options']) && 
+                                                isset($data['transfer_options']['transfer_required']) && 
+                                                $data['transfer_options']['transfer_required'] === true) {
+                                                // For transfers, show the restaurant name as service
+                                                $serviceName = $data['restaurantName'] ?? $data['name'] ?? 'Restaurant';
                                             }
                                         } else {
                                             // Default fallback
@@ -2944,6 +3017,15 @@
                                         
                                         // Create unique identifier for this service item
                                         $itemId = 'service-' . ($booking->id ?? '') . '-' . uniqid();
+                                        
+                                        // Check if attraction/restaurant has transfer - if so, mark as transfer type for icon
+                                        $displayServiceType = strtolower($serviceType);
+                                        if ((strtolower($serviceType) == 'attraction' || strtolower($serviceType) == 'restaurant') && 
+                                            isset($data['transfer_options']) && 
+                                            isset($data['transfer_options']['transfer_required']) && 
+                                            $data['transfer_options']['transfer_required'] === true) {
+                                            $displayServiceType = 'transfer';
+                                        }
                                     @endphp
                                     
                                     <div class="drop-zone-indicator"></div>
@@ -2951,7 +3033,7 @@
                                          id="{{ $itemId }}"
                                          {!! $draggableAttrs !!}
                                          data-booking-id="{{ $booking->booking_id ?? '' }}"
-                                         data-service-type="{{ strtolower($serviceType) }}"
+                                         data-service-type="{{ $displayServiceType }}"
                                          data-current-date="{{ $date }}"
                                          data-booking-data="{{ base64_encode(json_encode($data)) }}">
                                         @if($isDraggable)
@@ -2959,610 +3041,382 @@
                                         @endif
                                         
                                         <div class="service-item-content">
-                                            <!-- Left Icon -->
-                                            <div class="service-left-icon {{ strtolower(str_replace(' ', '', $serviceType)) }}">
-                                                @if(strtolower($serviceType) == 'hotel')
-                                                    🏨
-                                                @elseif(strtolower($serviceType) == 'guide')
-                                                    👨‍🏫
-                                                @elseif(strpos(strtolower($serviceType), 'transfer') !== false)
-                                                    🚗
-                                                @elseif(strpos(strtolower($serviceType), 'entry') !== false || strtolower($serviceType) == 'arrival')
-                                                    ✈️
-                                                @elseif(strpos(strtolower($serviceType), 'exit') !== false || strtolower($serviceType) == 'departure')
-                                                    🛫
-                                                @elseif(strtolower($serviceType) == 'attraction')
-                                                    🎯
-                                                @elseif(strtolower($serviceType) == 'restaurant')
-                                                    🍽️
-                                                @else
-                                                    ✈️
-                                                @endif
-                                            </div>
-                                            
                                             <!-- Main Content -->
                                             <div class="service-main-content">
+                                                @php
+                                                    // Determine service type label
+                                                    $serviceTypeLabel = '';
+                                                    if (strtolower($serviceType) == 'hotel') {
+                                                        $serviceTypeLabel = 'Hotel';
+                                                    } elseif (strpos(strtolower($serviceType), 'entry') !== false || strtolower($serviceType) == 'arrival') {
+                                                        $serviceTypeLabel = 'Arrival';
+                                                    } elseif (strpos(strtolower($serviceType), 'exit') !== false || strtolower($serviceType) == 'departure') {
+                                                        $serviceTypeLabel = 'Departure';
+                                                    } elseif (strpos(strtolower($serviceType), 'transfer') !== false || strpos(strtolower($serviceType), 'travel') !== false) {
+                                                        $serviceTypeLabel = 'Local Transfer';
+                                                    } elseif (strtolower($serviceType) == 'attraction') {
+                                                        $serviceTypeLabel = 'Attraction';
+                                                    } elseif (strtolower($serviceType) == 'restaurant') {
+                                                        $serviceTypeLabel = 'Restaurant';
+                                                    } elseif (strtolower($serviceType) == 'guide') {
+                                                        $serviceTypeLabel = 'Guide';
+                                                    } else {
+                                                        $serviceTypeLabel = ucfirst($serviceType);
+                                                    }
+                                                @endphp
+                                                
+                                                <div class="service-type-heading">{{ $serviceTypeLabel }}</div>
+                                                
                                                 <div class="service-header">
-                                                    <div class="service-type-tag {{ strtolower(str_replace(' ', '', $serviceType)) }}">
-                                                        {{ $serviceType }}
-                                                    </div>
+                                                    @php
+                                                        // Extract time for display
+                                                        $displayTime = null;
+                                                        if (isset($timeSlot) && !empty($timeSlot)) {
+                                                            $displayTime = $timeSlot;
+                                                        } elseif (isset($data['entrytime'])) {
+                                                            $displayTime = $data['entrytime'];
+                                                        } elseif (isset($data['visitTime'])) {
+                                                            $displayTime = $data['visitTime'];
+                                                        } elseif (isset($data['time'])) {
+                                                            $displayTime = $data['time'];
+                                                        }
+                                                        
+                                                        // Format time for display
+                                                        if ($displayTime) {
+                                                            // Convert to 12-hour format if needed
+                                                            if (preg_match('/^(\d{1,2}):(\d{2})$/', $displayTime, $matches)) {
+                                                                $hour = (int)$matches[1];
+                                                                $min = $matches[2];
+                                                                $ampm = $hour >= 12 ? 'PM' : 'AM';
+                                                                $hour12 = $hour > 12 ? $hour - 12 : ($hour == 0 ? 12 : $hour);
+                                                                $displayTime = sprintf('%d:%s %s', $hour12, $min, $ampm);
+                                                            }
+                                                        }
+                                                    @endphp
+                                                    
+                                                    @if($displayTime)
+                                                        <span class="service-time-display">{{ $displayTime }}</span>
+                                                    @endif
+                                                    
                                                     <h4 class="service-title">{{ $serviceName }}</h4>
                                                     @if(strtolower($serviceType) == 'hotel')
-                                                        <p class="service-description">
-                                                            @if(isset($data['day_in_stay']) && isset($data['total_nights']))
-                                                                @if(isset($data['stay_type']) && $data['stay_type'] == 'checkin')
-                                                                    Check-in • {{ $data['total_nights'] }} {{ $data['total_nights'] > 1 ? 'nights' : 'night' }}
-                                                                @else
-                                                                    Day {{ $data['day_in_stay'] }} of {{ $data['total_nights'] }} • {{ $serviceName }}
+                                                        @php
+                                                            $hotelLocation = $data['hotelDetails']['location'] ?? $data['location'] ?? '';
+                                                            $checkInTime = $data['hotelDetails']['checkInTime'] ?? null;
+                                                            $checkOutTime = $data['hotelDetails']['checkOutTime'] ?? null;
+                                                            $confirmationNo = $data['confirmationNo'] ?? $data['confirmation_no'] ?? null;
+                                                        @endphp
+                                                        
+                                                        @if(isset($data['day_in_stay']) && isset($data['total_nights']))
+                                                            @if(isset($data['stay_type']) && $data['stay_type'] == 'checkin')
+                                                                <p class="service-description">
+                                                                    <span class="service-detail-label">Service:</span> {{ $serviceName }}
+                                                                </p>
+                                                                @if(!empty($hotelLocation))
+                                                                    <p class="service-detail-line">
+                                                                        <span class="service-detail-label">Location:</span> {{ $hotelLocation }}
+                                                                    </p>
+                                                                @endif
+                                                                <p class="service-detail-line">
+                                                                    <span class="service-detail-label">Duration:</span> {{ $data['total_nights'] }} {{ $data['total_nights'] > 1 ? 'Nights' : 'Night' }} (Checkout: {{ \Carbon\Carbon::parse($date)->addDays($data['total_nights'])->format('d M Y') }})
+                                                                </p>
+                                                                @if(!empty($confirmationNo))
+                                                                    <p class="service-detail-line">
+                                                                        <span class="service-detail-label">Confirmation No:</span> {{ $confirmationNo }}
+                                                                    </p>
                                                                 @endif
                                                             @else
-                                                                Hotel accommodation
+                                                                <p class="service-description">
+                                                                    Day {{ $data['day_in_stay'] }} of {{ $data['total_nights'] }} • {{ $serviceName }}
+                                                                </p>
                                                             @endif
-                                                        </p>
+                                                        @else
+                                                            <p class="service-description">Hotel accommodation</p>
+                                                        @endif
                                                         
-                                                        <!-- Enhanced Hotel Details -->
-                                                        <div class="hotel-details mt-2">
-                                                            @if(isset($data['hotelDetails']))
-                                                                <div class="hotel-info-grid">
-                                                                    @if(!empty($data['hotelDetails']['checkInTime']) || !empty($data['hotelDetails']['checkOutTime']))
-                                                                        <div class="hotel-info-item">
-                                                                            <small class="text-muted">
-                                                                                <i class="fas fa-clock me-1"></i>
-                                                                                Check-in: {{ $data['hotelDetails']['checkInTime'] ?? 'N/A' }} | 
-                                                                                Check-out: {{ $data['hotelDetails']['checkOutTime'] ?? 'N/A' }}
-                                                                            </small>
-                                                                        </div>
+                                                        <!-- Compact Hotel Details - 2 lines -->
+                                                        <div class="hotel-details-compact">
+                                                            @php
+                                                                $checkInTime = $data['hotelDetails']['checkInTime'] ?? null;
+                                                                $checkOutTime = $data['hotelDetails']['checkOutTime'] ?? null;
+                                                                $roomCount = isset($data['rooms']) && is_array($data['rooms']) ? count($data['rooms']) : 0;
+                                                                $firstRoom = isset($data['rooms'][0]) ? $data['rooms'][0] : null;
+                                                                $firstBed = isset($firstRoom['beds'][0]) ? $firstRoom['beds'][0] : null;
+                                                                $meals = isset($firstBed['selectedMeals']) && is_array($firstBed['selectedMeals']) ? $firstBed['selectedMeals'] : [];
+                                                            @endphp
+                                                            
+                                                            <!-- Line 1: Check-in/out + Room count -->
+                                                            @if($checkInTime || $checkOutTime || $roomCount > 0)
+                                                                <p class="service-detail-line compact-line">
+                                                                    @if($checkInTime || $checkOutTime)
+                                                                        <i class="fas fa-clock me-1"></i>
+                                                                        Check-in: {{ $checkInTime ?? 'N/A' }} | Check-out: {{ $checkOutTime ?? 'N/A' }}
+                                                                        @if($roomCount > 0)
+                                                                            <span class="mx-1">•</span>
+                                                                        @endif
                                                                     @endif
-                                                                    
-                                                                    @if(!empty($data['totalPrice']) && $priceHide == 0)  
-                                                                        <div class="hotel-info-item">
-                                                                            <small class="text-success fw-bold">
-                                                                                <i class="fas fa-dollar-sign me-1"></i>
-                                                                                SGD {{ number_format($data['totalPrice'], 2) }}
-                                                                                @if(!empty($data['priceMode']))
-                                                                                    <span class="price-mode-badge">{{ ucfirst($data['priceMode']) }}</span>
-                                                                                @endif
-                                                                            </small>
-                                                                        </div>
+                                                                    @if($roomCount > 0)
+                                                                        <i class="fas fa-bed me-1"></i>
+                                                                        {{ $roomCount }} {{ $roomCount > 1 ? 'Rooms' : 'Room' }}
                                                                     @endif
-                                                                </div>
+                                                                </p>
                                                             @endif
                                                             
-                                                            <!-- Room Information -->
-                                                            @if(isset($data['rooms']) && is_array($data['rooms']) && count($data['rooms']) > 0)
-                                                                <div class="rooms-summary mt-2">
-                                                                    <div class="rooms-header">
-                                                                        <small class="text-primary fw-semibold">
-                                                                            <i class="fas fa-bed me-1"></i>
-                                                                            {{ count($data['rooms']) }} {{ count($data['rooms']) > 1 ? 'Rooms' : 'Room' }}
-                                                                        </small>
-                                                                    </div>
-                                                                    
-                                                                    @foreach($data['rooms'] as $index => $room)
-                                                                        <div class="room-item mt-1">
-                                                                            <div class="room-basic-info">
-                                                                                <small class="text-dark">
-                                                                                    <strong>Room {{ $index + 1 }}:</strong> {{ $room['room_type'] ?? 'Standard Room' }}
-                                                                                </small>
-                                                                            </div>
-                                                                            
-                                                                            @if(isset($room['beds']) && is_array($room['beds']) && count($room['beds']) > 0)
-                                                                                <div class="bed-details mt-1">
-                                                                                    @foreach($room['beds'] as $bedIndex => $bed)
-                                                                                        <div class="bed-info">
-                                                                                            <small class="text-muted">
-                                                                                                • {{ $bed['bed_type'] ?? 'Standard Bed' }}
-                                                                                                @if(!empty($bed['head_count']))
-                                                                                                    ({{ $bed['head_count'] }} pax)
-                                                                                                @endif
-                                                                                                @if(!empty($bed['price']) && $priceHide == 0)
-                                                                                                    - SGD {{ number_format($bed['price'], 2) }}
-                                                                                                @endif
-                                                                                            </small>
-                                                                                            
-                                                                                            @if(isset($bed['selectedMeals']) && is_array($bed['selectedMeals']) && count($bed['selectedMeals']) > 0)
-                                                                                                <div class="meal-info mt-1">
-                                                                                                    @foreach($bed['selectedMeals'] as $mealKey => $meal)
-                                                                                                        <span class="badge meal-badge me-1 mb-1">
-                                                                                                            <i class="fas fa-utensils me-1"></i>{{ $meal['type'] ?? 'Meal' }}
-                                                                                                            @if(!empty($meal['price']) && $priceHide == 0)
-                                                                                                                <span class="meal-price">+${{ number_format($meal['price'], 2) }}</span>
-                                                                                                            @endif
-                                                                                                        </span>
-                                                                                                    @endforeach
-                                                                                                </div>
-                                                                                            @endif
-                                                                                        </div>
-                                                                                    @endforeach
-                                                                                </div>
-                                                                            @endif
-                                                                        </div>
-                                                                    @endforeach
-                                                                </div>
+                                                            <!-- Line 2: Room details + bed + meals -->
+                                                            @if($firstRoom)
+                                                                <p class="service-detail-line compact-line">
+                                                                    <strong>Room 1:</strong> {{ $firstRoom['room_type'] ?? 'Standard Room' }}
+                                                                    @if($firstBed)
+                                                                        <span class="mx-1">•</span>
+                                                                        {{ $firstBed['bed_type'] ?? 'Standard Bed' }}
+                                                                        @if(!empty($firstBed['head_count']))
+                                                                            ({{ $firstBed['head_count'] }} pax)
+                                                                        @endif
+                                                                    @endif
+                                                                    @if(count($meals) > 0)
+                                                                        @foreach($meals as $meal)
+                                                                            <span class="badge meal-badge">
+                                                                                <i class="fas fa-utensils me-1"></i>{{ $meal['type'] ?? 'Meal' }}
+                                                                            </span>
+                                                                        @endforeach
+                                                                    @endif
+                                                                </p>
                                                             @endif
                                                         </div>
                                                     @elseif(strtolower($serviceType) == 'guide')
                                                         <p class="service-description">Professional tour guide service</p>
                                                         
-                                                        <!-- Enhanced Guide Details -->
-                                                        <div class="guide-details mt-2">
+                                                        <!-- Compact Guide Details - 2 lines -->
+                                                        <div class="guide-details-compact">
                                                             @php 
-                                                                // $data is already the guide item data
                                                                 $guideData = $data;
+                                                                $bookingDate = $guideData['bookingDate'] ?? $guideData['booking_date'] ?? $guideData['pickupdate'] ?? null;
+                                                                $hours = $guideData['hours'] ?? null;
+                                                                $guideName = $guideData['guide_name'] ?? $guideData['guideName'] ?? null;
+                                                                $experience = $guideData['experience'] ?? null;
+                                                                $languages = $guideData['languages'] ?? null;
+                                                                $firstLanguage = isset($languages) && is_array($languages) && count($languages) > 0 ? $languages[0] : null;
                                                             @endphp
                                                             
-                                                            @if($guideData && is_array($guideData))
-                                                                @php
-                                                                    // Debug: Show all guide data
-                                                                    $debugGuideData = json_encode($guideData, JSON_PRETTY_PRINT);
-                                                                    
-                                                                    // Check for different possible field names
-                                                                    $bookingDate = $guideData['bookingDate'] ?? $guideData['booking_date'] ?? $guideData['pickupdate'] ?? null;
-                                                                    $totalPrice = $guideData['totalPrice'] ?? $guideData['total_price'] ?? $guideData['price'] ?? null;
-                                                                    $basePrice = $guideData['basePrice'] ?? $guideData['base_price'] ?? null;
-                                                                    $hours = $guideData['hours'] ?? null;
-                                                                    $adults = $guideData['adults'] ?? $guideData['adult_count'] ?? null;
-                                                                    $children = $guideData['children'] ?? $guideData['child_count'] ?? null;
-                                                                    $guideName = $guideData['guide_name'] ?? $guideData['guideName'] ?? null;
-                                                                    $experience = $guideData['experience'] ?? null;
-                                                                    $languages = $guideData['languages'] ?? null;
-                                                                    $city = $guideData['city'] ?? null;
-                                                                    $mode = $guideData['Mode'] ?? $guideData['mode'] ?? null;
-                                                                @endphp
-                                                                
-                                                                
-                                                                
-                                                                <div class="guide-info-grid">
-                                                                    @if(!empty($bookingDate))
-                                                                        <div class="guide-info-item">
-                                                                            <small class="text-muted">
-                                                                                <i class="fas fa-calendar-alt me-1"></i>
-                                                                                {{ date('d M Y', strtotime($bookingDate)) }}
-                                                                                @if(!empty($hours))
-                                                                                    • {{ $hours }} hour{{ $hours > 1 ? 's' : '' }}
-                                                                                @endif
-                                                                            </small>
-                                                                        </div>
+                                                            <!-- Line 1: Date + hours + Guide name -->
+                                                            @if($bookingDate || $guideName)
+                                                                <p class="service-detail-line compact-line">
+                                                                    @if($bookingDate)
+                                                                        <i class="fas fa-calendar-alt me-1"></i>
+                                                                        {{ date('d M Y', strtotime($bookingDate)) }}
+                                                                        @if($hours)
+                                                                            • {{ $hours }} hour{{ $hours > 1 ? 's' : '' }}
+                                                                        @endif
+                                                                        @if($guideName)
+                                                                            <span class="mx-1">•</span>
+                                                                        @endif
                                                                     @endif
-                                                                    
-                                                                    @if(!empty($totalPrice) && $priceHide == 0)
-                                                                        <div class="guide-info-item">
-                                                                            <small class="text-success fw-bold">
-                                                                                <i class="fas fa-dollar-sign me-1"></i>
-                                                                                SGD {{ number_format($totalPrice, 2) }}
-                                                                                @if(!empty($mode))
-                                                                                    <span class="price-mode-badge">{{ ucfirst($mode) }}</span>
-                                                                                @endif
-                                                                            </small>
-                                                                        </div>
+                                                                    @if($guideName)
+                                                                        <i class="fas fa-user-tie me-1"></i>
+                                                                        <strong>{{ $guideName }}</strong>
+                                                                        @if($firstLanguage)
+                                                                            - {{ $firstLanguage['language'] ?? 'Language' }}
+                                                                        @endif
                                                                     @endif
-                                                                </div>
-                                                                
-                                                                <!-- Guide Information -->
-                                                                @if(!empty($guideName) || !empty($experience) || !empty($languages) || !empty($adults) || !empty($children))
-                                                                    <div class="guide-summary mt-2">
-                                                                        <div class="guide-header">
-                                                                            <small class="text-primary fw-semibold">
-                                                                                <i class="fas fa-user-tie me-1"></i>
-                                                                                Guide Information
-                                                                            </small>
-                                                                        </div>
-                                                                        
-                                                                        <div class="guide-item mt-1">
-                                                                            @if(!empty($guideName))
-                                                                                <div class="guide-basic-info">
-                                                                                    <small class="text-dark">
-                                                                                        <strong>{{ $guideName }}</strong>
-                                                                                        @if(!empty($experience))
-                                                                                            <span class="experience-badge">{{ $experience }} years exp.</span>
-                                                                                        @endif
-                                                                                    </small>
-                                                                                </div>
-                                                                            @endif
-                                                                            
-                                                                            <!-- Group Size -->
-                                                                            @if(!empty($adults) || !empty($children))
-                                                                                <div class="group-info mt-1">
-                                                                                    <small class="text-muted">
-                                                                                        <i class="fas fa-users me-1"></i>
-                                                                                        @if(!empty($adults))
-                                                                                            {{ $adults }} Adult{{ $adults > 1 ? 's' : '' }}
-                                                                                        @endif
-                                                                                        @if(!empty($children))
-                                                                                            @if(!empty($adults)) • @endif
-                                                                                            {{ $children }} Child{{ $children > 1 ? 'ren' : '' }}
-                                                                                        @endif
-                                                                                        @if(!empty($city))
-                                                                                            • {{ $city }}
-                                                                                        @endif
-                                                                                    </small>
-                                                                                </div>
-                                                                            @endif
-                                                                            
-                                                                            <!-- Languages -->
-                                                                            @php
-                                                                                // Debug: Check what languages data we have
-                                                                                $debugLanguages = $languages ?? 'NULL';
-                                                                                if (is_array($debugLanguages)) {
-                                                                                    $debugLanguages = 'ARRAY with ' . count($debugLanguages) . ' items: ' . json_encode($debugLanguages);
-                                                                                }
-                                                                            @endphp
-                                                                            
-                                                                            @if(isset($languages) && is_array($languages) && count($languages) > 0)
-                                                                                <div class="languages-info mt-1">
-                                                                                    <small class="text-muted mb-1 d-block">
-                                                                                        <i class="fas fa-language me-1"></i>Languages:
-                                                                                    </small>
-                                                                                    <div class="languages-list">
-                                                                                        @foreach($languages as $lang)
-                                                                                            <span class="badge language-badge me-1 mb-1">
-                                                                                                {{ $lang['language'] ?? 'Language' }}
-                                                                                                @if(!empty($lang['proficiency']))
-                                                                                                    <small class="proficiency">({{ $lang['proficiency'] }})</small>
-                                                                                                @endif
-                                                                                            </span>
-                                                                                        @endforeach
-                                                                                    </div>
-                                                                                </div>
-                                                                            @else
-                                                                                
-                                                                            @endif
-                                                                        </div>
-                                                                    </div>
-                                                                @endif
+                                                                </p>
+                                                            @endif
+                                                            
+                                                            <!-- Line 2: Guide Information + languages -->
+                                                            @if($guideName || $experience || (isset($languages) && is_array($languages) && count($languages) > 0))
+                                                                <p class="service-detail-line compact-line">
+                                                                    @if($experience)
+                                                                        <span class="experience-badge">{{ $experience }} years exp.</span>
+                                                                    @endif
+                                                                    @if(isset($languages) && is_array($languages) && count($languages) > 0)
+                                                                        @foreach($languages as $lang)
+                                                                            <span class="badge language-badge">
+                                                                                {{ $lang['language'] ?? 'Language' }}
+                                                                            </span>
+                                                                        @endforeach
+                                                                    @endif
+                                                                </p>
                                                             @endif
                                                         </div>
-                                                    @elseif(strpos(strtolower($serviceType), 'transfer') !== false)
-                                                        <p class="service-description">Private transportation service</p>
+                                                    @elseif(strpos(strtolower($serviceType), 'transport') !== false || strpos(strtolower($serviceType), 'travel') !== false || strpos(strtolower($serviceType), 'transfer') !== false)
+                                                        @php 
+                                                            // $data is already the transfer item data
+                                                            $transferData = $data;
+                                                            $entryPickup = $transferData['entrypickup'] ?? $transferData['entry_pickup'] ?? $transferData['pickup'] ?? null;
+                                                            $dropoffLocation = $transferData['entrydropoff'] ?? $transferData['dropoffLocation'] ?? $transferData['dropoff_location'] ?? $transferData['dropoff'] ?? null;
+                                                            $transferType = $transferData['type'] ?? 'Shared';
+                                                            $transferWay = $transferData['way'] ?? null;
+                                                            $remark = $transferData['remark'] ?? $transferData['remarks'] ?? $transferData['specialRequests'] ?? null;
+                                                            $vehicle = $transferData['vehicle'] ?? $transferData['vehicles_name'] ?? null;
+                                                            $travel_type = $transferData['travel_type'] ?? null;
+                                                            $selectedHours = $transferData['selectedHours'] ?? null;
+                                                            // Determine transfer type display
+                                                            $transferTypeDisplay = '';
+                                                            if (strtolower($transferType) == 'shared') {
+                                                                $transferTypeDisplay = 'Shared Transfer';
+                                                            } elseif (strtolower($transferType) == 'private') {
+                                                                $transferTypeDisplay = 'Private Transfer';
+                                                            } else {
+                                                                $transferTypeDisplay = ucfirst($transferType) . ' Transfer';
+                                                            }
+                                                            
+                                                            // Build service name with transfer type
+                                                            $fullServiceName = $serviceName;
+                                                            if ($transferTypeDisplay) {
+                                                                $fullServiceName = $serviceName . ' (' . $transferTypeDisplay . ')';
+                                                            }
+                                                        @endphp
                                                         
-                                                        <!-- Enhanced Transfer Details -->
-                                                        <div class="transfer-details mt-2">
-                                                            @php 
-                                                                // $data is already the transfer item data
-                                                                $transferData = $data;
-                                                            @endphp
-                                                            
-                                                            @if($transferData && is_array($transferData))
-                                                                @php
-                                                                    // Check for different possible field names
-                                                                    $bookingDate = $transferData['bookingDate'] ?? $transferData['booking_date'] ?? $transferData['exitpickupdate'] ?? null;
-                                                                    $totalPrice = $transferData['totalPrice'] ?? $transferData['total_price'] ?? $transferData['price'] ?? null;
-                                                                    $entryPickup = $transferData['entrypickup'] ?? $transferData['entry_pickup'] ?? $transferData['pickup'] ?? null;
-                                                                    $dropoffLocation = $transferData['dropoffLocation'] ?? $transferData['dropoff_location'] ?? $transferData['dropoff'] ?? null;
-                                                                    $entryTime = $transferData['entrytime'] ?? $transferData['entry_time'] ?? $transferData['time'] ?? null;
-                                                                    $selectedHours = $transferData['selectedHours'] ?? $transferData['selected_hours'] ?? $transferData['hours'] ?? null;
-                                                                    $vehicleName = $transferData['vehicles_name'] ?? $transferData['vehicle_name'] ?? null;
-                                                                    $vehicleType = $transferData['type'] ?? $transferData['vehicle_type'] ?? null;
-                                                                    $adults = $transferData['adults'] ?? $transferData['adult_count'] ?? null;
-                                                                    $children = $transferData['children'] ?? $transferData['child_count'] ?? null;
-                                                                    $mode = $transferData['Mode'] ?? $transferData['mode'] ?? null;
-                                                                    $serviceCategory = $transferData['service_category'] ?? null;
-                                                                    $tax = $transferData['Tax'] ?? $transferData['tax'] ?? null;
-                                                                @endphp
-                                                                
-                                                                <div class="transfer-info-grid">
-                                                                    @if(!empty($bookingDate))
-                                                                        <div class="transfer-info-item">
-                                                                            <small class="text-muted">
-                                                                                <i class="fas fa-calendar-alt me-1"></i>
-                                                                                {{ date('d M Y', strtotime($bookingDate)) }}
-                                                                                @if(!empty($entryTime))
-                                                                                    • {{ $entryTime }}
-                                                                                @endif
-                                                                                @if(!empty($selectedHours))
-                                                                                    • {{ $selectedHours }}h
-                                                                                @endif
-                                                                            </small>
-                                                                        </div>
-                                                                    @endif
-                                                                    
-                                                                    @if(!empty($totalPrice) && $priceHide == 0)
-                                                                        <div class="transfer-info-item">
-                                                                            <small class="text-success fw-bold">
-                                                                                <i class="fas fa-dollar-sign me-1"></i>
-                                                                                SGD {{ number_format($totalPrice, 2) }}
-                                                                                @if(!empty($tax) && $tax > 0)
-                                                                                    <span class="tax-info">+{{ number_format($tax, 2) }} tax</span>
-                                                                                @endif
-                                                                                @if(!empty($mode))
-                                                                                    <span class="price-mode-badge">{{ ucfirst($mode) }}</span>
-                                                                                @endif
-                                                                            </small>
-                                                                        </div>
-                                                                    @endif
-                                                                </div>
-                                                                
-                                                                <!-- Transportation Information -->
-                                                                @if(!empty($entryPickup) || !empty($dropoffLocation) || !empty($vehicleName))
-                                                                    <div class="transportation-summary mt-2">
-                                                                        <div class="transportation-header">
-                                                                            <small class="text-primary fw-semibold">
-                                                                                <i class="fas fa-car-side me-1"></i>
-                                                                                Transportation Details
-                                                                                @if(!empty($serviceCategory))
-                                                                                    <span class="service-category-badge">{{ ucwords(str_replace('_', ' ', $serviceCategory)) }}</span>
-                                                                                @endif
-                                                                            </small>
-                                                                        </div>
-                                                                        
-                                                                        <div class="transportation-item mt-1">
-                                                                            @if(!empty($entryPickup))
-                                                                                <div class="transport-pickup-info">
-                                                                                    <small class="text-dark">
-                                                                                        <i class="fas fa-map-marker-alt me-1 text-success"></i>
-                                                                                        <strong>From:</strong> {{ $entryPickup }}
-                                                                                    </small>
-                                                                                </div>
-                                                                            @endif
-                                                                            
-                                                                            @if(!empty($dropoffLocation))
-                                                                                <div class="transport-dropoff-info mt-1">
-                                                                                    <small class="text-dark">
-                                                                                        <i class="fas fa-map-marker-alt me-1 text-danger"></i>
-                                                                                        <strong>To:</strong> {{ $dropoffLocation }}
-                                                                                    </small>
-                                                                                </div>
-                                                                            @endif
-                                                                            
-                                                                            <!-- Vehicle Information -->
-                                                                            @if(!empty($vehicleName) || !empty($vehicleType) || !empty($selectedHours))
-                                                                                <div class="transport-vehicle-info mt-1">
-                                                                                    <small class="text-muted">
-                                                                                        <i class="fas fa-car me-1"></i>
-                                                                                        @if(!empty($vehicleName))
-                                                                                            {{ $vehicleName }}
-                                                                                        @endif
-                                                                                        @if(!empty($vehicleType))
-                                                                                            @if(!empty($vehicleName)) • @endif
-                                                                                            {{ ucfirst($vehicleType) }}
-                                                                                        @endif
-                                                                                        @if(!empty($selectedHours))
-                                                                                            @if(!empty($vehicleName) || !empty($vehicleType)) • @endif
-                                                                                            {{ $selectedHours }} Hour{{ $selectedHours > 1 ? 's' : '' }}
-                                                                                        @endif
-                                                                                        @if(!empty($adults) || !empty($children))
-                                                                                            • 
-                                                                                            @if(!empty($adults))
-                                                                                                {{ $adults }} Adult{{ $adults > 1 ? 's' : '' }}
-                                                                                            @endif
-                                                                                            @if(!empty($children))
-                                                                                                @if(!empty($adults)) + @endif
-                                                                                                {{ $children }} Child{{ $children > 1 ? 'ren' : '' }}
-                                                                                            @endif
-                                                                                        @endif
-                                                                                    </small>
-                                                                                </div>
-                                                                            @endif
-                                                                        </div>
-                                                                    </div>
+                                                        <p class="service-description">
+                                                            <span class="service-detail-label">Service:</span> {{ $fullServiceName }}
+                                                        </p>
+                                                        
+                                                        @if(!empty($entryPickup) || !empty($dropoffLocation))
+                                                            <p class="service-detail-line">
+                                                                @if(!empty($entryPickup))
+                                                                    <span class="service-detail-label">From:</span> {{ $entryPickup }}
                                                                 @endif
-                                                            @endif
-                                                        </div>
+                                                                @if(!empty($entryPickup) && !empty($dropoffLocation))
+                                                                    <span class="mx-1">•</span>
+                                                                @endif
+                                                                @if(!empty($dropoffLocation))
+                                                                    <span class="service-detail-label">To:</span> {{ $dropoffLocation }}
+                                                                @endif
+                                                                @if(!empty($vehicle))
+                                                                    <span class="mx-1">•</span>
+                                                                    <span class="service-detail-label">Vehicle:</span> {{ $vehicle }}
+                                                                @endif
+                                                                @if(!empty($travel_type) && $travel_type == 'travel_hourly')
+                                                                    <span class="mx-1">•</span>
+                                                                    <span class="service-detail-label">Travel Type:</span> Hourly
+                                                                    <span class="mx-1">•</span>
+                                                                    <span class="service-detail-label">Selected Hours:</span> {{ $selectedHours }} Hour(s)
+                                                                @endif
+                                                            </p>
+                                                        @endif
+                                                        
+                                                        @if(!empty($remark))
+                                                            <div class="service-remark">
+                                                                <span class="service-detail-label">Remark:</span> {{ $remark }}
+                                                            </div>
+                                                        @endif
                                                     @elseif(strpos(strtolower($serviceType), 'entry') !== false || strtolower($serviceType) == 'arrival')
-                                                        <p class="service-description">Airport arrival transfer service</p>
+                                                        @php 
+                                                            $entryPortData = $data;
+                                                            $entryPickup = $entryPortData['entrypickup'] ?? $entryPortData['entry_pickup'] ?? $entryPortData['pickup'] ?? null;
+                                                            $entryDropoff = $entryPortData['entrydropoff'] ?? $entryPortData['entry_dropoff'] ?? $entryPortData['dropoff'] ?? null;
+                                                            $remark = $entryPortData['remark'] ?? $entryPortData['remarks'] ?? $entryPortData['specialRequests'] ?? null;
+                                                            $transferType = 'Shared';
+                                                            if (isset($entryPortData['transfer_options']['type'])) {
+                                                                $transferType = $entryPortData['transfer_options']['type'];
+                                                            }
+                                                            $transferTypeDisplay = ucfirst($transferType) . ' Transfer';
+                                                        @endphp
                                                         
-                                                        <!-- Enhanced Entry Port Details -->
-                                                        <div class="entry-port-details mt-2">
-                                                            @php 
-                                                                // $data is already the entry port item data
-                                                                $entryPortData = $data;
-                                                            @endphp
-                                                            
-                                                            @if($entryPortData && is_array($entryPortData))
-                                                                @php
-                                                                    // Check for different possible field names
-                                                                    $pickupDate = $entryPortData['pickupdate'] ?? $entryPortData['pickup_date'] ?? $entryPortData['bookingDate'] ?? null;
-                                                                    $totalPrice = $entryPortData['totalPrice'] ?? $entryPortData['total_price'] ?? $entryPortData['price'] ?? null;
-                                                                    $entryDropoff = $entryPortData['entrydropoff'] ?? $entryPortData['entry_dropoff'] ?? $entryPortData['dropoff'] ?? null;
-                                                                    $entryPickup = $entryPortData['entrypickup'] ?? $entryPortData['entry_pickup'] ?? $entryPortData['pickup'] ?? null;
-                                                                    $entryTime = $entryPortData['entrytime'] ?? $entryPortData['entry_time'] ?? $entryPortData['time'] ?? null;
-                                                                    $vehicleName = $entryPortData['vehicles_name'] ?? $entryPortData['vehicle_name'] ?? null;
-                                                                    $vehicleType = $entryPortData['type'] ?? $entryPortData['vehicle_type'] ?? null;
-                                                                    $adults = $entryPortData['adults'] ?? $entryPortData['adult_count'] ?? null;
-                                                                    $children = $entryPortData['children'] ?? $entryPortData['child_count'] ?? null;
-                                                                    $mode = $entryPortData['Mode'] ?? $entryPortData['mode'] ?? null;
-                                                                @endphp
-                                                                
-                                                                <div class="entry-port-info-grid">
-                                                                    @if(!empty($pickupDate))
-                                                                        <div class="entry-port-info-item">
-                                                                            <small class="text-muted">
-                                                                                <i class="fas fa-calendar-alt me-1"></i>
-                                                                                {{ date('d M Y', strtotime($pickupDate)) }}
-                                                                                @if(!empty($entryTime))
-                                                                                    • {{ $entryTime }}
-                                                                                @endif
-                                                                            </small>
-                                                                        </div>
-                                                                    @endif
-                                                                    
-                                                                    @if(!empty($totalPrice) && $priceHide == 0)
-                                                                        <div class="entry-port-info-item">
-                                                                            <small class="text-success fw-bold">
-                                                                                <i class="fas fa-dollar-sign me-1"></i>
-                                                                                SGD {{ number_format($totalPrice, 2) }}
-                                                                                @if(!empty($mode))
-                                                                                    <span class="price-mode-badge">{{ ucfirst($mode) }}</span>
-                                                                                @endif
-                                                                            </small>
-                                                                        </div>
-                                                                    @endif
-                                                                </div>
-                                                                
-                                                                <!-- Transfer Information -->
-                                                                @if(!empty($entryPickup) || !empty($entryDropoff) || !empty($vehicleName))
-                                                                    <div class="transfer-summary mt-2">
-                                                                        <div class="transfer-header">
-                                                                            <small class="text-primary fw-semibold">
-                                                                                <i class="fas fa-route me-1"></i>
-                                                                                Transfer Details
-                                                                            </small>
-                                                                        </div>
-                                                                        
-                                                                        <div class="transfer-item mt-1">
-                                                                            @if(!empty($entryPickup))
-                                                                                <div class="pickup-info">
-                                                                                    <small class="text-dark">
-                                                                                        <i class="fas fa-map-marker-alt me-1 text-success"></i>
-                                                                                        <strong>From:</strong> {{ $entryPickup }}
-                                                                                    </small>
-                                                                                </div>
-                                                                            @endif
-                                                                            
-                                                                            @if(!empty($entryDropoff))
-                                                                                <div class="dropoff-info mt-1">
-                                                                                    <small class="text-dark">
-                                                                                        <i class="fas fa-map-marker-alt me-1 text-danger"></i>
-                                                                                        <strong>To:</strong> {{ $entryDropoff }}
-                                                                                    </small>
-                                                                                </div>
-                                                                            @endif
-                                                                            
-                                                                            <!-- Vehicle Information -->
-                                                                            @if(!empty($vehicleName) || !empty($vehicleType))
-                                                                                <div class="vehicle-info mt-1">
-                                                                                    <small class="text-muted">
-                                                                                        <i class="fas fa-car me-1"></i>
-                                                                                        @if(!empty($vehicleName))
-                                                                                            {{ $vehicleName }}
-                                                                                        @endif
-                                                                                        @if(!empty($vehicleType))
-                                                                                            @if(!empty($vehicleName)) • @endif
-                                                                                            {{ ucfirst($vehicleType) }}
-                                                                                        @endif
-                                                                                        @if(!empty($adults) || !empty($children))
-                                                                                            • 
-                                                                                            @if(!empty($adults))
-                                                                                                {{ $adults }} Adult{{ $adults > 1 ? 's' : '' }}
-                                                                                            @endif
-                                                                                            @if(!empty($children))
-                                                                                                @if(!empty($adults)) + @endif
-                                                                                                {{ $children }} Child{{ $children > 1 ? 'ren' : '' }}
-                                                                                            @endif
-                                                                                        @endif
-                                                                                    </small>
-                                                                                </div>
-                                                                            @endif
-                                                                        </div>
-                                                                    </div>
+                                                        <p class="service-description">
+                                                            <span class="service-detail-label">Service:</span> {{ $serviceName }} ({{ $transferTypeDisplay }})
+                                                        </p>
+                                                        
+                                                        @if(!empty($entryPickup) || !empty($entryDropoff))
+                                                            <p class="service-detail-line">
+                                                                @if(!empty($entryPickup))
+                                                                    <span class="service-detail-label">From:</span> {{ $entryPickup }}
                                                                 @endif
-                                                            @endif
-                                                        </div>
+                                                                @if(!empty($entryPickup) && !empty($entryDropoff))
+                                                                    <span class="mx-1">•</span>
+                                                                @endif
+                                                                @if(!empty($entryDropoff))
+                                                                    <span class="service-detail-label">To:</span> {{ $entryDropoff }}
+                                                                @endif
+                                                            </p>
+                                                        @endif
+                                                        
+                                                        @if(!empty($remark))
+                                                            <div class="service-remark">
+                                                                <span class="service-detail-label">Remark:</span> {{ $remark }}
+                                                            </div>
+                                                        @endif
                                                     @elseif(strpos(strtolower($serviceType), 'exit') !== false || strtolower($serviceType) == 'departure')
-                                                        <p class="service-description">Airport departure transfer service</p>
+                                                        @php 
+                                                            $exitPortData = $data;
+                                                            $entryPickup = $exitPortData['exitpickup'] ?? $exitPortData['entry_pickup'] ?? $exitPortData['pickup'] ?? null;
+                                                            $entryDropoff = $exitPortData['exitdropoff'] ?? $exitPortData['entry_dropoff'] ?? $exitPortData['dropoff'] ?? null;
+                                                            $remark = $exitPortData['remark'] ?? $exitPortData['remarks'] ?? $exitPortData['specialRequests'] ?? null;
+                                                            $transferType = $exitPortData['type'] ?? null;
+                                                            $vehicle = $exitPortData['vehicles_name'] ?? null;
+
+                                                            $transferTypeDisplay = ucfirst($transferType) . ' Transfer';
+                                                        @endphp
                                                         
-                                                        <!-- Enhanced Exit Port Details -->
-                                                        <div class="exit-port-details mt-2">
-                                                            @php 
-                                                                // $data is already the exit port item data
-                                                                $exitPortData = $data;
-                                                            @endphp
-                                                            
-                                                            @if($exitPortData && is_array($exitPortData))
-                                                                @php
-                                                                    // Check for different possible field names
-                                                                    $pickupDate = $exitPortData['pickupdate'] ?? $exitPortData['pickup_date'] ?? $exitPortData['bookingDate'] ?? null;
-                                                                    $totalPrice = $exitPortData['totalPrice'] ?? $exitPortData['total_price'] ?? $exitPortData['price'] ?? null;
-                                                                    $entryDropoff = $exitPortData['entrydropoff'] ?? $exitPortData['entry_dropoff'] ?? $exitPortData['dropoff'] ?? null;
-                                                                    $entryPickup = $exitPortData['entrypickup'] ?? $exitPortData['entry_pickup'] ?? $exitPortData['pickup'] ?? null;
-                                                                    $entryTime = $exitPortData['entrytime'] ?? $exitPortData['entry_time'] ?? $exitPortData['time'] ?? null;
-                                                                    $vehicleName = $exitPortData['vehicles_name'] ?? $exitPortData['vehicle_name'] ?? null;
-                                                                    $vehicleType = $exitPortData['type'] ?? $exitPortData['vehicle_type'] ?? null;
-                                                                    $adults = $exitPortData['adults'] ?? $exitPortData['adult_count'] ?? null;
-                                                                    $children = $exitPortData['children'] ?? $exitPortData['child_count'] ?? null;
-                                                                    $mode = $exitPortData['Mode'] ?? $exitPortData['mode'] ?? null;
-                                                                @endphp
-                                                                
-                                                                <div class="exit-port-info-grid">
-                                                                    @if(!empty($pickupDate))
-                                                                        <div class="exit-port-info-item">
-                                                                            <small class="text-muted">
-                                                                                <i class="fas fa-calendar-alt me-1"></i>
-                                                                                {{ date('d M Y', strtotime($pickupDate)) }}
-                                                                                @if(!empty($entryTime))
-                                                                                    • {{ $entryTime }}
-                                                                                @endif
-                                                                            </small>
-                                                                        </div>
-                                                                    @endif
-                                                                    
-                                                                    @if(!empty($totalPrice) && $priceHide == 0)
-                                                                        <div class="exit-port-info-item">
-                                                                            <small class="text-success fw-bold">
-                                                                                <i class="fas fa-dollar-sign me-1"></i>
-                                                                                SGD {{ number_format($totalPrice, 2) }}
-                                                                                @if(!empty($mode))
-                                                                                    <span class="price-mode-badge">{{ ucfirst($mode) }}</span>
-                                                                                @endif
-                                                                            </small>
-                                                                        </div>
-                                                                    @endif
-                                                                </div>
-                                                                
-                                                                <!-- Departure Transfer Information -->
-                                                                @if(!empty($entryPickup) || !empty($entryDropoff) || !empty($vehicleName))
-                                                                    <div class="departure-summary mt-2">
-                                                                        <div class="departure-header">
-                                                                            <small class="text-primary fw-semibold">
-                                                                                <i class="fas fa-plane-departure me-1"></i>
-                                                                                Departure Details
-                                                                            </small>
-                                                                        </div>
-                                                                        
-                                                                        <div class="departure-item mt-1">
-                                                                            @if(!empty($entryPickup))
-                                                                                <div class="departure-pickup-info">
-                                                                                    <small class="text-dark">
-                                                                                        <i class="fas fa-map-marker-alt me-1 text-success"></i>
-                                                                                        <strong>From:</strong> {{ $entryPickup }}
-                                                                                    </small>
-                                                                                </div>
-                                                                            @endif
-                                                                            
-                                                                            @if(!empty($entryDropoff))
-                                                                                <div class="departure-dropoff-info mt-1">
-                                                                                    <small class="text-dark">
-                                                                                        <i class="fas fa-plane me-1 text-primary"></i>
-                                                                                        <strong>To:</strong> {{ $entryDropoff }}
-                                                                                    </small>
-                                                                                </div>
-                                                                            @endif
-                                                                            
-                                                                            <!-- Vehicle Information -->
-                                                                            @if(!empty($vehicleName) || !empty($vehicleType))
-                                                                                <div class="departure-vehicle-info mt-1">
-                                                                                    <small class="text-muted">
-                                                                                        <i class="fas fa-car me-1"></i>
-                                                                                        @if(!empty($vehicleName))
-                                                                                            {{ $vehicleName }}
-                                                                                        @endif
-                                                                                        @if(!empty($vehicleType))
-                                                                                            @if(!empty($vehicleName)) • @endif
-                                                                                            {{ ucfirst($vehicleType) }}
-                                                                                        @endif
-                                                                                        @if(!empty($adults) || !empty($children))
-                                                                                            • 
-                                                                                            @if(!empty($adults))
-                                                                                                {{ $adults }} Adult{{ $adults > 1 ? 's' : '' }}
-                                                                                            @endif
-                                                                                            @if(!empty($children))
-                                                                                                @if(!empty($adults)) + @endif
-                                                                                                {{ $children }} Child{{ $children > 1 ? 'ren' : '' }}
-                                                                                            @endif
-                                                                                        @endif
-                                                                                    </small>
-                                                                                </div>
-                                                                            @endif
-                                                                        </div>
-                                                                    </div>
+                                                        <p class="service-description">
+                                                            <span class="service-detail-label">Service:</span> {{ $serviceName }} ({{ $transferTypeDisplay }})
+                                                        </p>
+                                                        
+                                                        @if(!empty($entryPickup) || !empty($entryDropoff))
+                                                            <p class="service-detail-line">
+                                                                @if(!empty($entryPickup))
+                                                                    <span class="service-detail-label">From:</span> {{ $entryPickup }}
                                                                 @endif
-                                                            @endif
-                                                        </div>
-                                                    @elseif(strtolower($serviceType) == 'attraction')
-                                                        <p class="service-description">Sightseeing and attraction visit</p>
+                                                                @if(!empty($entryPickup) && !empty($entryDropoff))
+                                                                    <span class="mx-1"></span>
+                                                                @endif
+                                                                @if(!empty($entryDropoff))
+                                                                    <span class="service-detail-label">To:</span> {{ $entryDropoff }}
+                                                                @endif
+                                                                @if(!empty($vehicle))
+                                                                    <span class="mx-1">•</span>
+                                                                    <span class="service-detail-label">Vehicle:</span> {{ $vehicle }}
+                                                                @endif
+                                                                @if(!empty($transferType))
+                                                                    <span class="mx-1">•</span>
+                                                                    <span class="service-detail-label">Travel Type:</span> {{ $transferType }}
+                                                                @endif
+                                                            </p>
+                                                        @endif
                                                         
-                                                        <!-- Enhanced Attraction Details -->
-                                                        <div class="attraction-details mt-2">
+                                                        @if(!empty($remark))
+                                                            <div class="service-remark">
+                                                                <span class="service-detail-label">Remark:</span> {{ $remark }}
+                                                            </div>
+                                                        @endif
+                                                    @elseif(strtolower($serviceType) == 'attraction')
+                                                        @php
+                                                            // Check if attraction has transfer
+                                                            $hasTransfer = isset($data['transfer_options']) && 
+                                                                          isset($data['transfer_options']['transfer_required']) && 
+                                                                          $data['transfer_options']['transfer_required'] === true;
+                                                            
+                                                            if ($hasTransfer) {
+                                                                $transferOptions = $data['transfer_options'];
+                                                                $pickupLocation = $transferOptions['pickup_location_name'] ?? '';
+                                                                $transferType = $transferOptions['type'] ?? 'Shared';
+                                                                $transferTypeDisplay = ucfirst($transferType) . ' Transfer';
+                                                                $remark = $data['specialRequests'] ?? null;
+                                                            }
+                                                        @endphp
+                                                        
+                                                        @if($hasTransfer)
+                                                            <p class="service-description">
+                                                                <span class="service-detail-label">Service:</span> {{ $serviceName }} ({{ $transferTypeDisplay }})
+                                                            </p>
+                                                            
+                                                            <p class="service-detail-line">
+                                                                @if(!empty($pickupLocation))
+                                                                    <span class="service-detail-label">From:</span> {{ $pickupLocation }}
+                                                                    <span class="mx-1">•</span>
+                                                                @endif
+                                                                <span class="service-detail-label">To:</span> {{ $serviceName }}
+                                                            </p>
+                                                            
+                                                            @if(!empty($remark))
+                                                                <div class="service-remark">
+                                                                    <span class="service-detail-label">Remark:</span> {{ $remark }}
+                                                                </div>
+                                                            @endif
+                                                        @else
+                                                            <p class="service-description">Sightseeing and attraction visit</p>
+                                                            
+                                                            <!-- Enhanced Attraction Details -->
+                                                            <div class="attraction-details mt-2">
                                                             @php 
                                                                 // $data is already the attraction item data (not an array of items)
                                                                 $attractionData = $data;
@@ -3692,12 +3546,47 @@
                                                                     </div>
                                                                 @endif
                                                             @endif
-                                                        </div>
+                                                            </div>
+                                                        @endif
                                                     @elseif(strtolower($serviceType) == 'restaurant')
-                                                        <p class="service-description">Dining experience</p>
+                                                        @php
+                                                            // Check if restaurant has transfer
+                                                            $hasTransfer = isset($data['transfer_options']) && 
+                                                                          isset($data['transfer_options']['transfer_required']) && 
+                                                                          $data['transfer_options']['transfer_required'] === true;
+                                                            
+                                                            if ($hasTransfer) {
+                                                                $transferOptions = $data['transfer_options'];
+                                                                $pickupLocation = $transferOptions['pickup_location_name'] ?? '';
+                                                                $transferType = $transferOptions['type'] ?? 'Shared';
+                                                                $transferTypeDisplay = ucfirst($transferType) . ' Transfer';
+                                                                $remark = $data['specialRequests'] ?? null;
+                                                            }
+                                                        @endphp
                                                         
-                                                        <!-- Enhanced Restaurant Details -->
-                                                        <div class="restaurant-details mt-2">
+                                                        @if($hasTransfer)
+                                                            <p class="service-description">
+                                                                <span class="service-detail-label">Service:</span> {{ $serviceName }} ({{ $transferTypeDisplay }})
+                                                            </p>
+                                                            
+                                                            <p class="service-detail-line">
+                                                                @if(!empty($pickupLocation))
+                                                                    <span class="service-detail-label">From:</span> {{ $pickupLocation }}
+                                                                    <span class="mx-1">•</span>
+                                                                @endif
+                                                                <span class="service-detail-label">To:</span> {{ $serviceName }}
+                                                            </p>
+                                                            
+                                                            @if(!empty($remark))
+                                                                <div class="service-remark">
+                                                                    <span class="service-detail-label">Remark:</span> {{ $remark }}
+                                                                </div>
+                                                            @endif
+                                                        @else
+                                                            <p class="service-description">Dining experience</p>
+                                                            
+                                                            <!-- Enhanced Restaurant Details -->
+                                                            <div class="restaurant-details mt-2">
                                                             @php 
                                                                 // $data is already the restaurant item data
                                                                 $restaurantData = $data;
@@ -3843,17 +3732,15 @@
                                                                     </div>
                                                                 @endif
                                                             @endif
-                                                        </div>
+                                                            </div>
+                                                        @endif
                                                     @endif
                                                 </div>
                                                 
-                                                <div class="service-details-row">
-                                                    <div class="service-pax-badge">{{ $pax }}</div>
-                                                </div>
                                             </div>
                                             
-                                            <!-- Right Side Details -->
-                                            <div class="service-right-details">
+                                            <!-- Right Side Details - Hidden to match screenshot design -->
+                                            <div class="service-right-details" style="display: none;">
                                                 @php
                                                     // Extract right-side details based on service type
                                                     $rightImage = '';
@@ -3940,6 +3827,16 @@
             });
         });
         
+        // Download Text Itinerary functionality
+        document.getElementById('downloadText').addEventListener('click', function() {
+            downloadAsText();
+        });
+        
+        // Download PDF functionality
+        document.getElementById('downloadPdf').addEventListener('click', function() {
+            downloadAsPDF();
+        });
+        
         // Print functionality
         document.getElementById('printItinerary').addEventListener('click', function() {
             preparePrint();
@@ -3954,6 +3851,533 @@
                 window.print();
             }, 300);
         });
+        
+        function downloadAsPDF() {
+            // Check if libraries are loaded
+            if (typeof html2pdf === 'undefined' || typeof html2canvas === 'undefined') {
+                showErrorMessage('PDF library not loaded. Please refresh the page and try again.');
+                return;
+            }
+            
+            // Show loading message
+            const loadingMsg = showMessage('Generating PDF...', 'info');
+            
+            // Get the itinerary container (this already excludes sidebar, navigation, etc.)
+            const itineraryContainer = document.querySelector('.itinerary-container');
+            
+            if (!itineraryContainer) {
+                loadingMsg.remove();
+                showErrorMessage('Itinerary content not found');
+                return;
+            }
+            
+            // Check if container has content
+            const hasContent = itineraryContainer.querySelector('.timeline-container, .itinerary-header, .date-container');
+            if (!hasContent) {
+                loadingMsg.remove();
+                showErrorMessage('Itinerary content is empty');
+                return;
+            }
+            
+            // Scroll to top to ensure content is visible
+            window.scrollTo({ top: 0, behavior: 'instant' });
+            
+            // Store original display states of buttons to restore later
+            const buttonsToHide = itineraryContainer.querySelectorAll(
+                '.header-actions, .print-btn, #printItineraryMobile, button[id*="print"], button[id*="download"]'
+            );
+            const originalDisplayStates = [];
+            buttonsToHide.forEach(btn => {
+                originalDisplayStates.push({
+                    element: btn,
+                    display: btn.style.display
+                });
+                btn.style.display = 'none';
+            });
+            
+            // Wait for scroll and rendering
+            setTimeout(function() {
+                // Scroll element into view
+                itineraryContainer.scrollIntoView({ behavior: 'instant', block: 'start' });
+                
+                // Wait a bit more for rendering
+                setTimeout(function() {
+                    // Use html2canvas to capture the content
+                    html2canvas(itineraryContainer, {
+                        scale: 2,
+                        useCORS: true,
+                        logging: false,
+                        backgroundColor: '#ffffff',
+                        windowWidth: itineraryContainer.scrollWidth || 1400,
+                        windowHeight: itineraryContainer.scrollHeight || window.innerHeight,
+                        allowTaint: true,
+                        letterRendering: true,
+                        scrollX: 0,
+                        scrollY: -window.scrollY,
+                        onclone: function(clonedDoc) {
+                            // Ensure all styles are visible in the clone
+                            const clonedContainer = clonedDoc.querySelector('.itinerary-container');
+                            if (clonedContainer) {
+                                clonedContainer.style.visibility = 'visible';
+                                clonedContainer.style.opacity = '1';
+                                clonedContainer.style.display = 'block';
+                            }
+                        }
+                    }).then(function(canvas) {
+                        // Check if canvas has content (not all white)
+                        const ctx = canvas.getContext('2d');
+                        const imageData = ctx.getImageData(0, 0, Math.min(canvas.width, 100), Math.min(canvas.height, 100));
+                        let hasContent = false;
+                        for (let i = 0; i < imageData.data.length; i += 4) {
+                            // Check if pixel is not white (255, 255, 255)
+                            if (imageData.data[i] < 250 || imageData.data[i + 1] < 250 || imageData.data[i + 2] < 250) {
+                                hasContent = true;
+                                break;
+                            }
+                        }
+                        
+                        if (!hasContent) {
+                            loadingMsg.remove();
+                            showErrorMessage('Content not captured. Please ensure the itinerary is visible on screen.');
+                            // Restore buttons
+                            originalDisplayStates.forEach(item => {
+                                item.element.style.display = item.display;
+                            });
+                            return;
+                        }
+                        
+                        // Convert canvas to image
+                        const imgData = canvas.toDataURL('image/jpeg', 0.98);
+                        
+                        // Calculate PDF dimensions
+                        const imgWidth = 210; // A4 width in mm
+                        const imgHeight = (canvas.height * imgWidth) / canvas.width;
+                        
+                        // Create PDF using jsPDF
+                        const { jsPDF } = window.jspdf;
+                        const pdf = new jsPDF('p', 'mm', 'a4');
+                        
+                        // Add image to PDF
+                        const pageHeight = pdf.internal.pageSize.height;
+                        let heightLeft = imgHeight;
+                        let position = 10; // Start position
+                        
+                        pdf.addImage(imgData, 'JPEG', 10, position, imgWidth, imgHeight);
+                        heightLeft -= pageHeight - 20;
+                        
+                        // Add additional pages if needed
+                        while (heightLeft > 0) {
+                            position = heightLeft - imgHeight + 10;
+                            pdf.addPage();
+                            pdf.addImage(imgData, 'JPEG', 10, position, imgWidth, imgHeight);
+                            heightLeft -= pageHeight - 20;
+                        }
+                        
+                        // Save PDF
+                        pdf.save('Tour_Itinerary_{{ $tourId }}.pdf');
+                        
+                        // Restore button visibility
+                        originalDisplayStates.forEach(item => {
+                            item.element.style.display = item.display;
+                        });
+                        loadingMsg.remove();
+                        showSuccessMessage('PDF downloaded successfully!');
+                    }).catch(function(error) {
+                        console.error('Canvas generation error:', error);
+                        // Restore button visibility
+                        originalDisplayStates.forEach(item => {
+                            item.element.style.display = item.display;
+                        });
+                        loadingMsg.remove();
+                        showErrorMessage('Failed to capture content: ' + (error.message || 'Unknown error. Please check console.'));
+                    });
+                }, 300);
+            }, 200);
+        }
+        
+        function downloadAsText() {
+            /**
+             * DATA STRUCTURE FOR ALL SERVICE TYPES:
+             * 
+             * Data is fetched from $itineraryByDate which is organized by date (Y-m-d format)
+             * Each date contains an array of bookings, where each booking has:
+             * - booking->type: 'hotel', 'restaurant', 'attraction', 'guide', 'travel_point', 'travel_hourly', 'entry_port', 'exit_port'
+             * - booking->data_decoded: Array of booking items (usually [0] contains the main data)
+             * 
+             * HOTEL SERVICE:
+             * - data['hotelDetails']['hotel_name'] or data['hotelname'] or data['name']
+             * - data['bookingDate']: [checkIn, checkOut] (array) or single date
+             * - data['hotelDetails']['location']
+             * - data['hotelDetails']['checkInTime'], data['hotelDetails']['checkOutTime']
+             * - data['rooms']: Array of rooms with room_type, beds array
+             * - data['total_nights'] or data['nights']
+             * - data['confirmationNo'] or data['confirmation_no'] or data['confirmation_number']
+             * - data['stay_type']: 'checkin', 'stay', 'checkout'
+             * 
+             * RESTAURANT SERVICE:
+             * - data['restaurantName'] or data['name']
+             * - data['bookingDate'] or data['date']
+             * - data['visitTime']
+             * - data['mealType'], data['mealSpecificType']
+             * - data['adultCount'], data['childCount']
+             * - data['totalPrice']
+             * - data['transfer_options']['transfer_required']: boolean
+             * - data['transfer_options']['pickup_location_name']
+             * - data['transfer_options']['type']: 'Shared' or 'Private'
+             * 
+             * ATTRACTION SERVICE:
+             * - data['AttractionName'] or data['name']
+             * - data['bookingDate'] or data['date']
+             * - data['visitTime']
+             * - data['ticketName'], data['ticketId']
+             * - data['adultCount'], data['childCount'], data['seniorCount']
+             * - data['totalPrice']
+             * - data['transfer_options']['transfer_required']: boolean
+             * - data['transfer_options']['pickup_location_name']
+             * - data['transfer_options']['type']: 'Shared' or 'Private'
+             * 
+             * GUIDE SERVICE:
+             * - data['guide_name'] or data['guideName']
+             * - data['bookingDate'] or data['pickupdate']
+             * - data['entrytime']
+             * - data['hours']
+             * - data['experience']
+             * - data['languages']: Array of {language, proficiency}
+             * 
+             * LOCAL TRANSPORT (travel_point, travel_hourly):
+             * - data['pickupdate']
+             * - data['entrypickup'] or data['pickup']
+             * - data['entrydropoff'] or data['dropoff'] or data['dropoffLocation']
+             * - data['type']: 'Shared' or 'Private'
+             * - data['vehicle'] or data['vehicles_name']
+             * - data['travel_type']: 'travel_point' or 'travel_hourly'
+             * - data['selectedHours']: For hourly transport
+             * - data['remark'] or data['remarks'] or data['specialRequests']
+             * 
+             * ENTRY PORT (Arrival):
+             * - data['entrypickup'] or data['entry_pickup'] or data['pickup']
+             * - data['entrydropoff'] or data['entry_dropoff'] or data['dropoff']
+             * - data['pickupdate']
+             * - data['transfer_options']['type']: 'Shared' or 'Private'
+             * - data['remark'] or data['remarks'] or data['specialRequests']
+             * 
+             * EXIT PORT (Departure):
+             * - data['exitpickup'] or data['entry_pickup'] or data['pickup']
+             * - data['exitdropoff'] or data['entry_dropoff'] or data['dropoff']
+             * - data['exitpickupdate']
+             * - data['type']: 'Shared' or 'Private'
+             * - data['vehicles_name']
+             * - data['remark'] or data['remarks'] or data['specialRequests']
+             */
+            
+            // Check if jsPDF is loaded
+            if (typeof window.jspdf === 'undefined') {
+                showErrorMessage('PDF library not loaded. Please refresh the page and try again.');
+                return;
+            }
+            
+            // Show loading message
+            const loadingMsg = showMessage('Generating text itinerary...', 'info');
+            
+            try {
+                const { jsPDF } = window.jspdf;
+                const pdf = new jsPDF('p', 'mm', 'a4');
+                
+                // Get data from PHP variables (passed to JavaScript)
+                const tourId = @json($tourId ?? '');
+                const displayId = @json($tourDetails->display_id ?? '');
+                const destination = @json($tourDetails->destination ?? '');
+                const checkInTime = @json($tourDetails->check_in_time ?? null);
+                const checkOutTime = @json($tourDetails->check_out_time ?? null);
+                // Check for PNR number - could be in tourDetails or use tourId
+                const pnrNumber = @json($tourDetails->pnr ?? $tourDetails->pnr_number ?? $tourId ?? '');
+                
+                // Extract customer info from bookings (same logic as blade template)
+                @php
+                    $customerInfo = [];
+                    if (isset($itineraryByDate) && count($itineraryByDate) > 0) {
+                        foreach ($itineraryByDate as $date => $bookings) {
+                            foreach ($bookings as $booking) {
+                                $data = null;
+                                if (isset($booking->data_decoded) && is_array($booking->data_decoded) && !empty($booking->data_decoded)) {
+                                    $data = $booking->data_decoded[0] ?? null;
+                                } elseif (isset($booking->data) && is_string($booking->data)) {
+                                    try {
+                                        $data = json_decode($booking->data, true);
+                                        if (is_array($data) && isset($data[0])) {
+                                            $data = $data[0];
+                                        }
+                                    } catch (\Exception $e) {
+                                        $data = $booking->data;
+                                    }
+                                } elseif (isset($booking->data) && is_array($booking->data)) {
+                                    $data = isset($booking->data[0]) ? $booking->data[0] : $booking->data;
+                                }
+                                
+                                if ($data && is_array($data)) {
+                                    // Extract customer info from booking data
+                                    if (isset($data['fullName']) && !empty($data['fullName'])) {
+                                        $customerInfo = [
+                                            'fullName' => $data['fullName'] ?? '',
+                                            'email' => $data['email'] ?? '',
+                                            'phone' => $data['phone'] ?? '',
+                                        ];
+                                        break 2; // Found customer info, exit both loops
+                                    }
+                                }
+                            }
+                        }
+                    }
+                @endphp
+                const customerInfo = @json($customerInfo ?? []);
+                
+                // Format dates - match screenshot format: "23 Dec 2025" (no leading zero on day)
+                let travelDate = '';
+                const formatDate = (date) => {
+                    const day = date.getDate(); // No padding - remove leading zero
+                    const month = date.toLocaleString('en-US', { month: 'short' });
+                    const year = date.getFullYear();
+                    return `${day} ${month} ${year}`;
+                };
+                
+                if (checkInTime && checkOutTime) {
+                    const startDate = new Date(checkInTime);
+                    const endDate = new Date(checkOutTime);
+                    travelDate = `${formatDate(startDate)} - ${formatDate(endDate)}`;
+                }
+                
+                // Company Information
+                const companyName = 'TravelBullz (HK) Limited';
+                const companyAddress = '701, 7th Floor, Wing Kwok Centre, 182, Woosung Street, Jordon, Kowloon, Hong Kong';
+                const companyTel = '+852-23752321';
+                const companyFax = '85223752369';
+                const companyEmail = 'online@travelbullz.com';
+                
+                // Starting position
+                let yPos = 20;
+                const leftMargin = 20;
+                const rightMargin = 190;
+                const lineHeight = 7;
+                
+                // Company Header
+                pdf.setFontSize(14);
+                pdf.setFont('helvetica', 'bold');
+                pdf.text(companyName, leftMargin, yPos);
+                yPos += lineHeight;
+                
+                pdf.setFontSize(10);
+                pdf.setFont('helvetica', 'normal');
+                pdf.text(companyAddress, leftMargin, yPos);
+                yPos += lineHeight;
+                pdf.text(`Tel: ${companyTel}`, leftMargin, yPos);
+                yPos += lineHeight;
+                pdf.text(`Fax: ${companyFax}`, leftMargin, yPos);
+                yPos += lineHeight;
+                pdf.text(`Email: ${companyEmail}`, leftMargin, yPos);
+                yPos += lineHeight + 5;
+                
+                // Draw line
+                pdf.setDrawColor(0, 150, 136); // Teal color
+                pdf.setLineWidth(0.5);
+                pdf.line(leftMargin, yPos, rightMargin, yPos);
+                yPos += lineHeight;
+                
+                // YOUR TRAVEL ITINERARY
+                pdf.setFontSize(12);
+                pdf.setFont('helvetica', 'bold');
+                pdf.text('YOUR TRAVEL ITINERARY', leftMargin, yPos);
+                yPos += lineHeight;
+                
+                // Draw double underline
+                pdf.setLineWidth(0.3);
+                pdf.line(leftMargin, yPos, rightMargin, yPos);
+                yPos += 2;
+                pdf.line(leftMargin, yPos, rightMargin, yPos);
+                yPos += lineHeight + 2;
+                
+                // PNR Number
+                pdf.setFontSize(10);
+                pdf.setFont('helvetica', 'normal');
+                const pnrDisplay = pnrNumber || tourId || 'N/A';
+                pdf.text(`PNR Number: ${pnrDisplay}`, leftMargin, yPos);
+                yPos += lineHeight;
+                
+                // Reference Number - always show if available
+                if (displayId && displayId !== '') {
+                    pdf.text(`Reference Number: ${displayId}`, leftMargin, yPos);
+                    yPos += lineHeight;
+                }
+                
+                // Leading Guest Name
+                if (customerInfo && customerInfo.fullName) {
+                    const guestName = customerInfo.fullName;
+                    const adultCount = @json($tourDetails->adult ?? 1);
+                    const childCount = @json($tourDetails->child ?? 0);
+                    const infantCount = @json($tourDetails->infant ?? 0);
+                    const totalPax = adultCount + childCount + infantCount;
+                    pdf.text(`Leading Guest Name: ${guestName} (${totalPax} ${totalPax > 1 ? 'Adult(s)' : 'Adult(s)'})`, leftMargin, yPos);
+                    yPos += lineHeight;
+                }
+                
+                // Travel Date
+                if (travelDate) {
+                    pdf.text(`Travel Date: ${travelDate}`, leftMargin, yPos);
+                    yPos += lineHeight + 5;
+                }
+                
+                // TRIP DETAIL
+                pdf.setFontSize(12);
+                pdf.setFont('helvetica', 'bold');
+                pdf.text('TRIP DETAIL', leftMargin, yPos);
+                yPos += lineHeight;
+                
+                // Draw double underline
+                pdf.setLineWidth(0.3);
+                pdf.line(leftMargin, yPos, rightMargin, yPos);
+                yPos += 2;
+                pdf.line(leftMargin, yPos, rightMargin, yPos);
+                yPos += lineHeight + 2;
+                
+                // Date - use same formatDate function
+                pdf.setFontSize(10);
+                pdf.setFont('helvetica', 'normal');
+                if (checkInTime) {
+                    const date = new Date(checkInTime);
+                    pdf.text(`Date: ${formatDate(date)}`, leftMargin, yPos);
+                    yPos += lineHeight;
+                }
+                
+                // Destination
+                if (destination) {
+                    pdf.text(`Destination: ${destination}`, leftMargin, yPos);
+                    yPos += lineHeight + 3;
+                }
+                
+                // Accommodation section
+                pdf.setFont('helvetica', 'bold');
+                pdf.text('Accommodation:', leftMargin, yPos);
+                yPos += lineHeight;
+                
+                // Get hotel information from itinerary
+                @php
+                    $hotelInfo = null;
+                    if (isset($itineraryByDate) && count($itineraryByDate) > 0) {
+                        foreach ($itineraryByDate as $date => $bookings) {
+                            foreach ($bookings as $booking) {
+                                if (strtolower($booking->type ?? '') == 'hotel') {
+                                    $data = null;
+                                    if (isset($booking->data_decoded) && is_array($booking->data_decoded) && !empty($booking->data_decoded)) {
+                                        $data = $booking->data_decoded[0] ?? null;
+                                    } elseif (isset($booking->data) && is_string($booking->data)) {
+                                        try {
+                                            $data = json_decode($booking->data, true);
+                                        } catch (\Exception $e) {
+                                            $data = $booking->data;
+                                        }
+                                    } elseif (isset($booking->data) && is_array($booking->data)) {
+                                        $data = $booking->data;
+                                    }
+                                    
+                                    // Check for checkin or first hotel booking found
+                                    if ($data && (!isset($data['stay_type']) || strtolower($data['stay_type']) == 'checkin' || $hotelInfo === null)) {
+                                        $hotelName = $data['hotelDetails']['hotel_name'] ?? $data['hotelname'] ?? $data['name'] ?? null;
+                                        if ($hotelName) {
+                                            $hotelInfo = [
+                                                'name' => $hotelName,
+                                                'checkIn' => $data['bookingDate'][0] ?? (isset($data['bookingDate']) && is_array($data['bookingDate']) ? $data['bookingDate'][0] : ($data['bookingDate'] ?? $checkInTime ?? null)),
+                                                'checkOut' => $data['bookingDate'][1] ?? (isset($data['bookingDate']) && is_array($data['bookingDate']) ? $data['bookingDate'][1] : ($checkOutTime ?? null)),
+                                                'roomType' => isset($data['rooms'][0]['room_type']) ? $data['rooms'][0]['room_type'] : (isset($data['room_type']) ? $data['room_type'] : 'Standard'),
+                                                'roomCount' => isset($data['rooms']) && is_array($data['rooms']) ? count($data['rooms']) : (isset($data['room_count']) ? $data['room_count'] : 1),
+                                                'nights' => $data['total_nights'] ?? (isset($data['nights']) ? $data['nights'] : 1),
+                                                'confirmationNo' => $data['confirmationNo'] ?? $data['confirmation_no'] ?? $data['confirmation_number'] ?? null
+                                            ];
+                                            // If this is a checkin, break; otherwise continue to find checkin
+                                            if (isset($data['stay_type']) && strtolower($data['stay_type']) == 'checkin') {
+                                                break 2;
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
+                @endphp
+                
+                const hotelInfo = @json($hotelInfo ?? null);
+                
+                if (hotelInfo && hotelInfo.name) {
+                    pdf.setFont('helvetica', 'normal');
+                    
+                    // Hotel name
+                    pdf.text(`Hotel: ${hotelInfo.name}`, leftMargin, yPos);
+                    yPos += lineHeight;
+                    
+                    // Check-in/Check-out
+                    if (hotelInfo.checkIn && hotelInfo.checkOut) {
+                        const checkIn = new Date(hotelInfo.checkIn);
+                        const checkOut = new Date(hotelInfo.checkOut);
+                        pdf.text(`Check in ${formatDate(checkIn)} - ${formatDate(checkOut)}`, leftMargin, yPos);
+                        yPos += lineHeight;
+                    }
+                    
+                    // Room Type & Quantity
+                    const roomType = hotelInfo.roomType || 'Standard';
+                    const roomCount = hotelInfo.roomCount || 1;
+                    const roomTypeDisplay = roomType.includes('/') ? roomType.split('/')[0].trim() : roomType;
+                    const bedType = roomType.includes('/') ? roomType.split('/')[1]?.trim() : (roomCount > 1 ? 'Double' : 'Single');
+                    pdf.text(`Room Type & Quantity: ${roomTypeDisplay} / ${bedType} x ${roomCount} Room(s)`, leftMargin, yPos);
+                    yPos += lineHeight;
+                    
+                    // Nights
+                    const nights = hotelInfo.nights || 1;
+                    pdf.text(`Nights: ${nights} ${nights > 1 ? 'Night(s)' : 'Night(s)'}`, leftMargin, yPos);
+                    yPos += lineHeight;
+                    
+                    // Confirmation No
+                    if (hotelInfo.confirmationNo) {
+                        pdf.text(`Confirmation No: ${hotelInfo.confirmationNo}`, leftMargin, yPos);
+                        yPos += lineHeight;
+                    }
+                } else {
+                    pdf.setFont('helvetica', 'normal');
+                    pdf.text('No accommodation details available', leftMargin, yPos);
+                    yPos += lineHeight;
+                }
+                
+                yPos += 10;
+                
+                // Draw line
+                pdf.setDrawColor(0, 150, 136); // Teal color
+                pdf.setLineWidth(0.5);
+                pdf.line(leftMargin, yPos, rightMargin, yPos);
+                yPos += lineHeight;
+                
+                // END OF SERVICE
+                pdf.setFontSize(10);
+                pdf.setFont('helvetica', 'normal');
+                pdf.setTextColor(0, 150, 136); // Teal color
+                pdf.text('END OF SERVICE', rightMargin - 40, yPos);
+                yPos += lineHeight;
+                
+                // Reset text color
+                pdf.setTextColor(0, 0, 0);
+                
+                // Remark
+                pdf.text('Remark:', leftMargin, yPos);
+                yPos += lineHeight;
+                pdf.text('-', leftMargin, yPos);
+                
+                // Save PDF
+                pdf.save(`Tour_Itinerary_${tourId || 'text'}.pdf`);
+                
+                loadingMsg.remove();
+                showSuccessMessage('Text itinerary downloaded successfully!');
+            } catch (error) {
+                console.error('Error generating text PDF:', error);
+                loadingMsg.remove();
+                showErrorMessage('Failed to generate text itinerary: ' + (error.message || 'Unknown error'));
+            }
+        }
         
         function preparePrint() {
             // Add any pre-print preparations here
@@ -4222,6 +4646,10 @@
         
         function showMessage(message, type) {
             const messageDiv = document.createElement('div');
+            const bgColor = type === 'success' ? '#28a745' : 
+                           type === 'error' ? '#dc3545' : 
+                           type === 'info' ? '#17a2b8' : '#ffc107';
+            
             messageDiv.style.cssText = `
                 position: fixed;
                 top: 20px;
@@ -4232,16 +4660,20 @@
                 font-weight: 500;
                 z-index: 10000;
                 max-width: 300px;
-                background: ${type === 'success' ? '#28a745' : '#dc3545'};
+                background: ${bgColor};
                 box-shadow: 0 4px 12px rgba(0,0,0,0.15);
             `;
             messageDiv.textContent = message;
             document.body.appendChild(messageDiv);
             
-            // Auto remove after 3 seconds
-            setTimeout(() => {
-                messageDiv.remove();
-            }, 3000);
+            // Auto remove after 3 seconds (unless it's an info message for PDF generation)
+            if (type !== 'info') {
+                setTimeout(() => {
+                    messageDiv.remove();
+                }, 3000);
+            }
+            
+            return messageDiv; // Return the element so it can be removed manually
         }
         
         // Price Hide Auto-Refresh Functionality
