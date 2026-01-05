@@ -172,15 +172,56 @@ class JobSheetController extends Controller
                 $vehicles = Vehicle::where('dmc_id', $dmcId)->get();
                 if(!is_null($dmcId)){
                     $tomorrow = Carbon::tomorrow()->toDateString();
-                    $orders = Order::whereIn('type', ['entry_port', 'travel_hourly', 'travel_point', 'exit_port', 'local_transport'])
+                    
+                    // Get transportation orders
+                    $transportOrders = Order::whereIn('type', ['entry_port', 'travel_hourly', 'travel_point', 'exit_port', 'local_transport'])
                         ->where('data->0->>dmc_id', $dmcId)
                         ->where('data->0->>pickupdate', $tomorrow)
-                        ->get()
-                        ->map(function($order) use ($dmcId, $tomorrow) {
-                            // Add zone information for pickup and dropoff
-                            $orderData = is_string($order->data) ? json_decode($order->data, true) : $order->data;
-                            if (is_array($orderData) && isset($orderData[0])) {
-                                $dataItem = $orderData[0];
+                        ->get();
+                    
+                    // Get attraction orders with transfer
+                    $allAttractionOrders = Order::where('type', 'attraction')
+                        ->where('data->0->>dmc_id', $dmcId)
+                        ->where('data->0->>bookingDate', $tomorrow)
+                        ->get();
+                    
+                    // Filter to only include orders with transfer_required = true
+                    $attractionOrders = $allAttractionOrders->filter(function($order) {
+                        $orderData = is_string($order->data) ? json_decode($order->data, true) : $order->data;
+                        if (is_array($orderData) && isset($orderData[0])) {
+                            return isset($orderData[0]['transfer_options']) && 
+                                   isset($orderData[0]['transfer_options']['transfer_required']) && 
+                                   $orderData[0]['transfer_options']['transfer_required'] === true;
+                        }
+                        return false;
+                    });
+                    
+                    // Get restaurant orders with transfer
+                    $allRestaurantOrders = Order::where('type', 'restaurant')
+                        ->where('data->0->>dmc_id', $dmcId)
+                        ->where('data->0->>bookingDate', $tomorrow)
+                        ->get();
+                    
+                    // Filter to only include orders with transfer_required = true
+                    $restaurantOrders = $allRestaurantOrders->filter(function($order) {
+                        $orderData = is_string($order->data) ? json_decode($order->data, true) : $order->data;
+                        if (is_array($orderData) && isset($orderData[0])) {
+                            return isset($orderData[0]['transfer_options']) && 
+                                   isset($orderData[0]['transfer_options']['transfer_required']) && 
+                                   $orderData[0]['transfer_options']['transfer_required'] === true;
+                        }
+                        return false;
+                    });
+                    
+                    // Combine and process all orders
+                    $orders = $transportOrders->merge($attractionOrders)->merge($restaurantOrders)->map(function($order) use ($dmcId, $tomorrow) {
+                        // Add zone information for pickup and dropoff
+                        $orderData = is_string($order->data) ? json_decode($order->data, true) : $order->data;
+                        if (is_array($orderData) && isset($orderData[0])) {
+                            $dataItem = $orderData[0];
+                            
+                            // Handle transportation orders
+                            if (in_array($order->type, ['entry_port', 'travel_hourly', 'travel_point', 'exit_port', 'local_transport'])) {
                                 $order->pickup_zone = $this->getZoneForLocation($dataItem['entrypickup'] ?? '', $dmcId);
                                 $order->dropoff_zone = $this->getZoneForLocation($dataItem['entrydropoff'] ?? '', $dmcId);
                                 
@@ -199,7 +240,7 @@ class JobSheetController extends Controller
                                 }
                                 
                                 // Check if there's an assignment in the jobsheets table
-                                 $jobsheet = Jobsheet::where('date', $tomorrow)
+                                $jobsheet = Jobsheet::where('date', $tomorrow)
                                     ->where('type', $order->type)
                                     ->where('service_type', $dataItem['type'] ?? null)
                                     ->where('journey_time', $dataItem['entrytime'] ?? null)
@@ -221,11 +262,160 @@ class JobSheetController extends Controller
                                     $order->driver = $driverFromVehicle;
                                 }
                             }
-                            return $order;
-                        });
+                            // Handle attraction orders with transfer
+                            elseif ($order->type === 'attraction' && isset($dataItem['transfer_options']) && 
+                                    isset($dataItem['transfer_options']['transfer_required']) && 
+                                    $dataItem['transfer_options']['transfer_required'] === true) {
+                                
+                                $transferOptions = $dataItem['transfer_options'];
+                                $pickupLocation = $transferOptions['pickup_location_name'] ?? '';
+                                $dropoffLocation = $dataItem['AttractionName'] ?? '';
+                                
+                                $order->pickup_zone = $this->getZoneForLocation($pickupLocation, $dmcId);
+                                $order->dropoff_zone = $this->getZoneForLocation($dropoffLocation, $dmcId);
+                                
+                                // Get vehicle from transfer_options
+                                $vehicleIdFromOrder = $transferOptions['vehicle_id'] ?? null;
+                                $vehicleFromOrder = null;
+                                $driverFromVehicle = null;
+                                
+                                if ($vehicleIdFromOrder) {
+                                    $vehicleFromOrder = Vehicle::where('vehicle_id', $vehicleIdFromOrder)->first();
+                                    
+                                    // If vehicle has a driver assigned, get that driver
+                                    if ($vehicleFromOrder && $vehicleFromOrder->driver_id) {
+                                        $driverFromVehicle = Driver::where('driver_id', $vehicleFromOrder->driver_id)->first();
+                                    }
+                                }
+                                
+                                // Extract pickup time from visitTime or guide_options
+                                $pickupTime = null;
+                                if (isset($dataItem['visitTime'])) {
+                                    // Parse visitTime (e.g., "09:00 - 09:00" or "8:30 AM")
+                                    $visitTime = $dataItem['visitTime'];
+                                    if (preg_match('/(\d{1,2}):(\d{2})/', $visitTime, $matches)) {
+                                        $pickupTime = $matches[1] . ':' . $matches[2];
+                                    } else {
+                                        $pickupTime = $visitTime;
+                                    }
+                                } elseif (isset($dataItem['guide_options']['pickup_time'])) {
+                                    $pickupTime = $dataItem['guide_options']['pickup_time'];
+                                }
+                                
+                                // Normalize data structure for view compatibility
+                                $dataItem['entrytime'] = $pickupTime;
+                                $dataItem['entrypickup'] = $pickupLocation;
+                                $dataItem['entrydropoff'] = $dropoffLocation;
+                                $dataItem['vehicles_id'] = $vehicleIdFromOrder;
+                                $dataItem['vehicles_name'] = $transferOptions['vehicle_details']['vehicle_name'] ?? null;
+                                $dataItem['pickupdate'] = $dataItem['bookingDate'] ?? null;
+                                $dataItem['type'] = $transferOptions['type'] ?? null;
+                                
+                                // Check if there's an assignment in the jobsheets table
+                                $jobsheet = Jobsheet::where('date', $tomorrow)
+                                    ->where('type', $order->type)
+                                    ->where('service_type', 'transfer')
+                                    ->where('journey_time', $pickupTime)
+                                    ->where('dmc_id', $dmcId)
+                                    ->where('order_id', $order->order_id)
+                                    ->first();
+                                
+                                // Priority: Jobsheet assignment > Vehicle from order data
+                                if ($jobsheet) {
+                                    $order->assigned_driver_id = $jobsheet->driver_id;
+                                    $order->assigned_vehicle_id = $jobsheet->vehicle_id;
+                                    $order->driver = $jobsheet->driver_id ? Driver::where('driver_id', $jobsheet->driver_id)->first() : null;
+                                    $order->vehicle = $jobsheet->vehicle_id ? Vehicle::where('vehicle_id', $jobsheet->vehicle_id)->first() : null;
+                                } else {
+                                    // Use vehicle and driver from order data as default
+                                    $order->assigned_vehicle_id = $vehicleFromOrder ? $vehicleFromOrder->vehicle_id : null;
+                                    $order->assigned_driver_id = $driverFromVehicle ? $driverFromVehicle->driver_id : null;
+                                    $order->vehicle = $vehicleFromOrder;
+                                    $order->driver = $driverFromVehicle;
+                                }
+                                
+                                // Update orderData with normalized structure
+                                $order->data = [$dataItem];
+                            }
+                            // Handle restaurant orders with transfer
+                            elseif ($order->type === 'restaurant' && isset($dataItem['transfer_options']) && 
+                                    isset($dataItem['transfer_options']['transfer_required']) && 
+                                    $dataItem['transfer_options']['transfer_required'] === true) {
+                                
+                                $transferOptions = $dataItem['transfer_options'];
+                                $pickupLocation = $transferOptions['pickup_location_name'] ?? '';
+                                $dropoffLocation = $dataItem['restaurantName'] ?? '';
+                                
+                                $order->pickup_zone = $this->getZoneForLocation($pickupLocation, $dmcId);
+                                $order->dropoff_zone = $this->getZoneForLocation($dropoffLocation, $dmcId);
+                                
+                                // Get vehicle from transfer_options
+                                $vehicleIdFromOrder = $transferOptions['vehicle_id'] ?? null;
+                                $vehicleFromOrder = null;
+                                $driverFromVehicle = null;
+                                
+                                if ($vehicleIdFromOrder) {
+                                    $vehicleFromOrder = Vehicle::where('vehicle_id', $vehicleIdFromOrder)->first();
+                                    
+                                    // If vehicle has a driver assigned, get that driver
+                                    if ($vehicleFromOrder && $vehicleFromOrder->driver_id) {
+                                        $driverFromVehicle = Driver::where('driver_id', $vehicleFromOrder->driver_id)->first();
+                                    }
+                                }
+                                
+                                // Extract pickup time from visitTime
+                                $pickupTime = null;
+                                if (isset($dataItem['visitTime'])) {
+                                    // Parse visitTime (e.g., "8:30 AM" or "09:00 - 09:00")
+                                    $visitTime = $dataItem['visitTime'];
+                                    if (preg_match('/(\d{1,2}):(\d{2})/', $visitTime, $matches)) {
+                                        $pickupTime = $matches[1] . ':' . $matches[2];
+                                    } else {
+                                        $pickupTime = $visitTime;
+                                    }
+                                }
+                                
+                                // Normalize data structure for view compatibility
+                                $dataItem['entrytime'] = $pickupTime;
+                                $dataItem['entrypickup'] = $pickupLocation;
+                                $dataItem['entrydropoff'] = $dropoffLocation;
+                                $dataItem['vehicles_id'] = $vehicleIdFromOrder;
+                                $dataItem['vehicles_name'] = $transferOptions['vehicle_details']['vehicle_name'] ?? null;
+                                $dataItem['pickupdate'] = $dataItem['bookingDate'] ?? null;
+                                $dataItem['type'] = $transferOptions['type'] ?? null;
+                                
+                                // Check if there's an assignment in the jobsheets table
+                                $jobsheet = Jobsheet::where('date', $tomorrow)
+                                    ->where('type', $order->type)
+                                    ->where('service_type', 'transfer')
+                                    ->where('journey_time', $pickupTime)
+                                    ->where('dmc_id', $dmcId)
+                                    ->where('order_id', $order->order_id)
+                                    ->first();
+                                
+                                // Priority: Jobsheet assignment > Vehicle from order data
+                                if ($jobsheet) {
+                                    $order->assigned_driver_id = $jobsheet->driver_id;
+                                    $order->assigned_vehicle_id = $jobsheet->vehicle_id;
+                                    $order->driver = $jobsheet->driver_id ? Driver::where('driver_id', $jobsheet->driver_id)->first() : null;
+                                    $order->vehicle = $jobsheet->vehicle_id ? Vehicle::where('vehicle_id', $jobsheet->vehicle_id)->first() : null;
+                                } else {
+                                    // Use vehicle and driver from order data as default
+                                    $order->assigned_vehicle_id = $vehicleFromOrder ? $vehicleFromOrder->vehicle_id : null;
+                                    $order->assigned_driver_id = $driverFromVehicle ? $driverFromVehicle->driver_id : null;
+                                    $order->vehicle = $vehicleFromOrder;
+                                    $order->driver = $driverFromVehicle;
+                                }
+                                
+                                // Update orderData with normalized structure
+                                $order->data = [$dataItem];
+                            }
+                        }
+                        return $order;
+                    });
                 }
             }
-            else{
+            else if(in_array($user->role_id, [1, 2, 3])){
                 $orders = Order::whereIn('type', ['entry_port', 'travel_hourly', 'travel_point', 'exit_port'])
                 ->whereRaw("data->0->>'pickupdate' = ?", [$tomorrow])
                ->get();
@@ -293,8 +483,10 @@ class JobSheetController extends Controller
     {
         try {
             // Find driver's vehicles
-            $vehicles = Vehicle::where('driver_id', $driverId)->pluck('vehicle_id')->toArray();
-            
+            $allVehicles = Vehicle::where('driver_id', $driverId)->pluck('vehicle_id')->toArray();
+            $jobVehicles = Jobsheet::where('driver_id', $driverId)->pluck('vehicle_id')->toArray();
+
+            $vehicles = array_values(array_unique(array_merge($allVehicles, $jobVehicles)));
             if (empty($vehicles)) {
                 return response()->json([
                     'success' => true,
@@ -314,10 +506,24 @@ class JobSheetController extends Controller
             $schedule = [];
             
             foreach ($orders as $order) {
+                $jobsheetVehicleName = null;
+                $jobsheetDriverName = null;
                 // Try to decode data as JSON array first
                 $jsonData = is_array($order->data) ? $order->data:json_decode($order->data, true);
-                
-                
+                $jobsheetData = Jobsheet::where('driver_id', $driverId)->where('order_id', $order->order_id)->first();
+                if($jobsheetData){
+                    $jobsheetVehicleId = $jobsheetData->vehicle_id;
+                    $jobsheetDriverId = $jobsheetData->driver_id;
+                    
+                    if($jobsheetVehicleId){
+                        $jobsheetVehicle = Vehicle::where('vehicle_id', $jobsheetVehicleId)->first();
+                        $jobsheetVehicleName = $jobsheetVehicle->vehicle_name;
+                    }
+                    if($jobsheetDriverId){
+                        $jobsheetDriver = Driver::where('driver_id', $jobsheetDriverId)->first();
+                        $jobsheetDriverName = $jobsheetDriver->name;
+                    }
+                }
                 // If data is a JSON string within a string (escaped JSON), need to decode again
                 if (is_string($jsonData)) {
                     $jsonData = json_decode($jsonData, true);
@@ -344,7 +550,10 @@ class JobSheetController extends Controller
                                 'customer_name' => $data['fullName'] ?? 'N/A',
                                 'customer_phone' => $data['phone'] ?? 'N/A',
                                 'customer_email' => $data['email'] ?? 'N/A',
-                                'vehicle_name' => $data['vehicles_name'] ?? 'N/A',
+                                'vehicle_name' => $jobsheetVehicleName ?? $data['vehicles_name'] ?? 'N/A',
+                                'driver_name' => $jobsheetDriverName ?? $data['driver_name'] ?? 'N/A',
+                                'vehicle_id' => $jobsheetVehicleId ?? $data['vehicles_id'] ?? 'N/A',
+                                'driver_id' => $jobsheetDriverId ?? $data['driver_id'] ?? 'N/A',
                                 'booking_type' => $data['bookingType'] ?? 'N/A',
                                 'total_price' => $data['totalPrice'] ?? 'N/A',
                                 'pax' => ($data['adults'] + $data['children']) ?? '0',
@@ -2019,24 +2228,111 @@ class JobSheetController extends Controller
                     ->get();
                 }
                 else{
-                    $orders = Order::select('orders.*', 'tours.id as tour_id_numeric', 'tours.tour_id', 'tours.display_id')
-                    ->leftJoin('tours', 'orders.tour_id', '=', 'tours.tour_id')
-                    ->whereIn('orders.type', $orderTypes)
-                    ->whereRaw("data->0->>'dmc_id' = ?", [$dmcId])
-                    ->whereRaw("data->0->>'pickupdate' = ?", [$date])
-                    ->whereNotNull('orders.tour_id')
-                    ->whereIn('tours.tour_status', ['Confirmed', 'Definite', 'Actual'])
-                    ->get();
+                    // Get transportation orders
+                    $transportOrders = Order::select('orders.*', 'tours.id as tour_id_numeric', 'tours.tour_id', 'tours.display_id')
+                        ->leftJoin('tours', 'orders.tour_id', '=', 'tours.tour_id')
+                        ->whereIn('orders.type', $orderTypes)
+                        ->whereRaw("data->0->>'dmc_id' = ?", [$dmcId])
+                        ->whereRaw("data->0->>'pickupdate' = ?", [$date])
+                        ->whereNotNull('orders.tour_id')
+                        ->whereIn('tours.tour_status', ['Confirmed', 'Definite', 'Actual'])
+                        ->get();
+                    
+                    // Get attraction orders with transfer
+                    $allAttractionOrders = Order::select('orders.*', 'tours.id as tour_id_numeric', 'tours.tour_id', 'tours.display_id')
+                        ->leftJoin('tours', 'orders.tour_id', '=', 'tours.tour_id')
+                        ->where('orders.type', 'attraction')
+                        ->whereRaw("data->0->>'dmc_id' = ?", [$dmcId])
+                        ->whereRaw("data->0->>'bookingDate' = ?", [$date])
+                        ->whereNotNull('orders.tour_id')
+                        ->whereIn('tours.tour_status', ['Confirmed', 'Definite', 'Actual'])
+                        ->get();
+                    
+                    // Filter to only include orders with transfer_required = true
+                    $attractionOrders = $allAttractionOrders->filter(function($order) {
+                        $orderData = is_string($order->data) ? json_decode($order->data, true) : $order->data;
+                        if (is_array($orderData) && isset($orderData[0])) {
+                            return isset($orderData[0]['transfer_options']) && 
+                                   isset($orderData[0]['transfer_options']['transfer_required']) && 
+                                   $orderData[0]['transfer_options']['transfer_required'] === true;
+                        }
+                        return false;
+                    });
+                    
+                    // Get restaurant orders with transfer
+                    $allRestaurantOrders = Order::select('orders.*', 'tours.id as tour_id_numeric', 'tours.tour_id', 'tours.display_id')
+                        ->leftJoin('tours', 'orders.tour_id', '=', 'tours.tour_id')
+                        ->where('orders.type', 'restaurant')
+                        ->whereRaw("data->0->>'dmc_id' = ?", [$dmcId])
+                        ->whereRaw("data->0->>'bookingDate' = ?", [$date])
+                        ->whereNotNull('orders.tour_id')
+                        ->whereIn('tours.tour_status', ['Confirmed', 'Definite', 'Actual'])
+                        ->get();
+                    
+                    // Filter to only include orders with transfer_required = true
+                    $restaurantOrders = $allRestaurantOrders->filter(function($order) {
+                        $orderData = is_string($order->data) ? json_decode($order->data, true) : $order->data;
+                        if (is_array($orderData) && isset($orderData[0])) {
+                            return isset($orderData[0]['transfer_options']) && 
+                                   isset($orderData[0]['transfer_options']['transfer_required']) && 
+                                   $orderData[0]['transfer_options']['transfer_required'] === true;
+                        }
+                        return false;
+                    });
+                    
+                    $orders = $transportOrders->merge($attractionOrders)->merge($restaurantOrders);
                 }
             } else {
                 // Otherwise just filter by date
-                $orders = Order::select('orders.*', 'tours.id as tour_id_numeric', 'tours.tour_id', 'tours.display_id')
+                $transportOrders = Order::select('orders.*', 'tours.id as tour_id_numeric', 'tours.tour_id', 'tours.display_id')
                     ->leftJoin('tours', 'orders.tour_id', '=', 'tours.tour_id')
                     ->whereIn('orders.type', $orderTypes)
                     ->whereRaw("data->0->>'pickupdate' = ?", [$date])
                     ->whereNotNull('orders.tour_id')
                     ->whereIn('tours.tour_status', ['Confirmed', 'Definite', 'Actual'])
                     ->get();
+                
+                // Get attraction orders with transfer
+                $allAttractionOrders = Order::select('orders.*', 'tours.id as tour_id_numeric', 'tours.tour_id', 'tours.display_id')
+                    ->leftJoin('tours', 'orders.tour_id', '=', 'tours.tour_id')
+                    ->where('orders.type', 'attraction')
+                    ->whereRaw("data->0->>'bookingDate' = ?", [$date])
+                    ->whereNotNull('orders.tour_id')
+                    ->whereIn('tours.tour_status', ['Confirmed', 'Definite', 'Actual'])
+                    ->get();
+                
+                // Filter to only include orders with transfer_required = true
+                $attractionOrders = $allAttractionOrders->filter(function($order) {
+                    $orderData = is_string($order->data) ? json_decode($order->data, true) : $order->data;
+                    if (is_array($orderData) && isset($orderData[0])) {
+                        return isset($orderData[0]['transfer_options']) && 
+                               isset($orderData[0]['transfer_options']['transfer_required']) && 
+                               $orderData[0]['transfer_options']['transfer_required'] === true;
+                    }
+                    return false;
+                });
+                
+                // Get restaurant orders with transfer
+                $allRestaurantOrders = Order::select('orders.*', 'tours.id as tour_id_numeric', 'tours.tour_id', 'tours.display_id')
+                    ->leftJoin('tours', 'orders.tour_id', '=', 'tours.tour_id')
+                    ->where('orders.type', 'restaurant')
+                    ->whereRaw("data->0->>'bookingDate' = ?", [$date])
+                    ->whereNotNull('orders.tour_id')
+                    ->whereIn('tours.tour_status', ['Confirmed', 'Definite', 'Actual'])
+                    ->get();
+                
+                // Filter to only include orders with transfer_required = true
+                $restaurantOrders = $allRestaurantOrders->filter(function($order) {
+                    $orderData = is_string($order->data) ? json_decode($order->data, true) : $order->data;
+                    if (is_array($orderData) && isset($orderData[0])) {
+                        return isset($orderData[0]['transfer_options']) && 
+                               isset($orderData[0]['transfer_options']['transfer_required']) && 
+                               $orderData[0]['transfer_options']['transfer_required'] === true;
+                    }
+                    return false;
+                });
+                
+                $orders = $transportOrders->merge($attractionOrders)->merge($restaurantOrders);
             }
             
             // Fetch assigned drivers/guides for each order and add zone information
@@ -2092,45 +2388,196 @@ class JobSheetController extends Controller
                     $orderData = is_string($order->data) ? json_decode($order->data, true) : $order->data;
                     $dataItem = is_array($orderData) && isset($orderData[0]) ? $orderData[0] : [];
                     
-                    // Get vehicle from order data
-                    $vehicleIdFromOrder = $dataItem['vehicles_id'] ?? null;
-                    $vehicleFromOrder = null;
-                    $driverFromVehicle = null;
-                    
-                    if ($vehicleIdFromOrder) {
-                        $vehicleFromOrder = Vehicle::where('vehicle_id', $vehicleIdFromOrder)->first();
+                    // Handle transportation orders
+                    if (in_array($order->type, ['entry_port', 'travel_hourly', 'travel_point', 'exit_port', 'local_transport'])) {
+                        // Get vehicle from order data
+                        $vehicleIdFromOrder = $dataItem['vehicles_id'] ?? null;
+                        $vehicleFromOrder = null;
+                        $driverFromVehicle = null;
                         
-                        // If vehicle has a driver assigned, get that driver
-                        if ($vehicleFromOrder && $vehicleFromOrder->driver_id) {
-                            $driverFromVehicle = Driver::where('driver_id', $vehicleFromOrder->driver_id)->first();
+                        if ($vehicleIdFromOrder) {
+                            $vehicleFromOrder = Vehicle::where('vehicle_id', $vehicleIdFromOrder)->first();
+                            
+                            // If vehicle has a driver assigned, get that driver
+                            if ($vehicleFromOrder && $vehicleFromOrder->driver_id) {
+                                $driverFromVehicle = Driver::where('driver_id', $vehicleFromOrder->driver_id)->first();
+                            }
+                        }
+                        
+                        // Check if there's an assignment in the jobsheets table
+                        $jobsheet = Jobsheet::where('date', $date)
+                            ->where('type', $order->type)
+                            ->where('service_type', $dataItem['type'] ?? null)
+                            ->where('journey_time', $dataItem['entrytime'] ?? null)
+                            ->where('order_id', $order->booking_id)
+                            ->first();
+                        // Priority: Jobsheet assignment > Vehicle from order data
+                        if ($jobsheet) {
+                            $order->assigned_driver_id = $jobsheet->driver_id;
+                            $order->assigned_vehicle_id = $jobsheet->vehicle_id;
+                            $order->driver = $jobsheet->driver_id ? Driver::where('driver_id', $jobsheet->driver_id)->first() : null;
+                            $order->vehicle = $jobsheet->vehicle_id ? Vehicle::where('vehicle_id', $jobsheet->vehicle_id)->first() : null;
+                        } else {
+                            // Use vehicle and driver from order data as default
+                            $order->assigned_vehicle_id = $vehicleFromOrder ? $vehicleFromOrder->vehicle_id : null;
+                            $order->assigned_driver_id = $driverFromVehicle ? $driverFromVehicle->driver_id : null;
+                            $order->vehicle = $vehicleFromOrder;
+                            $order->driver = $driverFromVehicle;
+                        }
+                        
+                        // Add zone information for pickup and dropoff
+                        if (is_array($orderData) && isset($orderData[0])) {
+                            $order->pickup_zone = $this->getZoneForLocation($dataItem['entrypickup'] ?? '', $dmcId);
+                            $order->dropoff_zone = $this->getZoneForLocation($dataItem['entrydropoff'] ?? '', $dmcId);
                         }
                     }
-                    
-                    // Check if there's an assignment in the jobsheets table
-                    $jobsheet = Jobsheet::where('date', $date)
-                        ->where('type', $order->type)
-                        ->where('service_type', $dataItem['type'] ?? null)
-                        ->where('journey_time', $dataItem['entrytime'] ?? null)
-                        ->where('order_id', $order->booking_id)
-                        ->first();
-                    // Priority: Jobsheet assignment > Vehicle from order data
-                    if ($jobsheet) {
-                        $order->assigned_driver_id = $jobsheet->driver_id;
-                        $order->assigned_vehicle_id = $jobsheet->vehicle_id;
-                        $order->driver = $jobsheet->driver_id ? Driver::where('driver_id', $jobsheet->driver_id)->first() : null;
-                        $order->vehicle = $jobsheet->vehicle_id ? Vehicle::where('vehicle_id', $jobsheet->vehicle_id)->first() : null;
-                    } else {
-                        // Use vehicle and driver from order data as default
-                        $order->assigned_vehicle_id = $vehicleFromOrder ? $vehicleFromOrder->vehicle_id : null;
-                        $order->assigned_driver_id = $driverFromVehicle ? $driverFromVehicle->driver_id : null;
-                        $order->vehicle = $vehicleFromOrder;
-                        $order->driver = $driverFromVehicle;
+                    // Handle attraction orders with transfer
+                    elseif ($order->type === 'attraction' && isset($dataItem['transfer_options']) && 
+                            isset($dataItem['transfer_options']['transfer_required']) && 
+                            $dataItem['transfer_options']['transfer_required'] === true) {
+                        
+                        $transferOptions = $dataItem['transfer_options'];
+                        $pickupLocation = $transferOptions['pickup_location_name'] ?? '';
+                        $dropoffLocation = $dataItem['AttractionName'] ?? '';
+                        
+                        // Get vehicle from transfer_options
+                        $vehicleIdFromOrder = $transferOptions['vehicle_id'] ?? null;
+                        $vehicleFromOrder = null;
+                        $driverFromVehicle = null;
+                        
+                        if ($vehicleIdFromOrder) {
+                            $vehicleFromOrder = Vehicle::where('vehicle_id', $vehicleIdFromOrder)->first();
+                            
+                            // If vehicle has a driver assigned, get that driver
+                            if ($vehicleFromOrder && $vehicleFromOrder->driver_id) {
+                                $driverFromVehicle = Driver::where('driver_id', $vehicleFromOrder->driver_id)->first();
+                            }
+                        }
+                        
+                        // Extract pickup time from visitTime or guide_options
+                        $pickupTime = null;
+                        if (isset($dataItem['visitTime'])) {
+                            // Parse visitTime (e.g., "09:00 - 09:00" or "8:30 AM")
+                            $visitTime = $dataItem['visitTime'];
+                            if (preg_match('/(\d{1,2}):(\d{2})/', $visitTime, $matches)) {
+                                $pickupTime = $matches[1] . ':' . $matches[2];
+                            } else {
+                                $pickupTime = $visitTime;
+                            }
+                        } elseif (isset($dataItem['guide_options']['pickup_time'])) {
+                            $pickupTime = $dataItem['guide_options']['pickup_time'];
+                        }
+                        
+                        // Normalize data structure for view compatibility
+                        $dataItem['entrytime'] = $pickupTime;
+                        $dataItem['entrypickup'] = $pickupLocation;
+                        $dataItem['entrydropoff'] = $dropoffLocation;
+                        $dataItem['vehicles_id'] = $vehicleIdFromOrder;
+                        $dataItem['vehicles_name'] = $transferOptions['vehicle_details']['vehicle_name'] ?? null;
+                        $dataItem['pickupdate'] = $dataItem['bookingDate'] ?? null;
+                        $dataItem['type'] = $transferOptions['type'] ?? null;
+                        
+                        // Check if there's an assignment in the jobsheets table
+                        $jobsheet = Jobsheet::where('date', $date)
+                            ->where('type', $order->type)
+                            ->where('service_type', 'transfer')
+                            ->where('journey_time', $pickupTime)
+                            ->where('order_id', $order->booking_id)
+                            ->first();
+                        
+                        // Priority: Jobsheet assignment > Vehicle from order data
+                        if ($jobsheet) {
+                            $order->assigned_driver_id = $jobsheet->driver_id;
+                            $order->assigned_vehicle_id = $jobsheet->vehicle_id;
+                            $order->driver = $jobsheet->driver_id ? Driver::where('driver_id', $jobsheet->driver_id)->first() : null;
+                            $order->vehicle = $jobsheet->vehicle_id ? Vehicle::where('vehicle_id', $jobsheet->vehicle_id)->first() : null;
+                        } else {
+                            // Use vehicle and driver from order data as default
+                            $order->assigned_vehicle_id = $vehicleFromOrder ? $vehicleFromOrder->vehicle_id : null;
+                            $order->assigned_driver_id = $driverFromVehicle ? $driverFromVehicle->driver_id : null;
+                            $order->vehicle = $vehicleFromOrder;
+                            $order->driver = $driverFromVehicle;
+                        }
+                        
+                        // Add zone information for pickup and dropoff
+                        $order->pickup_zone = $this->getZoneForLocation($pickupLocation, $dmcId);
+                        $order->dropoff_zone = $this->getZoneForLocation($dropoffLocation, $dmcId);
+                        
+                        // Update orderData with normalized structure
+                        $order->data = [$dataItem];
                     }
-                    
-                    // Add zone information for pickup and dropoff
-                    if (is_array($orderData) && isset($orderData[0])) {
-                        $order->pickup_zone = $this->getZoneForLocation($dataItem['entrypickup'] ?? '', $dmcId);
-                        $order->dropoff_zone = $this->getZoneForLocation($dataItem['entrydropoff'] ?? '', $dmcId);
+                    // Handle restaurant orders with transfer
+                    elseif ($order->type === 'restaurant' && isset($dataItem['transfer_options']) && 
+                            isset($dataItem['transfer_options']['transfer_required']) && 
+                            $dataItem['transfer_options']['transfer_required'] === true) {
+                        
+                        $transferOptions = $dataItem['transfer_options'];
+                        $pickupLocation = $transferOptions['pickup_location_name'] ?? '';
+                        $dropoffLocation = $dataItem['restaurantName'] ?? '';
+                        
+                        // Get vehicle from transfer_options
+                        $vehicleIdFromOrder = $transferOptions['vehicle_id'] ?? null;
+                        $vehicleFromOrder = null;
+                        $driverFromVehicle = null;
+                        
+                        if ($vehicleIdFromOrder) {
+                            $vehicleFromOrder = Vehicle::where('vehicle_id', $vehicleIdFromOrder)->first();
+                            
+                            // If vehicle has a driver assigned, get that driver
+                            if ($vehicleFromOrder && $vehicleFromOrder->driver_id) {
+                                $driverFromVehicle = Driver::where('driver_id', $vehicleFromOrder->driver_id)->first();
+                            }
+                        }
+                        
+                        // Extract pickup time from visitTime
+                        $pickupTime = null;
+                        if (isset($dataItem['visitTime'])) {
+                            // Parse visitTime (e.g., "8:30 AM" or "09:00 - 09:00")
+                            $visitTime = $dataItem['visitTime'];
+                            if (preg_match('/(\d{1,2}):(\d{2})/', $visitTime, $matches)) {
+                                $pickupTime = $matches[1] . ':' . $matches[2];
+                            } else {
+                                $pickupTime = $visitTime;
+                            }
+                        }
+                        
+                        // Normalize data structure for view compatibility
+                        $dataItem['entrytime'] = $pickupTime;
+                        $dataItem['entrypickup'] = $pickupLocation;
+                        $dataItem['entrydropoff'] = $dropoffLocation;
+                        $dataItem['vehicles_id'] = $vehicleIdFromOrder;
+                        $dataItem['vehicles_name'] = $transferOptions['vehicle_details']['vehicle_name'] ?? null;
+                        $dataItem['pickupdate'] = $dataItem['bookingDate'] ?? null;
+                        $dataItem['type'] = $transferOptions['type'] ?? null;
+                        
+                        // Check if there's an assignment in the jobsheets table
+                        $jobsheet = Jobsheet::where('date', $date)
+                            ->where('type', $order->type)
+                            ->where('service_type', 'transfer')
+                            ->where('journey_time', $pickupTime)
+                            ->where('order_id', $order->booking_id)
+                            ->first();
+                        
+                        // Priority: Jobsheet assignment > Vehicle from order data
+                        if ($jobsheet) {
+                            $order->assigned_driver_id = $jobsheet->driver_id;
+                            $order->assigned_vehicle_id = $jobsheet->vehicle_id;
+                            $order->driver = $jobsheet->driver_id ? Driver::where('driver_id', $jobsheet->driver_id)->first() : null;
+                            $order->vehicle = $jobsheet->vehicle_id ? Vehicle::where('vehicle_id', $jobsheet->vehicle_id)->first() : null;
+                        } else {
+                            // Use vehicle and driver from order data as default
+                            $order->assigned_vehicle_id = $vehicleFromOrder ? $vehicleFromOrder->vehicle_id : null;
+                            $order->assigned_driver_id = $driverFromVehicle ? $driverFromVehicle->driver_id : null;
+                            $order->vehicle = $vehicleFromOrder;
+                            $order->driver = $driverFromVehicle;
+                        }
+                        
+                        // Add zone information for pickup and dropoff
+                        $order->pickup_zone = $this->getZoneForLocation($pickupLocation, $dmcId);
+                        $order->dropoff_zone = $this->getZoneForLocation($dropoffLocation, $dmcId);
+                        
+                        // Update orderData with normalized structure
+                        $order->data = [$dataItem];
                     }
                     
                     return $order;
