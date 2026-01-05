@@ -1,0 +1,794 @@
+@extends('layouts.layout')
+
+@section('title', 'Agency List')
+
+@section('content')
+<style>
+    /* Page Header */
+    .page-header {
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        color: white;
+        padding: 2rem;
+        border-radius: 12px;
+        margin-bottom: 2rem;
+        position: relative;
+        overflow: hidden;
+    }
+    
+    .header-icon {
+        font-size: 2rem;
+        opacity: 0.9;
+    }
+    
+    /* Action Buttons */
+    .action-buttons {
+        display: flex;
+        justify-content: flex-end;
+    }
+    
+    .action-btn {
+        display: inline-flex;
+        align-items: center;
+        padding: 0.5rem 1rem;
+        border-radius: 10px;
+        color: #333;
+        background: #fff;
+        text-decoration: none;
+        font-weight: 500;
+        transition: all 0.3s ease;
+        box-shadow: 0 2px 6px rgba(0, 0, 0, 0.1);
+    }
+    
+    .action-btn:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+    }
+    
+    .action-btn .btn-icon {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        width: 32px;
+        height: 32px;
+        background: rgba(0, 0, 0, 0.05);
+        border-radius: 8px;
+        margin-right: 0.5rem;
+    }
+    
+    .import-btn {
+        background: #e7fdf1;
+        color: #15803d;
+    }
+    
+    .import-btn:hover {
+        background: #dcfce7;
+    }
+    
+    .import-btn .btn-icon {
+        background: rgba(21, 128, 61, 0.1);
+    }
+    
+    .add-btn {
+        background: #f1f5f9;
+    }
+    
+    .add-btn:hover {
+        background: #e2e8f0;
+    }
+
+    /* Statistics Cards */
+    .stats-card {
+        background: white;
+        border-radius: 12px;
+        padding: 1.5rem;
+        box-shadow: 0 4px 15px rgba(0, 0, 0, 0.1);
+        transition: all 0.3s ease;
+        border: 1px solid #e3e6f0;
+    }
+
+    .stats-card:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 8px 25px rgba(0, 0, 0, 0.15);
+    }
+
+    .stats-icon {
+        width: 50px;
+        height: 50px;
+        border-radius: 8px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 1.25rem;
+        color: white;
+        margin-bottom: 1rem;
+    }
+
+    .stats-icon.primary { background: #667eea; }
+    .stats-icon.success { background: #28a745; }
+    .stats-icon.warning { background: #ffc107; }
+    .stats-icon.info { background: #17a2b8; }
+
+    /* Search and Filter Container */
+    .search-filter-container {
+        background: white;
+        border-radius: 12px;
+        padding: 1.5rem;
+        box-shadow: 0 4px 15px rgba(0, 0, 0, 0.1);
+        margin-bottom: 2rem;
+        border: 1px solid #e3e6f0;
+    }
+
+    .form-control, .form-select {
+        border: 1px solid #e3e6f0;
+        border-radius: 8px;
+        padding: 0.6rem 1rem;
+        transition: all 0.3s ease;
+    }
+
+    .form-control:focus, .form-select:focus {
+        border-color: #667eea;
+        box-shadow: 0 0 0 0.2rem rgba(102, 126, 234, 0.15);
+    }
+
+    /* Clear Button */
+    .btn-clear {
+        background: #667eea;
+        color: white;
+        border: none;
+        border-radius: 8px;
+        padding: 0.6rem 1.5rem;
+        font-weight: 500;
+        transition: all 0.3s ease;
+    }
+
+    .btn-clear:hover {
+        background: #5a6fd8;
+        color: white;
+        transform: translateY(-1px);
+    }
+
+    /* Table Container */
+    .table-container {
+        background: white;
+        border-radius: 12px;
+        overflow: hidden;
+        box-shadow: 0 4px 15px rgba(0, 0, 0, 0.1);
+        border: 1px solid #e3e6f0;
+    }
+
+    .table-header {
+        background: #f8f9fa;
+        padding: 1.5rem 2rem;
+        border-bottom: 1px solid #dee2e6;
+    }
+
+    /* Table Styling */
+    .table thead th {
+        background-color: #667eea;
+        color: white;
+        border: none;
+        font-weight: 600;
+        text-transform: uppercase;
+        font-size: 0.75rem;
+        letter-spacing: 0.5px;
+        padding: 1rem 0.75rem;
+    }
+
+    .table tbody tr:hover {
+        background-color: rgba(102, 126, 234, 0.05);
+    }
+
+    .table tbody td {
+        padding: 0.75rem;
+        vertical-align: middle;
+        border-top: 1px solid #dee2e6;
+    }
+
+    /* Badge Styling */
+    .badge {
+        font-size: 0.75rem;
+        font-weight: 500;
+        padding: 0.375rem 0.75rem;
+    }
+
+    /* Avatar Styling */
+    .avatar-initial {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-weight: 600;
+        font-size: 0.875rem;
+    }
+
+    /* Dropdown Styling */
+    .dropdown-toggle::after {
+        display: none;
+    }
+
+    .dropdown-menu {
+        min-width: 140px;
+        box-shadow: 0 4px 15px rgba(0, 0, 0, 0.1);
+    }
+
+    .dropdown-item {
+        font-size: 0.875rem;
+        padding: 0.5rem 1rem;
+    }
+
+    .dropdown-item:hover {
+        background-color: #f8f9fa;
+    }
+
+    /* DataTable Enhancements */
+    .dataTables_wrapper .dataTables_length,
+    .dataTables_wrapper .dataTables_filter,
+    .dataTables_wrapper .dataTables_info,
+    .dataTables_wrapper .dataTables_paginate {
+        margin-bottom: 1rem;
+    }
+
+    .dataTables_wrapper .dataTables_paginate {
+        text-align: right !important;
+    }
+
+    .dataTables_wrapper .dataTables_info {
+        text-align: left !important;
+    }
+
+    .dataTables_wrapper .dataTables_filter {
+        text-align: right;
+    }
+
+    .dataTables_wrapper .dataTables_filter input {
+        margin-left: 0.5rem;
+        display: inline-block;
+        width: auto;
+    }
+
+    /* Responsive Design */
+    @media (max-width: 768px) {
+        .page-header {
+            padding: 1.5rem;
+            text-align: center;
+        }
+        
+        .stats-card {
+            margin-bottom: 1rem;
+            text-align: center;
+        }
+        
+        .dataTables_wrapper .dataTables_length,
+        .dataTables_wrapper .dataTables_filter,
+        .dataTables_wrapper .dataTables_info,
+        .dataTables_wrapper .dataTables_paginate {
+            text-align: center !important;
+            margin-bottom: 0.5rem;
+        }
+        
+        .action-buttons {
+            justify-content: center;
+        }
+        
+        .action-btn {
+            width: 100%;
+            justify-content: center;
+            margin-bottom: 0.5rem;
+        }
+    }
+    
+    @media (max-width: 576px) {
+        .header-icon {
+            font-size: 1.5rem;
+        }
+        
+        .page-header h2 {
+            font-size: 1.5rem;
+        }
+        
+        .action-btn {
+            padding: 0.375rem 0.75rem;
+            font-size: 0.875rem;
+        }
+        
+        .action-btn .btn-icon {
+            width: 24px;
+            height: 24px;
+            font-size: 0.875rem;
+        }
+    }
+</style>
+
+<div class="content-wrapper">
+    <div class="container-xxl flex-grow-1 container-p-y">
+        
+        <!-- Page Header -->
+        <div class="page-header">
+            <div class="row align-items-center">
+                <div class="col-md-7">
+                    <div class="d-flex align-items-center">
+                        <div class="header-icon me-3">
+                            <i class="ri-building-line"></i>
+                        </div>
+                        <div>
+                            <h2 class="mb-2">Agency Management</h2>
+                            <p class="mb-0 opacity-90">Manage all agencies and their branches from here. Add new agencies or edit existing ones.</p>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-5 text-md-end mt-3 mt-md-0">
+                    <div class="action-buttons">
+                        @php
+                            // Define roles that can access different functions
+                            $allowedRoles = [1, 2, 3, 4, 19, 20];
+                            $userRoleId = auth()->user()->role_id;
+                            $canManageAgencies = in_array($userRoleId, $allowedRoles);
+                        @endphp
+
+                        @if($canManageAgencies)
+                            <div class="d-flex justify-content-end">
+                                <a href="{{ route('agencies.import') }}" class="action-btn import-btn me-2">
+                                    <div class="d-flex align-items-center">
+                                        <div class="btn-icon">
+                                            <i class="ri-file-upload-line"></i>
+                                        </div>
+                                        <span>Import Agencies</span>
+                                    </div>
+                                </a>
+                                <a href="{{ route('agencies.create') }}" class="action-btn add-btn">
+                                    <div class="d-flex align-items-center">
+                                        <div class="btn-icon">
+                                            <i class="ri-add-line"></i>
+                                        </div>
+                                        <span>Add New Agency</span>
+                                    </div>
+                                </a>
+                            </div>
+                        @endif
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        @if(session('success'))
+            <div class="alert alert-success alert-dismissible fade show" role="alert">
+                {{ session('success') }}
+                <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+            </div>
+        @endif
+
+        @if(session('error'))
+            <div class="alert alert-danger alert-dismissible fade show" role="alert">
+                {{ session('error') }}
+                <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+            </div>
+        @endif
+
+        @if(session('warning'))
+            <div class="alert alert-warning alert-dismissible fade show" role="alert">
+                {{ session('warning') }}
+                <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+            </div>
+        @endif
+
+        <!-- Statistics Cards -->
+        <div class="row mb-4">
+            <div class="col-xl-3 col-lg-6 col-md-6 col-sm-6 mb-4">
+                <div class="stats-card">
+                    <div class="stats-icon primary">
+                        <i class="ri-building-line"></i>
+                    </div>
+                    <h4 class="mb-1">{{ $agencies->count() }}</h4>
+                    <p class="text-muted mb-0">Total Agencies</p>
+                </div>
+            </div>
+            <div class="col-xl-3 col-lg-6 col-md-6 col-sm-6 mb-4">
+                <div class="stats-card">
+                    <div class="stats-icon success">
+                        <i class="ri-checkbox-circle-line"></i>
+                    </div>
+                    <h4 class="mb-1">{{ $agencies->where('status', 1)->count() }}</h4>
+                    <p class="text-muted mb-0">Active Agencies</p>
+                </div>
+            </div>
+            <div class="col-xl-3 col-lg-6 col-md-6 col-sm-6 mb-4">
+                <div class="stats-card">
+                    <div class="stats-icon warning">
+                        <i class="ri-building-2-line"></i>
+                    </div>
+                    <h4 class="mb-1">{{ $agencies->sum('total_branches') }}</h4>
+                    <p class="text-muted mb-0">Total Offices</p>
+                </div>
+            </div>
+            <div class="col-xl-3 col-lg-6 col-md-6 col-sm-6 mb-4">
+                <div class="stats-card">
+                    <div class="stats-icon info">
+                        <i class="ri-global-line"></i>
+                    </div>
+                    <h4 class="mb-1">{{ $agencies->unique('country')->count() }}</h4>
+                    <p class="text-muted mb-0">Countries</p>
+                </div>
+            </div>
+        </div>
+
+        <!-- Search and Filter -->
+        <div class="search-filter-container">
+            <div class="row align-items-center">
+                <div class="col-md-4 mb-3 mb-md-0">
+                    <label class="form-label">Quick Search</label>
+                    <input type="text" class="form-control" id="quickSearch" placeholder="Search agencies...">
+                </div>
+                <div class="col-md-3 mb-3 mb-md-0">
+                    <label class="form-label">Filter by Status</label>
+                    <select class="form-select" id="statusFilter">
+                        <option value="">All Status</option>
+                        <option value="active">Active</option>
+                        <option value="inactive">Inactive</option>
+                    </select>
+                </div>
+                <div class="col-md-3 mb-3 mb-md-0">
+                    <label class="form-label">Filter by Country</label>
+                    <select class="form-select" id="countryFilter">
+                        <option value="">All Countries</option>
+                        @foreach($agencies->unique('country') as $agency)
+                            <option value="{{ $agency->country }}">{{ $agency->country }}</option>
+                        @endforeach
+                    </select>
+                </div>
+                <div class="col-md-2 d-flex align-items-end">
+                    <button class="btn btn-clear w-100" id="clearFilters">
+                        <i class="ri-refresh-line me-1"></i> Clear
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Agencies List -->
+        <div class="table-container">
+            <div class="table-header">
+                <div class="d-flex justify-content-between align-items-center">
+                    <div>
+                        <h5 class="mb-1">All Agencies</h5>
+                        <small class="text-muted">Manage your agency network</small>
+                    </div>
+                    <div class="d-flex align-items-center">
+                        <small class="text-muted">
+                            <i class="ri-database-line me-1"></i>
+                            {{ $agencies->count() }} agencies found
+                        </small>
+                    </div>
+                </div>
+            </div>
+            <div class="table-responsive">
+                <table id="agenciesTable" class="table table-hover">
+                    <thead>
+                        <tr>
+                            <th>#</th>
+                            <th>AGENCY DETAILS</th>
+                            <th>CONTACT INFO</th>
+                            <th>LOCATION</th>
+                            @php
+                                $roleId = auth()->user()->role_id;
+                                $hideRoles = [11, 20, 35, 130, 132, 133, 135, 136, 137, 138, 77, 84, 139, 140];
+                            @endphp
+                            @if($roleId == 10 || $roleId == 19)
+                                <th>DMC</th>
+                            @elseif(!in_array($roleId, $hideRoles))
+                                <th>MASTER DMC</th>
+                                <th>DMC</th>
+                            @endif
+                            <th>OFFICES</th>
+                            {{-- <th>STATUS</th>
+                            <th>CREATED BY</th> --}}
+                            <th>ACTIONS</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @foreach($agencies as $key => $agency)
+                        <tr data-status="{{ $agency->status ? 'active' : 'inactive' }}" data-country="{{ $agency->country }}">
+                            <td>
+                                <span class="badge bg-primary">{{ ++$key}}</span>
+                            </td>
+                            <td>
+                                <div class="d-flex align-items-center">
+                                    <div class="avatar avatar-sm me-3">
+                                        <div class="avatar-initial bg-label-info rounded-circle">
+                                            {{ strtoupper(substr($agency->agency_name, 0, 2)) }}
+                                        </div>
+                                    </div>
+                                    <div>
+                                        <h6 class="mb-0">{{ $agency->agency_name }}</h6>
+                                        <small class="text-muted">{{ $agency->created_at->format('M d, Y') }}</small>
+                                    </div>
+                                </div>
+                            </td>
+                            <td>
+                                <div>
+                                    <small class="d-block">
+                                        <i class="ri-mail-line me-1 text-primary"></i>
+                                        <a href="mailto:{{ $agency->email }}" class="text-primary">{{ $agency->email }}</a>
+                                    </small>
+                                    <small class="d-block">
+                                        <i class="ri-phone-line me-1 text-success"></i>
+                                        {{ $agency->phone }}
+                                    </small>
+                                </div>
+                            </td>
+                            <td>
+                                <div>
+                                    <small class="d-block fw-semibold">{{ $agency->city }}</small>
+                                    <small class="text-muted">{{ $agency->country }}</small>
+                                </div>
+                            </td>
+
+                            @php
+                                $roleId = auth()->user()->role_id;
+                                $hideRoles = [11, 20, 35, 130, 132, 133, 135, 136, 137, 138, 77, 84, 139, 140];
+                            @endphp
+
+                            @if($roleId == 10 || $roleId == 19) {{-- Master DMC or Virtual Master DMC --}}
+                                @php
+                                    $dmcIds = [];
+                                    if (!empty($agency->dmc_id)) {
+                                        $dmcIds = is_array($agency->dmc_id) ? $agency->dmc_id : json_decode($agency->dmc_id, true);
+                                        $dmcIds = is_array($dmcIds) ? $dmcIds : [];
+                                    }
+                                    $dmcUsers = !empty($dmcIds) ? App\Models\User::whereIn('userId', $dmcIds)->get() : collect();
+                                @endphp
+                                <td>
+                                    @if($dmcUsers->count() > 0)
+                                        {{ $dmcUsers->first()->company_name }}
+                                        @if($dmcUsers->count() > 1)
+                                            <br><a href="javascript:void(0)" 
+                                                   class="text-primary" 
+                                                   onclick="showDmcModal('{{ $agency->agency_id }}', 'dmc', {{ $dmcUsers->toJson() }})">
+                                                <small>+{{ $dmcUsers->count() - 1 }} More</small>
+                                            </a>
+                                        @endif
+                                    @else
+                                        N/A
+                                    @endif
+                                </td>
+                            @elseif(!in_array($roleId, $hideRoles)) {{-- Not DMC or Virtual DMC --}}
+                                @php
+                                    $dmcIds = [];
+                                    if (!empty($agency->dmc_id)) {
+                                        $dmcIds = is_array($agency->dmc_id) ? $agency->dmc_id : json_decode($agency->dmc_id, true);
+                                        $dmcIds = is_array($dmcIds) ? $dmcIds : [];
+                                    }
+                                    $dmcUsers = !empty($dmcIds) ? App\Models\User::whereIn('userId', $dmcIds)->get() : collect();
+                                    $masterDmcIds = $dmcUsers->pluck('master_dmc_id')->filter()->unique();
+                                    $masterDmcUsers = App\Models\User::whereIn('userId', $masterDmcIds)->get();
+                                @endphp
+                                <td>
+                                    @if($masterDmcUsers->count() > 0)
+                                        <span class="text-primary">{{ $masterDmcUsers->first()->company_name }}</span>
+                                        @if($masterDmcUsers->count() > 1)
+                                            <br><a href="javascript:void(0)" 
+                                                   class="btn btn-primary btn-sm text-white" 
+                                                   onclick="showDmcModal('{{ $agency->agency_id }}', 'master_dmc', {{ $masterDmcUsers->toJson() }})">
+                                                <small>+{{ $masterDmcUsers->count() - 1 }} More</small>
+                                            </a>
+                                        @endif
+                                    @else
+                                        <span class="text-muted">No DMC assigned</span>
+                                    @endif
+                                </td>
+                                <td>
+                                    @if($dmcUsers->count() > 0)
+                                        <span class="text-primary">{{ $dmcUsers->first()->company_name }}</span>
+                                        @if($dmcUsers->count() > 1)
+                                            <br><a href="javascript:void(0)" 
+                                                   class="btn btn-primary btn-sm text-white" 
+                                                   onclick="showDmcModal('{{ $agency->agency_id }}', 'dmc', {{ $dmcUsers->toJson() }})">
+                                                <small>+{{ $dmcUsers->count() - 1 }} More</small>
+                                            </a>
+                                        @endif
+                                    @else
+                                        <span class="text-muted">No DMC assigned</span>
+                                    @endif
+                                </td>
+                            @endif
+                            <td>
+                                <span class="badge bg-label-{{ $agency->hasBranches() ? 'success' : 'secondary' }} rounded-pill">
+                                    {{ $agency->total_branches }} 
+                                    {{ $agency->total_branches == 1 ? 'OFFICE' : 'OFFICES' }}
+                                </span>
+                            </td>
+                            {{-- <td>
+                                <span class="badge bg-label-{{ $agency->status ? 'success' : 'danger' }}">
+                                    {{ $agency->status ? 'ACTIVE' : 'INACTIVE' }}
+                                </span>
+                            </td> --}}
+                            {{-- <td>
+                                <small class="text-muted">
+                                    <i class="ri-user-line me-1"></i>
+                                    {{ $agency->creator ? $agency->creator->name : 'System' }}
+                                </small>
+                            </td> --}}
+                            <td>
+                                <div class="d-flex gap-1">
+                                    <a href="{{ route('agencies.show', Crypt::encrypt($agency->agency_id)) }}" class="btn btn-sm btn-info" title="View">
+                                        <i class="ri-eye-line"></i>
+                                    </a>
+                                    @if(auth()->user()->role_id == 1 || auth()->user()->role_id == 2 || auth()->user()->role_id == 3 || auth()->user()->role_id == 4 || auth()->user()->role_id == 19 || auth()->user()->role_id == 20)
+                                    <a href="{{ route('agencies.edit', Crypt::encrypt($agency->agency_id)) }}" class="btn btn-sm btn-primary" title="Edit">
+                                        <i class="ri-pencil-line"></i>
+                                    </a>
+                                    <form action="{{ route('agencies.destroy', $agency->agency_id) }}" method="POST" class="d-inline">
+                                        @csrf
+                                        @method('DELETE')
+                                        <button type="submit" class="btn btn-sm btn-danger" title="Delete"
+                                                onclick="return confirm('Are you sure you want to delete this agency?')">
+                                            <i class="ri-delete-bin-7-line"></i>
+                                        </button>
+                                    </form>
+                                    @endif
+                                </div>
+                            </td>
+                        </tr>
+                        @endforeach
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+        <!-- DMC Modal -->
+        <div class="modal fade" id="dmcModal" tabindex="-1" role="dialog" aria-labelledby="dmcModalLabel" aria-hidden="true">
+            <div class="modal-dialog" role="document">
+                <div class="modal-content">
+                    <div class="modal-header">
+                        <h5 class="modal-title" id="dmcModalLabel">DMC List</h5>
+                        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                    </div>
+                    <div class="modal-body">
+                        <div id="dmcList"></div>
+                    </div>
+                    <div class="modal-footer">
+                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+@endsection
+
+@section('scripts')
+<script>
+$(document).ready(function() {
+    // Initialize DataTable
+    @php
+        $roleId = auth()->user()->role_id;
+        $hideRoles = [11, 20, 35, 130, 132, 133, 135, 136, 137, 138, 77, 84, 139, 140];
+        
+        // Determine column indices based on role
+        if ($roleId == 10 || $roleId == 19) {
+            $actionsColumnIndex = 6;
+            $officesColumnIndex = 5;
+        } elseif (!in_array($roleId, $hideRoles)) {
+            $actionsColumnIndex = 7;
+            $officesColumnIndex = 6;
+        } else {
+            $actionsColumnIndex = 5;
+            $officesColumnIndex = 4;
+        }
+    @endphp
+    
+    const table = $('#agenciesTable').DataTable({
+        responsive: true,
+        order: [[0, 'asc']],
+        pageLength: 10,
+        columnDefs: [
+            { targets: [{{ $actionsColumnIndex }}], orderable: false },
+            { targets: [0, {{ $officesColumnIndex }}, {{ $actionsColumnIndex }}], className: 'text-center' }
+        ],
+        language: {
+            search: "_INPUT_",
+            searchPlaceholder: "Search in table...",
+            lengthMenu: "Show _MENU_ entries",
+            info: "Showing _START_ to _END_ of _TOTAL_ entries",
+            infoEmpty: "Showing 0 to 0 of 0 entries",
+            infoFiltered: "(filtered from _MAX_ total entries)",
+            paginate: {
+                first: "First",
+                last: "Last",
+                next: "Next",
+                previous: "Previous"
+            }
+        },
+        dom: '<"row"<"col-sm-12 col-md-6"l><"col-sm-12 col-md-6"f>>' +
+             '<"row"<"col-sm-12"tr>>' +
+             '<"row"<"col-sm-12 col-md-5"i><"col-sm-12 col-md-7"p>>',
+        drawCallback: function(settings) {
+            // Ensure pagination is properly aligned
+            $('.dataTables_paginate').addClass('d-flex justify-content-end');
+            $('.dataTables_info').addClass('d-flex align-items-center');
+        }
+    });
+
+    // Quick Search functionality
+    $('#quickSearch').on('keyup', function() {
+        table.search(this.value).draw();
+    });
+
+    // Status Filter (using data attributes since status column is hidden)
+    $('#statusFilter').on('change', function() {
+        const selectedStatus = this.value;
+        
+        if (selectedStatus === '') {
+            table.search('').draw();
+        } else {
+            // Filter by data-status attribute
+            $.fn.dataTable.ext.search.push(function(settings, data, dataIndex) {
+                if (settings.nTable.id !== 'agenciesTable') {
+                    return true;
+                }
+                
+                const row = table.row(dataIndex).node();
+                const rowStatus = $(row).data('status');
+                
+                if (selectedStatus === 'active') {
+                    return rowStatus === 'active';
+                } else if (selectedStatus === 'inactive') {
+                    return rowStatus === 'inactive';
+                }
+                return true;
+            });
+            table.draw();
+        }
+    });
+
+    // Country Filter (column index is always 3 for LOCATION)
+    $('#countryFilter').on('change', function() {
+        const selectedCountry = this.value;
+        table.column(3).search(selectedCountry).draw();
+    });
+
+    // Clear Filters
+    $('#clearFilters').on('click', function() {
+        $('#quickSearch').val('');
+        $('#statusFilter').val('');
+        $('#countryFilter').val('');
+        
+        // Clear custom search functions
+        $.fn.dataTable.ext.search.pop();
+        
+        table.search('').columns().search('').draw();
+    });
+
+    // Form submission confirmation
+    $('form[method="DELETE"]').on('submit', function(e) {
+        e.preventDefault();
+        const agencyName = $(this).closest('tr').find('h6').text();
+        
+        if (confirm(`Are you sure you want to delete "${agencyName}"? This action cannot be undone.`)) {
+            this.submit();
+        }
+    });
+});
+
+// Show DMC modal with details
+function showDmcModal(agencyId, type, users) {
+    let listHtml = '<ul class="list-group">';
+    users.forEach(function(user) {
+        listHtml += `<li class="list-group-item">
+            <div class="d-flex justify-content-between align-items-center">
+                <div>
+                    <strong>${user.company_name}</strong>
+                    <br><small>${user.email || 'No email'}</small>
+                    ${user.phone ? `<br><small>${user.phone}</small>` : ''}
+                </div>
+            </div>
+        </li>`;
+    });
+    listHtml += '</ul>';
+    
+    $('#dmcList').html(listHtml);
+    $('#dmcModalLabel').text(type === 'dmc' ? 'DMC List' : 'Master DMC List');
+    
+    // Use Bootstrap 5 modal show method
+    var myModal = new bootstrap.Modal(document.getElementById('dmcModal'));
+    myModal.show();
+}
+</script>
+@endsection 
