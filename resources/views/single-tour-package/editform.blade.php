@@ -96,7 +96,7 @@
     <!-- Google Maps API Script -->
     <script src="https://maps.googleapis.com/maps/api/js?key=AIzaSyCLzISM9kkNCKKmQs7BcpSll4emFw1yicw&libraries=places"></script>
     
-    <style>
+<style>
         /* Google Maps Autocomplete Styling */
         .pac-container {
             z-index: 9999;
@@ -175,6 +175,78 @@
             background-color: #6c757d;
             border-color: #6c757d;
             color: #fff;
+        }
+        
+        /* Modern Toggle Switch */
+        .toggle-switch {
+            position: relative;
+            display: inline-block;
+            width: 48px;
+            height: 24px;
+            margin: 0;
+        }
+        
+        .toggle-switch-input {
+            opacity: 0;
+            width: 0;
+            height: 0;
+            position: absolute;
+        }
+        
+        .toggle-switch-slider {
+            position: absolute;
+            cursor: pointer;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background-color: #ccc;
+            transition: 0.3s;
+            border-radius: 24px;
+            box-shadow: inset 0 1px 3px rgba(0,0,0,0.1);
+        }
+        
+        .toggle-switch-slider:before {
+            position: absolute;
+            content: "";
+            height: 18px;
+            width: 18px;
+            left: 3px;
+            bottom: 3px;
+            background-color: white;
+            transition: 0.3s;
+            border-radius: 50%;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.2);
+        }
+        
+        .toggle-switch-input:checked + .toggle-switch-slider {
+            background-color: #0d6efd;
+        }
+        
+        .toggle-switch-input:checked + .toggle-switch-slider:before {
+            transform: translateX(24px);
+        }
+        
+        .toggle-switch-input:focus + .toggle-switch-slider {
+            box-shadow: 0 0 0 3px rgba(13, 110, 253, 0.25);
+        }
+        
+        .toggle-switch-input:disabled + .toggle-switch-slider {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+        
+        /* Toggle Label Styling */
+        .toggle-label {
+            font-size: 0.875rem;
+            transition: all 0.3s ease;
+            min-width: 30px;
+            text-align: center;
+        }
+        
+        .toggle-label.active {
+            color: #0d6efd !important;
+            font-weight: 600;
         }
         
         /* Excel-like Simple Design */
@@ -403,7 +475,7 @@
             background-size: 12px;
             padding-right: 28px;
         }
-    </style>
+</style>
 
 <div class="content-wrapper excel-form">
     <div class="container-xxl flex-grow-1 container-p-y">
@@ -879,7 +951,7 @@
                                         <div class="row g-3">
                                             <div class="col-md-6">
                                                 <label class="form-label fw-semibold">Location</label>
-                                                <input type="text" class="form-control" value="{{ $hotelDetails['location'] ?? '' }}" placeholder="City / Area" disabled>
+                                                <input type="text" class="form-control" style="height: 38px;" value="{{ $hotelDetails['location'] ?? '' }}" placeholder="City / Area" disabled>
                                                 <input type="hidden" name="hotel_location" value="{{ $hotelDetails['location'] ?? '' }}">
                                             </div>
                                             <div class="col-md-6">
@@ -1559,17 +1631,17 @@
                                                     });
                                                 </script>
                                             </div>
-                                            <div class="col-md-3">
+                                            <div class="col-md-3" sty>
                                                 <label class="form-label fw-semibold">Check-in Date</label>
-                                                <input type="date" class="form-control" name="check_in_date" value="{{ $checkInValue }}" required onchange="updateHotelPrice_{{ $hotelOrder->booking_id }}(true);">
+                                                <input type="date" class="form-control" style="height: 38px;" name="check_in_date" value="{{ $checkInValue }}" required onchange="updateHotelPrice_{{ $hotelOrder->booking_id }}(true);">
                                             </div>
                                             <div class="col-md-3">
                                                 <label class="form-label fw-semibold">Check-out Date</label>
-                                                <input type="date" class="form-control" name="check_out_date" value="{{ $checkOutValue }}" required onchange="updateHotelPrice_{{ $hotelOrder->booking_id }}(true);">
+                                                <input type="date" class="form-control" style="height: 38px;" name="check_out_date" value="{{ $checkOutValue }}" required onchange="updateHotelPrice_{{ $hotelOrder->booking_id }}(true);">
                                             </div>
                                             <div class="col-md-3">
                                                 <label class="form-label fw-semibold">Number of Rooms</label>
-                                                <input type="number" class="form-control" name="number_of_rooms" id="number_of_rooms_{{ $hotelOrder->booking_id }}" value="{{ $numberOfRooms }}" min="1" placeholder="e.g. 1" onchange="updateHotelPrice_{{ $hotelOrder->booking_id }}(true);">
+                                                <input type="number" class="form-control" style="height: 38px;" name="number_of_rooms" id="number_of_rooms_{{ $hotelOrder->booking_id }}" value="{{ $numberOfRooms }}" min="1" placeholder="e.g. 1" onchange="updateHotelPrice_{{ $hotelOrder->booking_id }}(true);">
                                             </div>
                                             <div class="col-md-3">
                                                 <label class="form-label fw-semibold">Room Type</label>
@@ -1600,7 +1672,7 @@
                                             </div>
                                             <div class="col-md-3">
                                                 <label class="form-label fw-semibold">Number of Persons (Pax)</label>
-                                                <input type="number" class="form-control" name="number_of_persons" id="number_of_persons_{{ $hotelOrder->booking_id }}" value="{{ $numberOfPersons }}" min="1" placeholder="e.g. 2" onchange="updatePaxInfo_{{ $hotelOrder->booking_id }}(this.value); updateHotelPrice_{{ $hotelOrder->booking_id }}(true);">
+                                                <input type="number" class="form-control" style="height: 38px;" name="number_of_persons" id="number_of_persons_{{ $hotelOrder->booking_id }}" value="{{ $numberOfPersons }}" min="1" placeholder="e.g. 2" onchange="updatePaxInfo_{{ $hotelOrder->booking_id }}(this.value); updateHotelPrice_{{ $hotelOrder->booking_id }}(true);">
                                                 <small class="text-muted" id="pax_info_{{ $hotelOrder->booking_id }}"></small>
                                             </div>
                                             <div class="col-md-3">
@@ -1608,10 +1680,10 @@
                                                     <i class="ri-money-dollar-circle-line me-1 text-success"></i>Total Price
                                                 </label>
                                                 <div class="input-group">
-                                                    <span class="input-group-text" style="height:28px">$</span>
-                                                    <input type="number" class="form-control" name="total_price" id="total_price_{{ $hotelOrder->booking_id }}" step="0.01" min="0" value="{{ number_format((float)$totalPrice, 2, '.', '') }}" placeholder="0.00" data-manual-edit="false">
+                                                    <span class="input-group-text" style="height:35px; line-height: 35px;">$</span>
+                                                    <input type="number" class="form-control" name="total_price" style="height: 35px;" id="total_price_{{ $hotelOrder->booking_id }}" step="0.01" min="0" value="{{ number_format((float)$totalPrice, 2, '.', '') }}" placeholder="0.00" data-manual-edit="false">
                                                 </div>
-                                                <small class="text-muted d-block mt-1" style="font-size: 0.7rem; line-height: 1.2; word-wrap: break-word;">Price per room & rooms</small>
+                                                <small class="text-muted d-block mt-1" style="font-size: 0.7rem; line-height: 1.7; word-wrap: break-word;">Price per room & rooms</small>
                                             </div>
                                         </div>
                                         <div class="d-flex justify-content-end align-items-center gap-3 mt-4">
@@ -1757,7 +1829,7 @@
                                                 @php
                                                     $time24 = $pickupTime ? date('H:i', strtotime($pickupTime)) : '';
                                                 @endphp
-                                                <input type="time" class="form-control border-2" name="pickup_time" value="{{ $time24 }}" required>
+                                                <input type="time" class="form-control border-2" style="height: 38px;" name="pickup_time" value="{{ $time24 }}" required>
                                             </div>
                                             <div class="col-md-4">
                                                 <label class="form-label fw-semibold text-muted mb-1"><i class="ri-car-line me-1 text-info"></i>Vehicle</label>
@@ -1793,7 +1865,7 @@
                                             
                                             <div class="col-md-2">
                                                 <label class="form-label fw-semibold text-muted mb-1"><i class="ri-money-dollar-circle-line me-1 text-success"></i>Total Price</label>
-                                                <input type="number" class="form-control border-2" name="total_price" step="0.01" min="0" value="{{ number_format((float)($transportData['totalPrice'] ?? $transportData['price'] ?? 0), 2, '.', '') }}" placeholder="0.00" readonly>
+                                                <input type="number" class="form-control border-2" style="height: 38px;" name="total_price" step="0.01" min="0" value="{{ number_format((float)($transportData['totalPrice'] ?? $transportData['price'] ?? 0), 2, '.', '') }}" placeholder="0.00" readonly>
                                             </div>
                                         </div>
                                         <div class="d-flex justify-content-end align-items-center gap-3 mt-3">
@@ -2029,20 +2101,20 @@
                                                 </div>
                                                 <div class="col-md-3">
                                                     <label class="form-label fw-semibold text-muted mb-1"><i class="ri-time-line me-1 text-warning"></i>Time Slot</label>
-                                                    <input type="text" class="form-control border-2" name="time_slot" value="{{ $timeSlot }}" placeholder="e.g. 07:00 AM">
+                                                    <input type="text" class="form-control border-2" style="height: 38px;" name="time_slot" value="{{ $timeSlot }}" placeholder="e.g. 07:00 AM">
                                                     <small class="text-muted">Available time slots</small>
                                                 </div>
                                                 <div class="col-md-3">
                                                     <label class="form-label fw-semibold text-muted mb-1"><i class="ri-user-line me-1 text-secondary"></i>Adults</label>
-                                                    <input type="number" class="form-control border-2" name="adult_count" min="0" value="{{ $adultCount }}" required>
+                                                    <input type="number" class="form-control border-2" style="height: 38px;" name="adult_count" min="0" value="{{ $adultCount }}" required>
                                                 </div>
                                                 <div class="col-md-3">
                                                     <label class="form-label fw-semibold text-muted mb-1"><i class="ri-user-smile-line me-1 text-secondary"></i>Children</label>
-                                                    <input type="number" class="form-control border-2" name="child_count" min="0" value="{{ $childCount }}" required>
+                                                    <input type="number" class="form-control border-2" style="height: 38px;" name="child_count" min="0" value="{{ $childCount }}" required>
                                                 </div>
                                                 <div class="col-md-3">
                                                     <label class="form-label fw-semibold text-muted mb-1"><i class="ri-money-dollar-circle-line me-1 text-success"></i>Total Price</label>
-                                                    <input type="number" class="form-control border-2" name="total_price" id="restaurant_total_price_{{ $order->booking_id }}" step="0.01" min="0" value="{{ number_format((float)$totalPrice, 2, '.', '') }}" placeholder="0.00" readonly>
+                                                    <input type="number" class="form-control border-2" style="height: 38px;" name="total_price" id="restaurant_total_price_{{ $order->booking_id }}" step="0.01" min="0" value="{{ number_format((float)$totalPrice, 2, '.', '') }}" placeholder="0.00" readonly>
                                                 </div>
                                             </div>
                                             
@@ -2050,13 +2122,14 @@
                                             <div class="border rounded-3 p-3 bg-light mb-3">
                                             <div class="row g-2 align-items-center">
                                                 <div class="col-md-4">
-                                                    <label class="form-label fw-semibold d-block mb-1">Need transport for this restaurant?</label>
-                                                    <div class="btn-group btn-group-sm" role="group" aria-label="Need restaurant transport toggle">
-                                                        <input type="radio" class="btn-check" name="need_restaurant_transport_{{ $order->booking_id }}" id="need_restaurant_transport_no_{{ $order->booking_id }}" value="no" autocomplete="off" {{ !$transferRequired ? 'checked' : '' }}>
-                                                        <label class="btn btn-outline-secondary" for="need_restaurant_transport_no_{{ $order->booking_id }}">No</label>
-                                                        
-                                                        <input type="radio" class="btn-check" name="need_restaurant_transport_{{ $order->booking_id }}" id="need_restaurant_transport_yes_{{ $order->booking_id }}" value="yes" autocomplete="off" {{ $transferRequired ? 'checked' : '' }}>
-                                                        <label class="btn btn-outline-primary" for="need_restaurant_transport_yes_{{ $order->booking_id }}">Yes</label>
+                                                    <label class="form-label fw-semibold d-block mb-2">Need transport for this restaurant?</label>
+                                                    <div class="d-flex align-items-center gap-2">
+                                                        <span class="text-muted small toggle-label" id="restaurant_transport_no_{{ $order->booking_id }}">No</span>
+                                                        <label class="toggle-switch" for="need_restaurant_transport_{{ $order->booking_id }}">
+                                                            <input type="checkbox" class="toggle-switch-input" name="need_restaurant_transport_{{ $order->booking_id }}" id="need_restaurant_transport_{{ $order->booking_id }}" value="yes" autocomplete="off" {{ $transferRequired ? 'checked' : '' }}>
+                                                            <span class="toggle-switch-slider"></span>
+                                                        </label>
+                                                        <span class="text-muted small toggle-label" id="restaurant_transport_yes_{{ $order->booking_id }}">Yes</span>
                                                     </div>
                                                 </div>
                                             </div>
@@ -2277,7 +2350,7 @@
                                                         <div class="col-md-4">
                                                             <label class="form-label fw-semibold text-muted mb-1"><i class="ri-map-pin-line me-1 text-primary"></i>Pickup Location</label>
                                                             <div class="position-relative">
-                                                                <input type="text" class="form-control border-2 google-maps-autocomplete" name="pickup_location" value="{{ $pickupLocation }}" placeholder="Search pickup location" style="padding-left: 45px;" required>
+                                                                <input type="text" class="form-control border-2 google-maps-autocomplete" style="height: 38px;" name="pickup_location" value="{{ $pickupLocation }}" placeholder="Search pickup location" style="padding-left: 45px;" required>
                                                                 <i class="ri-map-pin-line position-absolute text-primary" style="left: 15px; top: 50%; transform: translateY(-50%); z-index: 5;"></i>
                                                             </div>
                                                             <input type="hidden" name="pickup_latitude" value="{{ $transportData['pickup_latitude'] ?? '' }}">
@@ -2396,14 +2469,15 @@
                                                             <div class="position-relative">
                                                                 <input 
                                                                     type="text" 
-                                                                    class="form-control border-2 google-maps-autocomplete" 
+                                                                    class="form-control border-2 google-maps-autocomplete"
+                                                                    style="height: 38px;"
                                                                     id="point_pickup_location_{{ $order->booking_id }}"
                                                                     name="pickup_location" 
                                                                     value="{{ $pickupLocation }}" 
                                                                     placeholder="Search pickup location" 
                                                                     style="padding-left: 45px;" 
                                                                     required>
-                                                                <i class="ri-map-pin-line position-absolute text-primary" style="left: 15px; top: 50%; transform: translateY(-50%); z-index: 5;"></i>
+                                                                <!-- <i class="ri-map-pin-line position-absolute text-primary" style="left: 15px; top: 50%; transform: translateY(-50%); z-index: 5;"></i> -->
                                                                 <input type="hidden" name="pickup_latitude" id="point_pickup_lat_{{ $order->booking_id }}" value="{{ $pickupLatitude }}">
                                                                 <input type="hidden" name="pickup_longitude" id="point_pickup_lng_{{ $order->booking_id }}" value="{{ $pickupLongitude }}">
                                                                 <input type="hidden" name="pickup_place_id" id="point_pickup_place_id_{{ $order->booking_id }}" value="{{ $pickupPlaceId }}">
@@ -2414,14 +2488,15 @@
                                                             <div class="position-relative">
                                                                 <input 
                                                                     type="text" 
-                                                                    class="form-control border-2 google-maps-autocomplete" 
+                                                                    class="form-control border-2 google-maps-autocomplete"
+                                                                    style="height: 38px;"
                                                                     id="point_dropoff_location_{{ $order->booking_id }}"
                                                                     name="dropoff_location" 
                                                                     value="{{ $dropoffLocation }}" 
                                                                     placeholder="Search dropoff location" 
                                                                     style="padding-left: 45px;" 
                                                                     required>
-                                                                <i class="ri-map-pin-2-line position-absolute text-success" style="left: 15px; top: 50%; transform: translateY(-50%); z-index: 5;"></i>
+                                                                <!-- <i class="ri-map-pin-2-line position-absolute text-success" style="left: 15px; top: 50%; transform: translateY(-50%); z-index: 5;"></i> -->
                                                                 <input type="hidden" name="dropoff_latitude" id="point_dropoff_lat_{{ $order->booking_id }}" value="{{ $dropoffLatitude }}">
                                                                 <input type="hidden" name="dropoff_longitude" id="point_dropoff_lng_{{ $order->booking_id }}" value="{{ $dropoffLongitude }}">
                                                                 <input type="hidden" name="dropoff_place_id" id="point_dropoff_place_id_{{ $order->booking_id }}" value="{{ $dropoffPlaceId }}">
@@ -2429,11 +2504,11 @@
                                                         </div>
                                                         <div class="col-md-2">
                                                             <label class="form-label fw-semibold text-muted mb-1"><i class="ri-calendar-line me-1 text-secondary"></i>Pickup Date</label>
-                                                            <input type="date" class="form-control border-2" name="pickup_date" value="{{ $pickupDate }}">
+                                                            <input type="date" class="form-control border-2" style="height: 38px;" name="pickup_date" value="{{ $pickupDate }}">
                                                         </div>
                                                         <div class="col-md-2">
                                                             <label class="form-label fw-semibold text-muted mb-1"><i class="ri-time-line me-1 text-warning"></i>Pickup Time</label>
-                                                            <input type="time" class="form-control border-2" name="pickup_time" value="{{ $pickupTimeValue }}" required>
+                                                            <input type="time" class="form-control border-2" style="height: 38px;" name="pickup_time" value="{{ $pickupTimeValue }}" required>
                                                         </div>
                                                         <div class="col-md-4">
                                                             <label class="form-label fw-semibold text-muted mb-1"><i class="ri-car-line me-1 text-info"></i>Vehicle Name</label>
@@ -2472,7 +2547,7 @@
                                                         </div> -->
                                                         <div class="col-md-3">
                                                             <label class="form-label fw-semibold text-muted mb-1"><i class="ri-money-dollar-circle-line me-1 text-success"></i>Total Price</label>
-                                                            <input type="number" class="form-control border-2" name="total_price" step="0.01" min="0" value="{{ number_format((float) $totalPrice, 2, '.', '') }}" placeholder="0.00">
+                                                            <input type="number" class="form-control border-2" style="height: 38px;" name="total_price" step="0.01" min="0" value="{{ number_format((float) $totalPrice, 2, '.', '') }}" placeholder="0.00">
                                                         </div>
                                                     </div>
                                                     <div class="d-flex justify-content-end align-items-center gap-3 mt-3">
@@ -2976,38 +3051,39 @@
                                                 
                                                 <div class="col-md-3">
                                                     <label class="form-label fw-semibold text-muted mb-1"><i class="ri-user-line me-1 text-secondary"></i>Adults</label>
-                                                    <input type="number" class="form-control border-2" name="adult_count" min="0" value="{{ $adultCount }}" required>
+                                                    <input type="number" class="form-control border-2" style="height: 38px;" name="adult_count" min="0" value="{{ $adultCount }}" required>
                                                 </div>
                                                 <div class="col-md-3">
                                                     <label class="form-label fw-semibold text-muted mb-1"><i class="ri-user-smile-line me-1 text-secondary"></i>Children</label>
-                                                    <input type="number" class="form-control border-2" name="child_count" min="0" value="{{ $childCount }}" required>
+                                                    <input type="number" class="form-control border-2" style="height: 38px;" name="child_count" min="0" value="{{ $childCount }}" required>
                                                 </div>
                                                 <div class="col-md-2">
                                                     <label class="form-label fw-semibold text-muted mb-1"><i class="ri-user-heart-line me-1 text-secondary"></i>Seniors</label>
-                                                    <input type="number" class="form-control border-2" name="senior_count" min="0" value="{{ $seniorCount }}" required>
+                                                    <input type="number" class="form-control border-2" style="height: 38px;" name="senior_count" min="0" value="{{ $seniorCount }}" required>
                                                 </div>
                                                 
                                                 <!-- Additional Pax Details -->
                                                 <div class="col-md-2">
                                                     <label class="form-label fw-semibold text-muted mb-1"><i class="ri-user-heart-line me-1 text-warning"></i>Infants</label>
-                                                    <input type="number" class="form-control border-2" name="infants" min="0" value="{{ $infantsCount }}">
+                                                    <input type="number" class="form-control border-2" style="height: 38px;" name="infants" min="0" value="{{ $infantsCount }}">
                                                 </div>
                                                 <div class="col-md-2">
                                                     <label class="form-label fw-semibold text-muted mb-1"><i class="ri-money-dollar-circle-line me-1 text-success"></i>Total Price</label>
-                                                    <input type="number" class="form-control border-2" name="total_price" id="attraction_total_price_{{ $order->booking_id }}" step="0.01" min="0" value="{{ number_format((float)$totalPrice, 2, '.', '') }}" placeholder="0.00" readonly>
+                                                    <input type="number" class="form-control border-2" style="height: 38px;" name="total_price" id="attraction_total_price_{{ $order->booking_id }}" step="0.01" min="0" value="{{ number_format((float)$totalPrice, 2, '.', '') }}" placeholder="0.00" readonly>
                                                 </div>
                                             </div>
                                             <!-- Transport for this attraction -->
                                         <div class="border rounded-3 p-3 bg-light mb-3">
                                             <div class="row g-2 align-items-center">
                                                 <div class="col-md-4">
-                                                    <label class="form-label fw-semibold d-block mb-1">Need transport for this attraction?</label>
-                                                    <div class="btn-group btn-group-sm" role="group" aria-label="Need attraction transport toggle">
-                                                        <input type="radio" class="btn-check" name="need_attraction_transport_{{ $order->booking_id }}" id="need_attraction_transport_no_{{ $order->booking_id }}" value="no" autocomplete="off" {{ !$transferRequired ? 'checked' : '' }}>
-                                                        <label class="btn btn-outline-secondary" for="need_attraction_transport_no_{{ $order->booking_id }}">No</label>
-                                                        
-                                                        <input type="radio" class="btn-check" name="need_attraction_transport_{{ $order->booking_id }}" id="need_attraction_transport_yes_{{ $order->booking_id }}" value="yes" autocomplete="off" {{ $transferRequired ? 'checked' : '' }}>
-                                                        <label class="btn btn-outline-primary" for="need_attraction_transport_yes_{{ $order->booking_id }}">Yes</label>
+                                                    <label class="form-label fw-semibold d-block mb-2">Need transport for this attraction?</label>
+                                                    <div class="d-flex align-items-center gap-2">
+                                                        <span class="text-muted small toggle-label" id="attraction_transport_no_{{ $order->booking_id }}">No</span>
+                                                        <label class="toggle-switch" for="need_attraction_transport_{{ $order->booking_id }}">
+                                                            <input type="checkbox" class="toggle-switch-input" name="need_attraction_transport_{{ $order->booking_id }}" id="need_attraction_transport_{{ $order->booking_id }}" value="yes" autocomplete="off" {{ $transferRequired ? 'checked' : '' }}>
+                                                            <span class="toggle-switch-slider"></span>
+                                                        </label>
+                                                        <span class="text-muted small toggle-label" id="attraction_transport_yes_{{ $order->booking_id }}">Yes</span>
                                                     </div>
                                                 </div>
                                             </div>
@@ -3131,13 +3207,14 @@
                                         <div class="border rounded-3 p-3 bg-light mb-2 mt-2">
                                             <div class="row g-2 align-items-center">
                                                 <div class="col-md-4">
-                                                    <label class="form-label fw-semibold d-block mb-1">Do you want a guide?</label>
-                                                    <div class="btn-group btn-group-sm" role="group" aria-label="Need attraction guide toggle">
-                                                        <input type="radio" class="btn-check" name="need_attraction_guide_{{ $order->booking_id }}" id="need_attraction_guide_no_{{ $order->booking_id }}" value="no" autocomplete="off" checked>
-                                                        <label class="btn btn-outline-secondary" for="need_attraction_guide_no_{{ $order->booking_id }}">No</label>
-                                                        
-                                                        <input type="radio" class="btn-check" name="need_attraction_guide_{{ $order->booking_id }}" id="need_attraction_guide_yes_{{ $order->booking_id }}" value="yes" autocomplete="off">
-                                                        <label class="btn btn-outline-primary" for="need_attraction_guide_yes_{{ $order->booking_id }}">Yes</label>
+                                                    <label class="form-label fw-semibold d-block mb-2">Do you want a guide?</label>
+                                                    <div class="d-flex align-items-center gap-2">
+                                                        <span class="text-muted small toggle-label" id="attraction_guide_no_{{ $order->booking_id }}">No</span>
+                                                        <label class="toggle-switch" for="need_attraction_guide_{{ $order->booking_id }}">
+                                                            <input type="checkbox" class="toggle-switch-input" name="need_attraction_guide_{{ $order->booking_id }}" id="need_attraction_guide_{{ $order->booking_id }}" value="yes" autocomplete="off">
+                                                            <span class="toggle-switch-slider"></span>
+                                                        </label>
+                                                        <span class="text-muted small toggle-label" id="attraction_guide_yes_{{ $order->booking_id }}">Yes</span>
                                                     </div>
                                                 </div>
                                             </div>
@@ -3377,11 +3454,11 @@
                                                 </div>
                                                 <div class="col-md-3">
                                                     <label class="form-label fw-semibold text-muted mb-1"><i class="ri-time-line me-1 text-warning"></i>Package (Hours)</label>
-                                                    <input type="text" class="form-control border-2" name="package_hours" value="{{ $packageHours }}" placeholder="e.g. 4">
+                                                    <input type="text" class="form-control border-2" style="height: 38px;" name="package_hours" value="{{ $packageHours }}" placeholder="e.g. 4">
                                                 </div>
                                                 <div class="col-md-2">
                                                     <label class="form-label fw-semibold text-muted mb-1"><i class="ri-money-dollar-circle-line me-1 text-success"></i>Total Price</label>
-                                                    <input type="number" class="form-control border-2" name="total_price" id="guide_total_price_{{ $order->booking_id }}" step="0.01" min="0" value="{{ number_format((float)$totalPrice, 2, '.', '') }}" placeholder="0.00" readonly>
+                                                    <input type="number" class="form-control border-2" style="height: 38px;" name="total_price" id="guide_total_price_{{ $order->booking_id }}" step="0.01" min="0" value="{{ number_format((float)$totalPrice, 2, '.', '') }}" placeholder="0.00" readonly>
                                                 </div>
                                             </div>
                                             <div class="d-flex justify-content-end align-items-center">
@@ -3574,7 +3651,8 @@
                                                         </div>
                                                         <div class="col-md-2">
                                                             <label class="form-label fw-semibold text-muted mb-1"><i class="ri-money-dollar-circle-line me-1 text-success"></i>Total Price</label>
-                                                            <input type="number" class="form-control border-2" name="total_price" step="0.01" min="0" value="{{ number_format((float)$totalPrice, 2, '.', '') }}" placeholder="0.00" readonly>
+                                                            <input type="number" class="form-control border-2"
+                                                            style="height: 38px;" name="total_price" step="0.01" min="0" value="{{ number_format((float)$totalPrice, 2, '.', '') }}" placeholder="0.00" readonly>
                                                         </div>
                                                         <!-- <div class="col-md-2">
                                                             <label class="form-label fw-semibold text-muted mb-1">Passengers</label>
@@ -4200,13 +4278,14 @@
                             <div class="border rounded-3 p-3 bg-light mb-3 mt-3">
                                 <div class="row g-2 align-items-center">
                                     <div class="col-md-4">
-                                        <label class="form-label fw-semibold d-block mb-1">Need transport for this restaurant?</label>
-                                        <div class="btn-group btn-group-sm" role="group" aria-label="Need restaurant transport toggle">
-                                            <input type="radio" class="btn-check" name="modal_need_restaurant_transport" id="modal_need_restaurant_transport_no" value="no" autocomplete="off" checked>
-                                            <label class="btn btn-outline-secondary" for="modal_need_restaurant_transport_no">No</label>
-                                            
-                                            <input type="radio" class="btn-check" name="modal_need_restaurant_transport" id="modal_need_restaurant_transport_yes" value="yes" autocomplete="off">
-                                            <label class="btn btn-outline-primary" for="modal_need_restaurant_transport_yes">Yes</label>
+                                        <label class="form-label fw-semibold d-block mb-2">Need transport for this restaurant?</label>
+                                        <div class="d-flex align-items-center gap-2">
+                                            <span class="text-muted small toggle-label" id="modal_restaurant_transport_no">No</span>
+                                            <label class="toggle-switch" for="modal_need_restaurant_transport">
+                                                <input type="checkbox" class="toggle-switch-input" name="modal_need_restaurant_transport" id="modal_need_restaurant_transport" value="yes" autocomplete="off">
+                                                <span class="toggle-switch-slider"></span>
+                                            </label>
+                                            <span class="text-muted small toggle-label" id="modal_restaurant_transport_yes">Yes</span>
                                         </div>
                                     </div>
                                 </div>
@@ -4836,13 +4915,14 @@
                             <div class="border rounded-3 p-3 bg-light mb-2 mt-2">
                                 <div class="row g-2 align-items-center">
                                     <div class="col-md-4">
-                                        <label class="form-label fw-semibold d-block mb-1">Need transport for this attraction?</label>
-                                        <div class="btn-group btn-group-sm" role="group" aria-label="Need attraction transport toggle">
-                                            <input type="radio" class="btn-check" name="modal_need_attraction_transport" id="modal_need_attraction_transport_no" value="no" autocomplete="off" checked>
-                                            <label class="btn btn-outline-secondary" for="modal_need_attraction_transport_no">No</label>
-                                            
-                                            <input type="radio" class="btn-check" name="modal_need_attraction_transport" id="modal_need_attraction_transport_yes" value="yes" autocomplete="off">
-                                            <label class="btn btn-outline-primary" for="modal_need_attraction_transport_yes">Yes</label>
+                                        <label class="form-label fw-semibold d-block mb-2">Need transport for this attraction?</label>
+                                        <div class="d-flex align-items-center gap-2">
+                                            <span class="text-muted small toggle-label" id="modal_attraction_transport_no">No</span>
+                                            <label class="toggle-switch" for="modal_need_attraction_transport">
+                                                <input type="checkbox" class="toggle-switch-input" name="modal_need_attraction_transport" id="modal_need_attraction_transport" value="yes" autocomplete="off">
+                                                <span class="toggle-switch-slider"></span>
+                                            </label>
+                                            <span class="text-muted small toggle-label" id="modal_attraction_transport_yes">Yes</span>
                                         </div>
                                     </div>
                                 </div>
@@ -6126,7 +6206,7 @@
         };
     }
 
-    // Generic helper for Yes/No transport toggles
+    // Generic helper for Yes/No transport toggles (for radio buttons - backward compatibility)
     function setupInlineTransportToggle(yesId, noId, wrapperId) {
         const yesRadio = document.getElementById(yesId);
         const noRadio = document.getElementById(noId);
@@ -6148,6 +6228,43 @@
         // Initial state
         updateVisibility();
     }
+    
+    // Modern toggle switch helper (for checkboxes)
+    function setupToggleSwitch(toggleId, wrapperId, noLabelId, yesLabelId) {
+        const toggle = document.getElementById(toggleId);
+        const wrapper = document.getElementById(wrapperId);
+        const noLabel = document.getElementById(noLabelId);
+        const yesLabel = document.getElementById(yesLabelId);
+
+        if (!toggle || !wrapper) return;
+
+        function updateVisibility() {
+            if (toggle.checked) {
+                wrapper.classList.remove('d-none');
+                // Highlight Yes label, unhighlight No label
+                if (yesLabel) {
+                    yesLabel.classList.add('active');
+                }
+                if (noLabel) {
+                    noLabel.classList.remove('active');
+                }
+            } else {
+                wrapper.classList.add('d-none');
+                // Highlight No label, unhighlight Yes label
+                if (noLabel) {
+                    noLabel.classList.add('active');
+                }
+                if (yesLabel) {
+                    yesLabel.classList.remove('active');
+                }
+            }
+        }
+
+        toggle.addEventListener('change', updateVisibility);
+
+        // Initial state
+        updateVisibility();
+    }
 
     // Initialize all inline transport toggles after DOM is ready
     function initializeInlineTransportToggles() {
@@ -6161,40 +6278,45 @@
             );
         });
 
-        // Attractions
-        document.querySelectorAll("input[id^='need_attraction_transport_yes_']").forEach(function(yesRadio) {
-            const suffix = yesRadio.id.replace('need_attraction_transport_yes_', '');
-            setupInlineTransportToggle(
-                'need_attraction_transport_yes_' + suffix,
-                'need_attraction_transport_no_' + suffix,
-                'attraction_transport_details_' + suffix
+        // Attractions - using toggle switch
+        document.querySelectorAll("input[id^='need_attraction_transport_'][type='checkbox']").forEach(function(toggle) {
+            const bookingId = toggle.id.replace('need_attraction_transport_', '');
+            setupToggleSwitch(
+                'need_attraction_transport_' + bookingId,
+                'attraction_transport_details_' + bookingId,
+                'attraction_transport_no_' + bookingId,
+                'attraction_transport_yes_' + bookingId
             );
         });
         
-        // Setup guide toggle for attraction booking sections
-        document.querySelectorAll("input[id^='need_attraction_guide_yes_']").forEach(function(yesRadio) {
-            const suffix = yesRadio.id.replace('need_attraction_guide_yes_', '');
-            setupInlineTransportToggle(
-                'need_attraction_guide_yes_' + suffix,
-                'need_attraction_guide_no_' + suffix,
-                'attraction_guide_details_' + suffix
+        // Setup guide toggle for attraction booking sections (using toggle switch)
+        document.querySelectorAll("input[id^='need_attraction_guide_'][type='checkbox']").forEach(function(toggle) {
+            const bookingId = toggle.id.replace('need_attraction_guide_', '');
+            setupToggleSwitch(
+                'need_attraction_guide_' + bookingId,
+                'attraction_guide_details_' + bookingId,
+                'attraction_guide_no_' + bookingId,
+                'attraction_guide_yes_' + bookingId
             );
         });
 
-        // Restaurants
-        document.querySelectorAll("input[id^='need_restaurant_transport_yes_']").forEach(function(yesRadio) {
-            const suffix = yesRadio.id.replace('need_restaurant_transport_yes_', '');
-            setupInlineTransportToggle(
-                'need_restaurant_transport_yes_' + suffix,
-                'need_restaurant_transport_no_' + suffix,
-                'restaurant_transport_details_' + suffix
+        // Restaurants - using toggle switch
+        document.querySelectorAll("input[id^='need_restaurant_transport_'][type='checkbox']").forEach(function(toggle) {
+            const bookingId = toggle.id.replace('need_restaurant_transport_', '');
+            setupToggleSwitch(
+                'need_restaurant_transport_' + bookingId,
+                'restaurant_transport_details_' + bookingId,
+                'restaurant_transport_no_' + bookingId,
+                'restaurant_transport_yes_' + bookingId
             );
         });
         
         // Modal transport toggles
         setupInlineTransportToggle('modal_need_hotel_transport_yes', 'modal_need_hotel_transport_no', 'modal_hotel_transport_details');
-        setupInlineTransportToggle('modal_need_restaurant_transport_yes', 'modal_need_restaurant_transport_no', 'modal_restaurant_transport_details');
-        setupInlineTransportToggle('modal_need_attraction_transport_yes', 'modal_need_attraction_transport_no', 'modal_attraction_transport_details');
+        // Modal restaurant transport toggle (using toggle switch)
+        setupToggleSwitch('modal_need_restaurant_transport', 'modal_restaurant_transport_details', 'modal_restaurant_transport_no', 'modal_restaurant_transport_yes');
+        // Modal attraction transport toggle (using toggle switch)
+        setupToggleSwitch('modal_need_attraction_transport', 'modal_attraction_transport_details', 'modal_attraction_transport_no', 'modal_attraction_transport_yes');
         
         // Setup guide toggle for attraction modal
         setupInlineTransportToggle('modal_need_attraction_guide_yes', 'modal_need_attraction_guide_no', 'modal_attraction_guide_details');
@@ -11902,8 +12024,8 @@
         }];
         
         // Collect transport data if transport is required
-        const needTransportYes = document.getElementById('modal_need_attraction_transport_yes');
-        if (needTransportYes && needTransportYes.checked) {
+        const needTransportToggle = document.getElementById('modal_need_attraction_transport');
+        if (needTransportToggle && needTransportToggle.checked) {
             const transportType = document.getElementById('modal_attraction_transport_type')?.value || '';
             const transportVehicle = document.getElementById('modal_attraction_transport_vehicle')?.value || '';
             const transportDestination = document.getElementById('modal_attraction_transport_destination')?.value || '';
@@ -15413,8 +15535,8 @@
         }];
         
         // Collect transport data if transport is required
-        const needTransportYes = document.getElementById('modal_need_restaurant_transport_yes');
-        if (needTransportYes && needTransportYes.checked) {
+        const needTransportToggle = document.getElementById('modal_need_restaurant_transport');
+        if (needTransportToggle && needTransportToggle.checked) {
             const transportType = document.getElementById('modal_restaurant_transport_type')?.value || '';
             const transportVehicle = document.getElementById('modal_restaurant_transport_vehicle')?.value || '';
             const transportDestination = document.getElementById('modal_restaurant_transport_destination')?.value || '';
@@ -17303,8 +17425,8 @@
         }
 
         // Collect transport data if transport is required
-        const needTransportYes = document.querySelector(`#need_restaurant_transport_yes_${bookingId}`);
-        if (needTransportYes && needTransportYes.checked) {
+        const needTransportToggle = document.querySelector(`#need_restaurant_transport_${bookingId}`);
+        if (needTransportToggle && needTransportToggle.checked) {
             const transportType = document.querySelector(`select[name="restaurant_transport_type_${bookingId}"]`)?.value || '';
             const transportVehicle = document.querySelector(`select[name="restaurant_transport_vehicle_${bookingId}"]`)?.value || '';
             const transportDestination = document.querySelector(`select[name="restaurant_transport_destination_${bookingId}"]`)?.value || '';
@@ -17445,8 +17567,8 @@
         }
 
         // Collect transport data if transport is required
-        const needTransportYes = document.querySelector(`#need_attraction_transport_yes_${bookingId}`);
-        if (needTransportYes && needTransportYes.checked) {
+        const needTransportToggle = document.querySelector(`#need_attraction_transport_${bookingId}`);
+        if (needTransportToggle && needTransportToggle.checked) {
             const transportType = document.querySelector(`select[name="attraction_transport_type_${bookingId}"]`)?.value || '';
             const transportVehicle = document.querySelector(`select[name="attraction_transport_vehicle_${bookingId}"]`)?.value || '';
             const transportDestination = document.querySelector(`select[name="attraction_transport_destination_${bookingId}"]`)?.value || '';

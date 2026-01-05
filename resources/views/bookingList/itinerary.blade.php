@@ -2382,6 +2382,9 @@
                         {{-- <a href="{{ route('bookinglist.index') }}" class="btn-modern btn-secondary-modern">
                             <i class="fas fa-arrow-left"></i> Back to Bookings
                         </a> --}}
+                        <button id="downloadText" class="btn-modern btn-secondary-modern">
+                            <i class="fas fa-file-alt"></i> Download Itinerary
+                        </button>
                         <button id="downloadPdf" class="btn-modern btn-secondary-modern">
                             <i class="fas fa-download"></i> Download PDF
                         </button>
@@ -3824,6 +3827,11 @@
             });
         });
         
+        // Download Text Itinerary functionality
+        document.getElementById('downloadText').addEventListener('click', function() {
+            downloadAsText();
+        });
+        
         // Download PDF functionality
         document.getElementById('downloadPdf').addEventListener('click', function() {
             downloadAsPDF();
@@ -3985,6 +3993,390 @@
                     });
                 }, 300);
             }, 200);
+        }
+        
+        function downloadAsText() {
+            /**
+             * DATA STRUCTURE FOR ALL SERVICE TYPES:
+             * 
+             * Data is fetched from $itineraryByDate which is organized by date (Y-m-d format)
+             * Each date contains an array of bookings, where each booking has:
+             * - booking->type: 'hotel', 'restaurant', 'attraction', 'guide', 'travel_point', 'travel_hourly', 'entry_port', 'exit_port'
+             * - booking->data_decoded: Array of booking items (usually [0] contains the main data)
+             * 
+             * HOTEL SERVICE:
+             * - data['hotelDetails']['hotel_name'] or data['hotelname'] or data['name']
+             * - data['bookingDate']: [checkIn, checkOut] (array) or single date
+             * - data['hotelDetails']['location']
+             * - data['hotelDetails']['checkInTime'], data['hotelDetails']['checkOutTime']
+             * - data['rooms']: Array of rooms with room_type, beds array
+             * - data['total_nights'] or data['nights']
+             * - data['confirmationNo'] or data['confirmation_no'] or data['confirmation_number']
+             * - data['stay_type']: 'checkin', 'stay', 'checkout'
+             * 
+             * RESTAURANT SERVICE:
+             * - data['restaurantName'] or data['name']
+             * - data['bookingDate'] or data['date']
+             * - data['visitTime']
+             * - data['mealType'], data['mealSpecificType']
+             * - data['adultCount'], data['childCount']
+             * - data['totalPrice']
+             * - data['transfer_options']['transfer_required']: boolean
+             * - data['transfer_options']['pickup_location_name']
+             * - data['transfer_options']['type']: 'Shared' or 'Private'
+             * 
+             * ATTRACTION SERVICE:
+             * - data['AttractionName'] or data['name']
+             * - data['bookingDate'] or data['date']
+             * - data['visitTime']
+             * - data['ticketName'], data['ticketId']
+             * - data['adultCount'], data['childCount'], data['seniorCount']
+             * - data['totalPrice']
+             * - data['transfer_options']['transfer_required']: boolean
+             * - data['transfer_options']['pickup_location_name']
+             * - data['transfer_options']['type']: 'Shared' or 'Private'
+             * 
+             * GUIDE SERVICE:
+             * - data['guide_name'] or data['guideName']
+             * - data['bookingDate'] or data['pickupdate']
+             * - data['entrytime']
+             * - data['hours']
+             * - data['experience']
+             * - data['languages']: Array of {language, proficiency}
+             * 
+             * LOCAL TRANSPORT (travel_point, travel_hourly):
+             * - data['pickupdate']
+             * - data['entrypickup'] or data['pickup']
+             * - data['entrydropoff'] or data['dropoff'] or data['dropoffLocation']
+             * - data['type']: 'Shared' or 'Private'
+             * - data['vehicle'] or data['vehicles_name']
+             * - data['travel_type']: 'travel_point' or 'travel_hourly'
+             * - data['selectedHours']: For hourly transport
+             * - data['remark'] or data['remarks'] or data['specialRequests']
+             * 
+             * ENTRY PORT (Arrival):
+             * - data['entrypickup'] or data['entry_pickup'] or data['pickup']
+             * - data['entrydropoff'] or data['entry_dropoff'] or data['dropoff']
+             * - data['pickupdate']
+             * - data['transfer_options']['type']: 'Shared' or 'Private'
+             * - data['remark'] or data['remarks'] or data['specialRequests']
+             * 
+             * EXIT PORT (Departure):
+             * - data['exitpickup'] or data['entry_pickup'] or data['pickup']
+             * - data['exitdropoff'] or data['entry_dropoff'] or data['dropoff']
+             * - data['exitpickupdate']
+             * - data['type']: 'Shared' or 'Private'
+             * - data['vehicles_name']
+             * - data['remark'] or data['remarks'] or data['specialRequests']
+             */
+            
+            // Check if jsPDF is loaded
+            if (typeof window.jspdf === 'undefined') {
+                showErrorMessage('PDF library not loaded. Please refresh the page and try again.');
+                return;
+            }
+            
+            // Show loading message
+            const loadingMsg = showMessage('Generating text itinerary...', 'info');
+            
+            try {
+                const { jsPDF } = window.jspdf;
+                const pdf = new jsPDF('p', 'mm', 'a4');
+                
+                // Get data from PHP variables (passed to JavaScript)
+                const tourId = @json($tourId ?? '');
+                const displayId = @json($tourDetails->display_id ?? '');
+                const destination = @json($tourDetails->destination ?? '');
+                const checkInTime = @json($tourDetails->check_in_time ?? null);
+                const checkOutTime = @json($tourDetails->check_out_time ?? null);
+                // Check for PNR number - could be in tourDetails or use tourId
+                const pnrNumber = @json($tourDetails->pnr ?? $tourDetails->pnr_number ?? $tourId ?? '');
+                
+                // Extract customer info from bookings (same logic as blade template)
+                @php
+                    $customerInfo = [];
+                    if (isset($itineraryByDate) && count($itineraryByDate) > 0) {
+                        foreach ($itineraryByDate as $date => $bookings) {
+                            foreach ($bookings as $booking) {
+                                $data = null;
+                                if (isset($booking->data_decoded) && is_array($booking->data_decoded) && !empty($booking->data_decoded)) {
+                                    $data = $booking->data_decoded[0] ?? null;
+                                } elseif (isset($booking->data) && is_string($booking->data)) {
+                                    try {
+                                        $data = json_decode($booking->data, true);
+                                        if (is_array($data) && isset($data[0])) {
+                                            $data = $data[0];
+                                        }
+                                    } catch (\Exception $e) {
+                                        $data = $booking->data;
+                                    }
+                                } elseif (isset($booking->data) && is_array($booking->data)) {
+                                    $data = isset($booking->data[0]) ? $booking->data[0] : $booking->data;
+                                }
+                                
+                                if ($data && is_array($data)) {
+                                    // Extract customer info from booking data
+                                    if (isset($data['fullName']) && !empty($data['fullName'])) {
+                                        $customerInfo = [
+                                            'fullName' => $data['fullName'] ?? '',
+                                            'email' => $data['email'] ?? '',
+                                            'phone' => $data['phone'] ?? '',
+                                        ];
+                                        break 2; // Found customer info, exit both loops
+                                    }
+                                }
+                            }
+                        }
+                    }
+                @endphp
+                const customerInfo = @json($customerInfo ?? []);
+                
+                // Format dates - match screenshot format: "23 Dec 2025" (no leading zero on day)
+                let travelDate = '';
+                const formatDate = (date) => {
+                    const day = date.getDate(); // No padding - remove leading zero
+                    const month = date.toLocaleString('en-US', { month: 'short' });
+                    const year = date.getFullYear();
+                    return `${day} ${month} ${year}`;
+                };
+                
+                if (checkInTime && checkOutTime) {
+                    const startDate = new Date(checkInTime);
+                    const endDate = new Date(checkOutTime);
+                    travelDate = `${formatDate(startDate)} - ${formatDate(endDate)}`;
+                }
+                
+                // Company Information
+                const companyName = 'TravelBullz (HK) Limited';
+                const companyAddress = '701, 7th Floor, Wing Kwok Centre, 182, Woosung Street, Jordon, Kowloon, Hong Kong';
+                const companyTel = '+852-23752321';
+                const companyFax = '85223752369';
+                const companyEmail = 'online@travelbullz.com';
+                
+                // Starting position
+                let yPos = 20;
+                const leftMargin = 20;
+                const rightMargin = 190;
+                const lineHeight = 7;
+                
+                // Company Header
+                pdf.setFontSize(14);
+                pdf.setFont('helvetica', 'bold');
+                pdf.text(companyName, leftMargin, yPos);
+                yPos += lineHeight;
+                
+                pdf.setFontSize(10);
+                pdf.setFont('helvetica', 'normal');
+                pdf.text(companyAddress, leftMargin, yPos);
+                yPos += lineHeight;
+                pdf.text(`Tel: ${companyTel}`, leftMargin, yPos);
+                yPos += lineHeight;
+                pdf.text(`Fax: ${companyFax}`, leftMargin, yPos);
+                yPos += lineHeight;
+                pdf.text(`Email: ${companyEmail}`, leftMargin, yPos);
+                yPos += lineHeight + 5;
+                
+                // Draw line
+                pdf.setDrawColor(0, 150, 136); // Teal color
+                pdf.setLineWidth(0.5);
+                pdf.line(leftMargin, yPos, rightMargin, yPos);
+                yPos += lineHeight;
+                
+                // YOUR TRAVEL ITINERARY
+                pdf.setFontSize(12);
+                pdf.setFont('helvetica', 'bold');
+                pdf.text('YOUR TRAVEL ITINERARY', leftMargin, yPos);
+                yPos += lineHeight;
+                
+                // Draw double underline
+                pdf.setLineWidth(0.3);
+                pdf.line(leftMargin, yPos, rightMargin, yPos);
+                yPos += 2;
+                pdf.line(leftMargin, yPos, rightMargin, yPos);
+                yPos += lineHeight + 2;
+                
+                // PNR Number
+                pdf.setFontSize(10);
+                pdf.setFont('helvetica', 'normal');
+                const pnrDisplay = pnrNumber || tourId || 'N/A';
+                pdf.text(`PNR Number: ${pnrDisplay}`, leftMargin, yPos);
+                yPos += lineHeight;
+                
+                // Reference Number - always show if available
+                if (displayId && displayId !== '') {
+                    pdf.text(`Reference Number: ${displayId}`, leftMargin, yPos);
+                    yPos += lineHeight;
+                }
+                
+                // Leading Guest Name
+                if (customerInfo && customerInfo.fullName) {
+                    const guestName = customerInfo.fullName;
+                    const adultCount = @json($tourDetails->adult ?? 1);
+                    const childCount = @json($tourDetails->child ?? 0);
+                    const infantCount = @json($tourDetails->infant ?? 0);
+                    const totalPax = adultCount + childCount + infantCount;
+                    pdf.text(`Leading Guest Name: ${guestName} (${totalPax} ${totalPax > 1 ? 'Adult(s)' : 'Adult(s)'})`, leftMargin, yPos);
+                    yPos += lineHeight;
+                }
+                
+                // Travel Date
+                if (travelDate) {
+                    pdf.text(`Travel Date: ${travelDate}`, leftMargin, yPos);
+                    yPos += lineHeight + 5;
+                }
+                
+                // TRIP DETAIL
+                pdf.setFontSize(12);
+                pdf.setFont('helvetica', 'bold');
+                pdf.text('TRIP DETAIL', leftMargin, yPos);
+                yPos += lineHeight;
+                
+                // Draw double underline
+                pdf.setLineWidth(0.3);
+                pdf.line(leftMargin, yPos, rightMargin, yPos);
+                yPos += 2;
+                pdf.line(leftMargin, yPos, rightMargin, yPos);
+                yPos += lineHeight + 2;
+                
+                // Date - use same formatDate function
+                pdf.setFontSize(10);
+                pdf.setFont('helvetica', 'normal');
+                if (checkInTime) {
+                    const date = new Date(checkInTime);
+                    pdf.text(`Date: ${formatDate(date)}`, leftMargin, yPos);
+                    yPos += lineHeight;
+                }
+                
+                // Destination
+                if (destination) {
+                    pdf.text(`Destination: ${destination}`, leftMargin, yPos);
+                    yPos += lineHeight + 3;
+                }
+                
+                // Accommodation section
+                pdf.setFont('helvetica', 'bold');
+                pdf.text('Accommodation:', leftMargin, yPos);
+                yPos += lineHeight;
+                
+                // Get hotel information from itinerary
+                @php
+                    $hotelInfo = null;
+                    if (isset($itineraryByDate) && count($itineraryByDate) > 0) {
+                        foreach ($itineraryByDate as $date => $bookings) {
+                            foreach ($bookings as $booking) {
+                                if (strtolower($booking->type ?? '') == 'hotel') {
+                                    $data = null;
+                                    if (isset($booking->data_decoded) && is_array($booking->data_decoded) && !empty($booking->data_decoded)) {
+                                        $data = $booking->data_decoded[0] ?? null;
+                                    } elseif (isset($booking->data) && is_string($booking->data)) {
+                                        try {
+                                            $data = json_decode($booking->data, true);
+                                        } catch (\Exception $e) {
+                                            $data = $booking->data;
+                                        }
+                                    } elseif (isset($booking->data) && is_array($booking->data)) {
+                                        $data = $booking->data;
+                                    }
+                                    
+                                    // Check for checkin or first hotel booking found
+                                    if ($data && (!isset($data['stay_type']) || strtolower($data['stay_type']) == 'checkin' || $hotelInfo === null)) {
+                                        $hotelName = $data['hotelDetails']['hotel_name'] ?? $data['hotelname'] ?? $data['name'] ?? null;
+                                        if ($hotelName) {
+                                            $hotelInfo = [
+                                                'name' => $hotelName,
+                                                'checkIn' => $data['bookingDate'][0] ?? (isset($data['bookingDate']) && is_array($data['bookingDate']) ? $data['bookingDate'][0] : ($data['bookingDate'] ?? $checkInTime ?? null)),
+                                                'checkOut' => $data['bookingDate'][1] ?? (isset($data['bookingDate']) && is_array($data['bookingDate']) ? $data['bookingDate'][1] : ($checkOutTime ?? null)),
+                                                'roomType' => isset($data['rooms'][0]['room_type']) ? $data['rooms'][0]['room_type'] : (isset($data['room_type']) ? $data['room_type'] : 'Standard'),
+                                                'roomCount' => isset($data['rooms']) && is_array($data['rooms']) ? count($data['rooms']) : (isset($data['room_count']) ? $data['room_count'] : 1),
+                                                'nights' => $data['total_nights'] ?? (isset($data['nights']) ? $data['nights'] : 1),
+                                                'confirmationNo' => $data['confirmationNo'] ?? $data['confirmation_no'] ?? $data['confirmation_number'] ?? null
+                                            ];
+                                            // If this is a checkin, break; otherwise continue to find checkin
+                                            if (isset($data['stay_type']) && strtolower($data['stay_type']) == 'checkin') {
+                                                break 2;
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
+                @endphp
+                
+                const hotelInfo = @json($hotelInfo ?? null);
+                
+                if (hotelInfo && hotelInfo.name) {
+                    pdf.setFont('helvetica', 'normal');
+                    
+                    // Hotel name
+                    pdf.text(`Hotel: ${hotelInfo.name}`, leftMargin, yPos);
+                    yPos += lineHeight;
+                    
+                    // Check-in/Check-out
+                    if (hotelInfo.checkIn && hotelInfo.checkOut) {
+                        const checkIn = new Date(hotelInfo.checkIn);
+                        const checkOut = new Date(hotelInfo.checkOut);
+                        pdf.text(`Check in ${formatDate(checkIn)} - ${formatDate(checkOut)}`, leftMargin, yPos);
+                        yPos += lineHeight;
+                    }
+                    
+                    // Room Type & Quantity
+                    const roomType = hotelInfo.roomType || 'Standard';
+                    const roomCount = hotelInfo.roomCount || 1;
+                    const roomTypeDisplay = roomType.includes('/') ? roomType.split('/')[0].trim() : roomType;
+                    const bedType = roomType.includes('/') ? roomType.split('/')[1]?.trim() : (roomCount > 1 ? 'Double' : 'Single');
+                    pdf.text(`Room Type & Quantity: ${roomTypeDisplay} / ${bedType} x ${roomCount} Room(s)`, leftMargin, yPos);
+                    yPos += lineHeight;
+                    
+                    // Nights
+                    const nights = hotelInfo.nights || 1;
+                    pdf.text(`Nights: ${nights} ${nights > 1 ? 'Night(s)' : 'Night(s)'}`, leftMargin, yPos);
+                    yPos += lineHeight;
+                    
+                    // Confirmation No
+                    if (hotelInfo.confirmationNo) {
+                        pdf.text(`Confirmation No: ${hotelInfo.confirmationNo}`, leftMargin, yPos);
+                        yPos += lineHeight;
+                    }
+                } else {
+                    pdf.setFont('helvetica', 'normal');
+                    pdf.text('No accommodation details available', leftMargin, yPos);
+                    yPos += lineHeight;
+                }
+                
+                yPos += 10;
+                
+                // Draw line
+                pdf.setDrawColor(0, 150, 136); // Teal color
+                pdf.setLineWidth(0.5);
+                pdf.line(leftMargin, yPos, rightMargin, yPos);
+                yPos += lineHeight;
+                
+                // END OF SERVICE
+                pdf.setFontSize(10);
+                pdf.setFont('helvetica', 'normal');
+                pdf.setTextColor(0, 150, 136); // Teal color
+                pdf.text('END OF SERVICE', rightMargin - 40, yPos);
+                yPos += lineHeight;
+                
+                // Reset text color
+                pdf.setTextColor(0, 0, 0);
+                
+                // Remark
+                pdf.text('Remark:', leftMargin, yPos);
+                yPos += lineHeight;
+                pdf.text('-', leftMargin, yPos);
+                
+                // Save PDF
+                pdf.save(`Tour_Itinerary_${tourId || 'text'}.pdf`);
+                
+                loadingMsg.remove();
+                showSuccessMessage('Text itinerary downloaded successfully!');
+            } catch (error) {
+                console.error('Error generating text PDF:', error);
+                loadingMsg.remove();
+                showErrorMessage('Failed to generate text itinerary: ' + (error.message || 'Unknown error'));
+            }
         }
         
         function preparePrint() {
