@@ -2224,28 +2224,35 @@
                                                         <div class="col-md-4">
                                                             <label class="form-label fw-semibold">Vehicle (by country)</label>
                                                             <select class="form-select restaurant-transport-vehicle-select" name="restaurant_transport_vehicle_{{ $order->booking_id }}" id="restaurant_transport_vehicle_{{ $order->booking_id }}" data-booking-id="{{ $order->booking_id }}">
-                                                                <option value="">Select vehicle</option>
-                                                                @foreach($filteredVehicles as $vehicle)
-                                                                    @php
-                                                                        $vehicleName = $vehicle->vehicle_name ?? $vehicle->vehicle_id ?? 'Vehicle';
-                                                                        $vehicleId = $vehicle->vehicle_id ?? '';
-                                                                        $vehicleType = $vehicle->vehicle_type ?? '';
-                                                                        $seatingCapacity = $vehicle->seating_capacity ?? '';
-                                                                        $isSelected = ($transportVehicle === $vehicleName || 
-                                                                                       $transportVehicle === $vehicleId || 
-                                                                                       $transportVehicleId === $vehicleId ||
-                                                                                       $transportVehicleId === (string)$vehicleId);
-                                                                    @endphp
-                                                                    <option value="{{ $vehicleName }}" data-vehicle-id="{{ $vehicleId }}" data-seating-capacity="{{ $seatingCapacity }}" {{ $isSelected ? 'selected' : '' }}>
-                                                                        {{ $vehicleName }}
-                                                                        @if($vehicleType)
-                                                                            ({{ $vehicleType }})
-                                                                        @endif
-                                                                        @if($seatingCapacity)
-                                                                            - {{ $seatingCapacity }} seats
-                                                                        @endif
-                                                                    </option>
-                                                                @endforeach
+                                                                <option value="">{{ $transportDestination ? 'Select vehicle' : 'Select destination first' }}</option>
+                                                                @if($transportDestination)
+                                                                    {{-- Vehicles will be loaded via JavaScript when destination is selected --}}
+                                                                    @if($transportVehicle)
+                                                                        @foreach($filteredVehicles as $vehicle)
+                                                                            @php
+                                                                                $vehicleName = $vehicle->vehicle_name ?? $vehicle->vehicle_id ?? 'Vehicle';
+                                                                                $vehicleId = $vehicle->vehicle_id ?? '';
+                                                                                $vehicleType = $vehicle->vehicle_type ?? '';
+                                                                                $seatingCapacity = $vehicle->seating_capacity ?? '';
+                                                                                $isSelected = ($transportVehicle === $vehicleName || 
+                                                                                               $transportVehicle === $vehicleId || 
+                                                                                               $transportVehicleId === $vehicleId ||
+                                                                                               $transportVehicleId === (string)$vehicleId);
+                                                                            @endphp
+                                                                            @if($isSelected)
+                                                                                <option value="{{ $vehicleName }}" data-vehicle-id="{{ $vehicleId }}" data-seating-capacity="{{ $seatingCapacity }}" selected>
+                                                                                    {{ $vehicleName }}
+                                                                                    @if($vehicleType)
+                                                                                        ({{ $vehicleType }})
+                                                                                    @endif
+                                                                                    @if($seatingCapacity)
+                                                                                        - {{ $seatingCapacity }} seats
+                                                                                    @endif
+                                                                                </option>
+                                                                            @endif
+                                                                        @endforeach
+                                                                    @endif
+                                                                @endif
                                                             </select>
                                                         </div>
                                                     </div>
@@ -3217,28 +3224,35 @@
                                                     <div class="col-md-4">
                                                         <label class="form-label fw-semibold">Vehicle (by country)</label>
                                                         <select class="form-select attraction-transport-vehicle-select" name="attraction_transport_vehicle_{{ $order->booking_id }}" id="attraction_transport_vehicle_{{ $order->booking_id }}" data-booking-id="{{ $order->booking_id }}">
-                                                            <option value="">Select vehicle</option>
-                                                            @foreach($filteredVehicles as $vehicle)
-                                                                @php
-                                                                    $vehicleName = $vehicle->vehicle_name ?? $vehicle->vehicle_id ?? 'Vehicle';
-                                                                    $vehicleId = $vehicle->vehicle_id ?? '';
-                                                                    $vehicleType = $vehicle->vehicle_type ?? '';
-                                                                    $seatingCapacity = $vehicle->seating_capacity ?? '';
-                                                                    $isSelected = ($transportVehicle === $vehicleName || 
-                                                                                   $transportVehicle === $vehicleId || 
-                                                                                   $transportVehicleId === $vehicleId ||
-                                                                                   $transportVehicleId === (string)$vehicleId);
-                                                                @endphp
-                                                                <option value="{{ $vehicleName }}" data-vehicle-id="{{ $vehicleId }}" data-seating-capacity="{{ $seatingCapacity }}" {{ $isSelected ? 'selected' : '' }}>
-                                                                    {{ $vehicleName }}
-                                                                    @if($vehicleType)
-                                                                        ({{ $vehicleType }})
-                                                                    @endif
-                                                                    @if($seatingCapacity)
-                                                                        - {{ $seatingCapacity }} seats
-                                                                    @endif
-                                                                </option>
-                                                            @endforeach
+                                                            <option value="">{{ $transportDestination ? 'Select vehicle' : 'Select destination first' }}</option>
+                                                            @if($transportDestination)
+                                                                {{-- Vehicles will be loaded via JavaScript when destination is selected --}}
+                                                                @if($transportVehicle)
+                                                                    @foreach($filteredVehicles as $vehicle)
+                                                                        @php
+                                                                            $vehicleName = $vehicle->vehicle_name ?? $vehicle->vehicle_id ?? 'Vehicle';
+                                                                            $vehicleId = $vehicle->vehicle_id ?? '';
+                                                                            $vehicleType = $vehicle->vehicle_type ?? '';
+                                                                            $seatingCapacity = $vehicle->seating_capacity ?? '';
+                                                                            $isSelected = ($transportVehicle === $vehicleName || 
+                                                                                           $transportVehicle === $vehicleId || 
+                                                                                           $transportVehicleId === $vehicleId ||
+                                                                                           $transportVehicleId === (string)$vehicleId);
+                                                                        @endphp
+                                                                        @if($isSelected)
+                                                                            <option value="{{ $vehicleName }}" data-vehicle-id="{{ $vehicleId }}" data-seating-capacity="{{ $seatingCapacity }}" selected>
+                                                                                {{ $vehicleName }}
+                                                                                @if($vehicleType)
+                                                                                    ({{ $vehicleType }})
+                                                                                @endif
+                                                                                @if($seatingCapacity)
+                                                                                    - {{ $seatingCapacity }} seats
+                                                                                @endif
+                                                                            </option>
+                                                                        @endif
+                                                                    @endforeach
+                                                                @endif
+                                                            @endif
                                                         </select>
                                                     </div>
                                                 </div>
@@ -4243,7 +4257,7 @@
                             <label class="form-label small fw-semibold mb-1">
                                 <i class="ri-map-pin-line text-success me-1"></i>City
                             </label>
-                            <select class="form-select form-select-sm" id="modal_restaurant_city_select" name="city" onchange="loadRestaurantsForCity(this.value, this.dataset.country)">
+                            <select class="form-select form-select-sm" id="modal_restaurant_city_select" name="city" onchange="loadRestaurantsForCity(this.value, this.dataset.country)" >
                                 <option value="">Select city</option>
                                 @foreach($cities as $city)
                                     <option value="{{ $city->name }}" data-city="{{ json_encode($city) }}" data-country="{{ $city->country }}">{{ $city->name }}</option>
@@ -4437,23 +4451,8 @@
                                         <div class="col-md-4">
                                             <label class="form-label fw-semibold">Vehicle (by country)</label>
                                             <select class="form-select form-select-sm modal-restaurant-transport-vehicle-select" name="modal_restaurant_transport_vehicle" id="modal_restaurant_transport_vehicle" data-no-select2="true">
-                                                <option value="">Select vehicle</option>
-                                                @foreach($filteredVehicles as $vehicle)
-                                                    @php
-                                                        $vehicleName = $vehicle->vehicle_name ?? $vehicle->vehicle_id ?? 'Vehicle';
-                                                        $vehicleType = $vehicle->vehicle_type ?? '';
-                                                        $seatingCapacity = $vehicle->seating_capacity ?? '';
-                                                    @endphp
-                                                    <option value="{{ $vehicleName }}" data-seating-capacity="{{ $seatingCapacity }}">
-                                                        {{ $vehicleName }}
-                                                        @if($vehicleType)
-                                                            ({{ $vehicleType }})
-                                                        @endif
-                                                        @if($seatingCapacity)
-                                                            - {{ $seatingCapacity }} seats
-                                                        @endif
-                                                    </option>
-                                                @endforeach
+                                                <option value="">Select destination first</option>
+                                                {{-- Vehicles will be loaded via JavaScript when destination is selected --}}
                                             </select>
                                         </div>
                                     </div>
@@ -4492,18 +4491,6 @@
                             <div class="border rounded-3 p-3 bg-light">
                                 <h6 class="fw-semibold mb-3"><i class="ri-money-dollar-circle-line me-1 text-success"></i>Price Breakdown</h6>
                                 <div class="row g-2">
-                                    <div class="col-md-4">
-                                        <div class="d-flex justify-content-between align-items-center p-2 bg-white rounded">
-                                            <span class="text-muted small">Meal Price:</span>
-                                            <span class="fw-semibold" id="modal_restaurant_meal_price_display">$ 0.00</span>
-                                        </div>
-                                    </div>
-                                    <div class="col-md-4">
-                                        <div class="d-flex justify-content-between align-items-center p-2 bg-white rounded">
-                                            <span class="text-muted small">Transport Price:</span>
-                                            <span class="fw-semibold" id="modal_restaurant_transport_price_display">$ 0.00</span>
-                                        </div>
-                                    </div>
                                     <div class="col-md-4">
                                         <div class="d-flex justify-content-between align-items-center p-2 bg-success text-white rounded">
                                             <span class="fw-semibold">Total Price:</span>
@@ -5074,23 +5061,8 @@
                                         <div class="col-md-4">
                                             <label class="form-label fw-semibold">Vehicle (by country)</label>
                                             <select class="form-select form-select-sm modal-attraction-transport-vehicle-select" name="modal_attraction_transport_vehicle" id="modal_attraction_transport_vehicle" data-no-select2="true">
-                                                <option value="">Select vehicle</option>
-                                                @foreach($filteredVehicles as $vehicle)
-                                                    @php
-                                                        $vehicleName = $vehicle->vehicle_name ?? $vehicle->vehicle_id ?? 'Vehicle';
-                                                        $vehicleType = $vehicle->vehicle_type ?? '';
-                                                        $seatingCapacity = $vehicle->seating_capacity ?? '';
-                                                    @endphp
-                                                    <option value="{{ $vehicleName }}" data-seating-capacity="{{ $seatingCapacity }}">
-                                                        {{ $vehicleName }}
-                                                        @if($vehicleType)
-                                                            ({{ $vehicleType }})
-                                                        @endif
-                                                        @if($seatingCapacity)
-                                                            - {{ $seatingCapacity }} seats
-                                                        @endif
-                                                    </option>
-                                                @endforeach
+                                                <option value="">Select destination first</option>
+                                                {{-- Vehicles will be loaded via JavaScript when destination is selected --}}
                                             </select>
                                         </div>
                                     </div>
@@ -5129,25 +5101,7 @@
                             <div class="border rounded-3 p-3 bg-light">
                                 <h6 class="fw-semibold mb-3"><i class="ri-money-dollar-circle-line me-1 text-success"></i>Price Breakdown</h6>
                                 <div class="row g-2">
-                                    <div class="col-md-3">
-                                        <div class="d-flex justify-content-between align-items-center p-2 bg-white rounded">
-                                            <span class="text-muted small">Ticket Price:</span>
-                                            <span class="fw-semibold" id="modal_attraction_ticket_price_display">$ 0.00</span>
-                                        </div>
-                                    </div>
-                                    <div class="col-md-3">
-                                        <div class="d-flex justify-content-between align-items-center p-2 bg-white rounded">
-                                            <span class="text-muted small">Transport Price:</span>
-                                            <span class="fw-semibold" id="modal_attraction_transport_price_display">$ 0.00</span>
-                                        </div>
-                                    </div>
-                                    <div class="col-md-3">
-                                        <div class="d-flex justify-content-between align-items-center p-2 bg-white rounded">
-                                            <span class="text-muted small">Guide Price:</span>
-                                            <span class="fw-semibold" id="modal_attraction_guide_price_display">$ 0.00</span>
-                                        </div>
-                                    </div>
-                                    <div class="col-md-3">
+                                    <div class="col-md-4">
                                         <div class="d-flex justify-content-between align-items-center p-2 bg-success text-white rounded">
                                             <span class="fw-semibold">Total Price:</span>
                                             <span class="fw-bold fs-6" id="modal_attraction_total_price_display">$ 0.00</span>
@@ -5269,17 +5223,6 @@
                     <input type="hidden" id="modal_transport_type" name="transport_type" value="entry_port">
                     
                     <div>
-                        <div class="card-header bg-primary text-white">
-                            <div class="d-flex align-items-center">
-                                <span class="service-icon me-3">
-                                    <i class="ri-login-circle-line fs-4"></i>
-                                </span>
-                                <div>
-                                    <h6 class="mb-0 fw-bold">Transport Services</h6>
-                                    <small class="opacity-75">Configure pickup and dropoff locations</small>
-                                </div>
-                            </div>
-                        </div>
                         <div class="card-body bg-white">
                             <div class="row g-4 align-items-end">
                                 <div class="col-md-3">
@@ -5392,14 +5335,14 @@
                                             <i class="ri-calendar-line text-primary me-2"></i>Pick Up Date
                                         </label>
                                         <div class="position-relative">
-                                            <input type="date" class="form-control border-2" id="modal_transport_pickup_date" name="pickup_date" value="{{ \Carbon\Carbon::parse($tour->check_in_time)->format('Y-m-d') }}" readonly disabled style="padding-left: 45px;">
+                                            <input type="date" class="form-control border-2" id="modal_transport_pickup_date" name="pickup_date" value="{{ \Carbon\Carbon::parse($tour->check_in_time)->format('Y-m-d') }}" readonly disabled style="height: 42px; padding-left: 45px;">
                                             <i class="ri-calendar-fill position-absolute text-primary" style="left: 15px; top: 50%; transform: translateY(-50%); z-index: 5;"></i>
                                         </div>
                                     </div>
                                 </div>
                                 <div class="col-md-2">
-                                    <button type="button" class="btn btn-primary w-100 py-2" onclick="searchVehicles()" id="transport_search_btn">
-                                        <i class="ri-search-line me-2"></i>Search Vehicles
+                                    <button type="button" class="btn btn-primary w-100 py-2" onclick="searchVehicles()" id="transport_search_btn" style="height: 42px;">
+                                        Search
                                     </button>
                                 </div>
                             </div>
@@ -5467,17 +5410,33 @@
                                 </div>
                                 @endif
                                 <div class="col-md-2">
-                                            <div class="form-group">
-                                                <label class="form-label fw-semibold">Number of Passengers</label>
-                                                <div class="input-group">
-                                                    <span class="input-group-text"><i class="ri-user-line"></i></span>
-                                                    <input type="number" class="form-control" id="modal_transport_passengers" name="passengers" min="1" max="{{ ($tour->adult ?? 0) + ($tour->child ?? 0) }}" value="" onkeyup="updatePricing()" onchange="updatePricing()">
-                                                </div>
-                                                <small class="form-text text-muted">
-                                                    Maximum passengers: {{ ($tour->adult ?? 0) + ($tour->child ?? 0) }} ({{ $tour->adult ?? 0 }} adults + {{ $tour->child ?? 0 }} children)
-                                                </small>
-                                            </div>
+                                    <div class="form-group">
+                                        <label class="form-label fw-semibold">Number of Passengers</label>
+                                        <div class="input-group">
+                                            @php
+                                                $tourMaxPassengers = ($tour->adult ?? 0) + ($tour->child ?? 0);
+                                            @endphp
+                                            <input 
+                                                type="number" 
+                                                class="form-control" 
+                                                id="modal_transport_passengers" 
+                                                name="passengers" 
+                                                min="1" 
+                                                max="{{ $tourMaxPassengers }}" 
+                                                value="" 
+                                                data-tour-guests="{{ $tourMaxPassengers }}"
+                                                onkeyup="updatePricing()" 
+                                                onchange="updatePricing()" 
+                                                style="height: 40px;">
                                         </div>
+                                        <small class="form-text text-muted">
+                                            Maximum passengers: 
+                                            <span id="modal_transport_passengers_help">
+                                                {{ $tourMaxPassengers }} ({{ $tour->adult ?? 0 }} adults + {{ $tour->child ?? 0 }} children)
+                                            </span>
+                                        </small>
+                                    </div>
+                                </div>
                             </div>
                                     
                                     <!-- Guest Information -->
@@ -5719,7 +5678,7 @@
                                         </div>
                                         <div class="col-md-2">
                                             <button type="button" class="btn btn-primary w-100 py-2" onclick="searchLocalTransferVehicles()" id="local_transfer_search_btn" disabled>
-                                                <i class="ri-search-line me-2"></i>Search Vehicles
+                                                Search 
                                             </button>
                                         </div>
                                     </div>
@@ -5808,7 +5767,7 @@
                                         </div>
                                         <div class="col-md-2">
                                             <button type="button" class="btn btn-primary w-100 py-2" onclick="searchPointToPointVehicles()" id="local_transfer_point_to_point_search_btn" disabled>
-                                                <i class="ri-search-line me-2"></i>Search Vehicles
+                                                Search
                                             </button>
                                         </div>
                                     </div>
@@ -5907,7 +5866,7 @@
                                         </div>
                                         <div class="col-md-2">
                                             <button type="button" class="btn btn-primary w-100 py-2" onclick="searchHourlyVehicles()" id="local_transfer_hourly_search_btn" disabled>
-                                                <i class="ri-search-line me-2"></i>Search Vehicles
+                                                Search
                                             </button>
                                         </div>
                                     </div>
@@ -6144,8 +6103,8 @@
                                     </div>
                                 </div>
                                 <div class="col-md-2">
-                                    <button type="button" class="btn btn-success w-100 py-2" onclick="searchDropoffVehicles()" id="dropoff_transport_search_btn" disabled>
-                                        <i class="ri-search-line me-2"></i>Search Vehicles
+                                    <button type="button" class="btn btn-success w-100 py-2" onclick="searchDropoffVehicles()" id="dropoff_transport_search_btn" disabled >
+                                        Search
                                     </button>
                                 </div>
                             </div>
@@ -6905,6 +6864,12 @@
                     $('#modal_attraction_transport_passengers').trigger('input');
                 } else if (select.hasClass('modal-restaurant-transport-vehicle-select')) {
                     $('#modal_restaurant_transport_passengers').trigger('input');
+                } else if (select.hasClass('hotel-transport-vehicle-select')) {
+                    $('#hotel_transport_passengers_' + bookingId).trigger('input');
+                } else if (select.hasClass('attraction-transport-vehicle-select')) {
+                    $('#attraction_transport_passengers_' + bookingId).trigger('input');
+                } else if (select.hasClass('restaurant-transport-vehicle-select')) {
+                    $('#restaurant_transport_passengers_' + bookingId).trigger('input');
                 }
             }
         });
@@ -7129,7 +7094,19 @@
 
                         // Auto-select first vehicle and calculate price
                         if (data.vehicles.length > 0) {
-                            vehicleSelect.val(data.vehicles[0].vehicle_name || data.vehicles[0].vehicle_id);
+                            const firstVehicle = data.vehicles[0];
+                            vehicleSelect.val(firstVehicle.vehicle_name || firstVehicle.vehicle_id);
+                            
+                            // Update seats field
+                            const seatsInput = $('#restaurant_transport_seats_' + bookingId);
+                            if (seatsInput.length && firstVehicle.seating_capacity) {
+                                seatsInput.val(firstVehicle.seating_capacity);
+                            }
+                            
+                            // Trigger change event to ensure all handlers fire
+                            vehicleSelect.trigger('change');
+                            
+                            // Calculate price
                             calculateRestaurantTransportPrice(bookingId);
                         }
                     } else {
@@ -7140,6 +7117,11 @@
                 } catch (error) {
                     console.error('Error fetching vehicles:', error);
                 }
+            } else {
+                // Zone off mode - show all vehicles (fallback behavior)
+                const vehicleSelect = $('#restaurant_transport_vehicle_' + bookingId);
+                vehicleSelect.html('<option value="">Select vehicle</option>');
+                // Note: In zone off mode, you might want to show all vehicles or handle differently
             }
         });
 
@@ -7291,7 +7273,19 @@
 
                         // Auto-select first vehicle and calculate price
                         if (data.vehicles.length > 0) {
-                            vehicleSelect.val(data.vehicles[0].vehicle_name || data.vehicles[0].vehicle_id);
+                            const firstVehicle = data.vehicles[0];
+                            vehicleSelect.val(firstVehicle.vehicle_name || firstVehicle.vehicle_id);
+                            
+                            // Update seats field
+                            const seatsInput = $('#attraction_transport_seats_' + bookingId);
+                            if (seatsInput.length && firstVehicle.seating_capacity) {
+                                seatsInput.val(firstVehicle.seating_capacity);
+                            }
+                            
+                            // Trigger change event to ensure all handlers fire
+                            vehicleSelect.trigger('change');
+                            
+                            // Calculate price
                             calculateAttractionTransportPrice(bookingId);
                         }
                     } else {
@@ -7302,7 +7296,51 @@
                 } catch (error) {
                     console.error('Error fetching vehicles:', error);
                 }
+            } else {
+                // Zone off mode - show all vehicles (fallback behavior)
+                const vehicleSelect = $('#attraction_transport_vehicle_' + bookingId);
+                vehicleSelect.html('<option value="">Select vehicle</option>');
+                // Note: In zone off mode, you might want to show all vehicles or handle differently
             }
+        });
+        
+        // On page load, if destination is already selected, fetch vehicles for it
+        $(document).ready(function() {
+            // Handle attraction transport
+            $('.attraction-transport-destination-select').each(function() {
+                const destinationSelect = $(this);
+                const bookingId = destinationSelect.data('booking-id');
+                const selectedOption = destinationSelect.find('option:selected');
+                
+                if (selectedOption.val() && selectedOption.val().trim()) {
+                    // Trigger the change event to load vehicles for pre-selected destination
+                    destinationSelect.trigger('change');
+                } else {
+                    // No destination selected, clear vehicle dropdown
+                    const vehicleSelect = $('#attraction_transport_vehicle_' + bookingId);
+                    if (vehicleSelect.length) {
+                        vehicleSelect.html('<option value="">Select destination first</option>');
+                    }
+                }
+            });
+            
+            // Handle restaurant transport
+            $('.restaurant-transport-destination-select').each(function() {
+                const destinationSelect = $(this);
+                const bookingId = destinationSelect.data('booking-id');
+                const selectedOption = destinationSelect.find('option:selected');
+                
+                if (selectedOption.val() && selectedOption.val().trim()) {
+                    // Trigger the change event to load vehicles for pre-selected destination
+                    destinationSelect.trigger('change');
+                } else {
+                    // No destination selected, clear vehicle dropdown
+                    const vehicleSelect = $('#restaurant_transport_vehicle_' + bookingId);
+                    if (vehicleSelect.length) {
+                        vehicleSelect.html('<option value="">Select destination first</option>');
+                    }
+                }
+            });
         });
 
         // Calculate attraction transport price based on zone mapping
@@ -7453,7 +7491,19 @@
 
                         // Auto-select first vehicle and calculate price
                         if (data.vehicles.length > 0) {
-                            vehicleSelect.val(data.vehicles[0].vehicle_name || data.vehicles[0].vehicle_id);
+                            const firstVehicle = data.vehicles[0];
+                            vehicleSelect.val(firstVehicle.vehicle_name || firstVehicle.vehicle_id);
+                            
+                            // Update seats field
+                            const seatsInput = $('#modal_restaurant_transport_seats');
+                            if (seatsInput.length && firstVehicle.seating_capacity) {
+                                seatsInput.val(firstVehicle.seating_capacity);
+                            }
+                            
+                            // Trigger change event to ensure all handlers fire
+                            vehicleSelect.trigger('change');
+                            
+                            // Calculate price
                             calculateModalRestaurantTransportPrice();
                         }
                     } else {
@@ -7617,7 +7667,19 @@
 
                         // Auto-select first vehicle and calculate price
                         if (data.vehicles.length > 0) {
-                            vehicleSelect.val(data.vehicles[0].vehicle_name || data.vehicles[0].vehicle_id);
+                            const firstVehicle = data.vehicles[0];
+                            vehicleSelect.val(firstVehicle.vehicle_name || firstVehicle.vehicle_id);
+                            
+                            // Update seats field
+                            const seatsInput = $('#modal_attraction_transport_seats');
+                            if (seatsInput.length && firstVehicle.seating_capacity) {
+                                seatsInput.val(firstVehicle.seating_capacity);
+                            }
+                            
+                            // Trigger change event to ensure all handlers fire
+                            vehicleSelect.trigger('change');
+                            
+                            // Calculate price
                             calculateModalAttractionTransportPrice();
                         }
                     } else {
@@ -9782,7 +9844,7 @@
                 
                 // Reset search button
                 if (searchBtn) {
-                    searchBtn.innerHTML = '<i class="ri-search-line me-2"></i>Search Vehicles';
+                    searchBtn.innerHTML = 'Search';
                     searchBtn.disabled = false;
                 }
             })
@@ -9792,7 +9854,7 @@
                 
                 // Reset search button
                 if (searchBtn) {
-                    searchBtn.innerHTML = '<i class="ri-search-line me-2"></i>Search Vehicles';
+                    searchBtn.innerHTML = 'Search';
                     searchBtn.disabled = false;
                 }
             });
@@ -9917,7 +9979,7 @@
                 
                 // Reset search button
                 if (searchBtn) {
-                    searchBtn.innerHTML = '<i class="ri-search-line me-2"></i>Search Vehicles';
+                    searchBtn.innerHTML = 'Search';
                     searchBtn.disabled = false;
                 }
             })
@@ -9927,7 +9989,7 @@
                 
                 // Reset search button
                 if (searchBtn) {
-                    searchBtn.innerHTML = '<i class="ri-search-line me-2"></i>Search Vehicles';
+                    searchBtn.innerHTML = 'Search';
                     searchBtn.disabled = false;
                 }
             });
@@ -10086,7 +10148,7 @@
             
             // Reset search button
             if (searchBtn) {
-                searchBtn.innerHTML = '<i class="ri-search-line me-2"></i>Search Vehicles';
+                searchBtn.innerHTML = 'Search';
                 searchBtn.disabled = false;
             }
         })
@@ -10098,7 +10160,7 @@
             }
             showNotification(errorMessage, 'error');
             if (searchBtn) {
-                searchBtn.innerHTML = '<i class="ri-search-line me-2"></i>Search Vehicles';
+                searchBtn.innerHTML = 'Search';
                 searchBtn.disabled = false;
             }
         });
@@ -10188,7 +10250,7 @@
                 
                 // Reset search button
                 if (searchBtn) {
-                    searchBtn.innerHTML = '<i class="ri-search-line me-2"></i>Search Vehicles';
+                    searchBtn.innerHTML = 'Search';
                     searchBtn.disabled = false;
                 }
             })
@@ -10197,7 +10259,7 @@
                 console.error('Error details:', error.message);
                 showNotification('Error searching vehicles. Please try again.', 'error');
                 if (searchBtn) {
-                    searchBtn.innerHTML = '<i class="ri-search-line me-2"></i>Search Vehicles';
+                    searchBtn.innerHTML = 'Search';
                     searchBtn.disabled = false;
                 }
             });
@@ -10415,7 +10477,7 @@
                 
                 // Reset search button
                 if (searchBtn) {
-                    searchBtn.innerHTML = '<i class="ri-search-line me-2"></i>Search Vehicles';
+                    searchBtn.innerHTML = 'Search';
                     searchBtn.disabled = false;
                 }
             })
@@ -10425,7 +10487,7 @@
                 
                 // Reset search button
                 if (searchBtn) {
-                    searchBtn.innerHTML = '<i class="ri-search-line me-2"></i>Search Vehicles';
+                    searchBtn.innerHTML = 'Search';
                     searchBtn.disabled = false;
                 }
             });
@@ -10435,6 +10497,8 @@
         const vehicleSelect = document.getElementById('modal_transport_vehicle_id');
         const serviceTypeSelect = document.getElementById('modal_transport_service_type');
         const manualPriceContainer = document.getElementById('transport_manual_price_field_container');
+        const passengersInput = document.getElementById('modal_transport_passengers');
+        const passengersHelp = document.getElementById('modal_transport_passengers_help');
         
         if (vehicleSelect && vehicleSelect.value && serviceTypeSelect) {
             // Get selected vehicle data
@@ -10458,6 +10522,35 @@
             // Always show manual price field for both zone on and zone off modes
             if (manualPriceContainer) {
                 manualPriceContainer.style.display = 'block';
+            }
+
+            // Update max passengers based on vehicle capacity and tour guests
+            if (passengersInput) {
+                const tourGuests = parseInt(passengersInput.dataset.tourGuests || passengersInput.max || '0', 10) || 0;
+                const seatingCapacity = parseInt(vehicleData.seatingCapacity || '0', 10) || 0;
+
+                if (tourGuests > 0 || seatingCapacity > 0) {
+                    const maxAllowed = Math.max(1, Math.min(
+                        tourGuests || seatingCapacity,
+                        seatingCapacity || tourGuests
+                    ));
+
+                    passengersInput.max = maxAllowed;
+
+                    if (passengersInput.value && parseInt(passengersInput.value, 10) > maxAllowed) {
+                        passengersInput.value = maxAllowed;
+                    }
+
+                    if (passengersHelp) {
+                        if (seatingCapacity > 0 && tourGuests > 0) {
+                            passengersHelp.textContent = `${maxAllowed} (Vehicle capacity: ${seatingCapacity}, Tour guests: ${tourGuests})`;
+                        } else if (seatingCapacity > 0) {
+                            passengersHelp.textContent = `${maxAllowed} (Vehicle capacity: ${seatingCapacity})`;
+                        } else {
+                            passengersHelp.textContent = `${maxAllowed} (Tour guests: ${tourGuests})`;
+                        }
+                    }
+                }
             }
             
             updatePricing();
@@ -10701,7 +10794,7 @@
             
             // Reset search button
             if (searchBtn) {
-                searchBtn.innerHTML = '<i class="ri-search-line me-2"></i>Search Vehicles';
+                searchBtn.innerHTML = 'Search';
                 searchBtn.disabled = false;
             }
         })
@@ -10709,7 +10802,7 @@
             console.error('Error searching dropoff vehicles:', error);
             alert('Error searching vehicles. Please try again.');
             if (searchBtn) {
-                searchBtn.innerHTML = '<i class="ri-search-line me-2"></i>Search Vehicles';
+                searchBtn.innerHTML = 'Search';
                 searchBtn.disabled = false;
             }
         });
@@ -10816,7 +10909,7 @@
                 
                 // Reset search button
                 if (searchBtn) {
-                    searchBtn.innerHTML = '<i class="ri-search-line me-2"></i>Search Vehicles';
+                    searchBtn.innerHTML = 'Search';
                     searchBtn.disabled = false;
                 }
             })
@@ -10824,7 +10917,7 @@
                 console.error('Error searching Point-to-Point dropoff vehicles:', error);
                 alert('Error searching vehicles. Please try again.');
                 if (searchBtn) {
-                    searchBtn.innerHTML = '<i class="ri-search-line me-2"></i>Search Vehicles';
+                    searchBtn.innerHTML = 'Search';
                     searchBtn.disabled = false;
                 }
             });
