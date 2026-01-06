@@ -369,6 +369,64 @@
             color: #64748b;
             font-size: 12px;
         }
+        .price-summary-section {
+            margin-top: 32px;
+            page-break-inside: avoid;
+        }
+        .price-summary-header {
+            background: #1e40af;
+            color: #ffffff;
+            padding: 18px 20px;
+            border-radius: 12px 12px 0 0;
+            font-size: 20px;
+            font-weight: 700;
+            text-align: center;
+            text-transform: uppercase;
+            letter-spacing: .08em;
+            border: 2px solid #1e3a8a;
+            border-bottom: none;
+        }
+        .price-summary-grid {
+            display: grid;
+            grid-template-columns: repeat(3, minmax(0, 1fr));
+            gap: 0;
+            background: #ffffff;
+            border: 3px solid #1e40af;
+            border-top: none;
+            border-radius: 0 0 12px 12px;
+            overflow: hidden;
+            box-shadow: 0 4px 12px rgba(30, 64, 175, 0.15);
+        }
+        .price-summary-item {
+            padding: 24px 16px;
+            text-align: center;
+            border-right: 2px solid #3b82f6;
+            background: #f8fafc;
+        }
+        .price-summary-item:last-child {
+            border-right: none;
+        }
+        .price-summary-label {
+            font-size: 12px;
+            text-transform: uppercase;
+            letter-spacing: .12em;
+            color: #1e293b;
+            margin-bottom: 12px;
+            font-weight: 700;
+        }
+        .price-summary-value {
+            font-size: 28px;
+            font-weight: 700;
+            color: #1e40af;
+            line-height: 1.2;
+        }
+        .price-summary-currency {
+            font-size: 20px;
+            vertical-align: top;
+            margin-right: 3px;
+            color: #1e40af;
+            font-weight: 700;
+        }
     </style>
 </head>
 <body>
@@ -666,6 +724,55 @@
                 </div>
             </div>
         @endforeach
+    @endif
+
+    @if(!empty($tourPrices))
+        @php
+            // Determine currency symbol - use S$ for Singapore, otherwise use tour currency
+            $destination = strtolower($tour->destination ?? '');
+            $tourCurrency = $tour->currency ?? '$';
+            
+            if (stripos($destination, 'singapore') !== false || 
+                stripos($tourCurrency, 'sgd') !== false || 
+                stripos($tourCurrency, 'singapore') !== false || 
+                $tourCurrency === 'S$' || 
+                $tourCurrency === 'SGD') {
+                $currency = 'S$';
+            } elseif ($tourCurrency && $tourCurrency !== '$') {
+                $currency = $tourCurrency;
+            } else {
+                $currency = 'S$'; // Default to Singapore dollar
+            }
+            
+            $singleSharing = $tourPrices['single_sharing'] ?? 0;
+            $doubleSharing = $tourPrices['double_sharing'] ?? 0;
+            $tripleSharing = $tourPrices['triple_sharing'] ?? 0;
+        @endphp
+        <div class="price-summary-section">
+            <div class="price-summary-header">
+                Tour Price Summary
+            </div>
+            <div class="price-summary-grid">
+                <div class="price-summary-item">
+                    <div class="price-summary-label">Single Sharing</div>
+                    <div class="price-summary-value">
+                        <span class="price-summary-currency">{{ $currency }}</span>{{ number_format($singleSharing, 2) }}
+                    </div>
+                </div>
+                <div class="price-summary-item">
+                    <div class="price-summary-label">Double Sharing</div>
+                    <div class="price-summary-value">
+                        <span class="price-summary-currency">{{ $currency }}</span>{{ number_format($doubleSharing, 2) }}
+                    </div>
+                </div>
+                <div class="price-summary-item">
+                    <div class="price-summary-label">Triple Sharing</div>
+                    <div class="price-summary-value">
+                        <span class="price-summary-currency">{{ $currency }}</span>{{ number_format($tripleSharing, 2) }}
+                    </div>
+                </div>
+            </div>
+        </div>
     @endif
 </body>
 </html>

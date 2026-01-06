@@ -1751,6 +1751,9 @@ class CommonHelper
             }
         }
 
+        // Calculate tour prices
+        $tourPrices = self::calculateTourPrices($tourId);
+        
         try {
             // Configure DomPDF options to work without GD if possible
             $pdf = Pdf::loadView('single-tour-package.pdf-itinerary', [
@@ -1760,6 +1763,7 @@ class CommonHelper
                 'generatedAt' => now(),
                 'dmcLogo' => $dmcLogo,
                 'dmcCompanyName' => $dmcCompanyName,
+                'tourPrices' => $tourPrices,
             ]);
             
             $pdf->setPaper('a4');
@@ -1783,6 +1787,7 @@ class CommonHelper
                     'generatedAt' => now(),
                     'dmcLogo' => null, // Remove logo
                     'dmcCompanyName' => $dmcCompanyName,
+                    'tourPrices' => $tourPrices,
                 ]);
                 
                 $pdf->setPaper('a4');
