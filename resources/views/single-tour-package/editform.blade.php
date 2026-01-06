@@ -2127,11 +2127,11 @@
                                                 </div>
                                                 <div class="col-md-2">
                                                     <label class="form-label fw-semibold text-muted mb-1"><i class="ri-user-line me-1 text-secondary"></i>Adults</label>
-                                                    <input type="number" class="form-control border-2" style="height: 38px;" name="adult_count" min="0" value="{{ $adultCount }}" required>
+                                                    <input type="number" class="form-control border-2 restaurant-guest-input" style="height: 38px;" name="adult_count" id="restaurant_adult_count_{{ $order->booking_id }}" min="0" value="{{ $adultCount }}" data-booking-id="{{ $order->booking_id }}" data-tour-max="{{ ($tour->adult ?? 0) + ($tour->child ?? 0) }}" required>
                                                 </div>
                                                 <div class="col-md-2">
                                                     <label class="form-label fw-semibold text-muted mb-1"><i class="ri-user-smile-line me-1 text-secondary"></i>Children</label>
-                                                    <input type="number" class="form-control border-2" style="height: 38px;" name="child_count" min="0" value="{{ $childCount }}" required>
+                                                    <input type="number" class="form-control border-2 restaurant-guest-input" style="height: 38px;" name="child_count" id="restaurant_child_count_{{ $order->booking_id }}" min="0" value="{{ $childCount }}" data-booking-id="{{ $order->booking_id }}" data-tour-max="{{ ($tour->adult ?? 0) + ($tour->child ?? 0) }}" required>
                                                 </div>
                                                 <div class="col-md-2">
                                                     <label class="form-label fw-semibold text-muted mb-1"><i class="ri-money-dollar-circle-line me-1 text-success"></i>Total Price</label>
@@ -3118,21 +3118,21 @@
                                                 
                                                 <div class="col-md-2">
                                                     <label class="form-label fw-semibold text-muted mb-1"><i class="ri-user-line me-1 text-secondary"></i>Adults</label>
-                                                    <input type="number" class="form-control border-2" style="height: 38px;" name="adult_count" min="0" value="{{ $adultCount }}" required>
+                                                    <input type="number" class="form-control border-2 attraction-guest-input" style="height: 38px;" name="adult_count" id="attraction_adult_count_{{ $order->booking_id }}" min="0" value="{{ $adultCount }}" data-booking-id="{{ $order->booking_id }}" data-tour-max="{{ ($tour->adult ?? 0) + ($tour->child ?? 0) }}" required>
                                                 </div>
                                                 <div class="col-md-2">
                                                     <label class="form-label fw-semibold text-muted mb-1"><i class="ri-user-smile-line me-1 text-secondary"></i>Children</label>
-                                                    <input type="number" class="form-control border-2" style="height: 38px;" name="child_count" min="0" value="{{ $childCount }}" required>
+                                                    <input type="number" class="form-control border-2 attraction-guest-input" style="height: 38px;" name="child_count" id="attraction_child_count_{{ $order->booking_id }}" min="0" value="{{ $childCount }}" data-booking-id="{{ $order->booking_id }}" data-tour-max="{{ ($tour->adult ?? 0) + ($tour->child ?? 0) }}" required>
                                                 </div>
                                                 <div class="col-md-2">
                                                     <label class="form-label fw-semibold text-muted mb-1"><i class="ri-user-heart-line me-1 text-secondary"></i>Seniors</label>
-                                                    <input type="number" class="form-control border-2" style="height: 38px;" name="senior_count" min="0" value="{{ $seniorCount }}" required>
+                                                    <input type="number" class="form-control border-2 attraction-guest-input" style="height: 38px;" name="senior_count" id="attraction_senior_count_{{ $order->booking_id }}" min="0" value="{{ $seniorCount }}" data-booking-id="{{ $order->booking_id }}" data-tour-max="{{ ($tour->adult ?? 0) + ($tour->child ?? 0) }}" required>
                                                 </div>
                                                 
                                                 <!-- Additional Pax Details -->
                                                 <div class="col-md-2">
                                                     <label class="form-label fw-semibold text-muted mb-1"><i class="ri-user-heart-line me-1 text-warning"></i>Infants</label>
-                                                    <input type="number" class="form-control border-2" style="height: 38px;" name="infants" min="0" value="{{ $infantsCount }}">
+                                                    <input type="number" class="form-control border-2 attraction-guest-input" style="height: 38px;" name="infants" id="attraction_infants_{{ $order->booking_id }}" min="0" value="{{ $infantsCount }}" data-booking-id="{{ $order->booking_id }}" data-tour-max="{{ ($tour->adult ?? 0) + ($tour->child ?? 0) }}">
                                                 </div>
                                                 <div class="col-md-2">
                                                     <label class="form-label fw-semibold text-muted mb-1"><i class="ri-money-dollar-circle-line me-1 text-success"></i>Total Price</label>
@@ -4655,10 +4655,10 @@
                             <label for="modal_pax" class="form-label fw-semibold">Pax</label>
                             <div class="input-group">
                                 
-                                <input type="number" class="form-control text-center" id="modal_pax" name="modal_pax" value="1" min="1" max="20" readonly>
+                                <input type="number" class="form-control text-center" id="modal_pax" name="modal_pax" value="1" min="1" data-tour-max="{{ ($tour->adult ?? 0) + ($tour->child ?? 0) }}" readonly>
                                 
                             </div>
-                            <small class="text-muted">Total persons (adults + children)</small>
+                            <small class="text-muted">Total persons (adults + children) - Max: {{ ($tour->adult ?? 0) + ($tour->child ?? 0) }}</small>
                         </div>
 
                         <!-- Children -->
@@ -4666,7 +4666,7 @@
                             <label for="modal_children" class="form-label fw-semibold">Children</label>
                             <div class="input-group">
                                 <button type="button" class="btn btn-outline-secondary" onclick="decrementCount('modal_children')">-</button>
-                                <input type="number" class="form-control text-center" id="modal_children" name="modal_children" value="0" min="0" max="20">
+                                <input type="number" class="form-control text-center" id="modal_children" name="modal_children" value="0" min="0" data-tour-max="{{ ($tour->adult ?? 0) + ($tour->child ?? 0) }}">
                                 <button type="button" class="btn btn-outline-secondary" onclick="incrementCount('modal_children')">+</button>
                             </div>
                         </div>
@@ -4676,7 +4676,7 @@
                             <label for="modal_male_count" class="form-label fw-semibold">Male</label>
                             <div class="input-group">
                                 <button type="button" class="btn btn-outline-secondary" onclick="decrementCount('modal_male_count')">-</button>
-                                <input type="number" class="form-control text-center" id="modal_male_count" name="modal_male_count" value="1" min="0" max="20">
+                                <input type="number" class="form-control text-center" id="modal_male_count" name="modal_male_count" value="1" min="0" data-tour-max="{{ ($tour->adult ?? 0) + ($tour->child ?? 0) }}">
                                 <button type="button" class="btn btn-outline-secondary" onclick="incrementCount('modal_male_count')">+</button>
                             </div>
                         </div>
@@ -4686,7 +4686,7 @@
                             <label for="modal_female_count" class="form-label fw-semibold">Female</label>
                             <div class="input-group">
                                 <button type="button" class="btn btn-outline-secondary" onclick="decrementCount('modal_female_count')">-</button>
-                                <input type="number" class="form-control text-center" id="modal_female_count" name="modal_female_count" value="0" min="0" max="20">
+                                <input type="number" class="form-control text-center" id="modal_female_count" name="modal_female_count" value="0" min="0" data-tour-max="{{ ($tour->adult ?? 0) + ($tour->child ?? 0) }}">
                                 <button type="button" class="btn btn-outline-secondary" onclick="incrementCount('modal_female_count')">+</button>
                             </div>
                         </div>
@@ -5140,9 +5140,9 @@
                         <div class="col-md-6">
                             <label for="attraction_modal_pax" class="form-label fw-semibold">Pax</label>
                             <div class="input-group">
-                                <input type="number" class="form-control text-center" id="attraction_modal_pax" name="attraction_modal_pax" value="1" min="1" max="20" readonly>
+                                <input type="number" class="form-control text-center" id="attraction_modal_pax" name="attraction_modal_pax" value="1" min="1" data-tour-max="{{ ($tour->adult ?? 0) + ($tour->child ?? 0) }}" readonly>
                             </div>
-                            <small class="text-muted">Total persons (adults + children)</small>
+                            <small class="text-muted">Total persons (adults + children) - Max: {{ ($tour->adult ?? 0) + ($tour->child ?? 0) }}</small>
                         </div>
 
                         <!-- Children -->
@@ -5150,7 +5150,7 @@
                             <label for="attraction_modal_children" class="form-label fw-semibold">Children</label>
                             <div class="input-group">
                                 <button type="button" class="btn btn-outline-secondary" onclick="decrementAttractionCount('attraction_modal_children')">-</button>
-                                <input type="number" class="form-control text-center" id="attraction_modal_children" name="attraction_modal_children" value="0" min="0" max="20">
+                                <input type="number" class="form-control text-center" id="attraction_modal_children" name="attraction_modal_children" value="0" min="0" data-tour-max="{{ ($tour->adult ?? 0) + ($tour->child ?? 0) }}">
                                 <button type="button" class="btn btn-outline-secondary" onclick="incrementAttractionCount('attraction_modal_children')">+</button>
                             </div>
                         </div>
@@ -5160,7 +5160,7 @@
                             <label for="attraction_modal_male_count" class="form-label fw-semibold">Male</label>
                             <div class="input-group">
                                 <button type="button" class="btn btn-outline-secondary" onclick="decrementAttractionCount('attraction_modal_male_count')">-</button>
-                                <input type="number" class="form-control text-center" id="attraction_modal_male_count" name="attraction_modal_male_count" value="1" min="0" max="20">
+                                <input type="number" class="form-control text-center" id="attraction_modal_male_count" name="attraction_modal_male_count" value="1" min="0" data-tour-max="{{ ($tour->adult ?? 0) + ($tour->child ?? 0) }}">
                                 <button type="button" class="btn btn-outline-secondary" onclick="incrementAttractionCount('attraction_modal_male_count')">+</button>
                             </div>
                         </div>
@@ -5170,7 +5170,7 @@
                             <label for="attraction_modal_female_count" class="form-label fw-semibold">Female</label>
                             <div class="input-group">
                                 <button type="button" class="btn btn-outline-secondary" onclick="decrementAttractionCount('attraction_modal_female_count')">-</button>
-                                <input type="number" class="form-control text-center" id="attraction_modal_female_count" name="attraction_modal_female_count" value="0" min="0" max="20">
+                                <input type="number" class="form-control text-center" id="attraction_modal_female_count" name="attraction_modal_female_count" value="0" min="0" data-tour-max="{{ ($tour->adult ?? 0) + ($tour->child ?? 0) }}">
                                 <button type="button" class="btn btn-outline-secondary" onclick="incrementAttractionCount('attraction_modal_female_count')">+</button>
                             </div>
                         </div>
@@ -6982,6 +6982,79 @@
                     errorElement.addClass('d-none');
                     passengersInput.removeClass('is-invalid');
                 }
+            }
+        });
+
+        // Validate attraction and restaurant guest inputs (adults, children, seniors, infants) against tour pax
+        $(document).on('input change', '.attraction-guest-input, .restaurant-guest-input', function() {
+            const input = $(this);
+            const bookingId = input.data('booking-id');
+            const tourMaxPax = parseInt(input.data('tour-max') || '0', 10) || 0;
+            
+            if (tourMaxPax <= 0) return;
+            
+            // Get all guest inputs for this booking
+            let adults = 0;
+            let children = 0;
+            let seniors = 0;
+            let infants = 0;
+            
+            if (input.hasClass('attraction-guest-input')) {
+                adults = parseInt($('#attraction_adult_count_' + bookingId).val() || '0', 10) || 0;
+                children = parseInt($('#attraction_child_count_' + bookingId).val() || '0', 10) || 0;
+                seniors = parseInt($('#attraction_senior_count_' + bookingId).val() || '0', 10) || 0;
+                infants = parseInt($('#attraction_infants_' + bookingId).val() || '0', 10) || 0;
+            } else if (input.hasClass('restaurant-guest-input')) {
+                adults = parseInt($('#restaurant_adult_count_' + bookingId).val() || '0', 10) || 0;
+                children = parseInt($('#restaurant_child_count_' + bookingId).val() || '0', 10) || 0;
+            }
+            
+            // Calculate total pax (adults + children + seniors + infants)
+            // For attractions: adults + children + seniors + infants
+            // For restaurants: adults + children (no seniors/infants in restaurant form)
+            const totalPax = input.hasClass('attraction-guest-input') 
+                ? (adults + children + seniors + infants)
+                : (adults + children);
+            
+            if (totalPax > tourMaxPax) {
+                // Show error and adjust values
+                const excess = totalPax - tourMaxPax;
+                const guestTypes = input.hasClass('attraction-guest-input') 
+                    ? 'adults + children + seniors + infants'
+                    : 'adults + children';
+                showNotification(`Total guests (${guestTypes}) cannot exceed tour pax limit of ${tourMaxPax}. Reducing by ${excess}.`, 'warning');
+                
+                // Adjust the current input first
+                const currentValue = parseInt(input.val() || '0', 10) || 0;
+                if (currentValue >= excess) {
+                    input.val(Math.max(0, currentValue - excess));
+                } else {
+                    // If current input can't cover all excess, reduce others
+                    input.val(0);
+                    const remainingExcess = excess - currentValue;
+                    
+                    if (input.hasClass('attraction-guest-input')) {
+                        // Try to reduce from seniors first, then children, then adults
+                        if (seniors >= remainingExcess && input.attr('id') !== 'attraction_senior_count_' + bookingId) {
+                            $('#attraction_senior_count_' + bookingId).val(Math.max(0, seniors - remainingExcess));
+                        } else if (children >= remainingExcess && input.attr('id') !== 'attraction_child_count_' + bookingId) {
+                            $('#attraction_child_count_' + bookingId).val(Math.max(0, children - remainingExcess));
+                        } else if (adults >= remainingExcess && input.attr('id') !== 'attraction_adult_count_' + bookingId) {
+                            $('#attraction_adult_count_' + bookingId).val(Math.max(0, adults - remainingExcess));
+                        }
+                    } else if (input.hasClass('restaurant-guest-input')) {
+                        // For restaurants, reduce from children first, then adults
+                        if (children >= remainingExcess && input.attr('id') !== 'restaurant_child_count_' + bookingId) {
+                            $('#restaurant_child_count_' + bookingId).val(Math.max(0, children - remainingExcess));
+                        } else if (adults >= remainingExcess && input.attr('id') !== 'restaurant_adult_count_' + bookingId) {
+                            $('#restaurant_adult_count_' + bookingId).val(Math.max(0, adults - remainingExcess));
+                        }
+                    }
+                }
+                
+                input.addClass('is-invalid');
+            } else {
+                input.removeClass('is-invalid');
             }
         });
 
@@ -8966,20 +9039,46 @@
         if (!field) return;
         
         const currentValue = parseInt(field.value || '0') || 0;
-        const maxValue = parseInt(field.max || '20') || 20;
+        const tourMaxPax = parseInt(field.dataset.tourMax || '0') || 0;
+        
+        // Get current values of all guest fields
+        const childrenValue = parseInt(document.getElementById('attraction_modal_children')?.value || '0') || 0;
+        const maleValue = parseInt(document.getElementById('attraction_modal_male_count')?.value || '0') || 0;
+        const femaleValue = parseInt(document.getElementById('attraction_modal_female_count')?.value || '0') || 0;
+        const currentPax = childrenValue + maleValue + femaleValue;
         
         if (fieldId === 'attraction_modal_pax') {
-            // For pax, just increment normally
-            if (currentValue < maxValue) {
+            // For pax, check against tour max
+            if (tourMaxPax > 0 && currentValue >= tourMaxPax) {
+                showNotification(`Cannot exceed tour pax limit of ${tourMaxPax}`, 'warning');
+                return;
+            }
+            if (currentValue < (tourMaxPax || 20)) {
                 field.value = currentValue + 1;
                 updateAttractionGuestSummary();
             }
         } else {
-            // For other fields, just increment (pax will be auto-calculated)
-            if (currentValue < maxValue) {
-                field.value = currentValue + 1;
-                updateAttractionGuestSummary();
+            // For other fields, check if incrementing would exceed tour pax
+            let newValue = currentValue;
+            if (fieldId === 'attraction_modal_children') {
+                newValue = childrenValue + 1;
+            } else if (fieldId === 'attraction_modal_male_count') {
+                newValue = maleValue + 1;
+            } else if (fieldId === 'attraction_modal_female_count') {
+                newValue = femaleValue + 1;
             }
+            
+            const newPax = (fieldId === 'attraction_modal_children' ? newValue : childrenValue) + 
+                          (fieldId === 'attraction_modal_male_count' ? newValue : maleValue) + 
+                          (fieldId === 'attraction_modal_female_count' ? newValue : femaleValue);
+            
+            if (tourMaxPax > 0 && newPax > tourMaxPax) {
+                showNotification(`Total pax cannot exceed tour limit of ${tourMaxPax}`, 'warning');
+                return;
+            }
+            
+            field.value = newValue;
+            updateAttractionGuestSummary();
         }
     }
 
@@ -9062,10 +9161,39 @@
         const maleCount = parseInt(maleCountElem?.value || '0') || 0;
         const femaleCount = parseInt(femaleCountElem?.value || '0') || 0;
         
+        // Get tour max pax
+        const tourMaxPax = parseInt(paxElem?.dataset.tourMax || '0') || 0;
+        
         // Calculate pax as the sum of adults (male + female) + children
         // Adults = male + female, Pax = adults + children
         const adults = maleCount + femaleCount;
-        const pax = adults + children;
+        let pax = adults + children;
+        
+        // Enforce tour pax limit
+        if (tourMaxPax > 0 && pax > tourMaxPax) {
+            pax = tourMaxPax;
+            // Adjust values to fit within tour pax limit
+            if (adults + children > tourMaxPax) {
+                const excess = (adults + children) - tourMaxPax;
+                if (children >= excess) {
+                    if (childrenElem) childrenElem.value = Math.max(0, children - excess);
+                } else {
+                    const remainingExcess = excess - children;
+                    if (childrenElem) childrenElem.value = 0;
+                    if (maleCount >= remainingExcess) {
+                        if (maleCountElem) maleCountElem.value = Math.max(0, maleCount - remainingExcess);
+                    } else {
+                        if (maleCountElem) maleCountElem.value = 0;
+                        if (femaleCountElem) femaleCountElem.value = Math.max(0, femaleCount - (remainingExcess - maleCount));
+                    }
+                }
+                // Recalculate after adjustment
+                const adjChildren = parseInt(childrenElem?.value || '0') || 0;
+                const adjMaleCount = parseInt(maleCountElem?.value || '0') || 0;
+                const adjFemaleCount = parseInt(femaleCountElem?.value || '0') || 0;
+                pax = (adjMaleCount + adjFemaleCount) + adjChildren;
+            }
+        }
         
         // Update pax field if it exists
         if (paxElem) {
@@ -15417,21 +15545,26 @@
 
     function incrementCount(fieldId) {
         const field = document.getElementById(fieldId);
-        const currentValue = parseInt(field.value);
-        const maxValue = parseInt(field.max);
+        if (!field) return;
+        
+        const currentValue = parseInt(field.value || '0') || 0;
+        const tourMaxPax = parseInt(field.dataset.tourMax || '0') || 0;
         
         if (fieldId === 'modal_pax') {
-            // For pax, just increment normally
-            if (currentValue < maxValue) {
+            // For pax, check against tour max
+            if (tourMaxPax > 0 && currentValue >= tourMaxPax) {
+                showNotification(`Cannot exceed tour pax limit of ${tourMaxPax}`, 'warning');
+                return;
+            }
+            if (currentValue < (tourMaxPax || 20)) {
                 field.value = currentValue + 1;
                 updateModalGuestSummary();
             }
         } else {
-            // For other fields, check if incrementing would exceed pax
-            const paxValue = parseInt(document.getElementById('modal_pax').value);
-            const childrenValue = parseInt(document.getElementById('modal_children').value);
-            const maleValue = parseInt(document.getElementById('modal_male_count').value);
-            const femaleValue = parseInt(document.getElementById('modal_female_count').value);
+            // For other fields, check if incrementing would exceed tour pax
+            const childrenValue = parseInt(document.getElementById('modal_children')?.value || '0') || 0;
+            const maleValue = parseInt(document.getElementById('modal_male_count')?.value || '0') || 0;
+            const femaleValue = parseInt(document.getElementById('modal_female_count')?.value || '0') || 0;
             
             let newValue = currentValue;
             if (fieldId === 'modal_children') {
@@ -15442,17 +15575,26 @@
                 newValue = femaleValue + 1;
             }
             
-            // Check if the new total would exceed pax
-            const totalAfterIncrement = newValue + (fieldId === 'modal_children' ? maleValue + femaleValue : 
-                                                   fieldId === 'modal_male_count' ? childrenValue + femaleValue : 
-                                                   childrenValue + maleValue);
+            // Calculate new total pax
+            const newPax = (fieldId === 'modal_children' ? newValue : childrenValue) + 
+                          (fieldId === 'modal_male_count' ? newValue : maleValue) + 
+                          (fieldId === 'modal_female_count' ? newValue : femaleValue);
             
-            if (totalAfterIncrement <= paxValue && currentValue < maxValue) {
-                field.value = currentValue + 1;
-                updateModalGuestSummary();
-            } else if (totalAfterIncrement > paxValue) {
-                showNotification('Total of children, males, and females cannot exceed pax count', 'warning');
+            // Check against tour max pax
+            if (tourMaxPax > 0 && newPax > tourMaxPax) {
+                showNotification(`Total pax cannot exceed tour limit of ${tourMaxPax}`, 'warning');
+                return;
             }
+            
+            // Also check against current pax value
+            const paxValue = parseInt(document.getElementById('modal_pax')?.value || '0') || 0;
+            if (newPax > paxValue) {
+                showNotification('Total of children, males, and females cannot exceed pax count', 'warning');
+                return;
+            }
+            
+            field.value = newValue;
+            updateModalGuestSummary();
         }
     }
 
@@ -15484,14 +15626,61 @@
     }
 
     function updateModalGuestSummary() {
-        const pax = parseInt(document.getElementById('modal_pax').value);
-        const children = parseInt(document.getElementById('modal_children').value);
-        const infants = parseInt(document.getElementById('modal_infants').value);
-        const maleCount = parseInt(document.getElementById('modal_male_count').value);
-        const femaleCount = parseInt(document.getElementById('modal_female_count').value);
-        const adults = pax - children; // Calculate adults as pax - children
+        const paxElem = document.getElementById('modal_pax');
+        const childrenElem = document.getElementById('modal_children');
+        const maleCountElem = document.getElementById('modal_male_count');
+        const femaleCountElem = document.getElementById('modal_female_count');
+        
+        const children = parseInt(childrenElem?.value || '0') || 0;
+        const infants = parseInt(document.getElementById('modal_infants')?.value || '0') || 0;
+        const maleCount = parseInt(maleCountElem?.value || '0') || 0;
+        const femaleCount = parseInt(femaleCountElem?.value || '0') || 0;
+        
+        // Get tour max pax
+        const tourMaxPax = parseInt(paxElem?.dataset.tourMax || '0') || 0;
+        
+        // Calculate pax as the sum of adults (male + female) + children
+        const adults = maleCount + femaleCount;
+        let pax = adults + children;
+        
+        // Enforce tour pax limit
+        if (tourMaxPax > 0 && pax > tourMaxPax) {
+            pax = tourMaxPax;
+            // Adjust values to fit within tour pax limit
+            if (adults + children > tourMaxPax) {
+                const excess = (adults + children) - tourMaxPax;
+                if (children >= excess) {
+                    if (childrenElem) childrenElem.value = Math.max(0, children - excess);
+                } else {
+                    const remainingExcess = excess - children;
+                    if (childrenElem) childrenElem.value = 0;
+                    if (maleCount >= remainingExcess) {
+                        if (maleCountElem) maleCountElem.value = Math.max(0, maleCount - remainingExcess);
+                    } else {
+                        if (maleCountElem) maleCountElem.value = 0;
+                        if (femaleCountElem) femaleCountElem.value = Math.max(0, femaleCount - (remainingExcess - maleCount));
+                    }
+                }
+                // Recalculate after adjustment
+                const adjChildren = parseInt(childrenElem?.value || '0') || 0;
+                const adjMaleCount = parseInt(maleCountElem?.value || '0') || 0;
+                const adjFemaleCount = parseInt(femaleCountElem?.value || '0') || 0;
+                pax = (adjMaleCount + adjFemaleCount) + adjChildren;
+            }
+        }
+        
+        // Update pax field
+        if (paxElem) {
+            paxElem.value = pax;
+        }
+        
+        // Recalculate adults after potential adjustments
+        const finalAdults = (parseInt(maleCountElem?.value || '0') || 0) + (parseInt(femaleCountElem?.value || '0') || 0);
+        const finalChildren = parseInt(childrenElem?.value || '0') || 0;
+        const finalMaleCount = parseInt(maleCountElem?.value || '0') || 0;
+        const finalFemaleCount = parseInt(femaleCountElem?.value || '0') || 0;
 
-        const summary = `${pax} pax (${adults} adults, ${children} children) - ${maleCount} male, ${femaleCount} female -${infants} infants`;
+        const summary = `${pax} pax (${finalAdults} adults, ${finalChildren} children) - ${finalMaleCount} male, ${finalFemaleCount} female -${infants} infants`;
         
         // Update summary if element exists
         const summaryElement = document.getElementById('modal_restaurant_guest_summary');
