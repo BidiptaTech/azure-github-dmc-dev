@@ -82,6 +82,9 @@ Route::get('/clear', function () {
 })->name('clear');
 
         Route::middleware(['auth'])->group(function () {
+            // Tour prices route
+            Route::get('/tour/get-tour-prices/{tourId}', [TourController::class, 'getTourPrices'])->name('tour.get-tour-prices');
+
             // Tour creation route
             Route::post('/create-single-tour', [App\Http\Controllers\TourController::class, 'createTour'])->name('create.tour');
             Route::get('/', function () {
