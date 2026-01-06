@@ -9,11 +9,13 @@ use App\Models\Vehicle;
 use App\Models\Guide;
 use App\Models\Hotel;
 use App\Models\Bed;
+use App\Models\Room;
 use App\Models\Agent;
 use App\Models\Attraction;
 use App\Models\Restaurant;
 use App\Models\OperationalCountry;
 use App\Models\Agency;
+use App\Models\Rate;
 use Carbon\Carbon;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
@@ -1749,6 +1751,9 @@ class CommonHelper
             }
         }
 
+        // Calculate tour prices
+        $tourPrices = self::calculateTourPrices($tourId);
+        
         try {
             // Configure DomPDF options to work without GD if possible
             $pdf = Pdf::loadView('single-tour-package.pdf-itinerary', [
@@ -1758,6 +1763,7 @@ class CommonHelper
                 'generatedAt' => now(),
                 'dmcLogo' => $dmcLogo,
                 'dmcCompanyName' => $dmcCompanyName,
+                'tourPrices' => $tourPrices,
             ]);
             
             $pdf->setPaper('a4');
@@ -1781,6 +1787,7 @@ class CommonHelper
                     'generatedAt' => now(),
                     'dmcLogo' => null, // Remove logo
                     'dmcCompanyName' => $dmcCompanyName,
+                    'tourPrices' => $tourPrices,
                 ]);
                 
                 $pdf->setPaper('a4');
@@ -1794,6 +1801,500 @@ class CommonHelper
             // Re-throw if it's a different error
             throw $e;
         }
+    }
+
+    /**
+     * Calculate single sharing and double sharing prices for a tour
+     * 
+     * @param int|string $tourId - Can be tour_id (integer) or display_id (string like "DMC-ORD3107")
+     * @return array ['single_sharing' => float, 'double_sharing' => float, 'triple_sharing' => float]
+     */
+    public static function calculateTourPrices($tourId)
+    {
+        // Check if input is display_id (string format like "DMC-ORD3107") or tour_id (integer)
+        if (is_string($tourId) && (strpos($tourId, 'DMC-ORD') === 0 || strpos($tourId, 'ORD') === 0)) {
+            // It's a display_id, find tour by display_id
+            $tour = Tour::where('display_id', $tourId)->first();
+        } else {
+            // It's a tour_id, find tour by tour_id
+            $tour = Tour::where('tour_id', $tourId)->first();
+        }
+        
+        if (!$tour) {
+            return [
+                'single_sharing' => 0,
+                'double_sharing' => 0,
+            ];
+        }
+        // Use the actual tour_id from the found tour for querying orders
+        $actualTourId = $tour->tour_id;
+        $orders = Order::where('tour_id', $actualTourId)
+            ->where('status', 1)
+            ->get();
+
+        $totalSingleSharing = 0;
+        $totalDoubleSharing = 0;
+        $totalTripleSharing = 0;
+
+        foreach ($orders as $order) {
+            $rawData = $order->data;
+            if (is_string($rawData)) {
+                $rawData = json_decode($rawData, true);
+            }
+
+            if (empty($rawData)) {
+                continue;
+            }
+
+            $items = isset($rawData[0]) ? $rawData : [$rawData];
+            $type = strtolower($order->type ?? '');
+
+            foreach ($items as $item) {
+                if ($type === 'hotel') {
+                    // Hotel pricing calculation with date-based weekday/weekend check
+                    $singleWeekdayPrice = null;
+                    $singleWeekendPrice = null;
+                    $doubleWeekdayPrice = null;
+                    $doubleWeekendPrice = null;
+
+                    // Get hotel_id to fetch weekend_days dynamically
+                    $hotelId = $item['hotelDetails']['hotel_id'] ?? $item['hotelDetails']['hotelId'] ?? $item['hotel_id'] ?? $item['hotelId'] ?? null;
+                    $weekendDays = ['Saturday', 'Sunday']; // Default fallback only
+                    
+                    if ($hotelId) {
+                        try {
+                            $hotel = Hotel::where('hotel_unique_id', $hotelId)->first();
+                            if ($hotel) {
+                                if ($hotel->weekend_days) {
+                                    $decodedWeekendDays = json_decode($hotel->weekend_days, true);
+                                    if (is_array($decodedWeekendDays) && !empty($decodedWeekendDays)) {
+                                        $weekendDays = $decodedWeekendDays;
+                                    }
+                                }
+                            }
+                        } catch (\Exception $e) {
+                            Log::warning('Failed to fetch hotel weekend_days', [
+                                'hotel_id' => $hotelId,
+                                'error' => $e->getMessage()
+                            ]);
+                        }
+                    }
+
+                    // Get prices from room data - first try to fetch from database using room_type and hotel_id
+                    if (!empty($item['rooms']) && is_array($item['rooms'])) {
+                        foreach ($item['rooms'] as $roomData) {
+                            $roomtype = $roomData['room_type'] ?? $roomData['roomType'] ?? null;
+                            
+                            // Try to fetch room from database first - must match both room_type and hotel_id
+                            if ($roomtype && $hotelId) {
+                                try {
+                                    // First try to get hotel_id from hotel_unique_id
+                                    $hotel = Hotel::where('hotel_unique_id', $hotelId)->first();
+                                    $dbHotelId = $hotel ? $hotel->hotel_unique_id : $hotelId;
+                                    
+                                    $roomRecord = Room::where('room_type', $roomtype)
+                                        ->where('hotel_id', $dbHotelId)
+                                        ->where('status', 1)
+                                        ->first();
+                                    
+                                    if ($roomRecord) {
+                                        if ($roomRecord->weekday_price !== null && $roomRecord->weekday_price !== '') {
+                                            $singleWeekdayPrice = floatval($roomRecord->weekday_price);
+                                        }
+                                        if ($roomRecord->weekend_price !== null && $roomRecord->weekend_price !== '') {
+                                            $singleWeekendPrice = floatval($roomRecord->weekend_price);
+                                        }
+                                        if ($roomRecord->double_weekday_price !== null && $roomRecord->double_weekday_price !== '') {
+                                            $doubleWeekdayPrice = floatval($roomRecord->double_weekday_price) / 2;
+                                        }
+                                        if ($roomRecord->double_weekend_price !== null && $roomRecord->double_weekend_price !== '') {
+                                            $doubleWeekendPrice = floatval($roomRecord->double_weekend_price) / 2;
+                                        }
+                                        
+                                        // If we got prices from database, break
+                                        if ($singleWeekdayPrice !== null || $singleWeekendPrice !== null || $doubleWeekdayPrice !== null || $doubleWeekendPrice !== null) {
+                                            break;
+                                        }
+                                    }
+                                } catch (\Exception $e) {
+                                    Log::warning('Failed to fetch room prices from database', [
+                                        'room_type' => $roomtype,
+                                        'hotel_id' => $hotelId,
+                                        'error' => $e->getMessage()
+                                    ]);
+                                }
+                            }
+                            
+                            // Fallback: Get prices from room data in item
+                            $weekdayPrice = $roomData['weekday_price'] ?? $roomData['weekdayPrice'] ?? null;
+                            $weekendPrice = $roomData['weekend_price'] ?? $roomData['weekendPrice'] ?? null;
+                            $doubleWeekdayPriceVal = $roomData['double_weekday_price'] ?? $roomData['doubleWeekdayPrice'] ?? null;
+                            $doubleWeekendPriceVal = $roomData['double_weekend_price'] ?? $roomData['doubleWeekendPrice'] ?? null;
+
+                            if ($singleWeekdayPrice === null && $weekdayPrice !== null && $weekdayPrice !== '') {
+                                $singleWeekdayPrice = floatval($weekdayPrice);
+                            }
+                            if ($singleWeekendPrice === null && $weekendPrice !== null && $weekendPrice !== '') {
+                                $singleWeekendPrice = floatval($weekendPrice);
+                            }
+                            if ($doubleWeekdayPrice === null && $doubleWeekdayPriceVal !== null && $doubleWeekdayPriceVal !== '') {
+                                $doubleWeekdayPrice = floatval($doubleWeekdayPriceVal) / 2;
+                            }
+                            if ($doubleWeekendPrice === null && $doubleWeekendPriceVal !== null && $doubleWeekendPriceVal !== '') {
+                                $doubleWeekendPrice = floatval($doubleWeekendPriceVal) / 2;
+                            }
+
+                            if ($singleWeekdayPrice !== null || $singleWeekendPrice !== null || $doubleWeekdayPrice !== null || $doubleWeekendPrice !== null) {
+                                break;
+                            }
+                        }
+                    }
+
+                    // Check direct item fields if not found in rooms
+                    if ($singleWeekdayPrice === null) {
+                        $weekdayPrice = $item['weekday_price'] ?? $item['weekdayPrice'] ?? null;
+                        if ($weekdayPrice !== null && $weekdayPrice !== '') {
+                            $singleWeekdayPrice = floatval($weekdayPrice);
+                        }
+                    }
+                    if ($singleWeekendPrice === null) {
+                        $weekendPrice = $item['weekend_price'] ?? $item['weekendPrice'] ?? null;
+                        if ($weekendPrice !== null && $weekendPrice !== '') {
+                            $singleWeekendPrice = floatval($weekendPrice);
+                        }
+                    }
+                    if ($doubleWeekdayPrice === null) {
+                        $doubleWeekdayPriceVal = $item['double_weekday_price'] ?? $item['doubleWeekdayPrice'] ?? null;
+                        if ($doubleWeekdayPriceVal !== null && $doubleWeekdayPriceVal !== '') {
+                            $doubleWeekdayPrice = floatval($doubleWeekdayPriceVal) / 2;
+                        }
+                    }
+                    if ($doubleWeekendPrice === null) {
+                        $doubleWeekendPriceVal = $item['double_weekend_price'] ?? $item['doubleWeekendPrice'] ?? null;
+                        if ($doubleWeekendPriceVal !== null && $doubleWeekendPriceVal !== '') {
+                            $doubleWeekendPrice = floatval($doubleWeekendPriceVal) / 2;
+                        }
+                    }
+
+                    // Get booking dates
+                    $bookingDates = [];
+                    $bookingDate = $item['bookingDate'] ?? null;
+                    
+                    if ($bookingDate) {
+                        if (is_array($bookingDate) && count($bookingDate) === 2) {
+                            try {
+                                $start = Carbon::parse($bookingDate[0]);
+                                $end = Carbon::parse($bookingDate[1]);
+                                
+                                // Generate all dates in the booking period (excluding checkout day)
+                                while ($start->lt($end)) {
+                                    $bookingDates[] = $start->copy();
+                                    $start->addDay();
+                                }
+                            } catch (\Exception $e) {
+                                // If date parsing fails, use tour dates as fallback
+                                if ($tour->check_in_time && $tour->check_out_time) {
+                                    try {
+                                        $start = Carbon::parse($tour->check_in_time);
+                                        $end = Carbon::parse($tour->check_out_time);
+                                        while ($start->lt($end)) {
+                                            $bookingDates[] = $start->copy();
+                                            $start->addDay();
+                                        }
+                                    } catch (\Exception $e2) {
+                                        // If still fails, default to 1 night
+                                        $bookingDates[] = Carbon::today();
+                                    }
+                                }
+                            }
+                        } else {
+                            $singleDate = is_array($bookingDate) ? ($bookingDate[0] ?? null) : $bookingDate;
+                            if ($singleDate) {
+                                try {
+                                    $bookingDates[] = Carbon::parse($singleDate);
+                                } catch (\Exception $e) {
+                                    // Fallback to tour dates
+                                    if ($tour->check_in_time) {
+                                        try {
+                                            $bookingDates[] = Carbon::parse($tour->check_in_time);
+                                        } catch (\Exception $e2) {
+                                            $bookingDates[] = Carbon::today();
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    } elseif ($tour->check_in_time && $tour->check_out_time) {
+                        // Fallback to tour dates if bookingDate not available
+                        try {
+                            $start = Carbon::parse($tour->check_in_time);
+                            $end = Carbon::parse($tour->check_out_time);
+                            while ($start->lt($end)) {
+                                $bookingDates[] = $start->copy();
+                                $start->addDay();
+                            }
+                        } catch (\Exception $e) {
+                            $bookingDates[] = Carbon::today();
+                        }
+                    }
+
+                    // If no dates found, default to 1 night
+                    if (empty($bookingDates)) {
+                        $bookingDates[] = Carbon::today();
+                    }
+
+                    // Calculate price for each night based on weekday/weekend
+                    $hotelSingleTotal = 0;
+                    $hotelDoubleTotal = 0;
+                    $hotelTripleTotal = 0;
+                    
+                    // Get extra bed price from beds table if available
+                    $extraBedWeekdayPrice = null;
+                    $extraBedWeekendPrice = null;
+                    $roomIdForBed = null;
+                    
+                    // Try to get room_id from roomRecord to check for extra bed
+                    if (!empty($item['rooms']) && is_array($item['rooms'])) {
+                        foreach ($item['rooms'] as $roomData) {
+                            $roomId = $roomData['room_id'] ?? $roomData['roomId'] ?? null;
+                            
+                            if ($roomId && $hotelId) {
+                                try {
+                                    $hotel = Hotel::where('hotel_unique_id', $hotelId)->first();
+                                    $dbHotelId = $hotel ? $hotel->hotel_unique_id : $hotelId;
+                                    
+                                    $roomRecord = Room::where('room_id', $roomId)
+                                        ->where('hotel_id', $dbHotelId)
+                                        ->where('status', 1)
+                                        ->first();
+                                    if ($roomRecord && $roomRecord->room_id) {
+                                        $roomIdForBed = $roomRecord->room_id;
+                                        
+                                        // Check beds table for extra_bed
+                                        $bedRecord = Bed::where('room_id', $roomIdForBed)
+                                            ->where('extra_bed', true)
+                                            ->where('is_active', 1)
+                                            ->first();
+                                        if ($bedRecord && $bedRecord->extra_bed_price !== null) {
+                                            // Extra bed price is typically the same for weekday and weekend
+                                            $extraBedPrice = floatval($bedRecord->extra_bed_price);
+                                            $extraBedWeekdayPrice = $extraBedPrice;
+                                            $extraBedWeekendPrice = $extraBedPrice;
+                                            
+                                            Log::info('Extra bed found for room', [
+                                                'room_id' => $roomIdForBed,
+                                                'extra_bed_price' => $extraBedPrice
+                                            ]);
+                                        }
+                                        
+                                        // If we found the room, break
+                                        if ($roomIdForBed) {
+                                            break;
+                                        }
+                                    }
+                                } catch (\Exception $e) {
+                                    Log::warning('Failed to fetch bed info for triple sharing', [
+                                        'room_type' => $roomtype,
+                                        'hotel_id' => $hotelId,
+                                        'error' => $e->getMessage()
+                                    ]);
+                                }
+                            }
+                        }
+                    }
+                    
+                    // Debug logging
+                    Log::info('Hotel price calculation', [
+                        'hotel_id' => $hotelId,
+                        'room_type' => $roomtype ?? 'N/A',
+                        'booking_dates_count' => count($bookingDates),
+                        'booking_dates' => array_map(function($d) { return $d->format('Y-m-d (l)'); }, $bookingDates),
+                        'weekend_days' => $weekendDays,
+                        'single_weekday_price' => $singleWeekdayPrice,
+                        'single_weekend_price' => $singleWeekendPrice,
+                        'double_weekday_price' => $doubleWeekdayPrice,
+                        'double_weekend_price' => $doubleWeekendPrice,
+                    ]);
+                    foreach ($bookingDates as $date) {
+                        $dayName = $date->format('l'); // Full day name (Monday, Tuesday, etc.)
+                        $isWeekend = in_array($dayName, $weekendDays);
+                        $dateString = $date->format('Y-m-d');
+                        
+                        // Priority-based pricing: Check rates table first
+                        $ratePrice = null;
+                        $rateSingleWeekdayPrice = null;
+                        $rateSingleWeekendPrice = null;
+                        $rateDoubleWeekdayPrice = null;
+                        $rateDoubleWeekendPrice = null;
+                        $rateEventType = null;
+                        
+                        if ($hotelId) {
+                            try {
+                                // Query rates for this hotel and date with priority order
+                                $rate = Rate::where('hotel_id', $hotelId)
+                                    ->whereDate('start_date', '<=', $dateString)
+                                    ->whereDate('end_date', '>=', $dateString)
+                                    ->orderByRaw("
+                                        CASE
+                                            WHEN event_type = 'Blackout Date' THEN 1
+                                            WHEN event_type = 'Season' THEN 2
+                                            WHEN event_type = 'Fair Date' THEN 3
+                                            ELSE 4
+                                        END
+                                    ")
+                                    ->first();
+                                
+                                if ($rate) {
+                                    $rateEventType = $rate->event_type;
+                                    
+                                    if ($rate->event_type == 'Blackout Date') {
+                                        // Blackout Date: Use rate->price (first priority)
+                                        $ratePrice = floatval($rate->price ?? 0);
+                                        // For blackout, both single and double use the same price
+                                        $rateSingleWeekdayPrice = $ratePrice;
+                                        $rateSingleWeekendPrice = $ratePrice;
+                                        $rateDoubleWeekdayPrice = $ratePrice;
+                                        $rateDoubleWeekendPrice = $ratePrice;
+                                    } elseif ($rate->event_type == 'Season') {
+                                        // Season: Use rate weekday/weekend prices (second priority)
+                                        $rateSingleWeekdayPrice = $rate->weekday_price ? floatval($rate->weekday_price) : null;
+                                        $rateSingleWeekendPrice = $rate->weekend_price ? floatval($rate->weekend_price) : null;
+                                        // Check if double prices exist (they might not be in all migrations)
+                                        $rateDoubleWeekdayPrice = (isset($rate->double_weekday_price) && $rate->double_weekday_price !== null && $rate->double_weekday_price !== '') 
+                                            ? floatval($rate->double_weekday_price) / 2 
+                                            : null;
+                                        $rateDoubleWeekendPrice = (isset($rate->double_weekend_price) && $rate->double_weekend_price !== null && $rate->double_weekend_price !== '') 
+                                            ? floatval($rate->double_weekend_price) / 2 
+                                            : null;
+                                    }
+                                    // Fair Date is handled as additional price, skip for now as per priority
+                                }
+                            } catch (\Exception $e) {
+                                Log::warning('Failed to fetch rate for date', [
+                                    'hotel_id' => $hotelId,
+                                    'date' => $dateString,
+                                    'error' => $e->getMessage()
+                                ]);
+                            }
+                        }
+                        
+                        // Determine which price to use based on priority
+                        $singlePriceToAdd = null;
+                        $doublePriceToAdd = null;
+                        
+                        if ($rateEventType == 'Blackout Date' && $ratePrice !== null) {
+                            // Priority 1: Blackout Date
+                            $singlePriceToAdd = $ratePrice;
+                            $doublePriceToAdd = $ratePrice;
+                        } elseif ($rateEventType == 'Season') {
+                            // Priority 2: Season - use weekday/weekend from rate, fallback to room prices
+                            if ($isWeekend) {
+                                $singlePriceToAdd = $rateSingleWeekendPrice ?? $rateSingleWeekdayPrice ?? $singleWeekendPrice ?? $singleWeekdayPrice;
+                                $doublePriceToAdd = $rateDoubleWeekendPrice ?? $rateDoubleWeekdayPrice ?? $doubleWeekendPrice ?? $doubleWeekdayPrice;
+                            } else {
+                                $singlePriceToAdd = $rateSingleWeekdayPrice ?? $rateSingleWeekendPrice ?? $singleWeekdayPrice ?? $singleWeekendPrice;
+                                $doublePriceToAdd = $rateDoubleWeekdayPrice ?? $rateDoubleWeekendPrice ?? $doubleWeekdayPrice ?? $doubleWeekendPrice;
+                            }
+                        } elseif ($isWeekend) {
+                            // Priority 3: Weekend - use room weekend prices
+                            $singlePriceToAdd = $singleWeekendPrice ?? $singleWeekdayPrice;
+                            $doublePriceToAdd = $doubleWeekendPrice ?? $doubleWeekdayPrice;
+                        } else {
+                            // Priority 4: Weekday - use room weekday prices
+                            $singlePriceToAdd = $singleWeekdayPrice ?? $singleWeekendPrice;
+                            $doublePriceToAdd = $doubleWeekdayPrice ?? $doubleWeekendPrice;
+                        }
+                        
+                        // Add prices to totals
+                        if ($singlePriceToAdd !== null) {
+                            $hotelSingleTotal += $singlePriceToAdd;
+                        }
+                        if ($doublePriceToAdd !== null) {
+                            $hotelDoubleTotal += $doublePriceToAdd;
+                        }
+                        
+                        // Calculate triple sharing = double sharing + extra bed price (if available)
+                        // Note: Extra bed price is added for EACH night (multiplied by total nights)
+                        $triplePriceToAdd = null;
+                        if ($doublePriceToAdd !== null && $extraBedWeekdayPrice !== null) {
+                            // Use extra bed price based on weekday/weekend
+                            $extraBedPriceToAdd = $isWeekend 
+                                ? ($extraBedWeekendPrice ?? $extraBedWeekdayPrice) 
+                                : ($extraBedWeekdayPrice ?? $extraBedWeekendPrice);
+                            $triplePriceToAdd = $doublePriceToAdd + $extraBedPriceToAdd;
+                            $hotelTripleTotal += $triplePriceToAdd;
+                            
+                            Log::info('Triple sharing calculation for night', [
+                                'date' => $dateString,
+                                'double_price' => $doublePriceToAdd,
+                                'extra_bed_price' => $extraBedPriceToAdd,
+                                'triple_price_for_this_night' => $triplePriceToAdd,
+                                'triple_total_so_far' => $hotelTripleTotal,
+                            ]);
+                        }
+                        
+                        // Debug each night calculation
+                        Log::info('Night price calculation', [
+                            'date' => $dateString,
+                            'day_name' => $dayName,
+                            'is_weekend' => $isWeekend,
+                            'rate_event_type' => $rateEventType,
+                            'rate_price' => $ratePrice,
+                            'single_price_added' => $singlePriceToAdd,
+                            'double_price_added' => $doublePriceToAdd,
+                            'triple_price_added' => $triplePriceToAdd,
+                            'single_running_total' => $hotelSingleTotal,
+                            'double_running_total' => $hotelDoubleTotal,
+                            'triple_running_total' => $hotelTripleTotal,
+                        ]);
+                    }
+                    
+                    Log::info('Hotel total calculated', [
+                        'hotel_single_total' => $hotelSingleTotal,
+                        'hotel_double_total' => $hotelDoubleTotal,
+                        'hotel_triple_total' => $hotelTripleTotal,
+                        'total_nights' => count($bookingDates),
+                        'extra_bed_price_per_night' => $extraBedWeekdayPrice,
+                        'extra_bed_total' => $extraBedWeekdayPrice ? ($extraBedWeekdayPrice * count($bookingDates)) : 0,
+                    ]);
+
+                    $totalSingleSharing += $hotelSingleTotal;
+                    $totalDoubleSharing += $hotelDoubleTotal;
+                    $totalTripleSharing += $hotelTripleTotal;
+                } else {
+                    // Other services pricing calculation
+                    $totalPrice = $item['totalPrice'] ?? $item['total_price'] ?? $item['price'] ?? null;
+                    if ($totalPrice !== null) {
+                        $totalPriceFloat = floatval($totalPrice);
+                        
+                        // Get pax count
+                        $pax = $item['pax'] 
+                            ?? (($item['adult'] ?? 0) + ($item['child'] ?? 0) + ($item['infant'] ?? 0))
+                            ?? (($item['adultCount'] ?? 0) + ($item['childCount'] ?? 0) + ($item['seniorCount'] ?? 0))
+                            ?? null;
+
+                        // Single sharing: per person price
+                        if ($pax && $pax > 0) {
+                            $singleSharing = $totalPriceFloat / floatval($pax);
+                        } else {
+                            $singleSharing = $totalPriceFloat;
+                        }
+
+                        // Double sharing: total / 2 (per person for 2 people)
+                        $doubleSharing = $totalPriceFloat;
+
+                        $totalSingleSharing += $singleSharing;
+                        $totalDoubleSharing += $doubleSharing;
+                    }
+                }
+            }
+        }
+
+        return [
+            'single_sharing' => ceil($totalSingleSharing),
+            'double_sharing' => ceil($totalDoubleSharing),
+            'triple_sharing' => ceil($totalTripleSharing),
+        ];
     }
 
     protected static function groupServicesByDate($orders)

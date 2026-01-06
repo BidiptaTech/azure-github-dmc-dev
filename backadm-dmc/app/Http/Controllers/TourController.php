@@ -476,6 +476,37 @@ class TourController extends Controller
         return view('tour.tour',compact('tours', 'guides', 'drivers', 'hotels', 'attractions', 'tour_guides', 'restaurants', 'travels', 'entrypickups', 'exitdropoffs'));
     }
 
+    /**
+     * Get tour prices (single sharing and double sharing)
+     * 
+     * @param int $tourId
+     * @return \Illuminate\Http\JsonResponse
+     */
+    public function getTourPrices($tourId)
+    {
+        try {
+            $prices = CommonHelper::calculateTourPrices($tourId);
+            
+            return response()->json([
+                'success' => true,
+                'tour_id' => $tourId,
+                'prices' => [
+                    'single_sharing' => $prices['single_sharing'],
+                    'double_sharing' => $prices['double_sharing'],
+                    'triple_sharing' => $prices['triple_sharing'] ?? 0,
+                    'single_sharing_formatted' => '₹' . number_format($prices['single_sharing'], 2),
+                    'double_sharing_formatted' => '₹' . number_format($prices['double_sharing'], 2),
+                    'triple_sharing_formatted' => '₹' . number_format($prices['triple_sharing'] ?? 0, 2),
+                ]
+            ]);
+        } catch (\Exception $e) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Error calculating prices: ' . $e->getMessage()
+            ], 500);
+        }
+    }
+
     public function assignGuide(Request $request)
     {
         $tour = Tour::where('tour_id',$request->tour_id)->first();
