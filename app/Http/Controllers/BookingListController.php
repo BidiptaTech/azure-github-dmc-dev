@@ -1019,6 +1019,48 @@ class BookingListController extends Controller
         // }
         
         // Fetch all bookings for the specified tour
+        $tour = Tour::where('tour_id', $tourId)->first();
+        $user_dmc = null;
+        if ($tour && $tour->dmc_id) {
+            $user_dmc = User::select('name', 'email', 'phone', 'company_name','logo', 'country', 'city', 'address')->where('userId', $tour->dmc_id)->first();
+            
+            // Convert logo URL to base64 data URL to avoid CORS issues
+            if ($user_dmc && $user_dmc->logo) {
+                try {
+                    $logoUrl = $user_dmc->logo;
+                    // Check if it's already a data URL
+                    if (!str_starts_with($logoUrl, 'data:image')) {
+                        // Fetch image content server-side
+                        $context = stream_context_create([
+                            'http' => [
+                                'method' => 'GET',
+                                'header' => [
+                                    'User-Agent: Mozilla/5.0',
+                                    'Accept: image/png,image/jpeg,image/*,*/*'
+                                ],
+                                'timeout' => 10,
+                                'ignore_errors' => true
+                            ]
+                        ]);
+                        
+                        $imageContent = @file_get_contents($logoUrl, false, $context);
+                        if ($imageContent !== false) {
+                            // Determine image type
+                            $imageInfo = @getimagesizefromstring($imageContent);
+                            if ($imageInfo !== false) {
+                                $mimeType = $imageInfo['mime'];
+                                $base64 = base64_encode($imageContent);
+                                $user_dmc->logo = 'data:' . $mimeType . ';base64,' . $base64;
+                            }
+                        }
+                    }
+                } catch (\Exception $e) {
+                    // If conversion fails, keep original URL
+                    \Log::warning('Failed to convert logo to base64: ' . $e->getMessage());
+                }
+            }
+        }
+        
         $bookings = Order::with(['tour'])
         ->where('tour_id', $tourId)
         ->where('bookingType', 'booking')
@@ -1028,6 +1070,37 @@ class BookingListController extends Controller
         })
         ->orderByDesc('booking_id')
         ->get();
+        
+        // Get agent/agency information from tour or first booking
+        $agent_info = null;
+        $agent_id = null;
+        
+        // First try to get from tour
+        if ($tour && $tour->agent_id) {
+            $agent_id = $tour->agent_id;
+        }
+        // If not in tour, try from first booking
+        elseif ($bookings->count() > 0 && $bookings->first()->agent_id) {
+            $agent_id = $bookings->first()->agent_id;
+        }
+        
+        // Fetch agent details if we have an agent_id
+        if ($agent_id) {
+            $agent = \App\Models\Agent::with('agency')->where('agent_id', $agent_id)->first();
+            if ($agent) {
+                $agency = $agent->agency;
+                
+                // Use agency data if available, otherwise fall back to agent data
+                $agent_info = [
+                    'name' => $agent->name ?? '',
+                    'company_name' => ($agency && $agency->agency_name) ? $agency->agency_name : '',
+                    'address' => ($agency && $agency->address) ? $agency->address : '',
+                    'contact_person' => ($agency && $agency->contact_person) ? $agency->contact_person : ($agent->name ?? ''),
+                    'phone' => ($agency && $agency->phone) ? $agency->phone : ($agent->phone ?? ''),
+                    'email' => ($agency && $agency->email) ? $agency->email : ($agent->email ?? '')
+                ];
+            }
+        }
 
         // Fetch tour details
         // $tourDetails = DB::table('tours')->where('tour_id', $tourId)->first();
@@ -1093,7 +1166,9 @@ class BookingListController extends Controller
             'tourId' => $tourId,
             'itineraryByDate' => $itineraryByDate,
             'tourDetails' => $tourDetails,
-            'priceHide' => $priceHide
+            'priceHide' => $priceHide,
+            'user_dmc' => $user_dmc,
+            'agent_info' => $agent_info
         ]);
     }
     
