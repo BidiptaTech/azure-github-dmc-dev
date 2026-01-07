@@ -83,6 +83,9 @@ Route::get('/clear', function () {
 })->name('clear');
 
         Route::middleware(['auth'])->group(function () {
+            // Tour prices route
+            Route::get('/tour/get-tour-prices/{tourId}', [TourController::class, 'getTourPrices'])->name('tour.get-tour-prices');
+
             // Tour creation route
             Route::post('/create-single-tour', [App\Http\Controllers\TourController::class, 'createTour'])->name('create.tour');
             Route::get('/', function () {
@@ -382,7 +385,7 @@ Route::get('/clear', function () {
         Route::get('jobsheet/view', [JobSheetController::class, 'viewJobsheets'])->name('jobsheet.view');
 
         Route::get('get-dmcs/{masterDmcId}', [JobSheetController::class, 'getDmcsByMaster'])->name('get.dmcs');
-        Route::get('get-drivers/{dmcId}', [JobSheetController::class, 'getDriversByDmc'])->name('get.drqivers');
+        Route::get('get-drivers/{dmcId}', [JobSheetController::class, 'getDriversByDmc'])->name('get.drivers');
         Route::get('get-driver-schedule/{driverId}', [JobSheetController::class, 'getDriverSchedule'])->name('get.driver.schedule');
         Route::get('get-tour-details/{tourId}', [JobSheetController::class, 'getTourDetails'])->name('get.tour.details');
         Route::get('get-tour-orders/{tourId}/{date}', [JobSheetController::class, 'getTourOrders'])->name('get.tour.orders');
