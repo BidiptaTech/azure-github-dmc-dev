@@ -214,7 +214,17 @@ class AgenciesImport
         
         if (($handle = fopen($filePath, 'r')) !== false) {
             while (($row = fgetcsv($handle, 10000, ',')) !== false) {
-                $data[] = $row;
+                // Normalize encoding to UTF-8 (Excel/Windows often saves CSV as Windows-1252)
+                $data[] = array_map(function ($cell) {
+                    if ($cell === null) return '';
+                    if (!is_string($cell)) return $cell;
+                    $converted = @mb_convert_encoding($cell, 'UTF-8', 'UTF-8, ISO-8859-1, Windows-1252');
+                    if ($converted === false) {
+                        $converted = $cell;
+                    }
+                    $clean = @iconv('UTF-8', 'UTF-8//IGNORE', $converted);
+                    return $clean === false ? '' : $clean;
+                }, $row);
             }
             fclose($handle);
         }
