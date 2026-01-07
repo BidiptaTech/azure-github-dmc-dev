@@ -56,7 +56,12 @@ class SingleTourPackageController extends Controller
     {
 
         $user = Auth::user();
+        $allowedRoleIds = [11, 33, 34, 128, 129, 130, 131, 132, 134, 135, 136, 137, 138, 37, 64, 65, 66, 67, 68, 38, 81, 90, 108, 117, 124, 125, 126, 127];
 
+        // Check if user has permission to access this page
+        if (!in_array($user->role_id, $allowedRoleIds)) {
+            return redirect()->route('dashboard')->with('error', 'You have not permission for access this page');
+        }
         if($user->role_id == 11){
             $dmc_id = $user->userId;
         }
@@ -3153,8 +3158,8 @@ class SingleTourPackageController extends Controller
                                         'priceMode' => $hotelBooking['priceMode'] ?? 'dmc',
                                         'priceModeId' => $hotelBooking['priceModeId'] ?? 0,
                                         
-                                        // Rooms data (exact structure)
-                                        'rooms' => $hotelBooking['rooms'] ?? [],
+                                        // Rooms data - fix room_id to use actual numeric ID from database
+                                        'rooms' => $this->fixRoomIds($hotelBooking['rooms'] ?? [], $hotelBooking['hotelDetails']['hotel_id'] ?? $hotelBooking['hotel_id'] ?? null),
                                         
                                         // Total price
                                         'totalPrice' => $hotelBooking['totalPrice'] ?? 0,
@@ -3627,6 +3632,12 @@ class SingleTourPackageController extends Controller
             $bookingType = 'enquiry';
         }
         
+        // Fix room_ids in booking data
+        $hotelId = $bookingData['hotelDetails']['hotel_id'] ?? $bookingData['hotel_id'] ?? null;
+        if (isset($bookingData['rooms']) && is_array($bookingData['rooms'])) {
+            $bookingData['rooms'] = $this->fixRoomIds($bookingData['rooms'], $hotelId);
+        }
+        
         // Generate a unique booking ID
         $max_book_id = \App\Models\Order::max('booking_id') ?? 0;
         $bookingId = \App\Helpers\CommonHelper::createId($max_book_id);
@@ -4024,7 +4035,9 @@ class SingleTourPackageController extends Controller
                         'message' => 'Rooms JSON is invalid. Please provide a valid JSON structure.',
                     ], 422);
                 }
-                $currentPayload['rooms'] = $rooms;
+                // Fix room_ids in rooms array
+                $hotelId = $currentPayload['hotelDetails']['hotel_id'] ?? $currentPayload['hotel_id'] ?? null;
+                $currentPayload['rooms'] = $this->fixRoomIds($rooms, $hotelId);
             }
 
             if (!empty($validated['notes'])) {
@@ -4744,6 +4757,119 @@ class SingleTourPackageController extends Controller
         }
     }
 
+    /**
+     * Fix room_id in rooms array - replace generated string IDs with actual numeric room_id from database
+     */
+    private function fixRoomIds($rooms, $hotelId)
+    {
+        if (empty($rooms) || !is_array($rooms) || !$hotelId) {
+            return $rooms;
+        }
+
+        $fixedRooms = [];
+        
+        foreach ($rooms as $room) {
+            $roomId = $room['room_id'] ?? $room['roomId'] ?? null;
+            $roomType = $room['room_type'] ?? $room['roomType'] ?? null;
+            
+            // Check if room_id is a generated string (starts with "room_") or not numeric
+            if ($roomId && (is_string($roomId) && strpos($roomId, 'room_') === 0) || !is_numeric($roomId)) {
+                // First, try to get room_id from bed_id in beds array (most accurate)
+                $foundRoomId = null;
+                
+                if (isset($room['beds']) && is_array($room['beds']) && !empty($room['beds'])) {
+                    foreach ($room['beds'] as $index => $bed) {
+                        $bedId = $bed['bed_id'] ?? null;
+                        
+                        // Fix bed_id if it's a string
+                        if ($bedId && is_string($bedId) && (strpos($bedId, 'bed_') === 0 || !is_numeric($bedId))) {
+                            // Try to extract numeric part from bed_id
+                            $numericBedId = filter_var($bedId, FILTER_SANITIZE_NUMBER_INT);
+                            if ($numericBedId && is_numeric($numericBedId)) {
+                                $bedId = (int)$numericBedId;
+                                $room['beds'][$index]['bed_id'] = $bedId;
+                            }
+                        }
+                        
+                        // Use bed_id to find the correct room_id from beds table
+                        if ($bedId && is_numeric($bedId)) {
+                            try {
+                                $bedRecord = \App\Models\Bed::where('bed_id', $bedId)
+                                    ->where('is_active', 1)
+                                    ->first();
+                                
+                                if ($bedRecord && $bedRecord->room_id) {
+                                    $foundRoomId = $bedRecord->room_id;
+                                    \Log::info("Found room_id from bed_id", [
+                                        'bed_id' => $bedId,
+                                        'room_id' => $foundRoomId,
+                                        'hotel_id' => $hotelId
+                                    ]);
+                                    break; // Found the room_id, no need to check other beds
+                                }
+                            } catch (\Exception $e) {
+                                \Log::error("Error looking up room_id from bed_id", [
+                                    'error' => $e->getMessage(),
+                                    'bed_id' => $bedId
+                                ]);
+                            }
+                        }
+                    }
+                }
+                
+                // If we found room_id from bed_id, use it
+                if ($foundRoomId) {
+                    $room['room_id'] = $foundRoomId;
+                } elseif ($roomType) {
+                    // Fallback: if bed_id lookup failed, use room_type (but this is less accurate)
+                    try {
+                        $roomRecord = \App\Models\Room::where('hotel_id', $hotelId)
+                            ->where('room_type', $roomType)
+                            ->where('status', 1)
+                            ->first();
+                        
+                        if ($roomRecord && $roomRecord->room_id) {
+                            $room['room_id'] = $roomRecord->room_id;
+                            \Log::warning("Used room_type fallback (less accurate)", [
+                                'room_type' => $roomType,
+                                'room_id' => $roomRecord->room_id,
+                                'hotel_id' => $hotelId
+                            ]);
+                        } else {
+                            \Log::warning("Could not find room in database", [
+                                'room_type' => $roomType,
+                                'hotel_id' => $hotelId,
+                                'original_room_id' => $roomId
+                            ]);
+                        }
+                    } catch (\Exception $e) {
+                        \Log::error("Error in room_type fallback lookup", [
+                            'error' => $e->getMessage(),
+                            'room_type' => $roomType,
+                            'hotel_id' => $hotelId
+                        ]);
+                    }
+                }
+            } elseif ($roomId && is_numeric($roomId)) {
+                // room_id is already numeric, but still fix bed_ids if needed
+                if (isset($room['beds']) && is_array($room['beds'])) {
+                    foreach ($room['beds'] as $index => $bed) {
+                        $bedId = $bed['bed_id'] ?? null;
+                        if ($bedId && is_string($bedId) && (strpos($bedId, 'bed_') === 0 || !is_numeric($bedId))) {
+                            $numericBedId = filter_var($bedId, FILTER_SANITIZE_NUMBER_INT);
+                            if ($numericBedId && is_numeric($numericBedId)) {
+                                $room['beds'][$index]['bed_id'] = (int)$numericBedId;
+                            }
+                        }
+                    }
+                }
+            }
+            
+            $fixedRooms[] = $room;
+        }
+        
+        return $fixedRooms;
+    }
     
     
 }
