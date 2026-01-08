@@ -278,27 +278,6 @@
             color: #fff;
         }
 
-        /* Guest Selector Modal Button Hover Effects */
-        #mainGuestSelectorModal .btn:hover {
-            transform: translateY(-1px);
-            box-shadow: 0 4px 12px rgba(0,0,0,0.1);
-        }
-        
-        #mainGuestSelectorModal .btn[onclick*="updateMainGuest"]:hover {
-            background: #f8f9fa !important;
-            border-color: #667eea !important;
-            color: #667eea !important;
-        }
-        
-        #mainGuestSelectorModal .modal-footer .btn[onclick*="applyMainGuestSelection"]:hover {
-            box-shadow: 0 4px 16px rgba(102, 126, 234, 0.4) !important;
-            transform: translateY(-1px);
-        }
-        
-        #mainGuestSelectorModal .modal-footer .btn[data-bs-dismiss="modal"]:hover {
-            background: #f8f9fa !important;
-            border-color: #adb5bd !important;
-        }
     </style>
     
     {{-- 
@@ -314,25 +293,21 @@
         <!-- Header Section -->
         <div class="row mb-4">
             <div class="col-12">
-                <div class="card border-0 shadow-sm" style="background: #ffffff; border-radius: 12px; overflow: hidden;">
-                    <div class="card-header text-white" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); border: none; padding: 1.75rem 2rem;">
-                        <div class="d-flex align-items-center justify-content-between flex-wrap">
-                            <div class="d-flex align-items-center">
-                                <div class="icon-wrapper me-3" style="width: 56px; height: 56px; background: rgba(255, 255, 255, 0.2); border-radius: 12px; display: flex; align-items: center; justify-content: center;">
-                                    <i class="ri-map-pin-line fs-3 text-white"></i>
-                                </div>
-                                <div>
-                                    <h4 class="mb-1 text-white fw-bold" style="font-size: 1.5rem; letter-spacing: -0.02em;">Create Single Tour Package</h4>
-                                    <p class="mb-0 text-white-75" style="color: rgba(255, 255, 255, 0.85); font-size: 0.9rem;">Design personalized tour experiences for your clients</p>
-                                </div>
+                <div class="card border-0 shadow-sm">
+                    <div class="card-header bg-gradient-primary text-white">
+                        <div class="d-flex align-items-center">
+                            <i class="ri-map-pin-line me-3 fs-4"></i>
+                            <div>
+                                <h4 class="mb-1 text-white">Create Single Tour Package</h4>
+                                <p class="mb-0 opacity-75">Design personalized tour experiences for your clients</p>
                             </div>
 
-                            <div class="tour-type-wrapper mt-3 mt-md-0" style="min-width: 200px;">
-                                <label class="form-label fw-semibold text-white mb-2 d-block" style="font-size: 0.875rem; opacity: 0.9;">
+                            <div class="col-md-2 ms-auto">
+                                <label class="form-label fw-semibold d-flex">
                                     <i class="ri-group-line me-1"></i> Tour Type
                                 </label>
                             
-                                <div class="tour-toggle">
+                                <div class="tour-toggle ms-auto">
                                     <input type="radio" name="tour_type" id="fit" value="FIT" checked>
                                     <label for="fit">FIT</label>
                             
@@ -360,21 +335,20 @@
             <!-- Main Form Card - All in One Row -->
             <div class="row mb-4">
                 <div class="col-12">
-                    <div class="card shadow-sm border-0" style="background: #ffffff; border-radius: 12px; overflow: hidden;">
-                        <div class="card-header text-white" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); border: none; padding: 1.25rem 1.75rem;">
-                            <h6 class="mb-0 fw-bold d-flex align-items-center text-white" style="font-size: 1.1rem; letter-spacing: -0.01em; color: #ffffff !important;">
-                                <i class="ri-settings-3-line me-2 fs-5 text-white" style="color: #ffffff !important;"></i>
-                                <span style="color: #ffffff !important;">Tour Package Configuration</span>
+                    <div class="card shadow-sm border-0">
+                        <div class="card-header bg-gradient-primary text-white">
+                            <h6 class="mb-0 fw-bold">
+                                <i class="ri-settings-3-line me-2"></i>Tour Package Configuration
                             </h6>
                         </div>
-                        <div class="card-body" style="background: #ffffff; padding: 1.75rem;">
+                        <div class="card-body">
                             <div class="row g-3">
                                 <!-- Country Selection -->
                                 <div class="col-md-2">
-                                    <label for="user_country" class="form-label fw-semibold mb-2" style="color: #495057; font-size: 0.875rem;">
+                                    <label for="user_country" class="form-label fw-semibold">
                                         <i class="ri-earth-line me-1"></i>Country
                                     </label>
-                                    <select name="user_country" id="user_country" class="form-select" style="height: 40px; border-radius: 8px; border: 1px solid #dee2e6; font-size: 0.9rem;" required {{ ($enquiry && $enquiry->country) ? 'disabled' : '' }}>
+                                    <select name="user_country" id="user_country" class="form-select" required {{ ($enquiry && $enquiry->country) ? 'disabled' : '' }}>
                                         <option value="">Choose a country...</option>
                                         @foreach($countries as $country)
                                             <option value="{{ $country->name }}" data-country-id="{{ $country->id }}" {{ ($enquiry && $enquiry->country == $country->name) ? 'selected' : '' }}>{{ $country->name }}</option>
@@ -388,12 +362,12 @@
 
                                 <!-- Travel Dates -->
                                 <div class="col-md-3">
-                                    <label for="travel_dates" class="form-label fw-semibold mb-2" style="color: #495057; font-size: 0.875rem;">
+                                    <label for="travel_dates" class="form-label fw-semibold">
                                         <i class="ri-calendar-line me-1"></i>Travel Dates
                                     </label>
-                                    <input type="text" id="travel_dates" class="form-control" style="height: 40px; border-radius: 8px; border: 1px solid #dee2e6; font-size: 0.9rem;" placeholder="Select dates" readonly
+                                    <input type="text" id="travel_dates" style="height: 38px;" class="form-control" placeholder="Select dates" readonly
                                            value="@if($enquiry && $enquiry->check_in_time && $enquiry->check_out_time){{ \Carbon\Carbon::parse($enquiry->check_in_time)->format('M d, Y') }} - {{ \Carbon\Carbon::parse($enquiry->check_out_time)->format('M d, Y') }}@endif"
-                                           {{ ($enquiry && $enquiry->check_in_time && $enquiry->check_out_time) ? 'style=height:40px;border-radius:8px;border:1px solid #dee2e6;font-size:0.9rem;background-color:#f8f9fa;cursor:not-allowed;pointer-events:none;' : '' }}
+                                           {{ ($enquiry && $enquiry->check_in_time && $enquiry->check_out_time) ? 'style=background-color:#f8f9fa;cursor:not-allowed;pointer-events:none;' : '' }}
                                            {{ ($enquiry && $enquiry->check_in_time && $enquiry->check_out_time) ? 'data-locked=true' : 'data-locked=false' }}>
                                     <input type="hidden" name="start_date" id="start_date" value="{{ $enquiry && $enquiry->check_in_time ? \Carbon\Carbon::parse($enquiry->check_in_time)->format('Y-m-d') : '' }}">
                                     <input type="hidden" name="end_date" id="end_date" value="{{ $enquiry && $enquiry->check_out_time ? \Carbon\Carbon::parse($enquiry->check_out_time)->format('Y-m-d') : '' }}">
@@ -401,14 +375,14 @@
 
                                 <!-- Guests -->
                                 <div class="col-md-3">
-                                    <label class="form-label fw-semibold mb-2" style="color: #495057; font-size: 0.875rem;">
+                                    <label class="form-label fw-semibold">
                                         <i class="ri-group-line me-1"></i>Guests
                                     </label>
                                     <div class="guest-selector">
-                                        <div class="guest-display border rounded" style="min-height: 40px; padding: 0.5rem; background: #f8f9fa; border: 1px solid #dee2e6 !important; border-radius: 8px; {{ $enquiry ? 'cursor:not-allowed;opacity:0.8;' : '' }}">
+                                        <div class="guest-display p-2 border rounded {{ $enquiry ? 'bg-light' : 'bg-light' }}" {{ $enquiry ? 'style=cursor:not-allowed;opacity:0.8;' : '' }}>
                                             <div class="d-flex align-items-center justify-content-between">
                                                 <div class="guest-info">
-                                                    <span id="mainGuestSummary" class="text-muted small" style="font-size: 0.85rem; color: #6c757d;">
+                                                    <span id="mainGuestSummary" class="text-muted small">
                                                         @if($enquiry)
                                                             {{ $enquiry->adult ?? 1 }} adults ({{ $enquiry->male_count ?? 0 }} male, {{ $enquiry->female_count ?? 0 }} female), {{ $enquiry->child ?? 0 }} children - {{ $enquiry->infant ?? 0 }} infants
                                                         @else
@@ -417,7 +391,7 @@
                                                     </span>
                                                 </div>
                                                 @if(!$enquiry)
-                                                <button type="button" class="btn btn-sm btn-outline-primary" onclick="openMainGuestSelector()" style="border-radius: 6px; padding: 0.25rem 0.5rem;">
+                                                <button type="button" class="btn btn-sm btn-outline-primary" onclick="openMainGuestSelector()">
                                                     <i class="ri-edit-line"></i>
                                                 </button>
                                                 @else
@@ -427,9 +401,9 @@
                                                 @endif
                                     </div>
                                             <div class="guest-badges mt-1">
-                                                <span class="badge" style="background: #667eea; border-radius: 6px; font-size: 0.75rem;">{{ $enquiry ? ($enquiry->adult ?? 1) : 1 }}</span>
-                                                <span class="badge" style="background: #28a745; border-radius: 6px; font-size: 0.75rem;">{{ $enquiry ? ($enquiry->child ?? 0) : 0 }}</span>
-                                                <span class="badge" style="background: #ffc107; color: #000; border-radius: 6px; font-size: 0.75rem;">{{ $enquiry ? ($enquiry->infant ?? 0) : 0 }}</span>
+                                                <span class="badge bg-primary">{{ $enquiry ? ($enquiry->adult ?? 1) : 1 }}</span>
+                                                <span class="badge bg-success">{{ $enquiry ? ($enquiry->child ?? 0) : 0 }}</span>
+                                                <span class="badge bg-warning text-dark">{{ $enquiry ? ($enquiry->infant ?? 0) : 0 }}</span>
                                             </div>
                                         </div>
                                     </div>
@@ -445,10 +419,10 @@
                                 </div>
 
                                 <div class="col-md-2">
-                                    <label for="agency_id" class="form-label fw-semibold mb-2" style="color: #495057; font-size: 0.875rem;">
+                                    <label for="agency_id" class="form-label fw-semibold">
                                         <i class="ri-building-line me-1"></i>Agency Company
                                     </label>
-                                    <select name="agency_id" id="agency_id" class="form-select" style="height: 40px; border-radius: 8px; border: 1px solid #dee2e6; font-size: 0.9rem;" {{ ($enquiry && $enquiry->agent_id) ? 'disabled' : '' }}>
+                                    <select name="agency_id" id="agency_id" class="form-select" {{ ($enquiry && $enquiry->agent_id) ? 'disabled' : '' }}>
                                         <option value="">Choose agency...</option>
                                         @foreach($agency as $agnc)
                                             <option value="{{ $agnc->agency_id }}" {{ ($enquiry && $enquiry->agent && $enquiry->agent->agency_id == $agnc->agency_id) ? 'selected' : '' }}>{{ $agnc->agency_name }}</option>
@@ -461,10 +435,10 @@
 
                                 <!-- Agent Selection -->
                                 <div class="col-md-2">
-                                    <label for="agent_id" class="form-label fw-semibold mb-2" style="color: #495057; font-size: 0.875rem;">
+                                    <label for="agent_id" class="form-label fw-semibold">
                                         <i class="ri-user-star-line me-1"></i>Agent
                                     </label>
-                                    <select name="agent_id" id="agent_id" class="form-select" style="height: 40px; border-radius: 8px; border: 1px solid #dee2e6; font-size: 0.9rem;" required {{ ($enquiry && $enquiry->agent_id) ? 'disabled' : '' }}>
+                                    <select name="agent_id" id="agent_id" class="form-select" required {{ ($enquiry && $enquiry->agent_id) ? 'disabled' : '' }}>
                                         <option value="">Choose agent...</option>
                                         @foreach($agents as $agent)
                                             <option value="{{ $agent->agent_id }}" {{ ($enquiry && $enquiry->agent_id == $agent->agent_id) ? 'selected' : '' }}>{{ $agent->name }}</option>
@@ -488,104 +462,96 @@
             <div class="accordion mb-4" id="servicesAccordion">
                 <div class="accordion-item border-0">
                     <div class="card shadow-sm border-0">
-                        <div class="card-header text-white d-flex justify-content-between align-items-center" role="button" data-bs-toggle="collapse" data-bs-target="#hotelAccommodationsSection" aria-expanded="true" aria-controls="hotelAccommodationsSection" style="cursor: pointer; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); border: none; padding: 1.25rem 1.75rem;">
+                        <div class="card-header text-dark d-flex justify-content-between align-items-center" role="button" data-bs-toggle="collapse" data-bs-target="#hotelAccommodationsSection" aria-expanded="true" aria-controls="hotelAccommodationsSection" style="cursor: pointer; background: linear-gradient(135deg, #e5e7eb 0%, #d1d5db 100%); border: 1px solid #9ca3af;">
                             <div class="d-flex align-items-center">
-                                <div style="width: 40px; height: 40px; background: rgba(255, 255, 255, 0.2); border-radius: 10px; display: flex; align-items: center; justify-content: center; margin-right: 12px;">
-                                    <i class="ri-hotel-line fs-5 text-white" style="color: #ffffff !important;"></i>
-                                </div>
+                                <span class="service-icon me-3">
+                                    <i class="ri-hotel-line fs-4"></i>
+                                </span>
                                 <div>
-                                    <h6 class="mb-0 fw-bold text-white" style="color: #ffffff !important; font-size: 1.1rem;">Hotel Accommodations</h6>
-                                    <small class="text-white-75" style="color: rgba(255, 255, 255, 0.85) !important; font-size: 0.85rem;">Manage hotel bookings and room configurations</small>
+                                    <h6 class="mb-0 fw-bold">🏨 Hotel Accommodations</h6>
+                                    <small class="text-muted">Manage hotel bookings and room configurations</small>
                                 </div>
                             </div>
                             <div class="d-flex align-items-center">
-                                <span class="badge me-2" style="background: rgba(255, 255, 255, 0.2); color: #ffffff; border-radius: 6px; font-size: 0.8rem; padding: 0.375rem 0.75rem;" id="tourDates">Aug 03 - Aug 07, 2025</span>
-                                <span class="badge me-2" style="background: rgba(255, 255, 255, 0.2); color: #ffffff; border-radius: 6px; font-size: 0.8rem; padding: 0.375rem 0.75rem;" id="hotelNights">4 Nights Selected</span>
-                                <i class="ri-arrow-up-s-line ms-2 fs-5 text-white" style="color: #ffffff !important;"></i>
+                                <span class="badge bg-light text-dark me-2" id="tourDates">Aug 03 - Aug 07, 2025</span>
+                                <span class="badge bg-warning text-dark me-2" id="hotelNights">4 Nights Selected</span>
+                                <i class="ri-arrow-up-s-line ms-2 fs-5"></i>
                             </div>
                         </div>
                         <div id="hotelAccommodationsSection" class="collapse show">
-                            <div class="card-body" style="background: #ffffff; padding: 1.25rem;">
+                            <div class="card-body mt-3">
                                 <div class="row" id="hotelSection">
                             <!-- Hotel Selection Controls -->
-                            <!-- Row 1: City, Select Hotel, Room Type, Bed Type -->
-                            <div class="row g-2 mb-2">
-                                <div class="col-md-3">
-                                    <label class="form-label fw-semibold mb-1" style="color: #495057; font-size: 0.8rem;">
+                            <div class="row mb-3">
+                                <div class="col-md-2">
+                                    <label class="form-label fw-semibold">
                                         <i class="ri-building-line me-1"></i>City
                                     </label>
-                                    <select class="form-select" id="hotelCitySelect" name="hotel_city" style="height: 36px; border-radius: 6px; border: 1px solid #dee2e6; font-size: 0.85rem;">
+                                    <select class="form-select" id="hotelCitySelect" name="hotel_city">
                                         <option value="">Select country first</option>
                                     </select>
                                     <div id="hotelCityLoader" class="text-center mt-1" style="display: none;">
-                                        <div class="spinner-border spinner-border-sm text-primary" role="status" style="width: 0.75rem; height: 0.75rem;"></div>
+                                        <div class="spinner-border spinner-border-sm text-primary" role="status"></div>
                                     </div>
-                                    <small class="text-danger" id="hotelCityMessage" style="display: none; font-size: 0.75rem;">Please select a city first.</small>
+                                    <small class="text-danger" id="hotelCityMessage" style="display: none;">Please select a city first.</small>
                                 </div>
-                                <div class="col-md-3">
-                                    <label class="form-label fw-semibold mb-1" style="color: #495057; font-size: 0.8rem;">
+                                <div class="col-md-4">
+                                    <label class="form-label fw-semibold">
                                         <i class="ri-hotel-line me-1"></i>Select Hotel
                                     </label>
-                                    <select class="form-select" id="hotelSelect" disabled style="height: 36px; border-radius: 6px; border: 1px solid #dee2e6; font-size: 0.85rem;">
-                                        <option value="">Select a city first</option>
+                                    <select class="form-select" id="hotelSelect" disabled>
+                                        <option value="">Select a city first to load hotels</option>
                                     </select>
-                                    <small class="text-muted" id="hotelLoadingStatus" style="font-size: 0.75rem;"></small>
+                                    <small class="text-muted" id="hotelLoadingStatus"></small>
                                 </div>
                                 <div class="col-md-3">
-                                    <label class="form-label fw-semibold mb-1" style="color: #495057; font-size: 0.8rem;">
-                                        <i class="ri-door-open-line me-1"></i>Room Type
-                                    </label>
-                                    <select class="form-select" id="roomTypeSelect" style="height: 36px; border-radius: 6px; border: 1px solid #dee2e6; font-size: 0.85rem;">
+                                    <label class="form-label fw-semibold">Room Type</label>
+                                    <select class="form-select" id="roomTypeSelect">
                                         <option value="">Room Type</option>
                                     </select>
                                 </div>
                                 <div class="col-md-3">
-                                    <label class="form-label fw-semibold mb-1" style="color: #495057; font-size: 0.8rem;">
-                                        <i class="ri-hotel-bed-line me-1"></i>Bed Type
-                                    </label>
-                                    <select class="form-select" id="bedTypeSelect" style="height: 36px; border-radius: 6px; border: 1px solid #dee2e6; font-size: 0.85rem;">
+                                    <label class="form-label fw-semibold">Bed Type</label>
+                                    <select class="form-select" id="bedTypeSelect">
                                         <option value="">Bed Type</option>
                                     </select>
-                                    <div id="bedPriceDisplay" class="text-success small mt-1" style="display: none; font-size: 0.75rem;">
+                                    <div id="bedPriceDisplay" class="text-success small mt-1" style="display: none;">
                                         Price: <span class="fw-bold">$0.00</span>
                                     </div>
                                 </div>
-                            </div>
-                            
-                            <!-- Row 2: Number of Persons, Meal Plan, Number of Rooms, Price -->
-                            <div class="row g-2 mb-3">
                                 <div class="col-md-3">
-                                    <label class="form-label fw-semibold mb-1" style="color: #495057; font-size: 0.8rem;">
-                                        <i class="ri-group-line me-1"></i>Number of Persons
-                                    </label>
-                                    <div id="personSelector" class="person-selector" style="min-height: 36px; padding: 0.375rem; background: #f8f9fa; border: 1px solid #dee2e6; border-radius: 6px; display: flex; align-items: center;">
-                                        <div class="text-muted small" style="font-size: 0.8rem;">Select bed type first</div>
+                                    <label class="form-label fw-semibold">Number of Persons</label>
+                                    <div id="personSelector" class="person-selector">
+                                        <div class="text-muted small">Select bed type first</div>
                                     </div>
                                     <input type="hidden" id="selectedPersons" value="1">
                                 </div>
-                                <div class="col-md-3">
-                                    <label class="form-label fw-semibold mb-1" style="color: #495057; font-size: 0.8rem;">
-                                        <i class="ri-restaurant-line me-1"></i>Meal Plan
-                                    </label>
-                                    <select class="form-select" id="mealPlanSelect" style="height: 36px; border-radius: 6px; border: 1px solid #dee2e6; font-size: 0.85rem;">
+                                <div class="col-md-2">
+                                    <label class="form-label fw-semibold">Meal Plan</label>
+                                    <select class="form-select" id="mealPlanSelect">
                                         <option value="">Select Meal Plans</option>
                                     </select>
                                 </div>
+                                
                                 <div class="col-md-2">
-                                    <label class="form-label fw-semibold mb-1" style="color: #495057; font-size: 0.8rem;">
-                                        <i class="ri-hotel-bed-2-line me-1"></i>Number of Rooms
-                                    </label>
-                                    <input type="number" class="form-control" id="numberOfRooms" value="1" min="1" max="999" oninput="if(this.value.length > 3) this.value = this.value.slice(0,3);" style="height: 36px; border-radius: 6px; border: 1px solid #dee2e6; font-size: 0.85rem; text-align: center; max-width: 100px;"> 
+                                    <label class="form-label fw-semibold">Number of Rooms</label>
+                                    <input type="number" style="height: 38px;" class="form-control" id="numberOfRooms" value="1" min="1"> 
                                 </div>
+                                
                                 <div class="col-md-2">
-                                    <label class="form-label fw-semibold mb-1" style="color: #495057; font-size: 0.8rem;">
-                                        <i class="ri-money-dollar-circle-line me-1"></i>Price
-                                    </label>
-                                    <div class="input-group" style="max-width: 180px;">
-                                        <span class="input-group-text" style="background-color: #f8f9fa; font-size: 0.75rem; height: 36px; border: 1px solid #dee2e6; border-right: none; border-radius: 6px 0 0 6px; padding: 0.375rem 0.5rem; width: 45px;">SGD</span>
-                                        <input type="text" class="form-control" id="roomPriceDisplay" value="0.00" style="height: 36px; border-radius: 0 6px 6px 0; border: 1px solid #dee2e6; border-left: none; background-color: #f8f9fa; color: #198754; font-size: 0.8rem; font-weight: 500; text-align: right; padding: 0.375rem 0.5rem; width: 135px;"> 
+                                    <label class="form-label fw-semibold">Price</label>
+                                    <div class="input-group">
+                                        <span class="input-group-text" style="background-color: #f8f9fa; font-size: 0.875rem;height: 38px;">SGD</span>
+                                        <input type="text" class="form-control" style="height: 38px;" id="roomPriceDisplay" value="0.00" style="background-color: #f8f9fa; color: #198754; font-size: 0.875rem;"> 
                                     </div>
                                 </div>
+                                
+                                {{-- <div class="col-md-1 d-flex align-items-end">
+                                    <button type="button" class="btn btn-success w-100" onclick="addHotel()">
+                                        <i class="ri-add-line"></i>
+                                    </button>
+                                </div> --}}
+                                
                             </div>
                             
                             <!-- Transfer Required Section -->
@@ -643,27 +609,41 @@
                             </div> --}}
 
                             <!-- Night Selection -->
-                            <div class="mb-3">
-                                <label class="form-label fw-semibold mb-2" style="color: #495057; font-size: 0.875rem;">
+                            <div class="mb-4">
+                                <label class="form-label fw-semibold mb-3">
                                     <i class="ri-calendar-check-line me-1"></i>Select Hotel Nights
-                                    <i class=" d-block mt-1" style=" font-size: 0.75rem; font-weight: normal;">(Choose nights for this hotel - consecutive nights will be automatically selected)</i>
+                                    <small class="text-muted">(Choose nights for this hotel - consecutive nights will be automatically selected)</small>
                                 </label>
                                 
-                                <div id="nightSelectionWrapper" class="night-grid mb-2">
+                                <!-- Color Legend -->
+                                {{-- <div class="mb-3 p-2 bg-light rounded">
+                                    <small class="fw-bold text-muted d-block mb-1">Night Selection Guide:</small>
+                                    <div class="d-flex gap-3">
+                                        <div class="d-flex align-items-center">
+                                            <span class="badge bg-success me-1">●</span>
+                                            <small>Manually Selected</small>
+                                        </div>
+                                        <div class="d-flex align-items-center">
+                                            <span class="badge bg-warning text-dark me-1">⚡</span>
+                                            <small>Auto-Required (for consecutive nights)</small>
+                                        </div>
+                                    </div>
+                                </div> --}}
+                                <div id="nightSelectionWrapper" class="night-grid mb-3">
                                     <div id="nightSelection">
                                         <!-- night buttons -->
                                     </div>
                                 
-                                    <button type="button" class="btn add-btn" onclick="addHotel()" style="height: 36px; border-radius: 6px; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); border: none; color: #ffffff; font-size: 0.85rem; font-weight: 500; padding: 0.375rem 1rem; white-space: nowrap;">
+                                    <button type="button" class="btn btn-success add-btn" onclick="addHotel()">
                                         <i class="ri-add-line me-1"></i> Add
                                     </button>
                                 </div>
                                 
                                 
                                 <div id="nightSelectionSummary">
-                                    <div class="alert" style="background: #e7f3ff; border: 1px solid #b3d9ff; border-radius: 6px; padding: 0.625rem 0.875rem; margin: 0;">
-                                        <i class="ri-information-line me-2" style="color: #667eea;"></i>
-                                        <small style="color: #495057; font-size: 0.8rem;">No nights selected. Click on the nights above to select hotel stay.</small>
+                                    <div class="alert alert-info">
+                                        <i class="ri-information-line me-2"></i>
+                                        <small>No nights selected. Click on the nights above to select hotel stay.</small>
                                     </div>
                                 </div>
                             </div>
@@ -677,30 +657,25 @@
                             </div>
 
                             <!-- Hotel Summary -->
-                            <div class="row mt-3">
+                            {{-- <div class="row mt-4">
                                 <div class="col-12">
-                                    <div class="card" style="background: linear-gradient(135deg, #f8f9ff 0%, #e7f3ff 100%); border: 1px solid #b3d9ff; border-radius: 8px; box-shadow: 0 2px 6px rgba(102, 126, 234, 0.1);">
-                                        <div class="card-body" style="padding: 1rem 1.25rem;">
-                                            <div class="d-flex justify-content-between align-items-center flex-wrap gap-2">
-                                                <div class="d-flex align-items-center">
-                                                    <div style="width: 40px; height: 40px; background: rgba(102, 126, 234, 0.15); border-radius: 8px; display: flex; align-items: center; justify-content: center; margin-right: 12px;">
-                                                        <i class="ri-hotel-bed-line" style="color: #667eea; font-size: 1.25rem;"></i>
-                                                    </div>
-                                                    <div>
-                                                        <h6 class="mb-1 fw-semibold" style="color: #212529; font-size: 0.95rem; margin: 0;">
-                                                            Total Hotels: <span id="totalHotels" style="color: #667eea; font-weight: 600;">0</span>
-                                                        </h6>
-                                                        <small style="color: #6c757d; font-size: 0.8rem;">Consecutive hotel nights selected - applies to all rooms in this hotel</small>
-                                                    </div>
+                                    <div class="card bg-light">
+                                        <div class="card-body">
+                                            <div class="d-flex justify-content-between align-items-center">
+                                                <div>
+                                                    <h6 class="mb-1">
+                                                        <i class="ri-hotel-bed-line me-2"></i>Total Hotels: <span id="totalHotels">0</span>
+                                                    </h6>
+                                                    <small class="text-muted">Consecutive hotel nights selected - applies to all rooms in this hotel</small>
                                                 </div>
                                                 <div class="text-end">
-                                                    <div class="badge" id="totalNights" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: #ffffff; border-radius: 6px; font-size: 0.9rem; font-weight: 600; padding: 0.5rem 1rem; box-shadow: 0 2px 6px rgba(102, 126, 234, 0.3);">0 Nights</div>
+                                                    <div class="badge bg-primary fs-6" id="totalNights">0 Nights</div>
                                                 </div>
                                             </div>
                                         </div>
                                     </div>
                                 </div>
-                            </div>
+                            </div> --}}
 
                             <!-- Package Total Price Summary -->
                             {{-- <div class="row mt-3">
@@ -5006,43 +4981,13 @@
     display: grid;
     grid-template-columns: 1fr auto;
     align-items: end;
-    gap: 8px;
+    gap: 10px;
     }
 
     #nightSelection {
         display: flex;
         flex-wrap: wrap;
-        gap: 6px;
-    }
-    
-    .night-btn {
-        min-width: 100px !important;
-        height: 36px !important;
-        border-radius: 6px !important;
-        font-size: 0.8rem !important;
-        padding: 0.375rem 0.75rem !important;
-        border: 1px solid #dee2e6 !important;
-        background: #ffffff !important;
-        color: #495057 !important;
-        transition: all 0.2s !important;
-    }
-    
-    .night-btn:hover {
-        border-color: #667eea !important;
-        background: #f8f9fa !important;
-        color: #667eea !important;
-    }
-    
-    .night-btn.manually-selected {
-        background: #667eea !important;
-        border-color: #667eea !important;
-        color: #ffffff !important;
-    }
-    
-    .night-btn.auto-selected {
-        background: #f0f4ff !important;
-        border-color: #b3d9ff !important;
-        color: #667eea !important;
+        gap: 10px;
     }
 
     .add-btn {
@@ -5788,55 +5733,50 @@
     function createMainGuestSelectorModal() {
         const modalHTML = `
             <div class="modal fade" id="mainGuestSelectorModal" tabindex="-1" aria-labelledby="mainGuestSelectorModalLabel">
-                <div class="modal-dialog modal-md modal-dialog-centered">
-                    <div class="modal-content" style="border: none; border-radius: 10px; overflow: hidden; box-shadow: 0 10px 40px rgba(0,0,0,0.15);">
-                        <div class="modal-header text-white" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); border: none; padding: 1rem 1.25rem;">
-                            <h5 class="modal-title fw-bold d-flex align-items-center mb-0 text-white" id="mainGuestSelectorModalLabel" style="font-size: 1.1rem; letter-spacing: -0.01em; color: #ffffff !important;">
-                                <div style="width: 32px; height: 32px; background: rgba(255, 255, 255, 0.2); border-radius: 8px; display: flex; align-items: center; justify-content: center; margin-right: 10px;">
-                                    <i class="ri-group-line text-white" style="font-size: 1rem; color: #ffffff !important;"></i>
-                                </div>
-                                <span style="color: #ffffff !important;">Select Tour Guests</span>
+                <div class="modal-dialog modal-lg">
+                    <div class="modal-content">
+                        <div class="modal-header bg-primary text-white">
+                            <h5 class="modal-title" id="mainGuestSelectorModalLabel">
+                                <i class="ri-group-line me-2"></i>Select Tour Guests
                             </h5>
-                            <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close" style="opacity: 0.9; font-size: 0.75rem;"></button>
+                            <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
                         </div>
-                        <div class="modal-body" style="padding: 1.25rem; background: #ffffff;">
-                            <div class="row g-3">
+                        <div class="modal-body">
+                            <div class="row g-4">
                                 <!-- Adults Section -->
                                 <div class="col-md-6">
-                                    <div class="card" style="border: 1px solid #e9ecef; border-radius: 8px; box-shadow: 0 2px 6px rgba(0,0,0,0.04); height: 100%;">
-                                        <div class="card-header" style="background: #f8f9fa; border: none; border-bottom: 1px solid #e9ecef; padding: 0.625rem 0.875rem; border-radius: 8px 8px 0 0;">
-                                            <h6 class="mb-0 fw-semibold d-flex align-items-center" style="color: #495057; font-size: 0.875rem;">
-                                                <i class="ri-user-line me-2" style="color: #667eea; font-size: 0.9rem;"></i>Adults
-                                            </h6>
+                                    <div class="card border-primary">
+                                        <div class="card-header bg-primary text-white">
+                                            <h6 class="mb-0"><i class="ri-user-line me-2"></i>Adults</h6>
                                         </div>
-                                        <div class="card-body" style="padding: 1rem 0.875rem;">
+                                        <div class="card-body">
                                             <!-- Male -->
                                             <div class="guest-counter mb-3">
-                                                <label class="form-label fw-semibold mb-2 d-block" style="color: #495057; font-size: 0.85rem;">
-                                                    <i class="ri-user-3-line me-1" style="color: #667eea; font-size: 0.9rem;"></i>Male
+                                                <label class="form-label fw-semibold text-primary">
+                                                    <i class="ri-user-3-line me-1"></i>Male
                                                 </label>
-                                                <div class="d-flex align-items-center justify-content-center">
-                                                    <button type="button" class="btn" onclick="updateMainGuest('male', -1)" style="width: 36px; height: 36px; border-radius: 6px; border: 1px solid #dee2e6; background: #ffffff; color: #495057; display: flex; align-items: center; justify-content: center; transition: all 0.2s; padding: 0;">
-                                                        <i class="ri-subtract-line" style="font-size: 0.9rem;"></i>
+                                                <div class="d-flex align-items-center">
+                                                    <button type="button" class="btn btn-outline-primary btn-sm" onclick="updateMainGuest('male', -1)">
+                                                        <i class="ri-subtract-line"></i>
                                                     </button>
-                                                    <span class="mx-3 fw-bold" id="mainModalMale" style="font-size: 1.5rem; color: #212529; min-width: 32px; text-align: center;">0</span>
-                                                    <button type="button" class="btn" onclick="updateMainGuest('male', 1)" style="width: 36px; height: 36px; border-radius: 6px; border: 1px solid #dee2e6; background: #ffffff; color: #495057; display: flex; align-items: center; justify-content: center; transition: all 0.2s; padding: 0;">
-                                                        <i class="ri-add-line" style="font-size: 0.9rem;"></i>
+                                                    <span class="mx-3 fw-bold fs-5" id="mainModalMale">0</span>
+                                                    <button type="button" class="btn btn-outline-primary btn-sm" onclick="updateMainGuest('male', 1)">
+                                                        <i class="ri-add-line"></i>
                                                     </button>
                                                 </div>
                                             </div>
                                             <!-- Female -->
                                             <div class="guest-counter">
-                                                <label class="form-label fw-semibold mb-2 d-block" style="color: #495057; font-size: 0.85rem;">
-                                                    <i class="ri-user-4-line me-1" style="color: #667eea; font-size: 0.9rem;"></i>Female
+                                                <label class="form-label fw-semibold text-danger">
+                                                    <i class="ri-user-4-line me-1"></i>Female
                                                 </label>
-                                                <div class="d-flex align-items-center justify-content-center">
-                                                    <button type="button" class="btn" onclick="updateMainGuest('female', -1)" style="width: 36px; height: 36px; border-radius: 6px; border: 1px solid #dee2e6; background: #ffffff; color: #495057; display: flex; align-items: center; justify-content: center; transition: all 0.2s; padding: 0;">
-                                                        <i class="ri-subtract-line" style="font-size: 0.9rem;"></i>
+                                                <div class="d-flex align-items-center">
+                                                    <button type="button" class="btn btn-outline-danger btn-sm" onclick="updateMainGuest('female', -1)">
+                                                        <i class="ri-subtract-line"></i>
                                                     </button>
-                                                    <span class="mx-3 fw-bold" id="mainModalFemale" style="font-size: 1.5rem; color: #212529; min-width: 32px; text-align: center;">0</span>
-                                                    <button type="button" class="btn" onclick="updateMainGuest('female', 1)" style="width: 36px; height: 36px; border-radius: 6px; border: 1px solid #dee2e6; background: #ffffff; color: #495057; display: flex; align-items: center; justify-content: center; transition: all 0.2s; padding: 0;">
-                                                        <i class="ri-add-line" style="font-size: 0.9rem;"></i>
+                                                    <span class="mx-3 fw-bold fs-5" id="mainModalFemale">0</span>
+                                                    <button type="button" class="btn btn-outline-danger btn-sm" onclick="updateMainGuest('female', 1)">
+                                                        <i class="ri-add-line"></i>
                                                     </button>
                                                 </div>
                                             </div>
@@ -5846,32 +5786,30 @@
                                 
                                 <!-- Children & Infants Section -->
                                 <div class="col-md-6">
-                                    <div class="card" style="border: 1px solid #e9ecef; border-radius: 8px; box-shadow: 0 2px 6px rgba(0,0,0,0.04); height: 100%;">
-                                        <div class="card-header" style="background: #f8f9fa; border: none; border-bottom: 1px solid #e9ecef; padding: 0.625rem 0.875rem; border-radius: 8px 8px 0 0;">
-                                            <h6 class="mb-0 fw-semibold d-flex align-items-center" style="color: #495057; font-size: 0.875rem;">
-                                                <i class="ri-user-smile-line me-2" style="color: #667eea; font-size: 0.9rem;"></i>Children & Infants
-                                            </h6>
+                                    <div class="card border-success">
+                                        <div class="card-header bg-success text-white">
+                                            <h6 class="mb-0"><i class="ri-user-smile-line me-2"></i>Children & Infants</h6>
                                         </div>
-                                        <div class="card-body" style="padding: 1rem 0.875rem;">
+                                        <div class="card-body">
                                             <!-- Children -->
                                             <div class="guest-counter mb-3">
-                                                <label class="form-label fw-semibold mb-2 d-block" style="color: #495057; font-size: 0.85rem;">
-                                                    <i class="ri-user-smile-line me-1" style="color: #667eea; font-size: 0.9rem;"></i>Children
-                                                    <small class="text-muted d-block mt-1" style="font-size: 0.75rem; font-weight: normal;">Ages 1-17</small>
+                                                <label class="form-label fw-semibold text-success">
+                                                    <i class="ri-user-smile-line me-1"></i>Children
+                                                    <small class="text-muted">(Ages 1-17)</small>
                                                 </label>
-                                                <div class="d-flex align-items-center justify-content-center">
-                                                    <button type="button" class="btn" onclick="updateMainGuest('children', -1)" style="width: 36px; height: 36px; border-radius: 6px; border: 1px solid #dee2e6; background: #ffffff; color: #495057; display: flex; align-items: center; justify-content: center; transition: all 0.2s; padding: 0;">
-                                                        <i class="ri-subtract-line" style="font-size: 0.9rem;"></i>
+                                                <div class="d-flex align-items-center">
+                                                    <button type="button" class="btn btn-outline-success btn-sm" onclick="updateMainGuest('children', -1)">
+                                                        <i class="ri-subtract-line"></i>
                                                     </button>
-                                                    <span class="mx-3 fw-bold" id="mainModalChildren" style="font-size: 1.5rem; color: #212529; min-width: 32px; text-align: center;">0</span>
-                                                    <button type="button" class="btn" onclick="updateMainGuest('children', 1)" style="width: 36px; height: 36px; border-radius: 6px; border: 1px solid #dee2e6; background: #ffffff; color: #495057; display: flex; align-items: center; justify-content: center; transition: all 0.2s; padding: 0;">
-                                                        <i class="ri-add-line" style="font-size: 0.9rem;"></i>
+                                                    <span class="mx-3 fw-bold fs-5" id="mainModalChildren">0</span>
+                                                    <button type="button" class="btn btn-outline-success btn-sm" onclick="updateMainGuest('children', 1)">
+                                                        <i class="ri-add-line"></i>
                                                     </button>
                                                 </div>
                                                 <!-- Child Ages Section -->
                                                 <div id="childAgesSection" class="mt-3" style="display: none;">
-                                                    <label class="form-label fw-semibold mb-2 d-block" style="color: #495057; font-size: 0.8rem;">
-                                                        <i class="ri-user-settings-line me-1" style="color: #667eea; font-size: 0.85rem;"></i>Select Ages for Children
+                                                    <label class="form-label fw-semibold text-success mb-2">
+                                                        <i class="ri-user-settings-line me-1"></i>Select Ages for Children
                                                     </label>
                                                     <div id="childAgeDropdowns" class="d-flex flex-column gap-2">
                                                         <!-- Child age dropdowns will be added here dynamically -->
@@ -5880,17 +5818,17 @@
                                             </div>
                                             <!-- Infants -->
                                             <div class="guest-counter">
-                                                <label class="form-label fw-semibold mb-2 d-block" style="color: #495057; font-size: 0.85rem;">
-                                                    <i class="ri-user-heart-line me-1" style="color: #667eea; font-size: 0.9rem;"></i>Infants
-                                                    <small class="text-muted d-block mt-1" style="font-size: 0.75rem; font-weight: normal;">Under 1 year</small>
+                                                <label class="form-label fw-semibold text-warning">
+                                                    <i class="ri-user-heart-line me-1"></i>Infants
+                                                    <small class="text-muted">(Under 1 year)</small>
                                                 </label>
-                                                <div class="d-flex align-items-center justify-content-center">
-                                                    <button type="button" class="btn" onclick="updateMainGuest('infants', -1)" style="width: 36px; height: 36px; border-radius: 6px; border: 1px solid #dee2e6; background: #ffffff; color: #495057; display: flex; align-items: center; justify-content: center; transition: all 0.2s; padding: 0;">
-                                                        <i class="ri-subtract-line" style="font-size: 0.9rem;"></i>
+                                                <div class="d-flex align-items-center">
+                                                    <button type="button" class="btn btn-outline-warning btn-sm" onclick="updateMainGuest('infants', -1)">
+                                                        <i class="ri-subtract-line"></i>
                                                     </button>
-                                                    <span class="mx-3 fw-bold" id="mainModalInfants" style="font-size: 1.5rem; color: #212529; min-width: 32px; text-align: center;">0</span>
-                                                    <button type="button" class="btn" onclick="updateMainGuest('infants', 1)" style="width: 36px; height: 36px; border-radius: 6px; border: 1px solid #dee2e6; background: #ffffff; color: #495057; display: flex; align-items: center; justify-content: center; transition: all 0.2s; padding: 0;">
-                                                        <i class="ri-add-line" style="font-size: 0.9rem;"></i>
+                                                    <span class="mx-3 fw-bold fs-5" id="mainModalInfants">0</span>
+                                                    <button type="button" class="btn btn-outline-warning btn-sm" onclick="updateMainGuest('infants', 1)">
+                                                        <i class="ri-add-line"></i>
                                                     </button>
                                                 </div>
                                             </div>
@@ -5899,11 +5837,9 @@
                                 </div>
                             </div>
                         </div>
-                        <div class="modal-footer" style="border-top: 1px solid #e9ecef; padding: 0.875rem 1.25rem; background: #f8f9fa;">
-                            <button type="button" class="btn" data-bs-dismiss="modal" style="height: 36px; border-radius: 6px; border: 1px solid #dee2e6; background: #ffffff; color: #495057; padding: 0.375rem 1.25rem; font-weight: 500; font-size: 0.875rem; transition: all 0.2s;">
-                                Cancel
-                            </button>
-                            <button type="button" class="btn text-white" onclick="applyMainGuestSelection()" style="height: 36px; border-radius: 6px; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); border: none; padding: 0.375rem 1.25rem; font-weight: 500; font-size: 0.875rem; transition: all 0.2s; box-shadow: 0 2px 6px rgba(102, 126, 234, 0.3);">
+                        <div class="modal-footer">
+                            <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Cancel</button>
+                            <button type="button" class="btn btn-primary" onclick="applyMainGuestSelection()">
                                 <i class="ri-check-line me-1"></i>Apply Selection
                             </button>
                         </div>
@@ -6999,7 +6935,6 @@ document.addEventListener('DOMContentLoaded', function() {
     // Function to toggle attraction transfer fields visibility
     window.toggleAttractionTransferFields = function(day, index) {
         const transferRequired = document.getElementById(`day${day}_attraction_${index}_transfer_required`);
-        const transferCard = document.getElementById(`day${day}_attraction_${index}_transfer_card`);
         const transferTypeField = document.getElementById(`day${day}_attraction_${index}_transfer_type_field`);
         const transferWayField = document.getElementById(`day${day}_attraction_${index}_transfer_way_field`);
         const transferVehicleField = document.getElementById(`day${day}_attraction_${index}_transfer_vehicle_field`);
@@ -7008,10 +6943,7 @@ document.addEventListener('DOMContentLoaded', function() {
         
         if (transferRequired) {
             if (transferRequired.value === 'Yes') {
-                // Show transfer card
-                if (transferCard) transferCard.style.display = 'block';
-                
-                // Show all transfer fields (for backward compatibility with old structure)
+                // Show all transfer fields
                 if (transferTypeField) transferTypeField.style.display = 'block';
                 if (transferWayField) transferWayField.style.display = 'block';
                 if (transferVehicleField) transferVehicleField.style.display = 'block';
@@ -7025,10 +6957,7 @@ document.addEventListener('DOMContentLoaded', function() {
                     loadAttractionTransferPickupLocations(day, citySelect.value, index);
                 }
             } else {
-                // Hide transfer card
-                if (transferCard) transferCard.style.display = 'none';
-                
-                // Hide all transfer fields (for backward compatibility)
+                // Hide all transfer fields
                 if (transferTypeField) transferTypeField.style.display = 'none';
                 if (transferWayField) transferWayField.style.display = 'none';
                 if (transferVehicleField) transferVehicleField.style.display = 'none';
@@ -7054,17 +6983,13 @@ document.addEventListener('DOMContentLoaded', function() {
     // Function to toggle attraction guide fields
     window.toggleAttractionGuideFields = function(day, index) {
         const guideRequired = document.getElementById(`day${day}_attraction_${index}_guide_required`);
-        const guideCard = document.getElementById(`day${day}_attraction_${index}_guide_card`);
         const guideSelectField = document.getElementById(`day${day}_attraction_${index}_guide_select_field`);
         const guidePickupTimeField = document.getElementById(`day${day}_attraction_${index}_guide_pickup_time_field`);
         const guidePackageField = document.getElementById(`day${day}_attraction_${index}_guide_package_field`);
         
         if (guideRequired) {
             if (guideRequired.value === 'Yes') {
-                // Show guide card
-                if (guideCard) guideCard.style.display = 'block';
-                
-                // Show all guide fields (for backward compatibility)
+                // Show all guide fields
                 if (guideSelectField) guideSelectField.style.display = 'block';
                 if (guidePickupTimeField) guidePickupTimeField.style.display = 'block';
                 if (guidePackageField) guidePackageField.style.display = 'block';
@@ -7075,10 +7000,7 @@ document.addEventListener('DOMContentLoaded', function() {
                     loadAttractionGuidesForCity(day, citySelect.value, index);
                 }
             } else {
-                // Hide guide card
-                if (guideCard) guideCard.style.display = 'none';
-                
-                // Hide all guide fields (for backward compatibility)
+                // Hide all guide fields
                 if (guideSelectField) guideSelectField.style.display = 'none';
                 if (guidePickupTimeField) guidePickupTimeField.style.display = 'none';
                 if (guidePackageField) guidePackageField.style.display = 'none';
@@ -8786,7 +8708,6 @@ document.addEventListener('DOMContentLoaded', function() {
     // Function to toggle restaurant transfer fields visibility
     window.toggleRestaurantTransferFields = function(day, index) {
         const transferRequired = document.getElementById(`day${day}_restaurant_${index}_transfer_required`);
-        const transferCard = document.getElementById(`day${day}_restaurant_${index}_transfer_card`);
         const transferTypeField = document.getElementById(`day${day}_restaurant_${index}_transfer_type_field`);
         const transferWayField = document.getElementById(`day${day}_restaurant_${index}_transfer_way_field`);
         const transferVehicleField = document.getElementById(`day${day}_restaurant_${index}_transfer_vehicle_field`);
@@ -8795,10 +8716,7 @@ document.addEventListener('DOMContentLoaded', function() {
         
         if (transferRequired) {
             if (transferRequired.value === 'Yes') {
-                // Show transfer card
-                if (transferCard) transferCard.style.display = 'block';
-                
-                // Show all transfer fields (for backward compatibility)
+                // Show all transfer fields
                 if (transferTypeField) transferTypeField.style.display = 'block';
                 if (transferWayField) transferWayField.style.display = 'block';
                 if (transferVehicleField) transferVehicleField.style.display = 'block';
@@ -8812,10 +8730,7 @@ document.addEventListener('DOMContentLoaded', function() {
                     loadRestaurantTransferPickupLocations(day, citySelect.value, index);
                 }
             } else {
-                // Hide transfer card
-                if (transferCard) transferCard.style.display = 'none';
-                
-                // Hide all transfer fields (for backward compatibility)
+                // Hide all transfer fields
                 if (transferTypeField) transferTypeField.style.display = 'none';
                 if (transferWayField) transferWayField.style.display = 'none';
                 if (transferVehicleField) transferVehicleField.style.display = 'none';
@@ -9797,16 +9712,17 @@ document.addEventListener('DOMContentLoaded', function() {
                  const startDate = moment(tourStartDate).add(i-1, 'days');
                  const endDate = moment(tourStartDate).add(i, 'days');
                  
-                const nightButton = document.createElement('button');
-                nightButton.type = 'button';
-                nightButton.className = 'btn night-btn';
-                nightButton.dataset.night = i;
-                nightButton.innerHTML = `
-                    <div class="d-flex flex-column align-items-center" style="line-height: 1.2;">
-                        <strong style="font-size: 0.75rem;">Night ${i}</strong>
-                        <small style="font-size: 0.7rem;">${startDate.format('MMM DD')} - ${endDate.format('MMM DD')}</small>
-                    </div>
-                `;
+                 const nightButton = document.createElement('button');
+                 nightButton.type = 'button';
+                 nightButton.className = 'btn btn-outline-primary btn-sm night-btn me-2 mb-2';
+                 nightButton.dataset.night = i;
+                 nightButton.style.minWidth = '120px';
+                 nightButton.innerHTML = `
+                     <div class="d-flex flex-column align-items-center">
+                         <strong>Night ${i}</strong>
+                         <small>${startDate.format('MMM DD')} - ${endDate.format('MMM DD')}</small>
+                     </div>
+                 `;
                  
                  nightButton.addEventListener('click', function() {
                      handleNightSelection(parseInt(this.dataset.night));
@@ -9926,41 +9842,41 @@ document.addEventListener('DOMContentLoaded', function() {
              const startDate = moment(tourStartDate).add(startNight-1, 'days');
              const endDate = moment(tourStartDate).add(endNight, 'days');
              
-            let summaryHTML = `
-                <div class="alert" style="background: #d1f2eb; border: 1px solid #7dd3c0; border-radius: 6px; padding: 0.75rem 1rem; margin: 0;">
-                    <i class="ri-calendar-check-line me-2" style="color: #667eea;"></i>
-                    <strong style="color: #212529; font-size: 0.9rem;">Hotel booked for ${selectedNights.length} nights</strong><br>
-                    <small style="color: #495057; font-size: 0.8rem;">${startDate.format('MMM DD')} - ${endDate.format('MMM DD, YYYY')}</small><br>
-                    <small style="color: #6c757d; font-size: 0.75rem;">Consecutive hotel nights selected - applies to all rooms in this hotel</small>
-            `;
-            
-            // Add legend if there are auto-selected nights
-            if (autoNights.length > 0) {
-                summaryHTML += `
-                    <hr class="my-2" style="border-color: #b3d9ff;">
-                    <div class="d-flex justify-content-between align-items-center flex-wrap gap-2">
-                        <div>
-                            <span class="badge me-2" style="background: #667eea; color: #ffffff; border-radius: 4px; font-size: 0.75rem; padding: 0.25rem 0.5rem;">${manualNights.length}</span>
-                            <small style="color: #495057; font-size: 0.8rem;">Manually Selected: ${manualNights.join(', ')}</small>
-                        </div>
-                        <div>
-                            <span class="badge me-2" style="background: #b3d9ff; color: #667eea; border-radius: 4px; font-size: 0.75rem; padding: 0.25rem 0.5rem;">${autoNights.length}</span>
-                            <small style="color: #495057; font-size: 0.8rem;">Auto-Required: ${autoNights.join(', ')}</small>
-                        </div>
-                    </div>
-                `;
-            }
-            
-            summaryHTML += '</div>';
-            document.getElementById('nightSelectionSummary').innerHTML = summaryHTML;
-        } else {
-            document.getElementById('nightSelectionSummary').innerHTML = `
-                <div class="alert" style="background: #e7f3ff; border: 1px solid #b3d9ff; border-radius: 6px; padding: 0.625rem 0.875rem; margin: 0;">
-                    <i class="ri-information-line me-2" style="color: #667eea;"></i>
-                    <small style="color: #495057; font-size: 0.8rem;">No nights selected. Click on the nights above to select hotel stay.</small>
-                </div>
-            `;
-        }
+             let summaryHTML = `
+                 <div class="alert alert-success">
+                     <i class="ri-calendar-check-line me-2"></i>
+                     <strong>Hotel booked for ${selectedNights.length} nights</strong><br>
+                     <small>${startDate.format('MMM DD')} - ${endDate.format('MMM DD, YYYY')}</small><br>
+                     <small class="text-muted">Consecutive hotel nights selected - applies to all rooms in this hotel</small>
+             `;
+             
+             // Add legend if there are auto-selected nights
+             if (autoNights.length > 0) {
+                 summaryHTML += `
+                     <hr class="my-2">
+                     <div class="d-flex justify-content-between align-items-center">
+                         <div>
+                             <span class="badge bg-success me-2">${manualNights.length}</span>
+                             <small>Manually Selected: ${manualNights.join(', ')}</small>
+                         </div>
+                         <div>
+                             <span class="badge bg-warning me-2">${autoNights.length}</span>
+                             <small>Auto-Required: ${autoNights.join(', ')}</small>
+                         </div>
+                     </div>
+                 `;
+             }
+             
+             summaryHTML += '</div>';
+             document.getElementById('nightSelectionSummary').innerHTML = summaryHTML;
+         } else {
+             document.getElementById('nightSelectionSummary').innerHTML = `
+                 <div class="alert alert-info">
+                     <i class="ri-information-line me-2"></i>
+                     <small>No nights selected. Click on the nights above to select hotel stay.</small>
+                 </div>
+             `;
+         }
     }
 
 
@@ -12053,90 +11969,90 @@ document.addEventListener('DOMContentLoaded', function() {
          
          if (selectedHotels.length === 0) {
              container.innerHTML = `
-                 <div class="alert d-flex align-items-center" style="background: #e7f3ff; border: 1px solid #b3d9ff; border-radius: 6px; padding: 0.625rem 0.875rem; margin: 0;">
-                     <i class="ri-information-line me-2" style="color: #667eea;"></i>
-                     <span style="color: #495057; font-size: 0.85rem;">No hotels selected yet. Choose your hotels above.</span>
+                 <div class="alert alert-info d-flex align-items-center">
+                     <i class="ri-information-line me-2"></i>
+                     <span>No hotels selected yet. Choose your hotels above.</span>
                  </div>
              `;
          } else {
              let hotelsHtml = '';
              selectedHotels.forEach((hotel, index) => {
                  hotelsHtml += `
-                     <div class="card mb-3" style="border: 1px solid #dee2e6; border-radius: 8px; box-shadow: 0 2px 6px rgba(0,0,0,0.05); overflow: hidden;">
-                         <div class="card-header" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); border: none; padding: 0.875rem 1.25rem;">
+                     <div class="card mb-3 border-success">
+                         <div class="card-header bg-light">
                              <div class="d-flex justify-content-between align-items-center">
-                                 <h6 class="mb-0 fw-bold text-white" style="color: #ffffff !important; font-size: 1rem;">
+                                 <h6 class="mb-0 fw-bold text-success">
                                      <i class="ri-hotel-line me-2"></i>${hotel.name}
                                  </h6>
-                                 <button type="button" class="btn btn-sm" onclick="removeHotel(${index})" style="background: rgba(255, 255, 255, 0.2); border: 1px solid rgba(255, 255, 255, 0.3); color: #ffffff; border-radius: 6px; padding: 0.25rem 0.75rem; font-size: 0.8rem; transition: all 0.2s;">
-                                     <i class="ri-delete-bin-line me-1"></i> Remove
+                                 <button type="button" class="btn btn-sm btn-outline-danger" onclick="removeHotel(${index})">
+                                     <i class="ri-delete-bin-line"></i> Remove
                                  </button>
                              </div>
                          </div>
-                         <div class="card-body" style="padding: 1.25rem; background: #ffffff;">
-                             <div class="row g-3">
+                         <div class="card-body">
+                             <div class="row">
                                  <div class="col-md-6">
-                                     <div class="mb-2 d-flex flex-wrap gap-1">
-                                         <span class="badge" style="background: #667eea; color: #ffffff; border-radius: 4px; font-size: 0.75rem; padding: 0.375rem 0.75rem; font-weight: 500;">${hotel.numberOfRooms} Room(s)</span>
-                                         <span class="badge" style="background: #b3d9ff; color: #667eea; border-radius: 4px; font-size: 0.75rem; padding: 0.375rem 0.75rem; font-weight: 500;">${hotel.roomType}</span>
-                                         <span class="badge" style="background: #d1f2eb; color: #28a745; border-radius: 4px; font-size: 0.75rem; padding: 0.375rem 0.75rem; font-weight: 500;">${hotel.bedType}</span>
+                                     <div class="mb-2">
+                                         <span class="badge bg-primary me-1">${hotel.numberOfRooms} Room(s)</span>
+                                         <span class="badge bg-info me-1">${hotel.roomType}</span>
+                                         <span class="badge bg-success me-1">${hotel.bedType}</span>
                                      </div>
-                                     <small class="d-block" style="color: #6c757d; font-size: 0.85rem;">
-                                         <i class="ri-restaurant-line me-1" style="color: #667eea;"></i>Meal Plan: <strong style="color: #495057;">${hotel.mealPlan}</strong>
+                                     <small class="text-muted d-block">
+                                         <i class="ri-restaurant-line me-1"></i>Meal Plan: ${hotel.mealPlan}
                                      </small>
                                  </div>
                                  <div class="col-md-6">
-                                     <div class="alert mb-0 py-2" style="background: #d1f2eb; border: 1px solid #7dd3c0; border-radius: 6px; padding: 0.75rem 1rem;">
+                                     <div class="alert alert-success mb-0 py-2">
                                          <div class="d-flex justify-content-between align-items-center">
                                              <div>
-                                                 <strong style="color: #212529; font-size: 0.9rem;">Hotel booked for ${hotel.totalNights} nights</strong><br>
-                                                 <small style="color: #495057; font-size: 0.8rem;">${hotel.checkInDate} - ${hotel.checkOutDate}, 2025</small><br>
-                                                 <small style="color: #6c757d; font-size: 0.75rem;">Consecutive hotel nights selected</small>
+                                                 <strong>Hotel booked for ${hotel.totalNights} nights</strong><br>
+                                                 <small>${hotel.checkInDate} - ${hotel.checkOutDate}, 2025</small><br>
+                                                 <small class="text-muted">Consecutive hotel nights selected</small>
                                              </div>
-                                             <div class="badge" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: #ffffff; border-radius: 6px; font-size: 0.85rem; font-weight: 600; padding: 0.5rem 0.875rem; box-shadow: 0 2px 6px rgba(102, 126, 234, 0.3);">${hotel.totalNights} nights</div>
+                                             <div class="badge bg-warning text-dark fs-6">${hotel.totalNights} nights</div>
                                          </div>
                                      </div>
                                      
                                      <!-- Meal Costs Breakdown -->
                                      ${hotel.mealPlan && !hotel.mealPlan.includes('only') ? `
-                                         <div class="mt-2 p-2 rounded" style="background: #f8f9fa; border: 1px solid #e9ecef; border-radius: 6px;">
-                                             <small class="d-block mb-1" style="color: #495057; font-size: 0.8rem; font-weight: 600;">
-                                                 <i class="ri-restaurant-line me-1" style="color: #667eea;"></i>Meal Costs Breakdown:
+                                         <div class="mt-2 p-2 bg-light rounded">
+                                             <small class="text-muted d-block mb-1">
+                                                 <i class="ri-restaurant-line me-1"></i>Meal Costs Breakdown:
                                              </small>
                                              ${hotel.mealPrices ? `
-                                                 <div style="font-size: 0.8rem;">
+                                                 <div class="small">
                                                      ${hotel.mealPlan.includes('breakfast') || hotel.mealPlan.includes('bf') ? `
-                                                         <div class="d-flex justify-content-between mb-1">
-                                                             <span style="color: #495057;">Breakfast:</span>
-                                                             <span style="color: #212529; font-weight: 500;">$${hotel.mealPrices.breakfast_price || 0} × ${hotel.selectedPersons || 1} persons × ${hotel.totalNights} nights × ${hotel.numberOfRooms} rooms = $${(hotel.mealPrices.breakfast_price || 0) * (hotel.selectedPersons || 1) * hotel.totalNights * hotel.numberOfRooms}</span>
+                                                         <div class="d-flex justify-content-between">
+                                                             <span>Breakfast:</span>
+                                                             <span>$${hotel.mealPrices.breakfast_price || 0} × ${hotel.selectedPersons || 1} persons × ${hotel.totalNights} nights × ${hotel.numberOfRooms} rooms = $${(hotel.mealPrices.breakfast_price || 0) * (hotel.selectedPersons || 1) * hotel.totalNights * hotel.numberOfRooms}</span>
                                                          </div>
                                                      ` : ''}
                                                      ${hotel.mealPlan.includes('lunch') ? `
-                                                         <div class="d-flex justify-content-between mb-1">
-                                                             <span style="color: #495057;">Lunch:</span>
-                                                             <span style="color: #212529; font-weight: 500;">$${hotel.mealPrices.lunch_price || 0} × ${hotel.selectedPersons || 1} persons × ${hotel.totalNights} nights × ${hotel.numberOfRooms} rooms = $${(hotel.mealPrices.lunch_price || 0) * (hotel.selectedPersons || 1) * hotel.totalNights * hotel.numberOfRooms}</span>
+                                                         <div class="d-flex justify-content-between">
+                                                             <span>Lunch:</span>
+                                                             <span>$${hotel.mealPrices.lunch_price || 0} × ${hotel.selectedPersons || 1} persons × ${hotel.totalNights} nights × ${hotel.numberOfRooms} rooms = $${(hotel.mealPrices.lunch_price || 0) * (hotel.selectedPersons || 1) * hotel.totalNights * hotel.numberOfRooms}</span>
                                                          </div>
                                                      ` : ''}
                                                      ${hotel.mealPlan.includes('dinner') ? `
-                                                         <div class="d-flex justify-content-between mb-1">
-                                                             <span style="color: #495057;">Dinner:</span>
-                                                             <span style="color: #212529; font-weight: 500;">$${hotel.mealPrices.dinner_price || 0} × ${hotel.selectedPersons || 1} persons × ${hotel.totalNights} nights × ${hotel.numberOfRooms} rooms = $${(hotel.mealPrices.dinner_price || 0) * (hotel.selectedPersons || 1) * hotel.totalNights * hotel.numberOfRooms}</span>
+                                                         <div class="d-flex justify-content-between">
+                                                             <span>Dinner:</span>
+                                                             <span>$${hotel.mealPrices.dinner_price || 0} × ${hotel.selectedPersons || 1} persons × ${hotel.totalNights} nights × ${hotel.numberOfRooms} rooms = $${(hotel.mealPrices.dinner_price || 0) * (hotel.selectedPersons || 1) * hotel.totalNights * hotel.numberOfRooms}</span>
                                                          </div>
                                                      ` : ''}
                                                  </div>
-                                             ` : '<small style="color: #6c757d; font-size: 0.8rem;">Meal prices not available</small>'}
+                                             ` : '<small class="text-muted">Meal prices not available</small>'}
                                          </div>
                                      ` : ''}
                                      
                                     <!-- Cost Summary -->
-                                    <div class="mt-2 p-2 rounded" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); border: none; border-radius: 6px; color: #ffffff;">
-                                        <small class="d-block mb-2" style="font-size: 0.85rem; font-weight: 600; color: #ffffff !important;">
+                                    <div class="mt-2 p-2 bg-info text-white rounded">
+                                        <small class="d-block mb-1">
                                             <i class="ri-calculator-line me-1"></i>Cost Summary:
                                         </small>
-                                        <div style="font-size: 0.8rem;">
-                                            <div class="d-flex justify-content-between mb-1" style="color: rgba(255, 255, 255, 0.9);">
+                                        <div class="small">
+                                            <div class="d-flex justify-content-between">
                                                 <span>Room Cost:</span>
-                                                <span style="font-weight: 500; color: #ffffff !important;">
+                                                <span>
                                                     ${hotel.weekdayNights || hotel.weekendNights ? (() => {
                                                         // Calculate actual weekday and weekend prices from breakdown
                                                         let weekdayPrice = 0;
@@ -12167,17 +12083,12 @@ document.addEventListener('DOMContentLoaded', function() {
                                                     })() : ''}
                                                     $${(hotel.price || 0) * hotel.numberOfRooms}
                                                 </span>
+                                               <span> Custom Room Cost: $${hotel.customRoomPrice}</span>
                                             </div>
-                                            ${hotel.customRoomPrice ? `
-                                                <div class="d-flex justify-content-between mb-1" style="color: rgba(255, 255, 255, 0.9);">
-                                                    <span>Custom Room Cost:</span>
-                                                    <span style="font-weight: 500; color: #ffffff !important;">$${hotel.customRoomPrice}</span>
-                                                </div>
-                                            ` : ''}
                                             ${hotel.mealPlan && !hotel.mealPlan.includes('only') ? `
-                                                <div class="d-flex justify-content-between mb-1" style="color: rgba(255, 255, 255, 0.9);">
+                                                <div class="d-flex justify-content-between">
                                                     <span>Meal Cost:</span>
-                                                    <span style="font-weight: 500; color: #ffffff !important;">$${(() => {
+                                                    <span>$${(() => {
                                                         if (typeof window.calculateCorrectMealCosts === 'function') {
                                                             return window.calculateCorrectMealCosts(hotel.mealPlan, hotel.totalNights, hotel.selectedPersons || 1, 0, hotel.mealPrices, hotel.numberOfRooms);
                                                         }
@@ -12200,13 +12111,13 @@ document.addEventListener('DOMContentLoaded', function() {
                                                 </div>
                                             ` : ''}
                                             ${hotel.extraBedPrice && hotel.extraBedPrice > 0 && hotel.selectedPersons > hotel.maxOccupancy ? `
-                                                <div class="d-flex justify-content-between mb-1" style="color: rgba(255, 255, 255, 0.9);">
+                                                <div class="d-flex justify-content-between">
                                                     <span>Extra Bed Cost:</span>
-                                                    <span style="font-weight: 500; color: #ffffff !important;">$${hotel.extraBedPrice} × ${hotel.selectedPersons - hotel.maxOccupancy} × ${hotel.numberOfRooms} × ${hotel.totalNights} = $${hotel.extraBedPrice * (hotel.selectedPersons - hotel.maxOccupancy) * hotel.numberOfRooms * hotel.totalNights}</span>
+                                                    <span>$${hotel.extraBedPrice} × ${hotel.selectedPersons - hotel.maxOccupancy} × ${hotel.numberOfRooms} × ${hotel.totalNights} = $${hotel.extraBedPrice * (hotel.selectedPersons - hotel.maxOccupancy) * hotel.numberOfRooms * hotel.totalNights}</span>
                                                 </div>
                                             ` : ''}
-                                            <hr class="my-2" style="border-color: rgba(255, 255, 255, 0.3);">
-                                            <div class="d-flex justify-content-between" style="font-weight: 700; font-size: 0.9rem; color: #ffffff !important;">
+                                            <hr class="my-1">
+                                            <div class="d-flex justify-content-between fw-bold">
                                                 <span>Total:</span>
                                                 <span>$${(() => {
                                                     const roomCost = (hotel.price || 0) * hotel.numberOfRooms;
@@ -12375,11 +12286,11 @@ document.addEventListener('DOMContentLoaded', function() {
                                                  <i class="ri-time-fill position-absolute text-primary" style="left: 12px; top: 50%; transform: translateY(-50%); z-index: 5; pointer-events: none;"></i>
                                              </div>
                                          </div>
-                                        <div class="col-md-1 d-flex align-items-end">
-                                            <button type="button" class="btn w-100" onclick="searchVehicles(${day}, 'entry', 0)" id="day${day}_entry_search_btn" disabled style="height: 40px; border-radius: 6px; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); border: none; color: #ffffff; font-weight: 500; font-size: 0.9rem; display: flex; align-items: center; justify-content: center; box-shadow: 0 2px 6px rgba(102, 126, 234, 0.3); transition: all 0.2s; cursor: pointer; padding: 1.5rem 3rem;">
-                                                <i class="ri-search-line me-1"></i> Search
-                                            </button>
-                                        </div>
+                                         <div class="col-md-1 d-flex align-items-end">
+                                             <button type="button" class="btn w-100 py-2 rounded-pill shadow-sm" onclick="searchVehicles(${day}, 'entry', 0)" id="day${day}_entry_search_btn" disabled style="background: linear-gradient(135deg, #3b82f6 0%, #2563eb 100%); border: none; color: white; font-weight: 600;">
+                                                 <i class="ri-search-line"></i>
+                                             </button>
+                                         </div>
                                      </div>
                                  </div>
                                  
@@ -12453,14 +12364,14 @@ document.addEventListener('DOMContentLoaded', function() {
                                         
                                         <!-- Price Display for Entry Port -->
                                         <div class="col-12">
-                                            <div id="day${day}_entry_0_price_display" class="rounded" style="display: none; background: linear-gradient(135deg, #f8f9ff 0%, #e7f3ff 100%); border: 1px solid #b3d9ff; border-radius: 8px; padding: 1rem;">
-                                                <div class="d-flex align-items-start">
-                                                    <div style="width: 40px; height: 40px; background: rgba(102, 126, 234, 0.15); border-radius: 8px; display: flex; align-items: center; justify-content: center; margin-right: 12px; flex-shrink: 0;">
-                                                        <i class="ri-money-dollar-circle-line" style="color: #667eea; font-size: 1.25rem;"></i>
+                                            <div id="day${day}_entry_0_price_display" class="p-4 rounded-4 shadow-sm" style="display: none; background: linear-gradient(135deg, #ecfdf5 0%, #d1fae5 100%); border: 2px solid #10b981;">
+                                                <div class="d-flex align-items-center mb-3">
+                                                    <div class="d-flex align-items-center justify-content-center rounded-circle me-3" style="width: 50px; height: 50px; background: linear-gradient(135deg, #10b981 0%, #059669 100%); color: white;">
+                                                        <i class="ri-money-dollar-circle-line fs-4"></i>
                                                     </div>
-                                                    <div style="flex: 1;">
-                                                        <strong style="color: #212529; font-size: 0.95rem; display: block; margin-bottom: 0.5rem;">Price Information</strong>
-                                                        <div style="color: #6c757d; font-size: 0.85rem;">Vehicle pricing details</div>
+                                                    <div>
+                                                        <strong class="text-success fs-6">Price Information</strong>
+                                                        <div class="small text-muted">Vehicle pricing details</div>
                                                     </div>
                                                 </div>
                                             </div>
@@ -12599,8 +12510,8 @@ document.addEventListener('DOMContentLoaded', function() {
                                              </div>
                                          </div>
                                          <div class="col-md-1 d-flex align-items-end">
-                                             <button type="button" class="btn w-100" onclick="searchVehicles(${day}, 'exit', 0)" id="day${day}_exit_search_btn" disabled style="height: 42px; border-radius: 6px; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); border: none; color: #ffffff; font-weight: 500; font-size: 0.9rem; display: flex; align-items: center; justify-content: center; box-shadow: 0 2px 6px rgba(102, 126, 234, 0.3); transition: all 0.2s; cursor: pointer; padding: 0.5rem 1rem;">
-                                                 <i class="ri-search-line me-1"></i> Search
+                                             <button type="button" class="btn w-100 py-2 rounded-pill shadow-sm" onclick="searchVehicles(${day}, 'exit', 0)" id="day${day}_exit_search_btn" disabled style="background: linear-gradient(135deg, #3b82f6 0%, #2563eb 100%); border: none; color: white; font-weight: 600;">
+                                                 <i class="ri-search-line"></i>
                                              </button>
                                          </div>
                                      </div>
@@ -12677,14 +12588,14 @@ document.addEventListener('DOMContentLoaded', function() {
                                         
                                         <!-- Price Display for Exit Port -->
                                         <div class="col-12">
-                                            <div id="day${day}_exit_0_price_display" class="rounded" style="display: none; background: linear-gradient(135deg, #f8f9ff 0%, #e7f3ff 100%); border: 1px solid #b3d9ff; border-radius: 8px; padding: 1rem;">
-                                                <div class="d-flex align-items-start">
-                                                    <div style="width: 40px; height: 40px; background: rgba(102, 126, 234, 0.15); border-radius: 8px; display: flex; align-items: center; justify-content: center; margin-right: 12px; flex-shrink: 0;">
-                                                        <i class="ri-money-dollar-circle-line" style="color: #667eea; font-size: 1.25rem;"></i>
+                                            <div id="day${day}_exit_0_price_display" class="p-4 rounded-4 shadow-sm" style="display: none; background: linear-gradient(135deg, #ecfdf5 0%, #d1fae5 100%); border: 2px solid #10b981;">
+                                                <div class="d-flex align-items-center mb-3">
+                                                    <div class="d-flex align-items-center justify-content-center rounded-circle me-3" style="width: 50px; height: 50px; background: linear-gradient(135deg, #10b981 0%, #059669 100%); color: white;">
+                                                        <i class="ri-money-dollar-circle-line fs-4"></i>
                                                     </div>
-                                                    <div style="flex: 1;">
-                                                        <strong style="color: #212529; font-size: 0.95rem; display: block; margin-bottom: 0.5rem;">Price Information</strong>
-                                                        <div style="color: #6c757d; font-size: 0.85rem;">Vehicle pricing details</div>
+                                                    <div>
+                                                        <strong class="text-success fs-6">Price Information</strong>
+                                                        <div class="small text-muted">Vehicle pricing details</div>
                                                     </div>
                                                 </div>
                                             </div>
@@ -12809,247 +12720,170 @@ document.addEventListener('DOMContentLoaded', function() {
                                              <option value="">Select Time Slot</option>
                                          </select>
                                      </div>
-                                    
-                                 </div>
-                                 
-                                 <!-- Main Row: Ticket, Transfer Toggle, Guide Toggle -->
-                                 <div class="row g-2 mb-2">
-                                     <div class="col-md-4">
-                                         <label class="form-label fw-semibold mb-1" style="color: #495057; font-size: 0.8rem;">
-                                             <i class="ri-ticket-line me-1"></i>Select Ticket
-                                         </label>
-                                         <select class="form-select" style="height: 36px; border-radius: 6px; border: 1px solid #dee2e6; font-size: 0.8rem; padding: 0.375rem 0.75rem; line-height: 1.4; overflow: hidden; text-overflow: ellipsis;" name="day${day}_attraction_1_ticket" id="day${day}_attraction_1_ticket" onchange="updateAttractionPricing(${day}, 1)">
+                                     <div class="col-md-3">
+                                         <label class="form-label fw-semibold">Select Ticket</label>
+                                         <select class="form-select" style="height: 42px; font-size: 0.735rem;" name="day${day}_attraction_1_ticket" id="day${day}_attraction_1_ticket" onchange="updateAttractionPricing(${day}, 1)">
                                              <option value="">Select Ticket</option>
                                          </select>
                                      </div>
-                                     <div class="col-md-4">
-                                         <label class="form-label fw-semibold mb-1" style="color: #495057; font-size: 0.8rem;">
-                                             <i class="ri-car-line me-1"></i>Transfer Required?
+                                 </div>
+                                 
+                                 <!-- Transfer Required Section -->
+                                 <div class="row g-3 mt-2">
+                                     <div class="col-md-2">
+                                         <label class="form-label fw-semibold">
+                                             <i class="ri-car-line me-1"></i>Transfer?
                                          </label>
-                                         <select class="form-select" style="height: 36px; border-radius: 6px; border: 1px solid #dee2e6; font-size: 0.8rem; padding: 0.375rem 0.75rem; line-height: 1.4; overflow: hidden; text-overflow: ellipsis;" name="day${day}_attraction_1_transfer_required" id="day${day}_attraction_1_transfer_required" onchange="toggleAttractionTransferFields(${day}, 1)">
+                                         <select class="form-select" style="height: 42px; font-size: 0.735rem;" name="day${day}_attraction_1_transfer_required" id="day${day}_attraction_1_transfer_required" onchange="toggleAttractionTransferFields(${day}, 1)">
                                              <option value="No">No</option>
                                              <option value="Yes">Yes</option>
                                          </select>
                                      </div>
-                                     <div class="col-md-4">
-                                         <label class="form-label fw-semibold mb-1" style="color: #495057; font-size: 0.8rem;">
-                                             <i class="ri-user-star-line me-1"></i>Guide Required?
+                                     
+                                     <!-- Transfer Options (Hidden by default) -->
+                                     <div class="col-md-2 attraction-transfer-fields" id="day${day}_attraction_1_transfer_type_field" style="display: none;">
+                                         <label class="form-label fw-semibold">Type</label>
+                                         <select class="form-select" style="height: 42px; font-size: 0.735rem;" name="day${day}_attraction_1_transfer_type" id="day${day}_attraction_1_transfer_type" onchange="handleAttractionTransferTypeOrWayChange(${day}, 1)">
+                                             <option value="">Select Type</option>
+                                             <option value="Private">Private</option>
+                                             <option value="Shared">Shared</option>
+                                         </select>
+                                     </div>
+                                     <div class="col-md-2 attraction-transfer-fields" id="day${day}_attraction_1_transfer_way_field" style="display: none;">
+                                         <label class="form-label fw-semibold">Way</label>
+                                         <select class="form-select" style="height: 42px; font-size: 0.735rem;" name="day${day}_attraction_1_transfer_way" id="day${day}_attraction_1_transfer_way" onchange="handleAttractionTransferTypeOrWayChange(${day}, 1)">
+                                             <option value="">Select Way</option>
+                                             <option value="One Way">One Way</option>
+                                             <option value="Both Way">Both Way</option>
+                                         </select>
+                                     </div>
+                                     <div class="col-md-3 attraction-transfer-fields" id="day${day}_attraction_1_transfer_vehicle_field" style="display: none;">
+                                         <label class="form-label fw-semibold">Vehicle</label>
+                                         <select class="form-select" style="height: 42px; font-size: 0.735rem;" name="day${day}_attraction_1_transfer_vehicle" id="day${day}_attraction_1_transfer_vehicle" onchange="handleAttractionVehicleChange(${day}, 1)">
+                                             <option value="">Select Vehicle</option>
+                                         </select>
+                                     </div>
+                                     <div class="col-md-3 attraction-transfer-fields" id="day${day}_attraction_1_transfer_pickup_field" style="display: none;">
+                                         <label class="form-label fw-semibold">
+                                             <i class="ri-map-pin-line me-1"></i>Pickup Location
                                          </label>
-                                         <select class="form-select" style="height: 36px; border-radius: 6px; border: 1px solid #dee2e6; font-size: 0.8rem; padding: 0.375rem 0.75rem; line-height: 1.4; overflow: hidden; text-overflow: ellipsis;" name="day${day}_attraction_1_guide_required" id="day${day}_attraction_1_guide_required" onchange="toggleAttractionGuideFields(${day}, 1)">
+                                         <select class="form-select" style="height: 42px; font-size: 0.735rem;" name="day${day}_attraction_1_transfer_pickup_location" id="day${day}_attraction_1_transfer_pickup_location" onchange="fetchAttractionTransferPricing(${day}, 1)">
+                                             <option value="">Select Pickup Location</option>
+                                         </select>
+                                     </div>
+                                     <div class="col-md-2 attraction-transfer-fields" id="day${day}_attraction_1_transfer_cost_field" style="display: none;">
+                                         <label class="form-label fw-semibold">Cost</label>
+                                         <input type="number" class="form-control" style="height: 42px; font-size: 0.735rem;" name="day${day}_attraction_1_transfer_cost" id="day${day}_attraction_1_transfer_cost" min="0" step="0.01" placeholder="0.00" onchange="updateAttractionTransportPricing(${day}, 1)" oninput="updateAttractionTransportPricing(${day}, 1)">
+                                     </div>
+                                 </div>
+                                 
+                                 
+                                 <!-- Guide Required Section -->
+                                 <div class="row g-3 mt-2">
+                                     <div class="col-md-2">
+                                         <label class="form-label fw-semibold">
+                                             <i class="ri-user-star-line me-1"></i>Guide?
+                                         </label>
+                                         <select class="form-select" style="height: 42px; font-size: 0.735rem;" name="day${day}_attraction_1_guide_required" id="day${day}_attraction_1_guide_required" onchange="toggleAttractionGuideFields(${day}, 1)">
                                              <option value="No">No</option>
                                              <option value="Yes">Yes</option>
                                          </select>
                                      </div>
-                                 </div>
-                                 
-                                 <!-- Transfer Options Card (Expandable) -->
-                                 <div class="card mb-2 attraction-transfer-card" id="day${day}_attraction_1_transfer_card" style="display: none; border: 1px solid #dee2e6; border-radius: 8px; box-shadow: 0 2px 6px rgba(0,0,0,0.05); overflow: hidden;">
-                                     <div class="card-header" style="background: linear-gradient(135deg, #f8f9ff 0%, #e7f3ff 100%); border: none; border-bottom: 1px solid #b3d9ff; padding: 0.75rem 1rem; cursor: pointer;" onclick="document.getElementById('day${day}_attraction_1_transfer_fields').style.display = document.getElementById('day${day}_attraction_1_transfer_fields').style.display === 'none' ? 'block' : 'none';">
-                                         <div class="d-flex align-items-center justify-content-between">
-                                             <h6 class="mb-0 fw-semibold d-flex align-items-center" style="color: #495057; font-size: 0.9rem;">
-                                                 <div style="width: 32px; height: 32px; background: rgba(102, 126, 234, 0.15); border-radius: 8px; display: flex; align-items: center; justify-content: center; margin-right: 10px;">
-                                                     <i class="ri-car-line" style="color: #667eea; font-size: 0.9rem;"></i>
-                                                 </div>
-                                                 Transfer Configuration
-                                             </h6>
-                                             <i class="ri-arrow-down-s-line" id="day${day}_attraction_1_transfer_arrow" style="color: #667eea; font-size: 1rem; transition: transform 0.3s;"></i>
-                                         </div>
+                                     
+                                     <!-- Guide Options (Hidden by default) -->
+                                     <div class="col-md-4 attraction-guide-fields" id="day${day}_attraction_1_guide_select_field" style="display: none;">
+                                         <label class="form-label fw-semibold">Select Guide</label>
+                                            <select class="form-select attraction-guide-select" style="height: 42px; font-size: 0.735rem;" name="day${day}_attraction_1_guide" id="day${day}_attraction_1_guide" onchange="loadAttractionGuideDetails(${day}, this.value, 1)" disabled>
+                                             <option value="">Select city first</option>
+                                         </select>
                                      </div>
-                                     <div class="card-body" id="day${day}_attraction_1_transfer_fields" style="display: block; padding: 1rem; background: #ffffff;">
-                                         <div class="row g-2">
-                                             <div class="col-md-3">
-                                                 <label class="form-label fw-semibold mb-1" style="color: #495057; font-size: 0.8rem;">
-                                                     <i class="ri-settings-3-line me-1"></i>Type
-                                                 </label>
-                                                 <select class="form-select" style="height: 36px; border-radius: 6px; border: 1px solid #dee2e6; font-size: 0.8rem; padding: 0.375rem 0.75rem; line-height: 1.4; overflow: hidden; text-overflow: ellipsis;" name="day${day}_attraction_1_transfer_type" id="day${day}_attraction_1_transfer_type" onchange="handleAttractionTransferTypeOrWayChange(${day}, 1)">
-                                                     <option value="">Select Type</option>
-                                                     <option value="Private">Private</option>
-                                                     <option value="Shared">Shared</option>
-                                                 </select>
-                                             </div>
-                                             <div class="col-md-3">
-                                                 <label class="form-label fw-semibold mb-1" style="color: #495057; font-size: 0.8rem;">
-                                                     <i class="ri-route-line me-1"></i>Way
-                                                 </label>
-                                                 <select class="form-select" style="height: 36px; border-radius: 6px; border: 1px solid #dee2e6; font-size: 0.8rem; padding: 0.375rem 0.75rem; line-height: 1.4; overflow: hidden; text-overflow: ellipsis;" name="day${day}_attraction_1_transfer_way" id="day${day}_attraction_1_transfer_way" onchange="handleAttractionTransferTypeOrWayChange(${day}, 1)">
-                                                     <option value="">Select Way</option>
-                                                     <option value="One Way">One Way</option>
-                                                     <option value="Both Way">Both Way</option>
-                                                 </select>
-                                             </div>
-                                             <div class="col-md-3">
-                                                 <label class="form-label fw-semibold mb-1" style="color: #495057; font-size: 0.8rem;">
-                                                     <i class="ri-car-line me-1"></i>Vehicle
-                                                 </label>
-                                                 <select class="form-select" style="height: 36px; border-radius: 6px; border: 1px solid #dee2e6; font-size: 0.8rem; padding: 0.375rem 0.75rem; line-height: 1.4; overflow: hidden; text-overflow: ellipsis;" name="day${day}_attraction_1_transfer_vehicle" id="day${day}_attraction_1_transfer_vehicle" onchange="handleAttractionVehicleChange(${day}, 1)">
-                                                     <option value="">Select Vehicle</option>
-                                                 </select>
-                                             </div>
-                                             <div class="col-md-3">
-                                                 <label class="form-label fw-semibold mb-1" style="color: #495057; font-size: 0.8rem;">
-                                                     <i class="ri-map-pin-line me-1"></i>Pickup Location
-                                                 </label>
-                                                 <select class="form-select" style="height: 36px; border-radius: 6px; border: 1px solid #dee2e6; font-size: 0.8rem; padding: 0.375rem 0.75rem; line-height: 1.4; overflow: hidden; text-overflow: ellipsis;" name="day${day}_attraction_1_transfer_pickup_location" id="day${day}_attraction_1_transfer_pickup_location" onchange="fetchAttractionTransferPricing(${day}, 1)">
-                                                     <option value="">Select Pickup Location</option>
-                                                 </select>
-                                             </div>
-                                             <div class="col-md-3">
-                                                 <label class="form-label fw-semibold mb-1" style="color: #495057; font-size: 0.8rem;">
-                                                     <i class="ri-money-dollar-circle-line me-1"></i>Cost
-                                                 </label>
-                                                 <input type="number" class="form-control" style="height: 36px; border-radius: 6px; border: 1px solid #dee2e6; font-size: 0.85rem;" name="day${day}_attraction_1_transfer_cost" id="day${day}_attraction_1_transfer_cost" min="0" step="0.01" placeholder="0.00" onchange="updateAttractionTransportPricing(${day}, 1)" oninput="updateAttractionTransportPricing(${day}, 1)">
-                                             </div>
+                                     <div class="col-md-3 attraction-guide-fields" id="day${day}_attraction_1_guide_pickup_time_field" style="display: none;">
+                                         <label class="form-label fw-semibold">Pickup Time</label>
+                                         <div id="day${day}_attraction_1_guide_pickup_time_options">
+                                             <select class="form-select" style="height: 42px; font-size: 0.735rem;" disabled>
+                                                 <option value="">Select guide first</option>
+                                             </select>
                                          </div>
+                                         <input type="hidden" name="day${day}_attraction_1_guide_pickup_time" id="day${day}_attraction_1_guide_pickup_time">
                                      </div>
-                                 </div>
-                                 
-                                 <!-- Guide Options Card (Expandable) -->
-                                 <div class="card mb-2 attraction-guide-card" id="day${day}_attraction_1_guide_card" style="display: none; border: 1px solid #dee2e6; border-radius: 8px; box-shadow: 0 2px 6px rgba(0,0,0,0.05); overflow: hidden;">
-                                     <div class="card-header" style="background: linear-gradient(135deg, #f8f9ff 0%, #e7f3ff 100%); border: none; border-bottom: 1px solid #b3d9ff; padding: 0.75rem 1rem; cursor: pointer;" onclick="document.getElementById('day${day}_attraction_1_guide_fields').style.display = document.getElementById('day${day}_attraction_1_guide_fields').style.display === 'none' ? 'block' : 'none';">
-                                         <div class="d-flex align-items-center justify-content-between">
-                                             <h6 class="mb-0 fw-semibold d-flex align-items-center" style="color: #495057; font-size: 0.9rem;">
-                                                 <div style="width: 32px; height: 32px; background: rgba(102, 126, 234, 0.15); border-radius: 8px; display: flex; align-items: center; justify-content: center; margin-right: 10px;">
-                                                     <i class="ri-user-star-line" style="color: #667eea; font-size: 0.9rem;"></i>
-                                                 </div>
-                                                 Guide Configuration
-                                             </h6>
-                                             <i class="ri-arrow-down-s-line" id="day${day}_attraction_1_guide_arrow" style="color: #667eea; font-size: 1rem; transition: transform 0.3s;"></i>
-                                         </div>
-                                     </div>
-                                     <div class="card-body" id="day${day}_attraction_1_guide_fields" style="display: block; padding: 1rem; background: #ffffff;">
-                                         <div class="row g-2">
-                                             <div class="col-md-4">
-                                                 <label class="form-label fw-semibold mb-1" style="color: #495057; font-size: 0.8rem;">
-                                                     <i class="ri-user-star-line me-1"></i>Select Guide
-                                                 </label>
-                                                 <select class="form-select attraction-guide-select" style="height: 36px; border-radius: 6px; border: 1px solid #dee2e6; font-size: 0.8rem; padding: 0.375rem 0.75rem; line-height: 1.4; overflow: hidden; text-overflow: ellipsis;" name="day${day}_attraction_1_guide" id="day${day}_attraction_1_guide" onchange="loadAttractionGuideDetails(${day}, this.value, 1)" disabled>
-                                                     <option value="">Select city first</option>
-                                                 </select>
-                                             </div>
-                                             <div class="col-md-4">
-                                                 <label class="form-label fw-semibold mb-1" style="color: #495057; font-size: 0.8rem;">
-                                                     <i class="ri-time-line me-1"></i>Pickup Time
-                                                 </label>
-                                                 <div id="day${day}_attraction_1_guide_pickup_time_options">
-                                                     <select class="form-select" style="height: 36px; border-radius: 6px; border: 1px solid #dee2e6; font-size: 0.8rem; padding: 0.375rem 0.75rem; line-height: 1.4; overflow: hidden; text-overflow: ellipsis;" disabled>
-                                                         <option value="">Select guide first</option>
-                                                     </select>
-                                                 </div>
-                                                 <input type="hidden" name="day${day}_attraction_1_guide_pickup_time" id="day${day}_attraction_1_guide_pickup_time">
-                                             </div>
-                                             <div class="col-md-4">
-                                                 <label class="form-label fw-semibold mb-1" style="color: #495057; font-size: 0.8rem;">
-                                                     <i class="ri-calendar-todo-line me-1"></i>Select Package
-                                                 </label>
-                                                 <select class="form-select" style="height: 36px; border-radius: 6px; border: 1px solid #dee2e6; font-size: 0.8rem; padding: 0.375rem 0.75rem; line-height: 1.4; overflow: hidden; text-overflow: ellipsis;" name="day${day}_attraction_1_guide_package" id="day${day}_attraction_1_guide_package" onchange="updateAttractionGuidePricing(${day}, 1)">
-                                                     <option value="">Select Duration</option>
-                                                 </select>
-                                                 
-                                                 <!-- Hidden fields for pricing -->
-                                                 <input type="hidden" id="day${day}_attraction_1_guide_base_price" name="day${day}_attraction_1_guide_base_price" value="0">
-                                                 <input type="hidden" id="day${day}_attraction_1_guide_hours" name="day${day}_attraction_1_guide_hours" value="0">
-                                                 <input type="hidden" id="day${day}_attraction_1_guide_surcharge" name="day${day}_attraction_1_guide_surcharge" value="0">
-                                                 <input type="hidden" id="day${day}_attraction_1_guide_total_price" name="day${day}_attraction_1_guide_total_price" value="0">
-                                             </div>
-                                         </div>
+                                     <div class="col-md-3 attraction-guide-fields" id="day${day}_attraction_1_guide_package_field" style="display: none;">
+                                         <label class="form-label fw-semibold">Select Package</label>
+                                         <select class="form-select" style="height: 42px; font-size: 0.735rem;" name="day${day}_attraction_1_guide_package" id="day${day}_attraction_1_guide_package" onchange="updateAttractionGuidePricing(${day}, 1)">
+                                             <option value="">Select Duration</option>
+                                         </select>
+                                         
+                                         <!-- Hidden fields for pricing -->
+                                         <input type="hidden" id="day${day}_attraction_1_guide_base_price" name="day${day}_attraction_1_guide_base_price" value="0">
+                                         <input type="hidden" id="day${day}_attraction_1_guide_hours" name="day${day}_attraction_1_guide_hours" value="0">
+                                         <input type="hidden" id="day${day}_attraction_1_guide_surcharge" name="day${day}_attraction_1_guide_surcharge" value="0">
+                                         <input type="hidden" id="day${day}_attraction_1_guide_total_price" name="day${day}_attraction_1_guide_total_price" value="0">
                                      </div>
                                  </div>
                                  
                                  <!-- Attraction Price Display with 3 columns -->
                                  <div class="col-12 mt-3">
-                                     <div id="day${day}_attraction_1_price_display" class="card shadow-sm border-0" style="background: #ffffff; border-radius: 12px; overflow: hidden;">
-                                         <div class="card-header text-white" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); border: none; padding: 1rem 1.25rem;">
-                                             <div class="d-flex align-items-center justify-content-between">
-                                                 <div class="d-flex align-items-center">
-                                                     <div style="width: 40px; height: 40px; background: rgba(255, 255, 255, 0.2); border-radius: 10px; display: flex; align-items: center; justify-content: center; margin-right: 12px;">
-                                                         <i class="ri-money-dollar-circle-line text-white" style="color: #ffffff !important; font-size: 1.25rem;"></i>
-                                                     </div>
-                                                     <div>
-                                                         <h6 class="mb-0 fw-bold text-white" style="color: #ffffff !important; font-size: 1.1rem;">Attraction Pricing</h6>
-                                                         <small class="text-white-75" style="color: rgba(255, 255, 255, 0.85) !important; font-size: 0.8rem;">Select an attraction and configure guests to see pricing</small>
-                                                     </div>
+                                     <div id="day${day}_attraction_1_price_display" class="alert alert-info">
+                                         <div class="d-flex align-items-center justify-content-between mb-3">
+                                             <div class="d-flex align-items-center">
+                                                 <i class="ri-money-dollar-circle-line me-2 fs-4"></i>
+                                                 <div>
+                                                     <strong>Attraction Pricing</strong>
+                                                     <div class="small">Select an attraction and configure guests to see pricing</div>
                                                  </div>
-                                                 <button type="button" class="btn btn-sm text-white" onclick="forceUpdateAttractionPricing(${day}, 1)" title="Refresh Pricing" style="background: rgba(255, 255, 255, 0.2); border: 1px solid rgba(255, 255, 255, 0.3); border-radius: 6px; padding: 0.375rem 0.75rem; transition: all 0.2s;">
-                                                     <i class="ri-refresh-line"></i>
-                                                 </button>
                                              </div>
+                                             <button type="button" class="btn btn-sm btn-outline-primary" onclick="forceUpdateAttractionPricing(${day}, 1)" title="Refresh Pricing">
+                                                 <i class="ri-refresh-line"></i>
+                                             </button>
                                          </div>
-                                         <div class="card-body" style="background: #ffffff; padding: 1.25rem;">
-                                             <!-- Three Column Pricing Layout -->
-                                             <div class="row g-3" id="day${day}_attraction_1_pricing_columns" style="display: none;">
-                                                 <!-- Column 1: Attraction/Ticket Pricing -->
-                                                 <div class="col-md-4">
-                                                     <div class="card shadow-sm border-0" style="background: linear-gradient(135deg, #f8f9ff 0%, #e7f3ff 100%); border: 1px solid #b3d9ff !important; border-radius: 8px; height: 100%;">
-                                                         <div class="card-header" style="background: rgba(102, 126, 234, 0.1); border: none; border-bottom: 1px solid #b3d9ff; padding: 0.75rem 1rem; border-radius: 8px 8px 0 0;">
-                                                             <h6 class="mb-0 fw-semibold d-flex align-items-center" style="color: #495057; font-size: 0.9rem;">
-                                                                 <div style="width: 28px; height: 28px; background: rgba(102, 126, 234, 0.15); border-radius: 6px; display: flex; align-items: center; justify-content: center; margin-right: 8px;">
-                                                                     <i class="ri-ticket-line" style="color: #667eea; font-size: 0.9rem;"></i>
-                                                                 </div>
-                                                                 Ticket Pricing
-                                                             </h6>
-                                                         </div>
-                                                         <div class="card-body" style="padding: 1rem;">
-                                                             <div id="day${day}_attraction_1_ticket_pricing_content" style="font-size: 0.85rem; color: #495057;">
-                                                                 <div class="text-muted" style="font-size: 0.8rem; color: #6c757d;">Select ticket to see pricing</div>
-                                                             </div>
-                                                         </div>
-                                                     </div>
-                                                 </div>
-                                                 
-                                                 <!-- Column 2: Transport Pricing -->
-                                                 <div class="col-md-4">
-                                                     <div class="card shadow-sm border-0" style="background: linear-gradient(135deg, #f8f9ff 0%, #e7f3ff 100%); border: 1px solid #b3d9ff !important; border-radius: 8px; height: 100%;">
-                                                         <div class="card-header" style="background: rgba(102, 126, 234, 0.1); border: none; border-bottom: 1px solid #b3d9ff; padding: 0.75rem 1rem; border-radius: 8px 8px 0 0;">
-                                                             <h6 class="mb-0 fw-semibold d-flex align-items-center" style="color: #495057; font-size: 0.9rem;">
-                                                                 <div style="width: 28px; height: 28px; background: rgba(102, 126, 234, 0.15); border-radius: 6px; display: flex; align-items: center; justify-content: center; margin-right: 8px;">
-                                                                     <i class="ri-car-line" style="color: #667eea; font-size: 0.9rem;"></i>
-                                                                 </div>
-                                                                 Transport Pricing
-                                                             </h6>
-                                                         </div>
-                                                         <div class="card-body" style="padding: 1rem;">
-                                                             <div id="day${day}_attraction_1_transport_pricing_content" style="font-size: 0.85rem; color: #495057;">
-                                                                 <div class="text-muted" style="font-size: 0.8rem; color: #6c757d;">No transport selected</div>
-                                                             </div>
-                                                         </div>
-                                                     </div>
-                                                 </div>
-
-                                                 <!-- Column 3: Guide Pricing -->
-                                                 <div class="col-md-4">
-                                                     <div class="card shadow-sm border-0" style="background: linear-gradient(135deg, #f8f9ff 0%, #e7f3ff 100%); border: 1px solid #b3d9ff !important; border-radius: 8px; height: 100%;">
-                                                         <div class="card-header" style="background: rgba(102, 126, 234, 0.1); border: none; border-bottom: 1px solid #b3d9ff; padding: 0.75rem 1rem; border-radius: 8px 8px 0 0;">
-                                                             <h6 class="mb-0 fw-semibold d-flex align-items-center" style="color: #495057; font-size: 0.9rem;">
-                                                                 <div style="width: 28px; height: 28px; background: rgba(102, 126, 234, 0.15); border-radius: 6px; display: flex; align-items: center; justify-content: center; margin-right: 8px;">
-                                                                     <i class="ri-user-star-line" style="color: #667eea; font-size: 0.9rem;"></i>
-                                                                 </div>
-                                                                 Guide Pricing
-                                                             </h6>
-                                                         </div>
-                                                         <div class="card-body" style="padding: 1rem;">
-                                                             <div id="day${day}_attraction_1_guide_pricing_content" style="font-size: 0.85rem; color: #495057;">
-                                                                 <div class="text-muted" style="font-size: 0.8rem; color: #6c757d;">No guide selected</div>
-                                                             </div>
-                                                         </div>
+                                         
+                                         <!-- Three Column Pricing Layout -->
+                                         <div class="row g-3" id="day${day}_attraction_1_pricing_columns" style="display: none;">
+                                             <!-- Column 1: Attraction/Ticket Pricing -->
+                                             <div class="col-md-4">
+                                                 <div class="p-3 rounded-3 bg-white border border-info">
+                                                     <h6 class="text-info mb-3 fw-bold">
+                                                         <i class="ri-ticket-line me-2"></i>Ticket Pricing
+                                                     </h6>
+                                                     <div id="day${day}_attraction_1_ticket_pricing_content">
+                                                         <div class="text-muted small">Select ticket to see pricing</div>
                                                      </div>
                                                  </div>
                                              </div>
                                              
-                                             <!-- Total Price Row -->
-                                             <div class="row mt-3" id="day${day}_attraction_1_total_price_row" style="display: none;">
-                                                 <div class="col-12">
-                                                     <div class="card shadow-sm border-0" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); border-radius: 8px; box-shadow: 0 4px 12px rgba(102, 126, 234, 0.3);">
-                                                         <div class="card-body" style="padding: 1rem 1.25rem;">
-                                                             <div class="d-flex justify-content-between align-items-center">
-                                                                 <h6 class="mb-0 fw-bold text-white d-flex align-items-center" style="color: #ffffff !important; font-size: 1rem;">
-                                                                     <div style="width: 32px; height: 32px; background: rgba(255, 255, 255, 0.2); border-radius: 8px; display: flex; align-items: center; justify-content: center; margin-right: 10px;">
-                                                                         <i class="ri-calculator-line" style="color: #ffffff !important; font-size: 1rem;"></i>
-                                                                     </div>
-                                                                     Total Price
-                                                                 </h6>
-                                                                 <span class="fw-bold text-white" style="font-size: 1.5rem; color: #ffffff !important;" id="day${day}_attraction_1_total_price_display">$0.00</span>
-                                                             </div>
-                                                         </div>
+                                             <!-- Column 2: Guide Pricing -->
+                                             <div class="col-md-4">
+                                                 <div class="p-3 rounded-3 bg-white border border-primary">
+                                                     <h6 class="text-primary mb-3 fw-bold">
+                                                         <i class="ri-user-line me-2"></i>Guide Pricing
+                                                     </h6>
+                                                     <div id="day${day}_attraction_1_guide_pricing_content">
+                                                         <div class="text-muted small">No guide selected</div>
+                                                     </div>
+                                                 </div>
+                                             </div>
+                                             
+                                             <!-- Column 3: Transport Pricing -->
+                                             <div class="col-md-4">
+                                                 <div class="p-3 rounded-3 bg-white border border-success">
+                                                     <h6 class="text-success mb-3 fw-bold">
+                                                         <i class="ri-car-line me-2"></i>Transport Pricing
+                                                     </h6>
+                                                     <div id="day${day}_attraction_1_transport_pricing_content">
+                                                         <div class="text-muted small">No transport selected</div>
+                                                     </div>
+                                                 </div>
+                                             </div>
+                                         </div>
+                                         
+                                         <!-- Total Price Row -->
+                                         <div class="row mt-3" id="day${day}_attraction_1_total_price_row" style="display: none;">
+                                             <div class="col-12">
+                                                 <div class="p-3 rounded-3 bg-success text-white">
+                                                     <div class="d-flex justify-content-between align-items-center">
+                                                         <h6 class="mb-0 fw-bold">
+                                                             <i class="ri-calculator-line me-2"></i>Total Price
+                                                         </h6>
+                                                         <span class="fw-bold fs-4" id="day${day}_attraction_1_total_price_display">$0.00</span>
                                                      </div>
                                                  </div>
                                              </div>
@@ -13130,7 +12964,7 @@ document.addEventListener('DOMContentLoaded', function() {
                                              </div>
                                          </div>
                                      </div>
-                                    <div class="col-md-2">
+                                    <div class="col-md-3">
                                         <label class="form-label fw-semibold">Pickup Time</label>
                                         <div id="day${day}_guide_1_pickup_time_options">
                                             <select class="form-select" style="height: 42px; font-size: 0.735rem;" disabled>
@@ -13139,7 +12973,7 @@ document.addEventListener('DOMContentLoaded', function() {
                                         </div>
                                         <input type="hidden" name="day${day}_guide_1_pickup_time" id="day${day}_guide_1_pickup_time">
                                     </div>
-                                    <div class="col-md-2">
+                                    <div class="col-md-3">
                                         <label class="form-label fw-semibold">Select Package</label>
                                         <select class="form-select" style="height: 42px; font-size: 0.735rem;" name="day${day}_guide_1_package" id="day${day}_guide_1_package" onchange="updateGuidePricing(${day}, 1)">
                                             <option value="">Select Duration</option>
@@ -13150,36 +12984,32 @@ document.addEventListener('DOMContentLoaded', function() {
                                          
                                          <!-- Guide Price Display Section -->
                                          <div id="day${day}_guide_1_price_display" class="mt-3" style="display: none;">
-                                             <div class="card shadow-sm border-0" style="background: linear-gradient(135deg, #f8f9ff 0%, #e7f3ff 100%); border: 1px solid #b3d9ff !important; border-radius: 8px; overflow: hidden;">
-                                                 <div class="card-header" style="background: rgba(102, 126, 234, 0.1); border: none; border-bottom: 1px solid #b3d9ff; padding: 0.75rem 1rem;">
-                                                     <h6 class="mb-0 fw-semibold d-flex align-items-center" style="color: #495057; font-size: 0.9rem;">
-                                                         <div style="width: 28px; height: 28px; background: rgba(102, 126, 234, 0.15); border-radius: 6px; display: flex; align-items: center; justify-content: center; margin-right: 8px;">
-                                                             <i class="ri-user-star-line" style="color: #667eea; font-size: 0.9rem;"></i>
-                                                         </div>
-                                                         Guide Pricing: <span id="day${day}_guide_1_guide_name" style="color: #667eea; font-weight: 600;">Guide Name</span>
-                                                     </h6>
-                                                 </div>
-                                                 <div class="card-body" style="padding: 1rem; background: #ffffff;">
-                                                     <div class="d-flex align-items-center justify-content-between mb-2" style="font-size: 0.85rem;">
-                                                         <span style="color: #6c757d;">Package Price:</span>
-                                                         <span class="fw-semibold" style="color: #495057;" id="day${day}_guide_1_package_price_display">$0.00</span>
+                                             <div class="p-2 rounded-3" style="background-color: #e3f2fd; border: 1px solid #bbdefb; border-radius: 8px;">
+                                                 <h6 class="text-primary mb-2 fw-bold">
+                                                     <i class="ri-user-line me-2"></i>Guide Pricing: <span id="day${day}_guide_1_guide_name">Guide Name</span>
+                                                 </h6>
+                                                 
+                                                 <div>
+                                                     <div class="d-flex align-items-center mb-1">
+                                                         <span class="text-primary small me-2">Package Price:</span>
+                                                         <span class="fw-semibold text-primary" id="day${day}_guide_1_package_price_display">$0.00</span>
                                                      </div>
                                                      
-                                                     <div class="d-flex align-items-center justify-content-between mb-2" style="font-size: 0.85rem;">
-                                                         <span style="color: #6c757d;">Duration:</span>
-                                                         <span class="fw-semibold" style="color: #495057;" id="day${day}_guide_1_hours_display">0 hours</span>
+                                                     <div class="d-flex align-items-center mb-1">
+                                                         <span class="text-primary small me-2">Duration:</span>
+                                                         <span class="fw-semibold text-primary" id="day${day}_guide_1_hours_display">0 hours</span>
                                                      </div>
                                                      
-                                                     <div class="d-flex align-items-center justify-content-between mb-2" id="day${day}_guide_1_surcharge_row" style="display: none; font-size: 0.85rem;">
-                                                         <span style="color: #6c757d;">Night Surcharge:</span>
-                                                         <span class="fw-semibold" style="color: #ff9800;" id="day${day}_guide_1_surcharge_display">$0.00</span>
+                                                     <div class="d-flex align-items-center mb-1" id="day${day}_guide_1_surcharge_row" style="display: none;">
+                                                         <span class="text-primary small me-2">Night Surcharge:</span>
+                                                         <span class="fw-semibold text-warning" id="day${day}_guide_1_surcharge_display">$0.00</span>
                                                      </div>
                                                      
-                                                     <hr class="my-2" style="border-color: #b3d9ff; border-width: 1px; opacity: 0.5;">
+                                                     <hr class="my-1" style="border-color: #bbdefb;">
                                                      
-                                                     <div class="d-flex align-items-center justify-content-between">
-                                                         <span class="fw-bold" style="color: #495057; font-size: 0.95rem;">Total Price:</span>
-                                                         <span class="fw-bold" style="color: #667eea; font-size: 1.25rem;" id="day${day}_guide_1_total_price_display">$0.00</span>
+                                                     <div class="d-flex align-items-center">
+                                                         <span class="fw-bold text-primary me-2">Total Price:</span>
+                                                         <span class="fw-bold text-success fs-6" id="day${day}_guide_1_total_price_display">$0.00</span>
                                                      </div>
                                                  </div>
                                              </div>
@@ -13243,7 +13073,7 @@ document.addEventListener('DOMContentLoaded', function() {
                                                              </select>
                                                              <small class="text-danger d-none" id="day${day}_restaurant_city_message_1">Please select a city first.</small>
                                                          </div>
-                                                         <div class="col-md-3">
+                                                         <div class="col-md-4">
                                                              <label class="form-label fw-semibold text-dark">
                                                                  <i class="ri-restaurant-line me-1 text-primary"></i>Select Restaurant
                                                              </label>
@@ -13251,7 +13081,7 @@ document.addEventListener('DOMContentLoaded', function() {
                                                                  <option value="">Select city first</option>
                                                              </select>
                                                          </div>
-                                                         <div class="col-md-3">
+                                                         <div class="col-md-5">
                                                              <label class="form-label fw-semibold text-dark">
                                                                  <i class="ri-group-line me-1 text-primary"></i>Select Guests
                                                              </label>
@@ -13280,192 +13110,157 @@ document.addEventListener('DOMContentLoaded', function() {
                                                              <input type="hidden" name="day${day}_restaurant_1_meal_id" id="day${day}_restaurant_1_meal_id" value="">
                                                              <input type="hidden" name="day${day}_restaurant_1_dish_name" id="day${day}_restaurant_1_dish_name" value="">
                                                          </div>
-                                                         <div class ="col-md-3">
-                                                         </div>
                                                      </div>
                                                  </div>
 
                                                  <!-- Meal Configuration Section -->
-                                                 <div class="mb-3 pt-3 border-top">
-                                                     <h6 class="fw-bold mb-3 d-flex align-items-center" style="color: #495057; font-size: 1rem;">
-                                                         <i class="ri-bowl-line me-2" style="color: #667eea;"></i>Meal Configuration
+                                                 <div class="mb-4 pt-3 border-top">
+                                                     <h6 class="text-primary fw-bold mb-3 d-flex align-items-center">
+                                                         <i class="ri-bowl-line me-2"></i>Meal Configuration
                                                      </h6>
-                                                     <!-- Main Row: Meal Type, Select Dish, Time Slot, Transfer Required -->
-                                                     <div class="row g-2 mb-2">
-                                                         <div class="col-md-3">
-                                                             <label class="form-label fw-semibold mb-1" style="color: #495057; font-size: 0.8rem;">
-                                                                 <i class="ri-restaurant-2-line me-1"></i>Meal Type
+                                                     <div class="row g-3">
+                                                         <div class="col-md-4">
+                                                             <label class="form-label fw-semibold text-dark">
+                                                                 <i class="ri-restaurant-2-line me-1 text-primary"></i>Meal Type
                                                              </label>
-                                                             <select class="form-select" style="height: 36px; border-radius: 6px; border: 1px solid #dee2e6; font-size: 0.8rem; padding: 0.375rem 0.75rem; line-height: 1.4; overflow: hidden; text-overflow: ellipsis;" name="day${day}_meal_type_1" id="day${day}_meal_type_1">
+                                                             <select class="form-select shadow-sm" style="height: 42px; font-size: 0.735rem;" name="day${day}_meal_type_1" id="day${day}_meal_type_1" style="border: 1px solid #e5e7eb;">
                                                                  <option value="">Select Meal Type</option>
                                                              </select>
+                                                             <small class="text-muted d-block mt-1">
+                                                                 <i class="ri-time-line me-1"></i>Available meal types with timings
+                                                             </small>
                                                          </div>
-                                                         <div class="col-md-3" id="day${day}_dish_container_1" style="display: none;">
-                                                             <label class="form-label fw-semibold mb-1" style="color: #495057; font-size: 0.8rem;">
-                                                                 <i class="ri-menu-line me-1"></i>Select Dish
+                                                         <div class="col-md-4" id="day${day}_dish_container_1" style="display: none;">
+                                                             <label class="form-label fw-semibold text-dark">
+                                                                 <i class="ri-menu-line me-1 text-primary"></i>Select Dish
                                                              </label>
-                                                             <select class="form-select" style="height: 36px; border-radius: 6px; border: 1px solid #dee2e6; font-size: 0.8rem; padding: 0.375rem 0.75rem; line-height: 1.4; overflow: hidden; text-overflow: ellipsis;" name="day${day}_dish_1" id="day${day}_dish_1" onchange="updateRestaurantPricing(${day}, 1)">
+                                                             <select class="form-select shadow-sm" style="height: 42px; font-size: 0.735rem;" name="day${day}_dish_1" id="day${day}_dish_1" onchange="updateRestaurantPricing(${day}, 1)" style="border: 1px solid #e5e7eb;">
                                                                  <option value="">Select Dish</option>
                                                              </select>
+                                                             <small class="text-muted d-block mt-1">
+                                                                 <i class="ri-information-line me-1"></i>Buffet or Set Menu options
+                                                             </small>
                                                          </div>
-                                                         <div class="col-md-3">
-                                                             <label class="form-label fw-semibold mb-1" style="color: #495057; font-size: 0.8rem;">
-                                                                 <i class="ri-time-line me-1"></i>Time Slot
+                                                         <div class="col-md-4">
+                                                             <label class="form-label fw-semibold text-dark">
+                                                                 <i class="ri-time-line me-1 text-primary"></i>Time Slot
                                                              </label>
-                                                             <select class="form-select" style="height: 36px; border-radius: 6px; border: 1px solid #dee2e6; font-size: 0.8rem; padding: 0.375rem 0.75rem; line-height: 1.4; overflow: hidden; text-overflow: ellipsis;" name="day${day}_time_slot_1" id="day${day}_time_slot_1">
+                                                             <select class="form-select shadow-sm" style="height: 42px; font-size: 0.735rem;" name="day${day}_time_slot_1" id="day${day}_time_slot_1" style="border: 1px solid #e5e7eb;">
                                                                  <option value="">Select Time Slot</option>
                                                              </select>
-                                                         </div>
-                                                         <div class="col-md-3">
-                                                             <label class="form-label fw-semibold mb-1" style="color: #495057; font-size: 0.8rem;">
-                                                                 <i class="ri-car-line me-1"></i>Transfer Required?
-                                                             </label>
-                                                             <select class="form-select" style="height: 36px; border-radius: 6px; border: 1px solid #dee2e6; font-size: 0.8rem; padding: 0.375rem 0.75rem; line-height: 1.4; overflow: hidden; text-overflow: ellipsis;" name="day${day}_restaurant_1_transfer_required" id="day${day}_restaurant_1_transfer_required" onchange="toggleRestaurantTransferFields(${day}, 1)">
-                                                                 <option value="No">No</option>
-                                                                 <option value="Yes">Yes</option>
-                                                             </select>
+                                                             <small class="text-muted d-block mt-1">
+                                                                 <i class="ri-calendar-line me-1"></i>Available time slots
+                                                             </small>
                                                          </div>
                                                      </div>
                                                  </div>
                                                  
-                                                 <!-- Transfer Options Card (Expandable) -->
-                                                 <div class="card mb-2 restaurant-transfer-card" id="day${day}_restaurant_1_transfer_card" style="display: none; border: 1px solid #dee2e6; border-radius: 8px; box-shadow: 0 2px 6px rgba(0,0,0,0.05); overflow: hidden;">
-                                                     <div class="card-header" style="background: linear-gradient(135deg, #f8f9ff 0%, #e7f3ff 100%); border: none; border-bottom: 1px solid #b3d9ff; padding: 0.75rem 1rem; cursor: pointer;" onclick="document.getElementById('day${day}_restaurant_1_transfer_fields').style.display = document.getElementById('day${day}_restaurant_1_transfer_fields').style.display === 'none' ? 'block' : 'none';">
-                                                         <div class="d-flex align-items-center justify-content-between">
-                                                             <h6 class="mb-0 fw-semibold d-flex align-items-center" style="color: #495057; font-size: 0.9rem;">
-                                                                 <div style="width: 32px; height: 32px; background: rgba(102, 126, 234, 0.15); border-radius: 8px; display: flex; align-items: center; justify-content: center; margin-right: 10px;">
-                                                                     <i class="ri-car-line" style="color: #667eea; font-size: 0.9rem;"></i>
-                                                                 </div>
-                                                                 Transfer Configuration
-                                                             </h6>
-                                                             <i class="ri-arrow-down-s-line" id="day${day}_restaurant_1_transfer_arrow" style="color: #667eea; font-size: 1rem; transition: transform 0.3s;"></i>
+                                                 <!-- Transfer Required Section -->
+                                                 <div class="mb-4 pt-3 border-top">
+                                                     <h6 class="text-primary fw-bold mb-3 d-flex align-items-center">
+                                                         <i class="ri-car-line me-2"></i>Transfer Options
+                                                     </h6>
+                                                     <div class="row g-3">
+                                                         <div class="col-md-3">
+                                                             <label class="form-label fw-semibold text-dark">
+                                                                 <i class="ri-question-line me-1 text-primary"></i>Transfer Required?
+                                                             </label>
+                                                             <select class="form-select shadow-sm" style="height: 42px; font-size: 0.735rem;" name="day${day}_restaurant_1_transfer_required" id="day${day}_restaurant_1_transfer_required" onchange="toggleRestaurantTransferFields(${day}, 1)" style="border: 1px solid #e5e7eb;">
+                                                                 <option value="No">No</option>
+                                                                 <option value="Yes">Yes</option>
+                                                             </select>
                                                          </div>
-                                                     </div>
-                                                     <div class="card-body" id="day${day}_restaurant_1_transfer_fields" style="display: block; padding: 1rem; background: #ffffff;">
-                                                         <div class="row g-2">
-                                                             <div class="col-md-3">
-                                                                 <label class="form-label fw-semibold mb-1" style="color: #495057; font-size: 0.8rem;">
-                                                                     <i class="ri-settings-3-line me-1"></i>Type
-                                                                 </label>
-                                                                 <select class="form-select" style="height: 36px; border-radius: 6px; border: 1px solid #dee2e6; font-size: 0.8rem; padding: 0.375rem 0.75rem; line-height: 1.4; overflow: hidden; text-overflow: ellipsis;" name="day${day}_restaurant_1_transfer_type" id="day${day}_restaurant_1_transfer_type" onchange="handleRestaurantTransferTypeOrWayChange(${day}, 1)">
-                                                                     <option value="">Select Type</option>
-                                                                     <option value="Private">Private</option>
-                                                                     <option value="Shared">Shared</option>
-                                                                 </select>
-                                                             </div>
-                                                             <div class="col-md-3">
-                                                                 <label class="form-label fw-semibold mb-1" style="color: #495057; font-size: 0.8rem;">
-                                                                     <i class="ri-route-line me-1"></i>Way
-                                                                 </label>
-                                                                 <select class="form-select" style="height: 36px; border-radius: 6px; border: 1px solid #dee2e6; font-size: 0.8rem; padding: 0.375rem 0.75rem; line-height: 1.4; overflow: hidden; text-overflow: ellipsis;" name="day${day}_restaurant_1_transfer_way" id="day${day}_restaurant_1_transfer_way" onchange="handleRestaurantTransferTypeOrWayChange(${day}, 1)">
-                                                                     <option value="">Select Way</option>
-                                                                     <option value="One Way">One Way</option>
-                                                                     <option value="Both Way">Both Way</option>
-                                                                 </select>
-                                                             </div>
-                                                             <div class="col-md-3">
-                                                                 <label class="form-label fw-semibold mb-1" style="color: #495057; font-size: 0.8rem;">
-                                                                     <i class="ri-car-line me-1"></i>Vehicle
-                                                                 </label>
-                                                                 <select class="form-select" style="height: 36px; border-radius: 6px; border: 1px solid #dee2e6; font-size: 0.8rem; padding: 0.375rem 0.75rem; line-height: 1.4; overflow: hidden; text-overflow: ellipsis;" name="day${day}_restaurant_1_transfer_vehicle" id="day${day}_restaurant_1_transfer_vehicle" onchange="handleRestaurantVehicleChange(${day}, 1)">
-                                                                     <option value="">Select Vehicle</option>
-                                                                 </select>
-                                                             </div>
-                                                             <div class="col-md-3">
-                                                                 <label class="form-label fw-semibold mb-1" style="color: #495057; font-size: 0.8rem;">
-                                                                     <i class="ri-map-pin-line me-1"></i>Pickup Location
-                                                                 </label>
-                                                                 <select class="form-select" style="height: 36px; border-radius: 6px; border: 1px solid #dee2e6; font-size: 0.8rem; padding: 0.375rem 0.75rem; line-height: 1.4; overflow: hidden; text-overflow: ellipsis;" name="day${day}_restaurant_1_transfer_pickup_location" id="day${day}_restaurant_1_transfer_pickup_location" onchange="fetchRestaurantTransferPricing(${day}, 1)">
-                                                                     <option value="">Select Pickup Location</option>
-                                                                 </select>
-                                                             </div>
-                                                             <div class="col-md-3">
-                                                                 <label class="form-label fw-semibold mb-1" style="color: #495057; font-size: 0.8rem;">
-                                                                     <i class="ri-money-dollar-circle-line me-1"></i>Transfer Cost
-                                                                 </label>
-                                                                 <input type="number" class="form-control" style="height: 36px; border-radius: 6px; border: 1px solid #dee2e6; font-size: 0.8rem; padding: 0.375rem 0.75rem;" name="day${day}_restaurant_1_transfer_cost" id="day${day}_restaurant_1_transfer_cost" min="0" step="0.01" placeholder="0.00" onchange="updateRestaurantTransportPricing(${day}, 1)" oninput="updateRestaurantTransportPricing(${day}, 1)">
-                                                             </div>
+                                                         
+                                                         <!-- Transfer Options (Hidden by default) -->
+                                                         <div class="col-md-3 restaurant-transfer-fields" id="day${day}_restaurant_1_transfer_type_field" style="display: none;">
+                                                             <label class="form-label fw-semibold text-dark">
+                                                                 <i class="ri-user-line me-1 text-primary"></i>Transfer Type
+                                                             </label>
+                                                             <select class="form-select shadow-sm" style="height: 42px; font-size: 0.735rem;" name="day${day}_restaurant_1_transfer_type" id="day${day}_restaurant_1_transfer_type" onchange="handleRestaurantTransferTypeOrWayChange(${day}, 1)" style="border: 1px solid #e5e7eb;">
+                                                                 <option value="">Select Type</option>
+                                                                 <option value="Private">Private</option>
+                                                                 <option value="Shared">Shared</option>
+                                                             </select>
+                                                         </div>
+                                                         <div class="col-md-3 restaurant-transfer-fields" id="day${day}_restaurant_1_transfer_way_field" style="display: none;">
+                                                             <label class="form-label fw-semibold text-dark">
+                                                                 <i class="ri-arrow-left-right-line me-1 text-primary"></i>Transfer Way
+                                                             </label>
+                                                             <select class="form-select shadow-sm" style="height: 42px; font-size: 0.735rem;" name="day${day}_restaurant_1_transfer_way" id="day${day}_restaurant_1_transfer_way" onchange="handleRestaurantTransferTypeOrWayChange(${day}, 1)" style="border: 1px solid #e5e7eb;">
+                                                                 <option value="">Select Way</option>
+                                                                 <option value="One Way">One Way</option>
+                                                                 <option value="Both Way">Both Way</option>
+                                                             </select>
+                                                         </div>
+                                                         <div class="col-md-3 restaurant-transfer-fields" id="day${day}_restaurant_1_transfer_vehicle_field" style="display: none;">
+                                                             <label class="form-label fw-semibold text-dark">
+                                                                 <i class="ri-car-line me-1 text-primary"></i>Vehicle
+                                                             </label>
+                                                             <select class="form-select shadow-sm" style="height: 42px; font-size: 0.735rem;" name="day${day}_restaurant_1_transfer_vehicle" id="day${day}_restaurant_1_transfer_vehicle" onchange="handleRestaurantVehicleChange(${day}, 1)" style="border: 1px solid #e5e7eb;">
+                                                                 <option value="">Select Vehicle</option>
+                                                             </select>
+                                                         </div>
+                                                         <div class="col-md-4 restaurant-transfer-fields" id="day${day}_restaurant_1_transfer_pickup_field" style="display: none;">
+                                                             <label class="form-label fw-semibold text-dark">
+                                                                 <i class="ri-map-pin-line me-1 text-primary"></i>Pickup Location
+                                                             </label>
+                                                             <select class="form-select shadow-sm" style="height: 42px; font-size: 0.735rem;" name="day${day}_restaurant_1_transfer_pickup_location" id="day${day}_restaurant_1_transfer_pickup_location" onchange="fetchRestaurantTransferPricing(${day}, 1)" style="border: 1px solid #e5e7eb;">
+                                                                 <option value="">Select Pickup Location</option>
+                                                             </select>
+                                                         </div>
+                                                         <div class="col-md-2 restaurant-transfer-fields" id="day${day}_restaurant_1_transfer_cost_field" style="display: none;">
+                                                             <label class="form-label fw-semibold text-dark">
+                                                                 <i class="ri-money-dollar-circle-line me-1 text-primary"></i>Transfer Cost
+                                                             </label>
+                                                             <input type="number" style="height: 42px; font-size: 0.735rem;" class="form-control shadow-sm"  name="day${day}_restaurant_1_transfer_cost" id="day${day}_restaurant_1_transfer_cost" min="0" step="0.01" placeholder="0.00" onchange="updateRestaurantTransportPricing(${day}, 1)" oninput="updateRestaurantTransportPricing(${day}, 1)" style="border: 1px solid #e5e7eb;">
                                                          </div>
                                                      </div>
                                                  </div>
 
                                                  <!-- Restaurant Pricing Section -->
-                                                 <div id="day${day}_restaurant_1_price_display" class="mt-2" style="display: none;">
-                                                     <div class="card shadow-sm border-0" style="background: #ffffff; border-radius: 8px; overflow: hidden;">
-                                                         <div class="card-header text-white" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); border: none; padding: 0.625rem 0.875rem;">
-                                                             <div class="d-flex align-items-center justify-content-between">
-                                                                 <div class="d-flex align-items-center">
-                                                                     <div style="width: 32px; height: 32px; background: rgba(255, 255, 255, 0.2); border-radius: 8px; display: flex; align-items: center; justify-content: center; margin-right: 10px;">
-                                                                         <i class="ri-restaurant-line text-white" style="color: #ffffff !important; font-size: 1rem;"></i>
+                                                 <div id="day${day}_restaurant_1_price_display" class="mt-4 pt-3 border-top" style="display: none;">
+                                                     <div class="p-4 rounded-4 shadow-sm" style="background: linear-gradient(135deg, #ecfdf5 0%, #d1fae5 100%); border: 2px solid #10b981;">
+                                                         <div class="d-flex align-items-center mb-4">
+                                                             <div class="d-flex align-items-center justify-content-center rounded-circle me-3" style="width: 50px; height: 50px; background: linear-gradient(135deg, #10b981 0%, #059669 100%); color: white;">
+                                                                 <i class="ri-restaurant-line fs-4"></i>
+                                                             </div>
+                                                             <div>
+                                                                 <h5 class="mb-0 fw-bold text-success">Restaurant Pricing</h5>
+                                                                 <small class="text-muted">Restaurant: <span id="day${day}_restaurant_1_restaurant_name" class="fw-semibold text-dark">Restaurant Name</span></small>
+                                                             </div>
+                                                         </div>
+                                                         <div class="row g-4">
+                                                             <div class="col-md-8">
+                                                                 <div class="p-3 rounded-3 bg-white shadow-sm">
+                                                                     <h6 class="fw-bold text-primary mb-3 d-flex align-items-center">
+                                                                         <i class="ri-price-tag-3-line me-2"></i>Restaurant Pricing Details
+                                                                     </h6>
+                                                                     <div id="day${day}_restaurant_1_pricing_details" class="text-muted small">
+                                                                         Select a restaurant and configure guests to see pricing
                                                                      </div>
-                                                                     <div>
-                                                                         <h6 class="mb-0 fw-bold text-white" style="color: #ffffff !important; font-size: 0.95rem; line-height: 1.2;">Restaurant Pricing</h6>
-                                                                         <small class="text-white-75" style="color: rgba(255, 255, 255, 0.85) !important; font-size: 0.75rem; line-height: 1.2;">Restaurant: <span id="day${day}_restaurant_1_restaurant_name" style="color: rgba(255, 255, 255, 0.95) !important; font-weight: 600;">Restaurant Name</span></small>
+                                                                 </div>
+                                                             </div>
+                                                             <div class="col-md-4">
+                                                                 <div class="p-3 rounded-3 bg-white shadow-sm">
+                                                                     <h6 class="fw-bold text-info mb-3 d-flex align-items-center">
+                                                                         <i class="ri-car-line me-2"></i>Transfer Pricing
+                                                                     </h6>
+                                                                     <div id="day${day}_restaurant_1_transport_pricing_content">
+                                                                         <div class="text-muted small">
+                                                                             <i class="ri-information-line me-1"></i>No transport selected
+                                                                         </div>
                                                                      </div>
                                                                  </div>
                                                              </div>
                                                          </div>
-                                                         <div class="card-body" style="background: #ffffff; padding: 0.875rem;">
-                                                             <!-- Two Column Pricing Layout -->
-                                                             <div class="row g-2">
-                                                                 <!-- Column 1: Restaurant Pricing -->
-                                                                 <div class="col-md-8">
-                                                                     <div class="card shadow-sm border-0" style="background: linear-gradient(135deg, #f8f9ff 0%, #e7f3ff 100%); border: 1px solid #b3d9ff !important; border-radius: 6px; height: 100%;">
-                                                                         <div class="card-header" style="background: rgba(102, 126, 234, 0.1); border: none; border-bottom: 1px solid #b3d9ff; padding: 0.5rem 0.75rem; border-radius: 6px 6px 0 0;">
-                                                                             <h6 class="mb-0 fw-semibold d-flex align-items-center" style="color: #495057; font-size: 0.85rem;">
-                                                                                 <div style="width: 24px; height: 24px; background: rgba(102, 126, 234, 0.15); border-radius: 5px; display: flex; align-items: center; justify-content: center; margin-right: 6px;">
-                                                                                     <i class="ri-restaurant-2-line" style="color: #667eea; font-size: 0.8rem;"></i>
-                                                                                 </div>
-                                                                                 Restaurant Pricing Details
-                                                                             </h6>
-                                                                         </div>
-                                                                         <div class="card-body" style="padding: 0.75rem;">
-                                                                             <div id="day${day}_restaurant_1_pricing_details" style="font-size: 0.8rem; color: #495057; line-height: 1.4;">
-                                                                                 <div class="text-muted" style="font-size: 0.75rem; color: #6c757d;">Select a restaurant and configure guests to see pricing</div>
-                                                                             </div>
-                                                                         </div>
-                                                                     </div>
-                                                                 </div>
-                                                                 
-                                                                 <!-- Column 2: Transfer Pricing -->
-                                                                 <div class="col-md-4">
-                                                                     <div class="card shadow-sm border-0" style="background: linear-gradient(135deg, #f8f9ff 0%, #e7f3ff 100%); border: 1px solid #b3d9ff !important; border-radius: 6px; height: 100%;">
-                                                                         <div class="card-header" style="background: rgba(102, 126, 234, 0.1); border: none; border-bottom: 1px solid #b3d9ff; padding: 0.5rem 0.75rem; border-radius: 6px 6px 0 0;">
-                                                                             <h6 class="mb-0 fw-semibold d-flex align-items-center" style="color: #495057; font-size: 0.85rem;">
-                                                                                 <div style="width: 24px; height: 24px; background: rgba(102, 126, 234, 0.15); border-radius: 5px; display: flex; align-items: center; justify-content: center; margin-right: 6px;">
-                                                                                     <i class="ri-car-line" style="color: #667eea; font-size: 0.8rem;"></i>
-                                                                                 </div>
-                                                                                 Transfer Pricing
-                                                                             </h6>
-                                                                         </div>
-                                                                         <div class="card-body" style="padding: 0.75rem;">
-                                                                             <div id="day${day}_restaurant_1_transport_pricing_content" style="font-size: 0.8rem; color: #495057; line-height: 1.4;">
-                                                                                 <div class="text-muted" style="font-size: 0.75rem; color: #6c757d;">No transport selected</div>
-                                                                             </div>
-                                                                         </div>
-                                                                     </div>
-                                                                 </div>
+                                                         <hr class="my-4" style="border-color: #10b981; border-width: 2px;">
+                                                         <div class="d-flex align-items-center justify-content-between p-3 rounded-3" style="background: linear-gradient(135deg, #10b981 0%, #059669 100%);">
+                                                             <div class="d-flex align-items-center text-white">
+                                                                 <i class="ri-calculator-line me-2 fs-5"></i>
+                                                                 <span class="fw-bold fs-6">Total Amount:</span>
                                                              </div>
-                                                             
-                                                             <!-- Total Price Row -->
-                                                             <div class="row mt-2">
-                                                                 <div class="col-12">
-                                                                     <div class="card shadow-sm border-0" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); border: none; border-radius: 6px; overflow: hidden;">
-                                                                         <div class="card-body" style="padding: 0.75rem 0.875rem;">
-                                                                             <div class="d-flex align-items-center justify-content-between">
-                                                                                 <div class="d-flex align-items-center text-white">
-                                                                                     <div style="width: 28px; height: 28px; background: rgba(255, 255, 255, 0.2); border-radius: 6px; display: flex; align-items: center; justify-content: center; margin-right: 10px;">
-                                                                                         <i class="ri-calculator-line text-white" style="color: #ffffff !important; font-size: 0.95rem;"></i>
-                                                                                     </div>
-                                                                                     <span class="fw-bold" style="font-size: 0.9rem; color: #ffffff !important;">Total Amount:</span>
-                                                                                 </div>
-                                                                                 <div class="text-white">
-                                                                                     <span class="fw-bold" style="font-size: 1.25rem; color: #ffffff !important;">$<span id="day${day}_restaurant_1_total_display">0.00</span></span>
-                                                                                 </div>
-                                                                             </div>
-                                                                         </div>
-                                                                     </div>
-                                                                 </div>
+                                                             <div class="text-white">
+                                                                 <span class="fw-bold fs-4">$<span id="day${day}_restaurant_1_total_display">0.00</span></span>
                                                              </div>
                                                          </div>
                                                      </div>
@@ -13606,7 +13401,7 @@ document.addEventListener('DOMContentLoaded', function() {
                                          </div>
                                      </div>
                                      <div class="col-md-2 local-transfer-field" style="display: none;">
-                                         <button type="button" class="btn btn-primary w-100 py-2 px-3" style="height: 42px; font-size: 0.735rem;" onclick="searchVehicles(${day}, 'transport',0)" id="day${day}_transport_search_btn" disabled>
+                                         <button type="button" class="btn btn-primary w-100 py-2" style="height: 42px; font-size: 0.735rem;" onclick="searchVehicles(${day}, 'transport',0)" id="day${day}_transport_search_btn" disabled>
                                              <i class="ri-search-line me-2"></i>Search Vehicles
                                          </button>
                                      </div>
@@ -14736,143 +14531,104 @@ document.addEventListener('DOMContentLoaded', function() {
                                 <option value="">Select Time Slot</option>
                             </select>
                         </div>
-                       
-
-                        <div class="col-md-4 ">
-                            <label class="form-label fw-semibold mb-1" style="color: #495057; font-size: 0.8rem;">
-                                <i class="ri-ticket-line me-1"></i>Select Ticket
-                            </label>
-                            <select class="form-select" style="height: 36px; border-radius: 6px; border: 1px solid #dee2e6; font-size: 0.8rem; padding: 0.375rem 0.75rem; line-height: 1.4; overflow: hidden; text-overflow: ellipsis;" name="day${day}_attraction_${newIndex}_ticket" id="day${day}_attraction_${newIndex}_ticket" onchange="updateAttractionPricing(${day}, ${newIndex})">
+                        <div class="col-md-3">
+                            <label class="form-label fw-semibold">Select Ticket</label>
+                            <select class="form-select" name="day${day}_attraction_${newIndex}_ticket" id="day${day}_attraction_${newIndex}_ticket" onchange="updateAttractionPricing(${day}, ${newIndex})">
                                 <option value="">Select Ticket</option>
                             </select>
                         </div>
-                        <div class="col-md-4">
-                            <label class="form-label fw-semibold mb-1" style="color: #495057; font-size: 0.8rem;">
-                                <i class="ri-car-line me-1"></i>Transfer Required?
+                    </div>
+                    
+                    <!-- Transfer Required Section -->
+                    <div class="row g-3 mt-2">
+                        <div class="col-md-2">
+                            <label class="form-label fw-semibold">
+                                <i class="ri-car-line me-1"></i>Transfer?
                             </label>
-                            <select class="form-select" style="height: 36px; border-radius: 6px; border: 1px solid #dee2e6; font-size: 0.8rem; padding: 0.375rem 0.75rem; line-height: 1.4; overflow: hidden; text-overflow: ellipsis;" name="day${day}_attraction_${newIndex}_transfer_required" id="day${day}_attraction_${newIndex}_transfer_required" onchange="toggleAttractionTransferFields(${day}, ${newIndex})">
+                            <select class="form-select" name="day${day}_attraction_${newIndex}_transfer_required" id="day${day}_attraction_${newIndex}_transfer_required" onchange="toggleAttractionTransferFields(${day}, ${newIndex})">
                                 <option value="No">No</option>
                                 <option value="Yes">Yes</option>
                             </select>
                         </div>
-                        <div class="col-md-4">
-                            <label class="form-label fw-semibold mb-1" style="color: #495057; font-size: 0.8rem;">
-                                <i class="ri-user-star-line me-1"></i>Guide Required?
+                        
+                        <!-- Transfer Options (Hidden by default) -->
+                        <div class="col-md-2 attraction-transfer-fields" id="day${day}_attraction_${newIndex}_transfer_type_field" style="display: none;">
+                            <label class="form-label fw-semibold">Type</label>
+                            <select class="form-select" name="day${day}_attraction_${newIndex}_transfer_type" id="day${day}_attraction_${newIndex}_transfer_type" onchange="handleAttractionTransferTypeOrWayChange(${day}, ${newIndex})">
+                                <option value="">Select Type</option>
+                                <option value="Private">Private</option>
+                                <option value="Shared">Shared</option>
+                            </select>
+                        </div>
+                        <div class="col-md-2 attraction-transfer-fields" id="day${day}_attraction_${newIndex}_transfer_way_field" style="display: none;">
+                            <label class="form-label fw-semibold">Way</label>
+                            <select class="form-select" name="day${day}_attraction_${newIndex}_transfer_way" id="day${day}_attraction_${newIndex}_transfer_way" onchange="handleAttractionTransferTypeOrWayChange(${day}, ${newIndex})">
+                                <option value="">Select Way</option>
+                                <option value="One Way">One Way</option>
+                                <option value="Both Way">Both Way</option>
+                            </select>
+                        </div>
+                        <div class="col-md-3 attraction-transfer-fields" id="day${day}_attraction_${newIndex}_transfer_vehicle_field" style="display: none;">
+                            <label class="form-label fw-semibold">Vehicle</label>
+                            <select class="form-select" name="day${day}_attraction_${newIndex}_transfer_vehicle" id="day${day}_attraction_${newIndex}_transfer_vehicle" onchange="handleAttractionVehicleChange(${day}, ${newIndex})">
+                                <option value="">Select Vehicle</option>
+                            </select>
+                        </div>
+                        <div class="col-md-3 attraction-transfer-fields" id="day${day}_attraction_${newIndex}_transfer_pickup_field" style="display: none;">
+                            <label class="form-label fw-semibold">
+                                <i class="ri-map-pin-line me-1"></i>Pickup Location
                             </label>
-                            <select class="form-select" style="height: 36px; border-radius: 6px; border: 1px solid #dee2e6; font-size: 0.8rem; padding: 0.375rem 0.75rem; line-height: 1.4; overflow: hidden; text-overflow: ellipsis;" name="day${day}_attraction_${newIndex}_guide_required" id="day${day}_attraction_${newIndex}_guide_required" onchange="toggleAttractionGuideFields(${day}, ${newIndex})">
+                            <select class="form-select" name="day${day}_attraction_${newIndex}_transfer_pickup_location" id="day${day}_attraction_${newIndex}_transfer_pickup_location" onchange="fetchAttractionTransferPricing(${day}, ${newIndex})">
+                                <option value="">Select Pickup Location</option>
+                            </select>
+                        </div>
+                        <div class="col-md-2 attraction-transfer-fields" id="day${day}_attraction_${newIndex}_transfer_cost_field" style="display: none;">
+                            <label class="form-label fw-semibold">Cost</label>
+                            <input type="number" class="form-control" name="day${day}_attraction_${newIndex}_transfer_cost" id="day${day}_attraction_${newIndex}_transfer_cost" min="0" step="0.01" placeholder="0.00" onchange="updateAttractionTransportPricing(${day}, ${newIndex})" oninput="updateAttractionTransportPricing(${day}, ${newIndex})">
+                        </div>
+                        
+                    </div>
+                    
+
+                    
+                    <!-- Guide Required Section -->
+                    <div class="row g-3 mt-2">
+                        <div class="col-md-2">
+                            <label class="form-label fw-semibold">
+                                <i class="ri-user-star-line me-1"></i>Guide?
+                            </label>
+                            <select class="form-select" name="day${day}_attraction_${newIndex}_guide_required" id="day${day}_attraction_${newIndex}_guide_required" onchange="toggleAttractionGuideFields(${day}, ${newIndex})">
                                 <option value="No">No</option>
                                 <option value="Yes">Yes</option>
                             </select>
                         </div>
-                      
-                    </div>
-                    
-                    <!-- Transfer Options Card (Expandable) -->
-                    <div class="card mb-2 attraction-transfer-card" id="day${day}_attraction_${newIndex}_transfer_card" style="display: none; border: 1px solid #dee2e6; border-radius: 8px; box-shadow: 0 2px 6px rgba(0,0,0,0.05); overflow: hidden;">
-                        <div class="card-header" style="background: linear-gradient(135deg, #f8f9ff 0%, #e7f3ff 100%); border: none; border-bottom: 1px solid #b3d9ff; padding: 0.75rem 1rem; cursor: pointer;" onclick="document.getElementById('day${day}_attraction_${newIndex}_transfer_fields').style.display = document.getElementById('day${day}_attraction_${newIndex}_transfer_fields').style.display === 'none' ? 'block' : 'none';">
-                            <div class="d-flex align-items-center justify-content-between">
-                                <h6 class="mb-0 fw-semibold d-flex align-items-center" style="color: #495057; font-size: 0.9rem;">
-                                    <div style="width: 32px; height: 32px; background: rgba(102, 126, 234, 0.15); border-radius: 8px; display: flex; align-items: center; justify-content: center; margin-right: 10px;">
-                                        <i class="ri-car-line" style="color: #667eea; font-size: 0.9rem;"></i>
-                                    </div>
-                                    Transfer Configuration
-                                </h6>
-                                <i class="ri-arrow-down-s-line" id="day${day}_attraction_${newIndex}_transfer_arrow" style="color: #667eea; font-size: 1rem; transition: transform 0.3s;"></i>
-                            </div>
+                        
+                        <!-- Guide Options (Hidden by default) -->
+                        <div class="col-md-4 attraction-guide-fields" id="day${day}_attraction_${newIndex}_guide_select_field" style="display: none;">
+                            <label class="form-label fw-semibold">Select Guide</label>
+                            <select class="form-select attraction-guide-select" name="day${day}_attraction_${newIndex}_guide" id="day${day}_attraction_${newIndex}_guide" onchange="loadAttractionGuideDetails(${day}, this.value, ${newIndex})" disabled>
+                                <option value="">Select city first</option>
+                            </select>
                         </div>
-                        <div class="card-body" id="day${day}_attraction_${newIndex}_transfer_fields" style="display: block; padding: 1rem; background: #ffffff;">
-                            <div class="row g-2">
-                                <div class="col-md-3">
-                                    <label class="form-label fw-semibold mb-1" style="color: #495057; font-size: 0.8rem;">
-                                        <i class="ri-settings-3-line me-1"></i>Type
-                                    </label>
-                                    <select class="form-select" style="height: 36px; border-radius: 6px; border: 1px solid #dee2e6; font-size: 0.8rem; padding: 0.375rem 0.75rem; line-height: 1.4; overflow: hidden; text-overflow: ellipsis;" name="day${day}_attraction_${newIndex}_transfer_type" id="day${day}_attraction_${newIndex}_transfer_type" onchange="handleAttractionTransferTypeOrWayChange(${day}, ${newIndex})">
-                                        <option value="">Select Type</option>
-                                        <option value="Private">Private</option>
-                                        <option value="Shared">Shared</option>
-                                    </select>
-                                </div>
-                                <div class="col-md-3">
-                                    <label class="form-label fw-semibold mb-1" style="color: #495057; font-size: 0.8rem;">
-                                        <i class="ri-route-line me-1"></i>Way
-                                    </label>
-                                    <select class="form-select" style="height: 36px; border-radius: 6px; border: 1px solid #dee2e6; font-size: 0.8rem; padding: 0.375rem 0.75rem; line-height: 1.4; overflow: hidden; text-overflow: ellipsis;" name="day${day}_attraction_${newIndex}_transfer_way" id="day${day}_attraction_${newIndex}_transfer_way" onchange="handleAttractionTransferTypeOrWayChange(${day}, ${newIndex})">
-                                        <option value="">Select Way</option>
-                                        <option value="One Way">One Way</option>
-                                        <option value="Both Way">Both Way</option>
-                                    </select>
-                                </div>
-                                <div class="col-md-3">
-                                    <label class="form-label fw-semibold mb-1" style="color: #495057; font-size: 0.8rem;">
-                                        <i class="ri-car-line me-1"></i>Vehicle
-                                    </label>
-                                    <select class="form-select" style="height: 36px; border-radius: 6px; border: 1px solid #dee2e6; font-size: 0.8rem; padding: 0.375rem 0.75rem; line-height: 1.4; overflow: hidden; text-overflow: ellipsis;" name="day${day}_attraction_${newIndex}_transfer_vehicle" id="day${day}_attraction_${newIndex}_transfer_vehicle" onchange="handleAttractionVehicleChange(${day}, ${newIndex})">
-                                        <option value="">Select Vehicle</option>
-                                    </select>
-                                </div>
-                                <div class="col-md-3">
-                                    <label class="form-label fw-semibold mb-1" style="color: #495057; font-size: 0.8rem;">
-                                        <i class="ri-map-pin-line me-1"></i>Pickup Location
-                                    </label>
-                                    <select class="form-select" style="height: 36px; border-radius: 6px; border: 1px solid #dee2e6; font-size: 0.8rem; padding: 0.375rem 0.75rem; line-height: 1.4; overflow: hidden; text-overflow: ellipsis;" name="day${day}_attraction_${newIndex}_transfer_pickup_location" id="day${day}_attraction_${newIndex}_transfer_pickup_location" onchange="fetchAttractionTransferPricing(${day}, ${newIndex})">
-                                        <option value="">Select Pickup Location</option>
-                                    </select>
-                                </div>
-                                <div class="col-md-3">
-                                    <label class="form-label fw-semibold mb-1" style="color: #495057; font-size: 0.8rem;">
-                                        <i class="ri-money-dollar-circle-line me-1"></i>Cost
-                                    </label>
-                                    <input type="number" class="form-control" style="height: 36px; border-radius: 6px; border: 1px solid #dee2e6; font-size: 0.85rem;" name="day${day}_attraction_${newIndex}_transfer_cost" id="day${day}_attraction_${newIndex}_transfer_cost" min="0" step="0.01" placeholder="0.00" onchange="updateAttractionTransportPricing(${day}, ${newIndex})" oninput="updateAttractionTransportPricing(${day}, ${newIndex})">
-                                </div>
+                        <div class="col-md-3 attraction-guide-fields" id="day${day}_attraction_${newIndex}_guide_pickup_time_field" style="display: none;">
+                            <label class="form-label fw-semibold">Pickup Time</label>
+                            <div id="day${day}_attraction_${newIndex}_guide_pickup_time_options">
+                                <select class="form-select" disabled>
+                                    <option value="">Select guide first</option>
+                                </select>
                             </div>
+                            <input type="hidden" name="day${day}_attraction_${newIndex}_guide_pickup_time" id="day${day}_attraction_${newIndex}_guide_pickup_time">
                         </div>
-                    </div>
-                    
-                    <!-- Guide Options Card (Expandable) -->
-                    <div class="card mb-2 attraction-guide-card" id="day${day}_attraction_${newIndex}_guide_card" style="display: none; border: 1px solid #dee2e6; border-radius: 8px; box-shadow: 0 2px 6px rgba(0,0,0,0.05); overflow: hidden;">
-                        <div class="card-header" style="background: linear-gradient(135deg, #f8f9ff 0%, #e7f3ff 100%); border: none; border-bottom: 1px solid #b3d9ff; padding: 0.75rem 1rem; cursor: pointer;" onclick="document.getElementById('day${day}_attraction_${newIndex}_guide_fields').style.display = document.getElementById('day${day}_attraction_${newIndex}_guide_fields').style.display === 'none' ? 'block' : 'none';">
-                            <div class="d-flex align-items-center justify-content-between">
-                                <h6 class="mb-0 fw-semibold d-flex align-items-center" style="color: #495057; font-size: 0.9rem;">
-                                    <div style="width: 32px; height: 32px; background: rgba(102, 126, 234, 0.15); border-radius: 8px; display: flex; align-items: center; justify-content: center; margin-right: 10px;">
-                                        <i class="ri-user-star-line" style="color: #667eea; font-size: 0.9rem;"></i>
-                                    </div>
-                                    Guide Configuration
-                                </h6>
-                                <i class="ri-arrow-down-s-line" id="day${day}_attraction_${newIndex}_guide_arrow" style="color: #667eea; font-size: 1rem; transition: transform 0.3s;"></i>
-                            </div>
-                        </div>
-                        <div class="card-body" id="day${day}_attraction_${newIndex}_guide_fields" style="display: block; padding: 1rem; background: #ffffff;">
-                            <div class="row g-2">
-                                <div class="col-md-4">
-                                    <label class="form-label fw-semibold mb-1" style="color: #495057; font-size: 0.8rem;">
-                                        <i class="ri-user-star-line me-1"></i>Select Guide
-                                    </label>
-                                    <select class="form-select attraction-guide-select" style="height: 36px; border-radius: 6px; border: 1px solid #dee2e6; font-size: 0.8rem; padding: 0.375rem 0.75rem; line-height: 1.4; overflow: hidden; text-overflow: ellipsis;" name="day${day}_attraction_${newIndex}_guide" id="day${day}_attraction_${newIndex}_guide" onchange="loadAttractionGuideDetails(${day}, this.value, ${newIndex})" disabled>
-                                        <option value="">Select city first</option>
-                                    </select>
-                                </div>
-                                <div class="col-md-4">
-                                    <label class="form-label fw-semibold mb-1" style="color: #495057; font-size: 0.8rem;">
-                                        <i class="ri-time-line me-1"></i>Pickup Time
-                                    </label>
-                                    <div id="day${day}_attraction_${newIndex}_guide_pickup_time_options">
-                                        <select class="form-select" style="height: 36px; border-radius: 6px; border: 1px solid #dee2e6; font-size: 0.8rem; padding: 0.375rem 0.75rem; line-height: 1.4; overflow: hidden; text-overflow: ellipsis;" disabled>
-                                            <option value="">Select guide first</option>
-                                        </select>
-                                    </div>
-                                    <input type="hidden" name="day${day}_attraction_${newIndex}_guide_pickup_time" id="day${day}_attraction_${newIndex}_guide_pickup_time">
-                                </div>
-                                <div class="col-md-4">
-                                    <label class="form-label fw-semibold mb-1" style="color: #495057; font-size: 0.8rem;">
-                                        <i class="ri-calendar-todo-line me-1"></i>Select Package
-                                    </label>
-                                    <select class="form-select" style="height: 36px; border-radius: 6px; border: 1px solid #dee2e6; font-size: 0.8rem; padding: 0.375rem 0.75rem; line-height: 1.4; overflow: hidden; text-overflow: ellipsis;" name="day${day}_attraction_${newIndex}_guide_package" id="day${day}_attraction_${newIndex}_guide_package" onchange="updateAttractionGuidePricing(${day}, ${newIndex})">
-                                        <option value="">Select Duration</option>
-                                    </select>
-                                    
-                                    <!-- Hidden fields for pricing -->
-                                    <input type="hidden" id="day${day}_attraction_${newIndex}_guide_base_price" name="day${day}_attraction_${newIndex}_guide_base_price" value="0">
-                                    <input type="hidden" id="day${day}_attraction_${newIndex}_guide_hours" name="day${day}_attraction_${newIndex}_guide_hours" value="0">
+                        <div class="col-md-3 attraction-guide-fields" id="day${day}_attraction_${newIndex}_guide_package_field" style="display: none;">
+                            <label class="form-label fw-semibold">Select Package</label>
+                            <select class="form-select" name="day${day}_attraction_${newIndex}_guide_package" id="day${day}_attraction_${newIndex}_guide_package" onchange="updateAttractionGuidePricing(${day}, ${newIndex})">
+                                <option value="">Select Duration</option>
+                            </select>
+                            
+                            
+                            <!-- Hidden fields for pricing -->
+                            <input type="hidden" id="day${day}_attraction_${newIndex}_guide_base_price" name="day${day}_attraction_${newIndex}_guide_base_price" value="0">
+                            <input type="hidden" id="day${day}_attraction_${newIndex}_guide_hours" name="day${day}_attraction_${newIndex}_guide_hours" value="0">
                             <input type="hidden" id="day${day}_attraction_${newIndex}_guide_surcharge" name="day${day}_attraction_${newIndex}_guide_surcharge" value="0">
                             <input type="hidden" id="day${day}_attraction_${newIndex}_guide_total_price" name="day${day}_attraction_${newIndex}_guide_total_price" value="0">
                         </div>
@@ -14880,99 +14636,68 @@ document.addEventListener('DOMContentLoaded', function() {
                     
                     <!-- Attraction Price Display with 3 columns -->
                     <div class="col-12 mt-3">
-                        <div id="day${day}_attraction_${newIndex}_price_display" class="card shadow-sm border-0" style="display: none; background: #ffffff; border-radius: 12px; overflow: hidden;">
-                            <div class="card-header text-white" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); border: none; padding: 1rem 1.25rem;">
-                                <div class="d-flex align-items-center justify-content-between">
-                                    <div class="d-flex align-items-center">
-                                        <div style="width: 40px; height: 40px; background: rgba(255, 255, 255, 0.2); border-radius: 10px; display: flex; align-items: center; justify-content: center; margin-right: 12px;">
-                                            <i class="ri-money-dollar-circle-line text-white" style="color: #ffffff !important; font-size: 1.25rem;"></i>
-                                        </div>
-                                        <div>
-                                            <h6 class="mb-0 fw-bold text-white" style="color: #ffffff !important; font-size: 1.1rem;">Attraction Pricing</h6>
-                                            <small class="text-white-75" style="color: rgba(255, 255, 255, 0.85) !important; font-size: 0.8rem;">Select an attraction and configure guests to see pricing</small>
-                                        </div>
+                        <div id="day${day}_attraction_${newIndex}_price_display" class="alert alert-info" style="display: none;">
+                            <div class="d-flex align-items-center justify-content-between mb-3">
+                                <div class="d-flex align-items-center">
+                                    <i class="ri-money-dollar-circle-line me-2 fs-4"></i>
+                                    <div>
+                                        <strong>Attraction Pricing</strong>
+                                        <div class="small">Select an attraction and configure guests to see pricing</div>
                                     </div>
-                                    <button type="button" class="btn btn-sm text-white" onclick="forceUpdateAttractionPricing(${day}, ${newIndex})" title="Refresh Pricing" style="background: rgba(255, 255, 255, 0.2); border: 1px solid rgba(255, 255, 255, 0.3); border-radius: 6px; padding: 0.375rem 0.75rem; transition: all 0.2s;">
-                                        <i class="ri-refresh-line"></i>
-                                    </button>
                                 </div>
+                                <button type="button" class="btn btn-sm btn-outline-primary" onclick="forceUpdateAttractionPricing(${day}, ${newIndex})" title="Refresh Pricing">
+                                    <i class="ri-refresh-line"></i>
+                                </button>
                             </div>
-                            <div class="card-body" style="background: #ffffff; padding: 1.25rem;">
-                                <!-- Three Column Pricing Layout -->
-                                <div class="row g-3" id="day${day}_attraction_${newIndex}_pricing_columns" style="display: none;">
-                                    <!-- Column 1: Attraction/Ticket Pricing -->
-                                    <div class="col-md-4">
-                                        <div class="card shadow-sm border-0" style="background: linear-gradient(135deg, #f8f9ff 0%, #e7f3ff 100%); border: 1px solid #b3d9ff !important; border-radius: 8px; height: 100%;">
-                                            <div class="card-header" style="background: rgba(102, 126, 234, 0.1); border: none; border-bottom: 1px solid #b3d9ff; padding: 0.75rem 1rem; border-radius: 8px 8px 0 0;">
-                                                <h6 class="mb-0 fw-semibold d-flex align-items-center" style="color: #495057; font-size: 0.9rem;">
-                                                    <div style="width: 28px; height: 28px; background: rgba(102, 126, 234, 0.15); border-radius: 6px; display: flex; align-items: center; justify-content: center; margin-right: 8px;">
-                                                        <i class="ri-ticket-line" style="color: #667eea; font-size: 0.9rem;"></i>
-                                                    </div>
-                                                    Ticket Pricing
-                                                </h6>
-                                            </div>
-                                            <div class="card-body" style="padding: 1rem;">
-                                                <div id="day${day}_attraction_${newIndex}_ticket_pricing_content" style="font-size: 0.85rem; color: #495057;">
-                                                    <div class="text-muted" style="font-size: 0.8rem; color: #6c757d;">Select ticket to see pricing</div>
-                                                </div>
-                                            </div>
-                                        </div>
-                                    </div>
-                                    
-                                    <!-- Column 2: Guide Pricing -->
-                                    <div class="col-md-4">
-                                        <div class="card shadow-sm border-0" style="background: linear-gradient(135deg, #f8f9ff 0%, #e7f3ff 100%); border: 1px solid #b3d9ff !important; border-radius: 8px; height: 100%;">
-                                            <div class="card-header" style="background: rgba(102, 126, 234, 0.1); border: none; border-bottom: 1px solid #b3d9ff; padding: 0.75rem 1rem; border-radius: 8px 8px 0 0;">
-                                                <h6 class="mb-0 fw-semibold d-flex align-items-center" style="color: #495057; font-size: 0.9rem;">
-                                                    <div style="width: 28px; height: 28px; background: rgba(102, 126, 234, 0.15); border-radius: 6px; display: flex; align-items: center; justify-content: center; margin-right: 8px;">
-                                                        <i class="ri-user-star-line" style="color: #667eea; font-size: 0.9rem;"></i>
-                                                    </div>
-                                                    Guide Pricing
-                                                </h6>
-                                            </div>
-                                            <div class="card-body" style="padding: 1rem;">
-                                                <div id="day${day}_attraction_${newIndex}_guide_pricing_content" style="font-size: 0.85rem; color: #495057;">
-                                                    <div class="text-muted" style="font-size: 0.8rem; color: #6c757d;">No guide selected</div>
-                                                </div>
-                                            </div>
-                                        </div>
-                                    </div>
-                                    
-                                    <!-- Column 3: Transport Pricing -->
-                                    <div class="col-md-4">
-                                        <div class="card shadow-sm border-0" style="background: linear-gradient(135deg, #f8f9ff 0%, #e7f3ff 100%); border: 1px solid #b3d9ff !important; border-radius: 8px; height: 100%;">
-                                            <div class="card-header" style="background: rgba(102, 126, 234, 0.1); border: none; border-bottom: 1px solid #b3d9ff; padding: 0.75rem 1rem; border-radius: 8px 8px 0 0;">
-                                                <h6 class="mb-0 fw-semibold d-flex align-items-center" style="color: #495057; font-size: 0.9rem;">
-                                                    <div style="width: 28px; height: 28px; background: rgba(102, 126, 234, 0.15); border-radius: 6px; display: flex; align-items: center; justify-content: center; margin-right: 8px;">
-                                                        <i class="ri-car-line" style="color: #667eea; font-size: 0.9rem;"></i>
-                                                    </div>
-                                                    Transport Pricing
-                                                </h6>
-                                            </div>
-                                            <div class="card-body" style="padding: 1rem;">
-                                                <div id="day${day}_attraction_${newIndex}_transport_pricing_content" style="font-size: 0.85rem; color: #495057;">
-                                                    <div class="text-muted" style="font-size: 0.8rem; color: #6c757d;">No transport selected</div>
-                                                </div>
-                                            </div>
+                            
+                            <!-- Three Column Pricing Layout -->
+                            <div class="row g-3" id="day${day}_attraction_${newIndex}_pricing_columns" style="display: none;">
+                                <!-- Column 1: Attraction/Ticket Pricing -->
+                                <div class="col-md-4">
+                                    <div class="p-3 rounded-3 bg-white border border-info">
+                                        <h6 class="text-info mb-3 fw-bold">
+                                            <i class="ri-ticket-line me-2"></i>Ticket Pricing
+                                        </h6>
+                                        <div id="day${day}_attraction_${newIndex}_ticket_pricing_content">
+                                            <div class="text-muted small">Select ticket to see pricing</div>
                                         </div>
                                     </div>
                                 </div>
                                 
-                                <!-- Total Price Row -->
-                                <div class="row mt-3" id="day${day}_attraction_${newIndex}_total_price_row" style="display: none;">
-                                    <div class="col-12">
-                                        <div class="card shadow-sm border-0" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); border-radius: 8px; box-shadow: 0 4px 12px rgba(102, 126, 234, 0.3);">
-                                            <div class="card-body" style="padding: 1rem 1.25rem;">
-                                                <div class="d-flex justify-content-between align-items-center">
-                                                    <h6 class="mb-0 fw-bold text-white d-flex align-items-center" style="color: #ffffff !important; font-size: 1rem;">
-                                                        <div style="width: 32px; height: 32px; background: rgba(255, 255, 255, 0.2); border-radius: 8px; display: flex; align-items: center; justify-content: center; margin-right: 10px;">
-                                                            <i class="ri-calculator-line" style="color: #ffffff !important; font-size: 1rem;"></i>
-                                                        </div>
-                                                        Total Price
-                                                    </h6>
-                                                    <span class="fw-bold text-white" style="font-size: 1.5rem; color: #ffffff !important;" id="day${day}_attraction_${newIndex}_total_price_display">$0.00</span>
-                                                </div>
-                                            </div>
+                                <!-- Column 2: Guide Pricing -->
+                                <div class="col-md-4">
+                                    <div class="p-3 rounded-3 bg-white border border-primary">
+                                        <h6 class="text-primary mb-3 fw-bold">
+                                            <i class="ri-user-line me-2"></i>Guide Pricing
+                                        </h6>
+                                        <div id="day${day}_attraction_${newIndex}_guide_pricing_content">
+                                            <div class="text-muted small">No guide selected</div>
+                                        </div>
+                                    </div>
+                                </div>
+                                
+                                <!-- Column 3: Transport Pricing -->
+                                <div class="col-md-4">
+                                    <div class="p-3 rounded-3 bg-white border border-success">
+                                        <h6 class="text-success mb-3 fw-bold">
+                                            <i class="ri-car-line me-2"></i>Transport Pricing
+                                        </h6>
+                                        <div id="day${day}_attraction_${newIndex}_transport_pricing_content">
+                                            <div class="text-muted small">No transport selected</div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                            
+                            <!-- Total Price Row -->
+                            <div class="row mt-3" id="day${day}_attraction_${newIndex}_total_price_row" style="display: none;">
+                                <div class="col-12">
+                                    <div class="p-3 rounded-3 bg-success text-white">
+                                        <div class="d-flex justify-content-between align-items-center">
+                                            <h6 class="mb-0 fw-bold">
+                                                <i class="ri-calculator-line me-2"></i>Total Price
+                                            </h6>
+                                            <span class="fw-bold fs-4" id="day${day}_attraction_${newIndex}_total_price_display">$0.00</span>
                                         </div>
                                     </div>
                                 </div>
@@ -16208,179 +15933,111 @@ document.addEventListener('DOMContentLoaded', function() {
                             <input type="hidden" name="day${day}_restaurant_${newIndex}_meal_id" id="day${day}_restaurant_${newIndex}_meal_id" value="">
                             <input type="hidden" name="day${day}_restaurant_${newIndex}_dish_name" id="day${day}_restaurant_${newIndex}_dish_name" value="">
                         </div>
-                                                 <div class="row g-2 mb-2">
-                         <div class="col-md-3">
-                             <label class="form-label fw-semibold mb-1" style="color: #495057; font-size: 0.8rem;">
-                                 <i class="ri-restaurant-2-line me-1"></i>Meal Type
-                             </label>
-                             <select class="form-select" style="height: 36px; border-radius: 6px; border: 1px solid #dee2e6; font-size: 0.8rem; padding: 0.375rem 0.75rem; line-height: 1.4; overflow: hidden; text-overflow: ellipsis;" name="day${day}_meal_type_${newIndex}" id="day${day}_meal_type_${newIndex}">
+                                                 <div class="col-md-2">
+                             <label class="form-label fw-semibold">Meal Type</label>
+                             <select class="form-select" name="day${day}_meal_type_${newIndex}" id="day${day}_meal_type_${newIndex}">
                                  <option value="">Select Meal Type</option>
                              </select>
+                             <small class="text-muted">Available meal types with timings</small>
                          </div>
-                         <div class="col-md-3" id="day${day}_dish_container_${newIndex}" style="display: none;">
-                             <label class="form-label fw-semibold mb-1" style="color: #495057; font-size: 0.8rem;">
-                                 <i class="ri-menu-line me-1"></i>Select Dish
-                             </label>
-                             <select class="form-select" style="height: 36px; border-radius: 6px; border: 1px solid #dee2e6; font-size: 0.8rem; padding: 0.375rem 0.75rem; line-height: 1.4; overflow: hidden; text-overflow: ellipsis;" name="day${day}_dish_${newIndex}" id="day${day}_dish_${newIndex}" onchange="updateRestaurantPricing(${day}, ${newIndex})">
+                         <div class="col-md-2" id="day${day}_dish_container_${newIndex}" style="display: none;">
+                             <label class="form-label fw-semibold">Select Dish</label>
+                             <select class="form-select" name="day${day}_dish_${newIndex}" id="day${day}_dish_${newIndex}" onchange="updateRestaurantPricing(${day}, ${newIndex})">
                                  <option value="">Select Dish</option>
                              </select>
+                             <small class="text-muted">Buffet or Set Menu options</small>
                          </div>
-                         <div class="col-md-3">
-                             <label class="form-label fw-semibold mb-1" style="color: #495057; font-size: 0.8rem;">
-                                 <i class="ri-time-line me-1"></i>Time Slot
-                             </label>
-                             <select class="form-select" style="height: 36px; border-radius: 6px; border: 1px solid #dee2e6; font-size: 0.8rem; padding: 0.375rem 0.75rem; line-height: 1.4; overflow: hidden; text-overflow: ellipsis;" name="day${day}_time_slot_${newIndex}" id="day${day}_time_slot_${newIndex}">
+                         <div class="col-md-2">
+                             <label class="form-label fw-semibold">Time Slot</label>
+                             <select class="form-select" name="day${day}_time_slot_${newIndex}" id="day${day}_time_slot_${newIndex}">
                                  <option value="">Select Time Slot</option>
                              </select>
-                         </div>
-                         <div class="col-md-3">
-                             <label class="form-label fw-semibold mb-1" style="color: #495057; font-size: 0.8rem;">
-                                 <i class="ri-car-line me-1"></i>Transfer Required?
-                             </label>
-                             <select class="form-select" style="height: 36px; border-radius: 6px; border: 1px solid #dee2e6; font-size: 0.8rem; padding: 0.375rem 0.75rem; line-height: 1.4; overflow: hidden; text-overflow: ellipsis;" name="day${day}_restaurant_${newIndex}_transfer_required" id="day${day}_restaurant_${newIndex}_transfer_required" onchange="toggleRestaurantTransferFields(${day}, ${newIndex})">
-                                 <option value="No">No</option>
-                                 <option value="Yes">Yes</option>
-                             </select>
+                             <small class="text-muted">Available time slots</small>
                          </div>
                     </div>
                     
-                    <!-- Transfer Options Card (Expandable) -->
-                    <div class="card mb-2 restaurant-transfer-card" id="day${day}_restaurant_${newIndex}_transfer_card" style="display: none; border: 1px solid #dee2e6; border-radius: 8px; box-shadow: 0 2px 6px rgba(0,0,0,0.05); overflow: hidden;">
-                        <div class="card-header" style="background: linear-gradient(135deg, #f8f9ff 0%, #e7f3ff 100%); border: none; border-bottom: 1px solid #b3d9ff; padding: 0.75rem 1rem; cursor: pointer;" onclick="document.getElementById('day${day}_restaurant_${newIndex}_transfer_fields').style.display = document.getElementById('day${day}_restaurant_${newIndex}_transfer_fields').style.display === 'none' ? 'block' : 'none';">
-                            <div class="d-flex align-items-center justify-content-between">
-                                <h6 class="mb-0 fw-semibold d-flex align-items-center" style="color: #495057; font-size: 0.9rem;">
-                                    <div style="width: 32px; height: 32px; background: rgba(102, 126, 234, 0.15); border-radius: 8px; display: flex; align-items: center; justify-content: center; margin-right: 10px;">
-                                        <i class="ri-car-line" style="color: #667eea; font-size: 0.9rem;"></i>
-                                    </div>
-                                    Transfer Configuration
-                                </h6>
-                                <i class="ri-arrow-down-s-line" id="day${day}_restaurant_${newIndex}_transfer_arrow" style="color: #667eea; font-size: 1rem; transition: transform 0.3s;"></i>
-                            </div>
+                    <!-- Transfer Required Section -->
+                    <div class="row g-3 mt-2">
+                        <div class="col-md-2">
+                            <label class="form-label fw-semibold">
+                                <i class="ri-car-line me-1"></i>Transfer?
+                            </label>
+                            <select class="form-select" name="day${day}_restaurant_${newIndex}_transfer_required" id="day${day}_restaurant_${newIndex}_transfer_required" onchange="toggleRestaurantTransferFields(${day}, ${newIndex})">
+                                <option value="No">No</option>
+                                <option value="Yes">Yes</option>
+                            </select>
                         </div>
-                        <div class="card-body" id="day${day}_restaurant_${newIndex}_transfer_fields" style="display: block; padding: 1rem; background: #ffffff;">
-                            <div class="row g-2">
-                                <div class="col-md-3">
-                                    <label class="form-label fw-semibold mb-1" style="color: #495057; font-size: 0.8rem;">
-                                        <i class="ri-settings-3-line me-1"></i>Type
-                                    </label>
-                                    <select class="form-select" style="height: 36px; border-radius: 6px; border: 1px solid #dee2e6; font-size: 0.8rem; padding: 0.375rem 0.75rem; line-height: 1.4; overflow: hidden; text-overflow: ellipsis;" name="day${day}_restaurant_${newIndex}_transfer_type" id="day${day}_restaurant_${newIndex}_transfer_type" onchange="handleRestaurantTransferTypeOrWayChange(${day}, ${newIndex})">
-                                        <option value="">Select Type</option>
-                                        <option value="Private">Private</option>
-                                        <option value="Shared">Shared</option>
-                                    </select>
-                                </div>
-                                <div class="col-md-3">
-                                    <label class="form-label fw-semibold mb-1" style="color: #495057; font-size: 0.8rem;">
-                                        <i class="ri-route-line me-1"></i>Way
-                                    </label>
-                                    <select class="form-select" style="height: 36px; border-radius: 6px; border: 1px solid #dee2e6; font-size: 0.8rem; padding: 0.375rem 0.75rem; line-height: 1.4; overflow: hidden; text-overflow: ellipsis;" name="day${day}_restaurant_${newIndex}_transfer_way" id="day${day}_restaurant_${newIndex}_transfer_way" onchange="handleRestaurantTransferTypeOrWayChange(${day}, ${newIndex})">
-                                        <option value="">Select Way</option>
-                                        <option value="One Way">One Way</option>
-                                        <option value="Both Way">Both Way</option>
-                                    </select>
-                                </div>
-                                <div class="col-md-3">
-                                    <label class="form-label fw-semibold mb-1" style="color: #495057; font-size: 0.8rem;">
-                                        <i class="ri-car-line me-1"></i>Vehicle
-                                    </label>
-                                    <select class="form-select" style="height: 36px; border-radius: 6px; border: 1px solid #dee2e6; font-size: 0.8rem; padding: 0.375rem 0.75rem; line-height: 1.4; overflow: hidden; text-overflow: ellipsis;" name="day${day}_restaurant_${newIndex}_transfer_vehicle" id="day${day}_restaurant_${newIndex}_transfer_vehicle" onchange="handleRestaurantVehicleChange(${day}, ${newIndex})">
-                                        <option value="">Select Vehicle</option>
-                                    </select>
-                                </div>
-                                <div class="col-md-3">
-                                    <label class="form-label fw-semibold mb-1" style="color: #495057; font-size: 0.8rem;">
-                                        <i class="ri-map-pin-line me-1"></i>Pickup Location
-                                    </label>
-                                    <select class="form-select" style="height: 36px; border-radius: 6px; border: 1px solid #dee2e6; font-size: 0.8rem; padding: 0.375rem 0.75rem; line-height: 1.4; overflow: hidden; text-overflow: ellipsis;" name="day${day}_restaurant_${newIndex}_transfer_pickup_location" id="day${day}_restaurant_${newIndex}_transfer_pickup_location" onchange="fetchRestaurantTransferPricing(${day}, ${newIndex})">
-                                        <option value="">Select Pickup Location</option>
-                                    </select>
-                                </div>
-                                <div class="col-md-3">
-                                    <label class="form-label fw-semibold mb-1" style="color: #495057; font-size: 0.8rem;">
-                                        <i class="ri-money-dollar-circle-line me-1"></i>Transfer Cost
-                                    </label>
-                                    <input type="number" class="form-control" style="height: 36px; border-radius: 6px; border: 1px solid #dee2e6; font-size: 0.8rem; padding: 0.375rem 0.75rem;" name="day${day}_restaurant_${newIndex}_transfer_cost" id="day${day}_restaurant_${newIndex}_transfer_cost" min="0" step="0.01" placeholder="0.00" onchange="updateRestaurantTransportPricing(${day}, ${newIndex})" oninput="updateRestaurantTransportPricing(${day}, ${newIndex})">
-                                </div>
-                            </div>
+                        
+                        <!-- Transfer Options (Hidden by default) -->
+                        <div class="col-md-2 restaurant-transfer-fields" id="day${day}_restaurant_${newIndex}_transfer_type_field" style="display: none;">
+                            <label class="form-label fw-semibold">Type</label>
+                            <select class="form-select" name="day${day}_restaurant_${newIndex}_transfer_type" id="day${day}_restaurant_${newIndex}_transfer_type" onchange="handleRestaurantTransferTypeOrWayChange(${day}, ${newIndex})">
+                                <option value="">Select Type</option>
+                                <option value="Private">Private</option>
+                                <option value="Shared">Shared</option>
+                            </select>
+                        </div>
+                        <div class="col-md-2 restaurant-transfer-fields" id="day${day}_restaurant_${newIndex}_transfer_way_field" style="display: none;">
+                            <label class="form-label fw-semibold">Way</label>
+                            <select class="form-select" name="day${day}_restaurant_${newIndex}_transfer_way" id="day${day}_restaurant_${newIndex}_transfer_way" onchange="handleRestaurantTransferTypeOrWayChange(${day}, ${newIndex})">
+                                <option value="">Select Way</option>
+                                <option value="One Way">One Way</option>
+                                <option value="Both Way">Both Way</option>
+                            </select>
+                        </div>
+                        <div class="col-md-3 restaurant-transfer-fields" id="day${day}_restaurant_${newIndex}_transfer_vehicle_field" style="display: none;">
+                            <label class="form-label fw-semibold">Vehicle</label>
+                            <select class="form-select" name="day${day}_restaurant_${newIndex}_transfer_vehicle" id="day${day}_restaurant_${newIndex}_transfer_vehicle" onchange="handleRestaurantVehicleChange(${day}, ${newIndex})">
+                                <option value="">Select Vehicle</option>
+                            </select>
+                        </div>
+                        
+                        <div class="col-md-3 restaurant-transfer-fields" id="day${day}_restaurant_${newIndex}_transfer_pickup_field" style="display: none;">
+                            <label class="form-label fw-semibold">
+                                <i class="ri-map-pin-line me-1"></i>Pickup Location
+                            </label>
+                            <select class="form-select" name="day${day}_restaurant_${newIndex}_transfer_pickup_location" id="day${day}_restaurant_${newIndex}_transfer_pickup_location" onchange="fetchRestaurantTransferPricing(${day}, ${newIndex})">
+                                <option value="">Select Pickup Location</option>
+                            </select>
+                        </div>
+                        <div class="col-md-1 restaurant-transfer-fields" id="day${day}_restaurant_${newIndex}_transfer_cost_field" style="display: none;">
+                            <label class="form-label fw-semibold">Cost</label>
+                            <input type="number" class="form-control" name="day${day}_restaurant_${newIndex}_transfer_cost" id="day${day}_restaurant_${newIndex}_transfer_cost" min="0" step="0.01" placeholder="0.00" onchange="updateRestaurantTransportPricing(${day}, ${newIndex})" oninput="updateRestaurantTransportPricing(${day}, ${newIndex})">
                         </div>
                     </div>
                     
                     <!-- Restaurant Pricing Section -->
-                    <div id="day${day}_restaurant_${newIndex}_price_display" class="mt-2" style="display: none;">
-                        <div class="card shadow-sm border-0" style="background: #ffffff; border-radius: 8px; overflow: hidden;">
-                            <div class="card-header text-white" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); border: none; padding: 0.625rem 0.875rem;">
-                                <div class="d-flex align-items-center justify-content-between">
-                                    <div class="d-flex align-items-center">
-                                        <div style="width: 32px; height: 32px; background: rgba(255, 255, 255, 0.2); border-radius: 8px; display: flex; align-items: center; justify-content: center; margin-right: 10px;">
-                                            <i class="ri-restaurant-line text-white" style="color: #ffffff !important; font-size: 1rem;"></i>
+                    <div id="day${day}_restaurant_${newIndex}_price_display" class="mt-3" style="display: none;">
+                        <div class="alert alert-success">
+                            <div class="d-flex align-items-center mb-3">
+                                <i class="ri-restaurant-line me-2 fs-4"></i>
+                                <div>
+                                    <strong>Restaurant Pricing: <span id="day${day}_restaurant_${newIndex}_restaurant_name">Restaurant Name</span></strong>
+                                </div>
+                            </div>
+                            <div class="row g-3">
+                                <div class="col-md-9">
+                                    <div>
+                                        <strong class="d-block mb-2">Restaurant Pricing</strong>
+                                        <div class="small" id="day${day}_restaurant_${newIndex}_pricing_details">
+                                            Select a restaurant and configure guests to see pricing
                                         </div>
-                                        <div>
-                                            <h6 class="mb-0 fw-bold text-white" style="color: #ffffff !important; font-size: 0.95rem; line-height: 1.2;">Restaurant Pricing</h6>
-                                            <small class="text-white-75" style="color: rgba(255, 255, 255, 0.85) !important; font-size: 0.75rem; line-height: 1.2;">Restaurant: <span id="day${day}_restaurant_${newIndex}_restaurant_name" style="color: rgba(255, 255, 255, 0.95) !important; font-weight: 600;">Restaurant Name</span></small>
+                                    </div>
+                                </div>
+                                <div class="col-md-3">
+                                    <div>
+                                        <strong class="d-block mb-2">Transfer Pricing</strong>
+                                        <div id="day${day}_restaurant_${newIndex}_transport_pricing_content">
+                                            <div class="text-muted small">No transport selected</div>
                                         </div>
                                     </div>
                                 </div>
                             </div>
-                            <div class="card-body" style="background: #ffffff; padding: 0.875rem;">
-                                <!-- Two Column Pricing Layout -->
-                                <div class="row g-2">
-                                    <!-- Column 1: Restaurant Pricing -->
-                                    <div class="col-md-8">
-                                        <div class="card shadow-sm border-0" style="background: linear-gradient(135deg, #f8f9ff 0%, #e7f3ff 100%); border: 1px solid #b3d9ff !important; border-radius: 6px; height: 100%;">
-                                            <div class="card-header" style="background: rgba(102, 126, 234, 0.1); border: none; border-bottom: 1px solid #b3d9ff; padding: 0.5rem 0.75rem; border-radius: 6px 6px 0 0;">
-                                                <h6 class="mb-0 fw-semibold d-flex align-items-center" style="color: #495057; font-size: 0.85rem;">
-                                                    <div style="width: 24px; height: 24px; background: rgba(102, 126, 234, 0.15); border-radius: 5px; display: flex; align-items: center; justify-content: center; margin-right: 6px;">
-                                                        <i class="ri-restaurant-2-line" style="color: #667eea; font-size: 0.8rem;"></i>
-                                                    </div>
-                                                    Restaurant Pricing Details
-                                                </h6>
-                                            </div>
-                                            <div class="card-body" style="padding: 0.75rem;">
-                                                <div id="day${day}_restaurant_${newIndex}_pricing_details" style="font-size: 0.8rem; color: #495057; line-height: 1.4;">
-                                                    <div class="text-muted" style="font-size: 0.75rem; color: #6c757d;">Select a restaurant and configure guests to see pricing</div>
-                                                </div>
-                                            </div>
-                                        </div>
-                                    </div>
-                                    
-                                    <!-- Column 2: Transfer Pricing -->
-                                    <div class="col-md-4">
-                                        <div class="card shadow-sm border-0" style="background: linear-gradient(135deg, #f8f9ff 0%, #e7f3ff 100%); border: 1px solid #b3d9ff !important; border-radius: 6px; height: 100%;">
-                                            <div class="card-header" style="background: rgba(102, 126, 234, 0.1); border: none; border-bottom: 1px solid #b3d9ff; padding: 0.5rem 0.75rem; border-radius: 6px 6px 0 0;">
-                                                <h6 class="mb-0 fw-semibold d-flex align-items-center" style="color: #495057; font-size: 0.85rem;">
-                                                    <div style="width: 24px; height: 24px; background: rgba(102, 126, 234, 0.15); border-radius: 5px; display: flex; align-items: center; justify-content: center; margin-right: 6px;">
-                                                        <i class="ri-car-line" style="color: #667eea; font-size: 0.8rem;"></i>
-                                                    </div>
-                                                    Transfer Pricing
-                                                </h6>
-                                            </div>
-                                            <div class="card-body" style="padding: 0.75rem;">
-                                                <div id="day${day}_restaurant_${newIndex}_transport_pricing_content" style="font-size: 0.8rem; color: #495057; line-height: 1.4;">
-                                                    <div class="text-muted" style="font-size: 0.75rem; color: #6c757d;">No transport selected</div>
-                                                </div>
-                                            </div>
-                                        </div>
-                                    </div>
-                                </div>
-                                
-                                <!-- Total Price Row -->
-                                <div class="row mt-2">
-                                    <div class="col-12">
-                                        <div class="card shadow-sm border-0" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); border: none; border-radius: 6px; overflow: hidden;">
-                                            <div class="card-body" style="padding: 0.75rem 0.875rem;">
-                                                <div class="d-flex align-items-center justify-content-between">
-                                                    <div class="d-flex align-items-center text-white">
-                                                        <div style="width: 28px; height: 28px; background: rgba(255, 255, 255, 0.2); border-radius: 6px; display: flex; align-items: center; justify-content: center; margin-right: 10px;">
-                                                            <i class="ri-calculator-line text-white" style="color: #ffffff !important; font-size: 0.95rem;"></i>
-                                                        </div>
-                                                        <span class="fw-bold" style="font-size: 0.9rem; color: #ffffff !important;">Total Amount:</span>
-                                                    </div>
-                                                    <div class="text-white">
-                                                        <span class="fw-bold" style="font-size: 1.25rem; color: #ffffff !important;">$<span id="day${day}_restaurant_${newIndex}_total_display">0.00</span></span>
-                                                    </div>
-                                                </div>
-                                            </div>
-                                        </div>
+                            <hr class="my-2">
+                            <div class="row">
+                                <div class="col-12">
+                                    <div class="text-end">
+                                        <strong class="fs-5 text-success">Total: $<span id="day${day}_restaurant_${newIndex}_total_display">0.00</span></strong>
                                     </div>
                                 </div>
                             </div>
@@ -16995,36 +16652,32 @@ document.addEventListener('DOMContentLoaded', function() {
                             
                             <!-- Guide Price Display Section -->
                             <div id="day${day}_guide_${newIndex}_price_display" class="mt-3" style="display: none;">
-                                <div class="card shadow-sm border-0" style="background: linear-gradient(135deg, #f8f9ff 0%, #e7f3ff 100%); border: 1px solid #b3d9ff !important; border-radius: 8px; overflow: hidden;">
-                                    <div class="card-header" style="background: rgba(102, 126, 234, 0.1); border: none; border-bottom: 1px solid #b3d9ff; padding: 0.75rem 1rem;">
-                                        <h6 class="mb-0 fw-semibold d-flex align-items-center" style="color: #495057; font-size: 0.9rem;">
-                                            <div style="width: 28px; height: 28px; background: rgba(102, 126, 234, 0.15); border-radius: 6px; display: flex; align-items: center; justify-content: center; margin-right: 8px;">
-                                                <i class="ri-user-star-line" style="color: #667eea; font-size: 0.9rem;"></i>
-                                            </div>
-                                            Guide Pricing: <span id="day${day}_guide_${newIndex}_guide_name" style="color: #667eea; font-weight: 600;">Guide Name</span>
-                                        </h6>
-                                    </div>
-                                    <div class="card-body" style="padding: 1rem; background: #ffffff;">
-                                        <div class="d-flex align-items-center justify-content-between mb-2" style="font-size: 0.85rem;">
-                                            <span style="color: #6c757d;">Package Price:</span>
-                                            <span class="fw-semibold" style="color: #495057;" id="day${day}_guide_${newIndex}_package_price_display">$0.00</span>
+                                <div class="p-2 rounded-3 w-100" style="background-color: #e3f2fd; border: 1px solid #bbdefb; border-radius: 8px;">
+                                    <h6 class="text-primary mb-2 fw-bold">
+                                        <i class="ri-user-line me-2"></i>Guide Pricing: <span id="day${day}_guide_${newIndex}_guide_name">Guide Name</span>
+                                    </h6>
+                                    
+                                    <div>
+                                        <div class="d-flex align-items-center mb-1">
+                                            <span class="text-primary small me-2">Package Price:</span>
+                                            <span class="fw-semibold text-primary" id="day${day}_guide_${newIndex}_package_price_display">$0.00</span>
                                         </div>
                                         
-                                        <div class="d-flex align-items-center justify-content-between mb-2" style="font-size: 0.85rem;">
-                                            <span style="color: #6c757d;">Duration:</span>
-                                            <span class="fw-semibold" style="color: #495057;" id="day${day}_guide_${newIndex}_hours_display">0 hours</span>
+                                        <div class="d-flex align-items-center mb-1">
+                                            <span class="text-primary small me-2">Duration:</span>
+                                            <span class="fw-semibold text-primary" id="day${day}_guide_${newIndex}_hours_display">0 hours</span>
                                         </div>
                                         
-                                        <div class="d-flex align-items-center justify-content-between mb-2" id="day${day}_guide_${newIndex}_surcharge_row" style="display: none; font-size: 0.85rem;">
-                                            <span style="color: #6c757d;">Night Surcharge:</span>
-                                            <span class="fw-semibold" style="color: #ff9800;" id="day${day}_guide_${newIndex}_surcharge_display">$0.00</span>
+                                        <div class="d-flex align-items-center mb-1" id="day${day}_guide_${newIndex}_surcharge_row" style="display: none;">
+                                            <span class="text-primary small me-2">Night Surcharge:</span>
+                                            <span class="fw-semibold text-warning" id="day${day}_guide_${newIndex}_surcharge_display">$0.00</span>
                                         </div>
                                         
-                                        <hr class="my-2" style="border-color: #b3d9ff; border-width: 1px; opacity: 0.5;">
+                                        <hr class="my-1" style="border-color: #bbdefb;">
                                         
-                                        <div class="d-flex align-items-center justify-content-between">
-                                            <span class="fw-bold" style="color: #495057; font-size: 0.95rem;">Total Price:</span>
-                                            <span class="fw-bold" style="color: #667eea; font-size: 1.25rem;" id="day${day}_guide_${newIndex}_total_price_display">$0.00</span>
+                                        <div class="d-flex align-items-center">
+                                            <span class="fw-bold text-primary me-2">Total Price:</span>
+                                            <span class="fw-bold text-success fs-6" id="day${day}_guide_${newIndex}_total_price_display">$0.00</span>
                                         </div>
                                     </div>
                                 </div>
@@ -17958,89 +17611,93 @@ document.addEventListener('DOMContentLoaded', function() {
          const newIndex = existingPorts.length + 1;
          
                  const newPortHTML = `
-            <div class="card entry-port-item mb-2" data-entry-port-index="${newIndex}" style="border: 1px solid #dee2e6; border-radius: 8px; box-shadow: 0 2px 6px rgba(0,0,0,0.05);">
-                <div class="card-header" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); border: none; padding: 0.75rem 1rem;">
+            <div class="card border-primary shadow-sm entry-port-item mb-3" data-entry-port-index="${newIndex}" style="border-color: #b8daff !important;">
+                <div class="card-header text-primary" style="background-color: #e7f3ff; border-bottom: 1px solid #b8daff;">
                     <div class="d-flex align-items-center justify-content-between">
                         <div class="d-flex align-items-center">
-                            <div style="width: 32px; height: 32px; background: rgba(255, 255, 255, 0.2); border-radius: 8px; display: flex; align-items: center; justify-content: center; margin-right: 10px;">
-                                <i class="ri-login-circle-line text-white" style="color: #ffffff !important; font-size: 1rem;"></i>
-                            </div>
+                            <span class="service-icon me-3" style="background-color: rgba(0,123,255,0.1); color: #0c63e4;">
+                                <i class="ri-login-circle-line fs-4"></i>
+                            </span>
                             <div>
-                                <h6 class="mb-0 fw-bold text-white" style="color: #ffffff !important; font-size: 0.95rem;">Available Vehicles #${newIndex}</h6>
-                                <small class="text-white-75" style="color: rgba(255, 255, 255, 0.85) !important; font-size: 0.75rem;">Arrival transportation option</small>
+                                <h6 class="mb-0 fw-bold text-primary">Available Vehicles #${newIndex}</h6>
+                                <small class="text-muted">Arrival transportation option</small>
                             </div>
                         </div>
-                        <button type="button" class="btn btn-sm" onclick="removeEntryPort(this, ${day}, ${newIndex})" title="Remove this vehicle option" style="background: rgba(255, 255, 255, 0.2); border: 1px solid rgba(255, 255, 255, 0.3); color: #ffffff; border-radius: 6px; padding: 0.25rem 0.5rem; font-size: 0.8rem;">
+                        <button type="button" class="btn btn-sm btn-outline-primary" onclick="removeEntryPort(this, ${day}, ${newIndex})" title="Remove this vehicle option">
                             <i class="ri-close-line"></i>
                         </button>
                     </div>
                 </div>
-                <div class="card-body" style="background: #ffffff; padding: 1rem;">
-                    <div class="row g-2">
-                        <div class="col-md-4">
-                            <label class="form-label fw-semibold mb-1" style="color: #495057; font-size: 0.8rem;">
-                                <i class="ri-car-line me-1"></i>Vehicle
-                            </label>
-                            <select class="form-select vehicle-select" name="day${day}_entry_${newIndex}_vehicle_id" id="day${day}_entry_${newIndex}_vehicle_id" onchange="updateVehicleDetails(${day}, 'entry_${newIndex}'); validatePassengerCapacity(${day}, 'entry_${newIndex}'); updateTypeSelect(event, ${day}, 'entry_${newIndex}')" data-newFieldType="added_entry_${newIndex}" style="height: 36px; border-radius: 6px; border: 1px solid #dee2e6; font-size: 0.85rem;">
+                <div class="card-body bg-white">
+                    <div class="alert alert-light mb-3" style="background-color: #f8f9fa; border-color: #e9ecef; color: #6c757d;">
+                        <div class="d-flex align-items-center">
+                            <i class="ri-car-line me-2 fs-4 text-primary"></i>
+                            <div>
+                                <strong class="text-dark">Available Vehicles #${newIndex}</strong>
+                                <div class="small text-muted">Select your preferred vehicle and service type below</div>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="row">
+                        <div class="col-md-6">
+                            <label class="form-label fw-semibold">Vehicle</label>
+                            <select class="form-select vehicle-select" name="day${day}_entry_${newIndex}_vehicle_id" id="day${day}_entry_${newIndex}_vehicle_id" onchange="updateVehicleDetails(${day}, 'entry_${newIndex}'); validatePassengerCapacity(${day}, 'entry_${newIndex}'); updateTypeSelect(event, ${day}, 'entry_${newIndex}')" data-newFieldType="added_entry_${newIndex}">
                                 <option value="">Choose vehicle</option>
                             </select>
                         </div>
-                        <div class="col-md-4">
-                            <label class="form-label fw-semibold mb-1" style="color: #495057; font-size: 0.8rem;">
-                                <i class="ri-settings-3-line me-1"></i>Service Type
-                            </label>
-                            <select class="form-select service-type-select" name="day${day}_entry_${newIndex}_service_type" id="day${day}_entry_${newIndex}_service_type" onchange="updatePricing(${day}, 'entry_${newIndex}')" style="height: 36px; border-radius: 6px; border: 1px solid #dee2e6; font-size: 0.85rem;">
+                        <div class="col-md-6">
+                            <label class="form-label fw-semibold">Service Type</label>
+                            <select class="form-select service-type-select" name="day${day}_entry_${newIndex}_service_type" id="day${day}_entry_${newIndex}_service_type" onchange="updatePricing(${day}, 'entry_${newIndex}')">
                                 <option value="">Select service type</option>
                                 <option value="Shared">Shared</option>
                                 <option value="Private">Private</option>
                             </select>
                         </div>
-                        <div class="col-md-4">
-                            <label class="form-label fw-semibold mb-1" style="color: #495057; font-size: 0.8rem;">
-                                <i class="ri-user-line me-1"></i>Number of Passengers
-                            </label>
-                            <div class="input-group" >
-    
-                                <input type="number" class="form-control" id="day${day}_entry_${newIndex}_passengers" name="day${day}_entry_${newIndex}_passengers" min="1" max="999" oninput="if(this.value.length > 3) this.value = this.value.slice(0,3);" value="" onchange="validatePassengerCapacity(${day}, 'entry_${newIndex}'); updatePricing(${day}, 'entry_${newIndex}')" style="height: 36px; border-radius: 0 6px 6px 0; border: 1px solid #dee2e6; font-size: 0.85rem; text-align: start; max-width: 200px ">
+                        <div class="col-12 mt-3">
+                            <div class="form-group">
+                                <label class="form-label fw-semibold">Number of Passengers</label>
+                                <div class="input-group">
+                                    <span class="input-group-text"><i class="ri-user-line"></i></span>
+                                    <input type="number" class="form-control" id="day${day}_entry_${newIndex}_passengers" name="day${day}_entry_${newIndex}_passengers" min="1" max="50" value="" onchange="validatePassengerCapacity(${day}, 'entry_${newIndex}'); updatePricing(${day}, 'entry_${newIndex}')">
+                                </div>
+                                <small class="form-text text-muted">
+                                    Enter number of passengers for this service
+                                </small>
                             </div>
-                            <small class="form-text text-muted" style="font-size: 0.75rem; margin-top: 0.25rem;">
-                                Max 3 digits
-                            </small>
                         </div>
                         
-                        <div class="col-12 mt-2">
-                            <div id="day${day}_entry_${newIndex}_price_display" class="rounded" style="display: none; background: linear-gradient(135deg, #f8f9ff 0%, #e7f3ff 100%); border: 1px solid #b3d9ff; border-radius: 8px; padding: 1rem; margin: 0;">
-                                <div class="d-flex align-items-start">
-                                    <div style="width: 40px; height: 40px; background: rgba(102, 126, 234, 0.15); border-radius: 8px; display: flex; align-items: center; justify-content: center; margin-right: 12px; flex-shrink: 0;">
-                                        <i class="ri-money-dollar-circle-line" style="color: #667eea; font-size: 1.25rem;"></i>
-                                    </div>
-                                    <div style="flex: 1;">
-                                        <strong style="color: #212529; font-size: 0.95rem; display: block; margin-bottom: 0.5rem;">Price Information</strong>
-                                        <div style="color: #6c757d; font-size: 0.85rem;">Select a vehicle and service type to see pricing</div>
+                        <div class="col-12 mt-3">
+                            <div id="day${day}_entry_${newIndex}_price_display" class="alert alert-success" style="display: none;">
+                                <div class="d-flex align-items-center">
+                                    <i class="ri-money-dollar-circle-line me-2 fs-4"></i>
+                                    <div>
+                                        <strong>Price Information</strong>
+                                        <div class="small">Select a vehicle and service type to see pricing</div>
                                     </div>
                                 </div>
                             </div>
                         </div>
                         
                         <!-- Custom Price Field for Additional Entry Port (Zone = 0) -->
-                        <div class="col-12 mt-2 entry-port-custom-price-field" id="day${day}_entry_${newIndex}_price_field" style="display: none;">
-                            <div class="alert" style="background: #fff3cd; border: 1px solid #ffc107; border-radius: 6px; padding: 0.75rem 1rem;">
+                        <div class="col-12 mt-3 entry-port-custom-price-field" id="day${day}_entry_${newIndex}_price_field" style="display: none;">
+                            <div class="alert alert-warning">
                                 <div class="form-group mb-0">
-                                    <label class="form-label fw-semibold mb-1" style="color: #495057; font-size: 0.85rem;">
-                                        <i class="ri-money-dollar-circle-line me-1" style="color: #667eea;"></i>Custom Price <span class="text-danger">*</span>
+                                    <label class="form-label fw-semibold mb-2">
+                                        <i class="ri-money-dollar-circle-line me-2"></i>Custom Price <span class="text-danger">*</span>
                                     </label>
-                                    <div class="input-group" style="max-width: 200px;">
-                                        <span class="input-group-text" style="background: #f8f9fa; font-size: 0.8rem; height: 36px; border: 1px solid #dee2e6; border-right: none; border-radius: 6px 0 0 6px; padding: 0.375rem 0.5rem; width: 45px;">SGD</span>
-                                        <input type="number" class="form-control" id="day${day}_entry_${newIndex}_custom_price" name="day${day}_entry_${newIndex}_custom_price" min="0" step="0.01" placeholder="0.00" oninput="updateEntryPortCustomPricing(${day}, 'entry_${newIndex}')" onchange="updateEntryPortCustomPricing(${day}, 'entry_${newIndex}')" style="height: 36px; border-radius: 0 6px 6px 0; border: 1px solid #dee2e6; border-left: none; background: #f8f9fa; font-size: 0.85rem; width: 155px;">
+                                    <div class="input-group">
+                                        <span class="input-group-text">SGD</span>
+                                        <input type="number" class="form-control" id="day${day}_entry_${newIndex}_custom_price" name="day${day}_entry_${newIndex}_custom_price" min="0" step="0.01" placeholder="Enter custom price" oninput="updateEntryPortCustomPricing(${day}, 'entry_${newIndex}')" onchange="updateEntryPortCustomPricing(${day}, 'entry_${newIndex}')">
+                                        <span class="input-group-text">.00</span>
                                     </div>
-                                    <small class="form-text text-muted mt-1" style="font-size: 0.75rem;">
+                                    <small class="form-text text-muted mt-1">
                                         <i class="ri-information-line me-1"></i>Enter the custom price for this entry port service
                                     </small>
+                                    </div>
                                 </div>
                             </div>
-                        </div>
                             
-                        <!-- Hidden fields for pricing -->
+                            <!-- Hidden fields for pricing -->
                         <div class="col-12">
                             <input type="hidden" name="day${day}_entry_${newIndex}_base_price" id="day${day}_entry_${newIndex}_base_price" value="0">
                             <input type="hidden" name="day${day}_entry_${newIndex}_total_price" id="day${day}_entry_${newIndex}_total_price" value="0">
@@ -18537,73 +18194,72 @@ document.addEventListener('DOMContentLoaded', function() {
         const maxInfants = parseInt(document.getElementById('infants').value) || 0;
         const maxAdults = maxMale + maxFemale;
         
-         const modalHTML = `
+        const modalHTML = `
             <div class="modal fade" id="guestSelectorModal" tabindex="-1" aria-labelledby="guestSelectorModalLabel">
-                <div class="modal-dialog modal-md modal-dialog-centered">
-                    <div class="modal-content" style="border: none; border-radius: 10px; overflow: hidden; box-shadow: 0 10px 40px rgba(0,0,0,0.15);">
-                        <div class="modal-header text-white" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); border: none; padding: 1rem 1.25rem;">
-                            <h5 class="modal-title fw-bold d-flex align-items-center mb-0 text-white" id="guestSelectorModalLabel" style="font-size: 1.1rem; letter-spacing: -0.01em; color: #ffffff !important;">
-                                <div style="width: 32px; height: 32px; background: rgba(255, 255, 255, 0.2); border-radius: 8px; display: flex; align-items: center; justify-content: center; margin-right: 10px;">
-                                    <i class="ri-group-line text-white" style="font-size: 1rem; color: #ffffff !important;"></i>
-                                </div>
-                                <span style="color: #ffffff !important;">Select Guests for Service</span>
+                <div class="modal-dialog modal-lg">
+                    <div class="modal-content">
+                        <div class="modal-header bg-primary text-white">
+                            <h5 class="modal-title" id="guestSelectorModalLabel">
+                                <i class="ri-group-line me-2"></i>Select Guests for Service
                             </h5>
-                            <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close" style="opacity: 0.9; font-size: 0.75rem;"></button>
+                            <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
                         </div>
-                        <div class="modal-body" style="padding: 1.25rem; background: #ffffff;">
+                        <div class="modal-body">
                         <!-- Service Limits Notice -->
-                        <div class="alert mb-3" style="background: #e7f3ff; border: 1px solid #b3d9ff; border-radius: 6px; padding: 0.75rem 1rem;">
-                            <h6 class="mb-2 fw-semibold" style="color: #495057; font-size: 0.9rem;">
-                                <i class="ri-information-line me-2" style="color: #667eea;"></i>Available Guests (Based on main selection)
-                            </h6>
-                            <div class="d-flex gap-2 flex-wrap">
-                                <span class="badge" style="background: #667eea; color: #ffffff; border-radius: 4px; font-size: 0.75rem; padding: 0.375rem 0.75rem; font-weight: 500;">Adults: ${maxAdults} (${maxMale}M + ${maxFemale}F)</span>
-                                <span class="badge" style="background: #28a745; color: #ffffff; border-radius: 4px; font-size: 0.75rem; padding: 0.375rem 0.75rem; font-weight: 500;">Children: ${maxChildren}</span>
-                                <span class="badge" style="background: #ffc107; color: #000; border-radius: 4px; font-size: 0.75rem; padding: 0.375rem 0.75rem; font-weight: 500;">Infants: ${maxInfants}</span>
+                        <div class="alert alert-info mb-4">
+                            <div class="row">
+                                <div class="col-md-12">
+                                    <h6 class="alert-heading mb-2">
+                                        <i class="ri-information-line me-2"></i>Available Guests (Based on main selection)
+                                    </h6>
+                                    <div class="d-flex gap-3 flex-wrap">
+                                        <span class="badge bg-primary">Adults: ${maxAdults} (${maxMale}M + ${maxFemale}F)</span>
+                                        <span class="badge bg-success">Children: ${maxChildren}</span>
+                                        <span class="badge bg-warning text-dark">Infants: ${maxInfants}</span>
+                                    </div>
+                                </div>
                             </div>
                         </div>
                         
-                            <div class="row g-3">
+                            <div class="row g-4">
                                 <!-- Adults Section -->
                                 <div class="col-md-6">
-                                    <div class="card" style="border: 1px solid #e9ecef; border-radius: 8px; box-shadow: 0 2px 6px rgba(0,0,0,0.04); height: 100%;">
-                                        <div class="card-header" style="background: #f8f9fa; border: none; border-bottom: 1px solid #e9ecef; padding: 0.625rem 0.875rem; border-radius: 8px 8px 0 0;">
-                                            <h6 class="mb-0 fw-semibold d-flex align-items-center" style="color: #495057; font-size: 0.875rem;">
-                                                <i class="ri-user-line me-2" style="color: #667eea; font-size: 0.9rem;"></i>Adults <small style="color: #6c757d; font-weight: normal;">(Max: ${maxAdults})</small>
-                                            </h6>
+                                    <div class="card border-primary">
+                                        <div class="card-header bg-primary text-white">
+                                        <h6 class="mb-0"><i class="ri-user-line me-2"></i>Adults (Max: ${maxAdults})</h6>
                                         </div>
-                                        <div class="card-body" style="padding: 1rem 0.875rem;">
+                                        <div class="card-body">
                                             <!-- Male -->
                                             <div class="guest-counter mb-3">
-                                                <label class="form-label fw-semibold mb-2 d-block" style="color: #495057; font-size: 0.85rem;">
-                                                    <i class="ri-user-3-line me-1" style="color: #667eea; font-size: 0.9rem;"></i>Male <small style="color: #6c757d; font-weight: normal;">(Max: ${maxMale})</small>
+                                                <label class="form-label fw-semibold text-primary">
+                                                <i class="ri-user-3-line me-1"></i>Male (Max: ${maxMale})
                                                 </label>
-                                                <div class="d-flex align-items-center justify-content-center">
-                                                    <button type="button" class="btn" onclick="updateServiceGuest('male', -1)" ${maxMale === 0 ? 'disabled' : ''} style="width: 36px; height: 36px; border-radius: 6px; border: 1px solid #dee2e6; background: #ffffff; color: #495057; display: flex; align-items: center; justify-content: center; transition: all 0.2s; padding: 0; ${maxMale === 0 ? 'opacity: 0.5; cursor: not-allowed;' : ''}">
-                                                        <i class="ri-subtract-line" style="font-size: 0.9rem;"></i>
+                                                <div class="d-flex align-items-center">
+                                                <button type="button" class="btn btn-outline-primary btn-sm" onclick="updateServiceGuest('male', -1)" ${maxMale === 0 ? 'disabled' : ''}>
+                                                        <i class="ri-subtract-line"></i>
                                                     </button>
-                                                    <span class="mx-3 fw-bold" id="serviceModalMale" style="font-size: 1.5rem; color: #212529; min-width: 32px; text-align: center;">0</span>
-                                                    <button type="button" class="btn" onclick="updateServiceGuest('male', 1)" ${maxMale === 0 ? 'disabled' : ''} style="width: 36px; height: 36px; border-radius: 6px; border: 1px solid #dee2e6; background: #ffffff; color: #495057; display: flex; align-items: center; justify-content: center; transition: all 0.2s; padding: 0; ${maxMale === 0 ? 'opacity: 0.5; cursor: not-allowed;' : ''}">
-                                                        <i class="ri-add-line" style="font-size: 0.9rem;"></i>
+                                                    <span class="mx-3 fw-bold fs-5" id="serviceModalMale">0</span>
+                                                <button type="button" class="btn btn-outline-primary btn-sm" onclick="updateServiceGuest('male', 1)" ${maxMale === 0 ? 'disabled' : ''}>
+                                                        <i class="ri-add-line"></i>
                                                     </button>
                                                 </div>
-                                                ${maxMale === 0 ? '<small class="text-muted d-block mt-1" style="font-size: 0.75rem; text-align: center;">No male adults selected in main form</small>' : ''}
+                                            ${maxMale === 0 ? '<small class="text-muted">No male adults selected in main form</small>' : ''}
                                             </div>
                                             <!-- Female -->
                                             <div class="guest-counter">
-                                                <label class="form-label fw-semibold mb-2 d-block" style="color: #495057; font-size: 0.85rem;">
-                                                    <i class="ri-user-4-line me-1" style="color: #667eea; font-size: 0.9rem;"></i>Female <small style="color: #6c757d; font-weight: normal;">(Max: ${maxFemale})</small>
+                                                <label class="form-label fw-semibold text-danger">
+                                                <i class="ri-user-4-line me-1"></i>Female (Max: ${maxFemale})
                                                 </label>
-                                                <div class="d-flex align-items-center justify-content-center">
-                                                    <button type="button" class="btn" onclick="updateServiceGuest('female', -1)" ${maxFemale === 0 ? 'disabled' : ''} style="width: 36px; height: 36px; border-radius: 6px; border: 1px solid #dee2e6; background: #ffffff; color: #495057; display: flex; align-items: center; justify-content: center; transition: all 0.2s; padding: 0; ${maxFemale === 0 ? 'opacity: 0.5; cursor: not-allowed;' : ''}">
-                                                        <i class="ri-subtract-line" style="font-size: 0.9rem;"></i>
+                                                <div class="d-flex align-items-center">
+                                                <button type="button" class="btn btn-outline-danger btn-sm" onclick="updateServiceGuest('female', -1)" ${maxFemale === 0 ? 'disabled' : ''}>
+                                                        <i class="ri-subtract-line"></i>
                                                     </button>
-                                                    <span class="mx-3 fw-bold" id="serviceModalFemale" style="font-size: 1.5rem; color: #212529; min-width: 32px; text-align: center;">0</span>
-                                                    <button type="button" class="btn" onclick="updateServiceGuest('female', 1)" ${maxFemale === 0 ? 'disabled' : ''} style="width: 36px; height: 36px; border-radius: 6px; border: 1px solid #dee2e6; background: #ffffff; color: #495057; display: flex; align-items: center; justify-content: center; transition: all 0.2s; padding: 0; ${maxFemale === 0 ? 'opacity: 0.5; cursor: not-allowed;' : ''}">
-                                                        <i class="ri-add-line" style="font-size: 0.9rem;"></i>
+                                                    <span class="mx-3 fw-bold fs-5" id="serviceModalFemale">0</span>
+                                                <button type="button" class="btn btn-outline-danger btn-sm" onclick="updateServiceGuest('female', 1)" ${maxFemale === 0 ? 'disabled' : ''}>
+                                                        <i class="ri-add-line"></i>
                                                     </button>
                                                 </div>
-                                                ${maxFemale === 0 ? '<small class="text-muted d-block mt-1" style="font-size: 0.75rem; text-align: center;">No female adults selected in main form</small>' : ''}
+                                            ${maxFemale === 0 ? '<small class="text-muted">No female adults selected in main form</small>' : ''}
                                             </div>
                                         </div>
                                     </div>
@@ -18611,57 +18267,53 @@ document.addEventListener('DOMContentLoaded', function() {
                                 
                                 <!-- Children & Infants Section -->
                                 <div class="col-md-6">
-                                    <div class="card" style="border: 1px solid #e9ecef; border-radius: 8px; box-shadow: 0 2px 6px rgba(0,0,0,0.04); height: 100%;">
-                                        <div class="card-header" style="background: #f8f9fa; border: none; border-bottom: 1px solid #e9ecef; padding: 0.625rem 0.875rem; border-radius: 8px 8px 0 0;">
-                                            <h6 class="mb-0 fw-semibold d-flex align-items-center" style="color: #495057; font-size: 0.875rem;">
-                                                <i class="ri-user-smile-line me-2" style="color: #667eea; font-size: 0.9rem;"></i>Children & Infants
-                                            </h6>
+                                    <div class="card border-success">
+                                        <div class="card-header bg-success text-white">
+                                            <h6 class="mb-0"><i class="ri-user-smile-line me-2"></i>Children & Infants</h6>
                                         </div>
-                                        <div class="card-body" style="padding: 1rem 0.875rem;">
+                                        <div class="card-body">
                                             <!-- Children -->
                                             <div class="guest-counter mb-3">
-                                                <label class="form-label fw-semibold mb-2 d-block" style="color: #495057; font-size: 0.85rem;">
-                                                    <i class="ri-user-smile-line me-1" style="color: #667eea; font-size: 0.9rem;"></i>Children <small style="color: #6c757d; font-weight: normal;">(Max: ${maxChildren})</small>
-                                                    <small class="text-muted d-block mt-1" style="font-size: 0.75rem; font-weight: normal;">Ages 1-17</small>
+                                                <label class="form-label fw-semibold text-success">
+                                                <i class="ri-user-smile-line me-1"></i>Children (Max: ${maxChildren})
+                                                    <small class="text-muted">(Ages 1-17)</small>
                                                 </label>
-                                                <div class="d-flex align-items-center justify-content-center">
-                                                    <button type="button" class="btn" onclick="updateServiceGuest('children', -1)" ${maxChildren === 0 ? 'disabled' : ''} style="width: 36px; height: 36px; border-radius: 6px; border: 1px solid #dee2e6; background: #ffffff; color: #495057; display: flex; align-items: center; justify-content: center; transition: all 0.2s; padding: 0; ${maxChildren === 0 ? 'opacity: 0.5; cursor: not-allowed;' : ''}">
-                                                        <i class="ri-subtract-line" style="font-size: 0.9rem;"></i>
+                                                <div class="d-flex align-items-center">
+                                                <button type="button" class="btn btn-outline-success btn-sm" onclick="updateServiceGuest('children', -1)" ${maxChildren === 0 ? 'disabled' : ''}>
+                                                        <i class="ri-subtract-line"></i>
                                                     </button>
-                                                    <span class="mx-3 fw-bold" id="serviceModalChildren" style="font-size: 1.5rem; color: #212529; min-width: 32px; text-align: center;">0</span>
-                                                    <button type="button" class="btn" onclick="updateServiceGuest('children', 1)" ${maxChildren === 0 ? 'disabled' : ''} style="width: 36px; height: 36px; border-radius: 6px; border: 1px solid #dee2e6; background: #ffffff; color: #495057; display: flex; align-items: center; justify-content: center; transition: all 0.2s; padding: 0; ${maxChildren === 0 ? 'opacity: 0.5; cursor: not-allowed;' : ''}">
-                                                        <i class="ri-add-line" style="font-size: 0.9rem;"></i>
+                                                    <span class="mx-3 fw-bold fs-5" id="serviceModalChildren">0</span>
+                                                <button type="button" class="btn btn-outline-success btn-sm" onclick="updateServiceGuest('children', 1)" ${maxChildren === 0 ? 'disabled' : ''}>
+                                                        <i class="ri-add-line"></i>
                                                     </button>
                                                 </div>
-                                                ${maxChildren === 0 ? '<small class="text-muted d-block mt-1" style="font-size: 0.75rem; text-align: center;">No children selected in main form</small>' : ''}
+                                            ${maxChildren === 0 ? '<small class="text-muted">No children selected in main form</small>' : ''}
                                             </div>
                                             <!-- Infants -->
                                             <div class="guest-counter">
-                                                <label class="form-label fw-semibold mb-2 d-block" style="color: #495057; font-size: 0.85rem;">
-                                                    <i class="ri-user-heart-line me-1" style="color: #667eea; font-size: 0.9rem;"></i>Infants <small style="color: #6c757d; font-weight: normal;">(Max: ${maxInfants})</small>
-                                                    <small class="text-muted d-block mt-1" style="font-size: 0.75rem; font-weight: normal;">Under 1 year</small>
+                                                <label class="form-label fw-semibold text-warning">
+                                                <i class="ri-user-heart-line me-1"></i>Infants (Max: ${maxInfants})
+                                                    <small class="text-muted">(Under 1 year)</small>
                                                 </label>
-                                                <div class="d-flex align-items-center justify-content-center">
-                                                    <button type="button" class="btn" onclick="updateServiceGuest('infants', -1)" ${maxInfants === 0 ? 'disabled' : ''} style="width: 36px; height: 36px; border-radius: 6px; border: 1px solid #dee2e6; background: #ffffff; color: #495057; display: flex; align-items: center; justify-content: center; transition: all 0.2s; padding: 0; ${maxInfants === 0 ? 'opacity: 0.5; cursor: not-allowed;' : ''}">
-                                                        <i class="ri-subtract-line" style="font-size: 0.9rem;"></i>
+                                                <div class="d-flex align-items-center">
+                                                <button type="button" class="btn btn-outline-warning btn-sm" onclick="updateServiceGuest('infants', -1)" ${maxInfants === 0 ? 'disabled' : ''}>
+                                                        <i class="ri-subtract-line"></i>
                                                     </button>
-                                                    <span class="mx-3 fw-bold" id="serviceModalInfants" style="font-size: 1.5rem; color: #212529; min-width: 32px; text-align: center;">0</span>
-                                                    <button type="button" class="btn" onclick="updateServiceGuest('infants', 1)" ${maxInfants === 0 ? 'disabled' : ''} style="width: 36px; height: 36px; border-radius: 6px; border: 1px solid #dee2e6; background: #ffffff; color: #495057; display: flex; align-items: center; justify-content: center; transition: all 0.2s; padding: 0; ${maxInfants === 0 ? 'opacity: 0.5; cursor: not-allowed;' : ''}">
-                                                        <i class="ri-add-line" style="font-size: 0.9rem;"></i>
+                                                    <span class="mx-3 fw-bold fs-5" id="serviceModalInfants">0</span>
+                                                <button type="button" class="btn btn-outline-warning btn-sm" onclick="updateServiceGuest('infants', 1)" ${maxInfants === 0 ? 'disabled' : ''}>
+                                                        <i class="ri-add-line"></i>
                                                     </button>
                                                 </div>
-                                                ${maxInfants === 0 ? '<small class="text-muted d-block mt-1" style="font-size: 0.75rem; text-align: center;">No infants selected in main form</small>' : ''}
+                                            ${maxInfants === 0 ? '<small class="text-muted">No infants selected in main form</small>' : ''}
                                             </div>
                                         </div>
                                     </div>
                                 </div>
                             </div>
                         </div>
-                        <div class="modal-footer" style="border-top: 1px solid #e9ecef; padding: 0.875rem 1.25rem; background: #f8f9fa;">
-                            <button type="button" class="btn" data-bs-dismiss="modal" style="height: 36px; border-radius: 6px; border: 1px solid #dee2e6; background: #ffffff; color: #495057; padding: 0.375rem 1.25rem; font-weight: 500; font-size: 0.875rem; transition: all 0.2s;">
-                                Cancel
-                            </button>
-                            <button type="button" class="btn text-white" onclick="applyGuestSelection()" style="height: 36px; border-radius: 6px; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); border: none; padding: 0.375rem 1.25rem; font-weight: 500; font-size: 0.875rem; transition: all 0.2s; box-shadow: 0 2px 6px rgba(102, 126, 234, 0.3);">
+                        <div class="modal-footer">
+                            <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Cancel</button>
+                            <button type="button" class="btn btn-primary" onclick="applyGuestSelection()">
                                 <i class="ri-check-line me-1"></i>Apply Selection
                             </button>
                         </div>
@@ -22185,51 +21837,20 @@ function loadDropoffZones(day, section) {
                     
                 if (isHourlyTransport) {
                     pricingDescription = `
-                        <div class="d-flex justify-content-between align-items-center mb-2" style="padding: 0.5rem; background: rgba(255, 255, 255, 0.6); border-radius: 6px;">
-                            <span style="color: #495057;"><strong>Vehicle Price:</strong></span>
-                            <span style="color: #667eea; font-weight: 600;">$${displayPrice.toFixed(2)} <small style="color: #6c757d; font-weight: normal;">(base)</small></span>
-                        </div>
-                        <div class="d-flex justify-content-between align-items-center mb-2" style="padding: 0.5rem; background: rgba(255, 255, 255, 0.6); border-radius: 6px;">
-                            <span style="color: #495057;"><strong>Hourly Rate:</strong></span>
-                            <span style="color: #667eea; font-weight: 600;">$${costPerHour.toFixed(2)} <small style="color: #6c757d; font-weight: normal;">per hour</small></span>
-                        </div>
-                        <div class="d-flex justify-content-between align-items-center mb-2" style="padding: 0.5rem; background: rgba(255, 255, 255, 0.6); border-radius: 6px;">
-                            <span style="color: #495057;"><strong>Selected Hours:</strong></span>
-                            <span style="color: #495057;">${selectedHours} hour${selectedHours > 1 ? 's' : ''}</span>
-                        </div>
-                        <div class="d-flex justify-content-between align-items-center mb-2" style="padding: 0.5rem; background: rgba(255, 255, 255, 0.6); border-radius: 6px;">
-                            <span style="color: #495057;"><strong>Hourly Cost:</strong></span>
-                            <span style="color: #667eea; font-weight: 600;">$${(costPerHour * selectedHours).toFixed(2)} <small style="color: #6c757d; font-weight: normal;">($${costPerHour.toFixed(2)} × ${selectedHours})</small></span>
-                        </div>
-                        <div class="d-flex justify-content-between align-items-center mt-2 pt-2" style="border-top: 2px solid #b3d9ff; padding-top: 0.75rem;">
-                            <span style="color: #212529; font-size: 0.9rem; font-weight: 600;"><strong>Total Price:</strong></span>
-                            <span style="color: #667eea; font-size: 1.1rem; font-weight: 700;">$${totalPrice.toFixed(2)}</span>
-                        </div>
-                        <small style="color: #6c757d; font-size: 0.75rem; display: block; margin-top: 0.5rem;">
-                            <i class="ri-information-line me-1" style="color: #667eea;"></i>Private vehicle price is fixed. Hourly rate applies for extended services.
-                        </small>
+                        <strong>Vehicle Price:</strong> $${displayPrice.toFixed(2)} (base price)<br>
+                        <strong>Hourly Rate:</strong> $${costPerHour.toFixed(2)} per hour<br>
+                        <strong>Selected Hours:</strong> ${selectedHours} hour${selectedHours > 1 ? 's' : ''}<br>
+                        <strong>Hourly Cost:</strong> $${(costPerHour * selectedHours).toFixed(2)} (${costPerHour.toFixed(2)} × ${selectedHours})<br>
+                        <strong>Total Price:</strong> <span class="text-success fw-bold">$${totalPrice.toFixed(2)}</span><br>
+                        <small class="text-info">Private vehicle price is fixed. Hourly rate applies for extended services.</small>
                     `;
                 } else {
                     pricingDescription = `
-                        <div class="d-flex justify-content-between align-items-center mb-2" style="padding: 0.5rem; background: rgba(255, 255, 255, 0.6); border-radius: 6px;">
-                            <span style="color: #495057;"><strong>Vehicle Price:</strong></span>
-                            <span style="color: #667eea; font-weight: 600;">$${displayPrice.toFixed(2)} <small style="color: #6c757d; font-weight: normal;">(base)</small></span>
-                        </div>
-                        <div class="d-flex justify-content-between align-items-center mb-2" style="padding: 0.5rem; background: rgba(255, 255, 255, 0.6); border-radius: 6px;">
-                            <span style="color: #495057;"><strong>Hourly Rate:</strong></span>
-                            <span style="color: #667eea; font-weight: 600;">$${costPerHour.toFixed(2)} <small style="color: #6c757d; font-weight: normal;">per hour</small></span>
-                        </div>
-                        <div class="d-flex justify-content-between align-items-center mb-2" style="padding: 0.5rem; background: rgba(255, 255, 255, 0.6); border-radius: 6px;">
-                            <span style="color: #495057;"><strong>Total Guests:</strong></span>
-                            <span style="color: #495057;">${totalGuests} <small style="color: #6c757d;">(${adults} adults, ${children} children)</small></span>
-                        </div>
-                        <div class="d-flex justify-content-between align-items-center mt-2 pt-2" style="border-top: 2px solid #b3d9ff; padding-top: 0.75rem;">
-                            <span style="color: #212529; font-size: 0.9rem; font-weight: 600;"><strong>Base Price:</strong></span>
-                            <span style="color: #667eea; font-size: 1.1rem; font-weight: 700;">$${totalPrice.toFixed(2)}</span>
-                        </div>
-                        <small style="color: #6c757d; font-size: 0.75rem; display: block; margin-top: 0.5rem;">
-                            <i class="ri-information-line me-1" style="color: #667eea;"></i>Private vehicle price is fixed. Hourly rate applies for extended services.
-                        </small>
+                        <strong>Vehicle Price:</strong> $${displayPrice.toFixed(2)} (base price)<br>
+                        <strong>Hourly Rate:</strong> $${costPerHour.toFixed(2)} per hour<br>
+                        <strong>Total Guests:</strong> ${totalGuests} (${adults} adults, ${children} children)<br>
+                        <strong>Base Price:</strong> <span class="text-success fw-bold">$${totalPrice.toFixed(2)}</span><br>
+                        <small class="text-info">Private vehicle price is fixed. Hourly rate applies for extended services.</small>
                     `;
                 }
             } else {
@@ -22238,21 +21859,10 @@ function loadDropoffZones(day, section) {
                     const children = parseInt(document.getElementById('children')?.value) || 0;
                     
             pricingDescription = `
-                <div class="d-flex justify-content-between align-items-center mb-2" style="padding: 0.5rem; background: rgba(255, 255, 255, 0.6); border-radius: 6px;">
-                    <span style="color: #495057;"><strong>Vehicle Price:</strong></span>
-                    <span style="color: #667eea; font-weight: 600;">$${displayPrice.toFixed(2)} <small style="color: #6c757d; font-weight: normal;">(per vehicle)</small></span>
-                </div>
-                <div class="d-flex justify-content-between align-items-center mb-2" style="padding: 0.5rem; background: rgba(255, 255, 255, 0.6); border-radius: 6px;">
-                    <span style="color: #495057;"><strong>Total Guests:</strong></span>
-                    <span style="color: #495057;">${totalGuests} <small style="color: #6c757d;">(${adults} adults, ${children} children)</small></span>
-                </div>
-                <div class="d-flex justify-content-between align-items-center mt-2 pt-2" style="border-top: 2px solid ${isPrivate ? '#b3d9ff' : '#7dd3c0'}; padding-top: 0.75rem;">
-                    <span style="color: #212529; font-size: 0.9rem; font-weight: 600;"><strong>Total Price:</strong></span>
-                    <span style="color: ${isPrivate ? '#667eea' : '#28a745'}; font-size: 1.1rem; font-weight: 700;">$${totalPrice.toFixed(2)}</span>
-                </div>
-                <small style="color: #6c757d; font-size: 0.75rem; display: block; margin-top: 0.5rem;">
-                    <i class="ri-information-line me-1" style="color: ${isPrivate ? '#667eea' : '#28a745'};"></i>Private vehicle price is fixed regardless of guest count
-                </small>
+                <strong>Vehicle Price:</strong> $${displayPrice.toFixed(2)} (per vehicle)<br>
+                <strong>Total Guests:</strong> ${totalGuests} (${adults} adults, ${children} children)<br>
+                <strong>Total Price:</strong> <span class="text-success fw-bold">$${totalPrice.toFixed(2)}</span><br>
+                <small class="text-info">Private vehicle price is fixed regardless of guest count</small>
             `;
             }
         } else if (selectedServiceType === 'Shared') {
@@ -22285,18 +21895,13 @@ function loadDropoffZones(day, section) {
         }
         
         priceDisplay.style.display = 'block';
-        const isPrivate = priceType === 'Private';
         priceDisplay.innerHTML = `
-            <div class="p-3 rounded" style="background: ${isPrivate ? 'linear-gradient(135deg, #f8f9ff 0%, #e7f3ff 100%)' : '#d1f2eb'}; border: 1px solid ${isPrivate ? '#b3d9ff' : '#7dd3c0'}; border-radius: 8px;">
-                <div class="d-flex align-items-start">
-                    <div style="width: 40px; height: 40px; background: ${isPrivate ? 'rgba(102, 126, 234, 0.15)' : 'rgba(40, 167, 69, 0.15)'}; border-radius: 8px; display: flex; align-items: center; justify-content: center; margin-right: 12px; flex-shrink: 0;">
-                        <i class="ri-money-dollar-circle-line" style="color: ${isPrivate ? '#667eea' : '#28a745'}; font-size: 1.25rem;"></i>
-                    </div>
-                    <div style="flex: 1;">
-                        <strong style="color: #212529; font-size: 0.95rem; display: block; margin-bottom: 0.5rem;">${priceType} Service Pricing</strong>
-                        <div style="font-size: 0.85rem; color: #495057; line-height: 1.6;">
-                            ${pricingDescription}
-                        </div>
+            <div class="d-flex align-items-center">
+                <i class="ri-money-dollar-circle-line me-2 fs-4"></i>
+                <div>
+                    <strong>${priceType} Service Pricing</strong>
+                    <div class="small">
+                        ${pricingDescription}
                     </div>
                 </div>
             </div>
@@ -23671,7 +23276,7 @@ window.saveService = function(day, type) {
          console.log('==============================');
 
      // Show loading state
-     searchBtn.innerHTML = 'Searching...';
+     searchBtn.innerHTML = '<i class="ri-loader-4-line spin me-2"></i>Searching...';
      searchBtn.disabled = true;
 
                 // Prepare request data with actual zone IDs and location types
@@ -25615,7 +25220,7 @@ window.saveService = function(day, type) {
                     console.log('Using Point-to-Point city-based endpoint for city:', city);
 
                     // Show loading state
-                    searchBtn.innerHTML = 'Searching...';
+                    searchBtn.innerHTML = '<i class="ri-loader-4-line spin me-2"></i>Searching...';
                     searchBtn.disabled = true;
 
                     fetch(`{{ url(route('fetch-vehicles-by-city-dmc')) }}?city=${encodeURIComponent(city)}`)
@@ -26355,7 +25960,7 @@ function searchLocalTransferVehicles(day, section) {
     
     // Show loading state
     if (searchBtn) {
-        searchBtn.innerHTML = 'Searching...';
+        searchBtn.innerHTML = '<i class="ri-loader-4-line spin me-2"></i>Searching...';
         searchBtn.disabled = true;
     }
     

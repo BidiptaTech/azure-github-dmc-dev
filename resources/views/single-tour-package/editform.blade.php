@@ -2922,9 +2922,11 @@
                                             $guideId = $guideOptions['guide_id'] ?? '';
                                             $guideName = $guideOptions['guide_name'] ?? '';
                                             
-                                            // Extract language from guide name (e.g., "AB - English" -> "English")
-                                            $guideLanguage = '';
-                                            if ($guideName && strpos($guideName, '-') !== false) {
+                                            // Get language from guide_options first, then fallback to extracting from guide name
+                                            $guideLanguage = $guideOptions['language'] ?? '';
+                                            
+                                            // If language is not in guide_options, try to extract from guide name (e.g., "AB - English" -> "English")
+                                            if (empty($guideLanguage) && $guideName && strpos($guideName, '-') !== false) {
                                                 $parts = explode('-', $guideName);
                                                 if (count($parts) > 1) {
                                                     $guideLanguage = trim(end($parts));
@@ -3447,7 +3449,8 @@
                                             }
                                             $guideName = $payload['guide_name'] ?? 'N/A';
                                             $packageHours = $payload['hours'] ?? '';
-                                            $pickupTime = $payload['entrypickup'] ?? $payload['entrytime'] ?? '';
+                                            // Use entrytime for time, not entrypickup (which contains location)
+                                            $pickupTime = $payload['entrytime'] ?? $payload['pickup_time'] ?? '';
                                             $pickupDate = $payload['pickupdate'] ?? '';
                                             $guestSummary = $payload['fullName'] ?? '';
                                             $guideNotes = $payload['notes'] ?? '';
@@ -10255,13 +10258,17 @@
                     data.vehicles.forEach(vehicle => {
                         const vehicleInfo = `${vehicle.vehicle_name} (${vehicle.vehicle_type}) - ${vehicle.seating_capacity} seats`;
                         vehicleSelect.innerHTML += `<option value="${vehicle.vehicle_id}" 
-                            data-vehicle-name="${vehicle.vehicle_name}" 
-                            data-vehicle-type="${vehicle.vehicle_type}" 
-                            data-seating-capacity="${vehicle.seating_capacity}"
+                            data-vehicle-name="${vehicle.vehicle_name || vehicle.vehicle_id || 'Vehicle'}" 
+                            data-vehicle-type="${vehicle.vehicle_type || ''}" 
+                            data-seating-capacity="${vehicle.seating_capacity || ''}"
                             data-private-price="${vehicle.private_price || ''}"
                             data-shared-price="${vehicle.shared_price || ''}"
                             data-service-type="${vehicle.service_type || ''}"
                             data-sharable="${vehicle.sharable || ''}"
+                            data-image="${vehicle.image || vehicle.vehicle_image || ''}"
+                            data-dmc-id="${vehicle.dmc_id || ''}"
+                            data-city="${vehicle.city || ''}"
+                            data-country="${vehicle.country || ''}"
                             data-vehicle="${JSON.stringify(vehicle)}">
                             ${vehicleInfo}
                         </option>`;
@@ -10337,15 +10344,19 @@
                             try {
                                 const vehicleDataString = JSON.stringify(vehicle);
                                 vehicleSelect.innerHTML += `<option value="${vehicle.vehicle_id}" 
-                                    data-vehicle-name="${vehicle.vehicle_name}" 
-                                    data-vehicle-type="${vehicle.vehicle_type}" 
-                                    data-seating-capacity="${vehicle.seating_capacity}"
+                                    data-vehicle-name="${vehicle.vehicle_name || vehicle.vehicle_id || 'Vehicle'}" 
+                                    data-vehicle-type="${vehicle.vehicle_type || ''}" 
+                                    data-seating-capacity="${vehicle.seating_capacity || ''}"
                                     data-private-price="${vehicle.private_price || ''}"
                                     data-shared-price="${vehicle.shared_price || ''}"
                                     data-service-type="${vehicle.service_type || ''}"
                                     data-cost-per-hour="${vehicle.cost_per_hour || ''}"
                                     data-sharable-cost-per-hour="${vehicle.sharable_cost_per_hour || ''}"
                                     data-sharable="${vehicle.sharable || ''}"
+                                    data-image="${vehicle.image || vehicle.vehicle_image || ''}"
+                                    data-dmc-id="${vehicle.dmc_id || ''}"
+                                    data-city="${vehicle.city || ''}"
+                                    data-country="${vehicle.country || ''}"
                                     data-vehicle="${vehicleDataString}">
                                     ${vehicleInfo}
                                 </option>`;
@@ -11695,6 +11706,29 @@
                 console.log('Raw vehicle data string:', selectedOption.getAttribute('data-vehicle'));
                 vehicleData = {};
             }
+            
+            // Fallback to dataset attributes if vehicle_name is missing
+            if (!vehicleData.vehicle_name && selectedOption.dataset.vehicleName) {
+                vehicleData.vehicle_name = selectedOption.dataset.vehicleName;
+            }
+            if (!vehicleData.vehicle_type && selectedOption.dataset.vehicleType) {
+                vehicleData.vehicle_type = selectedOption.dataset.vehicleType;
+            }
+            if (!vehicleData.seating_capacity && selectedOption.dataset.seatingCapacity) {
+                vehicleData.seating_capacity = selectedOption.dataset.seatingCapacity;
+            }
+            if (!vehicleData.image && selectedOption.dataset.image) {
+                vehicleData.image = selectedOption.dataset.image;
+            }
+            if (!vehicleData.dmc_id && selectedOption.dataset.dmcId) {
+                vehicleData.dmc_id = selectedOption.dataset.dmcId;
+            }
+            if (!vehicleData.city && selectedOption.dataset.city) {
+                vehicleData.city = selectedOption.dataset.city;
+            }
+            if (!vehicleData.country && selectedOption.dataset.country) {
+                vehicleData.country = selectedOption.dataset.country;
+            }
         }
         
         console.log('Vehicle data:', vehicleData);
@@ -11738,7 +11772,7 @@
             vehicles_id: vehicleId,
             image: vehicleData.image || "",
             dmc_id: vehicleData.dmc_id || "",
-            vehicles_name: vehicleData.vehicle_name || 'Vehicle',
+            vehicles_name: vehicleData.vehicle_name || selectedOption?.dataset?.vehicleName || selectedOption?.text?.split('(')[0]?.trim() || 'Vehicle',
             Mode: "dmc",
             type: serviceType,
             bookingDate: pickupDate,
@@ -12373,6 +12407,113 @@
             };
         } else {
             bookingData[0].transfer_options = { transfer_required: false };
+        }
+        
+        // Collect guide data if guide is required
+        const needGuideRadio = document.querySelector('input[name="modal_need_attraction_guide"]:checked');
+        const needGuide = needGuideRadio && needGuideRadio.value === 'yes';
+        
+        if (needGuide) {
+            const guideNameSelect = document.getElementById('modal_attraction_guide_name');
+            const guideName = guideNameSelect?.value || '';
+            const guideLanguage = document.getElementById('modal_attraction_guide_language')?.value || '';
+            const guideHoursSelect = document.getElementById('modal_attraction_guide_hours');
+            const guideCustomHours = document.getElementById('modal_attraction_guide_custom_hours')?.value || '';
+            const guidePrice = document.getElementById('modal_attraction_guide_price')?.value || '0';
+            
+            // Get guide hours (from select or custom input)
+            let guideHours = 0;
+            let guidePackageHours = '';
+            if (guideHoursSelect?.value === 'custom') {
+                guideHours = parseFloat(guideCustomHours) || 0;
+                guidePackageHours = guideCustomHours;
+            } else {
+                guideHours = parseFloat(guideHoursSelect?.value) || 0;
+                guidePackageHours = guideHoursSelect?.value || '';
+            }
+            
+            // Get guide ID and additional data from selected option
+            let guideId = '';
+            let guideBasePrice = 0;
+            let guideSurcharge = 0;
+            let guideData = window.attractionModalGuideData || {};
+            
+            if (guideNameSelect && guideNameSelect.selectedIndex > 0) {
+                const selectedOption = guideNameSelect.options[guideNameSelect.selectedIndex];
+                guideId = selectedOption.dataset.guideId || selectedOption.getAttribute('data-guide-id') || '';
+                
+                // Try to get guide data from jQuery data cache (if jQuery is available)
+                if (typeof $ !== 'undefined' && $(guideNameSelect).length) {
+                    const jqueryGuideData = $(selectedOption).data('guide-data');
+                    if (jqueryGuideData) {
+                        guideData = jqueryGuideData;
+                        guideBasePrice = parseFloat(jqueryGuideData.hourly_price || jqueryGuideData.price_per_hour || 0);
+                    }
+                }
+                
+                // Fallback: Try to get guide data from data-guide-data attribute
+                if (!guideData || Object.keys(guideData).length === 0) {
+                    try {
+                        const guideDataAttr = selectedOption.getAttribute('data-guide-data');
+                        if (guideDataAttr) {
+                            const parsedGuideData = JSON.parse(guideDataAttr);
+                            guideData = parsedGuideData;
+                            guideBasePrice = parseFloat(parsedGuideData.hourly_price || parsedGuideData.price_per_hour || 0);
+                        }
+                    } catch (e) {
+                        console.warn('Error parsing guide data attribute:', e);
+                    }
+                }
+                
+                // If still no guide data, use window object
+                if (!guideData || Object.keys(guideData).length === 0) {
+                    guideData = window.attractionModalGuideData || {};
+                    guideBasePrice = parseFloat(guideData.hourly_price || guideData.price_per_hour || 0);
+                }
+            }
+            
+            // Calculate surcharge if guide data is available
+            if (guideData && guideData.night_surcharge) {
+                const timeSlotSelect = document.getElementById('modal_attraction_time_slot');
+                const selectedTimeSlot = timeSlotSelect?.value || '';
+                
+                if (selectedTimeSlot && guideHours > 0) {
+                    // Extract time from time slot
+                    let pickupHour = 0;
+                    const timeMatch = selectedTimeSlot.match(/(\d{1,2}):(\d{2})/);
+                    if (timeMatch) {
+                        pickupHour = parseInt(timeMatch[1]);
+                        const isPM = selectedTimeSlot.toUpperCase().includes('PM') && pickupHour !== 12;
+                        if (isPM) {
+                            pickupHour = pickupHour === 12 ? 12 : pickupHour + 12;
+                        }
+                    }
+                    
+                    // Check if pickup time is within night surcharge hours (typically 22:00-06:00)
+                    const nightStart = parseInt(guideData.night_start_time?.split(':')[0] || '22');
+                    const nightEnd = parseInt(guideData.night_end_time?.split(':')[0] || '6');
+                    
+                    if ((pickupHour >= nightStart || pickupHour < nightEnd) && guideHours > 0) {
+                        guideSurcharge = parseFloat(guideData.night_surcharge || 0) * guideHours;
+                    }
+                }
+            }
+            
+            // Build guide_options object
+            bookingData[0].guide_options = {
+                guide_required: true,
+                guide_id: guideId,
+                guide_name: guideName,
+                language: guideLanguage,
+                pickup_time: timeSlot || '',
+                package_hours: guidePackageHours,
+                hours: guideHours,
+                base_price: guideBasePrice,
+                surcharge: guideSurcharge,
+                total_price: parseFloat(guidePrice) || 0
+            };
+        } else {
+            bookingData[0].guide_options = { guide_required: false };
         }
 
         console.log('Attraction booking data to be sent:', bookingData);
@@ -14182,7 +14323,17 @@
         // Get tour details
         const tourId = document.getElementById('tour_id').value;
         const country = document.getElementById('user_country').value;
-        const city = '{{ $tour->city ?? "" }}';
+        
+        // Get city from guide modal selection or fallback to tour city
+        const citySelect = document.getElementById('modal_guide_city_select');
+        let city = '';
+        if (citySelect && citySelect.value) {
+            city = citySelect.value;
+        } else {
+            // Fallback to tour city if available
+            const tourCity = '{{ $tour->city ?? "" }}';
+            city = tourCity || '';
+        }
         
         const startDate = document.getElementById('start_date').value;
         const endDate = document.getElementById('end_date').value;
@@ -14230,6 +14381,18 @@
         const totalPrice = basePrice + surcharge;
         const tax = (totalPrice * 0.07).toFixed(2); // 7% tax
         
+        // Format entrypickup properly - use city name if available, otherwise just country
+        let entryPickup = '';
+        if (city && city.trim() !== '') {
+            entryPickup = `${city}, (${country})`;
+        } else {
+            entryPickup = country || 'Singapore';
+        }
+        
+        // Ensure entrytime is in proper time format (24-hour format like "12:00" or "13:00")
+        // The time input already returns 24-hour format, so use it directly
+        const entryTime = pickupTime || '12:00';
+        
         // Build the complex booking data structure in required format
         const bookingData = [{
             bookingDate: serviceDate,
@@ -14238,11 +14401,11 @@
             image: guideData.image || "",
             dmc_Id: guideData.dmc_id || "11",
             Mode: "dmc",
-            entrypickup: `${city}, (${country})`,
+            entrypickup: entryPickup,
             PickupPlaceid: null,
             DropoffPlaceid: null,
             pickupdate: serviceDate,
-            entrytime: pickupTime,
+            entrytime: entryTime,
             adults: adults,
             children: children,
             hours: hours,
