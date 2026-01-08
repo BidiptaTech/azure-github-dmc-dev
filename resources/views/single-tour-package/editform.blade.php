@@ -485,13 +485,13 @@
         <!-- Header Section -->
         <div class="row mb-4">
             <div class="col-12">
-                <div>
-                    <div class="card-header text-white" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); border-bottom: 3px solid #764ba2;">
+                <div class="card border-0 shadow-sm">
+                    <div class="card-header text-white" style="background: linear-gradient(135deg, #4facfe 0%, #00c9ff 100%);">
                         <div class="d-flex align-items-center">
-                            <i class="ri-map-pin-line me-3 fs-3"></i>
+                            <i class="ri-map-pin-line me-3 fs-4"></i>
                             <div>
-                            <h3 class="mb-2 fw-bold text-white" style="font-size: 1.5rem; text-shadow: 0 2px 4px rgba(0,0,0,0.2);">Edit Tour Services</h3>
-                            <p class="mb-0 text-white" style="font-size: 0.95rem; opacity: 0.95; font-weight: 500;">Manage and add services to existing tour: <strong>{{ $tour->display_id ?? 'N/A' }}</strong></p>
+                                <h4 class="mb-1 text-white">Edit Tour Services</h4>
+                                <p class="mb-0 opacity-75">Manage and add services to existing tour: <strong>{{ $tour->display_id ?? 'N/A' }}</strong></p>
                             </div>
                         </div>
                     </div>
@@ -579,7 +579,7 @@
             <div class="row mb-4">
                 <div class="col-12">
                     <div class="card shadow-sm border-0">
-                        <div class="card-header text-white" style="background: linear-gradient(135deg, #4facfe 0%, #00c9ff 100%); border-bottom: 1px solid #3b82f6;">
+                        <div class="card-header bg-gradient-primary text-white">
                             <h6 class="mb-0 fw-bold">
                                 <i class="ri-settings-3-line me-2"></i>Tour Information
                             </h6>
@@ -591,7 +591,7 @@
                                     <label class="form-label fw-semibold">
                                         <i class="ri-hashtag me-1"></i>Tour ID
                                     </label>
-                                    <input type="text" class="form-control" name="display_id" id="display_id" value="{{ $tour->display_id ?? '' }}" placeholder="Enter tour reference" disabled>
+                                    <input type="text" style="height:38px" class="form-control" name="display_id" id="display_id" value="{{ $tour->display_id ?? '' }}" placeholder="Enter tour reference" disabled>
                                     <input type="hidden" id="tour_id" name="tour_id" value="{{ $tour->tour_id ?? '' }}">
                                     
                                     <!-- DMC Information -->
@@ -619,12 +619,12 @@
 
                                 <!-- Travel Dates -->
                                 <div class="col-md-3">
-                                    <label class="form-label fw-semibold">
-                                        <i class="ri-calendar-line me-1"></i>Travel Dates
+                                    <label class="form-label fw-semibold" >
+                                        <i class="ri-calendar-line me-1" ></i>Travel Dates
                                     </label>
                                     <div class="row g-2">
                                         <div class="col-6">
-                                            <input type="date" class="form-control" name="start_date" id="start_date" 
+                                            <input type="date" style="height:38px" class="form-control" name="start_date" id="start_date" 
                                                 value="{{ 
                                                     $tour->check_in_time 
                                                         ? (is_string($tour->check_in_time) ? date('Y-m-d', strtotime($tour->check_in_time)) : $tour->check_in_time->format('Y-m-d'))
@@ -633,7 +633,7 @@
                                                 min="{{ date('Y-m-d') }}">
                                         </div>
                                         <div class="col-6">
-                                            <input type="date" class="form-control" name="end_date" id="end_date" 
+                                            <input type="date" style="height:38px" class="form-control" name="end_date" id="end_date" 
                                                 value="{{ 
                                                     $tour->check_out_time 
                                                         ? (is_string($tour->check_out_time) ? date('Y-m-d', strtotime($tour->check_out_time)) : $tour->check_out_time->format('Y-m-d'))
@@ -1393,6 +1393,7 @@
                                                                     const mealPlanVariations = {
                                                                         'room only': ['room_only'],
                                                                         'bed & breakfast': ['bed_&_breakfast', 'bed_and_breakfast'],
+                                                                        'room with breakfast': ['bed_&_breakfast', 'bed_and_breakfast'],
                                                                         'breakfast only': ['breakfast_only'],
                                                                         'lunch only': ['lunch_only'],
                                                                         'dinner only': ['dinner_only'],
@@ -1406,6 +1407,13 @@
                                                                         if (existingValue.includes(key) && values.includes(planValue)) {
                                                                             variationMatch = true;
                                                                             break;
+                                                                        }
+                                                                    }
+                                                                    
+                                                                    // Explicit check for "room with breakfast" variations
+                                                                    if (!variationMatch && (existingValue.includes('room with breakfast') || existingValue.includes('room and breakfast'))) {
+                                                                        if (planValue === 'bed_&_breakfast' || planValue === 'bed_and_breakfast') {
+                                                                            variationMatch = true;
                                                                         }
                                                                     }
                                                                     
@@ -1742,7 +1750,7 @@
             <div class="row mb-4">
                 <div class="col-12">
                     <div>
-                        <div class="card-header text-dark d-flex justify-content-between align-items-center" role="button" data-bs-toggle="collapse" data-bs-target="#arrivalTransportSection" aria-expanded="false" aria-controls="arrivalTransportSection" style="cursor: pointer; background: linear-gradient(135deg, #e5e7eb 0%, #d1d5db 100%); border: 1px solid #9ca3af;">
+                        <div class="card-header text-dark d-flex justify-content-between align-items-center" role="button" data-bs-toggle="collapse" data-bs-target="#arrivalTransportSection" aria-expanded="false" aria-controls="arrivalTransportSection" style="cursor: pointer; background: linear-gradient(135deg, #dbeafe 0%, #bfdbfe 100%); border: 1px solid #60a5fa; transition: all 0.3s ease;">
                             <div class="d-flex align-items-center">
                                 <span class="service-icon me-3">
                                     <i class="ri-login-circle-line fs-4"></i>
@@ -1977,7 +1985,7 @@
                             <!-- All Restaurant Services Section (Unified) -->
                             <div class="service-section mb-3">
                                 <div>
-                                    <div class="card-header text-dark d-flex justify-content-between align-items-center" role="button" data-bs-toggle="collapse" data-bs-target="#restaurantServicesSection" aria-expanded="false" aria-controls="restaurantServicesSection" style="cursor: pointer; background: linear-gradient(135deg, #e5e7eb 0%, #d1d5db 100%); border: 1px solid #9ca3af;">
+                                    <div class="card-header text-dark d-flex justify-content-between align-items-center" role="button" data-bs-toggle="collapse" data-bs-target="#restaurantServicesSection" aria-expanded="false" aria-controls="restaurantServicesSection" style="cursor: pointer; background: linear-gradient(135deg, #fef3c7 0%, #fde68a 100%); border: 1px solid #fbbf24; transition: all 0.3s ease;">
                                         <div class="d-flex align-items-center">
                                             <span class="service-icon me-3">
                                                 <i class="ri-restaurant-2-line fs-4"></i>
@@ -2000,6 +2008,7 @@
                                                 $payload = isset($restaurantData[0]) ? $restaurantData[0] : $restaurantData;
                                             }
                                             $restaurantName = $payload['restaurantName'] ?? 'N/A';
+                                            $bookingDate = $payload['bookingDate'] ?? '';
                                             $mealType = $payload['mealType'] ?? '';
                                             $mealSpecificType = $payload['mealSpecificType'] ?? '';
                                             $timeSlot = $payload['visitTime'] ?? '';
@@ -2025,11 +2034,19 @@
                                             $transferOptions = $payload['transfer_options'] ?? [];
                                             $transferRequired = isset($transferOptions['transfer_required']) && $transferOptions['transfer_required'] === true;
                                             $transportType = $transferOptions['type'] ?? '';
-                                            $transportVehicle = $transferOptions['vehicle_id'] ?? $transferOptions['vehicle_name'] ?? '';
-                                            $transportDestination = $transferOptions['destination'] ?? '';
-                                            $transportSeats = $transferOptions['seats'] ?? '';
+                                            
+                                            // Get vehicle name from vehicle_details or vehicle_id/vehicle_name
+                                            $vehicleDetails = $transferOptions['vehicle_details'] ?? [];
+                                            $transportVehicle = $vehicleDetails['vehicle_name'] ?? $transferOptions['vehicle_name'] ?? $transferOptions['vehicle_id'] ?? '';
+                                            $transportVehicleId = $transferOptions['vehicle_id'] ?? '';
+                                            
+                                            // Get destination from pickup_location_name or destination
+                                            $transportDestination = $transferOptions['pickup_location_name'] ?? $transferOptions['destination'] ?? '';
+                                            $transportDestinationId = $transferOptions['pickup_location_id'] ?? '';
+                                            
+                                            $transportSeats = $vehicleDetails['seating_capacity'] ?? $transferOptions['seats'] ?? '';
                                             $transportPassengers = $transferOptions['passengers'] ?? '';
-                                            $transportPrice = $transferOptions['price'] ?? 0;
+                                            $transportPrice = $transferOptions['cost'] ?? $transferOptions['price'] ?? 0;
                                             $transportWay = $transferOptions['way'] ?? 'One Way';
                                             $transportReturn = ($transportWay === 'Two Way');
                                         @endphp
@@ -2100,19 +2117,23 @@
                                                     <input type="hidden" id="current_dish_type_{{ $order->booking_id }}" value="{{ $mealSpecificType }}">
                                                 </div>
                                                 <div class="col-md-3">
+                                                    <label class="form-label fw-semibold text-muted mb-1"><i class="ri-calendar-line me-1 text-primary"></i>Booking Date</label>
+                                                    <input type="date" class="form-control border-2" style="height: 38px;" name="booking_date" id="booking_date_{{ $order->booking_id }}" value="{{ $bookingDate }}" required>
+                                                </div>
+                                                <div class="col-md-3">
                                                     <label class="form-label fw-semibold text-muted mb-1"><i class="ri-time-line me-1 text-warning"></i>Time Slot</label>
                                                     <input type="text" class="form-control border-2" style="height: 38px;" name="time_slot" value="{{ $timeSlot }}" placeholder="e.g. 07:00 AM">
                                                     <small class="text-muted">Available time slots</small>
                                                 </div>
-                                                <div class="col-md-3">
+                                                <div class="col-md-2">
                                                     <label class="form-label fw-semibold text-muted mb-1"><i class="ri-user-line me-1 text-secondary"></i>Adults</label>
-                                                    <input type="number" class="form-control border-2" style="height: 38px;" name="adult_count" min="0" value="{{ $adultCount }}" required>
+                                                    <input type="number" class="form-control border-2 restaurant-guest-input" style="height: 38px;" name="adult_count" id="restaurant_adult_count_{{ $order->booking_id }}" min="0" value="{{ $adultCount }}" data-booking-id="{{ $order->booking_id }}" data-tour-max="{{ ($tour->adult ?? 0) + ($tour->child ?? 0) }}" required>
                                                 </div>
-                                                <div class="col-md-3">
+                                                <div class="col-md-2">
                                                     <label class="form-label fw-semibold text-muted mb-1"><i class="ri-user-smile-line me-1 text-secondary"></i>Children</label>
-                                                    <input type="number" class="form-control border-2" style="height: 38px;" name="child_count" min="0" value="{{ $childCount }}" required>
+                                                    <input type="number" class="form-control border-2 restaurant-guest-input" style="height: 38px;" name="child_count" id="restaurant_child_count_{{ $order->booking_id }}" min="0" value="{{ $childCount }}" data-booking-id="{{ $order->booking_id }}" data-tour-max="{{ ($tour->adult ?? 0) + ($tour->child ?? 0) }}" required>
                                                 </div>
-                                                <div class="col-md-3">
+                                                <div class="col-md-2">
                                                     <label class="form-label fw-semibold text-muted mb-1"><i class="ri-money-dollar-circle-line me-1 text-success"></i>Total Price</label>
                                                     <input type="number" class="form-control border-2" style="height: 38px;" name="total_price" id="restaurant_total_price_{{ $order->booking_id }}" step="0.01" min="0" value="{{ number_format((float)$totalPrice, 2, '.', '') }}" placeholder="0.00" readonly>
                                                 </div>
@@ -2203,24 +2224,35 @@
                                                         <div class="col-md-4">
                                                             <label class="form-label fw-semibold">Vehicle (by country)</label>
                                                             <select class="form-select restaurant-transport-vehicle-select" name="restaurant_transport_vehicle_{{ $order->booking_id }}" id="restaurant_transport_vehicle_{{ $order->booking_id }}" data-booking-id="{{ $order->booking_id }}">
-                                                                <option value="">Select vehicle</option>
-                                                                @foreach($filteredVehicles as $vehicle)
-                                                                    @php
-                                                                        $vehicleName = $vehicle->vehicle_name ?? $vehicle->vehicle_id ?? 'Vehicle';
-                                                                        $vehicleType = $vehicle->vehicle_type ?? '';
-                                                                        $seatingCapacity = $vehicle->seating_capacity ?? '';
-                                                                        $isSelected = ($transportVehicle === $vehicleName || $transportVehicle === ($vehicle->vehicle_id ?? ''));
-                                                                    @endphp
-                                                                    <option value="{{ $vehicleName }}" data-seating-capacity="{{ $seatingCapacity }}" {{ $isSelected ? 'selected' : '' }}>
-                                                                        {{ $vehicleName }}
-                                                                        @if($vehicleType)
-                                                                            ({{ $vehicleType }})
-                                                                        @endif
-                                                                        @if($seatingCapacity)
-                                                                            - {{ $seatingCapacity }} seats
-                                                                        @endif
-                                                                    </option>
-                                                                @endforeach
+                                                                <option value="">{{ $transportDestination ? 'Select vehicle' : 'Select destination first' }}</option>
+                                                                @if($transportDestination)
+                                                                    {{-- Vehicles will be loaded via JavaScript when destination is selected --}}
+                                                                    @if($transportVehicle)
+                                                                        @foreach($filteredVehicles as $vehicle)
+                                                                            @php
+                                                                                $vehicleName = $vehicle->vehicle_name ?? $vehicle->vehicle_id ?? 'Vehicle';
+                                                                                $vehicleId = $vehicle->vehicle_id ?? '';
+                                                                                $vehicleType = $vehicle->vehicle_type ?? '';
+                                                                                $seatingCapacity = $vehicle->seating_capacity ?? '';
+                                                                                $isSelected = ($transportVehicle === $vehicleName || 
+                                                                                               $transportVehicle === $vehicleId || 
+                                                                                               $transportVehicleId === $vehicleId ||
+                                                                                               $transportVehicleId === (string)$vehicleId);
+                                                                            @endphp
+                                                                            @if($isSelected)
+                                                                                <option value="{{ $vehicleName }}" data-vehicle-id="{{ $vehicleId }}" data-seating-capacity="{{ $seatingCapacity }}" selected>
+                                                                                    {{ $vehicleName }}
+                                                                                    @if($vehicleType)
+                                                                                        ({{ $vehicleType }})
+                                                                                    @endif
+                                                                                    @if($seatingCapacity)
+                                                                                        - {{ $seatingCapacity }} seats
+                                                                                    @endif
+                                                                                </option>
+                                                                            @endif
+                                                                        @endforeach
+                                                                    @endif
+                                                                @endif
                                                             </select>
                                                         </div>
                                                     </div>
@@ -2292,7 +2324,7 @@
                             <!-- Other Transport Services Section (Unified) -->
                             <div class="service-section mb-3">
                                 <div>
-                                    <div class="card-header text-dark d-flex justify-content-between align-items-center" role="button" data-bs-toggle="collapse" data-bs-target="#otherTransportSection" aria-expanded="false" aria-controls="otherTransportSection" style="cursor: pointer; background: linear-gradient(135deg, #e5e7eb 0%, #d1d5db 100%); border: 1px solid #9ca3af;">
+                                    <div class="card-header text-dark d-flex justify-content-between align-items-center" role="button" data-bs-toggle="collapse" data-bs-target="#otherTransportSection" aria-expanded="false" aria-controls="otherTransportSection" style="cursor: pointer; background: linear-gradient(135deg, #ccfbf1 0%, #99f6e4 100%); border: 1px solid #5eead4; transition: all 0.3s ease;">
                                         <div class="d-flex align-items-center">
                                             <span class="service-icon me-3">
                                                 <i class="ri-car-line fs-4"></i>
@@ -2827,7 +2859,7 @@
                             <!-- All Attractions Section (Unified) -->
                             <div class="service-section mb-3">
                                 <div>
-                                    <div class="card-header text-dark d-flex justify-content-between align-items-center" role="button" data-bs-toggle="collapse" data-bs-target="#allAttractionsSection" aria-expanded="false" aria-controls="allAttractionsSection" style="cursor: pointer; background: linear-gradient(135deg, #e5e7eb 0%, #d1d5db 100%); border: 1px solid #9ca3af;">
+                                    <div class="card-header text-dark d-flex justify-content-between align-items-center" role="button" data-bs-toggle="collapse" data-bs-target="#allAttractionsSection" aria-expanded="false" aria-controls="allAttractionsSection" style="cursor: pointer; background: linear-gradient(135deg, #f3e8ff 0%, #e9d5ff 100%); border: 1px solid #c084fc; transition: all 0.3s ease;">
                                         <div class="d-flex align-items-center">
                                             <span class="service-icon me-3">
                                                 <i class="ri-ticket-line fs-4"></i>
@@ -2850,6 +2882,7 @@
                                                 $payload = isset($attractionData[0]) ? $attractionData[0] : $attractionData;
                                             }
                                             $attractionName = $payload['AttractionName'] ?? 'N/A';
+                                            $bookingDate = $payload['bookingDate'] ?? '';
                                             $timeSlot = $payload['visitTime'] ?? 'N/A';
                                             $ticket = $payload['ticketName'] ?? 'N/A';
                                             $adultCount = $payload['adultCount'] ?? 0;
@@ -2867,13 +2900,43 @@
                                             $transferOptions = $payload['transfer_options'] ?? [];
                                             $transferRequired = isset($transferOptions['transfer_required']) && $transferOptions['transfer_required'] === true;
                                             $transportType = $transferOptions['type'] ?? '';
-                                            $transportVehicle = $transferOptions['vehicle_id'] ?? $transferOptions['vehicle_name'] ?? '';
-                                            $transportDestination = $transferOptions['destination'] ?? '';
-                                            $transportSeats = $transferOptions['seats'] ?? '';
+                                            
+                                            // Get vehicle name from vehicle_details or vehicle_id/vehicle_name
+                                            $vehicleDetails = $transferOptions['vehicle_details'] ?? [];
+                                            $transportVehicle = $vehicleDetails['vehicle_name'] ?? $transferOptions['vehicle_name'] ?? $transferOptions['vehicle_id'] ?? '';
+                                            $transportVehicleId = $transferOptions['vehicle_id'] ?? '';
+                                            
+                                            // Get destination from pickup_location_name or destination
+                                            $transportDestination = $transferOptions['pickup_location_name'] ?? $transferOptions['destination'] ?? '';
+                                            $transportDestinationId = $transferOptions['pickup_location_id'] ?? '';
+                                            
+                                            $transportSeats = $vehicleDetails['seating_capacity'] ?? $transferOptions['seats'] ?? '';
                                             $transportPassengers = $transferOptions['passengers'] ?? '';
-                                            $transportPrice = $transferOptions['price'] ?? 0;
+                                            $transportPrice = $transferOptions['cost'] ?? $transferOptions['price'] ?? 0;
                                             $transportWay = $transferOptions['way'] ?? 'One Way';
                                             $transportReturn = ($transportWay === 'Two Way');
+                                            
+                                            // Extract guide options
+                                            $guideOptions = $payload['guide_options'] ?? [];
+                                            $guideRequired = isset($guideOptions['guide_required']) && $guideOptions['guide_required'] === true;
+                                            $guideId = $guideOptions['guide_id'] ?? '';
+                                            $guideName = $guideOptions['guide_name'] ?? '';
+                                            
+                                            // Extract language from guide name (e.g., "AB - English" -> "English")
+                                            $guideLanguage = '';
+                                            if ($guideName && strpos($guideName, '-') !== false) {
+                                                $parts = explode('-', $guideName);
+                                                if (count($parts) > 1) {
+                                                    $guideLanguage = trim(end($parts));
+                                                }
+                                            }
+                                            
+                                            $guidePickupTime = $guideOptions['pickup_time'] ?? '';
+                                            $guidePackageHours = $guideOptions['package_hours'] ?? '';
+                                            $guideBasePrice = $guideOptions['base_price'] ?? 0;
+                                            $guideHours = $guideOptions['hours'] ?? 0;
+                                            $guideSurcharge = $guideOptions['surcharge'] ?? 0;
+                                            $guideTotalPrice = $guideOptions['total_price'] ?? 0;
                                         @endphp
                                         <form class="service-item mb-3 p-3 border rounded shadow-sm bg-white attraction-edit-form" data-update-url="{{ route('edit-tour.update-attraction', $order->booking_id) }}" onsubmit="updateExistingAttraction(event, {{ $order->booking_id }})">
                                             @csrf
@@ -2889,7 +2952,7 @@
                                         
                                         
                                             <div class="row g-3">
-                                                <div class="col-md-6">
+                                                <div class="col-md-5">
                                                     <label class="form-label fw-semibold text-muted mb-1"><i class="ri-map-pin-line me-1 text-primary"></i>Attraction Name</label>
                                                     <select class="form-select border-2" name="attraction_name" id="attraction_name_{{ $order->booking_id }}" onchange="populateTicketFromAttraction(this, 'ticket_name_{{ $order->booking_id }}')" required>
                                                         <option value="">Select Attraction</option>
@@ -2928,6 +2991,10 @@
                                                         @endif
                                                     </select>
                                                     <small class="text-muted">Select an attraction to see available tickets</small>
+                                                </div>
+                                                <div class="col-md-3">
+                                                    <label class="form-label fw-semibold text-muted mb-1"><i class="ri-calendar-line me-1 text-primary"></i>Booking Date</label>
+                                                    <input type="date" class="form-control border-2" style="height: 38px;" name="booking_date" id="booking_date_{{ $order->booking_id }}" value="{{ $bookingDate }}" required>
                                                 </div>
                                                 <div class="col-md-2">
                                                     <label class="form-label fw-semibold text-muted mb-1"><i class="ri-time-line me-1 text-warning"></i>Time Slot</label>
@@ -3049,23 +3116,23 @@
                                                     <small class="text-muted">Available time slots from database</small>
                                                 </div>
                                                 
-                                                <div class="col-md-3">
+                                                <div class="col-md-2">
                                                     <label class="form-label fw-semibold text-muted mb-1"><i class="ri-user-line me-1 text-secondary"></i>Adults</label>
-                                                    <input type="number" class="form-control border-2" style="height: 38px;" name="adult_count" min="0" value="{{ $adultCount }}" required>
+                                                    <input type="number" class="form-control border-2 attraction-guest-input" style="height: 38px;" name="adult_count" id="attraction_adult_count_{{ $order->booking_id }}" min="0" value="{{ $adultCount }}" data-booking-id="{{ $order->booking_id }}" data-tour-max="{{ ($tour->adult ?? 0) + ($tour->child ?? 0) }}" required>
                                                 </div>
-                                                <div class="col-md-3">
+                                                <div class="col-md-2">
                                                     <label class="form-label fw-semibold text-muted mb-1"><i class="ri-user-smile-line me-1 text-secondary"></i>Children</label>
-                                                    <input type="number" class="form-control border-2" style="height: 38px;" name="child_count" min="0" value="{{ $childCount }}" required>
+                                                    <input type="number" class="form-control border-2 attraction-guest-input" style="height: 38px;" name="child_count" id="attraction_child_count_{{ $order->booking_id }}" min="0" value="{{ $childCount }}" data-booking-id="{{ $order->booking_id }}" data-tour-max="{{ ($tour->adult ?? 0) + ($tour->child ?? 0) }}" required>
                                                 </div>
                                                 <div class="col-md-2">
                                                     <label class="form-label fw-semibold text-muted mb-1"><i class="ri-user-heart-line me-1 text-secondary"></i>Seniors</label>
-                                                    <input type="number" class="form-control border-2" style="height: 38px;" name="senior_count" min="0" value="{{ $seniorCount }}" required>
+                                                    <input type="number" class="form-control border-2 attraction-guest-input" style="height: 38px;" name="senior_count" id="attraction_senior_count_{{ $order->booking_id }}" min="0" value="{{ $seniorCount }}" data-booking-id="{{ $order->booking_id }}" data-tour-max="{{ ($tour->adult ?? 0) + ($tour->child ?? 0) }}" required>
                                                 </div>
                                                 
                                                 <!-- Additional Pax Details -->
                                                 <div class="col-md-2">
                                                     <label class="form-label fw-semibold text-muted mb-1"><i class="ri-user-heart-line me-1 text-warning"></i>Infants</label>
-                                                    <input type="number" class="form-control border-2" style="height: 38px;" name="infants" min="0" value="{{ $infantsCount }}">
+                                                    <input type="number" class="form-control border-2 attraction-guest-input" style="height: 38px;" name="infants" id="attraction_infants_{{ $order->booking_id }}" min="0" value="{{ $infantsCount }}" data-booking-id="{{ $order->booking_id }}" data-tour-max="{{ ($tour->adult ?? 0) + ($tour->child ?? 0) }}">
                                                 </div>
                                                 <div class="col-md-2">
                                                     <label class="form-label fw-semibold text-muted mb-1"><i class="ri-money-dollar-circle-line me-1 text-success"></i>Total Price</label>
@@ -3157,24 +3224,35 @@
                                                     <div class="col-md-4">
                                                         <label class="form-label fw-semibold">Vehicle (by country)</label>
                                                         <select class="form-select attraction-transport-vehicle-select" name="attraction_transport_vehicle_{{ $order->booking_id }}" id="attraction_transport_vehicle_{{ $order->booking_id }}" data-booking-id="{{ $order->booking_id }}">
-                                                            <option value="">Select vehicle</option>
-                                                            @foreach($filteredVehicles as $vehicle)
-                                                                @php
-                                                                    $vehicleName = $vehicle->vehicle_name ?? $vehicle->vehicle_id ?? 'Vehicle';
-                                                                    $vehicleType = $vehicle->vehicle_type ?? '';
-                                                                    $seatingCapacity = $vehicle->seating_capacity ?? '';
-                                                                    $isSelected = ($transportVehicle === $vehicleName || $transportVehicle === ($vehicle->vehicle_id ?? ''));
-                                                                @endphp
-                                                                <option value="{{ $vehicleName }}" data-seating-capacity="{{ $seatingCapacity }}" {{ $isSelected ? 'selected' : '' }}>
-                                                                    {{ $vehicleName }}
-                                                                    @if($vehicleType)
-                                                                        ({{ $vehicleType }})
-                                                                    @endif
-                                                                    @if($seatingCapacity)
-                                                                        - {{ $seatingCapacity }} seats
-                                                                    @endif
-                                                                </option>
-                                                            @endforeach
+                                                            <option value="">{{ $transportDestination ? 'Select vehicle' : 'Select destination first' }}</option>
+                                                            @if($transportDestination)
+                                                                {{-- Vehicles will be loaded via JavaScript when destination is selected --}}
+                                                                @if($transportVehicle)
+                                                                    @foreach($filteredVehicles as $vehicle)
+                                                                        @php
+                                                                            $vehicleName = $vehicle->vehicle_name ?? $vehicle->vehicle_id ?? 'Vehicle';
+                                                                            $vehicleId = $vehicle->vehicle_id ?? '';
+                                                                            $vehicleType = $vehicle->vehicle_type ?? '';
+                                                                            $seatingCapacity = $vehicle->seating_capacity ?? '';
+                                                                            $isSelected = ($transportVehicle === $vehicleName || 
+                                                                                           $transportVehicle === $vehicleId || 
+                                                                                           $transportVehicleId === $vehicleId ||
+                                                                                           $transportVehicleId === (string)$vehicleId);
+                                                                        @endphp
+                                                                        @if($isSelected)
+                                                                            <option value="{{ $vehicleName }}" data-vehicle-id="{{ $vehicleId }}" data-seating-capacity="{{ $seatingCapacity }}" selected>
+                                                                                {{ $vehicleName }}
+                                                                                @if($vehicleType)
+                                                                                    ({{ $vehicleType }})
+                                                                                @endif
+                                                                                @if($seatingCapacity)
+                                                                                    - {{ $seatingCapacity }} seats
+                                                                                @endif
+                                                                            </option>
+                                                                        @endif
+                                                                    @endforeach
+                                                                @endif
+                                                            @endif
                                                         </select>
                                                     </div>
                                                 </div>
@@ -3211,14 +3289,14 @@
                                                     <div class="d-flex align-items-center gap-2">
                                                         <span class="text-muted small toggle-label" id="attraction_guide_no_{{ $order->booking_id }}">No</span>
                                                         <label class="toggle-switch" for="need_attraction_guide_{{ $order->booking_id }}">
-                                                            <input type="checkbox" class="toggle-switch-input" name="need_attraction_guide_{{ $order->booking_id }}" id="need_attraction_guide_{{ $order->booking_id }}" value="yes" autocomplete="off">
+                                                            <input type="checkbox" class="toggle-switch-input" name="need_attraction_guide_{{ $order->booking_id }}" id="need_attraction_guide_{{ $order->booking_id }}" value="yes" autocomplete="off" {{ $guideRequired ? 'checked' : '' }}>
                                                             <span class="toggle-switch-slider"></span>
                                                         </label>
                                                         <span class="text-muted small toggle-label" id="attraction_guide_yes_{{ $order->booking_id }}">Yes</span>
                                                     </div>
                                                 </div>
                                             </div>
-                                            <div id="attraction_guide_details_{{ $order->booking_id }}" class="border rounded-3 p-3 bg-white mt-2 d-none">
+                                            <div id="attraction_guide_details_{{ $order->booking_id }}" class="border rounded-3 p-3 bg-white mt-2 {{ $guideRequired ? '' : 'd-none' }}">
                                                 @php
                                                     $availableGuides = $guides ?? collect();
                                                     $tourCountry = $tour->destination ?? '';
@@ -3257,14 +3335,17 @@
                                                                 sort($uniqueLanguages);
                                                             @endphp
                                                             @foreach($uniqueLanguages as $language)
-                                                                <option value="{{ $language }}">{{ $language }}</option>
+                                                                <option value="{{ $language }}" {{ $guideLanguage && strtolower(trim($guideLanguage)) === strtolower(trim($language)) ? 'selected' : '' }}>{{ $language }}</option>
                                                             @endforeach
                                                         </select>
                                                     </div>
                                                     <div class="col-md-6">
                                                         <label class="form-label small fw-semibold mb-1">Guide</label>
-                                                        <select class="form-select form-select-sm" name="attraction_guide_name_{{ $order->booking_id }}" id="attraction_guide_name_{{ $order->booking_id }}" data-no-select2="true">
+                                                        <select class="form-select form-select-sm" name="attraction_guide_name_{{ $order->booking_id }}" id="attraction_guide_name_{{ $order->booking_id }}" data-no-select2="true" data-initial-guide-id="{{ $guideId }}" data-initial-guide-name="{{ $guideName }}">
                                                             <option value="">Select Language First</option>
+                                                            @if($guideName && $guideName != 'N/A')
+                                                                <option value="{{ $guideName }}" data-guide-id="{{ $guideId }}" selected>{{ $guideName }}</option>
+                                                            @endif
                                                         </select>
                                                     </div>
                                                 </div>
@@ -3273,27 +3354,27 @@
                                                         <label class="form-label small fw-semibold mb-1">Package (Hours)</label>
                                                         <select class="form-select form-select-sm" name="attraction_guide_hours_{{ $order->booking_id }}" id="attraction_guide_hours_{{ $order->booking_id }}" data-no-select2="true">
                                                             <option value="">Select Hours</option>
-                                                            <option value="1">1 Hour</option>
-                                                            <option value="2">2 Hours</option>
-                                                            <option value="3">3 Hours</option>
-                                                            <option value="4">4 Hours</option>
-                                                            <option value="5">5 Hours</option>
-                                                            <option value="6">6 Hours</option>
-                                                            <option value="7">7 Hours</option>
-                                                            <option value="8">8 Hours</option>
-                                                            <option value="9">9 Hours</option>
-                                                            <option value="10">10 Hours</option>
-                                                            <option value="11">11 Hours</option>
-                                                            <option value="12">12 Hours</option>
-                                                            <option value="custom">Custom Hours</option>
+                                                            <option value="1" {{ $guidePackageHours == '1' || $guideHours == 1 ? 'selected' : '' }}>1 Hour</option>
+                                                            <option value="2" {{ $guidePackageHours == '2' || $guideHours == 2 ? 'selected' : '' }}>2 Hours</option>
+                                                            <option value="3" {{ $guidePackageHours == '3' || $guideHours == 3 ? 'selected' : '' }}>3 Hours</option>
+                                                            <option value="4" {{ $guidePackageHours == '4' || $guideHours == 4 ? 'selected' : '' }}>4 Hours</option>
+                                                            <option value="5" {{ $guidePackageHours == '5' || $guideHours == 5 ? 'selected' : '' }}>5 Hours</option>
+                                                            <option value="6" {{ $guidePackageHours == '6' || $guideHours == 6 ? 'selected' : '' }}>6 Hours</option>
+                                                            <option value="7" {{ $guidePackageHours == '7' || $guideHours == 7 ? 'selected' : '' }}>7 Hours</option>
+                                                            <option value="8" {{ $guidePackageHours == '8' || $guideHours == 8 ? 'selected' : '' }}>8 Hours</option>
+                                                            <option value="9" {{ $guidePackageHours == '9' || $guideHours == 9 ? 'selected' : '' }}>9 Hours</option>
+                                                            <option value="10" {{ $guidePackageHours == '10' || $guideHours == 10 ? 'selected' : '' }}>10 Hours</option>
+                                                            <option value="11" {{ $guidePackageHours == '11' || $guideHours == 11 ? 'selected' : '' }}>11 Hours</option>
+                                                            <option value="12" {{ $guidePackageHours == '12' || $guideHours == 12 ? 'selected' : '' }}>12 Hours</option>
+                                                            <option value="custom" {{ ($guidePackageHours && !in_array($guidePackageHours, ['1','2','3','4','5','6','7','8','9','10','11','12'])) || ($guideHours && !in_array($guideHours, [1,2,3,4,5,6,7,8,9,10,11,12])) ? 'selected' : '' }}>Custom Hours</option>
                                                         </select>
-                                                        <input type="number" min="1" class="form-control form-control-sm mt-2" name="attraction_guide_custom_hours_{{ $order->booking_id }}" id="attraction_guide_custom_hours_{{ $order->booking_id }}" placeholder="Enter custom hours" style="display: none;">
+                                                        <input type="number" min="1" class="form-control form-control-sm mt-2" name="attraction_guide_custom_hours_{{ $order->booking_id }}" id="attraction_guide_custom_hours_{{ $order->booking_id }}" placeholder="Enter custom hours" value="{{ ($guidePackageHours && !in_array($guidePackageHours, ['1','2','3','4','5','6','7','8','9','10','11','12'])) ? $guidePackageHours : (($guideHours && !in_array($guideHours, [1,2,3,4,5,6,7,8,9,10,11,12])) ? $guideHours : '') }}" style="display: {{ ($guidePackageHours && !in_array($guidePackageHours, ['1','2','3','4','5','6','7','8','9','10','11','12'])) || ($guideHours && !in_array($guideHours, [1,2,3,4,5,6,7,8,9,10,11,12])) ? 'block' : 'none' }};">
                                                     </div>
                                                     <div class="col-md-6">
                                                         <label class="form-label small fw-semibold mb-1">Guide Price</label>
                                                         <div class="position-relative">
                                                             <span class="position-absolute" style="left: 10px; top: 50%; transform: translateY(-50%); z-index: 5; color: #6c757d; font-weight: 500;">{{ $tour->currency ?? '$' }}</span>
-                                                            <input type="number" min="0" step="0.01" class="form-control form-control-sm" name="attraction_guide_price_{{ $order->booking_id }}" id="attraction_guide_price_{{ $order->booking_id }}" placeholder="0.00" readonly style="padding-left: 30px;">
+                                                            <input type="number" min="0" step="0.01" class="form-control form-control-sm" name="attraction_guide_price_{{ $order->booking_id }}" id="attraction_guide_price_{{ $order->booking_id }}" placeholder="0.00" value="{{ $guideTotalPrice > 0 ? number_format((float)$guideTotalPrice, 2, '.', '') : '' }}" readonly style="padding-left: 30px;">
                                                         </div>
                                                         <small class="text-muted" style="font-size: 0.75rem; line-height: 1.2;">
                                                             <span id="attraction_guide_price_breakdown_{{ $order->booking_id }}" style="display: none;"></span>
@@ -3342,7 +3423,7 @@
                             <!-- All Guides Section (Unified) -->
                             <div class="service-section mb-3">
                                 <div >
-                                    <div class="card-header text-dark d-flex justify-content-between align-items-center" role="button" data-bs-toggle="collapse" data-bs-target="#allGuidesSection" aria-expanded="false" aria-controls="allGuidesSection" style="cursor: pointer; background: linear-gradient(135deg, #e5e7eb 0%, #d1d5db 100%); border: 1px solid #9ca3af;">
+                                    <div class="card-header text-dark d-flex justify-content-between align-items-center" role="button" data-bs-toggle="collapse" data-bs-target="#allGuidesSection" aria-expanded="false" aria-controls="allGuidesSection" style="cursor: pointer; background: linear-gradient(135deg, #d1fae5 0%, #a7f3d0 100%); border: 1px solid #34d399; transition: all 0.3s ease;">
                                         <div class="d-flex align-items-center">
                                             <span class="service-icon me-3">
                                                 <i class="ri-user-star-line fs-4"></i>
@@ -3366,22 +3447,32 @@
                                             }
                                             $guideName = $payload['guide_name'] ?? 'N/A';
                                             $packageHours = $payload['hours'] ?? '';
-                                            $pickupTime = $payload['entrytime'] ?? '';
+                                            $pickupTime = $payload['entrypickup'] ?? $payload['entrytime'] ?? '';
+                                            $pickupDate = $payload['pickupdate'] ?? '';
                                             $guestSummary = $payload['fullName'] ?? '';
                                             $guideNotes = $payload['notes'] ?? '';
                                             $totalPrice = $payload['totalPrice'] ?? $payload['price'] ?? 0;
+                                            
                                             // Convert pickup time to AM/PM format for display
                                             $pickupTimeAMPM = '';
                                             if ($pickupTime) {
                                                 try {
+                                                    // Try parsing as 24-hour format first (H:i)
                                                     $timeObj = \Carbon\Carbon::createFromFormat('H:i', $pickupTime);
                                                     $pickupTimeAMPM = $timeObj->format('h:i A');
                                                 } catch (\Exception $e) {
                                                     try {
-                                                        $timeObj = \Carbon\Carbon::parse($pickupTime);
+                                                        // Try parsing as 12-hour format (h:i A)
+                                                        $timeObj = \Carbon\Carbon::createFromFormat('h:i A', $pickupTime);
                                                         $pickupTimeAMPM = $timeObj->format('h:i A');
                                                     } catch (\Exception $e2) {
-                                                        $pickupTimeAMPM = $pickupTime; // Keep original if parsing fails
+                                                        try {
+                                                            // Try general parse
+                                                            $timeObj = \Carbon\Carbon::parse($pickupTime);
+                                                            $pickupTimeAMPM = $timeObj->format('h:i A');
+                                                        } catch (\Exception $e3) {
+                                                            $pickupTimeAMPM = $pickupTime; // Keep original if parsing fails
+                                                        }
                                                     }
                                                 }
                                             }
@@ -3443,7 +3534,11 @@
                                                     </select>
                                                 </div>
                                                 <div class="col-md-3">
-                                                    <label class="form-label fw-semibold text-muted mb-1"><i class="ri-time-line me-1 text-info"></i>Pickup Time</label>
+                                                    <label class="form-label fw-semibold text-muted mb-1"><i class="ri-calendar-line me-1 text-primary"></i>Pickup Date</label>
+                                                    <input type="date" class="form-control border-2" style="height: 38px;" name="pickup_date" id="pickup_date_{{ $order->booking_id }}" value="{{ $pickupDate }}" required>
+                                                </div>
+                                                <div class="col-md-3">
+                                                    <label class="form-label fw-semibold text-muted mb-1"><i class="ri-time-line me-1 text-info"></i>Entry Pickup Time</label>
                                                     <select class="form-select border-2" name="pickup_time" id="guide_pickup_time_{{ $order->booking_id }}" required>
                                                         <option value="">Select Guide First</option>
                                                         @if($pickupTimeAMPM)
@@ -3456,7 +3551,7 @@
                                                     <label class="form-label fw-semibold text-muted mb-1"><i class="ri-time-line me-1 text-warning"></i>Package (Hours)</label>
                                                     <input type="text" class="form-control border-2" style="height: 38px;" name="package_hours" value="{{ $packageHours }}" placeholder="e.g. 4">
                                                 </div>
-                                                <div class="col-md-2">
+                                                <div class="col-md-3">
                                                     <label class="form-label fw-semibold text-muted mb-1"><i class="ri-money-dollar-circle-line me-1 text-success"></i>Total Price</label>
                                                     <input type="number" class="form-control border-2" style="height: 38px;" name="total_price" id="guide_total_price_{{ $order->booking_id }}" step="0.01" min="0" value="{{ number_format((float)$totalPrice, 2, '.', '') }}" placeholder="0.00" readonly>
                                                 </div>
@@ -3500,7 +3595,7 @@
                             <!-- Departure Transport Services Section -->
                             <div class="service-section mb-3">
                                 <div>
-                                    <div class="card-header text-dark d-flex justify-content-between align-items-center" role="button" data-bs-toggle="collapse" data-bs-target="#departureTransportSection" aria-expanded="false" aria-controls="departureTransportSection" style="cursor: pointer; background: linear-gradient(135deg, #e5e7eb 0%, #d1d5db 100%); border: 1px solid #9ca3af;">
+                                    <div class="card-header text-dark d-flex justify-content-between align-items-center" role="button" data-bs-toggle="collapse" data-bs-target="#departureTransportSection" aria-expanded="false" aria-controls="departureTransportSection" style="cursor: pointer; background: linear-gradient(135deg, #dbeafe 0%, #bfdbfe 100%); border: 1px solid #60a5fa; transition: all 0.3s ease;">
                                         <div class="d-flex align-items-center">
                                             <span class="service-icon me-3">
                                                 <i class="ri-logout-circle-line fs-4"></i>
@@ -4162,7 +4257,7 @@
                             <label class="form-label small fw-semibold mb-1">
                                 <i class="ri-map-pin-line text-success me-1"></i>City
                             </label>
-                            <select class="form-select form-select-sm" id="modal_restaurant_city_select" name="city" onchange="loadRestaurantsForCity(this.value, this.dataset.country)">
+                            <select class="form-select form-select-sm" id="modal_restaurant_city_select" name="city" onchange="loadRestaurantsForCity(this.value, this.dataset.country)" >
                                 <option value="">Select city</option>
                                 @foreach($cities as $city)
                                     <option value="{{ $city->name }}" data-city="{{ json_encode($city) }}" data-country="{{ $city->country }}">{{ $city->name }}</option>
@@ -4356,23 +4451,8 @@
                                         <div class="col-md-4">
                                             <label class="form-label fw-semibold">Vehicle (by country)</label>
                                             <select class="form-select form-select-sm modal-restaurant-transport-vehicle-select" name="modal_restaurant_transport_vehicle" id="modal_restaurant_transport_vehicle" data-no-select2="true">
-                                                <option value="">Select vehicle</option>
-                                                @foreach($filteredVehicles as $vehicle)
-                                                    @php
-                                                        $vehicleName = $vehicle->vehicle_name ?? $vehicle->vehicle_id ?? 'Vehicle';
-                                                        $vehicleType = $vehicle->vehicle_type ?? '';
-                                                        $seatingCapacity = $vehicle->seating_capacity ?? '';
-                                                    @endphp
-                                                    <option value="{{ $vehicleName }}" data-seating-capacity="{{ $seatingCapacity }}">
-                                                        {{ $vehicleName }}
-                                                        @if($vehicleType)
-                                                            ({{ $vehicleType }})
-                                                        @endif
-                                                        @if($seatingCapacity)
-                                                            - {{ $seatingCapacity }} seats
-                                                        @endif
-                                                    </option>
-                                                @endforeach
+                                                <option value="">Select destination first</option>
+                                                {{-- Vehicles will be loaded via JavaScript when destination is selected --}}
                                             </select>
                                         </div>
                                     </div>
@@ -4411,18 +4491,6 @@
                             <div class="border rounded-3 p-3 bg-light">
                                 <h6 class="fw-semibold mb-3"><i class="ri-money-dollar-circle-line me-1 text-success"></i>Price Breakdown</h6>
                                 <div class="row g-2">
-                                    <div class="col-md-4">
-                                        <div class="d-flex justify-content-between align-items-center p-2 bg-white rounded">
-                                            <span class="text-muted small">Meal Price:</span>
-                                            <span class="fw-semibold" id="modal_restaurant_meal_price_display">$ 0.00</span>
-                                        </div>
-                                    </div>
-                                    <div class="col-md-4">
-                                        <div class="d-flex justify-content-between align-items-center p-2 bg-white rounded">
-                                            <span class="text-muted small">Transport Price:</span>
-                                            <span class="fw-semibold" id="modal_restaurant_transport_price_display">$ 0.00</span>
-                                        </div>
-                                    </div>
                                     <div class="col-md-4">
                                         <div class="d-flex justify-content-between align-items-center p-2 bg-success text-white rounded">
                                             <span class="fw-semibold">Total Price:</span>
@@ -4587,10 +4655,10 @@
                             <label for="modal_pax" class="form-label fw-semibold">Pax</label>
                             <div class="input-group">
                                 
-                                <input type="number" class="form-control text-center" id="modal_pax" name="modal_pax" value="1" min="1" max="20" readonly>
+                                <input type="number" class="form-control text-center" id="modal_pax" name="modal_pax" value="1" min="1" data-tour-max="{{ ($tour->adult ?? 0) + ($tour->child ?? 0) }}" readonly>
                                 
                             </div>
-                            <small class="text-muted">Total persons (adults + children)</small>
+                            <small class="text-muted">Total persons (adults + children) - Max: {{ ($tour->adult ?? 0) + ($tour->child ?? 0) }}</small>
                         </div>
 
                         <!-- Children -->
@@ -4598,7 +4666,7 @@
                             <label for="modal_children" class="form-label fw-semibold">Children</label>
                             <div class="input-group">
                                 <button type="button" class="btn btn-outline-secondary" onclick="decrementCount('modal_children')">-</button>
-                                <input type="number" class="form-control text-center" id="modal_children" name="modal_children" value="0" min="0" max="20">
+                                <input type="number" class="form-control text-center" id="modal_children" name="modal_children" value="0" min="0" data-tour-max="{{ ($tour->adult ?? 0) + ($tour->child ?? 0) }}">
                                 <button type="button" class="btn btn-outline-secondary" onclick="incrementCount('modal_children')">+</button>
                             </div>
                         </div>
@@ -4608,7 +4676,7 @@
                             <label for="modal_male_count" class="form-label fw-semibold">Male</label>
                             <div class="input-group">
                                 <button type="button" class="btn btn-outline-secondary" onclick="decrementCount('modal_male_count')">-</button>
-                                <input type="number" class="form-control text-center" id="modal_male_count" name="modal_male_count" value="1" min="0" max="20">
+                                <input type="number" class="form-control text-center" id="modal_male_count" name="modal_male_count" value="1" min="0" data-tour-max="{{ ($tour->adult ?? 0) + ($tour->child ?? 0) }}">
                                 <button type="button" class="btn btn-outline-secondary" onclick="incrementCount('modal_male_count')">+</button>
                             </div>
                         </div>
@@ -4618,7 +4686,7 @@
                             <label for="modal_female_count" class="form-label fw-semibold">Female</label>
                             <div class="input-group">
                                 <button type="button" class="btn btn-outline-secondary" onclick="decrementCount('modal_female_count')">-</button>
-                                <input type="number" class="form-control text-center" id="modal_female_count" name="modal_female_count" value="0" min="0" max="20">
+                                <input type="number" class="form-control text-center" id="modal_female_count" name="modal_female_count" value="0" min="0" data-tour-max="{{ ($tour->adult ?? 0) + ($tour->child ?? 0) }}">
                                 <button type="button" class="btn btn-outline-secondary" onclick="incrementCount('modal_female_count')">+</button>
                             </div>
                         </div>
@@ -4993,23 +5061,8 @@
                                         <div class="col-md-4">
                                             <label class="form-label fw-semibold">Vehicle (by country)</label>
                                             <select class="form-select form-select-sm modal-attraction-transport-vehicle-select" name="modal_attraction_transport_vehicle" id="modal_attraction_transport_vehicle" data-no-select2="true">
-                                                <option value="">Select vehicle</option>
-                                                @foreach($filteredVehicles as $vehicle)
-                                                    @php
-                                                        $vehicleName = $vehicle->vehicle_name ?? $vehicle->vehicle_id ?? 'Vehicle';
-                                                        $vehicleType = $vehicle->vehicle_type ?? '';
-                                                        $seatingCapacity = $vehicle->seating_capacity ?? '';
-                                                    @endphp
-                                                    <option value="{{ $vehicleName }}" data-seating-capacity="{{ $seatingCapacity }}">
-                                                        {{ $vehicleName }}
-                                                        @if($vehicleType)
-                                                            ({{ $vehicleType }})
-                                                        @endif
-                                                        @if($seatingCapacity)
-                                                            - {{ $seatingCapacity }} seats
-                                                        @endif
-                                                    </option>
-                                                @endforeach
+                                                <option value="">Select destination first</option>
+                                                {{-- Vehicles will be loaded via JavaScript when destination is selected --}}
                                             </select>
                                         </div>
                                     </div>
@@ -5048,25 +5101,7 @@
                             <div class="border rounded-3 p-3 bg-light">
                                 <h6 class="fw-semibold mb-3"><i class="ri-money-dollar-circle-line me-1 text-success"></i>Price Breakdown</h6>
                                 <div class="row g-2">
-                                    <div class="col-md-3">
-                                        <div class="d-flex justify-content-between align-items-center p-2 bg-white rounded">
-                                            <span class="text-muted small">Ticket Price:</span>
-                                            <span class="fw-semibold" id="modal_attraction_ticket_price_display">$ 0.00</span>
-                                        </div>
-                                    </div>
-                                    <div class="col-md-3">
-                                        <div class="d-flex justify-content-between align-items-center p-2 bg-white rounded">
-                                            <span class="text-muted small">Transport Price:</span>
-                                            <span class="fw-semibold" id="modal_attraction_transport_price_display">$ 0.00</span>
-                                        </div>
-                                    </div>
-                                    <div class="col-md-3">
-                                        <div class="d-flex justify-content-between align-items-center p-2 bg-white rounded">
-                                            <span class="text-muted small">Guide Price:</span>
-                                            <span class="fw-semibold" id="modal_attraction_guide_price_display">$ 0.00</span>
-                                        </div>
-                                    </div>
-                                    <div class="col-md-3">
+                                    <div class="col-md-4">
                                         <div class="d-flex justify-content-between align-items-center p-2 bg-success text-white rounded">
                                             <span class="fw-semibold">Total Price:</span>
                                             <span class="fw-bold fs-6" id="modal_attraction_total_price_display">$ 0.00</span>
@@ -5105,9 +5140,9 @@
                         <div class="col-md-6">
                             <label for="attraction_modal_pax" class="form-label fw-semibold">Pax</label>
                             <div class="input-group">
-                                <input type="number" class="form-control text-center" id="attraction_modal_pax" name="attraction_modal_pax" value="1" min="1" max="20" readonly>
+                                <input type="number" class="form-control text-center" id="attraction_modal_pax" name="attraction_modal_pax" value="1" min="1" data-tour-max="{{ ($tour->adult ?? 0) + ($tour->child ?? 0) }}" readonly>
                             </div>
-                            <small class="text-muted">Total persons (adults + children)</small>
+                            <small class="text-muted">Total persons (adults + children) - Max: {{ ($tour->adult ?? 0) + ($tour->child ?? 0) }}</small>
                         </div>
 
                         <!-- Children -->
@@ -5115,7 +5150,7 @@
                             <label for="attraction_modal_children" class="form-label fw-semibold">Children</label>
                             <div class="input-group">
                                 <button type="button" class="btn btn-outline-secondary" onclick="decrementAttractionCount('attraction_modal_children')">-</button>
-                                <input type="number" class="form-control text-center" id="attraction_modal_children" name="attraction_modal_children" value="0" min="0" max="20">
+                                <input type="number" class="form-control text-center" id="attraction_modal_children" name="attraction_modal_children" value="0" min="0" data-tour-max="{{ ($tour->adult ?? 0) + ($tour->child ?? 0) }}">
                                 <button type="button" class="btn btn-outline-secondary" onclick="incrementAttractionCount('attraction_modal_children')">+</button>
                             </div>
                         </div>
@@ -5125,7 +5160,7 @@
                             <label for="attraction_modal_male_count" class="form-label fw-semibold">Male</label>
                             <div class="input-group">
                                 <button type="button" class="btn btn-outline-secondary" onclick="decrementAttractionCount('attraction_modal_male_count')">-</button>
-                                <input type="number" class="form-control text-center" id="attraction_modal_male_count" name="attraction_modal_male_count" value="1" min="0" max="20">
+                                <input type="number" class="form-control text-center" id="attraction_modal_male_count" name="attraction_modal_male_count" value="1" min="0" data-tour-max="{{ ($tour->adult ?? 0) + ($tour->child ?? 0) }}">
                                 <button type="button" class="btn btn-outline-secondary" onclick="incrementAttractionCount('attraction_modal_male_count')">+</button>
                             </div>
                         </div>
@@ -5135,7 +5170,7 @@
                             <label for="attraction_modal_female_count" class="form-label fw-semibold">Female</label>
                             <div class="input-group">
                                 <button type="button" class="btn btn-outline-secondary" onclick="decrementAttractionCount('attraction_modal_female_count')">-</button>
-                                <input type="number" class="form-control text-center" id="attraction_modal_female_count" name="attraction_modal_female_count" value="0" min="0" max="20">
+                                <input type="number" class="form-control text-center" id="attraction_modal_female_count" name="attraction_modal_female_count" value="0" min="0" data-tour-max="{{ ($tour->adult ?? 0) + ($tour->child ?? 0) }}">
                                 <button type="button" class="btn btn-outline-secondary" onclick="incrementAttractionCount('attraction_modal_female_count')">+</button>
                             </div>
                         </div>
@@ -5188,17 +5223,6 @@
                     <input type="hidden" id="modal_transport_type" name="transport_type" value="entry_port">
                     
                     <div>
-                        <div class="card-header bg-primary text-white">
-                            <div class="d-flex align-items-center">
-                                <span class="service-icon me-3">
-                                    <i class="ri-login-circle-line fs-4"></i>
-                                </span>
-                                <div>
-                                    <h6 class="mb-0 fw-bold">Transport Services</h6>
-                                    <small class="opacity-75">Configure pickup and dropoff locations</small>
-                                </div>
-                            </div>
-                        </div>
                         <div class="card-body bg-white">
                             <div class="row g-4 align-items-end">
                                 <div class="col-md-3">
@@ -5311,14 +5335,14 @@
                                             <i class="ri-calendar-line text-primary me-2"></i>Pick Up Date
                                         </label>
                                         <div class="position-relative">
-                                            <input type="date" class="form-control border-2" id="modal_transport_pickup_date" name="pickup_date" value="{{ \Carbon\Carbon::parse($tour->check_in_time)->format('Y-m-d') }}" readonly disabled style="padding-left: 45px;">
+                                            <input type="date" class="form-control border-2" id="modal_transport_pickup_date" name="pickup_date" value="{{ \Carbon\Carbon::parse($tour->check_in_time)->format('Y-m-d') }}" readonly disabled style="height: 42px; padding-left: 45px;">
                                             <i class="ri-calendar-fill position-absolute text-primary" style="left: 15px; top: 50%; transform: translateY(-50%); z-index: 5;"></i>
                                         </div>
                                     </div>
                                 </div>
                                 <div class="col-md-2">
-                                    <button type="button" class="btn btn-primary w-100 py-2" onclick="searchVehicles()" id="transport_search_btn">
-                                        <i class="ri-search-line me-2"></i>Search Vehicles
+                                    <button type="button" class="btn btn-primary w-100 py-2" onclick="searchVehicles()" id="transport_search_btn" style="height: 42px;">
+                                        Search
                                     </button>
                                 </div>
                             </div>
@@ -5386,17 +5410,33 @@
                                 </div>
                                 @endif
                                 <div class="col-md-2">
-                                            <div class="form-group">
-                                                <label class="form-label fw-semibold">Number of Passengers</label>
-                                                <div class="input-group">
-                                                    <span class="input-group-text"><i class="ri-user-line"></i></span>
-                                                    <input type="number" class="form-control" id="modal_transport_passengers" name="passengers" min="1" max="{{ ($tour->adult ?? 0) + ($tour->child ?? 0) }}" value="" onkeyup="updatePricing()" onchange="updatePricing()">
-                                                </div>
-                                                <small class="form-text text-muted">
-                                                    Maximum passengers: {{ ($tour->adult ?? 0) + ($tour->child ?? 0) }} ({{ $tour->adult ?? 0 }} adults + {{ $tour->child ?? 0 }} children)
-                                                </small>
-                                            </div>
+                                    <div class="form-group">
+                                        <label class="form-label fw-semibold">Number of Passengers</label>
+                                        <div class="input-group">
+                                            @php
+                                                $tourMaxPassengers = ($tour->adult ?? 0) + ($tour->child ?? 0);
+                                            @endphp
+                                            <input 
+                                                type="number" 
+                                                class="form-control" 
+                                                id="modal_transport_passengers" 
+                                                name="passengers" 
+                                                min="1" 
+                                                max="{{ $tourMaxPassengers }}" 
+                                                value="" 
+                                                data-tour-guests="{{ $tourMaxPassengers }}"
+                                                onkeyup="updatePricing()" 
+                                                onchange="updatePricing()" 
+                                                style="height: 40px;">
                                         </div>
+                                        <small class="form-text text-muted">
+                                            Maximum passengers: 
+                                            <span id="modal_transport_passengers_help">
+                                                {{ $tourMaxPassengers }} ({{ $tour->adult ?? 0 }} adults + {{ $tour->child ?? 0 }} children)
+                                            </span>
+                                        </small>
+                                    </div>
+                                </div>
                             </div>
                                     
                                     <!-- Guest Information -->
@@ -5638,7 +5678,7 @@
                                         </div>
                                         <div class="col-md-2">
                                             <button type="button" class="btn btn-primary w-100 py-2" onclick="searchLocalTransferVehicles()" id="local_transfer_search_btn" disabled>
-                                                <i class="ri-search-line me-2"></i>Search Vehicles
+                                                Search 
                                             </button>
                                         </div>
                                     </div>
@@ -5727,7 +5767,7 @@
                                         </div>
                                         <div class="col-md-2">
                                             <button type="button" class="btn btn-primary w-100 py-2" onclick="searchPointToPointVehicles()" id="local_transfer_point_to_point_search_btn" disabled>
-                                                <i class="ri-search-line me-2"></i>Search Vehicles
+                                                Search
                                             </button>
                                         </div>
                                     </div>
@@ -5826,7 +5866,7 @@
                                         </div>
                                         <div class="col-md-2">
                                             <button type="button" class="btn btn-primary w-100 py-2" onclick="searchHourlyVehicles()" id="local_transfer_hourly_search_btn" disabled>
-                                                <i class="ri-search-line me-2"></i>Search Vehicles
+                                                Search
                                             </button>
                                         </div>
                                     </div>
@@ -6063,8 +6103,8 @@
                                     </div>
                                 </div>
                                 <div class="col-md-2">
-                                    <button type="button" class="btn btn-success w-100 py-2" onclick="searchDropoffVehicles()" id="dropoff_transport_search_btn" disabled>
-                                        <i class="ri-search-line me-2"></i>Search Vehicles
+                                    <button type="button" class="btn btn-success w-100 py-2" onclick="searchDropoffVehicles()" id="dropoff_transport_search_btn" disabled >
+                                        Search
                                     </button>
                                 </div>
                             </div>
@@ -6645,6 +6685,7 @@
             const option = $('<option></option>')
                 .attr('value', guide.name)
                 .attr('data-guide-id', guide.guide_id || '')
+                .attr('data-guide-data', JSON.stringify(guideData))
                 .data('guide-data', guideData)
                 .text(guide.name);
             guideSelect.append(option);
@@ -6823,6 +6864,12 @@
                     $('#modal_attraction_transport_passengers').trigger('input');
                 } else if (select.hasClass('modal-restaurant-transport-vehicle-select')) {
                     $('#modal_restaurant_transport_passengers').trigger('input');
+                } else if (select.hasClass('hotel-transport-vehicle-select')) {
+                    $('#hotel_transport_passengers_' + bookingId).trigger('input');
+                } else if (select.hasClass('attraction-transport-vehicle-select')) {
+                    $('#attraction_transport_passengers_' + bookingId).trigger('input');
+                } else if (select.hasClass('restaurant-transport-vehicle-select')) {
+                    $('#restaurant_transport_passengers_' + bookingId).trigger('input');
                 }
             }
         });
@@ -6938,6 +6985,79 @@
             }
         });
 
+        // Validate attraction and restaurant guest inputs (adults, children, seniors, infants) against tour pax
+        $(document).on('input change', '.attraction-guest-input, .restaurant-guest-input', function() {
+            const input = $(this);
+            const bookingId = input.data('booking-id');
+            const tourMaxPax = parseInt(input.data('tour-max') || '0', 10) || 0;
+            
+            if (tourMaxPax <= 0) return;
+            
+            // Get all guest inputs for this booking
+            let adults = 0;
+            let children = 0;
+            let seniors = 0;
+            let infants = 0;
+            
+            if (input.hasClass('attraction-guest-input')) {
+                adults = parseInt($('#attraction_adult_count_' + bookingId).val() || '0', 10) || 0;
+                children = parseInt($('#attraction_child_count_' + bookingId).val() || '0', 10) || 0;
+                seniors = parseInt($('#attraction_senior_count_' + bookingId).val() || '0', 10) || 0;
+                infants = parseInt($('#attraction_infants_' + bookingId).val() || '0', 10) || 0;
+            } else if (input.hasClass('restaurant-guest-input')) {
+                adults = parseInt($('#restaurant_adult_count_' + bookingId).val() || '0', 10) || 0;
+                children = parseInt($('#restaurant_child_count_' + bookingId).val() || '0', 10) || 0;
+            }
+            
+            // Calculate total pax (adults + children + seniors + infants)
+            // For attractions: adults + children + seniors + infants
+            // For restaurants: adults + children (no seniors/infants in restaurant form)
+            const totalPax = input.hasClass('attraction-guest-input') 
+                ? (adults + children + seniors + infants)
+                : (adults + children);
+            
+            if (totalPax > tourMaxPax) {
+                // Show error and adjust values
+                const excess = totalPax - tourMaxPax;
+                const guestTypes = input.hasClass('attraction-guest-input') 
+                    ? 'adults + children + seniors + infants'
+                    : 'adults + children';
+                showNotification(`Total guests (${guestTypes}) cannot exceed tour pax limit of ${tourMaxPax}. Reducing by ${excess}.`, 'warning');
+                
+                // Adjust the current input first
+                const currentValue = parseInt(input.val() || '0', 10) || 0;
+                if (currentValue >= excess) {
+                    input.val(Math.max(0, currentValue - excess));
+                } else {
+                    // If current input can't cover all excess, reduce others
+                    input.val(0);
+                    const remainingExcess = excess - currentValue;
+                    
+                    if (input.hasClass('attraction-guest-input')) {
+                        // Try to reduce from seniors first, then children, then adults
+                        if (seniors >= remainingExcess && input.attr('id') !== 'attraction_senior_count_' + bookingId) {
+                            $('#attraction_senior_count_' + bookingId).val(Math.max(0, seniors - remainingExcess));
+                        } else if (children >= remainingExcess && input.attr('id') !== 'attraction_child_count_' + bookingId) {
+                            $('#attraction_child_count_' + bookingId).val(Math.max(0, children - remainingExcess));
+                        } else if (adults >= remainingExcess && input.attr('id') !== 'attraction_adult_count_' + bookingId) {
+                            $('#attraction_adult_count_' + bookingId).val(Math.max(0, adults - remainingExcess));
+                        }
+                    } else if (input.hasClass('restaurant-guest-input')) {
+                        // For restaurants, reduce from children first, then adults
+                        if (children >= remainingExcess && input.attr('id') !== 'restaurant_child_count_' + bookingId) {
+                            $('#restaurant_child_count_' + bookingId).val(Math.max(0, children - remainingExcess));
+                        } else if (adults >= remainingExcess && input.attr('id') !== 'restaurant_adult_count_' + bookingId) {
+                            $('#restaurant_adult_count_' + bookingId).val(Math.max(0, adults - remainingExcess));
+                        }
+                    }
+                }
+                
+                input.addClass('is-invalid');
+            } else {
+                input.removeClass('is-invalid');
+            }
+        });
+
         // Also validate when seats change (when vehicle is selected) - including modals
         $(document).on('change', '.hotel-transport-vehicle-select, .attraction-transport-vehicle-select, .restaurant-transport-vehicle-select, .modal-hotel-transport-vehicle-select, .modal-attraction-transport-vehicle-select, .modal-restaurant-transport-vehicle-select', function() {
             const select = $(this);
@@ -7047,7 +7167,19 @@
 
                         // Auto-select first vehicle and calculate price
                         if (data.vehicles.length > 0) {
-                            vehicleSelect.val(data.vehicles[0].vehicle_name || data.vehicles[0].vehicle_id);
+                            const firstVehicle = data.vehicles[0];
+                            vehicleSelect.val(firstVehicle.vehicle_name || firstVehicle.vehicle_id);
+                            
+                            // Update seats field
+                            const seatsInput = $('#restaurant_transport_seats_' + bookingId);
+                            if (seatsInput.length && firstVehicle.seating_capacity) {
+                                seatsInput.val(firstVehicle.seating_capacity);
+                            }
+                            
+                            // Trigger change event to ensure all handlers fire
+                            vehicleSelect.trigger('change');
+                            
+                            // Calculate price
                             calculateRestaurantTransportPrice(bookingId);
                         }
                     } else {
@@ -7058,6 +7190,11 @@
                 } catch (error) {
                     console.error('Error fetching vehicles:', error);
                 }
+            } else {
+                // Zone off mode - show all vehicles (fallback behavior)
+                const vehicleSelect = $('#restaurant_transport_vehicle_' + bookingId);
+                vehicleSelect.html('<option value="">Select vehicle</option>');
+                // Note: In zone off mode, you might want to show all vehicles or handle differently
             }
         });
 
@@ -7209,7 +7346,19 @@
 
                         // Auto-select first vehicle and calculate price
                         if (data.vehicles.length > 0) {
-                            vehicleSelect.val(data.vehicles[0].vehicle_name || data.vehicles[0].vehicle_id);
+                            const firstVehicle = data.vehicles[0];
+                            vehicleSelect.val(firstVehicle.vehicle_name || firstVehicle.vehicle_id);
+                            
+                            // Update seats field
+                            const seatsInput = $('#attraction_transport_seats_' + bookingId);
+                            if (seatsInput.length && firstVehicle.seating_capacity) {
+                                seatsInput.val(firstVehicle.seating_capacity);
+                            }
+                            
+                            // Trigger change event to ensure all handlers fire
+                            vehicleSelect.trigger('change');
+                            
+                            // Calculate price
                             calculateAttractionTransportPrice(bookingId);
                         }
                     } else {
@@ -7220,7 +7369,51 @@
                 } catch (error) {
                     console.error('Error fetching vehicles:', error);
                 }
+            } else {
+                // Zone off mode - show all vehicles (fallback behavior)
+                const vehicleSelect = $('#attraction_transport_vehicle_' + bookingId);
+                vehicleSelect.html('<option value="">Select vehicle</option>');
+                // Note: In zone off mode, you might want to show all vehicles or handle differently
             }
+        });
+        
+        // On page load, if destination is already selected, fetch vehicles for it
+        $(document).ready(function() {
+            // Handle attraction transport
+            $('.attraction-transport-destination-select').each(function() {
+                const destinationSelect = $(this);
+                const bookingId = destinationSelect.data('booking-id');
+                const selectedOption = destinationSelect.find('option:selected');
+                
+                if (selectedOption.val() && selectedOption.val().trim()) {
+                    // Trigger the change event to load vehicles for pre-selected destination
+                    destinationSelect.trigger('change');
+                } else {
+                    // No destination selected, clear vehicle dropdown
+                    const vehicleSelect = $('#attraction_transport_vehicle_' + bookingId);
+                    if (vehicleSelect.length) {
+                        vehicleSelect.html('<option value="">Select destination first</option>');
+                    }
+                }
+            });
+            
+            // Handle restaurant transport
+            $('.restaurant-transport-destination-select').each(function() {
+                const destinationSelect = $(this);
+                const bookingId = destinationSelect.data('booking-id');
+                const selectedOption = destinationSelect.find('option:selected');
+                
+                if (selectedOption.val() && selectedOption.val().trim()) {
+                    // Trigger the change event to load vehicles for pre-selected destination
+                    destinationSelect.trigger('change');
+                } else {
+                    // No destination selected, clear vehicle dropdown
+                    const vehicleSelect = $('#restaurant_transport_vehicle_' + bookingId);
+                    if (vehicleSelect.length) {
+                        vehicleSelect.html('<option value="">Select destination first</option>');
+                    }
+                }
+            });
         });
 
         // Calculate attraction transport price based on zone mapping
@@ -7371,7 +7564,19 @@
 
                         // Auto-select first vehicle and calculate price
                         if (data.vehicles.length > 0) {
-                            vehicleSelect.val(data.vehicles[0].vehicle_name || data.vehicles[0].vehicle_id);
+                            const firstVehicle = data.vehicles[0];
+                            vehicleSelect.val(firstVehicle.vehicle_name || firstVehicle.vehicle_id);
+                            
+                            // Update seats field
+                            const seatsInput = $('#modal_restaurant_transport_seats');
+                            if (seatsInput.length && firstVehicle.seating_capacity) {
+                                seatsInput.val(firstVehicle.seating_capacity);
+                            }
+                            
+                            // Trigger change event to ensure all handlers fire
+                            vehicleSelect.trigger('change');
+                            
+                            // Calculate price
                             calculateModalRestaurantTransportPrice();
                         }
                     } else {
@@ -7535,7 +7740,19 @@
 
                         // Auto-select first vehicle and calculate price
                         if (data.vehicles.length > 0) {
-                            vehicleSelect.val(data.vehicles[0].vehicle_name || data.vehicles[0].vehicle_id);
+                            const firstVehicle = data.vehicles[0];
+                            vehicleSelect.val(firstVehicle.vehicle_name || firstVehicle.vehicle_id);
+                            
+                            // Update seats field
+                            const seatsInput = $('#modal_attraction_transport_seats');
+                            if (seatsInput.length && firstVehicle.seating_capacity) {
+                                seatsInput.val(firstVehicle.seating_capacity);
+                            }
+                            
+                            // Trigger change event to ensure all handlers fire
+                            vehicleSelect.trigger('change');
+                            
+                            // Calculate price
                             calculateModalAttractionTransportPrice();
                         }
                     } else {
@@ -8822,20 +9039,46 @@
         if (!field) return;
         
         const currentValue = parseInt(field.value || '0') || 0;
-        const maxValue = parseInt(field.max || '20') || 20;
+        const tourMaxPax = parseInt(field.dataset.tourMax || '0') || 0;
+        
+        // Get current values of all guest fields
+        const childrenValue = parseInt(document.getElementById('attraction_modal_children')?.value || '0') || 0;
+        const maleValue = parseInt(document.getElementById('attraction_modal_male_count')?.value || '0') || 0;
+        const femaleValue = parseInt(document.getElementById('attraction_modal_female_count')?.value || '0') || 0;
+        const currentPax = childrenValue + maleValue + femaleValue;
         
         if (fieldId === 'attraction_modal_pax') {
-            // For pax, just increment normally
-            if (currentValue < maxValue) {
+            // For pax, check against tour max
+            if (tourMaxPax > 0 && currentValue >= tourMaxPax) {
+                showNotification(`Cannot exceed tour pax limit of ${tourMaxPax}`, 'warning');
+                return;
+            }
+            if (currentValue < (tourMaxPax || 20)) {
                 field.value = currentValue + 1;
                 updateAttractionGuestSummary();
             }
         } else {
-            // For other fields, just increment (pax will be auto-calculated)
-            if (currentValue < maxValue) {
-                field.value = currentValue + 1;
-                updateAttractionGuestSummary();
+            // For other fields, check if incrementing would exceed tour pax
+            let newValue = currentValue;
+            if (fieldId === 'attraction_modal_children') {
+                newValue = childrenValue + 1;
+            } else if (fieldId === 'attraction_modal_male_count') {
+                newValue = maleValue + 1;
+            } else if (fieldId === 'attraction_modal_female_count') {
+                newValue = femaleValue + 1;
             }
+            
+            const newPax = (fieldId === 'attraction_modal_children' ? newValue : childrenValue) + 
+                          (fieldId === 'attraction_modal_male_count' ? newValue : maleValue) + 
+                          (fieldId === 'attraction_modal_female_count' ? newValue : femaleValue);
+            
+            if (tourMaxPax > 0 && newPax > tourMaxPax) {
+                showNotification(`Total pax cannot exceed tour limit of ${tourMaxPax}`, 'warning');
+                return;
+            }
+            
+            field.value = newValue;
+            updateAttractionGuestSummary();
         }
     }
 
@@ -8918,10 +9161,39 @@
         const maleCount = parseInt(maleCountElem?.value || '0') || 0;
         const femaleCount = parseInt(femaleCountElem?.value || '0') || 0;
         
+        // Get tour max pax
+        const tourMaxPax = parseInt(paxElem?.dataset.tourMax || '0') || 0;
+        
         // Calculate pax as the sum of adults (male + female) + children
         // Adults = male + female, Pax = adults + children
         const adults = maleCount + femaleCount;
-        const pax = adults + children;
+        let pax = adults + children;
+        
+        // Enforce tour pax limit
+        if (tourMaxPax > 0 && pax > tourMaxPax) {
+            pax = tourMaxPax;
+            // Adjust values to fit within tour pax limit
+            if (adults + children > tourMaxPax) {
+                const excess = (adults + children) - tourMaxPax;
+                if (children >= excess) {
+                    if (childrenElem) childrenElem.value = Math.max(0, children - excess);
+                } else {
+                    const remainingExcess = excess - children;
+                    if (childrenElem) childrenElem.value = 0;
+                    if (maleCount >= remainingExcess) {
+                        if (maleCountElem) maleCountElem.value = Math.max(0, maleCount - remainingExcess);
+                    } else {
+                        if (maleCountElem) maleCountElem.value = 0;
+                        if (femaleCountElem) femaleCountElem.value = Math.max(0, femaleCount - (remainingExcess - maleCount));
+                    }
+                }
+                // Recalculate after adjustment
+                const adjChildren = parseInt(childrenElem?.value || '0') || 0;
+                const adjMaleCount = parseInt(maleCountElem?.value || '0') || 0;
+                const adjFemaleCount = parseInt(femaleCountElem?.value || '0') || 0;
+                pax = (adjMaleCount + adjFemaleCount) + adjChildren;
+            }
+        }
         
         // Update pax field if it exists
         if (paxElem) {
@@ -9700,7 +9972,7 @@
                 
                 // Reset search button
                 if (searchBtn) {
-                    searchBtn.innerHTML = '<i class="ri-search-line me-2"></i>Search Vehicles';
+                    searchBtn.innerHTML = 'Search';
                     searchBtn.disabled = false;
                 }
             })
@@ -9710,7 +9982,7 @@
                 
                 // Reset search button
                 if (searchBtn) {
-                    searchBtn.innerHTML = '<i class="ri-search-line me-2"></i>Search Vehicles';
+                    searchBtn.innerHTML = 'Search';
                     searchBtn.disabled = false;
                 }
             });
@@ -9835,7 +10107,7 @@
                 
                 // Reset search button
                 if (searchBtn) {
-                    searchBtn.innerHTML = '<i class="ri-search-line me-2"></i>Search Vehicles';
+                    searchBtn.innerHTML = 'Search';
                     searchBtn.disabled = false;
                 }
             })
@@ -9845,7 +10117,7 @@
                 
                 // Reset search button
                 if (searchBtn) {
-                    searchBtn.innerHTML = '<i class="ri-search-line me-2"></i>Search Vehicles';
+                    searchBtn.innerHTML = 'Search';
                     searchBtn.disabled = false;
                 }
             });
@@ -10004,7 +10276,7 @@
             
             // Reset search button
             if (searchBtn) {
-                searchBtn.innerHTML = '<i class="ri-search-line me-2"></i>Search Vehicles';
+                searchBtn.innerHTML = 'Search';
                 searchBtn.disabled = false;
             }
         })
@@ -10016,7 +10288,7 @@
             }
             showNotification(errorMessage, 'error');
             if (searchBtn) {
-                searchBtn.innerHTML = '<i class="ri-search-line me-2"></i>Search Vehicles';
+                searchBtn.innerHTML = 'Search';
                 searchBtn.disabled = false;
             }
         });
@@ -10106,7 +10378,7 @@
                 
                 // Reset search button
                 if (searchBtn) {
-                    searchBtn.innerHTML = '<i class="ri-search-line me-2"></i>Search Vehicles';
+                    searchBtn.innerHTML = 'Search';
                     searchBtn.disabled = false;
                 }
             })
@@ -10115,7 +10387,7 @@
                 console.error('Error details:', error.message);
                 showNotification('Error searching vehicles. Please try again.', 'error');
                 if (searchBtn) {
-                    searchBtn.innerHTML = '<i class="ri-search-line me-2"></i>Search Vehicles';
+                    searchBtn.innerHTML = 'Search';
                     searchBtn.disabled = false;
                 }
             });
@@ -10333,7 +10605,7 @@
                 
                 // Reset search button
                 if (searchBtn) {
-                    searchBtn.innerHTML = '<i class="ri-search-line me-2"></i>Search Vehicles';
+                    searchBtn.innerHTML = 'Search';
                     searchBtn.disabled = false;
                 }
             })
@@ -10343,7 +10615,7 @@
                 
                 // Reset search button
                 if (searchBtn) {
-                    searchBtn.innerHTML = '<i class="ri-search-line me-2"></i>Search Vehicles';
+                    searchBtn.innerHTML = 'Search';
                     searchBtn.disabled = false;
                 }
             });
@@ -10353,6 +10625,8 @@
         const vehicleSelect = document.getElementById('modal_transport_vehicle_id');
         const serviceTypeSelect = document.getElementById('modal_transport_service_type');
         const manualPriceContainer = document.getElementById('transport_manual_price_field_container');
+        const passengersInput = document.getElementById('modal_transport_passengers');
+        const passengersHelp = document.getElementById('modal_transport_passengers_help');
         
         if (vehicleSelect && vehicleSelect.value && serviceTypeSelect) {
             // Get selected vehicle data
@@ -10376,6 +10650,35 @@
             // Always show manual price field for both zone on and zone off modes
             if (manualPriceContainer) {
                 manualPriceContainer.style.display = 'block';
+            }
+
+            // Update max passengers based on vehicle capacity and tour guests
+            if (passengersInput) {
+                const tourGuests = parseInt(passengersInput.dataset.tourGuests || passengersInput.max || '0', 10) || 0;
+                const seatingCapacity = parseInt(vehicleData.seatingCapacity || '0', 10) || 0;
+
+                if (tourGuests > 0 || seatingCapacity > 0) {
+                    const maxAllowed = Math.max(1, Math.min(
+                        tourGuests || seatingCapacity,
+                        seatingCapacity || tourGuests
+                    ));
+
+                    passengersInput.max = maxAllowed;
+
+                    if (passengersInput.value && parseInt(passengersInput.value, 10) > maxAllowed) {
+                        passengersInput.value = maxAllowed;
+                    }
+
+                    if (passengersHelp) {
+                        if (seatingCapacity > 0 && tourGuests > 0) {
+                            passengersHelp.textContent = `${maxAllowed} (Vehicle capacity: ${seatingCapacity}, Tour guests: ${tourGuests})`;
+                        } else if (seatingCapacity > 0) {
+                            passengersHelp.textContent = `${maxAllowed} (Vehicle capacity: ${seatingCapacity})`;
+                        } else {
+                            passengersHelp.textContent = `${maxAllowed} (Tour guests: ${tourGuests})`;
+                        }
+                    }
+                }
             }
             
             updatePricing();
@@ -10619,7 +10922,7 @@
             
             // Reset search button
             if (searchBtn) {
-                searchBtn.innerHTML = '<i class="ri-search-line me-2"></i>Search Vehicles';
+                searchBtn.innerHTML = 'Search';
                 searchBtn.disabled = false;
             }
         })
@@ -10627,7 +10930,7 @@
             console.error('Error searching dropoff vehicles:', error);
             alert('Error searching vehicles. Please try again.');
             if (searchBtn) {
-                searchBtn.innerHTML = '<i class="ri-search-line me-2"></i>Search Vehicles';
+                searchBtn.innerHTML = 'Search';
                 searchBtn.disabled = false;
             }
         });
@@ -10734,7 +11037,7 @@
                 
                 // Reset search button
                 if (searchBtn) {
-                    searchBtn.innerHTML = '<i class="ri-search-line me-2"></i>Search Vehicles';
+                    searchBtn.innerHTML = 'Search';
                     searchBtn.disabled = false;
                 }
             })
@@ -10742,7 +11045,7 @@
                 console.error('Error searching Point-to-Point dropoff vehicles:', error);
                 alert('Error searching vehicles. Please try again.');
                 if (searchBtn) {
-                    searchBtn.innerHTML = '<i class="ri-search-line me-2"></i>Search Vehicles';
+                    searchBtn.innerHTML = 'Search';
                     searchBtn.disabled = false;
                 }
             });
@@ -15242,21 +15545,26 @@
 
     function incrementCount(fieldId) {
         const field = document.getElementById(fieldId);
-        const currentValue = parseInt(field.value);
-        const maxValue = parseInt(field.max);
+        if (!field) return;
+        
+        const currentValue = parseInt(field.value || '0') || 0;
+        const tourMaxPax = parseInt(field.dataset.tourMax || '0') || 0;
         
         if (fieldId === 'modal_pax') {
-            // For pax, just increment normally
-            if (currentValue < maxValue) {
+            // For pax, check against tour max
+            if (tourMaxPax > 0 && currentValue >= tourMaxPax) {
+                showNotification(`Cannot exceed tour pax limit of ${tourMaxPax}`, 'warning');
+                return;
+            }
+            if (currentValue < (tourMaxPax || 20)) {
                 field.value = currentValue + 1;
                 updateModalGuestSummary();
             }
         } else {
-            // For other fields, check if incrementing would exceed pax
-            const paxValue = parseInt(document.getElementById('modal_pax').value);
-            const childrenValue = parseInt(document.getElementById('modal_children').value);
-            const maleValue = parseInt(document.getElementById('modal_male_count').value);
-            const femaleValue = parseInt(document.getElementById('modal_female_count').value);
+            // For other fields, check if incrementing would exceed tour pax
+            const childrenValue = parseInt(document.getElementById('modal_children')?.value || '0') || 0;
+            const maleValue = parseInt(document.getElementById('modal_male_count')?.value || '0') || 0;
+            const femaleValue = parseInt(document.getElementById('modal_female_count')?.value || '0') || 0;
             
             let newValue = currentValue;
             if (fieldId === 'modal_children') {
@@ -15267,17 +15575,26 @@
                 newValue = femaleValue + 1;
             }
             
-            // Check if the new total would exceed pax
-            const totalAfterIncrement = newValue + (fieldId === 'modal_children' ? maleValue + femaleValue : 
-                                                   fieldId === 'modal_male_count' ? childrenValue + femaleValue : 
-                                                   childrenValue + maleValue);
+            // Calculate new total pax
+            const newPax = (fieldId === 'modal_children' ? newValue : childrenValue) + 
+                          (fieldId === 'modal_male_count' ? newValue : maleValue) + 
+                          (fieldId === 'modal_female_count' ? newValue : femaleValue);
             
-            if (totalAfterIncrement <= paxValue && currentValue < maxValue) {
-                field.value = currentValue + 1;
-                updateModalGuestSummary();
-            } else if (totalAfterIncrement > paxValue) {
-                showNotification('Total of children, males, and females cannot exceed pax count', 'warning');
+            // Check against tour max pax
+            if (tourMaxPax > 0 && newPax > tourMaxPax) {
+                showNotification(`Total pax cannot exceed tour limit of ${tourMaxPax}`, 'warning');
+                return;
             }
+            
+            // Also check against current pax value
+            const paxValue = parseInt(document.getElementById('modal_pax')?.value || '0') || 0;
+            if (newPax > paxValue) {
+                showNotification('Total of children, males, and females cannot exceed pax count', 'warning');
+                return;
+            }
+            
+            field.value = newValue;
+            updateModalGuestSummary();
         }
     }
 
@@ -15309,14 +15626,61 @@
     }
 
     function updateModalGuestSummary() {
-        const pax = parseInt(document.getElementById('modal_pax').value);
-        const children = parseInt(document.getElementById('modal_children').value);
-        const infants = parseInt(document.getElementById('modal_infants').value);
-        const maleCount = parseInt(document.getElementById('modal_male_count').value);
-        const femaleCount = parseInt(document.getElementById('modal_female_count').value);
-        const adults = pax - children; // Calculate adults as pax - children
+        const paxElem = document.getElementById('modal_pax');
+        const childrenElem = document.getElementById('modal_children');
+        const maleCountElem = document.getElementById('modal_male_count');
+        const femaleCountElem = document.getElementById('modal_female_count');
+        
+        const children = parseInt(childrenElem?.value || '0') || 0;
+        const infants = parseInt(document.getElementById('modal_infants')?.value || '0') || 0;
+        const maleCount = parseInt(maleCountElem?.value || '0') || 0;
+        const femaleCount = parseInt(femaleCountElem?.value || '0') || 0;
+        
+        // Get tour max pax
+        const tourMaxPax = parseInt(paxElem?.dataset.tourMax || '0') || 0;
+        
+        // Calculate pax as the sum of adults (male + female) + children
+        const adults = maleCount + femaleCount;
+        let pax = adults + children;
+        
+        // Enforce tour pax limit
+        if (tourMaxPax > 0 && pax > tourMaxPax) {
+            pax = tourMaxPax;
+            // Adjust values to fit within tour pax limit
+            if (adults + children > tourMaxPax) {
+                const excess = (adults + children) - tourMaxPax;
+                if (children >= excess) {
+                    if (childrenElem) childrenElem.value = Math.max(0, children - excess);
+                } else {
+                    const remainingExcess = excess - children;
+                    if (childrenElem) childrenElem.value = 0;
+                    if (maleCount >= remainingExcess) {
+                        if (maleCountElem) maleCountElem.value = Math.max(0, maleCount - remainingExcess);
+                    } else {
+                        if (maleCountElem) maleCountElem.value = 0;
+                        if (femaleCountElem) femaleCountElem.value = Math.max(0, femaleCount - (remainingExcess - maleCount));
+                    }
+                }
+                // Recalculate after adjustment
+                const adjChildren = parseInt(childrenElem?.value || '0') || 0;
+                const adjMaleCount = parseInt(maleCountElem?.value || '0') || 0;
+                const adjFemaleCount = parseInt(femaleCountElem?.value || '0') || 0;
+                pax = (adjMaleCount + adjFemaleCount) + adjChildren;
+            }
+        }
+        
+        // Update pax field
+        if (paxElem) {
+            paxElem.value = pax;
+        }
+        
+        // Recalculate adults after potential adjustments
+        const finalAdults = (parseInt(maleCountElem?.value || '0') || 0) + (parseInt(femaleCountElem?.value || '0') || 0);
+        const finalChildren = parseInt(childrenElem?.value || '0') || 0;
+        const finalMaleCount = parseInt(maleCountElem?.value || '0') || 0;
+        const finalFemaleCount = parseInt(femaleCountElem?.value || '0') || 0;
 
-        const summary = `${pax} pax (${adults} adults, ${children} children) - ${maleCount} male, ${femaleCount} female -${infants} infants`;
+        const summary = `${pax} pax (${finalAdults} adults, ${finalChildren} children) - ${finalMaleCount} male, ${finalFemaleCount} female -${infants} infants`;
         
         // Update summary if element exists
         const summaryElement = document.getElementById('modal_restaurant_guest_summary');
@@ -17443,15 +17807,16 @@
                 const selectedOption = vehicleSelect.options[vehicleSelect.selectedIndex];
                 vehicleId = selectedOption.value || '';
                 const seatingCapacity = selectedOption.dataset.seatingCapacity || '';
+                const vehicleIdFromData = selectedOption.dataset.vehicleId || '';
                 
                 // Try to get full vehicle data from vehicles array (if available globally)
                 if (window.vehiclesData && Array.isArray(window.vehiclesData)) {
                     const vehicle = window.vehiclesData.find(v => 
-                        (v.vehicle_name === vehicleId || v.vehicle_id === vehicleId)
+                        (v.vehicle_name === vehicleId || v.vehicle_id === vehicleId || v.vehicle_id === vehicleIdFromData)
                     );
                     if (vehicle) {
                         vehicleDetails = {
-                            vehicle_id: vehicle.vehicle_id || vehicleId,
+                            vehicle_id: vehicle.vehicle_id || vehicleIdFromData || vehicleId,
                             vehicle_name: vehicle.vehicle_name || vehicleId,
                             vehicle_type: vehicle.vehicle_type || '',
                             seating_capacity: vehicle.seating_capacity || seatingCapacity || '',
@@ -17460,7 +17825,7 @@
                         };
                     } else {
                         vehicleDetails = {
-                            vehicle_id: vehicleId,
+                            vehicle_id: vehicleIdFromData || vehicleId,
                             vehicle_name: vehicleId,
                             vehicle_type: '',
                             seating_capacity: seatingCapacity || '',
@@ -17470,7 +17835,7 @@
                     }
                 } else {
                     vehicleDetails = {
-                        vehicle_id: vehicleId,
+                        vehicle_id: vehicleIdFromData || vehicleId,
                         vehicle_name: vehicleId,
                         vehicle_type: '',
                         seating_capacity: seatingCapacity || '',
@@ -17478,6 +17843,16 @@
                         shared_price: '0.00'
                     };
                 }
+            }
+            
+            // Get destination ID from selected option
+            const destinationSelect = document.querySelector(`select[name="restaurant_transport_destination_${bookingId}"]`);
+            let destinationId = '';
+            let destinationType = '';
+            if (destinationSelect && destinationSelect.selectedIndex > 0) {
+                const selectedOption = destinationSelect.options[destinationSelect.selectedIndex];
+                destinationId = selectedOption.dataset.destinationId || '';
+                destinationType = selectedOption.dataset.destinationType || '';
             }
             
             // Determine way (One Way or Two Way based on return checkbox)
@@ -17489,9 +17864,13 @@
                 type: transportType || 'Private',
                 way: way,
                 vehicle_id: vehicleDetails.vehicle_id || vehicleId || '',
+                vehicle_name: vehicleDetails.vehicle_name || vehicleId || '',
+                pickup_location_name: transportDestination || '',
+                pickup_location_id: destinationId || '',
                 destination: transportDestination || '',
                 seats: transportSeats || '',
                 passengers: transportPassengers || '',
+                cost: parseFloat(transportPrice) || 0,
                 price: parseFloat(transportPrice) || 0,
                 vehicle_details: vehicleDetails
             };
@@ -17585,15 +17964,16 @@
                 const selectedOption = vehicleSelect.options[vehicleSelect.selectedIndex];
                 vehicleId = selectedOption.value || '';
                 const seatingCapacity = selectedOption.dataset.seatingCapacity || '';
+                const vehicleIdFromData = selectedOption.dataset.vehicleId || '';
                 
                 // Try to get full vehicle data from vehicles array (if available globally)
                 if (window.vehiclesData && Array.isArray(window.vehiclesData)) {
                     const vehicle = window.vehiclesData.find(v => 
-                        (v.vehicle_name === vehicleId || v.vehicle_id === vehicleId)
+                        (v.vehicle_name === vehicleId || v.vehicle_id === vehicleId || v.vehicle_id === vehicleIdFromData)
                     );
                     if (vehicle) {
                         vehicleDetails = {
-                            vehicle_id: vehicle.vehicle_id || vehicleId,
+                            vehicle_id: vehicle.vehicle_id || vehicleIdFromData || vehicleId,
                             vehicle_name: vehicle.vehicle_name || vehicleId,
                             vehicle_type: vehicle.vehicle_type || '',
                             seating_capacity: vehicle.seating_capacity || seatingCapacity || '',
@@ -17602,7 +17982,7 @@
                         };
                     } else {
                         vehicleDetails = {
-                            vehicle_id: vehicleId,
+                            vehicle_id: vehicleIdFromData || vehicleId,
                             vehicle_name: vehicleId,
                             vehicle_type: '',
                             seating_capacity: seatingCapacity || '',
@@ -17612,7 +17992,7 @@
                     }
                 } else {
                     vehicleDetails = {
-                        vehicle_id: vehicleId,
+                        vehicle_id: vehicleIdFromData || vehicleId,
                         vehicle_name: vehicleId,
                         vehicle_type: '',
                         seating_capacity: seatingCapacity || '',
@@ -17620,6 +18000,16 @@
                         shared_price: '0.00'
                     };
                 }
+            }
+            
+            // Get destination ID from selected option
+            const destinationSelect = document.querySelector(`select[name="attraction_transport_destination_${bookingId}"]`);
+            let destinationId = '';
+            let destinationType = '';
+            if (destinationSelect && destinationSelect.selectedIndex > 0) {
+                const selectedOption = destinationSelect.options[destinationSelect.selectedIndex];
+                destinationId = selectedOption.dataset.destinationId || '';
+                destinationType = selectedOption.dataset.destinationType || '';
             }
             
             // Determine way (One Way or Two Way based on return checkbox)
@@ -17631,9 +18021,13 @@
                 type: transportType || 'Private',
                 way: way,
                 vehicle_id: vehicleDetails.vehicle_id || vehicleId || '',
+                vehicle_name: vehicleDetails.vehicle_name || vehicleId || '',
+                pickup_location_name: transportDestination || '',
+                pickup_location_id: destinationId || '',
                 destination: transportDestination || '',
                 seats: transportSeats || '',
                 passengers: transportPassengers || '',
+                cost: parseFloat(transportPrice) || 0,
                 price: parseFloat(transportPrice) || 0,
                 vehicle_details: vehicleDetails
             };
@@ -17643,6 +18037,64 @@
         } else {
             // If transport not required, set transfer_required to false
             formData.append('transfer_options', JSON.stringify({ transfer_required: false }));
+        }
+
+        // Collect guide data if guide is required
+        const needGuideToggle = document.querySelector(`#need_attraction_guide_${bookingId}`);
+        if (needGuideToggle && needGuideToggle.checked) {
+            const guideLanguage = document.querySelector(`select[name="attraction_guide_language_${bookingId}"]`)?.value || '';
+            const guideNameSelect = document.querySelector(`select[name="attraction_guide_name_${bookingId}"]`);
+            const guideName = guideNameSelect?.value || '';
+            const guideId = guideNameSelect?.options[guideNameSelect.selectedIndex]?.dataset?.guideId || '';
+            const guideHoursSelect = document.querySelector(`select[name="attraction_guide_hours_${bookingId}"]`);
+            const guideHours = guideHoursSelect?.value || '';
+            const guideCustomHours = document.querySelector(`input[name="attraction_guide_custom_hours_${bookingId}"]`)?.value || '';
+            const guidePrice = document.querySelector(`input[name="attraction_guide_price_${bookingId}"]`)?.value || '0';
+            
+            // Determine actual hours (use custom if selected, otherwise use selected hours)
+            let actualHours = 0;
+            if (guideHours === 'custom') {
+                actualHours = parseFloat(guideCustomHours) || 0;
+            } else {
+                actualHours = parseFloat(guideHours) || 0;
+            }
+            
+            // Get guide data from selected option
+            let guideData = {};
+            if (guideNameSelect && guideNameSelect.selectedIndex > 0) {
+                const selectedOption = guideNameSelect.options[guideNameSelect.selectedIndex];
+                const guideDataAttr = selectedOption.dataset.guideData;
+                if (guideDataAttr) {
+                    try {
+                        guideData = JSON.parse(guideDataAttr);
+                    } catch (e) {
+                        console.warn('Failed to parse guide data:', e);
+                    }
+                }
+                // Also try to get guide_id from data attribute
+                if (!guideId && selectedOption.dataset.guideId) {
+                    guideId = selectedOption.dataset.guideId;
+                }
+            }
+            
+            // Build guide_options object
+            const guideOptions = {
+                guide_required: true,
+                guide_id: guideId || guideData.guide_id || '',
+                guide_name: guideName || '',
+                pickup_time: '', // Can be added if needed
+                package_hours: guideHours === 'custom' ? guideCustomHours : guideHours,
+                hours: actualHours,
+                base_price: parseFloat(guideData.base_price || guideData.hourly_price || 0),
+                surcharge: 0, // Can be calculated if needed
+                total_price: parseFloat(guidePrice) || 0
+            };
+            
+            // Add guide_options as JSON string to formData
+            formData.append('guide_options', JSON.stringify(guideOptions));
+        } else {
+            // If guide not required, set guide_required to false
+            formData.append('guide_options', JSON.stringify({ guide_required: false }));
         }
 
         feedback.textContent = '';
