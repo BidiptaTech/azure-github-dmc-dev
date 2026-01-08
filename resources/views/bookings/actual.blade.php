@@ -606,7 +606,6 @@
                                                 <i class="ri-star-line me-2"></i> Request Feedback
                                             </a>
                                         </li>
-                                        {{-- Generate Invoice handled via server-side routes in the action buttons --}}
                                         @endif
                                         <li>
                                             <a class="dropdown-item" href="#" onclick="downloadDocuments('{{ $tour->tour_id }}')">
