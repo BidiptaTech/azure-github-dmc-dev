@@ -206,12 +206,15 @@ Route::get('/clear', function () {
             Route::get('/enquiry-form-pro/create', [EnquiryFormPro::class, 'create'])->name('enquiry-form-pro.create');
             Route::post('/enquiry-form-pro/initialize', [EnquiryFormPro::class, 'initialize'])->name('enquiry-form-pro.initialize');
             Route::post('/enquiry-form-pro/store', [EnquiryFormPro::class, 'store'])->name('enquiry-form-pro.store');
+            Route::get('/enquiry-form-pro/edit/{tour_id}', [EnquiryFormPro::class, 'edit'])->name('enquiry-form-pro.edit');
+            Route::put('/enquiry-form-pro/update/{tour_id}', [EnquiryFormPro::class, 'update'])->name('enquiry-form-pro.update');
             Route::get('/enquiry-form-pro/get-hotels', [EnquiryFormPro::class, 'getHotelsByDestination'])->name('enquiry-form-pro.get-hotels');
             Route::get('/enquiry-form-pro/get-agents', [EnquiryFormPro::class, 'getAgentsByAgency'])->name('enquiry-form-pro.get-agents');
             Route::get('/enquiry-form-pro/get-agencies', [EnquiryFormPro::class, 'getAgencies'])->name('enquiry-form-pro.get-agencies');
             Route::get('/enquiry-form-pro/get-destinations', [EnquiryFormPro::class, 'getDestinations'])->name('enquiry-form-pro.get-destinations');
             Route::get('/enquiry-form-pro/get-attractions', [EnquiryFormPro::class, 'getAttractionsByDestination'])->name('enquiry-form-pro.get-attractions');
             Route::get('/enquiry-form-pro/get-guides', [EnquiryFormPro::class, 'getGuidesByDestination'])->name('enquiry-form-pro.get-guides');
+            Route::get('/enquiry-form-pro/get-zone-prices', [EnquiryFormPro::class, 'getZonePrices'])->name('enquiry-form-pro.get-zone-prices');
             
             // Debug route to check DMC data
             Route::get('/debug/dmc-data', function() {
