@@ -688,6 +688,41 @@
                                        target="_blank">
                                         <i class="ri-file-download-line me-1"></i> Download Quotation
                                     </a>
+                                    @if($tour->tour_status == 'Tentative')
+                                        @php
+                                            $proformaInvoice = \App\Models\Invoice::where('tour_id', $tour->tour_id)
+                                                ->where('invoice_type', 'proforma')
+                                                ->whereNull('deleted_at')
+                                                ->first();
+                                            $finalInvoice = \App\Models\Invoice::where('tour_id', $tour->tour_id)
+                                                ->where('invoice_type', 'final')
+                                                ->whereNull('deleted_at')
+                                                ->first();
+                                        @endphp
+                                        @if($proformaInvoice)
+                                            <a href="{{ route('invoices.download', Crypt::encrypt($proformaInvoice->invoice_id)) }}" 
+                                               class="btn btn-outline-info btn-sm rounded-pill"
+                                               target="_blank"
+                                               title="Download Proforma Invoice with Services">
+                                                <i class="ri-file-paper-line me-1"></i> Proforma Invoice
+                                            </a>
+                                            <a href="{{ route('invoices.download-price-only', Crypt::encrypt($proformaInvoice->invoice_id)) }}" 
+                                               class="btn btn-outline-primary btn-sm rounded-pill"
+                                               target="_blank"
+                                               title="Download Proforma Invoice (Price Only)">
+                                                <i class="ri-file-download-line me-1"></i> Proforma Invoice (Price Only)
+                                            </a>
+                                        @else
+                                            <form action="{{ route('invoices.generate-proforma', $tour->tour_id) }}" method="POST" class="d-inline">
+                                                @csrf
+                                                <button type="submit" 
+                                                        class="btn btn-outline-info btn-sm rounded-pill"
+                                                        title="Generate Proforma Invoice">
+                                                    <i class="ri-file-add-line me-1"></i> Generate Proforma
+                                                </button>
+                                            </form>
+                                        @endif
+                                    @endif
                                     <button onclick="cancelTour('{{ Crypt::encrypt($tour->tour_id) }}', '{{ $tour->display_id }}')" 
                                             class="btn btn-outline-danger btn-sm rounded-pill" 
                                             id="cancel-btn-{{ $tour->tour_id }}">
