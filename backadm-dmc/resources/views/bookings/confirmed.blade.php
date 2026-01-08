@@ -2234,7 +2234,36 @@
                                                             <div class="mb-0">
                                                                 <small class="text-muted d-block">Pickup Time</small>
                                                                 <div class="fw-medium text-success">
-                                                                    <i class="ri-time-line me-1"></i>{{ \Carbon\Carbon::parse($booking['guide_options']['pickup_time'])->format('h:i A') }}
+                                                                    @php
+                                                                        $displayPickupTime = $booking['guide_options']['pickup_time'] ?? '';
+                                                                        if (str_contains($displayPickupTime, ' - ')) {
+                                                                            $parts = explode(' - ', $displayPickupTime);
+                                                                            $displayPickupTime = $parts[0]; // Take the first time if it's a range
+                                                                        }
+                                                                        $formattedPickupTime = $displayPickupTime; // Default to original if parsing fails
+                                                                        if (!empty($displayPickupTime)) {
+                                                                            try {
+                                                                                // Try parsing as 24-hour format (H:i)
+                                                                                $timeObj = \Carbon\Carbon::createFromFormat('H:i', $displayPickupTime);
+                                                                                $formattedPickupTime = $timeObj->format('h:i A');
+                                                                            } catch (\Exception $e) {
+                                                                                try {
+                                                                                    // Try parsing as 12-hour format (h:i A)
+                                                                                    $timeObj = \Carbon\Carbon::createFromFormat('h:i A', $displayPickupTime);
+                                                                                    $formattedPickupTime = $timeObj->format('h:i A');
+                                                                                } catch (\Exception $e2) {
+                                                                                    try {
+                                                                                        // Try general parse
+                                                                                        $timeObj = \Carbon\Carbon::parse($displayPickupTime);
+                                                                                        $formattedPickupTime = $timeObj->format('h:i A');
+                                                                                    } catch (\Exception $e3) {
+                                                                                        // Keep original if all parsing fails
+                                                                                    }
+                                                                                }
+                                                                            }
+                                                                        }
+                                                                    @endphp
+                                                                    <i class="ri-time-line me-1"></i>{{ $formattedPickupTime }}
                                                                 </div>
                                                             </div>
                                                             @endif
