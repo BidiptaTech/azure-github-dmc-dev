@@ -2152,6 +2152,11 @@ class UserController extends Controller
             'assistant_manager_id' => (int) ($request->assistant_manager ?? $user->assistant_manager_id),
             'sales_manager_admin' => (int) $salemg_admin,
             'password' => $request->filled('password') ? bcrypt($request->password) : $user->password,
+            // DMC-level settings (for DMC roles: 10, 11, 19, 20)
+            'group_pax' => $request->filled('group_pax') ? (int) $request->group_pax : $user->group_pax,
+            'markup_service' => $request->filled('markup_service') ? $request->markup_service : $user->markup_service,
+            'markup_type' => $request->has('markup_type') && $request->markup_type !== '' ? (int) $request->markup_type : $user->markup_type,
+            'markup_price' => $request->filled('markup_price') ? (int) $request->markup_price : $user->markup_price,
         ]);
 
         // Update role
