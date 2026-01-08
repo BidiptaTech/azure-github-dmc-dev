@@ -2,6 +2,7 @@
 
 use App\Http\Controllers\AgentController;
 use App\Http\Controllers\AgencyController;
+use App\Http\Controllers\BankDetailController;
 use App\Http\Controllers\BedsController;
 use App\Http\Controllers\RoomsController;
 use App\Http\Controllers\RoomtypeController;
@@ -54,6 +55,7 @@ use App\Http\Controllers\FinanceReportController;
 use App\Http\Controllers\GuestController;
 use App\Http\Controllers\EditTourController;
 use App\Http\Controllers\TaxController;
+use App\Http\Controllers\InvoiceController;
 use Illuminate\Support\Facades\Artisan;
 use App\Services\AzureKeyVaultService;
 use Illuminate\Support\Facades\Mail;
@@ -82,6 +84,9 @@ Route::get('/clear', function () {
 })->name('clear');
 
         Route::middleware(['auth'])->group(function () {
+            // Tour prices route
+            Route::get('/tour/get-tour-prices/{tourId}', [TourController::class, 'getTourPrices'])->name('tour.get-tour-prices');
+
             // Tour creation route
             Route::post('/create-single-tour', [App\Http\Controllers\TourController::class, 'createTour'])->name('create.tour');
             Route::get('/', function () {
@@ -485,7 +490,7 @@ Route::get('/clear', function () {
         Route::get('jobsheet/view', [JobSheetController::class, 'viewJobsheets'])->name('jobsheet.view');
 
         Route::get('get-dmcs/{masterDmcId}', [JobSheetController::class, 'getDmcsByMaster'])->name('get.dmcs');
-        Route::get('get-drivers/{dmcId}', [JobSheetController::class, 'getDriversByDmc'])->name('get.drqivers');
+        Route::get('get-drivers/{dmcId}', [JobSheetController::class, 'getDriversByDmc'])->name('get.drivers');
         Route::get('get-driver-schedule/{driverId}', [JobSheetController::class, 'getDriverSchedule'])->name('get.driver.schedule');
         Route::get('get-tour-details/{tourId}', [JobSheetController::class, 'getTourDetails'])->name('get.tour.details');
         Route::get('get-tour-orders/{tourId}/{date}', [JobSheetController::class, 'getTourOrders'])->name('get.tour.orders');
@@ -673,18 +678,31 @@ Route::get('/clear', function () {
         Route::post('/booking/get-local-transport-data', [HotelBookingController::class, 'getLocalTransportBookingData'])->name('booking.get.local.transport.data');
 
         // Bookings Management Routes
-        Route::get('/bookings/new-enquiries', [BookingsController::class, 'newEnquiries'])->name('bookings.new-enquiries');
-        Route::get('/bookings/follow-ups', [BookingsController::class, 'followUps'])->name('bookings.follow-ups');
-        Route::get('/bookings/tentative', [BookingsController::class, 'tentative'])->name('bookings.tentative');
-        Route::get('/bookings/confirmed', [BookingsController::class, 'confirmedBookings'])->name('bookings.confirmed');
-        Route::get('/bookings/definite', [BookingsController::class, 'definiteBookings'])->name('bookings.definite');
-        Route::get('/bookings/actual', [BookingsController::class, 'actualBookings'])->name('bookings.actual');
-        Route::get('/bookings/cancelled', [BookingsController::class, 'cancelledBookings'])->name('bookings.cancelled');
-        Route::get('/bookings/refunds', [BookingsController::class, 'refunds'])->name('bookings.refunds');
-        Route::post('/bookings/process-refund', [BookingsController::class, 'processRefund'])->name('bookings.process-refund');
-        Route::get('/bookings/cancellations-refunds', [BookingsController::class, 'cancellationsRefunds'])->name('bookings.cancellations-refunds');
-        Route::get('/bookings/stats', [BookingsController::class, 'getBookingStats'])->name('bookings.stats');
-        Route::get('/bookings/view-tour/{tourId}', [BookingsController::class, 'viewTour'])->name('bookings.view-tour');
+            Route::get('/bookings/new-enquiries', [BookingsController::class, 'newEnquiries'])->name('bookings.new-enquiries');
+            Route::get('/bookings/follow-ups', [BookingsController::class, 'followUps'])->name('bookings.follow-ups');
+            Route::get('/bookings/tentative', [BookingsController::class, 'tentative'])->name('bookings.tentative');
+            Route::get('/bookings/confirmed', [BookingsController::class, 'confirmedBookings'])->name('bookings.confirmed');
+            Route::get('/bookings/definite', [BookingsController::class, 'definiteBookings'])->name('bookings.definite');
+            Route::get('/bookings/actual', [BookingsController::class, 'actualBookings'])->name('bookings.actual');
+            Route::get('/bookings/cancelled', [BookingsController::class, 'cancelledBookings'])->name('bookings.cancelled');
+            Route::get('/bookings/refunds', [BookingsController::class, 'refunds'])->name('bookings.refunds');
+            Route::post('/bookings/process-refund', [BookingsController::class, 'processRefund'])->name('bookings.process-refund');
+            Route::get('/bookings/cancellations-refunds', [BookingsController::class, 'cancellationsRefunds'])->name('bookings.cancellations-refunds');
+            Route::get('/bookings/stats', [BookingsController::class, 'getBookingStats'])->name('bookings.stats');
+            Route::get('/bookings/view-tour/{tourId}', [BookingsController::class, 'viewTour'])->name('bookings.view-tour');
+            
+            // Invoice Routes
+            Route::get('/invoices', [InvoiceController::class, 'index'])->name('invoices.index');
+            Route::get('/invoices/{invoiceId}', [InvoiceController::class, 'show'])->name('invoices.show');
+            Route::get('/invoices/{invoiceId}/edit', [InvoiceController::class, 'edit'])->name('invoices.edit');
+            Route::put('/invoices/{invoiceId}', [InvoiceController::class, 'update'])->name('invoices.update');
+            Route::get('/invoices/{invoiceId}/download', [InvoiceController::class, 'download'])->name('invoices.download');
+            Route::get('/invoices/{invoiceId}/download-price-only', [InvoiceController::class, 'downloadPriceOnly'])->name('invoices.download-price-only');
+            Route::get('/invoices/{invoiceId}/view', [InvoiceController::class, 'view'])->name('invoices.view');
+            Route::post('/invoices/tour/{tourId}/generate-proforma', [InvoiceController::class, 'generateProforma'])->name('invoices.generate-proforma');
+            Route::post('/invoices/tour/{tourId}/generate-final', [InvoiceController::class, 'generateFinal'])->name('invoices.generate-final');
+            Route::post('/invoices/{invoiceId}/convert-to-final', [InvoiceController::class, 'convertToFinal'])->name('invoices.convert-to-final');
+            Route::post('/invoices/tour/{tourId}/handle-cancellation', [InvoiceController::class, 'handleCancellation'])->name('invoices.handle-cancellation');
         Route::get('/bookings/export-tour-pdf/{tourId}', [BookingsController::class, 'exportTourPDF'])->name('bookings.export-tour-pdf');
         Route::post('/bookings/cancel-tour/{tourId}', [BookingsController::class, 'cancelTour'])->name('bookings.cancel-tour');
         Route::post('/booking/approve-hotel-booking', [HotelBookingController::class, 'approveHotelBooking'])->name('booking.approve.hotel.booking');
@@ -907,6 +925,9 @@ Route::post('/hotel-booking/upload-restaurant-files', [HotelBookingController::c
         Route::get('/registered-agents', [App\Http\Controllers\AgentViewController::class, 'index'])->name('registered-agents.index');
         Route::get('/registered-agents/{agent_id}', [App\Http\Controllers\AgentViewController::class, 'show'])->name('registered-agents.show');
         Route::post('/registered-agents/verify', [App\Http\Controllers\AgentViewController::class, 'verifyAgent'])->name('registered-agents.verify');
+        
+        // Bank Details routes
+        Route::resource('bank-details', BankDetailController::class);
         
         // App Management routes
         Route::get('/app-management', [App\Http\Controllers\AppManagementController::class, 'index'])->name('app-management.index');

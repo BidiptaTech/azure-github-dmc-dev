@@ -606,11 +606,6 @@
                                                 <i class="ri-star-line me-2"></i> Request Feedback
                                             </a>
                                         </li>
-                                        <li>
-                                            <a class="dropdown-item" href="#" onclick="generateInvoice('{{ $tour->tour_id }}')">
-                                                <i class="ri-file-text-line me-2"></i> Generate Invoice
-                                            </a>
-                                        </li>
                                         @endif
                                         <li>
                                             <a class="dropdown-item" href="#" onclick="downloadDocuments('{{ $tour->tour_id }}')">
@@ -644,8 +639,62 @@
                                     </a>
                                     
                                     @php
-                                        $all_ids = [33, 34, 37, 38, 124, 125, 128, 129, 130, 132, 133, 134, 135, 136, 137, 138];
+                                        $all_ids = [11, 33, 34, 37, 38, 124, 125, 128, 129, 130, 132, 133, 134, 135, 136, 137, 138];
+                                        $finalInvoice = \App\Models\Invoice::where('tour_id', $tour->tour_id)
+                                            ->where('invoice_type', 'final')
+                                            ->whereNull('deleted_at')
+                                            ->first();
+                                        $proformaInvoice = \App\Models\Invoice::where('tour_id', $tour->tour_id)
+                                            ->where('invoice_type', 'proforma')
+                                            ->whereNull('deleted_at')
+                                            ->first();
                                     @endphp
+                                    
+                                    @if($finalInvoice)
+                                        <a href="{{ route('invoices.download', Crypt::encrypt($finalInvoice->invoice_id)) }}" 
+                                           class="btn btn-outline-info btn-sm rounded-pill"
+                                           target="_blank"
+                                           title="Download Final Invoice with Services">
+                                            <i class="ri-file-paper-2-line me-1"></i> Final Invoice
+                                        </a>
+                                        <a href="{{ route('invoices.download-price-only', Crypt::encrypt($finalInvoice->invoice_id)) }}" 
+                                           class="btn btn-outline-primary btn-sm rounded-pill"
+                                           target="_blank"
+                                           title="Download Final Invoice (Price Only)">
+                                            <i class="ri-file-download-line me-1"></i> Final Invoice (Price Only)
+                                        </a>
+                                    @elseif($proformaInvoice)
+                                        <a href="{{ route('invoices.download', Crypt::encrypt($proformaInvoice->invoice_id)) }}" 
+                                           class="btn btn-outline-info btn-sm rounded-pill"
+                                           target="_blank"
+                                           title="Download Proforma Invoice with Services">
+                                            <i class="ri-file-paper-line me-1"></i> Proforma Invoice
+                                        </a>
+                                        <a href="{{ route('invoices.download-price-only', Crypt::encrypt($proformaInvoice->invoice_id)) }}" 
+                                           class="btn btn-outline-primary btn-sm rounded-pill"
+                                           target="_blank"
+                                           title="Download Proforma Invoice (Price Only)">
+                                            <i class="ri-file-download-line me-1"></i> Proforma Invoice (Price Only)
+                                        </a>
+                                        <form action="{{ route('invoices.convert-to-final', $proformaInvoice->invoice_id) }}" method="POST" class="d-inline">
+                                            @csrf
+                                            <button type="submit" 
+                                                    class="btn btn-outline-warning btn-sm rounded-pill"
+                                                    title="Convert Proforma to Final Invoice"
+                                                    onclick="return confirm('Are you sure you want to convert this proforma invoice to final invoice? This action cannot be undone.');">
+                                                <i class="ri-file-edit-line me-1"></i> Convert to Final
+                                            </button>
+                                        </form>
+                                    @else
+                                        <form action="{{ route('invoices.generate-final', $tour->tour_id) }}" method="POST" class="d-inline">
+                                            @csrf
+                                            <button type="submit" 
+                                                    class="btn btn-outline-info btn-sm rounded-pill"
+                                                    title="Generate Final Invoice">
+                                                <i class="ri-file-add-line me-1"></i> Generate Invoice
+                                            </button>
+                                        </form>
+                                    @endif
                                     @if(in_array(auth()->user()->role_id, $all_ids))
                                     <a href="{{ route('tour.itinerary', ['tourId' => Crypt::encrypt($tour->tour_id)]) }}" 
                                        class="btn btn-outline-success btn-sm rounded-pill"
@@ -4303,10 +4352,7 @@ function requestFeedbackSingle(tourId) {
     // Implementation for requesting feedback
 }
 
-function generateInvoice(tourId) {
-    console.log('Generating invoice for tour', tourId);
-    // Implementation for invoice generation
-}
+// generateInvoice removed (invoice generation is handled via backend routes/buttons)
 
 function downloadDocuments(tourId) {
     console.log('Downloading documents for tour', tourId);

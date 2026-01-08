@@ -978,8 +978,44 @@
                                     </a>
                                     
                                     @php
-                                        $all_ids = [33, 34, 37, 38, 124, 125, 128, 129, 130, 131, 132, 133, 134, 135, 136, 137, 138];
+                                        $all_ids = [11,33, 34, 37, 38, 124, 125, 128, 129, 130, 131, 132, 133, 134, 135, 136, 137, 138];
+                                        $finalInvoice = \App\Models\Invoice::where('tour_id', $tour->tour_id)
+                                            ->where('invoice_type', 'final')
+                                            ->whereNull('deleted_at')
+                                            ->first();
+                                        $proformaInvoice = \App\Models\Invoice::where('tour_id', $tour->tour_id)
+                                            ->where('invoice_type', 'proforma')
+                                            ->whereNull('deleted_at')
+                                            ->first();
                                     @endphp
+                                    
+                                    @if($finalInvoice)
+                                        <a href="{{ route('invoices.download', Crypt::encrypt($finalInvoice->invoice_id)) }}" 
+                                           class="btn btn-outline-info btn-sm rounded-pill"
+                                           target="_blank"
+                                           title="Download Final Invoice with Services">
+                                            <i class="ri-file-paper-2-line me-1"></i> Final Invoice
+                                        </a>
+                                        <a href="{{ route('invoices.download-price-only', Crypt::encrypt($finalInvoice->invoice_id)) }}" 
+                                           class="btn btn-outline-primary btn-sm rounded-pill"
+                                           target="_blank"
+                                           title="Download Final Invoice (Price Only)">
+                                            <i class="ri-file-download-line me-1"></i> Final Invoice (Price Only)
+                                        </a>
+                                    @elseif($proformaInvoice)
+                                        <a href="{{ route('invoices.download', Crypt::encrypt($proformaInvoice->invoice_id)) }}" 
+                                           class="btn btn-outline-info btn-sm rounded-pill"
+                                           target="_blank"
+                                           title="Download Proforma Invoice with Services">
+                                            <i class="ri-file-paper-line me-1"></i> Proforma Invoice
+                                        </a>
+                                        <a href="{{ route('invoices.download-price-only', Crypt::encrypt($proformaInvoice->invoice_id)) }}" 
+                                           class="btn btn-outline-primary btn-sm rounded-pill"
+                                           target="_blank"
+                                           title="Download Proforma Invoice (Price Only)">
+                                            <i class="ri-file-download-line me-1"></i> Proforma Invoice (Price Only)
+                                        </a>
+                                    @endif
                                     @if(in_array(auth()->user()->role_id, $all_ids))
                                     <a href="{{ route('tour.itinerary', ['tourId' => Crypt::encrypt($tour->tour_id)]) }}" 
                                        class="btn btn-outline-success btn-sm rounded-pill"
@@ -2198,7 +2234,36 @@
                                                             <div class="mb-0">
                                                                 <small class="text-muted d-block">Pickup Time</small>
                                                                 <div class="fw-medium text-success">
-                                                                    <i class="ri-time-line me-1"></i>{{ \Carbon\Carbon::parse($booking['guide_options']['pickup_time'])->format('h:i A') }}
+                                                                    @php
+                                                                        $displayPickupTime = $booking['guide_options']['pickup_time'] ?? '';
+                                                                        if (str_contains($displayPickupTime, ' - ')) {
+                                                                            $parts = explode(' - ', $displayPickupTime);
+                                                                            $displayPickupTime = $parts[0]; // Take the first time if it's a range
+                                                                        }
+                                                                        $formattedPickupTime = $displayPickupTime; // Default to original if parsing fails
+                                                                        if (!empty($displayPickupTime)) {
+                                                                            try {
+                                                                                // Try parsing as 24-hour format (H:i)
+                                                                                $timeObj = \Carbon\Carbon::createFromFormat('H:i', $displayPickupTime);
+                                                                                $formattedPickupTime = $timeObj->format('h:i A');
+                                                                            } catch (\Exception $e) {
+                                                                                try {
+                                                                                    // Try parsing as 12-hour format (h:i A)
+                                                                                    $timeObj = \Carbon\Carbon::createFromFormat('h:i A', $displayPickupTime);
+                                                                                    $formattedPickupTime = $timeObj->format('h:i A');
+                                                                                } catch (\Exception $e2) {
+                                                                                    try {
+                                                                                        // Try general parse
+                                                                                        $timeObj = \Carbon\Carbon::parse($displayPickupTime);
+                                                                                        $formattedPickupTime = $timeObj->format('h:i A');
+                                                                                    } catch (\Exception $e3) {
+                                                                                        // Keep original if all parsing fails
+                                                                                    }
+                                                                                }
+                                                                            }
+                                                                        }
+                                                                    @endphp
+                                                                    <i class="ri-time-line me-1"></i>{{ $formattedPickupTime }}
                                                                 </div>
                                                             </div>
                                                             @endif

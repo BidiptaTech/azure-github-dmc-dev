@@ -1891,6 +1891,19 @@
                                 </a>
                             </li>
                         @endif --}}
+                        
+                        <!-- Bank Details -->
+                        @php
+                            $allowedBankDetailsRoles = [1, 11];
+                        @endphp
+                        @if(in_array(auth()->user()->role_id, $allowedBankDetailsRoles))
+                            <li class="menu-item @if(Request::is('bank-details*')) active @endif">
+                                <a href="{{ route('bank-details.index') }}" class="menu-link">
+                                    <div data-i18n="Bank Details">Bank Details</div>
+                                </a>
+                            </li>
+                        @endif
+                        
                         @if(hasPermission('view roles') && auth()->user()->user_type == 1)
                         <li class="menu-item @if(Request::is('roles')) active @endif">
                             <a href="{{ route('roles.index') }}" class="menu-link">

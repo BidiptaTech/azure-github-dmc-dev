@@ -872,6 +872,24 @@ class EditTourController extends Controller
                     }
                 }
 
+                // Process guide_options if provided
+                if ($request->has('guide_options')) {
+                    $guideOptionsJson = $request->input('guide_options');
+                    if (!empty($guideOptionsJson)) {
+                        $guideOptions = json_decode($guideOptionsJson, true);
+                        if (json_last_error() === JSON_ERROR_NONE && is_array($guideOptions)) {
+                            $currentPayload['guide_options'] = $guideOptions;
+                        }
+                    } else {
+                        $currentPayload['guide_options'] = ['guide_required' => false];
+                    }
+                } else {
+                    // Preserve existing guide_options if not provided
+                    if (!isset($currentPayload['guide_options'])) {
+                        $currentPayload['guide_options'] = ['guide_required' => false];
+                    }
+                }
+
                 $order->data = [$currentPayload];
                 $successMessage = 'Attraction booking updated successfully.';
             }
