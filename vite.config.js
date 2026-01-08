@@ -1,12 +1,44 @@
-import { defineConfig } from 'vite'
-import react from '@vitejs/plugin-react-swc'
-import path from 'path'
-// https://vitejs.dev/config/
+import { defineConfig } from 'vite';
+import laravel from 'laravel-vite-plugin';
+import { viteStaticCopy } from 'vite-plugin-static-copy'
+
 export default defineConfig({
-  plugins: [react()],
-  resolve: {
-    alias: {
-      '@': path.resolve(__dirname, './src'),
+    build: {
+        manifest: true,
+        rtl: true,
+        outDir: 'public/build/',
+        cssCodeSplit: true,
+        
     },
-  },
-})
+    plugins: [
+        
+        viteStaticCopy({
+            targets: [
+                {
+                    src: 'resources/css',
+                    dest: 'css'
+                },
+                {
+                    src: 'resources/fonts',
+                    dest: ''
+                },
+                {
+                    src: 'resources/images',
+                    dest: ''
+                },
+                {
+                    src: 'resources/js',
+                    dest: ''
+                },
+                {
+                    src: 'resources/maps',
+                    dest: ''
+                },
+                {
+                    src: 'resources/scss',
+                    dest: ''
+                },
+            ],
+        })
+    ],
+});
