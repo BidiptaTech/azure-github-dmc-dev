@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <title>Tour Quotation</title>
+    <title>Tour Quotation </title>
     <style>
         * {
             font-family: 'DejaVu Sans', Arial, sans-serif;
