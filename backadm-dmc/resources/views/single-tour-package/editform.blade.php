@@ -2271,7 +2271,7 @@
                                                                     Return
                                                                 </label>
                                                             </div>
-                                                            <small class="text-danger d-none" id="restaurant_passenger_error_{{ $order->booking_id }}">Passengers must be less than or equal to seats</small>
+                                                            <small class="text-danger d-none" id="restaurant_passenger_error_{{ $order->booking_id }}">Passengers cannot exceed total pax or vehicle capacity</small>
                                                         </div>
                                                         <div class="col-md-6">
                                                             <label class="form-label fw-semibold">Estimated Price</label>
@@ -3260,6 +3260,10 @@
                                                 </div>
                                                 <div class="row g-3 mt-2">
                                                     <!-- Second Row: Seats, Passengers, Price -->
+                                                    <div class="col-md-2">
+                                                        <label class="form-label fw-semibold">Seats</label>
+                                                        <input type="number" min="1" class="form-control" name="attraction_transport_seats_{{ $order->booking_id }}" id="attraction_transport_seats_{{ $order->booking_id }}" placeholder="0" value="{{ $transportSeats }}" readonly>
+                                                    </div>
                                                     <div class="col-md-4">
                                                         <label class="form-label fw-semibold">Passengers</label>
                                                         <input type="number" min="1" class="form-control" name="attraction_transport_passengers_{{ $order->booking_id }}" id="attraction_transport_passengers_{{ $order->booking_id }}" placeholder="0" value="{{ $transportPassengers }}" data-booking-id="{{ $order->booking_id }}" data-transport-type="attraction">
@@ -3269,7 +3273,7 @@
                                                                 Return
                                                             </label>
                                                         </div>
-                                                        <small class="text-danger d-none" id="attraction_passenger_error_{{ $order->booking_id }}">Passengers must be less than or equal to seats</small>
+                                                        <small class="text-danger d-none" id="attraction_passenger_error_{{ $order->booking_id }}">Passengers cannot exceed total pax or vehicle capacity</small>
                                                     </div>
                                                     <div class="col-md-6">
                                                         <label class="form-label fw-semibold">Estimated Price</label>
@@ -3914,6 +3918,30 @@
                                 </div>
                             </div>
                         </div>
+
+                        <!-- Price Section -->
+                        <div class="col-12 mt-3" id="guide_price_container" style="display: none;">
+                            <div class="card border shadow-sm">
+                                <div class="card-body p-3">
+                                    <h6 class="mb-3 fw-bold">
+                                        <i class="ri-money-dollar-circle-line me-2 text-primary"></i>Price Breakdown
+                                    </h6>
+                                    <div class="d-flex justify-content-between align-items-center mb-2">
+                                        <span class="text-muted">Base Price</span>
+                                        <span class="fw-bold" id="price_base_amount">$0.00</span>
+                                    </div>
+                                    <div class="d-flex justify-content-between align-items-center mb-2" id="price_surcharge_row" style="display: none;">
+                                        <span class="text-muted">Night Surcharge</span>
+                                        <span class="fw-bold text-warning" id="price_surcharge_amount">$0.00</span>
+                                    </div>
+                                    <hr class="my-2">
+                                    <div class="d-flex justify-content-between align-items-center">
+                                        <span class="fw-bold">Total Price</span>
+                                        <span class="fw-bold text-primary fs-5" id="price_total_amount">$0.00</span>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
                     </div>
                 </form>
             </div>
@@ -4474,7 +4502,7 @@
                                                     Return
                                                 </label>
                                             </div>
-                                            <small class="text-danger d-none" id="modal_restaurant_passenger_error">Passengers must be less than or equal to seats</small>
+                                            <small class="text-danger d-none" id="modal_restaurant_passenger_error">Passengers cannot exceed total pax or vehicle capacity</small>
                                         </div>
                                         <div class="col-md-6">
                                             <label class="form-label fw-semibold">Transport Price</label>
@@ -5084,7 +5112,7 @@
                                                     Return
                                                 </label>
                                             </div>
-                                            <small class="text-danger d-none" id="modal_attraction_passenger_error">Passengers must be less than or equal to seats</small>
+                                            <small class="text-danger d-none" id="modal_attraction_passenger_error">Passengers cannot exceed total pax or vehicle capacity</small>
                                         </div>
                                         <div class="col-md-6">
                                             <label class="form-label fw-semibold">Transport Price</label>
@@ -6970,13 +6998,101 @@
             if (seatsInput.length && errorElement.length) {
                 const seats = parseInt(seatsInput.val()) || 0;
                 
+                // For restaurant and attraction transport, also check total pax (adults + children)
+                let totalPax = 0;
+                let maxAllowedPassengers = seats;
+                
+                if (transportType === 'restaurant' || passengersInput.attr('id') === 'modal_restaurant_transport_passengers') {
+                    if (passengersInput.attr('id').startsWith('modal_')) {
+                        // Modal: Get from window.modalGuestData
+                        const guestData = window.modalGuestData || {};
+                        const adults = parseInt(guestData.adults || '0', 10) || 0;
+                        const children = parseInt(guestData.children || '0', 10) || 0;
+                        totalPax = adults + children;
+                    } else {
+                        // Regular form: Get from restaurant adult/child count fields
+                        const adults = parseInt($('#restaurant_adult_count_' + bookingId).val() || '0', 10) || 0;
+                        const children = parseInt($('#restaurant_child_count_' + bookingId).val() || '0', 10) || 0;
+                        totalPax = adults + children;
+                    }
+                    
+                    // Maximum passengers should be the minimum of total pax and vehicle capacity
+                    if (totalPax > 0) {
+                        maxAllowedPassengers = Math.min(seats, totalPax);
+                    }
+                } else if (transportType === 'attraction' || passengersInput.attr('id') === 'modal_attraction_transport_passengers') {
+                    if (passengersInput.attr('id').startsWith('modal_')) {
+                        // Modal: Get from tour's total pax (hidden fields) - this is the tour's total adults + children
+                        const tourAdults = parseInt($('#adults').val() || '0', 10) || 0;
+                        const tourChildren = parseInt($('#children').val() || '0', 10) || 0;
+                        totalPax = tourAdults + tourChildren;
+                    } else {
+                        // Regular form: Get from tour's total pax (hidden fields) - this is the tour's total adults + children
+                        const tourAdults = parseInt($('#adults').val() || '0', 10) || 0;
+                        const tourChildren = parseInt($('#children').val() || '0', 10) || 0;
+                        totalPax = tourAdults + tourChildren;
+                    }
+                    
+                    // Maximum passengers should be the minimum of total pax and vehicle capacity
+                    if (totalPax > 0) {
+                        maxAllowedPassengers = Math.min(seats, totalPax);
+                    }
+                }
+                
+                // Update max attribute on passengers input to prevent invalid entries
+                if (seats > 0) {
+                    if (transportType === 'restaurant' || passengersInput.attr('id') === 'modal_restaurant_transport_passengers' ||
+                        transportType === 'attraction' || passengersInput.attr('id') === 'modal_attraction_transport_passengers') {
+                        if (maxAllowedPassengers > 0) {
+                            passengersInput.attr('max', maxAllowedPassengers);
+                        } else {
+                            passengersInput.attr('max', seats);
+                        }
+                    } else {
+                        passengersInput.attr('max', seats);
+                    }
+                }
+                
                 if (seats > 0 && passengers > 0) {
+                    let hasError = false;
+                    let errorMessage = '';
+                    
                     if (passengers > seats) {
-                        // Show error - passengers exceed seats
+                        hasError = true;
+                        errorMessage = 'Passengers must be less than or equal to vehicle capacity (' + seats + ' seats)';
+                    } else if (transportType === 'restaurant' || passengersInput.attr('id') === 'modal_restaurant_transport_passengers') {
+                        if (totalPax > 0 && passengers > totalPax) {
+                            hasError = true;
+                            if (passengers > seats) {
+                                errorMessage = 'Passengers must be less than or equal to total pax (' + totalPax + ') and vehicle capacity (' + seats + ' seats)';
+                            } else {
+                                errorMessage = 'Passengers must be less than or equal to total pax (' + totalPax + ')';
+                            }
+                        } else if (totalPax > 0 && passengers > maxAllowedPassengers) {
+                            hasError = true;
+                            errorMessage = 'Passengers cannot exceed total pax (' + totalPax + ') or vehicle capacity (' + seats + ' seats). Maximum allowed: ' + maxAllowedPassengers;
+                        }
+                    } else if (transportType === 'attraction' || passengersInput.attr('id') === 'modal_attraction_transport_passengers') {
+                        if (totalPax > 0 && passengers > totalPax) {
+                            hasError = true;
+                            if (passengers > seats) {
+                                errorMessage = 'Passengers must be less than or equal to total pax (' + totalPax + ') and vehicle capacity (' + seats + ' seats)';
+                            } else {
+                                errorMessage = 'Passengers must be less than or equal to total pax (' + totalPax + ')';
+                            }
+                        } else if (totalPax > 0 && passengers > maxAllowedPassengers) {
+                            hasError = true;
+                            errorMessage = 'Passengers cannot exceed total pax (' + totalPax + ') or vehicle capacity (' + seats + ' seats). Maximum allowed: ' + maxAllowedPassengers;
+                        }
+                    }
+                    
+                    if (hasError) {
+                        // Show error
+                        errorElement.text(errorMessage || 'Passengers must be less than or equal to seats');
                         errorElement.removeClass('d-none');
                         passengersInput.addClass('is-invalid');
                     } else {
-                        // Hide error - passengers are within limit (less than or equal to seats)
+                        // Hide error - passengers are within limit
                         errorElement.addClass('d-none');
                         passengersInput.removeClass('is-invalid');
                     }
@@ -7058,6 +7174,22 @@
                 input.addClass('is-invalid');
             } else {
                 input.removeClass('is-invalid');
+            }
+            
+            // For restaurants, also trigger validation on transport passengers field when adults/children change
+            if (input.hasClass('restaurant-guest-input') && bookingId) {
+                const passengersInput = $('#restaurant_transport_passengers_' + bookingId);
+                if (passengersInput.length) {
+                    passengersInput.trigger('input');
+                }
+            }
+            
+            // For attractions, also trigger validation on transport passengers field when adults/children/seniors/infants change
+            if (input.hasClass('attraction-guest-input') && bookingId) {
+                const passengersInput = $('#attraction_transport_passengers_' + bookingId);
+                if (passengersInput.length) {
+                    passengersInput.trigger('input');
+                }
             }
         });
 
@@ -14169,6 +14301,9 @@
     }
     
     function initializeGuideModal() {
+        // Hide price container initially
+        document.getElementById('guide_price_container').style.display = 'none';
+        
         // Add event listeners
         const citySelect = document.getElementById('modal_guide_city_select');
         if (citySelect) {
@@ -14179,8 +14314,14 @@
         document.getElementById('modal_guide_select').addEventListener('change', onGuideSelection);
         document.getElementById('modal_guide_duration').addEventListener('change', onDurationSelection);
         document.getElementById('modal_guide_custom_hours').addEventListener('input', validateCustomHours);
-        document.getElementById('modal_guide_pickup_time').addEventListener('change', validateForm);
-        document.getElementById('modal_guide_service_date').addEventListener('change', validateForm);
+        document.getElementById('modal_guide_pickup_time').addEventListener('change', function() {
+            calculateGuidePrice();
+            validateForm();
+        });
+        document.getElementById('modal_guide_service_date').addEventListener('change', function() {
+            calculateGuidePrice();
+            validateForm();
+        });
         document.getElementById('confirm_guide_btn').addEventListener('click', confirmGuideSelection);
         
         // Set default pickup time to 9:00 AM
@@ -14230,6 +14371,9 @@
         const guideDetailsContainer = document.getElementById('guide_details_container');
         const selectedOption = guideSelect.options[guideSelect.selectedIndex];
         
+        // Clear only pickup time when guide changes (price is time-dependent, date remains)
+        document.getElementById('modal_guide_pickup_time').value = '';
+        
         if (guideSelect.value) {
             const guideData = JSON.parse(selectedOption.getAttribute('data-guide'));
             
@@ -14244,8 +14388,10 @@
             guideDetailsContainer.style.display = 'block';
         } else {
             guideDetailsContainer.style.display = 'none';
+            document.getElementById('guide_price_container').style.display = 'none';
         }
         
+        calculateGuidePrice();
         validateForm();
     }
     
@@ -14263,6 +14409,7 @@
             customHoursInput.value = '';
         }
         
+        calculateGuidePrice();
         validateForm();
     }
     
@@ -14276,6 +14423,7 @@
             input.setCustomValidity('');
         }
         
+        calculateGuidePrice();
         validateForm();
     }
     
@@ -14299,6 +14447,97 @@
         if (!serviceDate.value) isValid = false;
         
         confirmBtn.disabled = !isValid;
+    }
+
+    // Calculate and display guide price
+    function calculateGuidePrice() {
+        const guideSelect = document.getElementById('modal_guide_select');
+        const durationSelect = document.getElementById('modal_guide_duration');
+        const customHoursInput = document.getElementById('modal_guide_custom_hours');
+        const pickupTimeInput = document.getElementById('modal_guide_pickup_time');
+        const priceContainer = document.getElementById('guide_price_container');
+        
+        // Check if all required fields are filled
+        if (!guideSelect.value || !durationSelect.value || !pickupTimeInput.value) {
+            priceContainer.style.display = 'none';
+            return;
+        }
+        
+        // Get guide data
+        const selectedOption = guideSelect.options[guideSelect.selectedIndex];
+        if (!selectedOption || !selectedOption.getAttribute('data-guide')) {
+            priceContainer.style.display = 'none';
+            return;
+        }
+        
+        const guideData = JSON.parse(selectedOption.getAttribute('data-guide'));
+        
+        // Calculate hours
+        let hours = 0;
+        if (durationSelect.value === 'custom') {
+            hours = parseInt(customHoursInput.value) || 0;
+            if (hours < 1 || hours > 24) {
+                priceContainer.style.display = 'none';
+                return;
+            }
+        } else if (durationSelect.value === 'half_day') {
+            hours = 4;
+        } else if (durationSelect.value === 'full_day') {
+            hours = 8;
+        } else {
+            priceContainer.style.display = 'none';
+            return;
+        }
+        
+        // Calculate base price based on hours
+        let basePrice = 0;
+        if (hours <= 2) {
+            basePrice = parseFloat(guideData.two_hour_price || guideData.hourly_price * 2 || 30.00);
+        } else if (hours <= 4) {
+            basePrice = parseFloat(guideData.four_hour_price || guideData.hourly_price * 4 || 60.00);
+        } else if (hours <= 6) {
+            basePrice = parseFloat(guideData.six_hour_price || guideData.hourly_price * 6 || 180.00);
+        } else if (hours <= 8) {
+            basePrice = parseFloat(guideData.eight_hour_price || guideData.hourly_price * 8 || 240.00);
+        } else if (hours <= 10) {
+            basePrice = parseFloat(guideData.ten_hour_price || guideData.hourly_price * 10 || 300.00);
+        } else if (hours <= 12) {
+            basePrice = parseFloat(guideData.twelve_hour_price || guideData.hourly_price * 12 || 360.00);
+        } else {
+            // For custom hours beyond 12, calculate using hourly rate
+            basePrice = parseFloat(guideData.hourly_price || guideData.price_per_hour || 15.00) * hours;
+        }
+        
+        // Calculate night surcharge if pickup time is within night hours
+        let surcharge = 0;
+        const pickupTime = pickupTimeInput.value;
+        const pickupHour = parseInt(pickupTime.split(':')[0]);
+        const nightStartHour = parseInt(guideData.night_start_time?.split(':')[0] || '22');
+        const nightEndHour = parseInt(guideData.night_end_time?.split(':')[0] || '8');
+        
+        // Check if pickup time falls within night hours (typically 10 PM to 8 AM)
+        if (pickupHour >= nightStartHour || pickupHour < nightEndHour) {
+            surcharge = parseFloat(guideData.night_surcharge || 20.00);
+        }
+        
+        const totalPrice = basePrice + surcharge;
+        
+        // Update price display
+        document.getElementById('price_base_amount').textContent = '$' + basePrice.toFixed(2);
+        
+        // Show/hide surcharge
+        const surchargeRow = document.getElementById('price_surcharge_row');
+        if (surcharge > 0) {
+            surchargeRow.style.display = 'flex';
+            document.getElementById('price_surcharge_amount').textContent = '$' + surcharge.toFixed(2);
+        } else {
+            surchargeRow.style.display = 'none';
+        }
+        
+        document.getElementById('price_total_amount').textContent = '$' + totalPrice.toFixed(2);
+        
+        // Show price container
+        priceContainer.style.display = 'block';
     }
 
     const guideBaseUrl = "{{ route('orders.guides.select') }}";
@@ -14602,6 +14841,13 @@
             
             updateModalGuestSummaryDisplay();
             validateRestaurantForm();
+            
+            // Trigger validation on restaurant transport passengers if it exists
+            const modalRestaurantPassengers = $('#modal_restaurant_transport_passengers');
+            if (modalRestaurantPassengers.length) {
+                modalRestaurantPassengers.trigger('input');
+            }
+            
             return;
         }
         
@@ -14743,6 +14989,12 @@
         
         // Update the guest summary display immediately after setting the data
         updateModalGuestSummaryDisplay();
+        
+        // Trigger validation on restaurant transport passengers if it exists
+        const modalRestaurantPassengers = $('#modal_restaurant_transport_passengers');
+        if (modalRestaurantPassengers.length) {
+            modalRestaurantPassengers.trigger('input');
+        }
         
         // Initial validation
         validateRestaurantForm();
@@ -15877,6 +16129,23 @@
         if (total > pax) {
             showNotification('Total of children, males, and females exceeds pax count', 'warning');
         }
+        
+        // Update window.modalGuestData for restaurant transport validation
+        window.modalGuestData = {
+            pax: pax.toString(),
+            adults: finalAdults.toString(),
+            children: finalChildren.toString(),
+            infants: infants.toString(),
+            male_count: finalMaleCount.toString(),
+            female_count: finalFemaleCount.toString(),
+            child_ages: document.getElementById('modal_child_ages')?.value || ''
+        };
+        
+        // Trigger validation on restaurant transport passengers if it exists
+        const modalRestaurantPassengers = $('#modal_restaurant_transport_passengers');
+        if (modalRestaurantPassengers.length) {
+            modalRestaurantPassengers.trigger('input');
+        }
     }
 
     function updateModalGuestSummaryDisplay() {
@@ -15931,6 +16200,12 @@
         };
 
         updateModalGuestSummary();
+        
+        // Trigger validation on restaurant transport passengers if it exists
+        const modalRestaurantPassengers = $('#modal_restaurant_transport_passengers');
+        if (modalRestaurantPassengers.length) {
+            modalRestaurantPassengers.trigger('input');
+        }
 
         // Close modal safely
         safeCloseModal('modalGuestSelectorModal');
