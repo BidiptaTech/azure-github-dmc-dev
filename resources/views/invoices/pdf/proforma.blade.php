@@ -73,6 +73,17 @@
             background-color: #4CAF50;
             color: white;
         }
+        .payment-terms {
+            background-color: #FFC0CB;
+            padding: 10px;
+            margin-top: 20px;
+            clear: both;
+        }
+        .bank-details {
+            background-color: #FFC0CB;
+            padding: 10px;
+            margin-top: 20px;
+        }
         .footer-note {
             margin-top: 20px;
             padding: 10px;
@@ -1054,6 +1065,118 @@
     </div>
 
     <div style="clear: both;"></div>
+
+    <!-- Payment Terms and Bank Details -->
+    @php
+        // Fetch bank details from database based on tour's dmc_id
+        $tour = $invoice->tour;
+        $dmcId = $tour->dmc_id ?? $invoice->dmc_id ?? null;
+        $bankDetail = null;
+        $paymentTerms = [];
+        $bankDetailsData = [];
+        
+        if ($dmcId) {
+            // Fetch active bank details for this DMC
+            $bankDetail = \App\Models\BankDetail::where('dmc_id', $dmcId)
+                ->where('is_active', 1)
+                ->whereNull('deleted_at')
+                ->first();
+        }
+        
+        // Use database bank details if found, otherwise fall back to invoice stored data
+        if ($bankDetail) {
+            $paymentTerms = $bankDetail->payment_terms ?? [];
+            $bankDetailsData = [
+                'account_name' => $bankDetail->account_name ?? '',
+                'account_number' => $bankDetail->account_number ?? '',
+                'bank_address' => $bankDetail->bank_address ?? '',
+                'ifsc_code' => $bankDetail->ifsc ?? null,
+                'swift_bic_iban' => $bankDetail->swift_bic_iban ?? null,
+                'bank_code' => $bankDetail->bank_code ?? null,
+                'branch_code' => $bankDetail->branch_code ?? null,
+                'aba_routing_number' => $bankDetail->aba_routing ?? null,
+            ];
+        } else {
+            // Fallback to invoice stored data
+            $paymentTerms = $invoice->payment_terms ?? [];
+            $bankDetailsData = $invoice->bank_details ?? [];
+        }
+        
+        // If no payment terms found, use default
+        if (empty($paymentTerms)) {
+            $dmcCompanyName = $invoice->dmc->company_name ?? 'DMC';
+            $dmcEmail = $invoice->dmc->email ?? 'dmc email';
+            $paymentTerms = [
+                'Please pay the amount before the payment due date to avoid auto release of booking. Bank details are mentioned below.',
+                'Payment/Remittance to be made in the currency as stated in the invoice.',
+                'Bank charges to be borne by remitter. Please ensure that ' . $dmcCompanyName . ' receive full payment as per Invoice.',
+                'To ensure prompt credit, please send payment details along with remittance advice at ' . $dmcEmail . '.',
+                'Interest @ 18% will be charged on all overdues.',
+                'This document is not a voucher. Voucher will be issued after the receipt of full monies & necessary documents.',
+            ];
+        }
+    @endphp
+    
+    @if(!empty($paymentTerms))
+    <div class="payment-terms">
+        <strong>Payment Terms :</strong>
+        <ol style="margin-left: 20px; margin-top: 5px;">
+            @foreach($paymentTerms as $term)
+            <li>{{ $term }}</li>
+            @endforeach
+        </ol>
+    </div>
+    @endif
+
+    @if(!empty($bankDetailsData))
+    <div class="bank-details">
+        <strong>Bank Details:</strong>
+        <table style="margin-top: 10px; background-color: white; width: 100%;">
+            <tr>
+                <td style="width: 40%;">Account Name</td>
+                <td>{{ $bankDetailsData['account_name'] ?? '' }}</td>
+            </tr>
+            <tr>
+                <td>Account Number</td>
+                <td>{{ $bankDetailsData['account_number'] ?? '' }}</td>
+            </tr>
+            <tr>
+                <td>Bank Address</td>
+                <td>{{ $bankDetailsData['bank_address'] ?? '' }}</td>
+            </tr>
+            @if(!empty($bankDetailsData['ifsc_code']))
+            <tr>
+                <td>IFSC (For India only)</td>
+                <td>{{ $bankDetailsData['ifsc_code'] }}</td>
+            </tr>
+            @endif
+            @if(!empty($bankDetailsData['swift_bic_iban']))
+            <tr>
+                <td>SWIFT / BIC / IBAN Code (as applicable for international, Europe transfers)</td>
+                <td>{{ $bankDetailsData['swift_bic_iban'] }}</td>
+            </tr>
+            @endif
+            @if(!empty($bankDetailsData['bank_code']))
+            <tr>
+                <td>Bank Code (For Singapore)</td>
+                <td>{{ $bankDetailsData['bank_code'] }}</td>
+            </tr>
+            @endif
+            @if(!empty($bankDetailsData['branch_code']))
+            <tr>
+                <td>Branch Code (For Singapore)</td>
+                <td>{{ $bankDetailsData['branch_code'] }}</td>
+            </tr>
+            @endif
+            @if(!empty($bankDetailsData['aba_routing_number']))
+            <tr>
+                <td>ABA / Routing Number (For USA only)</td>
+                <td>{{ $bankDetailsData['aba_routing_number'] }}</td>
+            </tr>
+            @endif
+        </table>
+    </div>
+    @endif
 
     <!-- Footer Note -->
     @php
