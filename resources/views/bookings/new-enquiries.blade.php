@@ -1675,7 +1675,35 @@
                                                          <div class="mb-0">
                                                              <small class="text-muted d-block">Pickup Time</small>
                                                              <div class="fw-medium text-success">
-                                                                 <i class="ri-time-line me-1"></i>{{ \Carbon\Carbon::parse($booking['guide_options']['pickup_time'])->format('h:i A') }}
+                                                                 <i class="ri-time-line me-1"></i>
+                                                                 @php
+                                                                     $pickupTime = $booking['guide_options']['pickup_time'];
+                                                                     // Handle time range format (e.g., "09:00 - 09:00")
+                                                                     if (strpos($pickupTime, ' - ') !== false) {
+                                                                         $pickupTime = trim(explode(' - ', $pickupTime)[0]);
+                                                                     }
+                                                                     // Try to parse and format the time
+                                                                     try {
+                                                                         // Try 24-hour format first (H:i)
+                                                                         $timeObj = \Carbon\Carbon::createFromFormat('H:i', $pickupTime);
+                                                                         echo $timeObj->format('h:i A');
+                                                                     } catch (\Exception $e) {
+                                                                         try {
+                                                                             // Try 12-hour format (h:i A)
+                                                                             $timeObj = \Carbon\Carbon::createFromFormat('h:i A', $pickupTime);
+                                                                             echo $timeObj->format('h:i A');
+                                                                         } catch (\Exception $e2) {
+                                                                             try {
+                                                                                 // Try general parse
+                                                                                 $timeObj = \Carbon\Carbon::parse($pickupTime);
+                                                                                 echo $timeObj->format('h:i A');
+                                                                             } catch (\Exception $e3) {
+                                                                                 // If all parsing fails, display as-is
+                                                                                 echo $pickupTime;
+                                                                             }
+                                                                         }
+                                                                     }
+                                                                 @endphp
                                                              </div>
                                                          </div>
                                                          @endif
