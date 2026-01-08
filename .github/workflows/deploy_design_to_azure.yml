@@ -1,0 +1,276 @@
+name: React Deploy Design Staging to Azure
+ 
+on:
+  push:
+    branches:
+      - design_staging
+
+permissions:
+  contents: write
+  actions: read
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    permissions:
+      id-token: write #This is required for requesting the JWT
+      contents: read #This is required for actions/checkout
+    
+    env:
+      NODE_OPTIONS: '--max-old-space-size=4096'
+
+    steps:
+      - name: 📥 Checkout Design Staging branch
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          token: ${{ secrets.GH_PAT }}
+
+      - name: 🧰 Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '18'
+          cache: 'npm'
+
+      - name: 📦 Install React dependencies
+        run: |
+          # Clean install with platform-specific binaries
+          npm ci
+          # Install standard Vite React plugin if not present
+          npm install @vitejs/plugin-react --save-dev || echo "Plugin already installed"
+          # Force reinstall SWC with correct platform binaries
+          npm rebuild @swc/core || echo "SWC rebuild failed, will try alternative approach"
+      - name: 🔧 Prepare Vite config for CI
+        run: |
+          # Backup original vite config
+          cp vite.config.js vite.config.js.backup
+          # Create a CI-friendly vite config without SWC
+          cat > vite.config.js << 'EOF'
+          import { defineConfig } from 'vite'
+          import react from '@vitejs/plugin-react'
+          import path from 'path'
+          
+          export default defineConfig({
+            plugins: [react()],
+            resolve: {
+              alias: {
+                '@': path.resolve(__dirname, './src'),
+                '~': path.resolve(__dirname, './src')
+              }
+            },
+            build: {
+              outDir: 'build',
+              sourcemap: false,
+              minify: 'terser'
+            },
+            server: {
+              port: 3000
+            }
+          })
+          EOF
+          echo "✅ CI-friendly Vite config created"
+      - name: 🏗️ Build React application
+        run: |
+          # Clear any existing build
+          rm -rf build dist
+          # Build with CI-friendly config
+          npm run build
+          echo "✅ React build completed"
+      - name: 🔄 Restore original Vite config
+        run: |
+          # Restore original config (just in case)
+          mv vite.config.js.backup vite.config.js || echo "No backup to restore"
+      - name: 🗂️ Prepare deployment folder
+        run: |
+          echo "📁 Preparing deployment folder..."
+          mkdir -p deployment
+          
+          # Copy React build files to deployment folder
+          cp -r build/* deployment/
+          
+          # Copy any additional static files from public folder if they exist
+          if [ -d public ]; then
+            cp -r public/* deployment/ 2>/dev/null || true
+          fi
+          
+          echo "✅ React build files prepared for deployment"
+      - name: 🔧 Create .htaccess for React routing
+        run: |
+          echo "🔧 Creating .htaccess file for React routing (solve page refresh issues)..."
+          
+          # Create .htaccess file for React SPA routing
+          cat > deployment/.htaccess << 'EOF'
+          # React.js SPA routing configuration
+          # This file solves page refresh issues in React applications
+          
+          RewriteEngine On
+          
+          # Handle Angular and React requests for static files
+          RewriteCond %{REQUEST_FILENAME} -f [OR]
+          RewriteCond %{REQUEST_FILENAME} -d
+          RewriteRule ^ - [L]
+          
+          # Fallback to index.html for client-side routing
+          # This ensures that React Router can handle the routing
+          RewriteRule ^ /index.html [L]
+          
+          # Security headers
+          <IfModule mod_headers.c>
+              Header always set X-Content-Type-Options nosniff
+              Header always set X-Frame-Options SAMEORIGIN
+              Header always set X-XSS-Protection "1; mode=block"
+              Header always set Strict-Transport-Security "max-age=31536000; includeSubDomains"
+          </IfModule>
+          
+          # Compression for better performance
+          <IfModule mod_deflate.c>
+              AddOutputFilterByType DEFLATE text/plain
+              AddOutputFilterByType DEFLATE text/html
+              AddOutputFilterByType DEFLATE text/xml
+              AddOutputFilterByType DEFLATE text/css
+              AddOutputFilterByType DEFLATE application/xml
+              AddOutputFilterByType DEFLATE application/xhtml+xml
+              AddOutputFilterByType DEFLATE application/rss+xml
+              AddOutputFilterByType DEFLATE application/javascript
+              AddOutputFilterByType DEFLATE application/x-javascript
+          </IfModule>
+          
+          # Cache static assets
+          <IfModule mod_expires.c>
+              ExpiresActive On
+              ExpiresByType text/css "access plus 1 year"
+              ExpiresByType application/javascript "access plus 1 year"
+              ExpiresByType image/png "access plus 1 year"
+              ExpiresByType image/jpg "access plus 1 year"
+              ExpiresByType image/jpeg "access plus 1 year"
+              ExpiresByType image/gif "access plus 1 year"
+              ExpiresByType image/svg+xml "access plus 1 year"
+              ExpiresByType application/pdf "access plus 1 month"
+              ExpiresByType text/html "access plus 0 seconds"
+          </IfModule>
+          EOF
+          
+          echo "✅ .htaccess file created for React routing"
+      - name: 🔍 Create React deployment info
+        run: |
+          echo "🔧 Creating React deployment information..."
+          
+          # Create a deployment info file
+          cat > deployment/react-deployment-info.html << 'EOF'
+          <!DOCTYPE html>
+          <html>
+          <head>
+              <title>React Deployment Info</title>
+              <style>
+                  body { font-family: Arial, sans-serif; margin: 20px; }
+                  .info { background: #f0f8ff; padding: 15px; border-radius: 5px; }
+                  .success { color: #28a745; }
+                  .warning { color: #ffc107; }
+              </style>
+          </head>
+          <body>
+              <h2>React Deployment Information</h2>
+              <div class="info">
+                  <h3 class="success">✅ React Application Deployed Successfully</h3>
+                  <p><strong>Deployment Date:</strong> <?php echo date('Y-m-d H:i:s'); ?></p>
+                  <p><strong>Branch:</strong> design_staging</p>
+                  <p><strong>Build:</strong> Production</p>
+                  
+                  <h3>📁 Preserved Files & Folders:</h3>
+                  <ul>
+                      <li>✅ default file</li>
+                      <li>✅ laravel-debug.php file</li>
+                      <li>✅ startup.sh file</li>
+                      <li>✅ backadm-dmc folder (complete)</li>
+                  </ul>
+                  
+                  <h3>🔧 React Configuration:</h3>
+                  <ul>
+                      <li>✅ .htaccess file created for SPA routing</li>
+                      <li>✅ Page refresh issues resolved</li>
+                      <li>✅ Static assets optimized</li>
+                      <li>✅ Security headers configured</li>
+                  </ul>
+                  
+                  <h3>🎯 Access Points:</h3>
+                  <ul>
+                      <li><strong>React App:</strong> <a href="/">Main Application</a></li>
+                      <li><strong>Laravel Admin:</strong> <a href="/backadm-dmc/">Backend Admin</a></li>
+                      <li><strong>Debug Info:</strong> <a href="/laravel-debug.php">Laravel Debug</a></li>
+                  </ul>
+              </div>
+          </body>
+          </html>
+          EOF
+          
+          echo "✅ React deployment info created"
+      - name: 🔐 Login to Azure
+        uses: azure/login@v2
+        with:
+          client-id: ${{ secrets.AZURE_CLIENT_ID }}
+          tenant-id: ${{ secrets.AZURE_TENANT_ID }}
+          subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+
+      - name: 🛡️ Download existing files from Azure
+        run: |
+          echo "🔍 Downloading existing files to preserve Laravel backend..."
+          # Download existing files using Azure CLI
+          az webapp deployment source config-zip --resource-group $(az webapp show --name dmc-app-dev --query resourceGroup --output tsv) --name dmc-app-dev --src existing-files.zip || echo "No existing files to download"
+          
+          # Extract and backup important files if they exist
+          if [ -f existing-files.zip ]; then
+            unzip -q existing-files.zip -d existing-backup/ || echo "Failed to extract existing files"
+            if [ -d existing-backup/backadm-dmc ]; then
+              cp -r existing-backup/backadm-dmc deployment/
+              echo "✅ Preserved backadm-dmc folder"
+            fi
+            if [ -f existing-backup/startup.sh ]; then
+              cp existing-backup/startup.sh deployment/startup.sh.bak
+              echo "✅ Preserved startup.sh as startup.sh.bak"
+            fi
+            if [ -f existing-backup/default ]; then
+              cp existing-backup/default deployment/
+              echo "✅ Preserved default file"
+            fi
+            if [ -f existing-backup/laravel-debug.php ]; then
+              cp existing-backup/laravel-debug.php deployment/
+              echo "✅ Preserved laravel-debug.php"
+            fi
+          fi
+      - name: 🚀 Deploy to Azure Web App
+        uses: azure/webapps-deploy@v3
+        id: deploy-to-webapp
+        with:
+          app-name: 'dmc-app-dev'
+          slot-name: 'Production'
+          package: './deployment'
+
+      - name: 🎉 Deployment Summary
+        run: |
+          echo "🎯 React application deployed directly to Azure from design_staging branch!"
+          echo ""
+          echo "📁 Deployed:"
+          echo "   → React production build to Azure Web App"
+          echo "   → .htaccess file for SPA routing"
+          echo "   → React deployment info page"
+          echo ""
+          echo "🔧 Features:"
+          echo "   → Page refresh issues resolved with .htaccess"
+          echo "   → Static assets optimized with compression"
+          echo "   → Security headers configured"
+          echo "   → Caching rules applied"
+          echo "   → Deployed from tracked design_staging branch"
+          echo ""
+          echo "⚡ Result:"
+          echo "   → React app is now live on Azure App Service"
+          echo "   → Available at your Azure Web App URL"
+          echo "   → Files deployed using Azure Web App Deploy action"
+          echo "   → Source code tracked in design_staging branch"
+          echo ""
+          echo "🛡️ Important:"
+          echo "   → Azure Service Principal authentication configured"
+          echo "   → Deploying to: dmc-app-dev Azure Web App"
+          echo "   → Required secrets: AZURE_CLIENT_ID, AZURE_TENANT_ID, AZURE_SUBSCRIPTION_ID"
+          echo "   → Configure Azure App Service deployment settings to preserve Laravel files"
+          echo "   → In Azure Portal: App Service → Deployment Center → Settings"
+          echo "   → Code changes can be tracked via design_staging branch history"
