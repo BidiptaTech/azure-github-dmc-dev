@@ -9,7 +9,8 @@
     <meta name="csrf-token" content="{{ csrf_token() }}">
     <title>@yield('title')</title>
 @include('layouts.header')  
-@yield('css')  
+@yield('css')
+@stack('css')
 </head>
 @include('layouts.sidebar')
 @include('layouts.topbar')
@@ -17,6 +18,7 @@
 @yield('content')  
 @include('layouts.footer') 
 @yield('scripts')
+@stack('scripts')
 
 
 </body>
