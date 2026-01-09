@@ -9640,71 +9640,8 @@
             arrivalDepartureIds: []
         }));
 
-        // Update standalone arrival/departure entries if they exist
-        const standaloneArrival = arrivalDepartureList.find(item => item.type === 'Arrival' && item.accommodationIndex === null);
-        const standaloneDeparture = arrivalDepartureList.find(item => item.type === 'Departure' && item.accommodationIndex === null);
-        
-        if (standaloneArrival && arrivalDateTime && arrivalPortId) {
-            // Update existing standalone arrival
-            standaloneArrival.dateTime = arrivalDateTime;
-            standaloneArrival.portId = arrivalPortId;
-            standaloneArrival.portName = arrivalPortName;
-            standaloneArrival.flightNo = arrivalFlightNo || '-';
-        } else if (!standaloneArrival && arrivalDateTime && arrivalPortId) {
-            // Create new standalone arrival if it doesn't exist
-            const arrivalTransferType = document.getElementById('arrivalTransferType')?.value || 'S';
-            const arrivalVehiclePrice = calculateVehiclePrice('arrivalVehicleType', arrivalTransferType, adults, child);
-            
-            arrivalDepartureList.push({
-                id: generateId('arrdep'),
-                dateTime: arrivalDateTime,
-                portId: arrivalPortId,
-                portName: arrivalPortName,
-                flightNo: arrivalFlightNo || '-',
-                type: 'Arrival',
-                adultsQty: adults,
-                adultCost: arrivalVehiclePrice,
-                adultSell: arrivalVehiclePrice, // Default: cost = sell
-                childQty: child,
-                childCost: arrivalVehiclePrice,
-                childSell: arrivalVehiclePrice, // Default: cost = sell
-                infantQty: infant,
-                amount: 0,
-                supplement: '',
-                accommodationIndex: null
-            });
-        }
-        
-        if (standaloneDeparture && departureDateTime && departurePortId) {
-            // Update existing standalone departure
-            standaloneDeparture.dateTime = departureDateTime;
-            standaloneDeparture.portId = departurePortId;
-            standaloneDeparture.portName = departurePortName;
-            standaloneDeparture.flightNo = departureFlightNo || '-';
-        } else if (!standaloneDeparture && departureDateTime && departurePortId) {
-            // Create new standalone departure if it doesn't exist
-            const departureTransferType = document.getElementById('departureTransferType')?.value || 'S';
-            const departureVehiclePrice = calculateVehiclePrice('departureVehicleType', departureTransferType, adults, child);
-            
-            arrivalDepartureList.push({
-                id: generateId('arrdep'),
-                dateTime: departureDateTime,
-                portId: departurePortId,
-                portName: departurePortName,
-                flightNo: departureFlightNo || '-',
-                type: 'Departure',
-                adultsQty: adults,
-                adultCost: departureVehiclePrice,
-                adultSell: departureVehiclePrice, // Default: cost = sell
-                childQty: child,
-                childCost: departureVehiclePrice,
-                childSell: departureVehiclePrice, // Default: cost = sell
-                infantQty: infant,
-                amount: 0,
-                supplement: '',
-                accommodationIndex: null
-            });
-        }
+        // Note: Standalone arrival/departure entries are only created via saveArrivalDepartureOnly() function
+        // When saving accommodation, we create accommodation-linked entries below (not standalone)
         
         // Add to main accommodation list
         const startIndex = accommodationList.length;
@@ -9948,15 +9885,15 @@
         // Recalculate totals
         recalculateTotals();
 
-        // Expand header dates if check-in/check-out are outside range
-        const checkIn = document.getElementById('checkInDate').value;
-        const checkOut = document.getElementById('checkOutDate').value;
-        if (checkIn) {
-            expandHeaderDatesIfNeeded(checkIn, false);
-        }
-        if (checkOut) {
-            expandHeaderDatesIfNeeded(checkOut, false);
-        }
+        // Expand header dates for ALL newly added accommodations' check-in/check-out dates
+        selectedHotelsTemp.forEach(hotel => {
+            if (hotel.checkIn) {
+                expandHeaderDatesIfNeeded(hotel.checkIn, false);
+            }
+            if (hotel.checkOut) {
+                expandHeaderDatesIfNeeded(hotel.checkOut, false);
+            }
+        });
         
         // Expand header dates for arrival/departure if provided
         if (arrivalDateTime) {
@@ -10102,6 +10039,9 @@
                     }
                 });
                 updateArrivalDepartureTable();
+                
+                // Update header dates to include the new accommodation date
+                expandHeaderDatesIfNeeded(value, false);
             }
         }
     }
@@ -16241,9 +16181,11 @@
                 dateTime: dateTime,
                 pickupId: pickupSelect.value,
                 pickupName: pickupName,
+                pickup: pickupName, // Add for consistency with transformation
                 pickupType: pickupType,
                 dropId: dropSelect.value,
                 dropName: dropName,
+                dropoff: dropName, // Add for consistency with transformation
                 dropType: dropType,
                 destination: `${pickupName} → ${dropName}`,
                 vehicleId: vehicleId,
@@ -17659,7 +17601,8 @@
                     } : null,
                     cost: linkedTransfer.cost || parseFloat(linkedTransfer.sell) || 0,
                     destination_id: linkedTransfer.destinationId || "",
-                    destination_name: linkedTransfer.destinationName || linkedTransfer.destination || ""
+                    pickup_location_name: linkedTransfer.pickup || "",
+                    destination_name: linkedTransfer.dropoff || ""
                 } : null,
                 tour_id: hotel.tour_id || defaultTourId || null
             };
@@ -17720,9 +17663,10 @@
             if (tour.transferId) {
                 const linkedTransfer = transferList.find(t => t.id === tour.transferId);
                 if (linkedTransfer) {
-                    // Use pickup and dropoff from transfer object (respects "Is PickUp?" checkbox)
-                    const pickupName = linkedTransfer.pickup || linkedTransfer.attractionName || tour.attractionName || '';
-                    const dropoffName = linkedTransfer.dropoff || linkedTransfer.destination || '';
+                    // IMPORTANT: Use pickup and dropoff from transfer object (MUST respect "Is PickUp?" checkbox)
+                    // The pickup and dropoff fields are already correctly set based on checkbox state
+                    const pickupName = linkedTransfer.pickup || '';
+                    const dropoffName = linkedTransfer.dropoff || '';
                     
                     tourData.transfer_options = {
                         transfer_required: true,
@@ -17802,9 +17746,10 @@
             if (meal.transferId) {
                 const linkedTransfer = transferList.find(t => t.id === meal.transferId);
                 if (linkedTransfer) {
-                    // Use pickup and dropoff from transfer object (respects "Is PickUp?" checkbox)
-                    const pickupName = linkedTransfer.pickup || linkedTransfer.restaurantName || meal.restaurantName || '';
-                    const dropoffName = linkedTransfer.dropoff || linkedTransfer.destination || '';
+                    // Use pickup and dropoff from transfer object (MUST respect "Is PickUp?" checkbox)
+                    // The pickup and dropoff fields are already set correctly based on checkbox state
+                    const pickupName = linkedTransfer.pickup || '';
+                    const dropoffName = linkedTransfer.dropoff || '';
                     
                     mealData.transfer_options = {
                         transfer_required: true,
@@ -17881,10 +17826,15 @@
         const dmcId = '{{ $dmc_id ?? "" }}';
         const destination = document.getElementById('destinationSelect')?.value || 'Singapore';
         
-        const standaloneTransfers = transferList.filter(transfer => transfer.isStandalone);
+        // Only include truly standalone transfers
+        // Exclude transfers that are embedded in their parent service JSON (hotel, meal, restaurant, tour)
+        const transfersToTransform = transferList.filter(transfer => {
+            // Only include standalone transfers (those not linked to any service)
+            return transfer.isStandalone === true;
+        });
         const transformedData = [];
         
-        for (const transfer of standaloneTransfers) {
+        for (const transfer of transfersToTransform) {
             // Extract date and time
             let bookingDate = normalizeDateToYYYYMMDD(transfer.dateTime);
             let entrytime = "07:00 AM";
@@ -17905,9 +17855,11 @@
             // Fetch vehicle details if vehicle_id exists
             const vehicleDetails = await fetchVehicleDetails(transfer.vehicleId, dmcId);
             
-            // Use pickup and dropoff from transfer object (respects "Is PickUp?" checkbox)
-            const pickupName = transfer.pickup || transfer.restaurantName || transfer.hotelName || transfer.attractionName || "";
-            const dropoffName = transfer.dropoff || transfer.destination || "";
+            // IMPORTANT: Use pickup and dropoff from transfer object (MUST respect "Is PickUp?" checkbox)
+            // The pickup and dropoff fields are already correctly set based on checkbox state
+            // Do NOT use fallback values that could override the correct values
+            const pickupName = transfer.pickup || "";
+            const dropoffName = transfer.dropoff || "";
             
             transformedData.push({
                 bookingDate: bookingDate,
