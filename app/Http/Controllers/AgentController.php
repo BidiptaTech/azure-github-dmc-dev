@@ -1,0 +1,1111 @@
+<?php
+
+namespace App\Http\Controllers;
+
+use App\Helpers\CommonHelper;
+use App\Models\Agency;
+use App\Models\Agent;
+use App\Models\City;
+use App\Models\Country;
+use App\Models\User;
+use Illuminate\Http\Request;
+use Illuminate\Validation\Rule;
+use Illuminate\Support\Facades\Validator;
+use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\Crypt;
+class AgentController extends Controller
+{
+    /**
+     * Display a listing of the resource.
+     */
+    public function index()
+    {
+        if (!hasPermission('view agent')) {
+            abort(403, 'You do not have permission to access this page.');
+        }
+        
+        $user = Auth::user();
+        $agents = collect(); // default empty
+        $dmc_id = null;
+
+        switch ($user->role_id) {
+            case 1: // Admin
+            case 20: // Virtual DMC
+                $agents = Agent::where('status', 1)->orderBy('created_at', 'desc')->get();
+                break;
+
+            case 11: // DMC
+                // Step 1: Get all Sales Heads under this DMC
+               
+                
+                // Step 4: Collect all user IDs in the hierarchy
+                $dmc_id = $user->userId;
+                break;
+
+            case 33: // Sales Head
+            case 128: // Sales Head
+            case 129: // Sales Head
+            case 130: // Sales Head
+            case 134: // Sales Head
+            case 135: // Sales Head
+            case 136: // Sales Head
+            case 138: // Sales Head
+                
+                $dmc_id = $user->created_by;
+                break;    
+            case 37: // Sales Manager
+            
+                $sales_head = User::where('userId', $user->created_by)->first();
+                $dmc_id = $sales_head->created_by;
+                break;
+            case 38: // Assistant Sales Manager
+                $sales_manager = User::where('userId', $user->created_by)->first();
+                $sales_head = User::where('userId', $sales_manager->created_by)->first();
+                $dmc_id = $sales_head->created_by;
+                break;                    
+            default:
+                // For all other roles, get the parent DMC's agents
+                $dmc_id = null;
+                break;
+        }
+
+        if($dmc_id){
+
+            $agencies = Agency::where('status', 1)
+            ->whereRaw("dmc_id::jsonb @> ?", [json_encode([$dmc_id])])
+            ->orderBy('created_at', 'desc')
+            ->get();
+            $agents = Agent::whereIn('agency_id', $agencies->pluck('agency_id'))->orderBy('created_at', 'desc')->get();
+        }
+
+        // For debugging
+        Log::info('Agents Query', [
+            'role_id' => $user->role_id,
+            'user_id' => $user->userId,
+            'agent_count' => $agents->count(),
+            'agents' => $agents->pluck('dmc_id', 'agent_id')
+        ]);
+        return view('agents.index', compact('agents', 'user'));
+    }
+
+    /**
+     * Show the form for creating a new resource.
+     */
+    public function create()
+    {
+        $user = Auth::user();
+        $masterDmc = null;
+        $authUserCountries = [];
+
+        // Traverse up the hierarchy to find master DMC based on user role
+        if ($user->role_id == 11) { // DMC
+            // Direct access to master_dmc_id
+            $masterDmc = User::where('userId', $user->master_dmc_id)->first();
+        } 
+        else if ($user->role_id == 33 || $user->role_id == 128 || $user->role_id == 129 || $user->role_id == 130 || $user->role_id == 134 || $user->role_id == 135 || $user->role_id == 136 || $user->role_id == 138) { // Sales Head
+            // Find parent DMC
+            $parentDmc = User::where('userId', $user->created_by)
+                            ->where('role_id', 11)
+                            ->first();
+            
+            if ($parentDmc) {
+                $masterDmc = User::where('userId', $parentDmc->master_dmc_id)->first();
+            }
+        }
+        else if ($user->role_id == 12 || $user->role_id == 37) { // Sales Manager
+            // Find parent Sales Head
+            $parentSalesHead = User::where('userId', $user->created_by)
+                                  ->where('role_id', 33)
+                                  ->first();
+            
+            if ($parentSalesHead) {
+                // Find parent DMC of Sales Head
+                $parentDmc = User::where('userId', $parentSalesHead->created_by)
+                                ->where('role_id', 11)
+                                ->first();
+                
+                if ($parentDmc) {
+                    $masterDmc = User::where('userId', $parentDmc->master_dmc_id)->first();
+                }
+            }
+        }
+        else if ($user->role_id == 38) { // Assistant Sales Manager
+            // Find parent Sales Manager
+            $parentSalesManager = User::where('userId', $user->created_by)
+                                     ->whereIn('role_id', [12, 37])
+                                     ->first();
+            
+            if ($parentSalesManager) {
+                // Find parent Sales Head of Sales Manager
+                $parentSalesHead = User::where('userId', $parentSalesManager->created_by)
+                                      ->where('role_id', 33)
+                                      ->first();
+                
+                if ($parentSalesHead) {
+                    // Find parent DMC of Sales Head
+                    $parentDmc = User::where('userId', $parentSalesHead->created_by)
+                                    ->where('role_id', 11)
+                                    ->first();
+                    
+                    if ($parentDmc) {
+                        $masterDmc = User::where('userId', $parentDmc->master_dmc_id)->first();
+                    }
+                }
+            }
+        }
+
+        // Get countries from master DMC if found
+        if ($masterDmc) {
+            $authUserCountries = explode(',', $masterDmc->country);
+        }
+
+        if($user->role_id == 11){
+            $agency = Agency::where('status', 1)->whereRaw('dmc_id::jsonb @> ?', [json_encode([$user->userId])])->get();
+        }
+        elseif($user->role_id == 33 || $user->role_id == 128 || $user->role_id == 129 || $user->role_id == 130 || $user->role_id == 134 || $user->role_id == 135 || $user->role_id == 136 || $user->role_id == 138){
+            $parentDmc = User::where('userId', $user->created_by)->where('role_id', 11)->first();
+            $agency = Agency::where('status', 1)->whereRaw('dmc_id::jsonb @> ?', [json_encode([$parentDmc->userId])])->get();
+        }
+        elseif($user->role_id == 12 || $user->role_id == 37){
+            $parentSalesHead = User::where('userId', $user->created_by)->where('role_id', 33)->first();
+            $parentDmc = User::where('userId', $parentSalesHead->created_by)->where('role_id', 11)->first();
+            $agency = Agency::where('status', 1)->whereRaw('dmc_id::jsonb @> ?', [json_encode([$parentDmc->userId])])->get();       
+        }
+        elseif($user->role_id == 38){
+            $parentSalesManager = User::where('userId', $user->created_by)->whereIn('role_id', [12, 37])->first();
+            $parentSalesHead = User::where('userId', $parentSalesManager->created_by)->where('role_id', 33)->first();
+            $parentDmc = User::where('userId', $parentSalesHead->created_by)->where('role_id', 11)->first();
+            $agency = Agency::where('status', 1)->whereRaw('dmc_id::jsonb @> ?', [json_encode([$parentDmc->userId])])->get();
+        }
+
+        $card = Country::whereIn('name', $authUserCountries)->get(['card_type']);
+        $sales_mg = User::where('role_id', 38)->get();
+        //$agency = Agency::get();
+        $cityCountry = Country::get();
+        $country = Country::get();
+        $countryCodes = Agent::countryCodes();
+
+        return view('agents.add-agent', compact('sales_mg', 'country', 'authUserCountries', 'card', 'cityCountry', 'countryCodes', 'agency'));
+    }
+
+
+    /**
+     * Store a newly created resource in storage.
+     */
+
+    public function store(Request $request)
+    {
+        $validator = Validator::make($request->all(), [
+            'salutation' => 'required|in:Mr,Mrs,Miss,Dear',
+            'name' => 'required|string|max:255',
+            'agency_id' => 'required|integer',
+            'phone' => 'required|numeric',
+            'designation' => 'required|string|max:255',
+            'email' => 'required|email',
+            'user_country' => 'string|max:255',
+            'city' => 'string|max:255',
+            'agent_address' => 'string',
+            'code' => 'string|max:255',
+            // 'id_card' => 'required|string|max:255',
+            // 'card_number' => 'required|string|max:255',
+            'image' => 'mimes:jpg,jpeg,png,bmp,gif,svg,webp,avif|max:2048',
+            'agent_image' => 'mimes:jpg,jpeg,png,bmp,gif,svg,webp,avif|max:2048',
+            'password' => 'required|min:8',
+        ]);
+
+        $validator->after(function ($validator) use ($request) {
+            $existingAgent = Agent::where('email', $request->input('email'))->first();
+            if ($existingAgent && !$existingAgent->trashed()) {
+                $validator->errors()->add('email', 'The email has already been taken.');
+            }
+        });
+
+        if ($validator->fails()) {
+            return redirect()->back()->withErrors($validator)->withInput();
+        }
+
+        // Check if agent is soft deleted
+        $deletedAgent = Agent::withTrashed()->where('email', $request->input('email'))->first();
+
+        // Get current DMC ID based on role
+        $currentUser = Auth::user();
+        $dmc_id = null;
+
+        if ($currentUser->role_id == 11) { // If user is DMC
+            $dmc_id = $currentUser->userId;
+        } else {
+            // Find parent DMC
+            $parentUser = User::where('userId', $currentUser->created_by)->first();
+            while ($parentUser && !in_array($parentUser->role_id, [11])) {
+                $parentUser = User::where('userId', $parentUser->created_by)->first();
+            }
+            if ($parentUser && $parentUser->role_id == 11) {
+                $dmc_id = $parentUser->userId;
+            }
+        }
+        if($currentUser->role_id == 1 || $currentUser->role_id == 2 || $currentUser->role_id == 3 || $currentUser->role_id == 4 || $currentUser->role_id == 19){
+            $dmc = User::where('role_id', 20)->first();
+            $dmc_id = $dmc->userId;
+        }
+        elseif($currentUser->role_id == 20){
+            $dmc_id = $currentUser->userId;
+        }
+
+        if (!$dmc_id) {
+            return redirect()->back()->with('error', 'Could not determine DMC ID.');
+        }
+
+        // Uploads
+        $idProofImage = null;
+        if ($request->hasFile('image')) {
+            $pathData = CommonHelper::image_path('file_storage', $request->file('image'));
+            $idProofImage = $pathData['master_value'] ?? null;
+        }
+
+        $agentImage = null;
+        if ($request->hasFile('agent_image')) {
+            $pathData = CommonHelper::image_path('file_storage', $request->file('agent_image'));
+            $agentImage = $pathData['master_value'] ?? null;
+        }
+        $agency = Agency::where('agency_id', $request->input('agency_id'))->first();
+
+        if ($deletedAgent && $deletedAgent->trashed()) {
+            // Restore and update
+            $deletedAgent->restore();
+
+            // Get existing DMC IDs if any
+            $existingDmcIds = [];
+            if ($deletedAgent->dmc_id) {
+                if (is_string($deletedAgent->dmc_id)) {
+                    try {
+                        $existingDmcIds = json_decode($deletedAgent->dmc_id, true) ?? [];
+                    } catch (\Exception $e) {
+                        $existingDmcIds = [];
+                    }
+                }
+            }
+
+            // Add current DMC ID if not exists
+            if (!in_array($dmc_id, $existingDmcIds)) {
+                $existingDmcIds[] = $dmc_id;
+            }
+            
+
+            $deletedAgent->fill([
+                'salutation' => $request->input('salutation'),
+                'name' => $request->input('name'),
+                'company_name' => $agency->agency_name,
+                'agency_id' => $request->input('agency_id'),
+                'phone' => $request->input('phone'),
+                'designation' => $request->input('designation'),
+                'sales_manager_dmc' => Auth::user()->userId,
+                'role_id' => Auth::user()->role_id,
+                'created_by' => Auth::user()->userId,
+                'dmc_id' => json_encode($existingDmcIds),
+                'user_country' => $request->input('user_country'),
+                'city' => $request->input('city'),
+                'agent_address' => $request->input('agent_address'),
+                'code' => $request->input('code'),
+                // 'country' => is_array($request->input('country')) 
+                //     ? implode(',', $request->input('country')) 
+                //     : $request->input('country'),
+                'id_cards' => $request->input('id_card'),
+                'id_number' => $request->input('card_number'),
+                'image' => $idProofImage,
+                'agent_image' => $agentImage,
+                'password' => bcrypt($request->input('password')),
+            ]);
+            $deletedAgent->save();
+
+            return redirect()->route('agents.index')->with('success', 'Soft-deleted agent restored and updated successfully!');
+        }
+
+        // Create new agent
+        $lastAgent = Agent::withTrashed()->orderBy('created_at', 'desc')->first();
+        $agent_max_id = $lastAgent->agent_id ?? 1;
+        $agentId = CommonHelper::createId($agent_max_id);
+        while (Agent::where('agent_id', $agentId)->exists()) {
+            $agentId = CommonHelper::createId($agentId);
+        }
+
+        $agent = new Agent();
+        $agent->agent_id = $agentId;
+        $agent->salutation = $request->input('salutation');
+        $agent->name = $request->input('name');
+        $agent->company_name = $agency->agency_name;
+        $agent->agency_id = $request->input('agency_id');
+        $agent->phone = $request->input('phone');
+        $agent->designation = $request->input('designation');
+        $agent->email = $request->input('email');
+        $agent->sales_manager_dmc = Auth::user()->userId;
+        $agent->role_id = Auth::user()->role_id;
+        $agent->user_country = $request->input('user_country');
+        $agent->city = $request->input('city');
+        $agent->agent_address = $request->input('agent_address');
+        $agent->code = $request->input('code');
+        // $agent->country = implode(',', $request->input('country', []));
+        $agent->id_cards = $request->input('id_card');
+        $agent->id_number = $request->input('card_number');
+        $agent->image = $idProofImage;
+        $agent->agent_image = $agentImage;
+        $agent->password = bcrypt($request->input('password'));
+        $agent->created_by = Auth::user()->userId;
+        $agent->dmc_id = json_encode([$dmc_id]); // Store as JSON array
+        $agent->status = 1;
+        if ($agent->save()) {
+            // Send email to the agent
+            try {
+                $dmc_user = User::where('userId', $dmc_id)->first();
+
+                // Generate activation link (login URL)
+                $activationLink = CommonHelper::url();
+                
+                $emailData = [
+                    'salutation' => $agent->salutation,
+                    'name' => $agent->name,
+                    'email' => $agent->email,
+                    'phone' => $agent->phone,
+                    'company_name' => $agent->company_name,
+                    'country' => $agent->user_country,
+                    'city' => $agent->city,
+                    'password' => $request->input('password'),
+                    'dmc_logo' => $dmc_user->logo ?? 'NA',
+                    'dmc_company' => $dmc_user->company_name ?? config('app.name'),
+                    'dmc_email' => $dmc_user->email ?? 'NA',
+                    'dmc_phone' => $dmc_user->phone ?? 'NA',
+                    'activation_link' => $activationLink,
+                    'mail_settings' => (object)[
+                        'support_email' => $dmc_user->email ?? 'NA',
+                        'support_phone' => $dmc_user->phone ?? 'NA',
+                        'facebook_url' => '#',
+                        'twitter_url' => '#',
+                        'instagram_url' => '#',
+                        'linkedin_url' => '#'
+                    ]
+                ];
+                
+                // Subject: 🌏 Welcome to Travclicks — You're Now Connected with {{DMC_Name}}
+                $subject = "🌏 Welcome to Travclicks — You're Now Connected with " . ($dmc_user->company_name ?? config('app.name'));
+                
+                $result = \App\Helpers\CommonHelper::sendEmail(
+                    $agent->email, 
+                    'agent_creation', 
+                    $subject, 
+                    'Welcome to Travclicks! Your agent account has been created successfully.', 
+                    $emailData
+                );
+                
+            } catch (\Exception $e) {
+                \Illuminate\Support\Facades\Log::error('Failed to send agent creation email: ' . $e->getMessage());
+                // Continue with the process even if email fails
+            }
+            
+            return redirect()->route('agents.index')->with('success', 'Agent details added successfully!');
+        } else {
+            return redirect()->route('agents.index')->with('error', 'Failed to add agent details.');
+        }
+    }
+    
+
+    /**
+     * Display the specified resource.
+     */
+    public function show(string $agent_id)
+    {
+        try {
+            $agent_id = Crypt::decrypt($agent_id);
+            $agent = Agent::where('agent_id', $agent_id)->firstOrFail();
+            
+            return view('agents.show', compact('agent'));
+        } catch (\Exception $e) {
+            return redirect()->route('agents.index')->with('error', 'Agent not found.');
+        }
+    }
+
+    /**
+    * Show the form for editing the specified resource.
+    */
+    public function edit(string $agent_id)
+    {
+        $agent_id = Crypt::decrypt($agent_id);
+        $agent = Agent::where('agent_id', $agent_id)->firstOrFail();
+        $sales_mg = User::where('role_id', 38)->get();
+
+        $user = Auth::user();
+        $masterDmc = null;
+        $authUserCountries = [];
+
+        // Traverse up the hierarchy to find master DMC based on user role
+        if ($user->role_id == 11) { // DMC
+            // Direct access to master_dmc_id
+            $masterDmc = User::where('userId', $user->master_dmc_id)->first();
+        } 
+        else if ($user->role_id == 33 || $user->role_id == 128 || $user->role_id == 129 || $user->role_id == 130 || $user->role_id == 134 || $user->role_id == 135 || $user->role_id == 136 || $user->role_id == 138) { // Sales Head
+            // Find parent DMC
+            $parentDmc = User::where('userId', $user->created_by)
+                            ->where('role_id', 11)
+                            ->first();
+            
+            if ($parentDmc) {
+                $masterDmc = User::where('userId', $parentDmc->master_dmc_id)->first(); 
+            }
+        }
+        else if ($user->role_id == 12 || $user->role_id == 37) { // Sales Manager
+            // Find parent Sales Head
+            $parentSalesHead = User::where('userId', $user->created_by)
+                                  ->where('role_id', 33)
+                                  ->first();
+            
+            if ($parentSalesHead) {
+                // Find parent DMC of Sales Head
+                $parentDmc = User::where('userId', $parentSalesHead->created_by)
+                                ->where('role_id', 11)
+                                ->first();
+                
+                if ($parentDmc) {
+                    $masterDmc = User::where('userId', $parentDmc->master_dmc_id)->first();
+                }
+            }
+        }
+        else if ($user->role_id == 38) { // Assistant Sales Manager
+            // Find parent Sales Manager
+            $parentSalesManager = User::where('userId', $user->created_by)
+                                     ->whereIn('role_id', [12, 37])
+                                     ->first();
+            
+            if ($parentSalesManager) {
+                // Find parent Sales Head of Sales Manager
+                $parentSalesHead = User::where('userId', $parentSalesManager->created_by)
+                                      ->where('role_id', 33)
+                                      ->first();
+                
+                if ($parentSalesHead) {
+                    // Find parent DMC of Sales Head
+                    $parentDmc = User::where('userId', $parentSalesHead->created_by)
+                                    ->where('role_id', 11)
+                                    ->first();
+                    
+                    if ($parentDmc) {
+                        $masterDmc = User::where('userId', $parentDmc->master_dmc_id)->first();
+                    }
+                }
+            }
+        }
+
+        // Get countries from master DMC if found
+        if ($masterDmc) {
+            $authUserCountries = explode(',', $masterDmc->country);
+        }
+
+        $card = Country::whereIn('name', $authUserCountries)->get(['card_type']);
+        //$agency = Agency::get();
+         if($user->role_id == 1 || $user->role_id == 2 || $user->role_id == 3 || $user->role_id == 4 || $user->role_id == 19){
+            $agency = Agency::where('status', 1)->whereRaw('dmc_id::jsonb @> ?', [json_encode([$user->userId])])->get();
+         }
+        else if($user->role_id == 11){
+            $agency = Agency::where('status', 1)->whereRaw('dmc_id::jsonb @> ?', [json_encode([$user->userId])])->get();
+        }
+        elseif($user->role_id == 33 || $user->role_id == 128 || $user->role_id == 129 || $user->role_id == 130 || $user->role_id == 134 || $user->role_id == 135 || $user->role_id == 136 || $user->role_id == 138){
+            $parentDmc = User::where('userId', $user->created_by)->where('role_id', 11)->first();
+            $agency = Agency::where('status', 1)->whereRaw('dmc_id::jsonb @> ?', [json_encode([$parentDmc->userId])])->get();
+        }
+        elseif($user->role_id == 12 || $user->role_id == 37){
+            $parentSalesHead = User::where('userId', $user->created_by)->where('role_id', 33)->first();
+            $parentDmc = User::where('userId', $parentSalesHead->created_by)->where('role_id', 11)->first();
+            $agency = Agency::where('status', 1)->whereRaw('dmc_id::jsonb @> ?', [json_encode([$parentDmc->userId])])->get();       
+        }
+        elseif($user->role_id == 38){
+            $parentSalesManager = User::where('userId', $user->created_by)->whereIn('role_id', [12, 37])->first();
+            $parentSalesHead = User::where('userId', $parentSalesManager->created_by)->where('role_id', 33)->first();
+            $parentDmc = User::where('userId', $parentSalesHead->created_by)->where('role_id', 11)->first();
+            $agency = Agency::where('status', 1)->whereRaw('dmc_id::jsonb @> ?', [json_encode([$parentDmc->userId])])->get();
+        }
+        $country = Country::all();
+        $cityCountry = Country::get();
+        $countryCodes = Agent::countryCodes();
+
+        return view('agents.edit-agent', compact('agent', 'sales_mg', 'authUserCountries', 'card', 'country', 'cityCountry', 'countryCodes', 'agency'));
+    }
+
+    /**
+    * Show the form for editing the specified resource.
+    */
+    public function getSalesManagerDetails($userId)
+    {
+        $manager = User::where('userId', $userId)->first();
+
+        if (!$manager) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Manager not found'
+            ]);
+        }
+
+        // Fetch country using the name
+        $country = Country::where('name', $manager->country)->first();
+
+        if (!$country) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Country not found'
+            ]);
+        }
+
+        // Fetch ID cards for this country
+        $idCards = Country::where('name', $manager->country)->get(['card_type', 'name']);
+
+        return response()->json([
+            'success' => true,
+            'country' => [
+                'id' => $country->id,
+                'name' => $country->name,
+            ],
+            'id_cards' => $idCards,
+        ]);
+    }
+
+    /**
+     * Update the specified resource in storage.
+     */
+    public function update(Request $request, string $id)
+    {
+        // dd($request->all());
+        $agent = Agent::where('agent_id', $id)->firstOrFail();
+
+        // $validated = $request->validate([
+        //     'salutation' => 'required|in:Mr,Mrs,Miss,Dear',
+        //     'name' => 'required|string|max:255',
+        //     'phone' => 'required|numeric',
+        //     'email' => 'required|email|unique:agents,email,' . $agent->id,
+        //     'sales_mg' => 'required|exists:users,userId',
+        //     'country' => 'required|string|max:255',
+        //     'id_card' => 'required|string|max:255',
+        //     'card_number' => 'required|string|max:255',
+        //     'image' => 'nullable|mimes:jpg,jpeg,png,bmp,gif,svg,webp,avif|max:2048',
+        //     'agent_image' => 'nullable|mimes:jpg,jpeg,png,bmp,gif,svg,webp,avif|max:2048',
+        //     'password' => 'nullable|min:8',
+        // ]);
+
+        try {
+            $validated = $request->validate([
+                'salutation' => 'required|in:Mr,Mrs,Miss,Dear',
+                'name' => 'required|string|max:255',
+                'agency_id' => 'required|string|max:255',
+                'phone' => 'required|numeric',
+                'designation' => 'required|string|max:255',
+                'email' => 'required|email|unique:agents,email,' . $agent->id,
+                // NEW FIELDS
+                // 'user_country' => 'required|string|max:255',
+                // 'city' => 'required|string|max:255',
+                // 'agent_address' => 'required|string',
+                // 'code' => 'required|string|max:255',
+                // EXISTING FIELDS
+                // 'country' => 'required|array',
+                'country.*' => 'string', // each country must be a string
+                // 'id_card' => 'required|string|max:255',
+                // 'card_number' => 'required|string|max:255',
+                // 'image' => 'nullable|mimes:jpg,jpeg,png,bmp,gif,svg,webp,avif',
+                // 'agent_image' => 'nullable|mimes:jpg,jpeg,png,bmp,gif,svg,webp,avif',
+                'password' => 'nullable|min:8',
+            ]);
+        
+            // dd($validated); // Debugging: Show validated data
+        
+        } catch (\Illuminate\Validation\ValidationException $e) {
+            return redirect()->route('agents.index')->with('error', 'Validation error: ' . $e->getMessage()); // Debugging: Show validation errors
+        }
+        
+
+        // if ($request->hasFile('image')) {
+        //     $pathData = CommonHelper::image_path('file_storage', $request->file('image'));
+        //     $agent->image = $pathData['master_value'] ?? $agent->image;
+        // }
+
+        // if ($request->hasFile('agent_image')) {
+        //     $pathData = CommonHelper::image_path('file_storage', $request->file('agent_image'));
+        //     $agent->agent_image = $pathData['master_value'] ?? $agent->agent_image;
+        // }
+
+        $agency = Agency::where('agency_id', $request->input('agency_id'))->first();
+
+        $agent->salutation = $validated['salutation'];
+        $agent->name = $validated['name'];
+        $agent->agency_id = $validated['agency_id'];
+        $agent->company_name = $agency->agency_name;
+        $agent->phone = $validated['phone'];
+        $agent->designation = $validated['designation'];
+        $agent->email = $validated['email'];
+        // NEW FIELDS
+        // $agent->user_country = $validated['user_country'];
+        // $agent->city = $validated['city'];
+        // $agent->agent_address = $validated['agent_address'];
+        // $agent->code = $validated['code'];
+        // EXISTING FIELDS
+        // $agent->country = implode(',', $validated['country']);
+        // $agent->id_cards = $validated['id_card'];
+        // $agent->id_number = $validated['card_number'];
+
+        if (!empty($validated['password'])) {
+            $agent->password = bcrypt($validated['password']);
+        }
+
+        if ($agent->save()) {
+            try {
+                $dmc_id = CommonHelper::getDmcId(Auth::user());
+                $dmc_user = User::where('userId', $dmc_id)->first();
+
+                $emailData = [
+                    'salutation' => $agent->salutation,
+                    'name' => $agent->name,
+                    'email' => $agent->email,
+                    'phone' => $agent->phone,
+                    'company_name' => $agency->agency_name,
+                    'country' => $agent->user_country,
+                    'city' => $agent->city,
+                    'password' => $request->input('password'),
+                    'dmc_logo' => $dmc_user->logo ?? 'NA',
+                    'dmc_company' => $dmc_user->company_name ?? config('app.name'),
+                    'dmc_email' => $dmc_user->email ?? 'NA',
+                    'dmc_phone' => $dmc_user->phone ?? 'NA',
+                    'mail_settings' => (object)[
+                        'support_email' => $dmc_user->email ?? 'NA',
+                        'support_phone' => $dmc_user->phone ?? 'NA',
+                        'facebook_url' => '#',
+                        'twitter_url' => '#',
+                        'instagram_url' => '#',
+                        'linkedin_url' => '#'
+                    ],
+                    "message_type" => "updated",
+                ];
+                
+                $result = \App\Helpers\CommonHelper::sendEmail(
+                    $agent->email, 
+                    'agent_update', 
+                    'Your Agent Account Has Been Updated', 
+                    'Your agent account has been updated successfully!', 
+                    $emailData
+                );
+                
+            } catch (\Exception $e) {
+                \Illuminate\Support\Facades\Log::error('Failed to send agent creation email: ' . $e->getMessage());
+                // Continue with the process even if email fails
+            }
+            return redirect()->route('agents.index')->with('success', 'Agent details updated successfully!');
+        } else {
+            return redirect()->route('agents.index')->with('error', 'Failed to update agent details.');
+        }
+    }
+
+    public function updateDmcId(Request $request)
+    {
+        try {
+            // Find the agent by ID
+            $agent = Agent::where('agent_id', $request->agent_id)->first();
+            
+            // Initialize DMC IDs array
+            $dmcIds = [];
+            
+            // Get current DMC IDs if they exist
+            if ($agent->dmc_id) {
+                // If it's a string (JSON or comma-separated), try to decode it
+                if (is_string($agent->dmc_id)) {
+                    try {
+                        $dmcIds = json_decode($agent->dmc_id, true) ?? [];
+                        if (!is_array($dmcIds)) {
+                            $dmcIds = explode(',', $agent->dmc_id);
+                        }
+                    } catch (\Exception $e) {
+                        $dmcIds = explode(',', $agent->dmc_id);
+                    }
+                }
+                // If it's already an array
+                elseif (is_array($agent->dmc_id)) {
+                    $dmcIds = $agent->dmc_id;
+                }
+            }
+            
+            // Clean up the array - remove empty values and duplicates
+            $dmcIds = array_filter(array_unique(array_map('trim', $dmcIds)));
+            
+            // Add current DMC ID if not already present
+            $currentDmcId = Auth::user()->userId;
+            if (!in_array($currentDmcId, $dmcIds)) {
+                $dmcIds[] = $currentDmcId;
+            }
+            
+            // Update the agent
+            $agent->dmc_id = json_encode(array_values($dmcIds));
+            $agent->save();
+            
+            return response()->json([
+                'success' => true,
+                'message' => 'Agent selected successfully',
+                'dmc_ids' => $dmcIds
+            ]);
+        } catch (\Exception $e) {
+            Log::error('Error updating agent DMC ID: ' . $e->getMessage());
+            return response()->json([
+                'success' => false,
+                'message' => 'Failed to select agent: ' . $e->getMessage()
+            ], 500);
+        }
+    }
+
+    public function fetchCitiesByCountry(Request $request) {
+        $countryName = $request->input('country');
+        
+        $cities = City::where('country', $countryName)
+                ->select('name', 'city_id')
+                ->get();
+                 
+        return response()->json(['cities' => $cities]);
+    }
+
+    public function fetchCountryCode(Request $request) {
+        $countryName = $request->input('country');
+        
+        $country = Country::where('name', $countryName)->first();
+        
+        if ($country) {
+            return response()->json([
+                'success' => true,
+                'country_code' => $country->country_code
+            ]);
+        }
+        
+        return response()->json([
+            'success' => false,
+            'message' => 'Country not found'
+        ], 404);
+    }
+
+    public function searchAgents(Request $request)
+    {
+        $user = Auth::user();
+
+        // Only DMC role can search and select agents
+        if ($user->role_id != 11) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Only DMC can search and select agents',
+                'agents' => []
+            ]);
+        }
+
+        $query = Agent::where(function($q) use ($request) {
+            if ($request->filled('agency_name')) {
+                $q->where('name', 'like', '%' . $request->agency_name . '%');
+            }
+            if ($request->filled('agent_name')) {
+                $q->where('company_name', 'like', '%' . $request->agent_name . '%');
+            }
+            if ($request->filled('country')) {
+                $q->where('user_country', $request->country);
+            }
+            if ($request->filled('city')) {
+                $q->where('city', $request->city);
+            }
+        });
+
+        // Get agents that are not already selected by this DMC
+        $agents = $query->select(
+            'agent_id',
+            'name',
+            'company_name',
+            'user_country',
+            'city',
+            'agent_address',
+            'dmc_id'
+        )->get();
+
+        // Filter out agents that are already selected by current DMC
+        $agents = $agents->filter(function($agent) use ($user) {
+            $dmcIds = [];
+            if ($agent->dmc_id) {
+                if (is_string($agent->dmc_id)) {
+                    try {
+                        $dmcIds = json_decode($agent->dmc_id, true) ?? [];
+                        if (!is_array($dmcIds)) {
+                            $dmcIds = explode(',', $agent->dmc_id);
+                        }
+                    } catch (\Exception $e) {
+                        $dmcIds = explode(',', $agent->dmc_id);
+                    }
+                } elseif (is_array($agent->dmc_id)) {
+                    $dmcIds = $agent->dmc_id;
+                }
+            }
+            return !in_array($user->userId, $dmcIds);
+        })->values();
+
+        return response()->json([
+            'success' => true,
+            'agents' => $agents,
+            'is_dmc' => true
+        ]);
+    }
+
+    /**
+     * Remove the specified resource from storage.
+     */
+    public function destroy($id)
+    {
+        $agent = Agent::where('agent_id', $id);
+        $agent->delete();
+
+        return redirect()->route('agents.index')->with('success', 'Agent deleted successfully!');
+    }
+
+    /**
+     * Show the agents import page
+     */
+    public function importView()
+    {
+        $user = Auth::user();
+        
+        // Check if user has permission to import agents
+        $allowedRoles = [11, 33, 128, 129, 130, 134, 135, 136, 138, 12, 37, 38];
+        
+        if (!in_array($user->role_id, $allowedRoles)) {
+            abort(403, 'You do not have permission to import agents.');
+        }
+
+        // Get agencies available for this user's DMC
+        $agencies = $this->getAvailableAgencies($user);
+
+        // Get recent upload history
+        $uploadHistory = \App\Models\UploadHistory::where('upload_type', 'agents')
+            ->where('uploaded_by', $user->userId)
+            ->orderBy('created_at', 'desc')
+            ->limit(10)
+            ->get();
+
+        return view('agents.import', compact('uploadHistory', 'agencies'));
+    }
+
+    /**
+     * Get available agencies based on user role
+     */
+    private function getAvailableAgencies($user)
+    {
+        $dmcId = $this->determineDmcIdForImport($user);
+        
+        if (!$dmcId) {
+            return collect();
+        }
+
+        return Agency::where('status', 1)
+            ->whereRaw('dmc_id::jsonb @> ?', [json_encode([$dmcId])])
+            ->orderBy('agency_name', 'asc')
+            ->get();
+    }
+
+    /**
+     * Determine DMC ID for import based on user role
+     */
+    private function determineDmcIdForImport($user)
+    {
+        switch ($user->role_id) {
+            case 11: // DMC
+                return $user->userId;
+                
+            case 33: // Sales Head
+            case 128:
+            case 129:
+            case 130:
+            case 134:
+            case 135:
+            case 136:
+            case 138:
+                return $user->created_by;
+                
+            case 12: // Sales Manager
+            case 37:
+                $salesHead = User::where('userId', $user->created_by)->first();
+                return $salesHead ? $salesHead->created_by : null;
+                
+            case 38: // Assistant Sales Manager
+                $salesManager = User::where('userId', $user->created_by)->first();
+                if ($salesManager) {
+                    $salesHead = User::where('userId', $salesManager->created_by)->first();
+                    return $salesHead ? $salesHead->created_by : null;
+                }
+                return null;
+                
+            case 1: // Admin
+            case 2:
+            case 3:
+            case 4:
+            case 19:
+                $virtualDmc = User::where('role_id', 20)->first();
+                return $virtualDmc ? $virtualDmc->userId : null;
+                
+            case 20: // Virtual DMC
+                return $user->userId;
+                
+            default:
+                return null;
+        }
+    }
+
+    /**
+     * Handle the agents CSV import
+     */
+    public function import(Request $request)
+    {
+        try {
+            $request->validate([
+                'file' => 'required|file|mimes:csv,txt|max:10240', // Max 10MB
+            ]);
+
+            $file = $request->file('file');
+            $originalFileName = $file->getClientOriginalName();
+            
+            // Generate file hash to prevent duplicate uploads
+            $fileHash = hash_file('md5', $file->getPathname());
+            $auth_user = Auth::user();
+            $cacheKey = "agent_upload_{$fileHash}_{$auth_user->userId}";
+            
+            // Check if this exact file was uploaded recently (within last 30 seconds)
+            if (cache()->has($cacheKey)) {
+                return redirect()->back()->with('error', 'This file was already uploaded recently. Please wait a moment before uploading again.');
+            }
+
+            // Create the import instance
+            $import = new \App\Imports\AgentsImport();
+            
+            // Import the file
+            $result = $import->import($file->getPathname());
+            
+            // Cache the upload to prevent duplicates
+            cache()->put($cacheKey, true, 30);
+            
+            $successCount = $result['success'];
+            $errorCount = $result['errors'];
+            $errorMessages = $result['error_messages'];
+            $totalRecords = $successCount + $errorCount;
+            
+            // Create upload history record
+            \App\Models\UploadHistory::createRecord(
+                'agents',
+                $originalFileName,
+                $originalFileName,
+                $totalRecords,
+                $successCount,
+                $errorCount,
+                $errorMessages,
+                $auth_user->userId
+            );
+            
+            if ($errorCount > 0) {
+                // Format error summary with better structure
+                $errorSummary = '<div class="error-summary-list mt-2">';
+                $displayErrors = array_slice($errorMessages, 0, 10);
+                
+                foreach ($displayErrors as $index => $error) {
+                    $errorSummary .= '<div class="error-summary-item mb-1">';
+                    $errorSummary .= '<i class="ri-close-circle-line text-danger me-1"></i>';
+                    $errorSummary .= '<strong>' . ($index + 1) . '.</strong> ' . $error;
+                    $errorSummary .= '</div>';
+                }
+                
+                if (count($errorMessages) > 10) {
+                    $errorSummary .= '<div class="error-summary-item mt-2 text-muted">';
+                    $errorSummary .= '<i class="ri-more-line me-1"></i>';
+                    $errorSummary .= '<em>... and ' . (count($errorMessages) - 10) . ' more errors. View upload history for complete details.</em>';
+                    $errorSummary .= '</div>';
+                }
+                
+                $errorSummary .= '</div>';
+                
+                if ($successCount > 0) {
+                    $message = '<div class="mb-2">';
+                    $message .= '<i class="ri-information-line me-1"></i>';
+                    $message .= '<strong>Import Summary:</strong><br>';
+                    $message .= '<span class="text-success"><i class="ri-check-line me-1"></i>' . $successCount . ' agents imported successfully</span><br>';
+                    $message .= '<span class="text-danger"><i class="ri-close-line me-1"></i>' . $errorCount . ' rows failed</span>';
+                    $message .= '</div>';
+                    $message .= '<div class="mb-2"><strong>Failed Rows:</strong></div>';
+                    $message .= $errorSummary;
+                    
+                    return redirect()->back()->with('warning', $message);
+                } else {
+                    $message = '<div class="mb-2">';
+                    $message .= '<i class="ri-error-warning-line me-1"></i>';
+                    $message .= '<strong>No agents were imported.</strong> All ' . $errorCount . ' rows had errors.';
+                    $message .= '</div>';
+                    $message .= '<div class="mb-2"><strong>Error Details:</strong></div>';
+                    $message .= $errorSummary;
+                    
+                    return redirect()->back()->with('error', $message);
+                }
+            }
+            
+            if ($successCount > 0) {
+                return redirect()->back()->with('success', "Successfully imported {$successCount} agents!");
+            } else {
+                return redirect()->back()->with('error', 'No agents were imported. Please check your CSV file.');
+            }
+            
+        } catch (\Exception $e) {
+            Log::error('Agent import error: ' . $e->getMessage(), [
+                'trace' => $e->getTraceAsString()
+            ]);
+            return redirect()->back()->with('error', 'Failed to import agents. Please ensure the file is properly formatted. Error: ' . $e->getMessage());
+        }
+    }
+
+    /**
+     * Download the agents import template
+     */
+    public function downloadTemplate()
+    {
+        $headers = [
+            'Content-Type' => 'text/csv',
+            'Content-Disposition' => 'attachment; filename="agents_import_template.csv"',
+        ];
+
+        $columns = [
+            'agency_name',
+            'salutation',
+            'name',
+            'email',
+            'phone',
+            'designation',
+            'password'
+        ];
+
+        $callback = function() use ($columns) {
+            $file = fopen('php://output', 'w');
+            
+            // Write header row
+            fputcsv($file, $columns);
+            
+            // Write sample data rows
+            fputcsv($file, [
+                'Sunrise Travel Agency',
+                'Mr',
+                'John Smith',
+                'john.smith@example.com',
+                '1234567890',
+                'Sales Manager',
+                'Password@123'
+            ]);
+            
+            fputcsv($file, [
+                'Global Tours Ltd',
+                'Mrs',
+                'Jane Doe',
+                'jane.doe@example.com',
+                '9876543210',
+                'Travel Consultant',
+                'SecurePass@456'
+            ]);
+            
+            fclose($file);
+        };
+
+        return response()->stream($callback, 200, $headers);
+    }
+}

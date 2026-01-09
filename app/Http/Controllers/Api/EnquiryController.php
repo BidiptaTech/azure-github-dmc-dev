@@ -1,0 +1,1282 @@
+<?php
+
+namespace App\Http\Controllers\Api;
+use App\Http\Controllers\Controller;
+use Illuminate\Http\Request;
+use App\Models\EnquiryForm;
+use Carbon\Carbon;
+use App\Helpers\CommonHelper;
+use App\Models\User;
+use App\Models\Hotel;
+use App\Models\Attraction;
+use App\Models\PackagedAttraction;
+use App\Models\Restaurant;
+use App\Models\Meal;
+use App\Models\Port;
+use App\Models\Country;
+use App\Models\Vehicle;
+use App\Models\Driver;
+use App\Models\Guide;
+use App\Models\City;
+use App\Models\Agent;
+use App\Models\Agency;
+use App\Models\Tour;
+use Illuminate\Validation\ValidationException;
+use Illuminate\Http\Exceptions\HttpResponseException;
+use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Log;
+
+class EnquiryController extends Controller
+{
+    public function createEnquiry(Request $request)
+    {
+        $country = $request->input('country');
+        $city = $request->input('city');
+        $dmc_ids = $request->input('dmc_ids');
+        
+        // Convert to array if string
+        if (is_string($dmc_ids)) {
+            $dmc_ids = json_decode($dmc_ids, true) ?? [];
+        } elseif (!is_array($dmc_ids)) {
+            $dmc_ids = [];
+        }
+
+        $random_dmc_id = null;
+        $user = auth()->user();
+        $agent_id = $user->agent_id;
+        
+        if (empty($dmc_ids)) {
+            // Get auth user agency id and get dmc ids
+            $agentDmcIds = [];
+            $agencyCountryArray = [];
+            
+            if($user->agency_id){
+                $agency = Agency::where('agency_id', $user->agency_id)->first();
+                if($agency){
+                    $agentDmcIds = $agency->dmc_id;
+                    
+                    // Get agency's country for filtering
+                    if($agency->country){
+                        // Handle country as comma-separated string or array
+                        if(is_array($agency->country)){
+                            $agencyCountryArray = $agency->country;
+                        } else {
+                            // Remove spaces and split by comma
+                            $agencyCountryArray = array_map('trim', explode(',', str_replace(' ', '', $agency->country)));
+                        }
+                        $agencyCountryArray = array_filter($agencyCountryArray); // Remove empty values
+                    }
+                }
+            }
+            
+            // Ensure agentDmcIds is an array
+            if(!$agentDmcIds){
+                $agentDmcIds = [];
+            } else {
+                $agentDmcIds = array_map('intval', array_filter($agentDmcIds));
+            }
+            
+            // Prepare country array for filtering
+            $countryArray = [];
+            if($country){
+                if(is_array($country)){
+                    $countryArray = $country;
+                } else {
+                    $countryArray = array_map('trim', explode(',', $country));
+                }
+                $countryArray = array_filter($countryArray);
+            }
+            
+            // Find DMC user by matching country from the destination array
+            $dmcQuery = User::where('role_id', 11);
+            
+            // Filter by agency DMC IDs if available
+            if(!empty($agentDmcIds)){
+                $dmcQuery->whereIn('userId', $agentDmcIds);
+            }
+            
+            // If agency has country, filter DMCs by agency country
+            if(!empty($agencyCountryArray)){
+                $dmcQuery->whereRaw(
+                    "string_to_array(regexp_replace(country, '\\s+', '', 'g'), ',') && ?", 
+                    [ '{' . implode(',', $agencyCountryArray) . '}' ]
+                );
+            }
+            
+            // Also filter by destination country
+            if(!empty($countryArray)){
+                $dmcQuery->whereRaw(
+                    "string_to_array(regexp_replace(country, '\\s+', '', 'g'), ',') && ?", 
+                    [ '{' . implode(',', $countryArray) . '}' ]
+                );
+            }
+            
+            $dmc_idd = $dmcQuery->first();
+            
+            if ($dmc_idd) {
+                $dmc_ids = [$dmc_idd->userId];
+                $random_dmc_id = $dmc_idd->userId;
+            } else {
+                $dmc_ids = [];
+            }
+        }
+
+        try {
+            // Parse the dates
+            $checkInTime = Carbon::createFromFormat('d/m/Y', $request->check_in);
+            $checkOutTime = Carbon::createFromFormat('d/m/Y', $request->check_out);
+
+            // Generate multi enquiry ID
+            $randomDigits = str_pad(rand(0, 99999), 5, '0', STR_PAD_LEFT);
+            $multi_enq_id = 'MULTI-ENQ-' . $randomDigits;
+
+            $created_enquiries = [];
+
+            // Create an enquiry for each DMC ID
+            foreach ($dmc_ids as $dmc_id) {
+                // Generate unique enquiry ID for each DMC
+                $max_tour_id = EnquiryForm::max('enquiry_id') ?? 0;
+                $enquiryId = CommonHelper::createId($max_tour_id);
+                $display_id = 'DMC-ENQ' . $enquiryId;
+
+                $userDMC = User::where('userId', $dmc_id)->first();
+                $auto_cancel_day = (int) $userDMC->auto_cancel_date; // e.g. 1
+                $auto_cancel_date = $checkInTime->copy()->subDays($auto_cancel_day)->toDateString();
+
+                $enquiry = new EnquiryForm();
+                $enquiry->adult = $request->adult ?? 0;
+                $enquiry->child = $request->child ?? 0;
+                $enquiry->infant = $request->infant ?? 0;
+                $enquiry->agent_id = $agent_id;
+                $enquiry->enquiry_id = $enquiryId;
+                $enquiry->male_count = $request->male ?? 0;
+                $enquiry->female_count = $request->female ?? 0;
+                $enquiry->check_in_time = $checkInTime;
+                $enquiry->check_out_time = $checkOutTime;
+                $enquiry->display_id = $display_id;
+                $enquiry->country = $country;
+                $enquiry->city = $city;
+                $enquiry->child_ages = $request->children_ages ?? null;
+                $enquiry->dmc_id = $dmc_id;  // Set individual DMC ID
+                $enquiry->multi_enq_id = $multi_enq_id;  // Set common multi enquiry ID
+                $enquiry->auto_cancel_date = $auto_cancel_date;
+                $enquiry->save();
+                $enquiry->refresh();
+
+                $created_enquiries[] = [
+                    'enquiry_id' => $enquiry->enquiry_id,
+                    'dmc_id' => $dmc_id,
+                    'display_id' => $display_id,
+                    'country' => $enquiry->country,
+                    'city' => $enquiry->city,
+                    'child' => $enquiry->child,
+                    'infant' => $enquiry->infant,
+                    'male' => $enquiry->male_count,
+                    'female' => $enquiry->female_count,
+                    'CheckInTime' => CommonHelper::DateFormat($checkInTime),
+                    'CheckOutTime' => CommonHelper::DateFormat($checkOutTime),
+                    'adult' => $enquiry->adult,
+                    'total_pax' => $enquiry->adult + $enquiry->child,
+                    'auto_cancel_date' => $enquiry->auto_cancel_date,
+                ];
+            }
+
+            // Update additional details for all created enquiries with the same multi_enq_id
+            $enquiries = EnquiryForm::where('multi_enq_id', $multi_enq_id)->get();
+
+            // Update each enquiry if additional fields are provided
+            foreach ($enquiries as $enquiry) {
+                // Update hotel fields
+                $enquiry->hotel = $request->hotel ?? null;
+                $enquiry->hotel_ids = $request->hotel_ids ? json_encode($request->hotel_ids) : null;
+                $enquiry->hotel_categories = $request->hotel_categories ? json_encode($request->hotel_categories) : null;
+                $enquiry->hotel_remarks = $request->hotel_remarks ?? null;
+                
+                // Update pickup fields
+                $enquiry->pickup = $request->port ?? null;
+                $enquiry->pickup_remarks = $request->port_remarks ?? null;
+
+                // Update transfer fields
+                $enquiry->local_transfer = $request->local_transfer ?? null;
+
+                // Update attraction fields
+                $enquiry->attraction = $request->attraction ?? null;
+                $enquiry->attraction_ids = $request->attraction_ids ? json_encode($request->attraction_ids) : null;
+                $enquiry->attraction_remarks = $request->attraction_remarks ?? null;
+                $enquiry->attraction_transport = $request->attraction_transport ?? null;
+                $enquiry->attraction_transport_type = $request->attraction_transport_type ?? null;
+
+                // Update restaurant fields
+                $enquiry->restaurant = $request->restaurant ?? null;
+                $enquiry->restaurant_ids = $request->restaurant_ids ? json_encode($request->restaurant_ids) : null;
+                $enquiry->restaurant_remarks = $request->restaurant_remarks ?? null;
+                $enquiry->restaurant_transport = $request->restaurant_transport ?? null;
+                $enquiry->restaurant_transport_type = $request->restaurant_transport_type ?? null;
+
+                // Update guide fields
+                $enquiry->guide = $request->guide ?? null;
+                $enquiry->guide_ids = $request->guide_ids ? json_encode($request->guide_ids) : null;
+                $enquiry->guide_remarks = $request->guide_remarks ?? null;
+
+                // Additional transport and vehicle fields
+                $enquiry->local_transport_type = $request->local_transport_type ?? null;
+                $enquiry->port_transport_type = $request->port_transport_type ?? null;
+                $enquiry->local_transport_vehicle_ids = $request->local_transport_vehicle_ids ? json_encode($request->local_transport_vehicle_ids) : null;
+                $enquiry->port_vehicle_ids = $request->port_vehicle_ids ? json_encode($request->port_vehicle_ids) : null;
+                $enquiry->compare_hotel = $request->compare_hotel ?? null;
+                $enquiry->port_type = $request->port_type ?? null;
+
+                // Entry and exit port fields
+                $enquiry->entry_port = $request->entry_port ?? null;
+                $enquiry->entry_port_address = $request->entry_port_address ?? null;
+                $enquiry->entry_dropoff_type = $request->entry_dropoff_type ?? null;
+                $enquiry->entry_dropoff_location_id = $request->entry_dropoff_location_id ?? null;
+
+                $enquiry->exit_port = $request->exit_port ?? null;
+                $enquiry->exit_port_address = $request->exit_port_address ?? null;
+                $enquiry->exit_pickup_type = $request->exit_pickup_type ?? null;
+                $enquiry->exit_pickup_location_id = $request->exit_pickup_location_id ?? null;
+                
+                // Other fields
+                $enquiry->approx_price = $request->approx_price ?? null;
+                $enquiry->packaged_attractions = $request->packaged_attractions ?? null;
+                $enquiry->packaged_attraction_ids = $request->packaged_attraction_ids ? json_encode($request->packaged_attraction_ids) : null;
+
+                // Save the updated enquiry
+                $enquiry->save();
+            }
+
+            return response()->json([
+                'message' => 'Multiple enquiries created and updated successfully',
+                'multi_enq_id' => $multi_enq_id,
+                'data' => $created_enquiries,
+                'random_dmc' => $random_dmc_id,
+                'total_enquiries' => count($created_enquiries),
+                'updated' => $enquiries->isNotEmpty(),
+                'updated_count' => $enquiries->count()
+            ], 201);
+
+        } catch (\Exception $e) {
+            return response()->json([
+                'message' => 'An error occurred while creating the enquiries',
+                'error' => $e->getMessage(),
+            ], 500);
+        }
+    }
+
+    public function enquiry_lists(Request $request)
+    {
+        $country = $request->country;
+        $city = $request->city;
+        
+        // Handle DMC IDs from request
+        $request_dmc_ids = $request->input('dmc_ids');
+        if (is_string($request_dmc_ids)) {
+            $request_dmc_ids = json_decode($request_dmc_ids, true) ?? [];
+        }
+
+        if (!$country || !$city) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Please enter both country and city.',
+            ]);
+        }
+        if (empty($request_dmc_ids)) {
+            return response()->json([
+                'success' => false,
+                'message' => 'DMC not found.',
+            ]);
+        }
+        // if (empty($request_dmc_ids)) {
+        //     $dmc = User::where('country', $country)->where('role_id', 11)->where('status', 1)->first();
+        //     $request_dmc_ids = [$dmc->userId];
+        // }
+        
+        $country_id = Country::where('name', $country)->first();
+        // Fetch all services for the given city and DMCs
+        // For tables with JSON dmc_id field, we'll use a more complex query
+        $hotels = Hotel::with(['rooms' => function($query) {
+            $query->select('hotel_id', 'double_weekday_price', 'room_type', 'room_id')
+                  ->selectRaw('(double_weekday_price / 2) as single_base_price');
+        }])->where('city', $city)
+          ->where('country', $country)
+          ->where('status', 1)
+          ->where('is_active', 1)
+          ->where('is_complete', true)
+          ->get();
+
+        // Create custom arrays with only necessary data
+        $hotel_list = [];
+        
+        foreach ($hotels as $hotel) {
+            // Get hotel's DMC IDs from JSON field
+            $hotel_dmc_ids = $hotel->dmc_id;
+            if (is_string($hotel_dmc_ids)) {
+                $hotel_dmc_ids = json_decode($hotel_dmc_ids, true) ?? [];
+            } elseif (!is_array($hotel_dmc_ids)) {
+                $hotel_dmc_ids = [];
+            }
+
+            // Find matching DMC IDs between request and hotel
+            $matching_dmc_ids = array_intersect($request_dmc_ids, $hotel_dmc_ids);
+
+            if (empty($matching_dmc_ids)) {
+                continue; // Skip if no matching DMCs
+            }
+
+            // Get minimum price from rooms
+            $min_price = $hotel->rooms->min('double_weekday_price') ?? 0;
+            
+            // Add hotel for each matching DMC ID
+            foreach ($matching_dmc_ids as $current_dmc_id) {
+                $hotel_list[] = [
+                    'hotel_unique_id' => $hotel->hotel_unique_id,
+                    'name' => $hotel->name,
+                    'main_image' => $hotel->main_image,
+                    'city' => $hotel->city,
+                    'address' => $hotel->address,
+                    'country' => $hotel->country,
+                    'hotel_star_rating' => $hotel->hotel_star_rating,
+                    'single_base_price' => $min_price > 0 ? $min_price/2 : 0,
+                    'status' => $hotel->status,
+                    'is_active' => $hotel->is_active,
+                    'is_complete' => $hotel->is_complete,
+                    'dmc_id' => $current_dmc_id,
+                    'created_at' => $hotel->created_at,
+                ];
+            }
+        }
+        if(!empty($hotel_list)){
+            $hotel_list = collect($hotel_list)
+            ->groupBy('hotel_unique_id')
+            ->map(function ($hotels) {
+                // pick the one with least single_base_price
+                return $hotels->sortBy('single_base_price')->first();
+            })
+            ->values()
+            ->toArray();
+        }
+        $attractions = Attraction::with('tickets')->where(function($query) use ($request_dmc_ids) {
+            foreach ($request_dmc_ids as $dmc_id) {
+                $query->orWhereRaw("dmc_id::text LIKE '%'||?||'%'", [$dmc_id]);
+            }
+        })->where('location', $city)->where('country', $country)->get();
+     
+        // Fetch packaged attractions for all DMCs
+        $packagedAttractions = PackagedAttraction::orderBy('package_attraction_id', 'desc')->whereIn('dmc_id', $request_dmc_ids)
+            ->where('status', 1)
+            ->get()
+            ->filter(function($package) use ($city, $country) {
+                $attractionIds = json_decode($package->attractions, true) ?? [];
+                if (empty($attractionIds)) {
+                    return false;
+                }
+                
+                $matchingAttractions = Attraction::orderBy('attraction_id', 'desc')->whereIn('attraction_id', $attractionIds)
+                    ->where('location', $city)
+                    ->where('country', $country)
+                    ->count();
+                
+                return $matchingAttractions > 0;
+            });
+        
+        
+        $restaurants = Restaurant::with('meals')->orderBy('restaurant_id', 'desc')->where(function($query) use ($request_dmc_ids) {
+        foreach ($request_dmc_ids as $dmc_id) {
+            $query->orWhereRaw("dmc_id::text LIKE '%'||?||'%'", [$dmc_id]);
+        }
+        })->where('city', $city)->where('country', $country)->get();
+        
+        // For tables with integer dmc_id field
+        $vehicles = Vehicle::orderBy('vehicle_id', 'desc')->whereIn('dmc_id', $request_dmc_ids)
+            ->where('city', $city)->get();
+        
+        $city_id = City::where('name', $city)->first();
+        $ports = Port::where('city_id', $city_id->city_id)
+            ->where('country', $country)->get();
+        
+        $guides = Guide::orderBy('guide_id', 'desc')->with('languages')
+            ->whereIn('dmc_id', $request_dmc_ids)
+            ->where('city', $city)
+            ->where('country', $country)
+            ->get();
+        
+        // Create list for regular attractions
+        $attraction_list = $attractions->map(function($attraction) {
+            $base_price = $attraction->tickets->min('adult_price');
+            $child_price = $attraction->tickets->min('child_price');
+            return [
+                'id' => $attraction->id,
+                'attraction_id' => $attraction->attraction_id,
+                'name' => $attraction->name,
+                'location' => $attraction->location,
+                'country' => $attraction->country,
+                'master_image' => $attraction->master_image,
+                'base_price' => $base_price ? $base_price : 0,
+                'type' => 'attraction',
+                'child_price' => $child_price ? $child_price : 0,
+                'description' => $attraction->description,
+                'created_at' => $attraction->created_at,
+            ];
+        });
+        
+        // Create list for packaged attractions
+        // $packaged_attractions = $packagedAttractions->map(function($package) {
+        //     $attractionIds = json_decode($package->attractions, true) ?? [];
+        //     $attractionDetails = [];
+            
+        //     if (!empty($attractionIds)) {
+        //         $attractionDetails = Attraction::whereIn('attraction_id', $attractionIds)
+        //             ->select('attraction_id', 'name', 'location', 'country', 'master_image')
+        //             ->get()
+        //             ->map(function($attraction) {
+        //                 return [
+        //                     'attraction_id' => $attraction->attraction_id,
+        //                     'name' => $attraction->name,
+        //                     'location' => $attraction->location,
+        //                     'country' => $attraction->country,
+        //                     'master_image' => $attraction->master_image,
+        //                 ];
+        //             });
+        //     }
+            
+        //     return [
+        //         'id' => $package->id,
+        //         'attraction_id' => $package->package_attraction_id,
+        //         'name' => $package->name . ' (Package)',
+        //         'master_image' => $package->image ? json_decode($package->image, true)[0] ?? null : null,
+        //         'base_price' => $package->adult_price,
+        //         'type' => 'package',
+        //         'child_price' => $package->child_price,
+        //         'senior_citizen_price' => $package->senior_citizen_price,
+        //         'description' => $package->description,
+        //         'attractions' => $attractionDetails,
+        //         'created_at' => $package->created_at,
+        //     ];
+        // });
+        
+        $restaurant_list = $restaurants->map(function($restaurant) {
+            $base_price = $restaurant->meals->min('adult_price');
+            return [
+                'restaurant_id' => $restaurant->restaurant_id,
+                'name' => $restaurant->name,
+                'master_image' => $restaurant->master_image,
+                'city' => $restaurant->city,
+                'country' => $restaurant->country,
+                'base_price' => $base_price ? $base_price : 0,
+                'meals' => $restaurant->meals->map(function($meal) {
+                    return [
+                        'meal_id' => $meal->meal_id ?? $meal->id,
+                        // 'meal_name' => $meal->meal_name ?? $meal->name,
+                        'adult_price' => $meal->adult_price,
+                        'child_price' => $meal->child_price,
+                        'set_menu_price' => $meal->price,
+                        'item_description' => $meal->item_description ?? null,
+                        'item_type' => $meal->item_type == 1 ? 'Vegetarian' : 'Non Vegetarian',
+                        'category' => $meal->category == 1 ? 'Alcoholic' : 'Non Alcoholic',
+                        'meal_type' => $meal->type == 1 ? 'Buffet' : 'Set Menu',
+                        'meal_period' => match($meal->meal_period ?? 1) {
+                            1 => 'Breakfast',
+                            2 => 'Lunch', 
+                            3 => 'Dinner',
+                            default => 'Breakfast'
+                        },
+                    ];
+                }),
+                'created_at' => $restaurant->created_at,
+            ];
+        });
+        
+        $vehicle_list = $vehicles->map(function($vehicle) {
+            return [
+                'id' => $vehicle->id,
+                'vehicle_id' => $vehicle->vehicle_id,
+                'vehicle_type' => $vehicle->vehicle_type,
+                'vehicle_name' => $vehicle->vehicle_name,
+                'image' => $vehicle->image,
+                'city' => $vehicle->city,
+                'base_price' => $vehicle->base_price,
+                'seating_capacity' => $vehicle->seating_capacity,
+                'created_at' => $vehicle->created_at,
+            ];
+        });
+        
+        $port_list = $ports->map(function($port) {
+            return [
+                'port_id' => $port->port_id,
+                'port_name' => $port->port_name,
+                'type' => $port->type,
+                'country' => $port->country,
+                'distance' => $port->distance,
+                'created_at' => $port->created_at,
+            ];
+        });
+        
+        $guide_list = $guides->map(function($guide) {
+            return [
+                'guide_id' => $guide->guide_id,
+                'name' => $guide->name,
+                'guide_gender' => $guide->guide_gender,
+                'guide_age' => $guide->guide_age,
+                'image' => $guide->image,
+                'rating' => $guide->rating,
+                'city' => $guide->city,
+                'country' => $guide->country,
+                'base_price' => $guide->hourly_price,
+                'languages' => $guide->languages->map(function($lang) {
+                    return [
+                        'language' => $lang->language,
+                        'proficiency' => $lang->proficiency
+                    ];
+                }),
+                'created_at' => $guide->created_at,
+            ];
+        });
+        
+        $items = [
+            'hotels' => $hotel_list,
+            'attractions' => $attraction_list,
+            'restaurants' => $restaurant_list,
+            'guides' => $guide_list,
+            'vehicles' => $vehicle_list,
+            'ports' => $port_list,
+            // 'packaged_attractions' => $packaged_attractions,
+        ];
+
+        return response()->json([
+            'success' => true,
+            'message' => 'Successful',
+            'data' => $items,
+        ]);
+    }
+
+    public function UpdateEnquiryForm(Request $request)
+    {
+        try {
+            $validated = $request->validate([
+                'enquiry_id' => 'required',
+                'hotel' => 'required|boolean',
+                'hotel_ids' => 'nullable|array',
+                'hotel_categories' => 'nullable|array',
+                'hotel_remarks' => 'nullable|string',
+
+                'port' => 'nullable|boolean',
+                'port_remarks' => 'nullable|string',
+                'local_transfer' => 'required|boolean',
+
+                'attraction' => 'required|boolean',
+                'attraction_ids' => 'nullable|array',
+                'attraction_remarks' => 'nullable|string',
+                'attraction_transport' => 'nullable|boolean',
+                'attraction_transport_type' => 'nullable|string',
+
+                'restaurant' => 'required|boolean',
+                'restaurant_ids' => 'nullable|array',
+                'restaurant_remarks' => 'nullable|string',
+                'restaurant_transport' => 'nullable|boolean',
+                'restaurant_transport_type' => 'nullable|string',
+
+                'guide' => 'required|boolean',
+                'guide_ids' => 'nullable|array',
+                'guide_remarks' => 'nullable|string',
+
+                // Additional fields
+                'local_transport_type' => 'nullable|string',
+                'port_transport_type' => 'nullable|string',
+                'local_transport_vehicle_ids' => 'nullable|array',
+                'port_vehicle_ids' => 'nullable|array',
+                'compare_hotel' => 'nullable|boolean',
+                'port_type' => 'nullable|string',
+
+                'entry_port' => 'nullable',
+                'entry_port_address' => 'nullable|string',
+                'entry_dropoff_type' => 'nullable|string',
+                'entry_dropoff_location_id' => 'nullable',
+
+                'exit_port' => 'nullable',
+                'exit_port_address' => 'nullable|string',
+                'exit_pickup_type' => 'nullable|string',
+                'exit_pickup_location_id' => 'nullable',
+            ]);
+        } catch (ValidationException $e) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Validation failed.',
+                'errors' => $e->errors(),
+            ], 422);
+        }
+
+        // Fetch all enquiries with the same multi_enq_id
+        $enquiries = EnquiryForm::where('multi_enq_id', $validated['enquiry_id'])->get();
+        if($enquiries->isEmpty()){
+            return response()->json(['error' => true, 'message' => 'Data not found for given enquiry id.']);
+        }
+
+        // Update each enquiry
+        foreach ($enquiries as $enquiry) {
+            // Update fields
+            $enquiry->hotel = $validated['hotel'];
+            $enquiry->hotel_ids = json_encode($validated['hotel_ids'] ?? []);
+            $enquiry->hotel_categories = json_encode($validated['hotel_categories'] ?? []);
+            $enquiry->hotel_remarks = $validated['hotel_remarks'] ?? null;
+            $enquiry->pickup = $validated['port'];
+            $enquiry->pickup_remarks = $validated['port_remarks'] ?? null;
+
+            $enquiry->local_transfer = $validated['local_transfer'];
+
+            $enquiry->attraction = $validated['attraction'];
+            $enquiry->attraction_ids = json_encode($validated['attraction_ids'] ?? []);
+            $enquiry->attraction_remarks = $validated['attraction_remarks'] ?? null;
+            $enquiry->attraction_transport = $validated['attraction_transport'] ?? null;
+            $enquiry->attraction_transport_type = $validated['attraction_transport_type'] ?? null;
+
+            $enquiry->restaurant = $validated['restaurant'];
+            $enquiry->restaurant_ids = json_encode($validated['restaurant_ids'] ?? []);
+            $enquiry->restaurant_remarks = $validated['restaurant_remarks'] ?? null;
+            $enquiry->restaurant_transport = $validated['restaurant_transport'] ?? null;
+            $enquiry->restaurant_transport_type = $validated['restaurant_transport_type'] ?? null;
+
+            $enquiry->guide = $validated['guide'];
+            $enquiry->guide_ids = json_encode($validated['guide_ids'] ?? []);
+            $enquiry->guide_remarks = $validated['guide_remarks'] ?? null;
+
+            // Additional transport and vehicle fields
+            $enquiry->local_transport_type = $validated['local_transport_type'] ?? null;
+            $enquiry->port_transport_type = $validated['port_transport_type'] ?? null;
+            $enquiry->local_transport_vehicle_ids = json_encode($validated['local_transport_vehicle_ids'] ?? []);
+            $enquiry->port_vehicle_ids = json_encode($validated['port_vehicle_ids'] ?? []);
+            $enquiry->compare_hotel = $validated['compare_hotel'] ?? null;
+            $enquiry->port_type = $validated['port_type'] ?? null;
+
+            // Additional fields
+            $enquiry->entry_port = $validated['entry_port'] ?? null;
+            $enquiry->entry_port_address = $validated['entry_port_address'] ?? null;
+            $enquiry->entry_dropoff_type = $validated['entry_dropoff_type'] ?? null;
+            $enquiry->entry_dropoff_location_id = $validated['entry_dropoff_location_id'] ?? null;
+
+            $enquiry->exit_port = $validated['exit_port'] ?? null;
+            $enquiry->exit_port_address = $validated['exit_port_address'] ?? null;
+            $enquiry->exit_pickup_type = $validated['exit_pickup_type'] ?? null;
+            $enquiry->exit_pickup_location_id = $validated['exit_pickup_location_id'] ?? null;
+            $enquiry->approx_price = $request->approx_price ?? null;
+            $enquiry->packaged_attractions = $request->packaged_attractions ?? null;
+            $enquiry->packaged_attraction_ids = json_encode($request->packaged_attraction_ids ?? []);
+
+            // Save the updated enquiry
+            $enquiry->save();
+        }
+
+        return response()->json([
+            'success' => true, 
+            'message' => 'All enquiries updated successfully.',
+            'updated_count' => $enquiries->count()
+        ]);
+    }
+
+    public function listofenquiry(Request $request)
+    {
+        $user = auth()->user();
+        $agent_id = $request->agent_id;
+        // Pagination parameters with defaults
+        $start = $request->input('start', 0);
+        $limit = $request->input('limit', 10);
+        
+        // Validate pagination parameters
+        $start = max(0, intval($start));
+        $limit = max(1, min(100, intval($limit))); // Limit between 1 and 100
+
+        if (!$user) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Unauthorized access.',
+            ], 401);
+        }
+        $enquiries = collect();
+        $tour_enquiries_list = collect();
+
+        if ($agent_id && $user->userId) {
+            // If user is DMC role (33, 37, 38), verify they have access to this agent
+            if (in_array($user->role_id, [33, 37, 38])) {
+                $hasAccess = false;
+                $dmc_id = null;
+                
+                if ($user->role_id == 33) { // Sales Head
+                    $dmc_id = $user->created_by;
+                } elseif ($user->role_id == 37) { // Sales Manager
+                    // Get parent DMC ID by traversing up the hierarchy
+                    $parentUser = User::where('userId', $user->created_by)->first();
+                    while ($parentUser && !in_array($parentUser->role_id, [11])) {
+                        $parentUser = User::where('userId', $parentUser->created_by)->first();
+                    }
+                    if ($parentUser && $parentUser->role_id == 11) {
+                        $dmc_id = $parentUser->userId;
+                    }
+                } elseif ($user->role_id == 38) { // Assistant Sales Manager
+                    // Get parent DMC ID by traversing up the hierarchy
+                    $parentUser = User::where('userId', $user->created_by)->first();
+                    while ($parentUser && !in_array($parentUser->role_id, [11])) {
+                        $parentUser = User::where('userId', $parentUser->created_by)->first();
+                    }
+                    if ($parentUser && $parentUser->role_id == 11) {
+                        $dmc_id = $parentUser->userId;
+                    }
+                }
+                
+                if ($dmc_id) {
+                    // Check if the agent belongs to this DMC using the dmc_id field
+                    $agent = Agent::where('agent_id', $agent_id)->first();
+                    if ($agent) {
+                        // Check if agent's dmc_id field contains this DMC ID
+                        $agency = Agency::where('agency_id', $agent->agency_id)->first();
+                        $agent_dmc_ids = $agency->dmc_id;
+                        if (is_string($agent_dmc_ids)) {
+                            $agent_dmc_ids = json_decode($agent_dmc_ids, true) ?? [];
+                        } elseif (!is_array($agent_dmc_ids)) {
+                            $agent_dmc_ids = [$agent_dmc_ids];
+                        }
+                        $hasAccess = in_array($dmc_id, $agent_dmc_ids);
+                    }
+                }
+                
+                if (!$hasAccess) {
+                    return response()->json([
+                        'success' => false,
+                        'message' => 'You do not have access to this agent\'s enquiries.',
+                    ], 403);
+                }
+                
+                // For DMC roles, filter enquiries by both agent_id AND dmc_id
+                $enquiries = EnquiryForm::where('agent_id', $agent_id)
+                    ->where('dmc_id', $dmc_id)
+                    ->whereNull('unique_tour_id')
+                    ->where('status', null)
+                    ->skip($start)
+                    ->take($limit)
+                    ->orderBy('created_at', 'desc')
+                    ->get();
+                $tour_enquiries_list = EnquiryForm::where('agent_id', $agent_id)
+                    ->where('dmc_id', $dmc_id)
+                    ->whereNotNull('unique_tour_id')
+                    ->where('status', null)
+                    ->skip($start)
+                    ->take($limit)
+                    ->orderBy('created_at', 'desc')
+                    ->get();
+            } else {
+                // For agents, show all their enquiries (no DMC filtering)
+                $enquiries = EnquiryForm::where('agent_id', $agent_id)
+                    ->whereNull('unique_tour_id')
+                    ->where('status', null)
+                    ->skip($start)
+                    ->take($limit)
+                    ->orderBy('created_at', 'desc')
+                    ->get();
+                $tour_enquiries_list = EnquiryForm::where('agent_id', $agent_id)
+                    ->whereNotNull('unique_tour_id')
+                    ->where('status', null)
+                    ->skip($start)
+                    ->take($limit)
+                    ->orderBy('created_at', 'desc')
+                    ->get();
+            }
+            if (!$enquiries) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'No Enquiry Found.',
+                ], 404);
+            }
+        }
+
+        elseif($user->userId && !$agent_id){
+            $currentUser = null;
+            if(in_array($user->role_id, [33, 37, 38,])){
+                $currentUser = User::where('userId', $user->userId)->first();
+                if (!$currentUser) {
+                    return response()->json([
+                        'success' => false,
+                        'message' => 'User not found.',
+                    ], 404);
+                }
+            }
+            if($currentUser){
+                // For DMC roles (33, 37, 38), they must select an agent first
+                // No enquiries shown until an agent is selected
+                if($currentUser->role_id == 33){
+                    $dmcId = $currentUser->created_by;
+                }
+                elseif($currentUser->role_id == 37){
+                    $sales_head_id = $currentUser->created_by;
+                    $sales_head = User::where('userId', $sales_head_id)->first();
+                    $dmcId = $sales_head->created_by;
+                }
+                elseif($currentUser->role_id == 38){
+                    $sales_manager_id = $currentUser->created_by;
+                    $sales_manager_createdBy_id = User::where('userId', $sales_manager_id)->first()->value('created_by');
+                    $sales_head = User::where('userId', $sales_manager_createdBy_id)->first();
+                    $dmcId = $sales_head->created_by;
+                }
+                
+                $agency_ids = Agency::whereRaw("dmc_id::jsonb @> ?", [json_encode([$dmcId])])->pluck('agency_id');
+                $agent_ids = Agent::whereIn('agency_id', $agency_ids)->pluck('agent_id');
+
+                $enquiries = EnquiryForm::whereIn('agent_id', $agent_ids)
+                    ->whereNull('unique_tour_id')
+                    ->where('status', null)
+                    ->whereMonth('check_in_time', now()->month)
+                    ->whereYear('check_in_time', now()->year)
+                    ->skip($start)
+                    ->take($limit)
+                    ->orderBy('created_at', 'desc')
+                    ->get();
+
+                $tour_enquiries_list = EnquiryForm::whereIn('agent_id', $agent_ids)
+                    ->whereNotNull('unique_tour_id')
+                    ->where('status', null)
+                    ->whereMonth('check_in_time', now()->month)
+                    ->whereYear('check_in_time', now()->year)
+                    ->skip($start)
+                    ->take($limit)
+                    ->orderBy('created_at', 'desc')
+                    ->get();
+            }
+            else{
+                if (empty($user?->agent_id)) {
+                    return response()->json([
+                        'success' => false,
+                        'message' => 'Unauthorized or Agent ID missing.',
+                    ], 401);
+                }
+                $enquiries = EnquiryForm::where('agent_id', $user->agent_id)
+                    ->whereNull('unique_tour_id')
+                    ->where('status', null)
+                    ->skip($start)
+                    ->take($limit)
+                    ->orderBy('created_at', 'desc')
+                    ->get();
+            }
+        }
+        elseif($user->agent_id){
+            $enquiries = EnquiryForm::where('agent_id', $user->agent_id)
+                ->whereNull('unique_tour_id')
+                ->where('status', null)
+                ->skip($start)
+                ->take($limit)
+                ->orderBy('created_at', 'desc')
+                ->get();
+        }
+        // Get total count for pagination info
+        $totalCount = 0;
+        if ($agent_id && $user->userId) {
+            if (in_array($user->role_id, [33, 37, 38])) {
+                // For DMC roles, count enquiries by both agent_id AND dmc_id
+                $dmc_id = null;
+                if ($user->role_id == 33) {
+                    $dmc_id = $user->created_by;
+                } elseif ($user->role_id == 37) {
+                    $parentUser = User::where('userId', $user->created_by)->first();
+                    while ($parentUser && !in_array($parentUser->role_id, [11])) {
+                        $parentUser = User::where('userId', $parentUser->created_by)->first();
+                    }
+                    if ($parentUser && $parentUser->role_id == 11) {
+                        $dmc_id = $parentUser->userId;
+                    }
+                } elseif ($user->role_id == 38) {
+                    $parentUser = User::where('userId', $user->created_by)->first();
+                    while ($parentUser && !in_array($parentUser->role_id, [11])) {
+                        $parentUser = User::where('userId', $parentUser->created_by)->first();
+                    }
+                    if ($parentUser && $parentUser->role_id == 11) {
+                        $dmc_id = $parentUser->userId;
+                    }
+                }
+                
+                if ($dmc_id) {
+                    $totalCount = EnquiryForm::where('agent_id', $agent_id)
+                        ->where('dmc_id', $dmc_id)
+                        ->whereNull('unique_tour_id')
+                        ->where('status', null)
+                        ->count();
+                }
+            } else {
+                // For agents, count all their enquiries
+                $totalCount = EnquiryForm::where('agent_id', $agent_id)
+                    ->whereNull('unique_tour_id')
+                    ->where('status', null)
+                    ->count();
+            }
+        } elseif ($user->userId && !$agent_id) {
+            if (in_array($user->role_id, [33, 37, 38])) {
+                $currentUser = User::where('userId', $user->userId)->first();
+                if ($currentUser) {
+                    $dmcId = null;
+                    if ($currentUser->role_id == 33) {
+                        $dmcId = $currentUser->created_by;
+                    } elseif ($currentUser->role_id == 37) {
+                        $sales_head_id = $currentUser->created_by;
+                        $sales_head = User::where('userId', $sales_head_id)->first();
+                        $dmcId = $sales_head->created_by;
+                    } elseif ($currentUser->role_id == 38) {
+                        $sales_manager_id = $currentUser->created_by;
+                        $sales_manager_createdBy_id = User::where('userId', $sales_manager_id)->first()->value('created_by');
+                        $sales_head = User::where('userId', $sales_manager_createdBy_id)->first();
+                        $dmcId = $sales_head->created_by;
+                    }
+                    
+                    if ($dmcId) {
+                        // $agent_ids = Agent::whereRaw("dmc_id::jsonb @> ?", [json_encode([$dmcId])])->pluck('agent_id');
+                        $agency_ids = Agency::whereRaw("dmc_id::jsonb @> ?", [json_encode([$dmcId])])->pluck('agency_id');
+                        $agent_ids = Agent::whereIn('agency_id', $agency_ids)->pluck('agent_id');
+                       
+                        $totalCount = EnquiryForm::whereIn('agent_id', $agent_ids)
+                            ->whereNull('unique_tour_id')
+                            ->where('status', null)
+                            ->whereMonth('check_in_time', now()->month)
+                            ->whereYear('check_in_time', now()->year)
+                            ->count();
+                    }
+                }
+            } else {
+                if (!empty($user?->agent_id)) {
+                    $totalCount = EnquiryForm::where('agent_id', $user->agent_id)
+                        ->whereNull('unique_tour_id')
+                        ->where('status', null)
+                        ->count();
+                }
+            }
+        } elseif ($user->agent_id) {
+            $totalCount = EnquiryForm::where('agent_id', $user->agent_id)
+                ->whereNull('unique_tour_id')
+                ->where('status', null)
+                ->count();
+        }
+        
+        $hotelIds = [];
+        $restaurantIds = [];
+        $attractionIds = [];
+        $guideIds = [];
+        $enquiry_lists = [];
+        foreach($enquiries as $enquiry){
+            // Decode and normalize all IDs to arrays of integers
+            $hotelIds = is_array($decoded = json_decode($enquiry->hotel_ids, true)) ? $decoded : [];
+            $restaurantIds = is_array($decoded = json_decode($enquiry->restaurant_ids, true)) ? array_map('intval', $decoded) : [];
+            $attractionIds = is_array($decoded = json_decode($enquiry->attraction_ids, true)) ? array_map('intval', $decoded) : [];
+            $guideIds = is_array($decoded = json_decode($enquiry->guide_ids, true)) ? array_map('intval', $decoded) : [];
+            $localTransportVehicleIds = is_array($decoded = json_decode($enquiry->local_transport_vehicle_ids, true)) ? array_map('intval', $decoded) : [];
+            $portVehicleIds = is_array($decoded = json_decode($enquiry->port_vehicle_ids, true)) ? array_map('intval', $decoded) : [];
+
+            // Decode packaged attraction IDs
+            $packagedAttractionIds = is_array($decoded = json_decode($enquiry->packaged_attraction_ids, true)) ? array_map('intval', $decoded) : [];
+
+            // Fetch related models
+            $restaurants = Restaurant::whereIn('restaurant_id', $restaurantIds)->get(); 
+            $attractions = Attraction::whereIn('attraction_id', $attractionIds)->get();
+            $hotels = Hotel::whereIn('hotel_unique_id', $hotelIds)->get();
+            $guides = Guide::whereIn('guide_id', $guideIds)->get();
+
+            $localTransports = Vehicle::whereIn('vehicle_id', $localTransportVehicleIds)->get();
+            $portVehicles = Vehicle::whereIn('vehicle_id', $portVehicleIds)->get();
+
+            // Fetch packaged attractions
+            $packagedAttractions = PackagedAttraction::whereIn('package_attraction_id', $packagedAttractionIds)
+                ->get()
+                ->each(function($package) {
+                    // Decode the attractions JSON array
+                    $attractionIds = json_decode($package->attractions, true) ?? [];
+                    
+                    // Fetch the actual attraction details
+                    $attractionDetails = [];
+                    if (!empty($attractionIds)) {
+                        $attractionDetails = Attraction::whereIn('attraction_id', $attractionIds)
+                            ->select('attraction_id', 'name', 'master_image', 'location', 'country','open_time','close_time')
+                            ->get();
+                    }
+
+                    // Add attraction details to the package model
+                    $package->attraction_details = $attractionDetails;
+                });
+
+            $entry_dropoff_location = null;
+            if($enquiry->entry_dropoff_type == 'hotel'){
+                $entry_dropoff_location = Hotel::where('hotel_unique_id', $enquiry->entry_dropoff_location_id)->first();
+            }
+            elseif($enquiry->entry_dropoff_type == 'attraction'){
+                $entry_dropoff_location = Attraction::where('attraction_id', $enquiry->entry_dropoff_location_id)->first();
+            }
+            elseif($enquiry->entry_dropoff_type == 'restaurant'){
+                $entry_dropoff_location = Restaurant::where('restaurant_id', $enquiry->entry_dropoff_location_id)->first();
+            }
+
+            $exit_pickup_location = null;
+            if($enquiry->exit_pickup_type == 'hotel'){
+                $exit_pickup_location = Hotel::where('hotel_unique_id', $enquiry->exit_pickup_location_id)->first();
+            }
+            elseif($enquiry->exit_pickup_type == 'attraction'){
+
+                $exit_pickup_location = Attraction::where('attraction_id',  intval($enquiry->exit_pickup_location_id))->first();
+            }
+            elseif($enquiry->exit_pickup_type == 'restaurant'){
+                $exit_pickup_location = Restaurant::where('restaurant_id',  intval($enquiry->exit_pickup_location_id))->first();
+            }
+
+            $enquiry_lists[] = [
+                'enquiry_id' => $enquiry->enquiry_id,
+                'agent_id' => $enquiry->agent_id,
+                'display_id' => $enquiry->display_id,
+                'country' => $enquiry->country,
+                'city' => $enquiry->city,
+                'adult' => $enquiry->adult,
+                'child' => $enquiry->child,
+                'infant' => $enquiry->infant,
+                'check_in_time' => $enquiry->check_in_time,
+                'check_out_time' => $enquiry->check_out_time,
+                'male_count' => $enquiry->male_count,
+                'female_count' => $enquiry->female_count,
+                'child_ages' => $enquiry->child_ages,
+                'hotel' => $enquiry->hotel,
+                'hotel_categories' => json_decode($enquiry->hotel_categories),
+                'hotel_remarks' => $enquiry->hotel_remarks,
+                'hotel_details' => $hotels,
+                'port' => $enquiry->pickup,
+                'port_type' => $enquiry->port_type,
+                'port_details' => $portVehicles,
+                'port_remarks' => $enquiry->pickup_remarks,
+                'local_transfer' => $enquiry->local_transfer,
+                'local_transfer_type' => $enquiry->local_transport_type,
+                'local_transfer_details' => $localTransports,
+                'attraction' => $enquiry->attraction,
+                'attraction_remarks' => $enquiry->attraction_remarks,
+                'attraction_details' => $attractions,
+                'restaurant' => $enquiry->restaurant,
+                'restaurant_remarks' => $enquiry->restaurant_remarks,
+                'restaurant_details' => $restaurants,
+                'guide' => $enquiry->guide,
+                'guide_remarks' => $enquiry->guide_remarks,
+                'guide_details' => $guides,
+                // 'packaged_attractions' => $enquiry->packaged_attractions,
+                'packaged_attraction_details' => $packagedAttractions,
+                'entry_port' => $enquiry->entry_port,
+                'entry_port_address' => $enquiry->entry_port_address,
+                'entry_dropoff_type' => $enquiry->entry_dropoff_type,
+                'entry_dropoff_location' => $entry_dropoff_location,
+                'exit_port' => $enquiry->exit_port,
+                'multi_enq_id' => $enquiry->multi_enq_id,
+                'created_at' => $enquiry->created_at
+                ->timezone('Asia/Kolkata')
+                ->format('Y-m-d H:i:s'),
+                'approx_price' => $enquiry->approx_price,
+                'exit_port_address' => $enquiry->exit_port_address,
+                'exit_pickup_type' => $enquiry->exit_pickup_type,
+                'exit_pickup_location' => $exit_pickup_location,
+                'auto_cancel_date' => $enquiry->auto_cancel_date,
+            ];
+        }
+            
+        return response()->json([
+            'success' => true,
+            'message' => 'Successful',
+            'enquiries' => $enquiry_lists,
+            'pagination' => [
+                'start' => $start,
+                'limit' => $limit,
+                'total' => $totalCount,
+                'has_more' => ($start + $limit) < $totalCount,
+                'current_page' => floor($start / $limit) + 1,
+                'total_pages' => ceil($totalCount / $limit)
+            ]
+        ]);
+    }
+
+    public function enquiryToTour(Request $request){
+        try {
+            // Validate request
+            $validated = $request->validate([
+                'enquiry_id' => 'required',
+                'agent_id' => 'required',
+            ]);
+
+            $enquiryId = $request->enquiry_id;
+            $agentId = $request->agent_id;
+
+            // Fix variable name inconsistency
+            $formEnquiry = EnquiryForm::where('enquiry_id', $enquiryId)
+                                      ->where('agent_id', $agentId)
+                                      ->whereNull('unique_tour_id')
+                                      ->first();
+
+            if (!$formEnquiry) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Enquiry not found for the given enquiry_id and agent_id.'
+                ], 404);
+            }
+
+            // Generate tour ID and save the tour
+            // $max_tour_id = Tour::max('tour_id') ?? 0;
+            // $tourId = CommonHelper::createId($max_tour_id);
+
+            // $randomDigits = str_pad(rand(0, 99999), 5, '0', STR_PAD_LEFT);
+            // $display_id = 'DMC-ORD'. $tourId;
+
+            // $tour = new Tour();
+            // // Map all common fields between inquiry_form and tours tables
+            // $tour->destination = $formEnquiry->country;
+            // $tour->adult = $formEnquiry->adult;
+            // $tour->child = $formEnquiry->child;
+            // $tour->infant = $formEnquiry->infant;
+            // $tour->agent_id = $agentId;
+            // $tour->tour_id = $tourId;
+            // $tour->male_count = $formEnquiry->male_count;
+            // $tour->female_count = $formEnquiry->female_count;
+            // $tour->check_in_time = $formEnquiry->check_in_time;
+            // $tour->check_out_time = $formEnquiry->check_out_time;
+            // $tour->display_id = $display_id;
+            // $tour->child_ages = $formEnquiry->child_ages;
+
+            // // Map service-related fields if they exist in both tables
+            // // Set default status (2 = pending)
+            // $tour->tour_status = "Pending";
+            // $tour->save();
+            // $tour->refresh();
+            // $formEnquiry->unique_tour_id = $tour->unique_tour_id;
+            // $formEnquiry->save();
+            $agent = Agent::where('agent_id', $formEnquiry->agent_id)->first();
+
+            return response()->json([
+                'data' => [
+                    'country' => $formEnquiry->country,
+                    'city' => $formEnquiry->city,
+                    'enquiry_id' => $formEnquiry->enquiry_id,
+                    'agent_id' => $formEnquiry->agent_id,
+                    'agent_name' => $agent ? $agent->name : null,
+                    'check_in_time' => $formEnquiry->check_in_time,
+                    'check_out_time' => $formEnquiry->check_out_time,
+                    'adult' => $formEnquiry->adult,
+                    'child' => $formEnquiry->child,
+                    'child_ages' => $formEnquiry->child_ages,
+                    'infant' => $formEnquiry->infant,
+                    'male_count' => $formEnquiry->male_count,
+                    'female_count' => $formEnquiry->female_count,
+                ],
+                'success' => true,
+            ], 200);
+
+        } catch (ValidationException $e) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Validation failed',
+                'errors' => $e->errors()
+            ], 422);
+        } catch (\Exception $e) {
+            return response()->json([
+                'success' => false,
+                'message' => 'An error occurred while converting enquiry to tour',
+                'error' => $e->getMessage()
+            ], 500);
+        }
+    }
+
+
+    public function agentLists(Request $request)
+    {
+        $user = auth()->user();
+        $agency_id = $request->agency_id;
+        
+        // Check if agency_id is provided
+        if (!$agency_id) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Agency ID is required',
+            ], 400);
+        }
+        
+        // Check if user is authorized
+        if (!in_array($user?->role_id, [33, 37, 38, 34, 124, 125])) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Unauthorized access. Only DMC roles can access this endpoint.',
+            ], 401);
+        }
+
+        // Convert agency_id to integer for proper matching
+        $agency_id = (int) $agency_id;
+        
+        // Get all agents for the specific agency (no country filtering)
+        $agents = \App\Models\Agent::where('agency_id', $agency_id)
+            ->orderBy('created_at', 'desc')
+            ->get()
+            ->map(function ($agent) {
+                return [
+                    'agent_id' => $agent->agent_id,
+                    'agent_name' => $agent->name,
+                ];
+            });
+
+        return response()->json([
+            'success' => true,
+            'message' => 'Agency agents retrieved successfully',
+            'agents' => $agents,
+        ]);
+    }
+
+    public function agencyLists(Request $request)
+    {
+        $user = auth()->user();
+        $country = $request->country;
+        $dmc_id = $request->dmc_id;
+
+        if (!$country || !$dmc_id) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Country and DMC ID are required',
+            ]);
+        }
+        // dd($country, $dmc_id);
+
+        if (!in_array($user->role_id, [33, 37, 38, 34, 124, 125])) {
+            return response()->json([
+                'success' => false,
+                'message' => 'You are not authorized to access this agency',
+            ]);
+        }
+
+        // Convert dmc_id from request to integer for proper matching
+        $requested_dmc_id = (int) $dmc_id;
+
+        // Query agencies where dmc_id JSON array contains the requested dmc_id
+        $agencies = Agency::where('status', 1)
+            ->where('country', $country)
+            ->whereJsonContains('dmc_id', $requested_dmc_id)
+            ->orderBy('created_at', 'desc')
+            ->get()
+            ->map(function ($agency) {
+                return [
+                    'agency_id' => $agency->agency_id,
+                    'agency_name' => $agency->agency_name,
+                    'email' => $agency->email,
+                    'phone' => $agency->phone,
+                    'country' => $agency->country,
+                    'city' => $agency->city,
+                    'address' => $agency->address,
+                    'postal_code' => $agency->postal_code,
+                    'branches' => collect($agency->branches ?? [])->map(function ($branch) {
+                        return [
+                            'email' => $branch['email'] ?? null,
+                            'phone' => $branch['phone'] ?? null,
+                            'country' => $branch['country'] ?? null,
+                            'city' => $branch['city'] ?? null,
+                            'postal_code' => $branch['postal_code'] ?? null,
+                            'address' => $branch['address'] ?? null,
+                        ];
+                    })->toArray(),
+                ];
+            });
+            
+        return response()->json([
+            'success' => true,
+            'message' => 'Agencies retrieved successfully',
+            'agencies' => $agencies,
+        ]);
+    }
+
+
+}

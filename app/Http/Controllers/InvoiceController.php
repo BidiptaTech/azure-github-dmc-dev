@@ -1,0 +1,297 @@
+<?php
+
+namespace App\Http\Controllers;
+
+use Illuminate\Http\Request;
+use App\Models\Invoice;
+use App\Models\InvoiceItem;
+use App\Models\CreditNote;
+use App\Models\Tour;
+use App\Services\InvoiceService;
+use App\Helpers\CommonHelper;
+use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\DB;
+use Barryvdh\DomPDF\Facade\Pdf;
+use Illuminate\Support\Facades\Crypt;
+
+class InvoiceController extends Controller
+{
+    protected $invoiceService;
+
+    public function __construct(InvoiceService $invoiceService)
+    {
+        $this->invoiceService = $invoiceService;
+    }
+
+    /**
+     * Display listing of invoices
+     */
+    public function index(Request $request)
+    {
+        $query = Invoice::with(['tour', 'agent', 'dmc'])
+            ->whereNull('deleted_at');
+
+        // Filter by type
+        if ($request->has('type') && $request->type) {
+            $query->where('invoice_type', $request->type);
+        }
+
+        // Filter by status
+        if ($request->has('status') && $request->status) {
+            $query->where('status', $request->status);
+        }
+
+        // Filter by tour_id
+        if ($request->has('tour_id') && $request->tour_id) {
+            $query->where('tour_id', $request->tour_id);
+        }
+
+        $invoices = $query->orderBy('created_at', 'desc')->paginate(20);
+
+        return view('invoices.index', compact('invoices'));
+    }
+
+    /**
+     * Generate/Create Proforma Invoice for a tour
+     */
+    public function generateProforma(Request $request, $tourId)
+    {
+        try {
+            // Status validation is done in the service
+            $invoice = $this->invoiceService->generateProformaInvoice($tourId, $request->all());
+
+            return redirect()->route('invoices.show', Crypt::encrypt($invoice->invoice_id))
+                ->with('success', 'Proforma invoice generated successfully');
+        } catch (\Exception $e) {
+            return back()->with('error', $e->getMessage());
+        }
+    }
+
+    /**
+     * Generate/Create Final Invoice for a tour (Definite/Actual/Confirmed stage)
+     */
+    public function generateFinal(Request $request, $tourId)
+    {
+        try {
+            $invoice = $this->invoiceService->generateFinalInvoiceForTour($tourId, $request->all());
+
+            return redirect()->route('invoices.show', Crypt::encrypt($invoice->invoice_id))
+                ->with('success', 'Final invoice generated successfully');
+        } catch (\Exception $e) {
+            return back()->with('error', $e->getMessage());
+        }
+    }
+
+    /**
+     * Show invoice details
+     */
+    public function show($invoiceId)
+    {
+        // Try to decrypt if encrypted, otherwise use as-is
+        try {
+            $decryptedId = Crypt::decrypt($invoiceId);
+        } catch (\Exception $e) {
+            $decryptedId = $invoiceId;
+        }
+        
+        $invoice = Invoice::with(['tour', 'agent', 'dmc', 'items'])
+            ->where('invoice_id', $decryptedId)
+            ->firstOrFail();
+
+        // Recalculate totals to ensure latest payment data and taxes are included
+        $this->invoiceService->recalculateInvoiceTotals($invoice);
+        $invoice->refresh();
+
+        return view('invoices.show', compact('invoice'));
+    }
+
+    /**
+     * Edit Proforma Invoice (only proforma invoices are editable)
+     */
+    public function edit($invoiceId)
+    {
+        // Try to decrypt if encrypted, otherwise use as-is
+        try {
+            $decryptedId = Crypt::decrypt($invoiceId);
+        } catch (\Exception $e) {
+            $decryptedId = $invoiceId;
+        }
+        
+        $invoice = Invoice::with(['tour', 'agent', 'dmc', 'items'])
+            ->where('invoice_id', $decryptedId)
+            ->firstOrFail();
+
+        if (!$invoice->isEditable()) {
+            return back()->with('error', 'Only proforma invoices can be edited');
+        }
+
+        return view('invoices.edit', compact('invoice'));
+    }
+
+    /**
+     * Update Proforma Invoice
+     */
+    public function update(Request $request, $invoiceId)
+    {
+        try {
+            // Try to decrypt if encrypted, otherwise use as-is
+            try {
+                $decryptedId = Crypt::decrypt($invoiceId);
+            } catch (\Exception $e) {
+                $decryptedId = $invoiceId;
+            }
+            
+            $invoice = $this->invoiceService->updateProformaInvoice($decryptedId, $request->all());
+
+            return redirect()->route('invoices.show', Crypt::encrypt($invoice->invoice_id))
+                ->with('success', 'Proforma invoice updated successfully');
+        } catch (\Exception $e) {
+            return back()->with('error', $e->getMessage())->withInput();
+        }
+    }
+
+    /**
+     * Convert Proforma to Final Invoice (at DEFINITE stage)
+     */
+    public function convertToFinal(Request $request, $invoiceId)
+    {
+        try {
+            // Try to decrypt if encrypted, otherwise use as-is
+            try {
+                $decryptedId = Crypt::decrypt($invoiceId);
+            } catch (\Exception $e) {
+                $decryptedId = $invoiceId;
+            }
+            
+            $invoice = Invoice::where('invoice_id', $decryptedId)->first();
+            if (!$invoice) {
+                return back()->with('error', 'Invoice not found');
+            }
+
+            $tour = $invoice->tour;
+            if ($tour->tour_status !== 'Definite') {
+                return back()->with('error', 'Final invoice can only be generated for tours in Definite status');
+            }
+
+            $finalInvoice = $this->invoiceService->convertToFinalInvoice($decryptedId);
+
+            return redirect()->route('invoices.show', Crypt::encrypt($finalInvoice->invoice_id))
+                ->with('success', 'Final invoice generated successfully');
+        } catch (\Exception $e) {
+            return back()->with('error', $e->getMessage());
+        }
+    }
+
+    /**
+     * Download Invoice as PDF (with services)
+     */
+    public function download($invoiceId)
+    {
+        // Try to decrypt if encrypted, otherwise use as-is
+        try {
+            $decryptedId = Crypt::decrypt($invoiceId);
+        } catch (\Exception $e) {
+            $decryptedId = $invoiceId;
+        }
+        
+        $invoice = Invoice::with(['tour', 'agent', 'dmc', 'items'])
+            ->where('invoice_id', $decryptedId)
+            ->firstOrFail();
+
+        // Recalculate totals to ensure latest payment data and taxes are included
+        $this->invoiceService->recalculateInvoiceTotals($invoice);
+        $invoice->refresh();
+
+        $viewName = $invoice->invoice_type === 'proforma' 
+            ? 'invoices.pdf.proforma' 
+            : 'invoices.pdf.final';
+
+        $pdf = Pdf::loadView($viewName, compact('invoice'))
+            ->setPaper('a4', 'portrait');
+
+        $filename = $invoice->invoice_type === 'proforma'
+            ? 'Proforma_Invoice_' . $invoice->proforma_number . '.pdf'
+            : 'Invoice_' . $invoice->invoice_number . '.pdf';
+
+        return $pdf->download($filename);
+    }
+
+    /**
+     * Download Invoice as PDF (price only, no services)
+     */
+    public function downloadPriceOnly($invoiceId)
+    {
+        // Try to decrypt if encrypted, otherwise use as-is
+        try {
+            $decryptedId = Crypt::decrypt($invoiceId);
+        } catch (\Exception $e) {
+            $decryptedId = $invoiceId;
+        }
+        
+        $invoice = Invoice::with(['tour', 'agent', 'dmc', 'items'])
+            ->where('invoice_id', $decryptedId)
+            ->firstOrFail();
+
+        // Recalculate totals to ensure latest payment data and taxes are included
+        $this->invoiceService->recalculateInvoiceTotals($invoice);
+        $invoice->refresh();
+
+        $viewName = $invoice->invoice_type === 'proforma' 
+            ? 'invoices.pdf.proforma-price-only' 
+            : 'invoices.pdf.final-price-only';
+
+        $pdf = Pdf::loadView($viewName, compact('invoice'))
+            ->setPaper('a4', 'portrait');
+
+        $filename = $invoice->invoice_type === 'proforma'
+            ? 'Proforma_Invoice_Price_Only_' . $invoice->proforma_number . '.pdf'
+            : 'Invoice_Price_Only_' . $invoice->invoice_number . '.pdf';
+
+        return $pdf->download($filename);
+    }
+
+    /**
+     * View Invoice as PDF in browser
+     */
+    public function view($invoiceId)
+    {
+        // Try to decrypt if encrypted, otherwise use as-is
+        try {
+            $decryptedId = Crypt::decrypt($invoiceId);
+        } catch (\Exception $e) {
+            $decryptedId = $invoiceId;
+        }
+        
+        $invoice = Invoice::with(['tour', 'agent', 'dmc', 'items'])
+            ->where('invoice_id', $decryptedId)
+            ->firstOrFail();
+
+        $viewName = $invoice->invoice_type === 'proforma' 
+            ? 'invoices.pdf.proforma' 
+            : 'invoices.pdf.final';
+
+        $pdf = Pdf::loadView($viewName, compact('invoice'))
+            ->setPaper('a4', 'portrait');
+
+        return $pdf->stream();
+    }
+
+    /**
+     * Handle cancellation - generate credit note if needed
+     */
+    public function handleCancellation($tourId)
+    {
+        try {
+            $creditNote = $this->invoiceService->handleCancellation($tourId);
+
+            if ($creditNote) {
+                return redirect()->route('credit-notes.show', $creditNote->credit_note_id)
+                    ->with('success', 'Credit note generated successfully');
+            } else {
+                return back()->with('success', 'Proforma invoice cancelled successfully');
+            }
+        } catch (\Exception $e) {
+            return back()->with('error', $e->getMessage());
+        }
+    }
+}
