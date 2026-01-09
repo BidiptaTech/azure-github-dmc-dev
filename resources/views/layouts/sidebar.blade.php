@@ -758,7 +758,7 @@
         
 
         <li class="menu-item @if(Request::is('enquiry-form-pro/create')) active @endif" style="position: relative;">
-            <a href="{{ route('enquiry-form-pro.create') }}" class="menu-link">
+            <a href="javascript:void(0);" class="menu-link" id="createSingleTourProBtn">
                 <i class="menu-icon tf-icons ri-file-list-3-line"></i>
                 <div data-i18n="Create Single Tour">Create Single Tour</div>
                 <span class="pro-badge">Pro</span>
@@ -1244,7 +1244,7 @@
                 <!-- Product Configuration -->
             
                 @if(hasPermission('view facility') || hasPermission('view category') || Auth::user()->role_id == 11 || Auth::user()->role_id == 35 || Auth::user()->role_id == 76 || Auth::user()->role_id == 111 || Auth::user()->role_id == 139 || Auth::user()->role_id == 140 || Auth::user()->role_id == 130 || Auth::user()->role_id == 132 || Auth::user()->role_id == 133 || Auth::user()->role_id == 135 || Auth::user()->role_id == 136 || Auth::user()->role_id == 137 || Auth::user()->role_id == 138)
-                <li class="menu-item @if(Request::is('category*') || Request::is('facility*') || Request::is('zones*') || Request::is('ports*')) open @endif">
+                <li class="menu-item @if(Request::is('category*') || Request::is('facility*') || Request::is('zones*') || Request::is('ports*') || Request::is('miscellaneous*')) open @endif">
                     <a href="#" class="menu-link menu-toggle" title="Product Configuration">
                         {{-- <i class="menu-icon tf-icons ri-function-line"></i> --}}
                         <div data-i18n="Product Configuration">Product Configuration</div>
@@ -1271,6 +1271,16 @@
                             </a>
                         </li>
                         @endif
+                        
+                        <!-- Miscellaneous Items - Admin Only -->
+                        <li class="menu-item @if(Request::is('miscellaneous') || Request::is('miscellaneous/*')) active @endif">
+                            <a href="{{ route('miscellaneous.index') }}" class="menu-link" title="Miscellaneous Items">
+                                <div data-i18n="Miscellaneous Items" class="menu-tooltip">
+                                    <span class="menu-text-with-tooltip">Miscellaneous Items</span>
+                                    <span class="tooltip-text">Miscellaneous Items</span>
+                                </div>
+                            </a>
+                        </li>
                         @endif
                         @if(Auth::user()->role_id == 1 || Auth::user()->role_id == 2)
                         <!-- Show Port -->
@@ -1638,6 +1648,18 @@
                             </a>
                         </li>
                         @endif
+                        
+                        <!-- DMC Miscellaneous Selection -->
+                        @php
+                            $allowedRoles = [11, 35, 77, 78, 84, 120, 130, 132, 133, 135, 136, 137, 138, 139, 140];
+                        @endphp
+                        @if(in_array(Auth::user()->role_id, $allowedRoles))
+                        <li class="menu-item @if(Request::is('services/miscellaneous')) active @endif">
+                            <a href="{{ route('services.miscellaneous') }}" class="menu-link">
+                                <div data-i18n="Select Miscellaneous">Select Miscellaneous</div>
+                            </a>
+                        </li>
+                        @endif
                     </ul>
                 </li>
             @endif
@@ -1869,6 +1891,19 @@
                                 </a>
                             </li>
                         @endif --}}
+                        
+                        <!-- Bank Details -->
+                        @php
+                            $allowedBankDetailsRoles = [1, 11];
+                        @endphp
+                        @if(in_array(auth()->user()->role_id, $allowedBankDetailsRoles))
+                            <li class="menu-item @if(Request::is('bank-details*')) active @endif">
+                                <a href="{{ route('bank-details.index') }}" class="menu-link">
+                                    <div data-i18n="Bank Details">Bank Details</div>
+                                </a>
+                            </li>
+                        @endif
+                        
                         @if(hasPermission('view roles') && auth()->user()->user_type == 1)
                         <li class="menu-item @if(Request::is('roles')) active @endif">
                             <a href="{{ route('roles.index') }}" class="menu-link">
@@ -2188,4 +2223,652 @@
             });
         });
         </script>        
+
+<!-- Modal for Create Single Tour Pro Initial Information -->
+<div class="modal fade" id="createTourProModal" tabindex="-1" aria-labelledby="createTourProModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered" style="max-width: 800px;">
+        <div class="modal-content">
+            <div class="modal-header bg-primary text-white py-2">
+                <h6 class="modal-title mb-0" id="createTourProModalLabel">
+                    <i class="ri-file-list-3-line me-2"></i>Create Single Tour Pro
+                </h6>
+                <button type="button" class="btn-close btn-close-white btn-sm" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <form id="createTourProForm" method="POST" action="{{ route('enquiry-form-pro.initialize') }}">
+                @csrf
+                <div class="modal-body" style="padding: 10px 15px;">
+                    <!-- Row 1: Tour Type (Radio), Dates, Pax -->
+                    <div class="row g-2 mb-1">
+                        <div class="col-2">
+                            <label class="form-label small mb-0" style="font-size: 10px;">Type <span class="text-danger">*</span></label>
+                            <div class="d-flex gap-2 mt-1">
+                                <div class="form-check form-check-inline">
+                                    <input class="form-check-input" type="radio" name="tour_type" id="tourTypeFIT" value="FIT" checked required>
+                                    <label class="form-check-label small" for="tourTypeFIT" style="font-size: 10px;">FIT</label>
+                                </div>
+                                <div class="form-check form-check-inline">
+                                    <input class="form-check-input" type="radio" name="tour_type" id="tourTypeGroup" value="Group" required>
+                                    <label class="form-check-label small" for="tourTypeGroup" style="font-size: 10px;">Group</label>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-2">
+                            <label class="form-label small mb-0" style="font-size: 10px;">Start <span class="text-danger">*</span></label>
+                            <input type="date" class="form-control form-control-sm" id="tourStartDate" name="tour_start_date" required style="font-size: 10px;">
+                        </div>
+                        <div class="col-2">
+                            <label class="form-label small mb-0" style="font-size: 10px;">End <span class="text-danger">*</span></label>
+                            <input type="date" class="form-control form-control-sm" id="tourEndDate" name="tour_end_date" required style="font-size: 10px;">
+                        </div>
+                        <div class="col-2">
+                            <label class="form-label small mb-0" style="font-size: 10px;">Adult <span class="text-danger">*</span></label>
+                            <input type="number" class="form-control form-control-sm" id="adultCount" name="adult_count" min="0" value="1" required style="font-size: 10px;">
+                        </div>
+                        <div class="col-2">
+                            <label class="form-label small mb-0" style="font-size: 10px;">Child</label>
+                            <input type="number" class="form-control form-control-sm" id="childCount" name="child_count" min="0" value="0" style="font-size: 10px;">
+                        </div>
+                        <div class="col-2">
+                            <label class="form-label small mb-0" style="font-size: 10px;">Infant</label>
+                            <input type="number" class="form-control form-control-sm" id="infantCount" name="infant_count" min="0" value="0" style="font-size: 10px;">
+                        </div>
+                    </div>
+
+                    <!-- Row 2: Destination (moved before Agency) -->
+                    <div class="row g-2 mb-1">
+                        <div class="col-12">
+                            <label class="form-label small mb-0 d-flex align-items-center" style="font-size: 10px;">
+                                Destination <span class="text-danger">*</span>
+                                <div class="form-check form-check-inline ms-3 mb-0">
+                                    <input class="form-check-input" type="checkbox" id="multipleDestination" name="multiple_destination" value="1" style="margin-top: 0;">
+                                    <label class="form-check-label" for="multipleDestination" style="font-size: 10px;">Multiple Cities</label>
+                                </div>
+                            </label>
+                        </div>
+                    </div>
+
+                    <!-- Destination (Single) - Text Input with Autocomplete (Single Select) -->
+                    <div class="row g-2 mb-1" id="singleDestinationDiv">
+                        <div class="col-12">
+                            <div class="position-relative">
+                                <input type="text" class="form-control form-control-sm" id="destinationSingle" placeholder="Type to search destination..." autocomplete="off" style="font-size: 10px;" readonly onfocus="this.removeAttribute('readonly');">
+                                <div id="destinationSuggestionsSingle" class="list-group position-absolute w-100" style="z-index: 1050; max-height: 120px; overflow-y: auto; display: none; box-shadow: 0 2px 8px rgba(0,0,0,0.15); font-size: 10px;"></div>
+                            </div>
+                            <input type="hidden" id="destinationSingleValue" name="destination_single">
+                        </div>
+                    </div>
+
+                    <!-- Destination (Multiple) - Text Input with Autocomplete -->
+                    <div class="row g-2 mb-1" id="multipleDestinationDiv" style="display: none;">
+                        <div class="col-12">
+                            <div class="position-relative">
+                                <input type="text" class="form-control form-control-sm" id="destinationMultiple" placeholder="Type to search and select multiple destinations..." autocomplete="off" style="font-size: 10px;" readonly onfocus="this.removeAttribute('readonly');">
+                                <div id="destinationSuggestions" class="list-group position-absolute w-100" style="z-index: 1050; max-height: 120px; overflow-y: auto; display: none; box-shadow: 0 2px 8px rgba(0,0,0,0.15); font-size: 10px;"></div>
+                            </div>
+                            <div id="selectedDestinations" class="mt-1"></div>
+                            <input type="hidden" id="destinationsArray" name="destinations">
+                        </div>
+                    </div>
+
+                    <!-- Row 3: Agency, Agent -->
+                    <div class="row g-2 mb-1">
+                        <div class="col-6">
+                            <label class="form-label small mb-0" style="font-size: 10px;">Agency <span class="text-danger">*</span></label>
+                            <div class="position-relative">
+                                <input type="text" class="form-control form-control-sm" id="agencySelectModal" placeholder="Select destination first..." autocomplete="off" style="font-size: 10px;" disabled readonly onfocus="this.removeAttribute('readonly');">
+                                <div id="agencySuggestions" class="list-group position-absolute w-100" style="z-index: 1050; max-height: 150px; overflow-y: auto; display: none; box-shadow: 0 2px 8px rgba(0,0,0,0.15); font-size: 10px;"></div>
+                            </div>
+                            <input type="hidden" id="agencyIdValue" name="agency_id" required>
+                        </div>
+                        <div class="col-6">
+                            <label class="form-label small mb-0" style="font-size: 10px;">Agent <span class="text-danger">*</span></label>
+                            <div class="position-relative">
+                                <input type="text" class="form-control form-control-sm" id="agentSelectModal" placeholder="Select agency first..." autocomplete="off" style="font-size: 10px;" disabled readonly onfocus="this.removeAttribute('readonly');">
+                                <div id="agentSuggestions" class="list-group position-absolute w-100" style="z-index: 1050; max-height: 150px; overflow-y: auto; display: none; box-shadow: 0 2px 8px rgba(0,0,0,0.15); font-size: 10px;"></div>
+                            </div>
+                            <input type="hidden" id="agentIdValue" name="agent_id" required>
+                        </div>
+                    </div>
+
+                    <!-- Row 4: Customer Details -->
+                    <div class="row g-2 mb-1">
+                        <div class="col-1">
+                            <label class="form-label small mb-0" style="font-size: 10px;">Sal. <span class="text-danger">*</span></label>
+                            <select class="form-select form-select-sm" id="salutation" name="salutation" required style="font-size: 10px;">
+                                <option value="">--</option>
+                                <option value="Mr">Mr</option>
+                                <option value="Mrs">Mrs</option>
+                                <option value="Ms">Ms</option>
+                                <option value="Dr">Dr</option>
+                            </select>
+                        </div>
+                        <div class="col-6">
+                            <label class="form-label small mb-0" style="font-size: 10px;">Customer Name <span class="text-danger">*</span></label>
+                            <input type="text" class="form-control form-control-sm" id="customerName" name="customer_name" required style="font-size: 10px;">
+                        </div>
+                        <div class="col-5">
+                            <label class="form-label small mb-0" style="font-size: 10px;">Contact Number</label>
+                            <input type="text" class="form-control form-control-sm" id="contactNumber" name="contact_number" style="font-size: 10px;">
+                        </div>
+                    </div>
+
+                </div>
+                <div class="modal-footer py-1" style="padding: 8px 15px;">
+                    <button type="button" class="btn btn-secondary btn-sm" data-bs-dismiss="modal" style="font-size: 11px; padding: 4px 12px;">
+                        <i class="ri-close-line me-1"></i>Cancel
+                    </button>
+                    <button type="submit" class="btn btn-success btn-sm" id="submitTourProBtn" style="font-size: 11px; padding: 4px 12px;">
+                        <i class="ri-check-line me-1"></i>Continue
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    // Open modal when Create Single Tour Pro is clicked
+    const createTourBtn = document.getElementById('createSingleTourProBtn');
+    if (createTourBtn) {
+        createTourBtn.addEventListener('click', function(e) {
+            e.preventDefault();
+            const modal = new bootstrap.Modal(document.getElementById('createTourProModal'));
+            modal.show();
+            loadDestinations();
+        });
+    }
+
+    // Store agencies list globally for autocomplete
+    let availableAgencies = [];
+    
+    // Load Agencies by single destination
+    function loadAgenciesByDestination(destination) {
+        const agencyInput = document.getElementById('agencySelectModal');
+        agencyInput.value = 'Loading agencies...';
+        agencyInput.disabled = true;
         
+        // Reset agency and agent
+        document.getElementById('agencyIdValue').value = '';
+        const agentInput = document.getElementById('agentSelectModal');
+        agentInput.value = '';
+        agentInput.placeholder = 'Select agency first...';
+        agentInput.disabled = true;
+        document.getElementById('agentIdValue').value = '';
+        
+        fetch('{{ route("enquiry-form-pro.get-agencies") }}?destination=' + encodeURIComponent(destination))
+            .then(response => response.json())
+            .then(data => {
+                console.log('Agencies loaded for destination:', destination, 'DMC ID:', data.dmc_id, 'Count:', data.count);
+                if (data.success && data.agencies.length > 0) {
+                    availableAgencies = data.agencies;
+                    agencyInput.value = '';
+                    agencyInput.placeholder = 'Type to search agency...';
+                    agencyInput.disabled = false;
+                } else {
+                    availableAgencies = [];
+                    agencyInput.value = '';
+                    agencyInput.placeholder = 'No agencies available (filtered by destination & DMC)';
+                }
+            })
+            .catch(error => {
+                console.error('Error loading agencies:', error);
+                availableAgencies = [];
+                agencyInput.value = '';
+                agencyInput.placeholder = 'Error loading agencies';
+            });
+    }
+
+    // Load Agencies by multiple destinations
+    function loadAgenciesByDestinations() {
+        if (selectedDestinations.length === 0) return;
+        
+        const agencyInput = document.getElementById('agencySelectModal');
+        agencyInput.value = 'Loading agencies...';
+        agencyInput.disabled = true;
+        
+        // Reset agency and agent
+        document.getElementById('agencyIdValue').value = '';
+        const agentInput = document.getElementById('agentSelectModal');
+        agentInput.value = '';
+        agentInput.placeholder = 'Select agency first...';
+        agentInput.disabled = true;
+        document.getElementById('agentIdValue').value = '';
+        
+        const destinations = selectedDestinations.join(',');
+        
+        fetch('{{ route("enquiry-form-pro.get-agencies") }}?destinations=' + encodeURIComponent(destinations))
+            .then(response => response.json())
+            .then(data => {
+                console.log('Agencies loaded for destinations:', destinations, 'DMC ID:', data.dmc_id, 'Count:', data.count);
+                if (data.success && data.agencies.length > 0) {
+                    availableAgencies = data.agencies;
+                    agencyInput.value = '';
+                    agencyInput.placeholder = 'Type to search agency...';
+                    agencyInput.disabled = false;
+                } else {
+                    availableAgencies = [];
+                    agencyInput.value = '';
+                    agencyInput.placeholder = 'No agencies available (filtered by destinations & DMC)';
+                }
+            })
+            .catch(error => {
+                console.error('Error loading agencies:', error);
+                availableAgencies = [];
+                agencyInput.value = '';
+                agencyInput.placeholder = 'Error loading agencies';
+            });
+    }
+
+    // Agency autocomplete
+    const agencyInput = document.getElementById('agencySelectModal');
+    const agencySuggestions = document.getElementById('agencySuggestions');
+    const agencyIdValue = document.getElementById('agencyIdValue');
+
+    agencyInput.addEventListener('input', function() {
+        const query = this.value.toLowerCase().trim();
+        
+        if (query.length < 1) {
+            agencySuggestions.style.display = 'none';
+            return;
+        }
+
+        const filtered = availableAgencies.filter(agency => 
+            agency.agency_name.toLowerCase().includes(query)
+        );
+
+        if (filtered.length > 0) {
+            agencySuggestions.innerHTML = '';
+            filtered.forEach(agency => {
+                const item = document.createElement('a');
+                item.href = 'javascript:void(0);';
+                item.className = 'list-group-item list-group-item-action';
+                item.style.padding = '6px 10px';
+                item.style.fontSize = '10px';
+                item.style.cursor = 'pointer';
+                item.textContent = agency.agency_name;
+                item.addEventListener('click', function() {
+                    agencyInput.value = agency.agency_name;
+                    agencyIdValue.value = agency.agency_id;
+                    agencySuggestions.style.display = 'none';
+                    // Load agents for this agency
+                    loadAgentsByAgency(agency.agency_id);
+                });
+                agencySuggestions.appendChild(item);
+            });
+            agencySuggestions.style.display = 'block';
+        } else {
+            agencySuggestions.style.display = 'none';
+        }
+    });
+
+    // Store agents list globally for autocomplete
+    let availableAgents = [];
+
+    // Load agents by agency
+    function loadAgentsByAgency(agencyId) {
+        const agentInput = document.getElementById('agentSelectModal');
+        agentInput.value = 'Loading agents...';
+        agentInput.disabled = true;
+        document.getElementById('agentIdValue').value = '';
+
+        fetch('{{ route("enquiry-form-pro.get-agents") }}?agency_id=' + agencyId)
+            .then(response => response.json())
+            .then(data => {
+                if (data.success && data.agents.length > 0) {
+                    availableAgents = data.agents;
+                    agentInput.value = '';
+                    agentInput.placeholder = 'Type to search agent...';
+                    agentInput.disabled = false;
+                } else {
+                    availableAgents = [];
+                    agentInput.value = '';
+                    agentInput.placeholder = 'No agents available';
+                }
+            })
+            .catch(error => {
+                console.error('Error loading agents:', error);
+                availableAgents = [];
+                agentInput.value = '';
+                agentInput.placeholder = 'Error loading agents';
+            });
+    }
+
+    // Agent autocomplete
+    const agentInput = document.getElementById('agentSelectModal');
+    const agentSuggestions = document.getElementById('agentSuggestions');
+    const agentIdValue = document.getElementById('agentIdValue');
+
+    agentInput.addEventListener('input', function() {
+        const query = this.value.toLowerCase().trim();
+        
+        if (query.length < 1) {
+            agentSuggestions.style.display = 'none';
+            return;
+        }
+
+        const filtered = availableAgents.filter(agent => 
+            agent.name.toLowerCase().includes(query)
+        );
+
+        if (filtered.length > 0) {
+            agentSuggestions.innerHTML = '';
+            filtered.forEach(agent => {
+                const item = document.createElement('a');
+                item.href = 'javascript:void(0);';
+                item.className = 'list-group-item list-group-item-action';
+                item.style.padding = '6px 10px';
+                item.style.fontSize = '10px';
+                item.style.cursor = 'pointer';
+                item.textContent = agent.name;
+                item.addEventListener('click', function() {
+                    agentInput.value = agent.name;
+                    agentIdValue.value = agent.agent_id;
+                    agentSuggestions.style.display = 'none';
+                });
+                agentSuggestions.appendChild(item);
+            });
+            agentSuggestions.style.display = 'block';
+        } else {
+            agentSuggestions.style.display = 'none';
+        }
+    });
+
+    // Multiple destination checkbox toggle
+    const multipleDestCheckbox = document.getElementById('multipleDestination');
+    const singleDestDiv = document.getElementById('singleDestinationDiv');
+    const multipleDestDiv = document.getElementById('multipleDestinationDiv');
+    const destinationSingle = document.getElementById('destinationSingle');
+    const destinationMultiple = document.getElementById('destinationMultiple');
+
+    multipleDestCheckbox.addEventListener('change', function() {
+        if (this.checked) {
+            // Switch to multiple mode
+            singleDestDiv.style.display = 'none';
+            multipleDestDiv.style.display = 'block';
+            // Clear single destination
+            destinationSingleInput.value = '';
+            destinationSingleValue.value = '';
+        } else {
+            // Switch to single mode
+            singleDestDiv.style.display = 'block';
+            multipleDestDiv.style.display = 'none';
+            // Clear multiple destinations
+            destinationInput.value = '';
+            selectedDestinations = [];
+            updateSelectedDestinations();
+        }
+        
+        // Reset agency and agent when switching modes
+        const agencyInputReset = document.getElementById('agencySelectModal');
+        agencyInputReset.value = '';
+        agencyInputReset.placeholder = 'Select destination first...';
+        agencyInputReset.disabled = true;
+        document.getElementById('agencyIdValue').value = '';
+        availableAgencies = [];
+        
+        const agentInputReset = document.getElementById('agentSelectModal');
+        agentInputReset.value = '';
+        agentInputReset.placeholder = 'Select agency first...';
+        agentInputReset.disabled = true;
+        document.getElementById('agentIdValue').value = '';
+        availableAgents = [];
+    });
+
+    // Load destinations
+    let allDestinations = [];
+    function loadDestinations() {
+        fetch('{{ route("enquiry-form-pro.get-destinations") }}')
+            .then(response => response.json())
+            .then(data => {
+                if (data.success && data.destinations.length > 0) {
+                    allDestinations = data.destinations;
+                }
+            })
+            .catch(error => {
+                console.error('Error loading destinations:', error);
+            });
+    }
+
+    // Single destination autocomplete
+    const destinationSingleInput = document.getElementById('destinationSingle');
+    const suggestionBoxSingle = document.getElementById('destinationSuggestionsSingle');
+    const destinationSingleValue = document.getElementById('destinationSingleValue');
+
+    destinationSingleInput.addEventListener('input', function() {
+        const query = this.value.toLowerCase().trim();
+        
+        if (query.length < 1) {
+            suggestionBoxSingle.style.display = 'none';
+            return;
+        }
+
+        const filtered = allDestinations.filter(dest => 
+            dest.name.toLowerCase().includes(query)
+        );
+
+        if (filtered.length > 0) {
+            suggestionBoxSingle.innerHTML = '';
+            filtered.forEach(dest => {
+                const item = document.createElement('a');
+                item.href = 'javascript:void(0);';
+                item.className = 'list-group-item list-group-item-action';
+                item.style.padding = '6px 10px';
+                item.style.fontSize = '10px';
+                item.style.cursor = 'pointer';
+                item.textContent = dest.name;
+                item.addEventListener('click', function() {
+                    destinationSingleInput.value = dest.name;
+                    destinationSingleValue.value = dest.name;
+                    suggestionBoxSingle.style.display = 'none';
+                    // Load agencies for this destination
+                    loadAgenciesByDestination(dest.name);
+                });
+                suggestionBoxSingle.appendChild(item);
+            });
+            suggestionBoxSingle.style.display = 'block';
+        } else {
+            suggestionBoxSingle.style.display = 'none';
+        }
+    });
+
+    // Multiple destination autocomplete
+    const destinationInput = document.getElementById('destinationMultiple');
+    const suggestionBox = document.getElementById('destinationSuggestions');
+    const selectedDestinationsDiv = document.getElementById('selectedDestinations');
+    let selectedDestinations = [];
+
+    destinationInput.addEventListener('input', function() {
+        const query = this.value.toLowerCase().trim();
+        
+        if (query.length < 1) {
+            suggestionBox.style.display = 'none';
+            return;
+        }
+
+        const filtered = allDestinations.filter(dest => 
+            dest.name.toLowerCase().includes(query) && 
+            !selectedDestinations.includes(dest.name)
+        );
+
+        if (filtered.length > 0) {
+            suggestionBox.innerHTML = '';
+            filtered.forEach(dest => {
+                const item = document.createElement('a');
+                item.href = 'javascript:void(0);';
+                item.className = 'list-group-item list-group-item-action';
+                item.style.padding = '6px 10px';
+                item.style.fontSize = '10px';
+                item.style.cursor = 'pointer';
+                item.textContent = dest.name;
+                item.addEventListener('click', function() {
+                    addDestination(dest.name);
+                    destinationInput.value = '';
+                    suggestionBox.style.display = 'none';
+                });
+                suggestionBox.appendChild(item);
+            });
+            suggestionBox.style.display = 'block';
+        } else {
+            suggestionBox.style.display = 'none';
+        }
+    });
+
+    function addDestination(name) {
+        if (!selectedDestinations.includes(name)) {
+            selectedDestinations.push(name);
+            updateSelectedDestinations();
+            // Load agencies for selected destinations
+            loadAgenciesByDestinations();
+        }
+    }
+
+    function removeDestination(name) {
+        selectedDestinations = selectedDestinations.filter(d => d !== name);
+        updateSelectedDestinations();
+        // Reload agencies based on remaining destinations
+        if (selectedDestinations.length > 0) {
+            loadAgenciesByDestinations();
+        } else {
+            // Reset agency if no destinations selected
+            const agencyInputReset = document.getElementById('agencySelectModal');
+            agencyInputReset.value = '';
+            agencyInputReset.placeholder = 'Select destination first...';
+            agencyInputReset.disabled = true;
+            document.getElementById('agencyIdValue').value = '';
+            availableAgencies = [];
+            // Also reset agent
+            const agentInputReset = document.getElementById('agentSelectModal');
+            agentInputReset.value = '';
+            agentInputReset.placeholder = 'Select agency first...';
+            agentInputReset.disabled = true;
+            document.getElementById('agentIdValue').value = '';
+            availableAgents = [];
+        }
+    }
+
+    function updateSelectedDestinations() {
+        selectedDestinationsDiv.innerHTML = '';
+        selectedDestinations.forEach(dest => {
+            const badge = document.createElement('span');
+            badge.className = 'badge bg-info me-1 mb-1 d-inline-flex align-items-center';
+            badge.style.fontSize = '11px';
+            badge.style.padding = '4px 8px';
+            badge.innerHTML = `${dest} <i class="ri-close-line ms-1" style="cursor: pointer; font-size: 14px;"></i>`;
+            badge.querySelector('i').addEventListener('click', function() {
+                removeDestination(dest);
+            });
+            selectedDestinationsDiv.appendChild(badge);
+        });
+
+        // Update hidden input
+        document.getElementById('destinationsArray').value = JSON.stringify(selectedDestinations);
+    }
+
+    // Set min date for start date (today)
+    const tourStartDateInput = document.getElementById('tourStartDate');
+    const tourEndDateInput = document.getElementById('tourEndDate');
+    
+    if (tourStartDateInput && tourEndDateInput) {
+        const today = new Date().toISOString().split('T')[0];
+        tourStartDateInput.setAttribute('min', today);
+        tourStartDateInput.value = today;
+        
+        // Set end date to tomorrow by default and set min
+        const tomorrow = new Date();
+        tomorrow.setDate(tomorrow.getDate() + 1);
+        const tomorrowStr = tomorrow.toISOString().split('T')[0];
+        tourEndDateInput.value = tomorrowStr;
+        tourEndDateInput.setAttribute('min', tomorrowStr);
+        
+        // Update end date min when start date changes
+        tourStartDateInput.addEventListener('change', function() {
+            const startDate = new Date(this.value);
+            const minEndDate = new Date(startDate);
+            minEndDate.setDate(minEndDate.getDate() + 1);
+            const minEndDateStr = minEndDate.toISOString().split('T')[0];
+            tourEndDateInput.setAttribute('min', minEndDateStr);
+            
+            // If end date is less than start date + 1, update it
+            if (new Date(tourEndDateInput.value) <= startDate) {
+                tourEndDateInput.value = minEndDateStr;
+            }
+        });
+    }
+    
+    // Form validation
+    document.getElementById('createTourProForm').addEventListener('submit', function(e) {
+        const multipleDestChecked = document.getElementById('multipleDestination').checked;
+        
+        // Validate destination based on mode
+        if (multipleDestChecked) {
+            if (selectedDestinations.length === 0) {
+                e.preventDefault();
+                alert('Please select at least one destination');
+                return false;
+            }
+        } else {
+            const singleDest = document.getElementById('destinationSingleValue').value;
+            if (!singleDest || singleDest.trim() === '') {
+                e.preventDefault();
+                alert('Please select a destination');
+                return false;
+            }
+        }
+
+        // Validate dates
+        const startDate = new Date(document.getElementById('tourStartDate').value);
+        const endDate = new Date(document.getElementById('tourEndDate').value);
+        const today = new Date();
+        today.setHours(0, 0, 0, 0);
+        
+        if (startDate < today) {
+            e.preventDefault();
+            alert('Start date cannot be in the past');
+            return false;
+        }
+        
+        const minEndDate = new Date(startDate);
+        minEndDate.setDate(minEndDate.getDate() + 1);
+        
+        if (endDate < minEndDate) {
+            e.preventDefault();
+            alert('End date must be at least 1 day after start date');
+            return false;
+        }
+
+        // Check at least one person
+        const adults = parseInt(document.getElementById('adultCount').value) || 0;
+        const children = parseInt(document.getElementById('childCount').value) || 0;
+        const infants = parseInt(document.getElementById('infantCount').value) || 0;
+        
+        if (adults + children + infants === 0) {
+            e.preventDefault();
+            alert('Please specify at least one passenger (Adult, Child, or Infant)');
+            return false;
+        }
+    });
+
+    // Close suggestions when clicking outside
+    document.addEventListener('click', function(e) {
+        // Close multiple destinations suggestions
+        if (!destinationInput.contains(e.target) && !suggestionBox.contains(e.target)) {
+            suggestionBox.style.display = 'none';
+        }
+        // Close single destination suggestions
+        if (!destinationSingleInput.contains(e.target) && !suggestionBoxSingle.contains(e.target)) {
+            suggestionBoxSingle.style.display = 'none';
+        }
+        // Close agency suggestions
+        if (!agencyInput.contains(e.target) && !agencySuggestions.contains(e.target)) {
+            agencySuggestions.style.display = 'none';
+        }
+        // Close agent suggestions
+        if (!agentInput.contains(e.target) && !agentSuggestions.contains(e.target)) {
+            agentSuggestions.style.display = 'none';
+        }
+    });
+});
+</script>
+
+

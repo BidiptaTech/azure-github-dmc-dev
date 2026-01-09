@@ -1810,9 +1810,14 @@ class CommonHelper
         $bookingDetails = [
             'booking_id' => $tour->display_id ?? ('Tour #' . ($tour->tour_id ?? 'N/A')),
             'lead_guest_name' => 'N/A',
-            'no_of_adults' => 0,
-            'no_of_children' => 0,
-            'no_of_infants' => 0,
+            'email' => 'N/A',
+            'phone' => 'N/A',
+            'address' => 'N/A',
+            'city' => 'N/A',
+            'postal_code' => 'N/A',
+            'no_of_adults' => (int)($tour->adult ?? 0),
+            'no_of_children' => (int)($tour->child ?? 0),
+            'no_of_infants' => (int)($tour->infant ?? 0),
         ];
 
         // Try to get guest information from first order
@@ -1826,32 +1831,27 @@ class CommonHelper
             if (is_array($orderData) && !empty($orderData)) {
                 $firstItem = is_array($orderData[0]) ? $orderData[0] : $orderData;
                 
+                // Extract guest information
                 $bookingDetails['lead_guest_name'] = $firstItem['fullName'] ?? $firstItem['name'] ?? 'N/A';
+                $bookingDetails['email'] = $firstItem['email'] ?? 'N/A';
                 
-                // Count adults, children, infants across all orders
-                $totalAdults = 0;
-                $totalChildren = 0;
-                $totalInfants = 0;
+                // Format phone number with country code if available
+                $phone = $firstItem['phone'] ?? 'N/A';
+                $bookingDetails['phone'] = $phone;
                 
-                foreach ($orders as $order) {
-                    $data = $order->data;
-                    if (is_string($data)) {
-                        $data = json_decode($data, true);
-                    }
-                    
-                    if (is_array($data)) {
-                        $items = is_array($data[0]) ? $data : [$data];
-                        foreach ($items as $item) {
-                            $totalAdults += (int)($item['adult'] ?? $item['adultCount'] ?? 0);
-                            $totalChildren += (int)($item['child'] ?? $item['childCount'] ?? 0);
-                            $totalInfants += (int)($item['infant'] ?? $item['infantCount'] ?? 0);
-                        }
-                    }
+                
+                // Combine address1 and address2 for full address
+                $address1 = $firstItem['address1'] ?? '';
+                $address2 = $firstItem['address2'] ?? '';
+                if (!empty($address1) || !empty($address2)) {
+                    $bookingDetails['address'] = trim($address1 . ' ' . $address2);
                 }
                 
-                $bookingDetails['no_of_adults'] = $totalAdults;
-                $bookingDetails['no_of_children'] = $totalChildren;
-                $bookingDetails['no_of_infants'] = $totalInfants;
+                // State
+                $bookingDetails['city'] = $firstItem['state'] ?? 'N/A';
+                
+                // Postal/Zip code
+                $bookingDetails['postal_code'] = $firstItem['zip'] ?? 'N/A';
             }
         }
 

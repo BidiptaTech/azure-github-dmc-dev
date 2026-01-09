@@ -4064,6 +4064,15 @@
                                 $bookingId = $booking['id'];
                             }
                             
+                            // Normalize booking type for consistent deduplication
+                            // Convert "Exit Port" to "exit_port" and "Entry Port" to "entry_port" for consistency
+                            $normalizedType = $bookingTypeLower;
+                            if ($bookingTypeLower == 'exit port') {
+                                $normalizedType = 'exit_port';
+                            } elseif ($bookingTypeLower == 'entry port') {
+                                $normalizedType = 'entry_port';
+                            }
+                            
                             // For restaurants and attractions, create a unique key
                             $serviceKey = null;
                             if ($bookingTypeLower == 'restaurant') {
@@ -4075,8 +4084,18 @@
                                 $visitTime = $data['visitTime'] ?? $data['time'] ?? '';
                                 $serviceKey = $bookingId ? "attraction_{$bookingId}_{$date}" : "attraction_{$serviceName}_{$visitTime}_{$date}";
                             } else {
-                                // For other services, use booking ID if available
-                                $serviceKey = $bookingId ? "{$bookingTypeLower}_{$bookingId}_{$date}" : null;
+                                // For other services, use normalized type and booking ID if available
+                                // Also include a unique identifier from the data to prevent duplicates
+                                $dataId = $data['id'] ?? $data['booking_id'] ?? null;
+                                if ($bookingId && $dataId) {
+                                    $serviceKey = "{$normalizedType}_{$bookingId}_{$dataId}_{$date}";
+                                } elseif ($bookingId) {
+                                    $serviceKey = "{$normalizedType}_{$bookingId}_{$date}";
+                                } elseif ($dataId) {
+                                    $serviceKey = "{$normalizedType}_{$dataId}_{$date}";
+                                } else {
+                                    $serviceKey = null;
+                                }
                             }
                             
                             // Skip if this service was already added
@@ -4084,8 +4103,11 @@
                                 continue; // Skip duplicate
                             }
                             
+                            // Normalize the type in serviceInfo to prevent duplicates with different case
+                            $normalizedServiceType = $normalizedType;
+                            
                             $serviceInfo = [
-                                'type' => $bookingType,
+                                'type' => $normalizedServiceType,
                                 'date' => $date,
                                 'data' => $data
                             ];
@@ -4099,36 +4121,143 @@
                                 $serviceInfo['transferType'] = $data['transfer_options']['type'] ?? null;
                                 $serviceInfo['way'] = $data['transfer_options']['way'] ?? null;
                                 $serviceInfo['pickupLocation'] = $data['transfer_options']['pickup_location_name'] ?? null;
+                                
+                                // Get vehicle and driver data from booking (populated in controller)
+                                // Access vehicle_driver_data from Eloquent model attributes
+                                // Since vehicle_driver_data is in #attributes array, access it directly
+                                $vehicleDriverData = null;
+                                if (is_object($booking)) {
+                                    // Try multiple access methods to get vehicle_driver_data
+                                    // Method 1: Direct property access (should work for attributes)
+                                    if (isset($booking->vehicle_driver_data)) {
+                                        $vehicleDriverData = $booking->vehicle_driver_data;
+                                    }
+                                    // Method 2: getAttribute method
+                                    elseif (method_exists($booking, 'getAttribute')) {
+                                        $vehicleDriverData = $booking->getAttribute('vehicle_driver_data');
+                                    }
+                                    // Method 3: Direct access to attributes array
+                                    elseif (property_exists($booking, 'attributes') && isset($booking->attributes['vehicle_driver_data'])) {
+                                        $vehicleDriverData = $booking->attributes['vehicle_driver_data'];
+                                    }
+                                } elseif (is_array($booking) && isset($booking['vehicle_driver_data'])) {
+                                    $vehicleDriverData = $booking['vehicle_driver_data'];
+                                }
+                                
+                                // Set vehicle and driver data to serviceInfo - always set these properties
+                                // This ensures they're available in JavaScript even if data is missing
+                                $serviceInfo['vehicleNumber'] = ($vehicleDriverData && is_array($vehicleDriverData) && isset($vehicleDriverData['vehicleNumber'])) ? $vehicleDriverData['vehicleNumber'] : 'N/A';
+                                $serviceInfo['maxPassengerCapacity'] = ($vehicleDriverData && is_array($vehicleDriverData) && isset($vehicleDriverData['maxPassengerCapacity'])) ? $vehicleDriverData['maxPassengerCapacity'] : 'N/A';
+                                $serviceInfo['driverName'] = ($vehicleDriverData && is_array($vehicleDriverData) && isset($vehicleDriverData['driverName'])) ? $vehicleDriverData['driverName'] : 'N/A';
+                                $serviceInfo['driverPhone'] = ($vehicleDriverData && is_array($vehicleDriverData) && isset($vehicleDriverData['driverPhone'])) ? $vehicleDriverData['driverPhone'] : 'N/A';
                             } elseif ($bookingTypeLower == 'attraction') {
                                 $serviceInfo['name'] = $data['AttractionName'] ?? $data['name'] ?? 'N/A';
                                 $serviceInfo['visitTime'] = $data['visitTime'] ?? $data['time'] ?? null;
                                 $serviceInfo['ticketName'] = $data['ticketName'] ?? null;
                                 $serviceInfo['transferType'] = $data['transfer_options']['type'] ?? null;
                                 $serviceInfo['pickupLocation'] = $data['transfer_options']['pickup_location_name'] ?? null;
+                                
+                                // Get vehicle and driver data from booking (populated in controller)
+                                // Access vehicle_driver_data from Eloquent model attributes
+                                // Since vehicle_driver_data is in #attributes array, access it directly
+                                $vehicleDriverData = is_object($booking) ? ($booking->vehicle_driver_data ?? null) : ($booking['vehicle_driver_data'] ?? null);
+                                
+                                // Set vehicle and driver data to serviceInfo
+                                if ($vehicleDriverData && is_array($vehicleDriverData) && !empty($vehicleDriverData)) {
+                                    $serviceInfo['vehicleNumber'] = $vehicleDriverData['vehicleNumber'] ?? 'N/A';
+                                    $serviceInfo['maxPassengerCapacity'] = $vehicleDriverData['maxPassengerCapacity'] ?? 'N/A';
+                                    $serviceInfo['driverName'] = $vehicleDriverData['driverName'] ?? 'N/A';
+                                    $serviceInfo['driverPhone'] = $vehicleDriverData['driverPhone'] ?? 'N/A';
+                                } else {
+                                    // Fallback to N/A if data not available
+                                    $serviceInfo['vehicleNumber'] = 'N/A';
+                                    $serviceInfo['maxPassengerCapacity'] = 'N/A';
+                                    $serviceInfo['driverName'] = 'N/A';
+                                    $serviceInfo['driverPhone'] = 'N/A';
+                                }
                             } elseif ($bookingTypeLower == 'guide') {
                                 $serviceInfo['name'] = $data['guide_name'] ?? $data['guideName'] ?? 'N/A';
                                 $serviceInfo['entryTime'] = $data['entrytime'] ?? $data['entryTime'] ?? null;
                                 $serviceInfo['hours'] = $data['hours'] ?? null;
                                 $serviceInfo['languages'] = $data['languages'] ?? [];
-                            } elseif ($bookingTypeLower == 'travel_point' || $bookingTypeLower == 'travel_hourly') {
+                            } elseif ($bookingTypeLower == 'travel_point' || $bookingTypeLower == 'travel_hourly' || $bookingTypeLower == 'point to point' || $bookingTypeLower == 'hourly' || $bookingTypeLower == 'local_transport') {
                                 $serviceInfo['pickup'] = $data['entrypickup'] ?? $data['pickup'] ?? null;
                                 $serviceInfo['dropoff'] = $data['entrydropoff'] ?? $data['dropoff'] ?? $data['dropoffLocation'] ?? null;
                                 $serviceInfo['pickupTime'] = $data['pickupdate'] ?? $data['pickupTime'] ?? null;
                                 $serviceInfo['vehicle'] = $data['vehicle'] ?? $data['vehicles_name'] ?? null;
                                 $serviceInfo['transferType'] = $data['type'] ?? null;
                                 $serviceInfo['selectedHours'] = $data['selectedHours'] ?? null;
-                            } elseif ($bookingTypeLower == 'entry_port') {
+                            } elseif ($bookingTypeLower == 'entry_port' || $bookingTypeLower == 'entry port') {
                                 $serviceInfo['pickup'] = $data['entrypickup'] ?? $data['entry_pickup'] ?? $data['pickup'] ?? null;
                                 $serviceInfo['dropoff'] = $data['entrydropoff'] ?? $data['entry_dropoff'] ?? $data['dropoff'] ?? null;
                                 $serviceInfo['pickupTime'] = $data['pickupdate'] ?? $data['entrytime'] ?? null;
                                 $serviceInfo['vehicle'] = $data['vehicles_name'] ?? $data['vehicle'] ?? null;
                                 $serviceInfo['transferType'] = $data['type'] ?? $data['transfer_options']['type'] ?? null;
-                            } elseif ($bookingTypeLower == 'exit_port') {
+                            
+                                // Get vehicle and driver data from booking (populated in controller)
+                                // Access vehicle_driver_data from Eloquent model attributes
+                                // Since vehicle_driver_data is in #attributes array, access it directly
+                                $vehicleDriverData = null;
+                                if (is_object($booking)) {
+                                    // Try multiple access methods to get vehicle_driver_data
+                                    // Method 1: Direct property access (should work for attributes)
+                                    if (isset($booking->vehicle_driver_data)) {
+                                        $vehicleDriverData = $booking->vehicle_driver_data;
+                                    }
+                                    // Method 2: getAttribute method
+                                    elseif (method_exists($booking, 'getAttribute')) {
+                                        $vehicleDriverData = $booking->getAttribute('vehicle_driver_data');
+                                    }
+                                    // Method 3: Direct access to attributes array
+                                    elseif (property_exists($booking, 'attributes') && isset($booking->attributes['vehicle_driver_data'])) {
+                                        $vehicleDriverData = $booking->attributes['vehicle_driver_data'];
+                                    }
+                                } elseif (is_array($booking) && isset($booking['vehicle_driver_data'])) {
+                                    $vehicleDriverData = $booking['vehicle_driver_data'];
+                                }
+                                // Set vehicle and driver data to serviceInfo - always set these properties
+                                // This ensures they're available in JavaScript even if data is missing
+                                $serviceInfo['vehicleNumber'] = ($vehicleDriverData && is_array($vehicleDriverData) && isset($vehicleDriverData['vehicleNumber'])) ? $vehicleDriverData['vehicleNumber'] : 'N/A';
+                                $serviceInfo['maxPassengerCapacity'] = ($vehicleDriverData && is_array($vehicleDriverData) && isset($vehicleDriverData['maxPassengerCapacity'])) ? $vehicleDriverData['maxPassengerCapacity'] : 'N/A';
+                                $serviceInfo['driverName'] = ($vehicleDriverData && is_array($vehicleDriverData) && isset($vehicleDriverData['driverName'])) ? $vehicleDriverData['driverName'] : 'N/A';
+                                $serviceInfo['driverPhone'] = ($vehicleDriverData && is_array($vehicleDriverData) && isset($vehicleDriverData['driverPhone'])) ? $vehicleDriverData['driverPhone'] : 'N/A';
+                                
+                            } elseif ($bookingTypeLower == 'exit_port' || $bookingTypeLower == 'exit port') {
                                 $serviceInfo['pickup'] = $data['exitpickup'] ?? $data['exit_pickup'] ?? $data['pickup'] ?? null;
                                 $serviceInfo['dropoff'] = $data['exitdropoff'] ?? $data['exit_dropoff'] ?? $data['dropoff'] ?? null;
                                 $serviceInfo['pickupTime'] = $data['exitpickupdate'] ?? $data['exitpickuptime'] ?? null;
                                 $serviceInfo['vehicle'] = $data['vehicles_name'] ?? $data['vehicle'] ?? null;
                                 $serviceInfo['transferType'] = $data['type'] ?? null;
+                                
+                                // Get vehicle and driver data from booking (populated in controller)
+                                // Access vehicle_driver_data from Eloquent model attributes
+                                // Since vehicle_driver_data is in #attributes array, access it directly
+                                $vehicleDriverData = null;
+                                if (is_object($booking)) {
+                                    // Try multiple access methods to get vehicle_driver_data
+                                    // Method 1: Direct property access (should work for attributes)
+                                    if (isset($booking->vehicle_driver_data)) {
+                                        $vehicleDriverData = $booking->vehicle_driver_data;
+                                    }
+                                    // Method 2: getAttribute method
+                                    elseif (method_exists($booking, 'getAttribute')) {
+                                        $vehicleDriverData = $booking->getAttribute('vehicle_driver_data');
+                                    }
+                                    // Method 3: Direct access to attributes array
+                                    elseif (property_exists($booking, 'attributes') && isset($booking->attributes['vehicle_driver_data'])) {
+                                        $vehicleDriverData = $booking->attributes['vehicle_driver_data'];
+                                    }
+                                } elseif (is_array($booking) && isset($booking['vehicle_driver_data'])) {
+                                    $vehicleDriverData = $booking['vehicle_driver_data'];
+                                }
+                                
+                                // Set vehicle and driver data to serviceInfo - always set these properties
+                                // This ensures they're available in JavaScript even if data is missing
+                                $serviceInfo['vehicleNumber'] = ($vehicleDriverData && is_array($vehicleDriverData) && isset($vehicleDriverData['vehicleNumber'])) ? $vehicleDriverData['vehicleNumber'] : 'N/A';
+                                $serviceInfo['maxPassengerCapacity'] = ($vehicleDriverData && is_array($vehicleDriverData) && isset($vehicleDriverData['maxPassengerCapacity'])) ? $vehicleDriverData['maxPassengerCapacity'] : 'N/A';
+                                $serviceInfo['driverName'] = ($vehicleDriverData && is_array($vehicleDriverData) && isset($vehicleDriverData['driverName'])) ? $vehicleDriverData['driverName'] : 'N/A';
+                                $serviceInfo['driverPhone'] = ($vehicleDriverData && is_array($vehicleDriverData) && isset($vehicleDriverData['driverPhone'])) ? $vehicleDriverData['driverPhone'] : 'N/A';
+                                
                             }
                             
                             $pdfAllServices[$date][] = $serviceInfo;
@@ -4146,6 +4275,7 @@
         // Store extracted data in JavaScript variables (available globally)
         const pdfCustomerInfo = @json($pdfCustomerInfo ?? []);
         const pdfAllServices = @json($pdfAllServices ?? []);
+        console.log('pdfAllServices', pdfAllServices);
         const pdfDebugInfo = {
             itineraryCount: @json($pdfDebugItineraryCount ?? 0),
             bookingCount: @json($pdfDebugBookingCount ?? 0)
@@ -5028,7 +5158,6 @@
                 const allServices = pdfAllServices || {};
                 const userDmc = @json($user_dmc ?? null);
                 const agentInfo = @json($agent_info ?? null);
-                
                 // Debug logging
                 console.log('DMC Info:', userDmc);
                 console.log('Agent Info:', agentInfo);
@@ -5451,7 +5580,6 @@
                 allTourDates.forEach(date => {
                     const normalizedDate = normalizeDate(date) || date;
                     const services = normalizedServices[normalizedDate] || [];
-                    
                     // Debug: Log services for this date
                     if (services.length > 0) {
                         console.log(`Date ${date} (normalized: ${normalizedDate}) has ${services.length} services:`, services.map(s => s.type || 'unknown'));
@@ -5496,10 +5624,9 @@
                         guide: [],
                         exit_port: []
                     };
-                    
                     services.forEach(service => {
                         const serviceType = (service.type || '').toLowerCase();
-                        if (serviceType === 'entry_port') {
+                        if (serviceType === 'entry_port' || serviceType === 'entry port') {
                             servicesByType.entry_port.push(service);
                         } else if (serviceType === 'hotel') {
                             servicesByType.hotel.push(service);
@@ -5516,12 +5643,13 @@
                             }
                         } else if (serviceType === 'attraction') {
                             servicesByType.attraction.push(service);
-                        } else if (serviceType === 'travel_point' || serviceType === 'travel_hourly' || serviceType === 'local_transport') {
+                        } else if (serviceType === 'travel_point' || serviceType === 'point to point' || serviceType === 'travel_hourly' || serviceType === 'local_transport') {
                             servicesByType.local_transfer.push(service);
                         } else if (serviceType === 'guide') {
                             servicesByType.guide.push(service);
-                        } else if (serviceType === 'exit_port') {
+                        } else if (serviceType === 'exit_port' || serviceType === 'exit port') {
                             servicesByType.exit_port.push(service);
+                            console.log('service in exit port condition-------->>>', service);
                         }
                     });
                     
@@ -5567,6 +5695,7 @@
                     
                     // Render Airport Departure Transfer (only for last day)
                     if (date === allTourDates[allTourDates.length - 1] && servicesByType.exit_port.length > 0) {
+                        console.log('servicesByType.exit_port-------->>>', servicesByType.exit_port);
                         yPos = renderAirportDepartureTransfer(pdf, servicesByType.exit_port, leftMargin, yPos, pageWidth, rightMargin);
                     }
                     
@@ -5650,6 +5779,7 @@
         // Helper functions to render different service sections using autotable
         function renderAirportArrivalTransfer(pdf, services, leftMargin, yPos, pageWidth, rightMargin) {
             services.forEach(service => {
+                console.log("service data in renderAirportArrivalTransfer: ", service);
                 // Extract all possible fields from data
                 const pickup = service.pickup || service.data?.entrypickup || service.data?.entry_pickup || service.data?.pickup || '';
                 const dropoff = service.dropoff || service.data?.entrydropoff || service.data?.entry_dropoff || service.data?.dropoff || '';
@@ -5670,15 +5800,15 @@
                 const arrivalFlightNumber = service.data?.arrivalFlightNumber || service.data?.arrival_flight_number || '';
                 const arrivalPNR = service.data?.arrivalPNR || service.data?.arrival_pnr || '';
                 
-                // Transfer Details
+                // Transfer Details - Get from serviceInfo first (populated from jobsheet/vehicles/drivers), then fallback to data
                 const terminal = service.data?.terminal || '';
                 const travelTime = service.data?.travelTime || service.data?.travel_time || '';
-                const driverName = service.data?.driverName || service.data?.driver_name || '';
-                const driverPhone = service.data?.driverPhone || service.data?.driver_phone || '';
-                const vehicleNumber = service.data?.vehicleNumber || service.data?.vehicle_number || '';
+                const driverName = service.driverName || service.data?.driverName || service.data?.driver_name || '';
+                const driverPhone = service.driverPhone || service.data?.driverPhone || service.data?.driver_phone || '';
+                const vehicleNumber = service.vehicleNumber || service.data?.vehicleNumber || service.data?.vehicle_number || '';
                 
-                // Capacity Details
-                const maxPassengerCapacity = service.data?.maxPassengerCapacity || service.data?.max_passenger_capacity || service.data?.seating_capacity || '';
+                // Capacity Details - Get from serviceInfo first (populated from jobsheet/vehicles/drivers), then fallback to data
+                const maxPassengerCapacity = service.maxPassengerCapacity || service.data?.maxPassengerCapacity || service.data?.max_passenger_capacity || service.data?.seating_capacity || '';
                 const maxLuggageCapacity = service.data?.maxLuggageCapacity || service.data?.max_luggage_capacity || '';
                 const childSeatAvailable = service.data?.childSeatAvailable || service.data?.child_seat_available || '';
                 
@@ -6023,13 +6153,16 @@
                 const dropoffTo = restaurantName || '';
                 const dropoffTime = visitTime || '';
                 
-                // Additional vehicle details (from current version)
-                const vehicleNumber = service.data?.vehicleNumber || service.data?.vehicle_number || '';
+                // Additional vehicle details - Get from serviceInfo first (populated from jobsheet/vehicles/drivers), then fallback to data
+                const vehicleNumber = service.vehicleNumber || service.data?.vehicleNumber || service.data?.vehicle_number || '';
                 const childSeatAvailable = service.data?.childSeatAvailable || service.data?.child_seat_available || '';
                 
-                // Driver details (from current version)
-                const driverName = service.data?.driverName || service.data?.driver_name || '';
-                const driverPhone = service.data?.driverPhone || service.data?.driver_phone || '';
+                // Driver details - Get from serviceInfo first (populated from jobsheet/vehicles/drivers), then fallback to data
+                const driverName = service.driverName || service.data?.driverName || service.data?.driver_name || '';
+                const driverPhone = service.driverPhone || service.data?.driverPhone || service.data?.driver_phone || '';
+                
+                // Max Passenger Capacity - Get from serviceInfo first (populated from jobsheet/vehicles/drivers), then fallback to data
+                const maxPassengerCapacity = service.maxPassengerCapacity || service.data?.maxPassengerCapacity || service.data?.max_passenger_capacity || seatingCapacity || '';
                 
                 // Passenger details (from current version)
                 const adultCount = service.data?.adultCount || service.data?.adults || '';
@@ -6115,7 +6248,7 @@
                 
                 // Fifth row: Max Passenger Capacity, Child Seat Available, Vehicle Number, Confirmation Number (from current version)
                 tableBody.push([
-                    'Max Passenger Capacity :', seatingCapacity ? seatingCapacity.toString() : 'N/A',
+                    'Max Passenger Capacity :', maxPassengerCapacity ? maxPassengerCapacity.toString() : (seatingCapacity ? seatingCapacity.toString() : 'N/A'),
                     'Child Seat Available :', childSeatAvailable ? childSeatAvailable.toString() : 'N/A',
                     'Vehicle Number :', vehicleNumber || 'N/A',
                     'Confirmation Number :', confirmationNumber || 'N/A'
@@ -6382,13 +6515,13 @@
             const vehicleDetails = attraction.data?.vehicle_details || {};
             const vehicleName = vehicleDetails?.vehicle_name || vehicleDetails?.vehicle_type || attraction.vehicle || attraction.data?.vehicle || '';
             const vehicleType = vehicleDetails?.vehicle_type || vehicleDetails?.vehicle_name || attraction.vehicle || attraction.data?.vehicle || '';
-            const seatingCapacity = vehicleDetails?.seating_capacity || attraction.data?.seatingCapacity || attraction.data?.seating_capacity || '';
-            const vehicleNumber = attraction.data?.vehicleNumber || attraction.data?.vehicle_number || '';
+            const seatingCapacity = attraction.maxPassengerCapacity || vehicleDetails?.seating_capacity || attraction.data?.seatingCapacity || attraction.data?.seating_capacity || '';
+            const vehicleNumber = attraction.vehicleNumber || attraction.data?.vehicleNumber || attraction.data?.vehicle_number || '';
             const childSeatAvailable = attraction.data?.childSeatAvailable || attraction.data?.child_seat_available || '';
             
-            // Driver details
-            const driverName = attraction.data?.driverName || attraction.data?.driver_name || '';
-            const driverPhone = attraction.data?.driverPhone || attraction.data?.driver_phone || '';
+            // Driver details - Get from vehicle_driver_data first (populated from jobsheet/vehicles/drivers), then fallback to data
+            const driverName = attraction.driverName || attraction.data?.driverName || attraction.data?.driver_name || '';
+            const driverPhone = attraction.driverPhone || attraction.data?.driverPhone || attraction.data?.driver_phone || '';
             
             // Passenger details
             const adultCount = attraction.data?.adults || attraction.data?.adultCount || '';
@@ -6723,12 +6856,15 @@
                 // Transfer Details
                 const terminal = service.data?.terminal || '';
                 const travelTime = service.data?.travelTime || service.data?.travel_time || '';
-                const driverName = service.data?.driverName || service.data?.driver_name || '';
-                const driverPhone = service.data?.driverPhone || service.data?.driver_phone || '';
-                const vehicleNumber = service.data?.vehicleNumber || service.data?.vehicle_number || '';
+                
+                // Prioritize vehicle/driver data from serviceInfo (populated from controller)
+                // These come from vehicle_driver_data set in the controller
+                const driverName = service.driverName || service.data?.driverName || service.data?.driver_name || '';
+                const driverPhone = service.driverPhone || service.data?.driverPhone || service.data?.driver_phone || '';
+                const vehicleNumber = service.vehicleNumber || service.data?.vehicleNumber || service.data?.vehicle_number || '';
                 
                 // Capacity Details
-                const maxPassengerCapacity = service.data?.maxPassengerCapacity || service.data?.max_passenger_capacity || service.data?.seating_capacity || '';
+                const maxPassengerCapacity = service.maxPassengerCapacity || service.data?.maxPassengerCapacity || service.data?.max_passenger_capacity || service.data?.seating_capacity || '';
                 const maxLuggageCapacity = service.data?.maxLuggageCapacity || service.data?.max_luggage_capacity || '';
                 const childSeatAvailable = service.data?.childSeatAvailable || service.data?.child_seat_available || '';
                 

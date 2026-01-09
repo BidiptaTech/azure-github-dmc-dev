@@ -224,12 +224,12 @@ use Illuminate\Support\Facades\Crypt;
                            class="btn btn-info btn-sm">
                             <i class="ri-file-download-line me-1"></i> Download PDF only Price
                         </a>
-                        @if($invoice->isEditable())
+                        <!-- @if($invoice->isEditable())
                         <a href="{{ route('invoices.edit', Crypt::encrypt($invoice->invoice_id)) }}" 
                            class="btn btn-outline-warning btn-sm">
                             <i class="ri-pencil-line me-1"></i> Edit
                         </a>
-                        @endif
+                        @endif -->
                         <a href="{{ route('bookings.view-tour', Crypt::encrypt($invoice->tour_id)) }}" 
                            class="btn btn-outline-secondary btn-sm">
                             <i class="ri-arrow-left-line me-1"></i> Back to Tour
@@ -1215,6 +1215,130 @@ use Illuminate\Support\Facades\Crypt;
                                 </div>
                                 @endif
                             </div>
+                        </div>
+                    </div>
+                </div>
+                @endif
+
+                <!-- Payment Terms and Bank Details -->
+                @php
+                    // Fetch bank details from database based on tour's dmc_id
+                    $tour = $invoice->tour;
+                    $dmcId = $tour->dmc_id ?? $invoice->dmc_id ?? null;
+                    $bankDetail = null;
+                    $paymentTerms = [];
+                    $bankDetailsData = [];
+                    
+                    if ($dmcId) {
+                        // Fetch active bank details for this DMC
+                        $bankDetail = \App\Models\BankDetail::where('dmc_id', $dmcId)
+                            ->where('is_active', 1)
+                            ->whereNull('deleted_at')
+                            ->first();
+                    }
+                    
+                    // Use database bank details if found, otherwise fall back to invoice stored data
+                    if ($bankDetail) {
+                        $paymentTerms = $bankDetail->payment_terms ?? [];
+                        $bankDetailsData = [
+                            'account_name' => $bankDetail->account_name ?? '',
+                            'account_number' => $bankDetail->account_number ?? '',
+                            'bank_address' => $bankDetail->bank_address ?? '',
+                            'ifsc_code' => $bankDetail->ifsc ?? null,
+                            'swift_bic_iban' => $bankDetail->swift_bic_iban ?? null,
+                            'bank_code' => $bankDetail->bank_code ?? null,
+                            'branch_code' => $bankDetail->branch_code ?? null,
+                            'aba_routing_number' => $bankDetail->aba_routing ?? null,
+                        ];
+                    } else {
+                        // Fallback to invoice stored data
+                        $paymentTerms = $invoice->payment_terms ?? [];
+                        $bankDetailsData = $invoice->bank_details ?? [];
+                    }
+                    
+                    // If no payment terms found, use default
+                    if (empty($paymentTerms)) {
+                        $dmcCompanyName = $invoice->dmc->company_name ?? 'DMC';
+                        $dmcEmail = $invoice->dmc->email ?? 'dmc email';
+                        $paymentTerms = [
+                            'Please pay the amount before the payment due date to avoid auto release of booking. Bank details are mentioned below.',
+                            'Payment/Remittance to be made in the currency as stated in the invoice.',
+                            'Bank charges to be borne by remitter. Please ensure that ' . $dmcCompanyName . ' receive full payment as per Invoice.',
+                            'To ensure prompt credit, please send payment details along with remittance advice at ' . $dmcEmail . '.',
+                            'Interest @ 18% will be charged on all overdues.',
+                            'This document is not a voucher. Voucher will be issued after the receipt of full monies & necessary documents.',
+                        ];
+                    }
+                @endphp
+
+                @if(!empty($paymentTerms))
+                <div class="card mb-4" style="border-left: 4px solid #FFC0CB; margin-top: 20px;">
+                    <div class="card-header" style="background-color: #FFC0CB;">
+                        <h5 class="mb-0"><strong>Payment Terms :</strong></h5>
+                    </div>
+                    <div class="card-body" style="background-color: #FFC0CB;">
+                        <ol style="margin-left: 20px; margin-top: 10px;">
+                            @foreach($paymentTerms as $term)
+                            <li style="margin-bottom: 8px;">{{ $term }}</li>
+                            @endforeach
+                        </ol>
+                    </div>
+                </div>
+                @endif
+
+                @if(!empty($bankDetailsData))
+                <div class="card mb-4" style="border-left: 4px solid #FFC0CB;">
+                    <div class="card-header" style="background-color: #FFC0CB;">
+                        <h5 class="mb-0"><strong>Bank Details:</strong></h5>
+                    </div>
+                    <div class="card-body" style="background-color: #FFC0CB;">
+                        <div class="table-responsive">
+                            <table class="table table-bordered" style="background-color: white;">
+                                <tbody>
+                                    <tr>
+                                        <td style="width: 40%; font-weight: 600;">Account Name</td>
+                                        <td>{{ $bankDetailsData['account_name'] ?? '' }}</td>
+                                    </tr>
+                                    <tr>
+                                        <td style="font-weight: 600;">Account Number</td>
+                                        <td>{{ $bankDetailsData['account_number'] ?? '' }}</td>
+                                    </tr>
+                                    <tr>
+                                        <td style="font-weight: 600;">Bank Address</td>
+                                        <td>{{ $bankDetailsData['bank_address'] ?? '' }}</td>
+                                    </tr>
+                                    @if(!empty($bankDetailsData['ifsc_code']))
+                                    <tr>
+                                        <td style="font-weight: 600;">IFSC (For India only)</td>
+                                        <td>{{ $bankDetailsData['ifsc_code'] }}</td>
+                                    </tr>
+                                    @endif
+                                    @if(!empty($bankDetailsData['swift_bic_iban']))
+                                    <tr>
+                                        <td style="font-weight: 600;">SWIFT / BIC / IBAN Code (as applicable for international, Europe transfers)</td>
+                                        <td>{{ $bankDetailsData['swift_bic_iban'] }}</td>
+                                    </tr>
+                                    @endif
+                                    @if(!empty($bankDetailsData['bank_code']))
+                                    <tr>
+                                        <td style="font-weight: 600;">Bank Code (For Singapore)</td>
+                                        <td>{{ $bankDetailsData['bank_code'] }}</td>
+                                    </tr>
+                                    @endif
+                                    @if(!empty($bankDetailsData['branch_code']))
+                                    <tr>
+                                        <td style="font-weight: 600;">Branch Code (For Singapore)</td>
+                                        <td>{{ $bankDetailsData['branch_code'] }}</td>
+                                    </tr>
+                                    @endif
+                                    @if(!empty($bankDetailsData['aba_routing_number']))
+                                    <tr>
+                                        <td style="font-weight: 600;">ABA / Routing Number (For USA only)</td>
+                                        <td>{{ $bankDetailsData['aba_routing_number'] }}</td>
+                                    </tr>
+                                    @endif
+                                </tbody>
+                            </table>
                         </div>
                     </div>
                 </div>

@@ -2,6 +2,7 @@
 
 use App\Http\Controllers\AgentController;
 use App\Http\Controllers\AgencyController;
+use App\Http\Controllers\BankDetailController;
 use App\Http\Controllers\BedsController;
 use App\Http\Controllers\RoomsController;
 use App\Http\Controllers\RoomtypeController;
@@ -146,6 +147,27 @@ Route::get('/clear', function () {
             Route::post('/services/agencies/select', [AgencyController::class, 'selectAgency'])->name('services.agencies.select');
             Route::post('/services/agencies/remove', [AgencyController::class, 'removeAgency'])->name('services.agencies.remove');
             
+            // Miscellaneous Items - Admin Routes (Product Level 1)
+            Route::prefix('miscellaneous')->group(function () {
+                Route::get('/', [App\Http\Controllers\Admin\MiscellaneousItemController::class, 'index'])->name('miscellaneous.index');
+                Route::get('/create', [App\Http\Controllers\Admin\MiscellaneousItemController::class, 'create'])->name('miscellaneous.create');
+                Route::post('/', [App\Http\Controllers\Admin\MiscellaneousItemController::class, 'store'])->name('miscellaneous.store');
+                Route::get('/debug-items', [App\Http\Controllers\Admin\MiscellaneousItemController::class, 'debugItems'])->name('miscellaneous.debug');
+                Route::get('/{id}', [App\Http\Controllers\Admin\MiscellaneousItemController::class, 'show'])->name('miscellaneous.show');
+                Route::get('/{id}/edit', [App\Http\Controllers\Admin\MiscellaneousItemController::class, 'edit'])->name('miscellaneous.edit');
+                Route::put('/{id}', [App\Http\Controllers\Admin\MiscellaneousItemController::class, 'update'])->name('miscellaneous.update');
+                Route::delete('/{id}', [App\Http\Controllers\Admin\MiscellaneousItemController::class, 'destroy'])->name('miscellaneous.destroy');
+            });
+            
+            // Miscellaneous Selection & Pricing - DMC Routes (like restaurant selection)
+            Route::get('/services/miscellaneous', [App\Http\Controllers\Admin\MiscellaneousItemController::class, 'dmcMiscellaneousSelection'])->name('services.miscellaneous');
+            Route::post('/services/miscellaneous/update', [App\Http\Controllers\Admin\MiscellaneousItemController::class, 'updateDmcMiscellaneous'])->name('services.miscellaneous.update');
+            Route::post('/services/miscellaneous/select', [App\Http\Controllers\Admin\MiscellaneousItemController::class, 'selectMiscellaneous'])->name('services.miscellaneous.select');
+            Route::post('/services/miscellaneous/remove', [App\Http\Controllers\Admin\MiscellaneousItemController::class, 'removeMiscellaneous'])->name('services.miscellaneous.remove');
+            
+            // API Routes for Enquiry Pro Form
+            Route::get('/api/miscellaneous/dmc/{dmcId}', [App\Http\Controllers\Admin\MiscellaneousItemController::class, 'getItemsForDmc'])->name('api.miscellaneous.dmc');
+            
             Route::resource('hotels', HotelController::class);
             
             Route::post('/search-roles', [FeaturesController::class, 'searchRoles'])->name('search-roles');
@@ -187,8 +209,91 @@ Route::get('/clear', function () {
             
             // Enquiry Form Pro Routes
             Route::get('/enquiry-form-pro/create', [EnquiryFormPro::class, 'create'])->name('enquiry-form-pro.create');
+            Route::post('/enquiry-form-pro/initialize', [EnquiryFormPro::class, 'initialize'])->name('enquiry-form-pro.initialize');
+            Route::post('/enquiry-form-pro/store', [EnquiryFormPro::class, 'store'])->name('enquiry-form-pro.store');
+            Route::get('/enquiry-form-pro/edit/{tour_id}', [EnquiryFormPro::class, 'edit'])->name('enquiry-form-pro.edit');
+            Route::put('/enquiry-form-pro/update/{tour_id}', [EnquiryFormPro::class, 'update'])->name('enquiry-form-pro.update');
             Route::get('/enquiry-form-pro/get-hotels', [EnquiryFormPro::class, 'getHotelsByDestination'])->name('enquiry-form-pro.get-hotels');
             Route::get('/enquiry-form-pro/get-agents', [EnquiryFormPro::class, 'getAgentsByAgency'])->name('enquiry-form-pro.get-agents');
+            Route::get('/enquiry-form-pro/get-agencies', [EnquiryFormPro::class, 'getAgencies'])->name('enquiry-form-pro.get-agencies');
+            Route::get('/enquiry-form-pro/get-destinations', [EnquiryFormPro::class, 'getDestinations'])->name('enquiry-form-pro.get-destinations');
+            Route::get('/enquiry-form-pro/get-attractions', [EnquiryFormPro::class, 'getAttractionsByDestination'])->name('enquiry-form-pro.get-attractions');
+            Route::get('/enquiry-form-pro/get-guides', [EnquiryFormPro::class, 'getGuidesByDestination'])->name('enquiry-form-pro.get-guides');
+            Route::get('/enquiry-form-pro/get-zone-prices', [EnquiryFormPro::class, 'getZonePrices'])->name('enquiry-form-pro.get-zone-prices');
+            
+            // Debug route to check DMC data
+            Route::get('/debug/dmc-data', function() {
+                $user = auth()->user();
+                
+                // Determine DMC ID
+                $dmc_id = null;
+                if ($user->role_id == 11) {
+                    $dmc_id = $user->userId;
+                } elseif (in_array($user->role_id, [33, 34, 35, 77, 78, 84, 120, 128, 129, 130, 131, 132, 133, 134, 135, 136, 137, 138, 139, 140])) {
+                    $dmc_id = $user->created_by;
+                }
+                
+                $destination = 'Singapore';
+                
+                // Check hotels with all filters (same as API)
+                $hotelsWithFilters = \App\Models\Hotel::where('status', 1)
+                    ->where('is_active', 1)
+                    ->where('is_complete', 1)
+                    ->where('city', $destination)
+                    ->whereJsonContains('dmc_id', (int) $dmc_id)
+                    ->get(['id', 'name', 'dmc_id', 'city', 'status', 'is_active', 'is_complete']);
+                
+                // Check hotels without DMC filter
+                $hotelsWithoutDmc = \App\Models\Hotel::where('status', 1)
+                    ->where('is_active', 1)
+                    ->where('is_complete', 1)
+                    ->where('city', $destination)
+                    ->get(['id', 'name', 'dmc_id', 'city']);
+                
+                // Check ALL hotels in Singapore (no filters)
+                $allHotels = \App\Models\Hotel::where('city', $destination)
+                    ->get(['id', 'name', 'dmc_id', 'city', 'status', 'is_active', 'is_complete']);
+                
+                $attractions = \App\Models\Attraction::whereJsonContains('dmc_id', (int) $dmc_id)
+                    ->where('status', 1)
+                    ->where('location', $destination)
+                    ->get(['attraction_id', 'name', 'dmc_id', 'location', 'adult_price', 'child_price']);
+                
+                $restaurants = \App\Models\Restaurant::whereJsonContains('dmc_id', (int) $dmc_id)
+                    ->where('status', 1)
+                    ->where('city', $destination)
+                    ->get(['restaurant_id', 'name', 'dmc_id', 'city']);
+                
+                return response()->json([
+                    'user_info' => [
+                        'user_id' => $user->userId,
+                        'role_id' => $user->role_id,
+                        'created_by' => $user->created_by,
+                        'dmc_id_determined' => $dmc_id
+                    ],
+                    'destination' => $destination,
+                    'hotels_with_all_filters' => [
+                        'count' => $hotelsWithFilters->count(),
+                        'data' => $hotelsWithFilters
+                    ],
+                    'hotels_without_dmc_filter' => [
+                        'count' => $hotelsWithoutDmc->count(),
+                        'data' => $hotelsWithoutDmc
+                    ],
+                    'all_hotels_in_singapore' => [
+                        'count' => $allHotels->count(),
+                        'data' => $allHotels
+                    ],
+                    'attractions' => [
+                        'count' => $attractions->count(),
+                        'data' => $attractions
+                    ],
+                    'restaurants' => [
+                        'count' => $restaurants->count(),
+                        'data' => $restaurants
+                    ]
+                ]);
+            });
             
             Route::get('/tour/{tourId}/download-itinerary', function ($tourId) {
                 $pdfResponse = CommonHelper::downloadTourPdf($tourId);
@@ -820,6 +925,9 @@ Route::post('/hotel-booking/upload-restaurant-files', [HotelBookingController::c
         Route::get('/registered-agents', [App\Http\Controllers\AgentViewController::class, 'index'])->name('registered-agents.index');
         Route::get('/registered-agents/{agent_id}', [App\Http\Controllers\AgentViewController::class, 'show'])->name('registered-agents.show');
         Route::post('/registered-agents/verify', [App\Http\Controllers\AgentViewController::class, 'verifyAgent'])->name('registered-agents.verify');
+        
+        // Bank Details routes
+        Route::resource('bank-details', BankDetailController::class);
         
         // App Management routes
         Route::get('/app-management', [App\Http\Controllers\AppManagementController::class, 'index'])->name('app-management.index');
