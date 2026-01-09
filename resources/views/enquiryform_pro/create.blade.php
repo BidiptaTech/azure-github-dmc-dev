@@ -1490,7 +1490,7 @@
                             onchange="handleMarkupTypeChange()">
                         <option value="" selected>Select</option>
                         <option value="percentage">%</option>
-                        <option value="fixed">Fixed</option>
+                        <option value="flat">Fixed</option>
                     </select>
                     <input type="number" id="markupValue" value="0" step="1" min="0" disabled
                            style="width: 50px; font-size: 10px; padding: 2px 5px; height: 24px; box-sizing: border-box;" 
@@ -1504,7 +1504,7 @@
                             onchange="handleDiscountTypeChange()">
                         <option value="" selected>Select</option>
                         <option value="percentage">%</option>
-                        <option value="fixed">Fixed</option>
+                        <option value="flat">Fixed</option>
                     </select>
                     <input type="number" id="discountValue" value="0" step="1" min="0" disabled
                            style="width: 50px; font-size: 10px; padding: 2px 5px; height: 24px; box-sizing: border-box;" 
@@ -12873,6 +12873,11 @@
                 if (!response.ok) {
                     throw new Error('Failed to load items');
                 }
+                // Check if response is JSON before parsing
+                const contentType = response.headers.get("content-type");
+                if (!contentType || !contentType.includes("application/json")) {
+                    throw new Error('Server returned non-JSON response');
+                }
                 return response.json();
             })
             .then(items => {
@@ -16093,6 +16098,13 @@
                 return { private_price: 0, shared_price: 0 };
             }
             
+            // Check if response is JSON before parsing
+            const contentType = response.headers.get("content-type");
+            if (!contentType || !contentType.includes("application/json")) {
+                console.error('Server returned non-JSON response:', contentType);
+                return { private_price: 0, shared_price: 0 };
+            }
+            
             const result = await response.json();
             console.log('API Response:', result);
             
@@ -17302,6 +17314,19 @@
             
             if (!response.ok) {
                 console.error('Failed to fetch vehicle details:', response.statusText);
+                return {
+                    vehicles_name: "",
+                    vehicle_type: "",
+                    vehicle_model: "",
+                    model_year: "",
+                    image: ""
+                };
+            }
+            
+            // Check if response is JSON before parsing
+            const contentType = response.headers.get("content-type");
+            if (!contentType || !contentType.includes("application/json")) {
+                console.error('Server returned non-JSON response:', contentType);
                 return {
                     vehicles_name: "",
                     vehicle_type: "",
