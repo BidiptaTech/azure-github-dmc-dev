@@ -1881,6 +1881,19 @@ class CommonHelper
         // Format hotels for Excel-like display
         $hotelOptions = self::formatHotelsForPdf($orders, $tour);
         
+        // Fetch bank details from DMC user
+        $bankDetails = [];
+        if ($dmcUser && isset($dmcUser->bank_details)) {
+            $bankDetailsData = is_string($dmcUser->bank_details) ? json_decode($dmcUser->bank_details, true) : $dmcUser->bank_details;
+            if (is_array($bankDetailsData)) {
+                $bankDetails = $bankDetailsData;
+            }
+        }
+        
+        // Terms and conditions and payment terms (can be extended to fetch from database)
+        $termsAndConditions = '';
+        $paymentTerms = [];
+        
         try {
             // Configure DomPDF options to work without GD if possible
             $pdf = Pdf::loadView('single-tour-package.pdf-itinerary', [
@@ -1897,6 +1910,9 @@ class CommonHelper
                 'travelDetails' => $travelDetails,
                 'tourPrices' => $tourPrices,
                 'hotelOptions' => $hotelOptions,
+                'bankDetails' => $bankDetails,
+                'termsAndConditions' => $termsAndConditions,
+                'paymentTerms' => $paymentTerms,
             ]);
             
             $pdf->setPaper('a4');
@@ -1904,7 +1920,7 @@ class CommonHelper
             $pdf->setOption('isHtml5ParserEnabled', true);
             $pdf->setOption('isRemoteEnabled', false);
             
-            return $pdf->download("tour-{$tourId}-itinerary.pdf");
+            return $pdf->download("tour-quotation.pdf");
         } catch (\Exception $e) {
             // If GD is required and not available, try without logo
             if (strpos($e->getMessage(), 'GD extension') !== false && !empty($dmcLogo)) {
@@ -1927,6 +1943,9 @@ class CommonHelper
                     'travelDetails' => $travelDetails,
                     'tourPrices' => $tourPrices,
                     'hotelOptions' => $hotelOptions,
+                    'bankDetails' => $bankDetails,
+                    'termsAndConditions' => $termsAndConditions,
+                    'paymentTerms' => $paymentTerms,
                 ]);
                 
                 $pdf->setPaper('a4');
@@ -1934,7 +1953,7 @@ class CommonHelper
                 $pdf->setOption('isHtml5ParserEnabled', true);
                 $pdf->setOption('isRemoteEnabled', false);
                 
-                return $pdf->download("tour-{$tourId}-itinerary.pdf");
+                return $pdf->download("tour-quotation.pdf");
             }
             
             // Re-throw if it's a different error
@@ -2786,15 +2805,117 @@ class CommonHelper
             'local_transfer_vehicle',
         ];
 
+        // Entry port flight details
+        $entryPortFlightDetails = null;
+        if (strtolower($type) === 'entry_port') {
+            $entryPortFlightDetails = [
+                'flight_name' => $item['flightName'] ?? $item['flight_name'] ?? $item['originFlightName'] ?? null,
+                'flight_no' => $item['flightNo'] ?? $item['flight_no'] ?? $item['originFlightNumber'] ?? $item['arrivalFlightNumber'] ?? null,
+                'origin_departure_time' => $item['departureTime'] ?? $item['departure_time'] ?? $item['originDepartureTime'] ?? null,
+                'origin_departure_terminal' => $item['originTerminal'] ?? $item['origin_terminal'] ?? $item['originDepartureTerminal'] ?? null,
+                'destination_arrival_time' => $item['arrivalTime'] ?? $item['arrival_time'] ?? $item['destinationArrivalTime'] ?? $item['entrytime'] ?? null,
+                'destination_arrival_terminal' => $item['arrivalTerminal'] ?? $item['arrival_terminal'] ?? $item['destinationArrivalTerminal'] ?? null,
+            ];
+        }
+
+        // Exit port flight details
+        $exitPortFlightDetails = null;
+        if (strtolower($type) === 'exit_port') {
+            $exitPortFlightDetails = [
+                'flight_name' => $item['flightName'] ?? $item['flight_name'] ?? $item['originFlightName'] ?? null,
+                'flight_no' => $item['flightNo'] ?? $item['flight_no'] ?? $item['originFlightNumber'] ?? $item['arrivalFlightNumber'] ?? null,
+                'origin_departure_time' => $item['departureTime'] ?? $item['departure_time'] ?? $item['originDepartureTime'] ?? $item['exitpickuptime'] ?? $item['exit_time'] ?? null,
+                'origin_departure_terminal' => $item['originTerminal'] ?? $item['origin_terminal'] ?? $item['originDepartureTerminal'] ?? null,
+                'destination_arrival_time' => $item['arrivalTime'] ?? $item['arrival_time'] ?? $item['destinationArrivalTime'] ?? null,
+                'destination_arrival_terminal' => $item['arrivalTerminal'] ?? $item['arrival_terminal'] ?? $item['destinationArrivalTerminal'] ?? null,
+            ];
+        }
+
         $vehicleDetails = null;
         if (in_array(strtolower($type), $transferTypes, true)) {
+            // Get transfer type (from transfer_options or direct item)
+            $transferOptions = $item['transfer_options'] ?? null;
+            $transferType = null;
+            if ($transferOptions && !empty($transferOptions['type'])) {
+                $transferType = $transferOptions['type'];
+            } else {
+                // For local_transfer, use the type field directly
+                $transferType = $item['type'] ?? null;
+            }
+            
+            // Get vehicle details (from transfer_options.vehicle_details or direct item)
+            $vehicleDetailsFromOptions = $transferOptions['vehicle_details'] ?? null;
+            
+            $vehicleType = null;
+            $seatingCapacity = null;
+            $vehicleNumber = null;
+            $vehicleBrand = null;
+            
+            // Try to fetch from Vehicle model if vehicles_id is available
+            $vehicleRecord = null;
+            if (!empty($item['vehicles_id'])) {
+                try {
+                    $vehicleRecord = \App\Models\Vehicle::where('vehicle_id', $item['vehicles_id'])->first();
+                } catch (\Exception $e) {
+                    // If Vehicle model not found, continue without it
+                }
+            }
+            
+            if ($vehicleRecord) {
+                $vehicleType = $vehicleRecord->vehicle_type ?? null;
+                $seatingCapacity = $vehicleRecord->sitting_capacity ?? null;
+                $vehicleNumber = $vehicleRecord->vehicle_plate_no ?? null;
+                $vehicleBrand = $vehicleRecord->vehicle_model ?? $vehicleRecord->vehicle_name ?? null;
+            }
+            
+            // Get from transfer_options.vehicle_details if available
+            if ($vehicleDetailsFromOptions && is_array($vehicleDetailsFromOptions)) {
+                $vehicleType = $vehicleType ?? $vehicleDetailsFromOptions['vehicle_type'] ?? null;
+                $seatingCapacity = $seatingCapacity ?? $vehicleDetailsFromOptions['seating_capacity'] ?? null;
+            }
+            
+            // Parse vehicles_name if it contains type and seating info (e.g., "Jaguar F-Pace (SUV) - 7 seats")
+            $vehiclesName = $item['vehicles_name'] ?? null;
+            if ($vehiclesName && (!$vehicleType || !$seatingCapacity)) {
+                // Try to extract from format like "Jaguar F-Pace (SUV) - 7 seats"
+                if (preg_match('/\(([^)]+)\)/', $vehiclesName, $typeMatch)) {
+                    $vehicleType = $vehicleType ?? $typeMatch[1];
+                }
+                if (preg_match('/(\d+)\s*seat/i', $vehiclesName, $seatMatch)) {
+                    $seatingCapacity = $seatingCapacity ?? $seatMatch[1];
+                }
+            }
+            
+            // Fallback to direct item fields
+            $vehicleType = $vehicleType ?? $item['vehicle_type'] ?? null;
+            $seatingCapacity = $seatingCapacity ?? $item['seating_capacity'] ?? null;
+            $vehicleNumber = $vehicleNumber ?? $item['vehicle_number'] ?? $item['vehicleNumber'] ?? null;
+            $vehicleBrand = $vehicleBrand ?? $item['vehicle_brand'] ?? $item['vehicleBrand'] ?? $item['vehicle_model'] ?? null;
+            
+            // Format Vehicle Type / Seater
+            $vehicleTypeSeater = '';
+            if ($vehicleType && $seatingCapacity) {
+                $vehicleTypeSeater = $vehicleType . ' / ' . $seatingCapacity . ' Seater';
+            } elseif ($vehicleType) {
+                $vehicleTypeSeater = $vehicleType;
+            } elseif ($seatingCapacity) {
+                $vehicleTypeSeater = $seatingCapacity . ' Seater';
+            } else {
+                $vehicleTypeSeater = 'N/A';
+            }
+            
             $vehicleDetails = [
-                'name' => $item['vehicles_name'] ?? null,
+                'name' => $vehiclesName,
                 'type' => $item['type'] ?? null,
-                'vehicle_type' => $item['vehicle_type'] ?? null,
+                'transfer_type' => $transferType,
+                'vehicle_type' => $vehicleType,
+                'vehicle_type_seater' => $vehicleTypeSeater,
+                'vehicle_number' => $vehicleNumber ?: 'N/A',
+                'vehicle_brand' => $vehicleBrand ?: 'N/A',
+                'seating_capacity' => $seatingCapacity,
+                'max_passenger_capacity' => $seatingCapacity ?: 'N/A', // Same as seating capacity
                 'vehicle_model' => $item['vehicle_model'] ?? null,
                 'model_year' => $item['model_year'] ?? null,
-                'seating_capacity' => $item['seating_capacity'] ?? null,
                 'travel_type' => $item['travel_type'] ?? null,
                 'mode' => $item['Mode'] ?? $item['mode'] ?? null,
             ];
@@ -2807,19 +2928,36 @@ class CommonHelper
             $childCount = $item['childCount'] ?? $item['child'] ?? 0;
             $seniorCount = $item['seniorCount'] ?? $item['senior'] ?? 0;
             
-            $selection = $item['Selection'] ?? null;
+            // Extract transfer options - prioritize transfer_options over Selection
+            $transferOptions = $item['transfer_options'] ?? null;
+            $transferRequired = 'N/A';
+            $transferType = 'N/A';
+            
+            if ($transferOptions) {
+                // Get transfer_required from transfer_options
+                if (isset($transferOptions['transfer_required'])) {
+                    $transferRequired = $transferOptions['transfer_required'] ? 'Yes' : 'No';
+                }
+                // Get transfer type from transfer_options
+                if (!empty($transferOptions['type'])) {
+                    $transferType = $transferOptions['type'];
+                }
+            }
+            
             $transportNote = null;
-            if (strtolower($selection) === 'withouttransport') {
+            if ($transferRequired === 'No') {
                 $transportNote = 'Transport not included';
             }
             
             $attractionDetails = [
-                'ticket_name' => $item['ticketName'] ?? null,
+                'ticket_name' => $item['ticketName'] ?? $item['ticketName'] ?? null,
                 'adult_count' => $adultCount > 0 ? $adultCount : null,
                 'child_count' => $childCount > 0 ? $childCount : null,
                 'senior_count' => $seniorCount > 0 ? $seniorCount : null,
                 'visit_time' => $item['visitTime'] ?? null,
                 'transport_note' => $transportNote,
+                'transfer_required' => $transferRequired,
+                'transfer_type' => $transferType,
             ];
         }
 
@@ -2844,14 +2982,42 @@ class CommonHelper
                 }
             }
             
+            // Extract transfer options
+            $transferOptions = $item['transfer_options'] ?? null;
+            $transferRequired = 'N/A';
+            $transferType = 'N/A';
+            
+            if ($transferOptions) {
+                // Get transfer_required from transfer_options
+                if (isset($transferOptions['transfer_required'])) {
+                    $transferRequired = $transferOptions['transfer_required'] ? 'Yes' : 'No';
+                }
+                // Get transfer type from transfer_options
+                if (!empty($transferOptions['type'])) {
+                    $transferType = $transferOptions['type'];
+                }
+            }
+            
+            // Clean mealSpecificType to remove emojis and special characters
+            $mealSpecificType = $item['mealSpecificType'] ?? null;
+            if ($mealSpecificType) {
+                // Remove all non-ASCII characters except spaces, keep only printable ASCII (32-126)
+                // This will remove all emojis, special Unicode characters, and any characters that might render as "?"
+                $mealSpecificType = preg_replace('/[^\x20-\x7E]/u', '', $mealSpecificType);
+                $mealSpecificType = trim($mealSpecificType); // Remove leading/trailing whitespace
+            }
+            
             $restaurantDetails = [
                 'ticket_name' => $item['ticketName'] ?? null,
                 'adult_count' => $adultCount > 0 ? $adultCount : null,
                 'child_count' => $childCount > 0 ? $childCount : null,
                 'senior_count' => $seniorCount > 0 ? $seniorCount : null,
                 'visit_time' => $item['visitTime'] ?? null,
-                'meal_type' => $item['mealType'] ?? null,
+                'meal_type' => $mealSpecificType ?: null,
+                'meal_plan' => $item['mealType'] ?? null,
                 'meal_items' => $mealItems,
+                'transfer_required' => $transferRequired,
+                'transfer_type' => $transferType,
             ];
         }
 
@@ -2866,8 +3032,36 @@ class CommonHelper
                 $languages = [];
             }
             
+            // Format languages as comma-separated string for Language Proficiency
+            $languageProficiency = '';
+            if (!empty($languages)) {
+                $languageList = [];
+                foreach ($languages as $lang) {
+                    if (is_array($lang)) {
+                        // If language is an array with 'language' and 'proficiency' keys
+                        $langName = $lang['language'] ?? '';
+                        $proficiency = $lang['proficiency'] ?? '';
+                        if ($langName) {
+                            $languageList[] = $proficiency ? $langName . ' (' . $proficiency . ')' : $langName;
+                        }
+                    } else {
+                        // If language is a simple string
+                        $languageList[] = $lang;
+                    }
+                }
+                $languageProficiency = implode(', ', $languageList);
+            }
+            $guide = Guide::where('guide_id', $item['guide_id'])->first();
+            // Get total experience (try experience_years first, then experience)
+            $totalExperience = $guide->experience_years ?? $guide->experience ?? null;
+            if ($totalExperience !== null) {
+                $totalExperience = $totalExperience . ' years';
+            }
+            
             $guideDetails = [
-                'guide_name' => $item['guide_name'] ?? null,
+                'guide_name' => $guide->name ?? null,
+                'language_proficiency' => $languageProficiency ?: 'N/A',
+                'total_experience' => $totalExperience ?: 'N/A',
                 'languages' => array_filter($languages),
                 'hours' => $item['hours'] ?? null,
                 'entry_time' => $item['entrytime'] ?? null,
@@ -2895,6 +3089,8 @@ class CommonHelper
             'attraction' => $attractionDetails,
             'restaurant' => $restaurantDetails,
             'guide' => $guideDetails,
+            'entry_port_flight' => $entryPortFlightDetails,
+            'exit_port_flight' => $exitPortFlightDetails,
         ];
     }
 
@@ -2958,24 +3154,26 @@ class CommonHelper
                 $hotelName = $item['hotelDetails']['hotel_name'] ?? $item['hotelname'] ?? 'N/A';
                 $hotelCategory = $item['hotelDetails']['category'] ?? $item['hotelDetails']['category_name'] ?? 'N/A';
                 
-                // Get packaged prices - use totalPrice divided by adults for per adult price
+                // Get packaged prices - add cost (from transfer_options) and totalPrice, then divide by head_count
                 $totalPrice = floatval($item['totalPrice'] ?? $item['price'] ?? 0);
-                $adultCount = 0;
+                $transferCost = floatval($item['transfer_options']['cost'] ?? 0);
+                $headCount = 0;
                 $childCount = 0;
                 $infantCount = 0;
                 
-                // Calculate adult/child/infant counts from rooms
+                // Calculate head_count from beds (sum of all head_count values)
                 $rooms = $item['rooms'] ?? [];
                 if (is_array($rooms) && count($rooms) > 0) {
                     foreach ($rooms as $room) {
                         $beds = $room['beds'] ?? [];
                         foreach ($beds as $bed) {
-                            $adultCount += (int)($bed['head_count'] ?? 0);
+                            $headCount += (int)($bed['head_count'] ?? 0);
                         }
                     }
                 }
                 
-                $adultPrice = $adultCount > 0 ? ($totalPrice / $adultCount) : ($totalPrice > 0 ? $totalPrice : 'N/A');
+                // Calculate Per Adult Packaged Price: (cost + totalPrice) / head_count, then round up (ceiling)
+                $adultPrice = $headCount > 0 ? ceil(($transferCost + $totalPrice) / $headCount) : 'N/A';
                 $childPrice = $item['childPrice'] ?? $item['child_price'] ?? 'N/A';
                 $infantPrice = $item['infantPrice'] ?? $item['infant_price'] ?? 'N/A';
 

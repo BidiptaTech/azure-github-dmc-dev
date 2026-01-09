@@ -447,6 +447,23 @@
 <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-datalabels@2"></script>
 
 <div class="dashboard-container">
+    <!-- Flash Messages -->
+    @if(session('success'))
+        <div class="alert alert-success alert-dismissible fade show" role="alert" style="margin-bottom: 1.5rem; border-radius: 10px;">
+            <i class="ri-check-circle-line me-2"></i>
+            {{ session('success') }}
+            <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+        </div>
+    @endif
+
+    @if(session('error'))
+        <div class="alert alert-danger alert-dismissible fade show" role="alert" style="margin-bottom: 1.5rem; border-radius: 10px;">
+            <i class="ri-error-warning-line me-2"></i>
+            {{ session('error') }}
+            <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+        </div>
+    @endif
+
     <!-- Dashboard Header -->
     <div class="dashboard-header">
         <div class="row align-items-center">
@@ -916,7 +933,7 @@
         </div>
         @endif
 
-        @if($userPermissions['canViewBusinessMetrics'])
+        <!-- @if($userPermissions['canViewBusinessMetrics'])
         <div class="col-lg-2 col-md-4 col-sm-6">
             <a href="{{ route('bookinglist.index') }}" class="quick-action-btn">
                 <div class="quick-action-icon">
@@ -934,7 +951,7 @@
                 <span>Manage Tours</span>
             </a>
         </div>
-        @endif
+        @endif -->
 
         @php
             $excludedRoles = [38, 81, 84, 87, 90, 93, 96, 99, 102, 105, 108, 111, 114, 117, 120, 123];
@@ -1448,7 +1465,7 @@ function generateInsights() {
         
         <div class="insight-item">
             <div class="insight-icon" style="background: linear-gradient(135deg, #43e97b, #38f9d7);">
-                <i class="ri-trending-up-line"></i>
+                <i class="ri-calendar-check-line"></i>
             </div>
             <div class="insight-content">
                 <h6>Most Active This Month</h6>

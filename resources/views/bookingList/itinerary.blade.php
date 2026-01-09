@@ -3929,6 +3929,9 @@
                                 'fullName' => $data['fullName'] ?? '',
                                 'email' => $data['email'] ?? '',
                                 'phone' => $data['phone'] ?? '',
+                                'address' => $data['address'] ?? $data['address1'] ?? $data['address2'] ?? 'N/A',
+                                'state' => $data['state'] ?? $data['city'] ?? 'N/A',
+                                'zip' => $data['zip'] ?? $data['postal_code'] ?? 'N/A',
                             ];
                         }
                         
@@ -4148,41 +4151,58 @@
             bookingCount: @json($pdfDebugBookingCount ?? 0)
         };
         
-        document.getElementById('downloadText').addEventListener('click', function() {
-            downloadAsText();
-        });
+        // Download Text Itinerary functionality (only if button exists)
+        const downloadTextBtn = document.getElementById('downloadText');
+        if (downloadTextBtn) {
+            downloadTextBtn.addEventListener('click', function() {
+                downloadAsText();
+            });
+        }
         
-        // Download Excel Format PDF functionality
-        document.getElementById('downloadExcelFormat').addEventListener('click', function(e) {
-            e.preventDefault();
-            console.log('Download Excel Format button clicked');
-            try {
-                downloadAsExcelFormat();
-            } catch (error) {
-                console.error('Error in downloadAsExcelFormat:', error);
-                showErrorMessage('Failed to download Excel format: ' + error.message);
-            }
-        });
+        // Download Excel Format PDF functionality (only if button exists)
+        const downloadExcelFormatBtn = document.getElementById('downloadExcelFormat');
+        if (downloadExcelFormatBtn) {
+            downloadExcelFormatBtn.addEventListener('click', function(e) {
+                e.preventDefault();
+                console.log('Download Excel Format button clicked');
+                try {
+                    downloadAsExcelFormat();
+                } catch (error) {
+                    console.error('Error in downloadAsExcelFormat:', error);
+                    showErrorMessage('Failed to download Excel format: ' + error.message);
+                }
+            });
+        }
         
-        // Download PDF functionality
-        document.getElementById('downloadPdf').addEventListener('click', function() {
-            downloadAsPDF();
-        });
+        // Download PDF functionality (only if button exists)
+        const downloadPdfBtn = document.getElementById('downloadPdf');
+        if (downloadPdfBtn) {
+            downloadPdfBtn.addEventListener('click', function() {
+                downloadAsPDF();
+            });
+        }
         
-        // Print functionality
-        document.getElementById('printItinerary').addEventListener('click', function() {
-            preparePrint();
-            setTimeout(function() {
-                window.print();
-            }, 300);
-        });
+        // Print functionality (only if button exists)
+        const printItineraryBtn = document.getElementById('printItinerary');
+        if (printItineraryBtn) {
+            printItineraryBtn.addEventListener('click', function() {
+                preparePrint();
+                setTimeout(function() {
+                    window.print();
+                }, 300);
+            });
+        }
         
-        document.getElementById('printItineraryMobile').addEventListener('click', function() {
-            preparePrint();
-            setTimeout(function() {
-                window.print();
-            }, 300);
-        });
+        // Print functionality for mobile (only if button exists)
+        const printItineraryMobileBtn = document.getElementById('printItineraryMobile');
+        if (printItineraryMobileBtn) {
+            printItineraryMobileBtn.addEventListener('click', function() {
+                preparePrint();
+                setTimeout(function() {
+                    window.print();
+                }, 300);
+            });
+        }
         
         function downloadAsPDF() {
             // Check if libraries are loaded
@@ -4998,6 +5018,7 @@
                 
                 // Get data from PHP variables
                 const tourId = @json($tourId ?? '');
+                const tourDetails = @json($tourDetails ?? null);
                 const displayId = @json($tourDetails->display_id ?? '');
                 const destination = @json($tourDetails->destination ?? '');
                 const checkInTime = @json($tourDetails->check_in_time ?? null);
@@ -5120,329 +5141,256 @@
                     }
                 };
                 
-                // HEADER SECTION - ITINERARY CUM CONFIRMATION VOUCHER
-                pdf.setFontSize(14);
-                pdf.setFont('helvetica', 'bold');
-                pdf.setFillColor(0, 128, 0); // Dark green background
-                pdf.rect(leftMargin, yPos, pageWidth - (leftMargin * 2), 8, 'F');
-                pdf.setTextColor(255, 255, 255);
-                pdf.text('ITINERARY CUM CONFIRMATION VOUCHER', pageWidth / 2, yPos + 5, { align: 'center' });
-                yPos += 8; // Move to bottom of green header
-                yPos += 6; // Add spacing below green header
+                // HEADER SECTION - Compact Premium Style (Optimized for single page)
+                // Logo at top center (circular wrapper)
+                const logoSize = 20; // mm - increased size for better visibility
+                const logoRadius = logoSize / 2;
+                const logoCenterX = pageWidth / 2;
+                const logoY = yPos;
                 
-                // DMC Name below green header
+                if (logoDataUrl) {
+                    try {
+                        // Draw circular background for logo
+                        pdf.setFillColor(255, 255, 255);
+                        pdf.setDrawColor(220, 220, 220);
+                        pdf.setLineWidth(0.5);
+                        pdf.circle(logoCenterX, logoY + logoRadius, logoRadius, 'FD');
+                        
+                        // Add logo image
+                        const logoImageSize = logoSize - 4;
+                        const logoImageX = logoCenterX - (logoImageSize / 2);
+                        const logoImageY = logoY + 2;
+                        pdf.addImage(logoDataUrl, 'PNG', logoImageX, logoImageY, logoImageSize, logoImageSize, undefined, 'FAST');
+                    } catch (logoError) {
+                        console.warn('Could not add logo to PDF:', logoError);
+                    }
+                }
+                
+                yPos += logoSize + 8; // Spacing after logo (increased for better visual separation)
+                
+                // Title: TOUR ITINERARY
+                pdf.setFontSize(20);
+                pdf.setFont('helvetica', 'bold');
+                pdf.setTextColor(44, 62, 80);
+                pdf.text('TOUR ITINERARY', pageWidth / 2, yPos, { align: 'center' });
+                yPos += 6;
+                
+                // DMC Name
                 const dmcName = (userDmc && userDmc.company_name) ? userDmc.company_name : 
                                (userDmc && userDmc.name) ? userDmc.name : 
-                               'Name of The DMC';
-                
-                pdf.setFontSize(16);
+                               'DMC';
+                pdf.setFontSize(10);
                 pdf.setFont('helvetica', 'bold');
-                pdf.setTextColor(0, 0, 0);
+                pdf.setTextColor(44, 62, 80);
                 pdf.text(dmcName, pageWidth / 2, yPos, { align: 'center' });
-                yPos += 8; // Move down after text
+                yPos += 4;
                 
-                // Use autotable for customer details - Unified grid layout
-                const travelDateText = checkInTime && checkOutTime ? `${formatDate(checkInTime)} - ${formatDate(checkOutTime)}` : '';
+                // Tour ID
+                pdf.setFontSize(9);
+                pdf.setFont('helvetica', 'normal');
+                pdf.setTextColor(33, 37, 41);
+                pdf.text('Tour ID: ' + (displayId || tourId || 'DRAFT'), pageWidth / 2, yPos, { align: 'center' });
+                yPos += 7; // Compact spacing before tables
                 
-                // Calculate column widths for unified grid (6 columns total)
-                // Column 0: Left labels (45mm)
-                // Column 1: Left values (70mm)
-                // Column 2: Middle labels (45mm)
-                // Column 3: Middle values (70mm)
-                // Column 4: Right labels for agent (25mm)
-                // Column 5: Right values for agent (25mm) + logo area
-                const col0Width = 45; // Left labels
-                const col1Width = 70; // Left values
-                const col2Width = 45; // Middle labels
-                const col3Width = 70; // Middle values
-                const col4Width = 25; // Right labels (agent)
-                const col5Width = 25; // Right values (agent) + logo
-                const rightColWidth = col4Width + col5Width; // Total right column width
+                // Client/Guest Information Table (Compact Premium format with parameter-value pairs)
+                const clientTableBody = [
+                    [{content: 'Client/Guest Information:', colSpan: 4, styles: {fontStyle: 'bold', fontSize: 9, textColor: [44, 62, 80], fillColor: [240, 248, 255]}}],
+                    [
+                        {content: 'Lead Guest:', styles: {fontStyle: 'bold', fillColor: [240, 248, 255], textColor: [44, 62, 80], fontSize: 9}},
+                        {content: (customerInfo.fullName || 'N/A'), styles: {fillColor: [255, 255, 255], textColor: [33, 37, 41], fontSize: 9}},
+                        {content: 'Address:', styles: {fontStyle: 'bold', fillColor: [240, 248, 255], textColor: [44, 62, 80], fontSize: 9}},
+                        {content: (customerInfo.address || customerInfo.address1 || 'N/A'), styles: {fillColor: [255, 255, 255], textColor: [33, 37, 41], fontSize: 9}},
+                        
+                    ],
+                    [
+                        {content: 'State:', styles: {fontStyle: 'bold', fillColor: [240, 248, 255], textColor: [44, 62, 80], fontSize: 9}},
+                        {content: (customerInfo.city || customerInfo.state || 'N/A'), styles: {fillColor: [255, 255, 255], textColor: [33, 37, 41], fontSize: 9}},
+                        {content: 'Postal Code:', styles: {fontStyle: 'bold', fillColor: [240, 248, 255], textColor: [44, 62, 80], fontSize: 9}},
+                        {content: (customerInfo.postal_code || customerInfo.zip || 'N/A'), styles: {fillColor: [255, 255, 255], textColor: [33, 37, 41], fontSize: 9}}
+                    ],
+                    [
+                        {content: 'Email:', styles: {fontStyle: 'bold', fillColor: [240, 248, 255], textColor: [44, 62, 80], fontSize: 9}},
+                        {content: (customerInfo.email || 'N/A'), styles: {fillColor: [255, 255, 255], textColor: [33, 37, 41], fontSize: 9}},
+                        {content: 'Phone:', styles: {fontStyle: 'bold', fillColor: [240, 248, 255], textColor: [44, 62, 80], fontSize: 9}},
+                        {content: (customerInfo.phone || 'N/A'), styles: {fillColor: [255, 255, 255], textColor: [33, 37, 41], fontSize: 9}}
+                    ],
+                    [
+                        {content: 'Booking ID:', styles: {fontStyle: 'bold', fillColor: [240, 248, 255], textColor: [44, 62, 80], fontSize: 9}},
+                        {content: (displayId || tourId || 'N/A'), styles: {fillColor: [255, 255, 255], textColor: [33, 37, 41], fontSize: 9}},
+                        {content: 'No. of Adults:', styles: {fontStyle: 'bold', fillColor: [240, 248, 255], textColor: [44, 62, 80], fontSize: 9}},
+                        {content: (tourDetails && tourDetails.adult ? tourDetails.adult : (customerInfo.adults || customerInfo.adultCount || 0)).toString(), styles: {fillColor: [255, 255, 255], textColor: [33, 37, 41], fontSize: 9}}
+                    ],
+                    [
+                        {content: 'No. of Children:', styles: {fontStyle: 'bold', fillColor: [240, 248, 255], textColor: [44, 62, 80], fontSize: 9}},
+                        {content: (tourDetails && tourDetails.child ? tourDetails.child : (customerInfo.children || customerInfo.childCount || 0)).toString(), styles: {fillColor: [255, 255, 255], textColor: [33, 37, 41], fontSize: 9}},
+                        {content: 'No. of Infants:', styles: {fontStyle: 'bold', fillColor: [240, 248, 255], textColor: [44, 62, 80], fontSize: 9}},
+                        {content: (tourDetails && tourDetails.infant ? tourDetails.infant : (customerInfo.infants || customerInfo.infantCount || 0)).toString(), styles: {fillColor: [255, 255, 255], textColor: [33, 37, 41], fontSize: 9}}
+                    ]
+                ];
                 
-                try {
-                    // Calculate right column position
-                    const tableRightMargin = rightMarginValue + rightColWidth + 5;
-                    const rightColumnX = pageWidth - rightMarginValue - rightColWidth;
+                pdf.autoTable({
+                    startY: yPos,
+                    margin: { left: leftMargin, right: rightMarginValue },
+                    theme: 'grid',
+                    tableLineWidth: 0,
+                    headStyles: { fillColor: [240, 248, 255], textColor: [44, 62, 80], fontStyle: 'bold', fontSize: 9, lineWidth: 0.1 },
+                    bodyStyles: { fillColor: false, textColor: [33, 37, 41], fontSize: 9, lineWidth: 0.1, cellPadding: 2.5 },
+                    columnStyles: {
+                        0: { cellWidth: 32, fontStyle: 'bold' },
+                        1: { cellWidth: 50 },
+                        2: { cellWidth: 32, fontStyle: 'bold' },
+                        3: { cellWidth: 50 }
+                    },
+                    styles: { lineColor: [224, 224, 224], lineWidth: 0.1 },
+                    body: clientTableBody
+                });
+                
+                const clientTableEndY = pdf.lastAutoTable ? pdf.lastAutoTable.finalY : yPos;
+                
+                // Proposal Details Table (positioned on right side, same Y as Client table)
+                const proposalTableWidth = 90; // mm - compact
+                // Calculate client table end position: leftMargin + column widths (32 + 50 + 32 + 50 = 164)
+                const clientTableEndX = leftMargin + 32 + 50 + 32 + 50;
+                // Position proposal table with a small gap (5mm) after client table
+                const gapBetweenTables = 5; // mm
+                const proposalTableLeftMargin = clientTableEndX + gapBetweenTables;
+                const proposalTableBody = [
+                    [{content: 'Proposal Details:', colSpan: 2, styles: {fontStyle: 'bold', fontSize: 9, textColor: [44, 62, 80], fillColor: [240, 248, 255]}}],
+                    [
+                        {content: 'Postal / Pin:', styles: {fontStyle: 'bold', fillColor: [240, 248, 255], textColor: [44, 62, 80], fontSize: 9}},
+                        {content: ((userDmc && userDmc.address) ? userDmc.address : 'N/A'), styles: {fillColor: [255, 255, 255], textColor: [33, 37, 41], fontSize: 9}}
+                    ],
+                    [
+                        {content: 'Proposal Date:', styles: {fontStyle: 'bold', fillColor: [240, 248, 255], textColor: [44, 62, 80], fontSize: 9}},
+                        {content: formatDate(new Date()), styles: {fillColor: [255, 255, 255], textColor: [33, 37, 41], fontSize: 9}}
+                    ],
+                    [
+                        {content: 'Proposal Validity:', styles: {fontStyle: 'bold', fillColor: [240, 248, 255], textColor: [44, 62, 80], fontSize: 9}},
+                        {content: 'N/A', styles: {fillColor: [255, 255, 255], textColor: [33, 37, 41], fontSize: 9}}
+                    ],
+                    [
+                        {content: 'Proposal Sent by:', styles: {fontStyle: 'bold', fillColor: [240, 248, 255], textColor: [44, 62, 80], fontSize: 9}},
+                        {content: ((userDmc && userDmc.company_name) ? userDmc.company_name : ((userDmc && userDmc.name) ? userDmc.name : 'N/A')), styles: {fillColor: [255, 255, 255], textColor: [33, 37, 41], fontSize: 9}}
+                    ],
+                    [
+                        {content: '', styles: {fillColor: [255, 255, 255], textColor: [33, 37, 41], fontSize: 9}},
+                        {content: '', styles: {fillColor: [255, 255, 255], textColor: [33, 37, 41], fontSize: 9}}
+                    ], // Empty row to match height
                     
-                    // Build unified grid table body with 6 columns
-                    // Logo will span 4 rows (rows 0-3, columns 4-5)
-                    const tableBody = [];
+                ];
+                
+                pdf.autoTable({
+                    startY: yPos,
+                    margin: { left: proposalTableLeftMargin, right: rightMarginValue },
+                    theme: 'grid',
+                    tableLineWidth: 0,
+                    headStyles: { fillColor: [240, 248, 255], textColor: [44, 62, 80], fontStyle: 'bold', fontSize: 9, lineWidth: 0.1 },
+                    bodyStyles: { fillColor: false, textColor: [33, 37, 41], fontSize: 9, lineWidth: 0.1, cellPadding: 2.5 },
+                    columnStyles: {
+                        0: { cellWidth: 36, fontStyle: 'bold' },
+                        1: { cellWidth: 54 }
+                    },
+                    styles: { lineColor: [224, 224, 224], lineWidth: 0.1 },
+                    body: proposalTableBody
+                });
+                
+                // Travel Company/Agent Information Table
+                yPos = Math.max(clientTableEndY, pdf.lastAutoTable ? pdf.lastAutoTable.finalY : yPos) + 5;
+                
+                if (agentInfo) {
+                    const agentTableBody = [
+                        [{content: 'Travel Company / Agent Name: ' + (agentInfo.name || agentInfo.company_name || 'N/A'), colSpan: 2, styles: {fontStyle: 'bold', fontSize: 9, textColor: [44, 62, 80], fillColor: [240, 248, 255]}}]
+                    ];
                     
-                    // Row 0: Address row - logo spans columns 4-5 (row 1 of 4)
-                    tableBody.push([
-                        'Address:', 
-                        (userDmc && userDmc.address) ? userDmc.address : '', 
-                        'Postal / Pin:', 
-                        '',
-                        '', // Logo cell (col 4) - will be drawn manually
-                        ''  // Logo cell (col 5) - will be drawn manually
-                    ]);
+                    if (agentInfo.company_name && agentInfo.name !== agentInfo.company_name) {
+                        agentTableBody.push([
+                            {content: 'Travel Agency:', styles: {fontStyle: 'bold', fillColor: [240, 248, 255], textColor: [44, 62, 80], fontSize: 9}},
+                            {content: agentInfo.company_name || 'N/A', styles: {fillColor: [255, 255, 255], textColor: [33, 37, 41], fontSize: 9}}
+                        ]);
+                    }
                     
-                    // Row 1: City row - logo continues (row 2 of 4)
-                    tableBody.push([
-                        'City:', 
-                        (userDmc && userDmc.city) ? userDmc.city : '', 
-                        'Proposal Date :', 
-                        '',
-                        '', // Logo continues
-                        ''  // Logo continues
-                    ]);
-                    
-                    // Row 2: Country row - logo continues (row 3 of 4)
-                    tableBody.push([
-                        'Country:', 
-                        (userDmc && userDmc.country) ? userDmc.country : '', 
-                        'Proposal Validity:', 
-                        '',
-                        '', // Logo continues
-                        ''  // Logo continues
-                    ]);
-                    
-                    // Row 3: Email row - logo continues (row 4 of 4)
-                    tableBody.push([
-                        'Email:', 
-                        (userDmc && userDmc.email) ? userDmc.email : (customerInfo.email || ''), 
-                        'Proposal Sent by:', 
-                        '',
-                        '', // Logo continues
-                        ''  // Logo continues
-                    ]);
-                    
-                    // Row 4: Phone row - logo ends here, agent details start below
-                    tableBody.push([
-                        'Phone:', 
-                        (userDmc && userDmc.phone) ? userDmc.phone : (customerInfo.phone || ''), 
-                        '', 
-                        '',
-                        
-                    ]);
-                    
-                    // Row 5: Booking ID - Agent Address (label:value pair)
-                    tableBody.push([
-                        'Booking ID:', 
-                        displayId || tourId || '', 
-                        '', 
-                        '',
-
-                        
-                        
-                        
-                    ]);
-                    
-                    // Row 6: Lead Guest Name - Contact Person (label:value pair)
-                    tableBody.push([
-                        'Lead Guest Name:', 
-                        customerInfo.fullName || '', 
-                        '', 
-                        '',
-                        'Travel Company / Agent Name:',
-                        agentInfo && agentInfo.company_name ? agentInfo.company_name : ''
-                        
-                    ]);
-                    
-                    // Row 7: No. of adults - Contact Person (label:value pair)
-                    tableBody.push([
-                        'No. of adults:', 
-                        '', 
-                        '', 
-                        '',
-                        'Address:',
-                        agentInfo && agentInfo.address ? agentInfo.address : ''
-                        
-                    ]);
-                    
-                    // Row 8: No. of Children - Phone (label:value pair)
-                    tableBody.push([
-                        'No. of Children:', 
-                        '', 
-                        '', 
-                        '',
-                        'Contact Person:',
-                        agentInfo && agentInfo.contact_person ? agentInfo.contact_person : ''
-                        
-                    ]);
-                    
-                    // Row 9: No. of Infants - Email (label:value pair)
-                    tableBody.push([
-                        'No. of Infants:', 
-                        '', 
-                        '', 
-                        '',
-                        'Phone:',
-                        agentInfo && agentInfo.phone ? agentInfo.phone : ''
-                        
-                    ]);
-                    
-                    // Row 10: Destination - empty
-                    tableBody.push([
-                        'Destination:', 
-                        destination || '', 
-                        '', 
-                        '',
-                        'Email:',
-                        agentInfo && agentInfo.email ? agentInfo.email : '',
-                    ]);
-                    
-                    // Row 11: Travel Date - empty
-                    tableBody.push([
-                        'Travel Date:', 
-                        travelDateText, 
-                        '', 
-                        '',
-                        '',
-                        ''
-                    ]);
+                    agentTableBody.push(
+                        [
+                            {content: 'Address:', styles: {fontStyle: 'bold', fillColor: [240, 248, 255], textColor: [44, 62, 80], fontSize: 9}},
+                            {content: agentInfo.address || 'N/A', styles: {fillColor: [255, 255, 255], textColor: [33, 37, 41], fontSize: 9}}
+                        ],
+                        [
+                            {content: 'Contact Person:', styles: {fontStyle: 'bold', fillColor: [240, 248, 255], textColor: [44, 62, 80], fontSize: 9}},
+                            {content: agentInfo.contact_person || 'N/A', styles: {fillColor: [255, 255, 255], textColor: [33, 37, 41], fontSize: 9}}
+                        ],
+                        [
+                            {content: 'Phone:', styles: {fontStyle: 'bold', fillColor: [240, 248, 255], textColor: [44, 62, 80], fontSize: 9}},
+                            {content: agentInfo.phone || 'N/A', styles: {fillColor: [255, 255, 255], textColor: [33, 37, 41], fontSize: 9}}
+                        ],
+                        [
+                            {content: 'Email:', styles: {fontStyle: 'bold', fillColor: [240, 248, 255], textColor: [44, 62, 80], fontSize: 9}},
+                            {content: agentInfo.email || 'N/A', styles: {fillColor: [255, 255, 255], textColor: [33, 37, 41], fontSize: 9}}
+                        ]
+                    );
                     
                     pdf.autoTable({
                         startY: yPos,
-                        margin: { left: leftMargin, right: tableRightMargin },
+                        margin: { left: leftMargin, right: rightMarginValue },
                         theme: 'grid',
-                        headStyles: { fillColor: false, textColor: 0, fontStyle: 'normal', fontSize: 9 },
-                        bodyStyles: { fillColor: false, textColor: 0, fontSize: 9 },
+                        tableLineWidth: 0,
+                        headStyles: { fillColor: [240, 248, 255], textColor: [44, 62, 80], fontStyle: 'bold', fontSize: 9, lineWidth: 0.1 },
+                        bodyStyles: { fillColor: false, textColor: [33, 37, 41], fontSize: 9, lineWidth: 0.1, cellPadding: 2.5 },
                         columnStyles: {
-                            0: { cellWidth: col0Width },
-                            1: { cellWidth: col1Width },
-                            2: { cellWidth: col2Width },
-                            3: { cellWidth: col3Width },
-                            4: { cellWidth: col4Width },
-                            5: { cellWidth: col5Width }
+                            0: { cellWidth: 54, fontStyle: 'bold' },
+                            1: { cellWidth: 156 }
                         },
-                        body: tableBody
+                        styles: { lineColor: [224, 224, 224], lineWidth: 0.1 },
+                        body: agentTableBody
                     });
                     
-                    // Now draw logo in the merged cell area (spans rows 0-3, columns 4-5)
-                    const tableEndY = pdf.lastAutoTable ? pdf.lastAutoTable.finalY : yPos + 50;
-                    
-                    // Calculate logo cell position - spans first 4 rows in columns 4-5
-                    // Get actual cell positions from the table
-                    if (pdf.lastAutoTable && pdf.lastAutoTable.cells) {
-                        // Find cells for rows 0-3, columns 4 and 5 (4 rows total)
-                        const logoCellsCol4 = [];
-                        const logoCellsCol5 = [];
-                        for (let row = 0; row < 4 && row < pdf.lastAutoTable.cells.length; row++) {
-                            const rowCells = pdf.lastAutoTable.cells[row];
-                            if (rowCells && rowCells[4]) {
-                                logoCellsCol4.push(rowCells[4]);
-                            }
-                            if (rowCells && rowCells[5]) {
-                                logoCellsCol5.push(rowCells[5]);
-                            }
-                        }
-                        
-                        if (logoCellsCol4.length > 0 && logoCellsCol5.length > 0) {
-                            const firstCellCol4 = logoCellsCol4[0];
-                            const lastCellCol4 = logoCellsCol4[logoCellsCol4.length - 1];
-                            const firstCellCol5 = logoCellsCol5[0];
-                            const lastCellCol5 = logoCellsCol5[logoCellsCol5.length - 1];
-                            
-                            // Logo spans both columns 4 and 5, and 4 rows
-                            const logoX = firstCellCol4.x;
-                            const logoY = firstCellCol4.y;
-                            let logoWidth = (firstCellCol5.x + firstCellCol5.width) - firstCellCol4.x;
-                            const logoHeight = (lastCellCol4.y + lastCellCol4.height) - firstCellCol4.y;
-
-                            // Reduce image width by ~15px (≈4mm)// mm
-                            const reduceWidth = 4; // mm
-                            logoWidth = logoWidth - reduceWidth;
-                            
-                            // Add DMC logo using pre-loaded data URL with white background
-                            // Logo is aligned within the grid cell (4 rows, columns 4-5)
-                            if (logoDataUrl) {
-                                try {
-                                    // Draw white background rectangle that matches grid cell exactly
-                                    pdf.setFillColor(255, 255, 255);
-                                    pdf.setDrawColor(200, 200, 200);
-                                    pdf.setLineWidth(0.1);
-                                    // Use exact cell boundaries
-                                    pdf.rect(logoX-7, logoY, logoWidth, logoHeight, 'FD'); // Fill and draw
-                                    
-                                    // Add padding inside the cell (2mm on all sides)
-                                    const leftOffset = 2; // Move logo left by ~14px (5mm) - adjust this value as needed
-                                    // Calculate X position, ensuring it doesn't go negative
-                                    const logoInnerX = Math.max(logoX + padding - leftOffset, logoX);
-                                    const padding = 2;
-                                    const logoInnerY = logoY + padding;
-                                    const logoInnerWidth = logoWidth - (padding * 2);
-                                    const logoInnerHeight = logoHeight - (padding * 2);
-                                     // Add logo centered within the cell
-                                     pdf.addImage(logoDataUrl, 'PNG', logoInnerX, logoInnerY, logoInnerWidth, logoInnerHeight, undefined, 'FAST');
-                                } catch (logoError) {
-                                    console.warn('Could not add logo to PDF:', logoError);
-                                    // Still draw white background even if logo fails
-                                    pdf.setFillColor(255, 255, 255);
-                                    pdf.setDrawColor(200, 200, 200);
-                                    pdf.setLineWidth(0.1);
-                                    pdf.rect(logoX-7, logoY, logoWidth, logoHeight, 'FD');
-                                }
-                            } else {
-                                // Draw white background rectangle even if no logo
-                                pdf.setFillColor(255, 255, 255);
-                                pdf.setDrawColor(200, 200, 200);
-                                pdf.setLineWidth(0.1);
-                                pdf.rect(logoX-7, logoY, logoWidth, logoHeight, 'FD');
-                            }
-                        }
-                    } else {
-                        // Fallback: calculate manually - 4 rows height
-                        const logoCellStartY = yPos;
-                        const rowHeight = (tableEndY - yPos) / tableBody.length;
-                        const logoCellHeight = rowHeight * 4; // 4 rows
-                        const logoX = rightColumnX;
-                        const logoY = logoCellStartY;
-                        const logoWidth = rightColWidth; // Combined width of columns 4 and 5
-                        const logoHeight = logoCellHeight;
-                        
-                        // Add DMC logo using pre-loaded data URL with white background
-                        // Logo is aligned within the grid cell (4 rows, columns 4-5)
-                        if (logoDataUrl) {
-                            try {
-                                // Draw white background rectangle that matches grid cell exactly
-                                pdf.setFillColor(255, 255, 255);
-                                pdf.setDrawColor(200, 200, 200);
-                                pdf.setLineWidth(0.1);
-                                // Use exact cell boundaries
-                                pdf.rect(logoX-7, logoY, logoWidth, logoHeight, 'FD'); // Fill and draw
-                                
-                                // Add padding inside the cell (2mm on all sides)
-                                const padding = 2;
-                                const leftOffset = 2; // Move logo left by ~14px (5mm) - adjust this value as needed
-                                // Calculate X position, ensuring it doesn't go negative
-                                const logoInnerX = Math.max(logoX + padding - leftOffset, logoX);
-                                const logoInnerY = logoY + padding;
-                                const logoInnerWidth = logoWidth - (padding * 2);
-                                const logoInnerHeight = logoHeight - (padding * 2);
-                                
-                                // Add logo centered within the cell
-                                pdf.addImage(logoDataUrl, 'PNG', logoInnerX, logoInnerY, logoInnerWidth, logoInnerHeight, undefined, 'FAST');
-                            } catch (logoError) {
-                                console.warn('Could not add logo to PDF:', logoError);
-                                // Still draw white background even if logo fails
-                                pdf.setFillColor(255, 255, 255);
-                                pdf.setDrawColor(200, 200, 200);
-                                pdf.setLineWidth(0.1);
-                                pdf.rect(logoX-7, logoY, logoWidth, logoHeight, 'FD');
-                            }
-                        } else {
-                            const leftOffset = 2; // Move logo left by ~14px (5mm) - adjust this value as needed
-                            // Calculate X position, ensuring it doesn't go negative
-                            const logoInnerX = Math.max(logoX + padding - leftOffset, logoX);
-                            const logoInnerY = logoY + padding;
-                            const logoInnerWidth = logoWidth - (padding * 2);
-                            const logoInnerHeight = logoHeight - (padding * 2);
-                            // Draw white background rectangle even if no logo
-                            pdf.setFillColor(255, 255, 255);
-                            pdf.setDrawColor(200, 200, 200);
-                            pdf.setLineWidth(0.1);
-                            pdf.rect(logoInnerX-7, logoInnerY, logoInnerWidth, logoInnerHeight, 'FD');
-                        }
-                    }
-                    
-                    yPos = tableEndY + 5;
-                } catch (autoTableError) {
-                    console.error('Error in autotable:', autoTableError);
-                    // Fallback to manual drawing if autotable fails
-                    yPos += 50;
+                    yPos = pdf.lastAutoTable.finalY + 5;
                 }
+                
+                // Travel Dates & Destination Table (Compact Premium styling)
+                // Calculate duration
+                let duration = 'N/A';
+                if (checkInTime && checkOutTime) {
+                    try {
+                        const start = new Date(checkInTime);
+                        const end = new Date(checkOutTime);
+                        if (!isNaN(start.getTime()) && !isNaN(end.getTime())) {
+                            const diffTime = Math.abs(end - start);
+                            const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24)) + 1;
+                            duration = diffDays.toString() + ' day(s)';
+                        }
+                    } catch (e) {
+                        duration = 'N/A';
+                    }
+                }
+                
+                const travelTableBody = [
+                    [{content: 'Destination: ' + (destination || 'N/A'), colSpan: 4, styles: {fontStyle: 'bold', fontSize: 9, textColor: [44, 62, 80], fillColor: [240, 248, 255]}}],
+                    [
+                        {content: 'Travel Date:', styles: {fontStyle: 'bold', fillColor: [240, 248, 255], textColor: [44, 62, 80], fontSize: 9}},
+                        {content: 'From: ' + (checkInTime ? formatDate(checkInTime) : 'N/A'), styles: {fillColor: [255, 255, 255], textColor: [33, 37, 41], fontSize: 9}},
+                        {content: 'To: ' + (checkOutTime ? formatDate(checkOutTime) : 'N/A'), styles: {fillColor: [255, 255, 255], textColor: [33, 37, 41], fontSize: 9}},
+                        {content: 'Duration / No of Days: ' + duration, styles: {fillColor: [255, 255, 255], textColor: [33, 37, 41], fontSize: 9}}
+                    ]
+                ];
+                
+                pdf.autoTable({
+                    startY: yPos,
+                    margin: { left: leftMargin, right: rightMarginValue },
+                    theme: 'grid',
+                    tableLineWidth: 0,
+                    headStyles: { fillColor: [240, 248, 255], textColor: [44, 62, 80], fontStyle: 'bold', fontSize: 9, lineWidth: 0.1 },
+                    bodyStyles: { fillColor: false, textColor: [33, 37, 41], fontSize: 9, lineWidth: 0.1, cellPadding: 2.5 },
+                    columnStyles: {
+                        0: { cellWidth: 44, fontStyle: 'bold' },
+                        1: { cellWidth: 64 },
+                        2: { cellWidth: 64 },
+                        3: { cellWidth: 64 }
+                    },
+                    styles: { lineColor: [224, 224, 224], lineWidth: 0.1 },
+                    body: travelTableBody
+                });
+                
+                yPos = pdf.lastAutoTable.finalY + 8;
                 
                 // Generate all dates between check-in and check-out
                 let allTourDates = [];
@@ -5509,19 +5457,19 @@
                         console.log(`Date ${date} (normalized: ${normalizedDate}) has ${services.length} services:`, services.map(s => s.type || 'unknown'));
                     }
                     
-                    // Day Header using autotable
+                    // Day Header using autotable (Premium Light Blue Colors)
                     const dateText = formatDate(date);
                     pdf.autoTable({
                         startY: yPos,
                         margin: { left: leftMargin, right: pageWidth - rightMargin },
                         theme: 'grid',
                         headStyles: { 
-                            fillColor: [173, 216, 230], 
-                            textColor: 0, 
+                            fillColor: [108, 117, 125], 
+                            textColor: [255, 255, 255], 
                             fontStyle: 'bold', 
                             fontSize: 11 
                         },
-                        bodyStyles: { fillColor: false, textColor: 0, fontSize: 10 },
+                        bodyStyles: { fillColor: false, textColor: [33, 37, 41], fontSize: 10 },
                         columnStyles: {
                             0: { cellWidth: 30 },
                             1: { cellWidth: pageWidth - leftMargin - rightMargin - 30, halign: 'right' }
@@ -5625,22 +5573,67 @@
                     yPos += 5; // Spacing between days
                 });
                 
-                // Exclusions Section
-                checkPageBreak(15);
-                pdf.setFillColor(255, 192, 203); // Pink
-                pdf.rect(leftMargin, yPos, pageWidth - (leftMargin * 2), 6, 'F');
-                pdf.setFontSize(10);
-                pdf.setFont('helvetica', 'bold');
-                pdf.text('Exclusions :', leftMargin + 5, yPos + 4);
-                yPos += 8;
+                // Exclusions Section (Pink header with black border, matching quotation format)
+                checkPageBreak(35);
+                const exclusionsTableBody = [
+                    [{content: 'Exclusions :', colSpan: 2, styles: {fontStyle: 'bold', fontSize: 12, textColor: [0, 0, 0], fillColor: [255, 182, 193], cellPadding: {top: 3, bottom: 3, left: 5, right: 5}, minCellHeight: 8}}],
+                    [{content: ' ', colSpan: 2, styles: {fillColor: [255, 255, 255], textColor: [0, 0, 0], fontSize: 11, minCellHeight: 35, cellPadding: 20}}]
+                ];
                 
-                // Terms & Conditions Section
-                checkPageBreak(15);
-                pdf.setFillColor(255, 192, 203); // Pink
-                pdf.rect(leftMargin, yPos, pageWidth - (leftMargin * 2), 6, 'F');
-                pdf.setFontSize(10);
-                pdf.setFont('helvetica', 'bold');
-                pdf.text('Terms & Conditions :', leftMargin + 5, yPos + 4);
+                pdf.autoTable({
+                    startY: yPos,
+                    margin: { left: leftMargin, right: rightMarginValue },
+                    theme: 'grid',
+                    tableLineWidth: 0.7, // 2px border (0.7mm)
+                    bodyStyles: { 
+                        fillColor: [255, 255, 255], // White
+                        textColor: [0, 0, 0], 
+                        fontSize: 11,
+                        lineWidth: 0.7,
+                        lineColor: [0, 0, 0], // Black border
+                        cellPadding: 20,
+                        minCellHeight: 35
+                    },
+                    columnStyles: {
+                        0: { cellWidth: (pageWidth - leftMargin - rightMarginValue) / 2 },
+                        1: { cellWidth: (pageWidth - leftMargin - rightMarginValue) / 2 }
+                    },
+                    styles: { lineColor: [0, 0, 0], lineWidth: 0.7 },
+                    body: exclusionsTableBody
+                });
+                
+                yPos = pdf.lastAutoTable.finalY + 10;
+                
+                // Terms & Conditions Section (Pink header with black border, matching quotation format)
+                checkPageBreak(35);
+                const termsTableBody = [
+                    [{content: 'Terms & Conditions :', colSpan: 2, styles: {fontStyle: 'bold', fontSize: 12, textColor: [0, 0, 0], fillColor: [255, 182, 193], cellPadding: {top: 3, bottom: 3, left: 5, right: 5}, minCellHeight: 8}}],
+                    [{content: ' ', colSpan: 2, styles: {fillColor: [255, 255, 255], textColor: [0, 0, 0], fontSize: 11, minCellHeight: 35, cellPadding: 20}}]
+                ];
+                
+                pdf.autoTable({
+                    startY: yPos,
+                    margin: { left: leftMargin, right: rightMarginValue },
+                    theme: 'grid',
+                    tableLineWidth: 0.7, // 2px border (0.7mm)
+                    bodyStyles: { 
+                        fillColor: [255, 255, 255], // White
+                        textColor: [0, 0, 0], 
+                        fontSize: 11,
+                        lineWidth: 0.7,
+                        lineColor: [0, 0, 0], // Black border
+                        cellPadding: 20,
+                        minCellHeight: 35
+                    },
+                    columnStyles: {
+                        0: { cellWidth: (pageWidth - leftMargin - rightMarginValue) / 2 },
+                        1: { cellWidth: (pageWidth - leftMargin - rightMarginValue) / 2 }
+                    },
+                    styles: { lineColor: [0, 0, 0], lineWidth: 0.7 },
+                    body: termsTableBody
+                });
+                
+                yPos = pdf.lastAutoTable.finalY + 5;
                 
                 // Save PDF
                 pdf.save(`Tour_Itinerary_Excel_${tourId || 'format'}.pdf`);
@@ -5786,8 +5779,8 @@
                 
                 // Remarks Row - Last row, full width (spans all 8 columns)
                 tableBody.push([
-                    {content: 'Remarks :', colSpan: 1, styles: {fontStyle: 'bold', fillColor: [240, 240, 240]}},
-                    {content: remarks || 'N/A', colSpan: 7, styles: {fillColor: [255, 255, 255]}}
+                    {content: 'Remarks :', colSpan: 1, styles: {fontStyle: 'bold', fillColor: [240, 248, 255], textColor: [44, 62, 80]}},
+                    {content: remarks || 'N/A', colSpan: 7, styles: {fillColor: [255, 255, 255], textColor: [33, 37, 41]}}
                 ]);
                 
                 // Calculate column widths
@@ -5799,27 +5792,27 @@
                     margin: { left: leftMargin, right: pageWidth - rightMargin },
                     theme: 'grid',
                     headStyles: { 
-                        fillColor: [144, 238, 144], 
-                        textColor: 0, 
+                        fillColor: [108, 117, 125], 
+                        textColor: [255, 255, 255], 
                         fontStyle: 'bold', 
                         fontSize: 10 
                     },
                     bodyStyles: { 
                         fillColor: false, 
-                        textColor: 0, 
+                        textColor: [33, 37, 41], 
                         fontSize: 8 
                     },
                     columnStyles: {
-                        0: { fontStyle: 'bold', fillColor: [240, 240, 240], cellWidth: columnWidth },
-                        1: { fillColor: [255, 255, 255], cellWidth: columnWidth },
-                        2: { fontStyle: 'bold', fillColor: [240, 240, 240], cellWidth: columnWidth },
-                        3: { fillColor: [255, 255, 255], cellWidth: columnWidth },
-                        4: { fontStyle: 'bold', fillColor: [240, 240, 240], cellWidth: columnWidth },
-                        5: { fillColor: [255, 255, 255], cellWidth: columnWidth },
-                        6: { fontStyle: 'bold', fillColor: [240, 240, 240], cellWidth: columnWidth },
-                        7: { fillColor: [255, 255, 255], cellWidth: columnWidth }
+                        0: { fontStyle: 'bold', fillColor: [240, 248, 255], textColor: [44, 62, 80], cellWidth: columnWidth },
+                        1: { fillColor: [255, 255, 255], textColor: [33, 37, 41], cellWidth: columnWidth },
+                        2: { fontStyle: 'bold', fillColor: [240, 248, 255], textColor: [44, 62, 80], cellWidth: columnWidth },
+                        3: { fillColor: [255, 255, 255], textColor: [33, 37, 41], cellWidth: columnWidth },
+                        4: { fontStyle: 'bold', fillColor: [240, 248, 255], textColor: [44, 62, 80], cellWidth: columnWidth },
+                        5: { fillColor: [255, 255, 255], textColor: [33, 37, 41], cellWidth: columnWidth },
+                        6: { fontStyle: 'bold', fillColor: [240, 248, 255], textColor: [44, 62, 80], cellWidth: columnWidth },
+                        7: { fillColor: [255, 255, 255], textColor: [33, 37, 41], cellWidth: columnWidth }
                     },
-                    head: [[{content: 'Airport Arrival Transfer', colSpan: 8, styles: {halign: 'left'}}]],
+                    head: [[{content: 'Airport Arrival Transfer', colSpan: 8, styles: {halign: 'left', textColor: [255, 255, 255]}}]],
                     body: tableBody
                 });
                 yPos = pdf.lastAutoTable.finalY + 3;
@@ -5967,27 +5960,27 @@
                     margin: { left: leftMargin, right: pageWidth - rightMargin },
                     theme: 'grid',
                     headStyles: { 
-                        fillColor: [144, 238, 144], 
-                        textColor: 0, 
+                        fillColor: [108, 117, 125], 
+                        textColor: [255, 255, 255], 
                         fontStyle: 'bold', 
                         fontSize: 10 
                     },
                     bodyStyles: { 
                         fillColor: false, 
-                        textColor: 0, 
+                        textColor: [33, 37, 41], 
                         fontSize: 8 
                     },
                     columnStyles: {
-                        0: { fontStyle: 'bold', fillColor: [240, 240, 240], cellWidth: columnWidth }, // Parameter column
-                        1: { fillColor: [255, 255, 255], cellWidth: columnWidth }, // Value column
-                        2: { fontStyle: 'bold', fillColor: [240, 240, 240], cellWidth: columnWidth }, // Parameter column
-                        3: { fillColor: [255, 255, 255], cellWidth: columnWidth }, // Value column
-                        4: { fontStyle: 'bold', fillColor: [240, 240, 240], cellWidth: columnWidth }, // Parameter column
-                        5: { fillColor: [255, 255, 255], cellWidth: columnWidth }, // Value column
-                        6: { fontStyle: 'bold', fillColor: [240, 240, 240], cellWidth: columnWidth }, // Parameter column
-                        7: { fillColor: [255, 255, 255], cellWidth: columnWidth }  // Value column
+                        0: { fontStyle: 'bold', fillColor: [240, 248, 255], textColor: [44, 62, 80], cellWidth: columnWidth }, // Parameter column
+                        1: { fillColor: [255, 255, 255], textColor: [33, 37, 41], cellWidth: columnWidth }, // Value column
+                        2: { fontStyle: 'bold', fillColor: [240, 248, 255], textColor: [44, 62, 80], cellWidth: columnWidth }, // Parameter column
+                        3: { fillColor: [255, 255, 255], textColor: [33, 37, 41], cellWidth: columnWidth }, // Value column
+                        4: { fontStyle: 'bold', fillColor: [240, 248, 255], textColor: [44, 62, 80], cellWidth: columnWidth }, // Parameter column
+                        5: { fillColor: [255, 255, 255], textColor: [33, 37, 41], cellWidth: columnWidth }, // Value column
+                        6: { fontStyle: 'bold', fillColor: [240, 248, 255], textColor: [44, 62, 80], cellWidth: columnWidth }, // Parameter column
+                        7: { fillColor: [255, 255, 255], textColor: [33, 37, 41], cellWidth: columnWidth }  // Value column
                     },
-                    head: [['Accommodation', '', '', '', '', '', '', '']],
+                    head: [[{content: 'Accommodation', colSpan: 8, styles: {halign: 'left', textColor: [255, 255, 255]}}]],
                     body: tableBody
                 });
                 yPos = pdf.lastAutoTable.finalY + 3;
@@ -6162,8 +6155,8 @@
                 
                 // Remarks Row - Last row, full width (spans all 8 columns)
                 tableBody.push([
-                    {content: 'Remarks :', colSpan: 1, styles: {fontStyle: 'bold', fillColor: [240, 240, 240]}},
-                    {content: specialRequests || 'N/A', colSpan: 7, styles: {fillColor: [255, 255, 255]}}
+                    {content: 'Remarks :', colSpan: 1, styles: {fontStyle: 'bold', fillColor: [240, 248, 255], textColor: [44, 62, 80]}},
+                    {content: specialRequests || 'N/A', colSpan: 7, styles: {fillColor: [255, 255, 255], textColor: [33, 37, 41]}}
                 ]);
                 
                 // Calculate column widths
@@ -6175,27 +6168,27 @@
                     margin: { left: leftMargin, right: pageWidth - rightMargin },
                     theme: 'grid',
                     headStyles: { 
-                        fillColor: [255, 165, 0], 
-                        textColor: 0, 
+                        fillColor: [108, 117, 125], 
+                        textColor: [255, 255, 255], 
                         fontStyle: 'bold', 
                         fontSize: 10 
                     },
                     bodyStyles: { 
                         fillColor: false, 
-                        textColor: 0, 
+                        textColor: [33, 37, 41], 
                         fontSize: 8 
                     },
                     columnStyles: {
-                        0: { fontStyle: 'bold', fillColor: [240, 240, 240], cellWidth: columnWidth },
-                        1: { fillColor: [255, 255, 255], cellWidth: columnWidth },
-                        2: { fontStyle: 'bold', fillColor: [240, 240, 240], cellWidth: columnWidth },
-                        3: { fillColor: [255, 255, 255], cellWidth: columnWidth },
-                        4: { fontStyle: 'bold', fillColor: [240, 240, 240], cellWidth: columnWidth },
-                        5: { fillColor: [255, 255, 255], cellWidth: columnWidth },
-                        6: { fontStyle: 'bold', fillColor: [240, 240, 240], cellWidth: columnWidth },
-                        7: { fillColor: [255, 255, 255], cellWidth: columnWidth }
+                        0: { fontStyle: 'bold', fillColor: [240, 248, 255], textColor: [44, 62, 80], cellWidth: columnWidth },
+                        1: { fillColor: [255, 255, 255], textColor: [33, 37, 41], cellWidth: columnWidth },
+                        2: { fontStyle: 'bold', fillColor: [240, 248, 255], textColor: [44, 62, 80], cellWidth: columnWidth },
+                        3: { fillColor: [255, 255, 255], textColor: [33, 37, 41], cellWidth: columnWidth },
+                        4: { fontStyle: 'bold', fillColor: [240, 248, 255], textColor: [44, 62, 80], cellWidth: columnWidth },
+                        5: { fillColor: [255, 255, 255], textColor: [33, 37, 41], cellWidth: columnWidth },
+                        6: { fontStyle: 'bold', fillColor: [240, 248, 255], textColor: [44, 62, 80], cellWidth: columnWidth },
+                        7: { fillColor: [255, 255, 255], textColor: [33, 37, 41], cellWidth: columnWidth }
                     },
-                    head: [[{content: mealType, colSpan: 8, styles: {halign: 'left'}}]],
+                    head: [[{content: mealType, colSpan: 8, styles: {halign: 'left', textColor: [255, 255, 255]}}]],
                     body: tableBody
                 });
                 yPos = pdf.lastAutoTable.finalY + 3;
@@ -6328,8 +6321,8 @@
                 
                 // Remarks Row - Last row, full width (spans all 8 columns)
                 tableBody.push([
-                    {content: 'Remarks :', colSpan: 1, styles: {fontStyle: 'bold', fillColor: [240, 240, 240]}},
-                    {content: specialRequests || 'N/A', colSpan: 7, styles: {fillColor: [255, 255, 255]}}
+                    {content: 'Remarks :', colSpan: 1, styles: {fontStyle: 'bold', fillColor: [240, 248, 255], textColor: [44, 62, 80]}},
+                    {content: specialRequests || 'N/A', colSpan: 7, styles: {fillColor: [255, 255, 255], textColor: [33, 37, 41]}}
                 ]);
                 
                 // Calculate column widths
@@ -6341,27 +6334,27 @@
                     margin: { left: leftMargin, right: pageWidth - rightMargin },
                     theme: 'grid',
                     headStyles: { 
-                        fillColor: [144, 238, 144], 
-                        textColor: 0, 
+                        fillColor: [108, 117, 125], 
+                        textColor: [255, 255, 255], 
                         fontStyle: 'bold', 
                         fontSize: 10 
                     },
                     bodyStyles: { 
                         fillColor: false, 
-                        textColor: 0, 
+                        textColor: [33, 37, 41], 
                         fontSize: 8 
                     },
                     columnStyles: {
-                        0: { fontStyle: 'bold', fillColor: [240, 240, 240], cellWidth: columnWidth },
-                        1: { fillColor: [255, 255, 255], cellWidth: columnWidth },
-                        2: { fontStyle: 'bold', fillColor: [240, 240, 240], cellWidth: columnWidth },
-                        3: { fillColor: [255, 255, 255], cellWidth: columnWidth },
-                        4: { fontStyle: 'bold', fillColor: [240, 240, 240], cellWidth: columnWidth },
-                        5: { fillColor: [255, 255, 255], cellWidth: columnWidth },
-                        6: { fontStyle: 'bold', fillColor: [240, 240, 240], cellWidth: columnWidth },
-                        7: { fillColor: [255, 255, 255], cellWidth: columnWidth }
+                        0: { fontStyle: 'bold', fillColor: [240, 248, 255], textColor: [44, 62, 80], cellWidth: columnWidth },
+                        1: { fillColor: [255, 255, 255], textColor: [33, 37, 41], cellWidth: columnWidth },
+                        2: { fontStyle: 'bold', fillColor: [240, 248, 255], textColor: [44, 62, 80], cellWidth: columnWidth },
+                        3: { fillColor: [255, 255, 255], textColor: [33, 37, 41], cellWidth: columnWidth },
+                        4: { fontStyle: 'bold', fillColor: [240, 248, 255], textColor: [44, 62, 80], cellWidth: columnWidth },
+                        5: { fillColor: [255, 255, 255], textColor: [33, 37, 41], cellWidth: columnWidth },
+                        6: { fontStyle: 'bold', fillColor: [240, 248, 255], textColor: [44, 62, 80], cellWidth: columnWidth },
+                        7: { fillColor: [255, 255, 255], textColor: [33, 37, 41], cellWidth: columnWidth }
                     },
-                    head: [[{content: 'City Tour', colSpan: 8, styles: {halign: 'left'}}]],
+                    head: [[{content: 'Tour Guide', colSpan: 8, styles: {halign: 'left', textColor: [255, 255, 255]}}]],
                     body: tableBody
                 });
                 yPos = pdf.lastAutoTable.finalY + 3;
@@ -6523,27 +6516,27 @@
                 margin: { left: leftMargin, right: pageWidth - rightMargin },
                 theme: 'grid',
                 headStyles: { 
-                    fillColor: [144, 238, 144], 
-                    textColor: 0, 
+                    fillColor: [108, 117, 125], 
+                    textColor: [33, 37, 41], 
                     fontStyle: 'bold', 
                     fontSize: 10 
                 },
                 bodyStyles: { 
                     fillColor: false, 
-                    textColor: 0, 
+                    textColor: [33, 37, 41], 
                     fontSize: 8 
                 },
                 columnStyles: {
-                    0: { fontStyle: 'bold', fillColor: [240, 240, 240], cellWidth: columnWidth },
-                    1: { fillColor: [255, 255, 255], cellWidth: columnWidth },
-                    2: { fontStyle: 'bold', fillColor: [240, 240, 240], cellWidth: columnWidth },
-                    3: { fillColor: [255, 255, 255], cellWidth: columnWidth },
-                    4: { fontStyle: 'bold', fillColor: [240, 240, 240], cellWidth: columnWidth },
-                    5: { fillColor: [255, 255, 255], cellWidth: columnWidth },
-                    6: { fontStyle: 'bold', fillColor: [240, 240, 240], cellWidth: columnWidth },
-                    7: { fillColor: [255, 255, 255], cellWidth: columnWidth }
+                    0: { fontStyle: 'bold', fillColor: [240, 248, 255], textColor: [44, 62, 80], cellWidth: columnWidth },
+                    1: { fillColor: [255, 255, 255], textColor: [33, 37, 41], cellWidth: columnWidth },
+                    2: { fontStyle: 'bold', fillColor: [240, 248, 255], textColor: [44, 62, 80], cellWidth: columnWidth },
+                    3: { fillColor: [255, 255, 255], textColor: [33, 37, 41], cellWidth: columnWidth },
+                    4: { fontStyle: 'bold', fillColor: [240, 248, 255], textColor: [44, 62, 80], cellWidth: columnWidth },
+                    5: { fillColor: [255, 255, 255], textColor: [33, 37, 41], cellWidth: columnWidth },
+                    6: { fontStyle: 'bold', fillColor: [240, 248, 255], textColor: [44, 62, 80], cellWidth: columnWidth },
+                    7: { fillColor: [255, 255, 255], textColor: [33, 37, 41], cellWidth: columnWidth }
                 },
-                head: [[{content: title, colSpan: 8, styles: {halign: 'left'}}]],
+                head: [[{content: title, colSpan: 8, styles: {halign: 'left', textColor: [255, 255, 255]}}]],
                 body: tableBody
             });
             yPos = pdf.lastAutoTable.finalY + 3;
@@ -6662,8 +6655,8 @@
                 
                 // Remarks Row - Last row, full width (spans all 8 columns)
                 tableBody.push([
-                    {content: 'Remarks :', colSpan: 1, styles: {fontStyle: 'bold', fillColor: [240, 240, 240]}},
-                    {content: specialRequests || 'N/A', colSpan: 7, styles: {fillColor: [255, 255, 255]}}
+                    {content: 'Remarks :', colSpan: 1, styles: {fontStyle: 'bold', fillColor: [240, 248, 255], textColor: [44, 62, 80]}},
+                    {content: specialRequests || 'N/A', colSpan: 7, styles: {fillColor: [255, 255, 255], textColor: [33, 37, 41]}}
                 ]);
                 
                 // Calculate column widths
@@ -6675,27 +6668,27 @@
                     margin: { left: leftMargin, right: pageWidth - rightMargin },
                     theme: 'grid',
                     headStyles: { 
-                        fillColor: [144, 238, 144], 
-                        textColor: 0, 
+                        fillColor: [108, 117, 125], 
+                        textColor: [255, 255, 255], 
                         fontStyle: 'bold', 
                         fontSize: 10 
                     },
                     bodyStyles: { 
                         fillColor: false, 
-                        textColor: 0, 
+                        textColor: [33, 37, 41], 
                         fontSize: 8 
                     },
                     columnStyles: {
-                        0: { fontStyle: 'bold', fillColor: [240, 240, 240], cellWidth: columnWidth },
-                        1: { fillColor: [255, 255, 255], cellWidth: columnWidth },
-                        2: { fontStyle: 'bold', fillColor: [240, 240, 240], cellWidth: columnWidth },
-                        3: { fillColor: [255, 255, 255], cellWidth: columnWidth },
-                        4: { fontStyle: 'bold', fillColor: [240, 240, 240], cellWidth: columnWidth },
-                        5: { fillColor: [255, 255, 255], cellWidth: columnWidth },
-                        6: { fontStyle: 'bold', fillColor: [240, 240, 240], cellWidth: columnWidth },
-                        7: { fillColor: [255, 255, 255], cellWidth: columnWidth }
+                        0: { fontStyle: 'bold', fillColor: [240, 248, 255], textColor: [44, 62, 80], cellWidth: columnWidth },
+                        1: { fillColor: [255, 255, 255], textColor: [33, 37, 41], cellWidth: columnWidth },
+                        2: { fontStyle: 'bold', fillColor: [240, 248, 255], textColor: [44, 62, 80], cellWidth: columnWidth },
+                        3: { fillColor: [255, 255, 255], textColor: [33, 37, 41], cellWidth: columnWidth },
+                        4: { fontStyle: 'bold', fillColor: [240, 248, 255], textColor: [44, 62, 80], cellWidth: columnWidth },
+                        5: { fillColor: [255, 255, 255], textColor: [33, 37, 41], cellWidth: columnWidth },
+                        6: { fontStyle: 'bold', fillColor: [240, 248, 255], textColor: [44, 62, 80], cellWidth: columnWidth },
+                        7: { fillColor: [255, 255, 255], textColor: [33, 37, 41], cellWidth: columnWidth }
                     },
-                    head: [[{content: 'Local Transfer', colSpan: 8, styles: {halign: 'left'}}]],
+                    head: [[{content: 'Local Transfer', colSpan: 8, styles: {halign: 'left', textColor: [255, 255, 255]}}]],
                     body: tableBody
                 });
                 yPos = pdf.lastAutoTable.finalY + 3;
@@ -6836,8 +6829,8 @@
                 
                 // Remarks Row - Last row, full width (spans all 8 columns)
                 tableBody.push([
-                    {content: 'Remarks :', colSpan: 1, styles: {fontStyle: 'bold', fillColor: [240, 240, 240]}},
-                    {content: remarks || 'N/A', colSpan: 7, styles: {fillColor: [255, 255, 255]}}
+                    {content: 'Remarks :', colSpan: 1, styles: {fontStyle: 'bold', fillColor: [240, 248, 255], textColor: [44, 62, 80]}},
+                    {content: remarks || 'N/A', colSpan: 7, styles: {fillColor: [255, 255, 255], textColor: [33, 37, 41]}}
                 ]);
                 
                 // Calculate column widths
@@ -6849,27 +6842,27 @@
                     margin: { left: leftMargin, right: pageWidth - rightMargin },
                     theme: 'grid',
                     headStyles: { 
-                        fillColor: [144, 238, 144], 
-                        textColor: 0, 
+                        fillColor: [108, 117, 125], 
+                        textColor: [255, 255, 255], 
                         fontStyle: 'bold', 
                         fontSize: 10 
                     },
                     bodyStyles: { 
                         fillColor: false, 
-                        textColor: 0, 
+                        textColor: [33, 37, 41], 
                         fontSize: 8 
                     },
                     columnStyles: {
-                        0: { fontStyle: 'bold', fillColor: [240, 240, 240], cellWidth: columnWidth },
-                        1: { fillColor: [255, 255, 255], cellWidth: columnWidth },
-                        2: { fontStyle: 'bold', fillColor: [240, 240, 240], cellWidth: columnWidth },
-                        3: { fillColor: [255, 255, 255], cellWidth: columnWidth },
-                        4: { fontStyle: 'bold', fillColor: [240, 240, 240], cellWidth: columnWidth },
-                        5: { fillColor: [255, 255, 255], cellWidth: columnWidth },
-                        6: { fontStyle: 'bold', fillColor: [240, 240, 240], cellWidth: columnWidth },
-                        7: { fillColor: [255, 255, 255], cellWidth: columnWidth }
+                        0: { fontStyle: 'bold', fillColor: [240, 248, 255], textColor: [44, 62, 80], cellWidth: columnWidth },
+                        1: { fillColor: [255, 255, 255], textColor: [33, 37, 41], cellWidth: columnWidth },
+                        2: { fontStyle: 'bold', fillColor: [240, 248, 255], textColor: [44, 62, 80], cellWidth: columnWidth },
+                        3: { fillColor: [255, 255, 255], textColor: [33, 37, 41], cellWidth: columnWidth },
+                        4: { fontStyle: 'bold', fillColor: [240, 248, 255], textColor: [44, 62, 80], cellWidth: columnWidth },
+                        5: { fillColor: [255, 255, 255], textColor: [33, 37, 41], cellWidth: columnWidth },
+                        6: { fontStyle: 'bold', fillColor: [240, 248, 255], textColor: [44, 62, 80], cellWidth: columnWidth },
+                        7: { fillColor: [255, 255, 255], textColor: [33, 37, 41], cellWidth: columnWidth }
                     },
-                    head: [[{content: 'Airport Departure Transfer', colSpan: 8, styles: {halign: 'left'}}]],
+                    head: [[{content: 'Airport Departure Transfer', colSpan: 8, styles: {halign: 'left', textColor: [255, 255, 255]}}]],
                     body: tableBody
                 });
                 yPos = pdf.lastAutoTable.finalY + 3;

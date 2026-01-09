@@ -109,6 +109,9 @@ class UploadHistory extends Model
             $status = 'failed';
         }
 
+        // Ensure errors are always valid UTF-8 so json_encode() won't fail
+        $errors = self::sanitizeForJson($errors);
+
         return self::create([
             'upload_type' => $uploadType,
             'hotel_id' => $hotelId,
@@ -121,6 +124,31 @@ class UploadHistory extends Model
             'status' => $status,
             'uploaded_by' => $uploadedBy
         ]);
+    }
+
+    /**
+     * Recursively sanitize any value so it can be JSON-encoded safely.
+     * Fixes "Malformed UTF-8 characters" coming from Windows/Excel CSV encodings.
+     */
+    private static function sanitizeForJson($value)
+    {
+        if (is_array($value)) {
+            foreach ($value as $k => $v) {
+                $value[$k] = self::sanitizeForJson($v);
+            }
+            return $value;
+        }
+
+        if (is_string($value)) {
+            $converted = @mb_convert_encoding($value, 'UTF-8', 'UTF-8, ISO-8859-1, Windows-1252');
+            if ($converted === false) {
+                $converted = $value;
+            }
+            $clean = @iconv('UTF-8', 'UTF-8//IGNORE', $converted);
+            return $clean === false ? '' : $clean;
+        }
+
+        return $value;
     }
 
     /**
