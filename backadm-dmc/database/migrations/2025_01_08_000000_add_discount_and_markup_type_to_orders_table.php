@@ -14,10 +14,10 @@ return new class extends Migration
         Schema::table('orders', function (Blueprint $table) {
             // Add discount_type and markup_type columns if they don't exist
             if (!Schema::hasColumn('orders', 'discount_type')) {
-                $table->string('discount_type')->nullable()->after('discount');
+                $table->string('discount_type')->nullable();
             }
             if (!Schema::hasColumn('orders', 'markup_type')) {
-                $table->string('markup_type')->nullable()->after('markup_percentage');
+                $table->string('markup_type')->nullable();
             }
         });
     }
