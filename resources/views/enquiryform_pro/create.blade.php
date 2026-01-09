@@ -1490,7 +1490,7 @@
                             onchange="handleMarkupTypeChange()">
                         <option value="" selected>Select</option>
                         <option value="percentage">%</option>
-                        <option value="fixed">Fixed</option>
+                        <option value="flat">Fixed</option>
                     </select>
                     <input type="number" id="markupValue" value="0" step="1" min="0" disabled
                            style="width: 50px; font-size: 10px; padding: 2px 5px; height: 24px; box-sizing: border-box;" 
@@ -1504,7 +1504,7 @@
                             onchange="handleDiscountTypeChange()">
                         <option value="" selected>Select</option>
                         <option value="percentage">%</option>
-                        <option value="fixed">Fixed</option>
+                        <option value="flat">Fixed</option>
                     </select>
                     <input type="number" id="discountValue" value="0" step="1" min="0" disabled
                            style="width: 50px; font-size: 10px; padding: 2px 5px; height: 24px; box-sizing: border-box;" 
