@@ -12873,6 +12873,11 @@
                 if (!response.ok) {
                     throw new Error('Failed to load items');
                 }
+                // Check if response is JSON before parsing
+                const contentType = response.headers.get("content-type");
+                if (!contentType || !contentType.includes("application/json")) {
+                    throw new Error('Server returned non-JSON response');
+                }
                 return response.json();
             })
             .then(items => {
@@ -16093,6 +16098,13 @@
                 return { private_price: 0, shared_price: 0 };
             }
             
+            // Check if response is JSON before parsing
+            const contentType = response.headers.get("content-type");
+            if (!contentType || !contentType.includes("application/json")) {
+                console.error('Server returned non-JSON response:', contentType);
+                return { private_price: 0, shared_price: 0 };
+            }
+            
             const result = await response.json();
             console.log('API Response:', result);
             
@@ -17302,6 +17314,19 @@
             
             if (!response.ok) {
                 console.error('Failed to fetch vehicle details:', response.statusText);
+                return {
+                    vehicles_name: "",
+                    vehicle_type: "",
+                    vehicle_model: "",
+                    model_year: "",
+                    image: ""
+                };
+            }
+            
+            // Check if response is JSON before parsing
+            const contentType = response.headers.get("content-type");
+            if (!contentType || !contentType.includes("application/json")) {
+                console.error('Server returned non-JSON response:', contentType);
                 return {
                     vehicles_name: "",
                     vehicle_type: "",
