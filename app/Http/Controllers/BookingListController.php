@@ -1019,6 +1019,48 @@ class BookingListController extends Controller
         // }
         
         // Fetch all bookings for the specified tour
+        $tour = Tour::where('tour_id', $tourId)->first();
+        $user_dmc = null;
+        if ($tour && $tour->dmc_id) {
+            $user_dmc = User::select('name', 'email', 'phone', 'company_name','logo', 'country', 'city', 'address')->where('userId', $tour->dmc_id)->first();
+            
+            // Convert logo URL to base64 data URL to avoid CORS issues
+            if ($user_dmc && $user_dmc->logo) {
+                try {
+                    $logoUrl = $user_dmc->logo;
+                    // Check if it's already a data URL
+                    if (!str_starts_with($logoUrl, 'data:image')) {
+                        // Fetch image content server-side
+                        $context = stream_context_create([
+                            'http' => [
+                                'method' => 'GET',
+                                'header' => [
+                                    'User-Agent: Mozilla/5.0',
+                                    'Accept: image/png,image/jpeg,image/*,*/*'
+                                ],
+                                'timeout' => 10,
+                                'ignore_errors' => true
+                            ]
+                        ]);
+                        
+                        $imageContent = @file_get_contents($logoUrl, false, $context);
+                        if ($imageContent !== false) {
+                            // Determine image type
+                            $imageInfo = @getimagesizefromstring($imageContent);
+                            if ($imageInfo !== false) {
+                                $mimeType = $imageInfo['mime'];
+                                $base64 = base64_encode($imageContent);
+                                $user_dmc->logo = 'data:' . $mimeType . ';base64,' . $base64;
+                            }
+                        }
+                    }
+                } catch (\Exception $e) {
+                    // If conversion fails, keep original URL
+                    \Log::warning('Failed to convert logo to base64: ' . $e->getMessage());
+                }
+            }
+        }
+        
         $bookings = Order::with(['tour'])
         ->where('tour_id', $tourId)
         ->where('bookingType', 'booking')
@@ -1028,6 +1070,37 @@ class BookingListController extends Controller
         })
         ->orderByDesc('booking_id')
         ->get();
+        
+        // Get agent/agency information from tour or first booking
+        $agent_info = null;
+        $agent_id = null;
+        
+        // First try to get from tour
+        if ($tour && $tour->agent_id) {
+            $agent_id = $tour->agent_id;
+        }
+        // If not in tour, try from first booking
+        elseif ($bookings->count() > 0 && $bookings->first()->agent_id) {
+            $agent_id = $bookings->first()->agent_id;
+        }
+        
+        // Fetch agent details if we have an agent_id
+        if ($agent_id) {
+            $agent = \App\Models\Agent::with('agency')->where('agent_id', $agent_id)->first();
+            if ($agent) {
+                $agency = $agent->agency;
+                
+                // Use agency data if available, otherwise fall back to agent data
+                $agent_info = [
+                    'name' => $agent->name ?? '',
+                    'company_name' => ($agency && $agency->agency_name) ? $agency->agency_name : '',
+                    'address' => ($agency && $agency->address) ? $agency->address : '',
+                    'contact_person' => ($agency && $agency->contact_person) ? $agency->contact_person : ($agent->name ?? ''),
+                    'phone' => ($agency && $agency->phone) ? $agency->phone : ($agent->phone ?? ''),
+                    'email' => ($agency && $agency->email) ? $agency->email : ($agent->email ?? '')
+                ];
+            }
+        }
 
         // Fetch tour details
         // $tourDetails = DB::table('tours')->where('tour_id', $tourId)->first();
@@ -1088,12 +1161,13 @@ class BookingListController extends Controller
                 }
             }
         }
-        
         return view('bookingList.itinerary', [
             'tourId' => $tourId,
             'itineraryByDate' => $itineraryByDate,
             'tourDetails' => $tourDetails,
-            'priceHide' => $priceHide
+            'priceHide' => $priceHide,
+            'user_dmc' => $user_dmc,
+            'agent_info' => $agent_info
         ]);
     }
     
@@ -1251,9 +1325,269 @@ class BookingListController extends Controller
                     }
                 }
             }
+            
+            // Fetch vehicle and driver data for entry_port and attraction bookings
+            // Get booking_id - try booking_id first, then id
+            $bookingId = $booking->booking_id ?? $booking->id ?? null;
+            
+            if ($bookingId) {
+                $bookingTypeLower = strtolower($booking->type);
+                if ($bookingTypeLower === 'entry port') {
+                    $vehicleDriverData = $this->getVehicleDriverData($bookingId, $booking->data_decoded);
+                    // Set as both property and in attributes array to ensure it's accessible
+                    $booking->vehicle_driver_data = $vehicleDriverData;
+                    $booking->setAttribute('vehicle_driver_data', $vehicleDriverData);
+                } elseif ($bookingTypeLower === 'exit port') {
+                    $vehicleDriverData = $this->getVehicleDriverData($bookingId, $booking->data_decoded);
+                    // Set as both property and in attributes array to ensure it's accessible
+                    $booking->vehicle_driver_data = $vehicleDriverData;
+                    $booking->setAttribute('vehicle_driver_data', $vehicleDriverData);
+                } elseif ($bookingTypeLower === 'attraction') {
+                    $vehicleDriverData = $this->getVehicleDriverDataForAttraction($bookingId, $booking->data_decoded);
+                    // Set as both property and in attributes array to ensure it's accessible
+                    $booking->vehicle_driver_data = $vehicleDriverData;
+                    $booking->setAttribute('vehicle_driver_data', $vehicleDriverData);
+                } elseif ($bookingTypeLower === 'restaurant') {
+                    $vehicleDriverData = $this->getVehicleDriverDataForRestaurant($bookingId, $booking->data_decoded);
+                    // Set as both property and in attributes array to ensure it's accessible
+                    $booking->vehicle_driver_data = $vehicleDriverData;
+                    $booking->setAttribute('vehicle_driver_data', $vehicleDriverData);
+                } else {
+                    $booking->vehicle_driver_data = null;
+                    $booking->setAttribute('vehicle_driver_data', null);
+                }
+            } else {
+                $booking->vehicle_driver_data = null;
+                $booking->setAttribute('vehicle_driver_data', null);
+            }
 
             return $booking;
         });
+    }
+
+    /**
+     * Get vehicle and driver data for a booking
+     * Checks jobsheet first, then falls back to vehicles_id from order data
+     */
+    private function getVehicleDriverData($bookingId, $dataDecoded)
+    {
+        // Initialize return values
+        $vehicleNumber = 'N/A';
+        $maxPassengerCapacity = 'N/A';
+        $driverName = 'N/A';
+        $driverPhone = 'N/A';
+        
+        // Get first item from data_decoded to access vehicles_id
+        $firstItem = is_array($dataDecoded) && !empty($dataDecoded) ? $dataDecoded[0] : null;
+        
+        // Check jobsheet first using booking_id as order_id
+        $vehicleId = null;
+        $driverId = null;
+        
+        $jobsheet = \App\Models\Jobsheet::where('order_id', $bookingId)->first();
+        if ($jobsheet) {
+            $vehicleId = $jobsheet->vehicle_id;
+            $driverId = $jobsheet->driver_id;
+        }
+        
+        // If no jobsheet, use vehicles_id from order data
+        if (!$vehicleId && $firstItem && isset($firstItem['vehicles_id'])) {
+            $vehicleId = $firstItem['vehicles_id'];
+            
+        }
+        
+        // Fetch vehicle details
+        if ($vehicleId) {
+            $vehicle = \App\Models\Vehicle::where('vehicle_id', $vehicleId)->first();
+            if ($vehicle) {
+                $vehicleNumber = $vehicle->vehicle_plate_no ?? 'N/A';
+                $maxPassengerCapacity = $vehicle->seating_capacity ?? $vehicle->max_passenger_capacity ?? 'N/A';
+                
+                // If driver_id not from jobsheet, get from vehicle
+                if (!$driverId) {
+                    $driverId = $vehicle->driver_id;
+                }
+            }
+        }
+        
+        // Fetch driver details
+        if ($driverId) {
+            $driver = \App\Models\Driver::where('driver_id', $driverId)->first();
+            if ($driver) {
+                $driverName = $driver->name ?? 'N/A';
+                $driverPhone = $driver->phone ?? 'N/A';
+            }
+            
+        }
+        
+        return [
+            'vehicleNumber' => $vehicleNumber,
+            'maxPassengerCapacity' => $maxPassengerCapacity,
+            'driverName' => $driverName,
+            'driverPhone' => $driverPhone
+        ];
+    }
+
+    /**
+     * Get vehicle and driver data for an attraction booking
+     * Checks jobsheet first, then falls back to vehicle_id from transfer_options
+     */
+    private function getVehicleDriverDataForAttraction($bookingId, $dataDecoded)
+    {
+        // Initialize return values
+        $vehicleNumber = 'N/A';
+        $maxPassengerCapacity = 'N/A';
+        $driverName = 'N/A';
+        $driverPhone = 'N/A';
+        
+        // Get first item from data_decoded to access transfer_options
+        $firstItem = is_array($dataDecoded) && !empty($dataDecoded) ? $dataDecoded[0] : null;
+        
+        if (!$firstItem) {
+            return [
+                'vehicleNumber' => $vehicleNumber,
+                'maxPassengerCapacity' => $maxPassengerCapacity,
+                'driverName' => $driverName,
+                'driverPhone' => $driverPhone
+            ];
+        }
+        
+        // Check if transfer is required
+        $transferRequired = $firstItem['transfer_options']['transfer_required'] ?? false;
+        if (!$transferRequired) {
+            return [
+                'vehicleNumber' => $vehicleNumber,
+                'maxPassengerCapacity' => $maxPassengerCapacity,
+                'driverName' => $driverName,
+                'driverPhone' => $driverPhone
+            ];
+        }
+        
+        // Check jobsheet first using booking_id as order_id
+        $vehicleId = null;
+        $driverId = null;
+        
+        $jobsheet = \App\Models\Jobsheet::where('order_id', $bookingId)->first();
+        if ($jobsheet) {
+            $vehicleId = $jobsheet->vehicle_id;
+            $driverId = $jobsheet->driver_id;
+        }
+        
+        // If no jobsheet, use vehicle_id from transfer_options
+        if (!$vehicleId && isset($firstItem['transfer_options']['vehicle_id'])) {
+            $vehicleId = $firstItem['transfer_options']['vehicle_id'];
+        }
+        
+        // Fetch vehicle details
+        if ($vehicleId) {
+            $vehicle = \App\Models\Vehicle::where('vehicle_id', $vehicleId)->first();
+            if ($vehicle) {
+                $vehicleNumber = $vehicle->vehicle_plate_no ?? 'N/A';
+                $maxPassengerCapacity = $vehicle->seating_capacity ?? $vehicle->max_passenger_capacity ?? 'N/A';
+                
+                // If driver_id not from jobsheet, get from vehicle
+                if (!$driverId) {
+                    $driverId = $vehicle->driver_id;
+                }
+            }
+        }
+        
+        // Fetch driver details
+        if ($driverId) {
+            $driver = \App\Models\Driver::where('driver_id', $driverId)->first();
+            if ($driver) {
+                $driverName = $driver->name ?? 'N/A';
+                $driverPhone = $driver->phone ?? 'N/A';
+            }
+        }
+        
+        return [
+            'vehicleNumber' => $vehicleNumber,
+            'maxPassengerCapacity' => $maxPassengerCapacity,
+            'driverName' => $driverName,
+            'driverPhone' => $driverPhone
+        ];
+    }
+
+    /**
+     * Get vehicle and driver data for a restaurant booking
+     * Checks jobsheet first, then falls back to vehicle_id from transfer_options
+     */
+    private function getVehicleDriverDataForRestaurant($bookingId, $dataDecoded)
+    {
+        // Initialize return values
+        $vehicleNumber = 'N/A';
+        $maxPassengerCapacity = 'N/A';
+        $driverName = 'N/A';
+        $driverPhone = 'N/A';
+        
+        // Get first item from data_decoded to access transfer_options
+        $firstItem = is_array($dataDecoded) && !empty($dataDecoded) ? $dataDecoded[0] : null;
+        
+        if (!$firstItem) {
+            return [
+                'vehicleNumber' => $vehicleNumber,
+                'maxPassengerCapacity' => $maxPassengerCapacity,
+                'driverName' => $driverName,
+                'driverPhone' => $driverPhone
+            ];
+        }
+        
+        // Check if transfer is required
+        $transferRequired = $firstItem['transfer_options']['transfer_required'] ?? false;
+        if (!$transferRequired) {
+            return [
+                'vehicleNumber' => $vehicleNumber,
+                'maxPassengerCapacity' => $maxPassengerCapacity,
+                'driverName' => $driverName,
+                'driverPhone' => $driverPhone
+            ];
+        }
+        
+        // Check jobsheet first using booking_id as order_id
+        $vehicleId = null;
+        $driverId = null;
+        
+        $jobsheet = \App\Models\Jobsheet::where('order_id', $bookingId)->first();
+        if ($jobsheet) {
+            $vehicleId = $jobsheet->vehicle_id;
+            $driverId = $jobsheet->driver_id;
+        }
+        
+        // If no jobsheet, use vehicle_id from transfer_options
+        if (!$vehicleId && isset($firstItem['transfer_options']['vehicle_id'])) {
+            $vehicleId = $firstItem['transfer_options']['vehicle_id'];
+        }
+        
+        // Fetch vehicle details
+        if ($vehicleId) {
+            $vehicle = \App\Models\Vehicle::where('vehicle_id', $vehicleId)->first();
+            if ($vehicle) {
+                $vehicleNumber = $vehicle->vehicle_plate_no ?? 'N/A';
+                $maxPassengerCapacity = $vehicle->seating_capacity ?? $vehicle->max_passenger_capacity ?? 'N/A';
+                
+                // If driver_id not from jobsheet, get from vehicle
+                if (!$driverId) {
+                    $driverId = $vehicle->driver_id;
+                }
+            }
+        }
+        
+        // Fetch driver details
+        if ($driverId) {
+            $driver = \App\Models\Driver::where('driver_id', $driverId)->first();
+            if ($driver) {
+                $driverName = $driver->name ?? 'N/A';
+                $driverPhone = $driver->phone ?? 'N/A';
+            }
+        }
+        
+        return [
+            'vehicleNumber' => $vehicleNumber,
+            'maxPassengerCapacity' => $maxPassengerCapacity,
+            'driverName' => $driverName,
+            'driverPhone' => $driverPhone
+        ];
     }
 
     /**

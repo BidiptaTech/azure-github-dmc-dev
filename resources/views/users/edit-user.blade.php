@@ -62,6 +62,15 @@
         border-color: #696cff !important;
         box-shadow: 0 0 0.25rem rgba(105, 108, 255, 0.1) !important;
     }
+    
+    /* Invalid field styling */
+    .form-control.is-invalid, .form-select.is-invalid {
+        border-color: #dc3545 !important;
+        background-image: url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 12 12' width='12' height='12' fill='none' stroke='%23dc3545'%3e%3ccircle cx='6' cy='6' r='4.5'/%3e%3cpath stroke-linejoin='round' d='M5.8 3.6h.4L6 6.5z'/%3e%3ccircle cx='6' cy='8.2' r='.6' fill='%23dc3545' stroke='none'/%3e%3c/svg%3e");
+        background-repeat: no-repeat;
+        background-position: right calc(0.375em + 0.1875rem) center;
+        background-size: calc(0.75em + 0.375rem) calc(0.75em + 0.375rem);
+    }
 </style>
 
 <div class="content-wrapper">
@@ -108,12 +117,12 @@
                     <!-- Salutation -->
                     <div class="col-md-3 mb-3">
                         <label for="salutation" class="form-label"><strong>Salutation</strong><span class="text-danger">*</span></label>
-                        <select class="form-control" name="salutation" required>
+                        <select class="form-control" id="salutation" name="salutation" required>
                             <option value="">Select Salutation</option>
-                            <option value="Mr" {{ $users->salutation == 'Mr' ? 'selected' : '' }}>Mr.</option>
-                            <option value="Mrs" {{ $users->salutation == 'Mrs' ? 'selected' : '' }}>Mrs.</option>
-                            <option value="Miss" {{ $users->salutation == 'Miss' ? 'selected' : '' }}>Miss</option>
-                            <option value="Dear" {{ $users->salutation == 'Dear' ? 'selected' : '' }}>Dear</option>
+                            <option value="Mr" {{ ($users->salutation == 'Mr' || old('salutation') == 'Mr') ? 'selected' : '' }}>Mr.</option>
+                            <option value="Mrs" {{ ($users->salutation == 'Mrs' || old('salutation') == 'Mrs') ? 'selected' : '' }}>Mrs.</option>
+                            <option value="Miss" {{ ($users->salutation == 'Miss' || old('salutation') == 'Miss') ? 'selected' : '' }}>Miss</option>
+                            <option value="Dear" {{ ($users->salutation == 'Dear' || old('salutation') == 'Dear') ? 'selected' : '' }}>Dear</option>
                         </select>
                         @error('salutation')<div class="text-danger mt-1">{{ $message }}</div>@enderror
                     </div>
@@ -246,6 +255,57 @@
                     </div>
                 </div>
 
+                <!-- DMC-Level Settings (Group Pax & Markup) -->
+                <div class="row" id="dmc_settings_section" style="display: none;">
+                    <div class="col-md-12">
+                        <hr>
+                        <h6 class="text-primary mb-3">
+                            <i class="ri-settings-3-line me-1"></i>DMC Configuration Settings
+                        </h6>
+                    </div>
+
+                    <div class="col-md-3">
+                        <div class="mb-3">
+                            <label for="group_pax" class="form-label"><strong>Group Pax</strong></label>
+                            <input type="number" class="form-control" id="group_pax" name="group_pax" value="{{ $users->group_pax }}" placeholder="Enter number of pax" min="1">
+                            <small class="text-muted">Number of passengers for group bookings</small>
+                        </div>
+                    </div>
+
+                    <div class="col-md-3">
+                        <div class="mb-3">
+                            <label for="markup_service" class="form-label"><strong>Markup Service</strong></label>
+                            <select class="form-select" id="markup_service" name="markup_service">
+                                <option value="">-- Select Service Type --</option>
+                                <option value="all_service" {{ $users->markup_service === 'all_service' ? 'selected' : '' }}>All Service</option>
+                                <option value="hotels_only" {{ $users->markup_service === 'hotels_only' ? 'selected' : '' }}>Hotels Only</option>
+                                <option value="others_only" {{ $users->markup_service === 'others_only' ? 'selected' : '' }}>Others Only</option>
+                            </select>
+                            <small class="text-muted">Which services to apply markup</small>
+                        </div>
+                    </div>
+
+                    <div class="col-md-3">
+                        <div class="mb-3">
+                            <label for="markup_type" class="form-label"><strong>Markup Type</strong></label>
+                            <select class="form-select" id="markup_type" name="markup_type">
+                                <option value="">-- Select Markup Type --</option>
+                                <option value="0" {{ $users->markup_type == 0 || old('markup_type') == 0 ? 'selected' : '' }}>By Value (Flat)</option>
+                                <option value="1" {{ $users->markup_type == 1 || old('markup_type') == 1 ? 'selected' : '' }}>By Percentage</option>
+                            </select>
+                            <small class="text-muted">0 = Flat rate, 1 = Percentage</small>
+                        </div>
+                    </div>
+
+                    <div class="col-md-3">
+                        <div class="mb-3">
+                            <label for="markup_price" class="form-label"><strong>Markup Value</strong></label>
+                            <input type="number" class="form-control" id="markup_price" name="markup_price" value="{{ $users->markup_price ?? '' }}" placeholder="Enter value" min="0">
+                            <small class="text-muted">Amount or percentage number</small>
+                        </div>
+                    </div>
+                </div>
+
                 <!-- Contact Information -->
                 <div class="row">
                     <div class="col-md-4">
@@ -363,7 +423,22 @@
             
             // Always check basic required fields
             if (!$('input[name="yourname"]').val()) missingFields.push('Name');
-            if (!$('select[name="salutation"]').val()) missingFields.push('Salutation');
+            
+            // Check salutation using ID selector
+            const salutationValue = $('#salutation').val();
+            console.log('=== SALUTATION DEBUG ===');
+            console.log('Salutation value:', salutationValue);
+            console.log('Salutation type:', typeof salutationValue);
+            console.log('Salutation element found:', $('#salutation').length);
+            console.log('Salutation selected text:', $('#salutation option:selected').text());
+            console.log('========================');
+            
+            // TEMPORARILY DISABLED - Let HTML5 validation handle it
+            // Only check if value is truly empty (not just falsy)
+            // if (!salutationValue || salutationValue === '' || salutationValue === null) {
+            //     missingFields.push('Salutation');
+            // }
+            
             if (!$('input[name="phone"]').val()) missingFields.push('Phone');
             if (!$('select[name="user_country"]').val()) missingFields.push('User Country');
             if (!$('select[name="city"]').val()) missingFields.push('City');
@@ -387,7 +462,25 @@
             
             if (missingFields.length > 0) {
                 e.preventDefault();
-                alert('Please fill in the following required fields: ' + missingFields.join(', '));
+                
+                // Scroll to the first missing field
+                const firstMissingField = missingFields[0];
+                console.log('Missing fields:', missingFields);
+                console.log('First missing field:', firstMissingField);
+                
+                // Special debug for salutation
+                if (missingFields.includes('Salutation')) {
+                    const debugSalutation = $('#salutation').val();
+                    console.log('SALUTATION ERROR - Value is:', debugSalutation);
+                    $('#salutation').focus();
+                    $('#salutation').addClass('is-invalid');
+                    
+                    // Show actual value in alert for debugging
+                    alert('Salutation validation failed!\nCurrent value: "' + debugSalutation + '"\nPlease fill in the following required fields: ' + missingFields.join(', '));
+                } else {
+                    alert('Please fill in the following required fields: ' + missingFields.join(', '));
+                }
+                
                 return false;
             }
             
@@ -522,7 +615,8 @@
                 master_logo: $('#master_logo'),
                 company_name: $('#company_name'),
                 inputSalespersonContainerAdmin: $('#inputSalespersonContainerAdmin'),
-                markuptypes: $('#markuptypes')
+                markuptypes: $('#markuptypes'),
+                dmc_settings_section: $('#dmc_settings_section')
             };
 
             // Hide all containers
@@ -532,18 +626,20 @@
             if (userRole >= 5 && userRole <= 9) {
                 containers.country_names.show();
             } else if (userRole === 10 || userRole === 19) {
-                // Master DMC - show multiple countries, logo, and company name
+                // Master DMC - show multiple countries, logo, company name, and DMC settings
                 containers.country_names.show();
                 containers.master_logo.show();
                 containers.company_name.show();
+                containers.dmc_settings_section.show();
             } else if (userRole === 11 || userRole === 20) {
-                // DMC - show single country (if created by Master DMC), master DMC selection, logo, and company name
+                // DMC - show single country (if created by Master DMC), master DMC selection, logo, company name, and DMC settings
                 if ({{ auth()->user()->role_id }} == 10 || {{ auth()->user()->role_id }} == 19) {
                     containers.country_name.show();
                 }
                 containers.inputRoleContainer.show();
                 containers.master_logo.show();
                 containers.company_name.show();
+                containers.dmc_settings_section.show();
             } else if (userRole === 4) {
                 containers.inputSalespersonContainerAdmin.show();
             } else if (userRole === 3) {

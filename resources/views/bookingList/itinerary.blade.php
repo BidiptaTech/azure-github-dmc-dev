@@ -6,6 +6,7 @@
 <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.5.31/jspdf.plugin.autotable.min.js"></script>
 
 <style>
     @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
@@ -2385,13 +2386,16 @@
                         <button id="downloadText" class="btn-modern btn-secondary-modern">
                             <i class="fas fa-file-alt"></i> Download Itinerary
                         </button>
+                        <button id="downloadExcelFormat" class="btn-modern btn-secondary-modern">
+                            <i class="fas fa-file-excel"></i> Download Excel Format
+                        </button>
                         <button id="downloadPdf" class="btn-modern btn-secondary-modern">
                             <i class="fas fa-download"></i> Download PDF
                         </button>
                         <button id="printItinerary" class="btn-modern btn-primary-modern">
                             <i class="fas fa-print"></i> Print Itinerary
                         </button>
-                    </div>
+                    </div>        
                 </div>
             </div>
             
@@ -3828,29 +3832,507 @@
         });
         
         // Download Text Itinerary functionality
-        document.getElementById('downloadText').addEventListener('click', function() {
-            downloadAsText();
-        });
+        // Extract customer info and hotel info from bookings BEFORE the function
+        // This ensures data is available when the function is called
+        @php
+            $pdfCustomerInfo = [];
+            $pdfAllServices = []; // Array to store ALL services organized by date: [date => [services]]
+            $pdfDebugItineraryCount = 0;
+            $pdfDebugBookingCount = 0;
+            $addedHotels = []; // Track hotels already added to avoid duplicates
+            $addedServices = []; // Track all services (restaurants, attractions, etc.) already added to avoid duplicates
+            
+            // Check if itineraryByDate exists and has data
+            if (isset($itineraryByDate) && is_array($itineraryByDate) && count($itineraryByDate) > 0) {
+                $pdfDebugItineraryCount = count($itineraryByDate);
+                
+                // Sort dates
+                ksort($itineraryByDate);
+                
+                // Loop through all dates and bookings
+                foreach ($itineraryByDate as $date => $bookings) {
+                    if (!is_array($bookings) || empty($bookings)) {
+                        continue;
+                    }
+                    
+                    // Initialize services array for this date
+                    if (!isset($pdfAllServices[$date])) {
+                        $pdfAllServices[$date] = [];
+                    }
+                    
+                    foreach ($bookings as $booking) {
+                        if (!$booking) {
+                            continue;
+                        }
+                        
+                        $pdfDebugBookingCount++;
+                        
+                        // Get booking type - handle both object and array access
+                        $bookingType = null;
+                        if (is_object($booking) && isset($booking->type)) {
+                            $bookingType = $booking->type;
+                        } elseif (is_array($booking) && isset($booking['type'])) {
+                            $bookingType = $booking['type'];
+                        }
+                        
+                        $data = null;
+                        
+                        // Extract data - try data_decoded first (already processed by controller/blade)
+                        if (is_object($booking) && isset($booking->data_decoded) && is_array($booking->data_decoded) && !empty($booking->data_decoded)) {
+                            $data = $booking->data_decoded[0] ?? null;
+                        } elseif (is_array($booking) && isset($booking['data_decoded']) && is_array($booking['data_decoded']) && !empty($booking['data_decoded'])) {
+                            $data = $booking['data_decoded'][0] ?? null;
+                        }
+                        // If data_decoded not available, try raw data
+                        elseif (is_object($booking) && isset($booking->data)) {
+                            if (is_string($booking->data)) {
+                                try {
+                                    $decoded = json_decode($booking->data, true);
+                                    // Booking data structure: [ { ... } ]
+                                    if (is_array($decoded) && isset($decoded[0])) {
+                                        $data = $decoded[0];
+                                    } elseif (is_array($decoded) && !isset($decoded[0]) && count($decoded) > 0) {
+                                        // Single object in array
+                                        $data = $decoded;
+                                    }
+                                } catch (\Exception $e) {
+                                    // JSON decode failed
+                                    continue;
+                                }
+                            } elseif (is_array($booking->data)) {
+                                $data = isset($booking->data[0]) ? $booking->data[0] : $booking->data;
+                            }
+                        } elseif (is_array($booking) && isset($booking['data'])) {
+                            if (is_string($booking['data'])) {
+                                try {
+                                    $decoded = json_decode($booking['data'], true);
+                                    if (is_array($decoded) && isset($decoded[0])) {
+                                        $data = $decoded[0];
+                                    } elseif (is_array($decoded) && !isset($decoded[0]) && count($decoded) > 0) {
+                                        $data = $decoded;
+                                    }
+                                } catch (\Exception $e) {
+                                    continue;
+                                }
+                            } elseif (is_array($booking['data'])) {
+                                $data = isset($booking['data'][0]) ? $booking['data'][0] : $booking['data'];
+                            }
+                        }
+                        
+                        if (!$data || !is_array($data)) {
+                            continue;
+                        }
+                        
+                        // Extract customer info from any booking (all booking types have fullName, email, phone)
+                        if (empty($pdfCustomerInfo) && isset($data['fullName']) && !empty($data['fullName'])) {
+                            $pdfCustomerInfo = [
+                                'fullName' => $data['fullName'] ?? '',
+                                'email' => $data['email'] ?? '',
+                                'phone' => $data['phone'] ?? '',
+                                'address' => $data['address'] ?? $data['address1'] ?? $data['address2'] ?? 'N/A',
+                                'state' => $data['state'] ?? $data['city'] ?? 'N/A',
+                                'zip' => $data['zip'] ?? $data['postal_code'] ?? 'N/A',
+                            ];
+                        }
+                        
+                        $bookingTypeLower = strtolower($bookingType ?? '');
+                        
+                        // Process ALL service types including hotels - organize by date
+                        if ($bookingTypeLower == 'hotel') {
+                            // Skip checkout entries
+                            $stayType = $data['stay_type'] ?? null;
+                            if ($stayType && strtolower($stayType) == 'checkout') {
+                                continue;
+                            }
+                            
+                            $hotelName = $data['hotelDetails']['hotel_name'] ?? $data['hotelname'] ?? $data['name'] ?? null;
+                            
+                            if ($hotelName) {
+                                // bookingDate is array: ["2026-01-08", "2026-01-13"]
+                                $bookingDate = $data['bookingDate'] ?? null;
+                                $checkInDate = null;
+                                $checkOutDate = null;
+                                
+                                if (is_array($bookingDate) && count($bookingDate) >= 2) {
+                                    $checkInDate = $bookingDate[0];
+                                    $checkOutDate = $bookingDate[1];
+                                } elseif (is_array($bookingDate) && count($bookingDate) == 1) {
+                                    $checkInDate = $bookingDate[0];
+                                } elseif ($bookingDate) {
+                                    $checkInDate = $bookingDate;
+                                }
+                                
+                                // Adjust hotel date to match tour year if needed
+                                $hotelDate = $checkInDate ?? $date;
+                                if ($hotelDate && isset($tourDetails->check_in_time)) {
+                                    try {
+                                        $tourCheckIn = \Carbon\Carbon::parse($tourDetails->check_in_time);
+                                        $hotelCheckIn = \Carbon\Carbon::parse($hotelDate);
+                                        
+                                        // If hotel year differs from tour year, adjust to tour year
+                                        if ($hotelCheckIn->year != $tourCheckIn->year) {
+                                            $hotelDate = $tourCheckIn->year . '-' . 
+                                                       str_pad($hotelCheckIn->month, 2, '0', STR_PAD_LEFT) . '-' . 
+                                                       str_pad($hotelCheckIn->day, 2, '0', STR_PAD_LEFT);
+                                        }
+                                    } catch (\Exception $e) {
+                                        // If date parsing fails, use original date
+                                    }
+                                }
+                                
+                                // Only add hotel on check-in date (not on every day of stay)
+                                // This ensures hotels appear together with other services on the same date
+                                
+                                // Check if we already added this hotel for this check-in date
+                                $hotelKey = $hotelName . '_' . $hotelDate;
+                                
+                                if (isset($addedHotels[$hotelKey])) {
+                                    continue; // Skip if already added
+                                }
+                                
+                                // Only add on check-in day (stay_type is 'checkin' or first occurrence)
+                                $shouldAdd = false;
+                                if ($stayType && strtolower($stayType) == 'checkin') {
+                                    // This is the check-in day, add it
+                                    $shouldAdd = true;
+                                } elseif (!$stayType || strtolower($stayType) == 'stay') {
+                                    // If no stay_type or it's a stay day, check if this is the first occurrence
+                                    // by comparing the current date with check-in date
+                                    if ($date == $hotelDate) {
+                                        $shouldAdd = true; // This is the check-in date
+                                    }
+                                }
+                                
+                                if (!$shouldAdd) {
+                                    continue; // Not the check-in date, skip
+                                }
+                                
+                                // Calculate nights from dates
+                                $nights = 1;
+                                if ($checkInDate && $checkOutDate) {
+                                    try {
+                                        $checkIn = \Carbon\Carbon::parse($checkInDate);
+                                        $checkOut = \Carbon\Carbon::parse($checkOutDate);
+                                        $nights = $checkIn->diffInDays($checkOut);
+                                    } catch (\Exception $e) {
+                                        $nights = $data['total_nights'] ?? $data['nights'] ?? 1;
+                                    }
+                                } else {
+                                    $nights = $data['total_nights'] ?? $data['nights'] ?? 1;
+                                }
+                                
+                                // Get room info - rooms is array: [ { "room_type": "...", "beds": [...] } ]
+                                $roomType = 'Standard';
+                                $roomCount = 1;
+                                if (isset($data['rooms']) && is_array($data['rooms']) && count($data['rooms']) > 0) {
+                                    $firstRoom = $data['rooms'][0];
+                                    $roomType = $firstRoom['room_type'] ?? 'Standard';
+                                    $roomCount = count($data['rooms']);
+                                }
+                                
+                                $serviceInfo = [
+                                    'type' => $bookingType,
+                                    'date' => $hotelDate, // Use check-in date, not the loop date
+                                    'name' => $hotelName,
+                                    'checkIn' => $checkInDate ?? ($tourDetails->check_in_time ?? null),
+                                    'checkOut' => $checkOutDate ?? ($tourDetails->check_out_time ?? null),
+                                    'roomType' => $roomType,
+                                    'roomCount' => $roomCount,
+                                    'nights' => $nights,
+                                    'confirmationNo' => $data['confirmationNo'] ?? $data['confirmation_no'] ?? $data['confirmation_number'] ?? null,
+                                    'stayType' => $stayType,
+                                    'data' => $data
+                                ];
+                                
+                                // Add hotel to services for check-in date (so it appears with other services)
+                                if (!isset($pdfAllServices[$hotelDate])) {
+                                    $pdfAllServices[$hotelDate] = [];
+                                }
+                                $pdfAllServices[$hotelDate][] = $serviceInfo;
+                                
+                                // Mark this hotel as added
+                                $addedHotels[$hotelKey] = true;
+                            }
+                        }
+                        // Process OTHER service types (restaurant, attraction, guide, transport, entry_port, exit_port)
+                        else {
+                            // Create a unique key for deduplication based on booking ID or service details
+                            $bookingId = null;
+                            if (is_object($booking) && isset($booking->id)) {
+                                $bookingId = $booking->id;
+                            } elseif (is_array($booking) && isset($booking['id'])) {
+                                $bookingId = $booking['id'];
+                            }
+                            
+                            // Normalize booking type for consistent deduplication
+                            // Convert "Exit Port" to "exit_port" and "Entry Port" to "entry_port" for consistency
+                            $normalizedType = $bookingTypeLower;
+                            if ($bookingTypeLower == 'exit port') {
+                                $normalizedType = 'exit_port';
+                            } elseif ($bookingTypeLower == 'entry port') {
+                                $normalizedType = 'entry_port';
+                            }
+                            
+                            // For restaurants and attractions, create a unique key
+                            $serviceKey = null;
+                            if ($bookingTypeLower == 'restaurant') {
+                                $serviceName = $data['restaurantName'] ?? $data['name'] ?? '';
+                                $visitTime = $data['visitTime'] ?? $data['time'] ?? '';
+                                $serviceKey = $bookingId ? "restaurant_{$bookingId}_{$date}" : "restaurant_{$serviceName}_{$visitTime}_{$date}";
+                            } elseif ($bookingTypeLower == 'attraction') {
+                                $serviceName = $data['AttractionName'] ?? $data['name'] ?? '';
+                                $visitTime = $data['visitTime'] ?? $data['time'] ?? '';
+                                $serviceKey = $bookingId ? "attraction_{$bookingId}_{$date}" : "attraction_{$serviceName}_{$visitTime}_{$date}";
+                            } else {
+                                // For other services, use normalized type and booking ID if available
+                                // Also include a unique identifier from the data to prevent duplicates
+                                $dataId = $data['id'] ?? $data['booking_id'] ?? null;
+                                if ($bookingId && $dataId) {
+                                    $serviceKey = "{$normalizedType}_{$bookingId}_{$dataId}_{$date}";
+                                } elseif ($bookingId) {
+                                    $serviceKey = "{$normalizedType}_{$bookingId}_{$date}";
+                                } elseif ($dataId) {
+                                    $serviceKey = "{$normalizedType}_{$dataId}_{$date}";
+                                } else {
+                                    $serviceKey = null;
+                                }
+                            }
+                            
+                            // Skip if this service was already added
+                            if ($serviceKey && isset($addedServices[$serviceKey])) {
+                                continue; // Skip duplicate
+                            }
+                            
+                            // Normalize the type in serviceInfo to prevent duplicates with different case
+                            $normalizedServiceType = $normalizedType;
+                            
+                            $serviceInfo = [
+                                'type' => $normalizedServiceType,
+                                'date' => $date,
+                                'data' => $data
+                            ];
+                            
+                            // Extract service-specific information
+                            if ($bookingTypeLower == 'restaurant') {
+                                $serviceInfo['name'] = $data['restaurantName'] ?? $data['name'] ?? 'N/A';
+                                $serviceInfo['visitTime'] = $data['visitTime'] ?? $data['time'] ?? null;
+                                $serviceInfo['mealType'] = $data['mealType'] ?? null;
+                                $serviceInfo['mealSpecificType'] = $data['mealSpecificType'] ?? null;
+                                $serviceInfo['transferType'] = $data['transfer_options']['type'] ?? null;
+                                $serviceInfo['way'] = $data['transfer_options']['way'] ?? null;
+                                $serviceInfo['pickupLocation'] = $data['transfer_options']['pickup_location_name'] ?? null;
+                                
+                                // Get vehicle and driver data from booking (populated in controller)
+                                // Access vehicle_driver_data from Eloquent model attributes
+                                // Since vehicle_driver_data is in #attributes array, access it directly
+                                $vehicleDriverData = null;
+                                if (is_object($booking)) {
+                                    // Try multiple access methods to get vehicle_driver_data
+                                    // Method 1: Direct property access (should work for attributes)
+                                    if (isset($booking->vehicle_driver_data)) {
+                                        $vehicleDriverData = $booking->vehicle_driver_data;
+                                    }
+                                    // Method 2: getAttribute method
+                                    elseif (method_exists($booking, 'getAttribute')) {
+                                        $vehicleDriverData = $booking->getAttribute('vehicle_driver_data');
+                                    }
+                                    // Method 3: Direct access to attributes array
+                                    elseif (property_exists($booking, 'attributes') && isset($booking->attributes['vehicle_driver_data'])) {
+                                        $vehicleDriverData = $booking->attributes['vehicle_driver_data'];
+                                    }
+                                } elseif (is_array($booking) && isset($booking['vehicle_driver_data'])) {
+                                    $vehicleDriverData = $booking['vehicle_driver_data'];
+                                }
+                                
+                                // Set vehicle and driver data to serviceInfo - always set these properties
+                                // This ensures they're available in JavaScript even if data is missing
+                                $serviceInfo['vehicleNumber'] = ($vehicleDriverData && is_array($vehicleDriverData) && isset($vehicleDriverData['vehicleNumber'])) ? $vehicleDriverData['vehicleNumber'] : 'N/A';
+                                $serviceInfo['maxPassengerCapacity'] = ($vehicleDriverData && is_array($vehicleDriverData) && isset($vehicleDriverData['maxPassengerCapacity'])) ? $vehicleDriverData['maxPassengerCapacity'] : 'N/A';
+                                $serviceInfo['driverName'] = ($vehicleDriverData && is_array($vehicleDriverData) && isset($vehicleDriverData['driverName'])) ? $vehicleDriverData['driverName'] : 'N/A';
+                                $serviceInfo['driverPhone'] = ($vehicleDriverData && is_array($vehicleDriverData) && isset($vehicleDriverData['driverPhone'])) ? $vehicleDriverData['driverPhone'] : 'N/A';
+                            } elseif ($bookingTypeLower == 'attraction') {
+                                $serviceInfo['name'] = $data['AttractionName'] ?? $data['name'] ?? 'N/A';
+                                $serviceInfo['visitTime'] = $data['visitTime'] ?? $data['time'] ?? null;
+                                $serviceInfo['ticketName'] = $data['ticketName'] ?? null;
+                                $serviceInfo['transferType'] = $data['transfer_options']['type'] ?? null;
+                                $serviceInfo['pickupLocation'] = $data['transfer_options']['pickup_location_name'] ?? null;
+                                
+                                // Get vehicle and driver data from booking (populated in controller)
+                                // Access vehicle_driver_data from Eloquent model attributes
+                                // Since vehicle_driver_data is in #attributes array, access it directly
+                                $vehicleDriverData = is_object($booking) ? ($booking->vehicle_driver_data ?? null) : ($booking['vehicle_driver_data'] ?? null);
+                                
+                                // Set vehicle and driver data to serviceInfo
+                                if ($vehicleDriverData && is_array($vehicleDriverData) && !empty($vehicleDriverData)) {
+                                    $serviceInfo['vehicleNumber'] = $vehicleDriverData['vehicleNumber'] ?? 'N/A';
+                                    $serviceInfo['maxPassengerCapacity'] = $vehicleDriverData['maxPassengerCapacity'] ?? 'N/A';
+                                    $serviceInfo['driverName'] = $vehicleDriverData['driverName'] ?? 'N/A';
+                                    $serviceInfo['driverPhone'] = $vehicleDriverData['driverPhone'] ?? 'N/A';
+                                } else {
+                                    // Fallback to N/A if data not available
+                                    $serviceInfo['vehicleNumber'] = 'N/A';
+                                    $serviceInfo['maxPassengerCapacity'] = 'N/A';
+                                    $serviceInfo['driverName'] = 'N/A';
+                                    $serviceInfo['driverPhone'] = 'N/A';
+                                }
+                            } elseif ($bookingTypeLower == 'guide') {
+                                $serviceInfo['name'] = $data['guide_name'] ?? $data['guideName'] ?? 'N/A';
+                                $serviceInfo['entryTime'] = $data['entrytime'] ?? $data['entryTime'] ?? null;
+                                $serviceInfo['hours'] = $data['hours'] ?? null;
+                                $serviceInfo['languages'] = $data['languages'] ?? [];
+                            } elseif ($bookingTypeLower == 'travel_point' || $bookingTypeLower == 'travel_hourly' || $bookingTypeLower == 'point to point' || $bookingTypeLower == 'hourly' || $bookingTypeLower == 'local_transport') {
+                                $serviceInfo['pickup'] = $data['entrypickup'] ?? $data['pickup'] ?? null;
+                                $serviceInfo['dropoff'] = $data['entrydropoff'] ?? $data['dropoff'] ?? $data['dropoffLocation'] ?? null;
+                                $serviceInfo['pickupTime'] = $data['pickupdate'] ?? $data['pickupTime'] ?? null;
+                                $serviceInfo['vehicle'] = $data['vehicle'] ?? $data['vehicles_name'] ?? null;
+                                $serviceInfo['transferType'] = $data['type'] ?? null;
+                                $serviceInfo['selectedHours'] = $data['selectedHours'] ?? null;
+                            } elseif ($bookingTypeLower == 'entry_port' || $bookingTypeLower == 'entry port') {
+                                $serviceInfo['pickup'] = $data['entrypickup'] ?? $data['entry_pickup'] ?? $data['pickup'] ?? null;
+                                $serviceInfo['dropoff'] = $data['entrydropoff'] ?? $data['entry_dropoff'] ?? $data['dropoff'] ?? null;
+                                $serviceInfo['pickupTime'] = $data['pickupdate'] ?? $data['entrytime'] ?? null;
+                                $serviceInfo['vehicle'] = $data['vehicles_name'] ?? $data['vehicle'] ?? null;
+                                $serviceInfo['transferType'] = $data['type'] ?? $data['transfer_options']['type'] ?? null;
+                            
+                                // Get vehicle and driver data from booking (populated in controller)
+                                // Access vehicle_driver_data from Eloquent model attributes
+                                // Since vehicle_driver_data is in #attributes array, access it directly
+                                $vehicleDriverData = null;
+                                if (is_object($booking)) {
+                                    // Try multiple access methods to get vehicle_driver_data
+                                    // Method 1: Direct property access (should work for attributes)
+                                    if (isset($booking->vehicle_driver_data)) {
+                                        $vehicleDriverData = $booking->vehicle_driver_data;
+                                    }
+                                    // Method 2: getAttribute method
+                                    elseif (method_exists($booking, 'getAttribute')) {
+                                        $vehicleDriverData = $booking->getAttribute('vehicle_driver_data');
+                                    }
+                                    // Method 3: Direct access to attributes array
+                                    elseif (property_exists($booking, 'attributes') && isset($booking->attributes['vehicle_driver_data'])) {
+                                        $vehicleDriverData = $booking->attributes['vehicle_driver_data'];
+                                    }
+                                } elseif (is_array($booking) && isset($booking['vehicle_driver_data'])) {
+                                    $vehicleDriverData = $booking['vehicle_driver_data'];
+                                }
+                                // Set vehicle and driver data to serviceInfo - always set these properties
+                                // This ensures they're available in JavaScript even if data is missing
+                                $serviceInfo['vehicleNumber'] = ($vehicleDriverData && is_array($vehicleDriverData) && isset($vehicleDriverData['vehicleNumber'])) ? $vehicleDriverData['vehicleNumber'] : 'N/A';
+                                $serviceInfo['maxPassengerCapacity'] = ($vehicleDriverData && is_array($vehicleDriverData) && isset($vehicleDriverData['maxPassengerCapacity'])) ? $vehicleDriverData['maxPassengerCapacity'] : 'N/A';
+                                $serviceInfo['driverName'] = ($vehicleDriverData && is_array($vehicleDriverData) && isset($vehicleDriverData['driverName'])) ? $vehicleDriverData['driverName'] : 'N/A';
+                                $serviceInfo['driverPhone'] = ($vehicleDriverData && is_array($vehicleDriverData) && isset($vehicleDriverData['driverPhone'])) ? $vehicleDriverData['driverPhone'] : 'N/A';
+                                
+                            } elseif ($bookingTypeLower == 'exit_port' || $bookingTypeLower == 'exit port') {
+                                $serviceInfo['pickup'] = $data['exitpickup'] ?? $data['exit_pickup'] ?? $data['pickup'] ?? null;
+                                $serviceInfo['dropoff'] = $data['exitdropoff'] ?? $data['exit_dropoff'] ?? $data['dropoff'] ?? null;
+                                $serviceInfo['pickupTime'] = $data['exitpickupdate'] ?? $data['exitpickuptime'] ?? null;
+                                $serviceInfo['vehicle'] = $data['vehicles_name'] ?? $data['vehicle'] ?? null;
+                                $serviceInfo['transferType'] = $data['type'] ?? null;
+                                
+                                // Get vehicle and driver data from booking (populated in controller)
+                                // Access vehicle_driver_data from Eloquent model attributes
+                                // Since vehicle_driver_data is in #attributes array, access it directly
+                                $vehicleDriverData = null;
+                                if (is_object($booking)) {
+                                    // Try multiple access methods to get vehicle_driver_data
+                                    // Method 1: Direct property access (should work for attributes)
+                                    if (isset($booking->vehicle_driver_data)) {
+                                        $vehicleDriverData = $booking->vehicle_driver_data;
+                                    }
+                                    // Method 2: getAttribute method
+                                    elseif (method_exists($booking, 'getAttribute')) {
+                                        $vehicleDriverData = $booking->getAttribute('vehicle_driver_data');
+                                    }
+                                    // Method 3: Direct access to attributes array
+                                    elseif (property_exists($booking, 'attributes') && isset($booking->attributes['vehicle_driver_data'])) {
+                                        $vehicleDriverData = $booking->attributes['vehicle_driver_data'];
+                                    }
+                                } elseif (is_array($booking) && isset($booking['vehicle_driver_data'])) {
+                                    $vehicleDriverData = $booking['vehicle_driver_data'];
+                                }
+                                
+                                // Set vehicle and driver data to serviceInfo - always set these properties
+                                // This ensures they're available in JavaScript even if data is missing
+                                $serviceInfo['vehicleNumber'] = ($vehicleDriverData && is_array($vehicleDriverData) && isset($vehicleDriverData['vehicleNumber'])) ? $vehicleDriverData['vehicleNumber'] : 'N/A';
+                                $serviceInfo['maxPassengerCapacity'] = ($vehicleDriverData && is_array($vehicleDriverData) && isset($vehicleDriverData['maxPassengerCapacity'])) ? $vehicleDriverData['maxPassengerCapacity'] : 'N/A';
+                                $serviceInfo['driverName'] = ($vehicleDriverData && is_array($vehicleDriverData) && isset($vehicleDriverData['driverName'])) ? $vehicleDriverData['driverName'] : 'N/A';
+                                $serviceInfo['driverPhone'] = ($vehicleDriverData && is_array($vehicleDriverData) && isset($vehicleDriverData['driverPhone'])) ? $vehicleDriverData['driverPhone'] : 'N/A';
+                                
+                            }
+                            
+                            $pdfAllServices[$date][] = $serviceInfo;
+                            
+                            // Mark this service as added
+                            if ($serviceKey) {
+                                $addedServices[$serviceKey] = true;
+                            }
+                        }
+                    }
+                }
+            }
+        @endphp
         
-        // Download PDF functionality
-        document.getElementById('downloadPdf').addEventListener('click', function() {
-            downloadAsPDF();
-        });
+        // Store extracted data in JavaScript variables (available globally)
+        const pdfCustomerInfo = @json($pdfCustomerInfo ?? []);
+        const pdfAllServices = @json($pdfAllServices ?? []);
+        console.log('pdfAllServices', pdfAllServices);
+        const pdfDebugInfo = {
+            itineraryCount: @json($pdfDebugItineraryCount ?? 0),
+            bookingCount: @json($pdfDebugBookingCount ?? 0)
+        };
         
-        // Print functionality
-        document.getElementById('printItinerary').addEventListener('click', function() {
-            preparePrint();
-            setTimeout(function() {
-                window.print();
-            }, 300);
-        });
+        // Download Text Itinerary functionality (only if button exists)
+        const downloadTextBtn = document.getElementById('downloadText');
+        if (downloadTextBtn) {
+            downloadTextBtn.addEventListener('click', function() {
+                downloadAsText();
+            });
+        }
         
-        document.getElementById('printItineraryMobile').addEventListener('click', function() {
-            preparePrint();
-            setTimeout(function() {
-                window.print();
-            }, 300);
-        });
+        // Download Excel Format PDF functionality (only if button exists)
+        const downloadExcelFormatBtn = document.getElementById('downloadExcelFormat');
+        if (downloadExcelFormatBtn) {
+            downloadExcelFormatBtn.addEventListener('click', function(e) {
+                e.preventDefault();
+                console.log('Download Excel Format button clicked');
+                try {
+                    downloadAsExcelFormat();
+                } catch (error) {
+                    console.error('Error in downloadAsExcelFormat:', error);
+                    showErrorMessage('Failed to download Excel format: ' + error.message);
+                }
+            });
+        }
+        
+        // Download PDF functionality (only if button exists)
+        const downloadPdfBtn = document.getElementById('downloadPdf');
+        if (downloadPdfBtn) {
+            downloadPdfBtn.addEventListener('click', function() {
+                downloadAsPDF();
+            });
+        }
+        
+        // Print functionality (only if button exists)
+        const printItineraryBtn = document.getElementById('printItinerary');
+        if (printItineraryBtn) {
+            printItineraryBtn.addEventListener('click', function() {
+                preparePrint();
+                setTimeout(function() {
+                    window.print();
+                }, 300);
+            });
+        }
+        
+        // Print functionality for mobile (only if button exists)
+        const printItineraryMobileBtn = document.getElementById('printItineraryMobile');
+        if (printItineraryMobileBtn) {
+            printItineraryMobileBtn.addEventListener('click', function() {
+                preparePrint();
+                setTimeout(function() {
+                    window.print();
+                }, 300);
+            });
+        }
         
         function downloadAsPDF() {
             // Check if libraries are loaded
@@ -3999,75 +4481,83 @@
             /**
              * DATA STRUCTURE FOR ALL SERVICE TYPES:
              * 
+             * IMPORTANT: booking->data is a JSON string that decodes to an ARRAY: [ { ... } ]
+             * Each booking contains an array with one (or more) objects
+             * 
              * Data is fetched from $itineraryByDate which is organized by date (Y-m-d format)
              * Each date contains an array of bookings, where each booking has:
              * - booking->type: 'hotel', 'restaurant', 'attraction', 'guide', 'travel_point', 'travel_hourly', 'entry_port', 'exit_port'
              * - booking->data_decoded: Array of booking items (usually [0] contains the main data)
              * 
-             * HOTEL SERVICE:
-             * - data['hotelDetails']['hotel_name'] or data['hotelname'] or data['name']
-             * - data['bookingDate']: [checkIn, checkOut] (array) or single date
-             * - data['hotelDetails']['location']
-             * - data['hotelDetails']['checkInTime'], data['hotelDetails']['checkOutTime']
-             * - data['rooms']: Array of rooms with room_type, beds array
-             * - data['total_nights'] or data['nights']
-             * - data['confirmationNo'] or data['confirmation_no'] or data['confirmation_number']
-             * - data['stay_type']: 'checkin', 'stay', 'checkout'
+             * NOTE: stay_type is NOT in original data - it's added during processing in blade template
              * 
-             * RESTAURANT SERVICE:
-             * - data['restaurantName'] or data['name']
-             * - data['bookingDate'] or data['date']
-             * - data['visitTime']
-             * - data['mealType'], data['mealSpecificType']
-             * - data['adultCount'], data['childCount']
-             * - data['totalPrice']
-             * - data['transfer_options']['transfer_required']: boolean
-             * - data['transfer_options']['pickup_location_name']
-             * - data['transfer_options']['type']: 'Shared' or 'Private'
+             * HOTEL SERVICE - Actual JSON structure:
+             * [{
+             *   "fullName": "", "email": "", "phone": "",
+             *   "bookingDate": ["2026-01-08", "2026-01-13"],  // ARRAY with [checkIn, checkOut]
+             *   "hotelDetails": { "hotel_name": "...", "location": "...", "checkInTime": "...", "checkOutTime": "..." },
+             *   "rooms": [{ "room_type": "...", "beds": [...] }],
+             *   "totalPrice": 44000,
+             *   "confirmationNo": "..." (may not exist)
+             * }]
              * 
-             * ATTRACTION SERVICE:
-             * - data['AttractionName'] or data['name']
-             * - data['bookingDate'] or data['date']
-             * - data['visitTime']
-             * - data['ticketName'], data['ticketId']
-             * - data['adultCount'], data['childCount'], data['seniorCount']
-             * - data['totalPrice']
-             * - data['transfer_options']['transfer_required']: boolean
-             * - data['transfer_options']['pickup_location_name']
-             * - data['transfer_options']['type']: 'Shared' or 'Private'
+             * RESTAURANT SERVICE - Actual JSON structure:
+             * [{
+             *   "fullName": "", "email": "", "phone": "",
+             *   "bookingDate": "2026-01-01",  // STRING
+             *   "visitTime": "2:00 PM",
+             *   "restaurantName": "...",
+             *   "mealType": "Breakfast", "mealSpecificType": "...",
+             *   "adultCount": 5, "childCount": 0,
+             *   "totalPrice": 3500,
+             *   "transfer_options": { "transfer_required": true, "type": "Private", "pickup_location_name": "..." }
+             * }]
              * 
-             * GUIDE SERVICE:
-             * - data['guide_name'] or data['guideName']
-             * - data['bookingDate'] or data['pickupdate']
-             * - data['entrytime']
-             * - data['hours']
-             * - data['experience']
-             * - data['languages']: Array of {language, proficiency}
+             * ATTRACTION SERVICE - Actual JSON structure:
+             * [{
+             *   "fullName": "", "email": "", "phone": "",
+             *   "bookingDate": "2026-01-08",  // STRING
+             *   "visitTime": "15:00 - 17:00",
+             *   "AttractionName": "...",
+             *   "ticketName": "...", "ticketId": 10000027,
+             *   "adultCount": 5, "childCount": 0, "seniorCount": 0,
+             *   "totalPrice": 3500,
+             *   "transfer_options": { "transfer_required": true, "type": "Shared", "pickup_location_name": "..." }
+             * }]
              * 
-             * LOCAL TRANSPORT (travel_point, travel_hourly):
-             * - data['pickupdate']
-             * - data['entrypickup'] or data['pickup']
-             * - data['entrydropoff'] or data['dropoff'] or data['dropoffLocation']
-             * - data['type']: 'Shared' or 'Private'
-             * - data['vehicle'] or data['vehicles_name']
-             * - data['travel_type']: 'travel_point' or 'travel_hourly'
-             * - data['selectedHours']: For hourly transport
-             * - data['remark'] or data['remarks'] or data['specialRequests']
+             * GUIDE SERVICE - Actual JSON structure:
+             * [{
+             *   "fullName": "", "email": "", "phone": "",
+             *   "pickupdate": "2025-12-31", "bookingDate": "2025-12-31",  // STRING
+             *   "guide_name": "...",
+             *   "entrytime": "1:00 AM",
+             *   "hours": 6,
+             *   "experience": 0,
+             *   "languages": ["Chinese"]
+             * }]
              * 
-             * ENTRY PORT (Arrival):
-             * - data['entrypickup'] or data['entry_pickup'] or data['pickup']
-             * - data['entrydropoff'] or data['entry_dropoff'] or data['dropoff']
-             * - data['pickupdate']
-             * - data['transfer_options']['type']: 'Shared' or 'Private'
-             * - data['remark'] or data['remarks'] or data['specialRequests']
+             * LOCAL TRANSPORT - Actual JSON structure:
+             * [{
+             *   "fullName": "", "email": "", "phone": "",
+             *   "pickupdate": "2025-12-30", "bookingDate": "2025-12-30",  // STRING
+             *   "entrypickup": "...", "entrydropoff": "...",
+             *   "vehicles_name": "...",
+             *   "type": "local_transfer",
+             *   "travel_type": "local_transfer",
+             *   "totalPrice": 70
+             * }]
              * 
-             * EXIT PORT (Departure):
-             * - data['exitpickup'] or data['entry_pickup'] or data['pickup']
-             * - data['exitdropoff'] or data['entry_dropoff'] or data['dropoff']
-             * - data['exitpickupdate']
-             * - data['type']: 'Shared' or 'Private'
-             * - data['vehicles_name']
-             * - data['remark'] or data['remarks'] or data['specialRequests']
+             * ENTRY PORT - Actual JSON structure:
+             * [{
+             *   "fullName": "", "email": "", "phone": "",
+             *   "pickupdate": "2025-12-30", "bookingDate": "2025-12-30",  // STRING
+             *   "entrypickup": "...", "entrydropoff": "...",
+             *   "entrytime": "01:00 PM",
+             *   "vehicles_name": "...",
+             *   "type": "Private",
+             *   "travel_type": "entry_port",
+             *   "totalPrice": 80
+             * }]
              */
             
             // Check if jsPDF is loaded
@@ -4092,44 +4582,30 @@
                 // Check for PNR number - could be in tourDetails or use tourId
                 const pnrNumber = @json($tourDetails->pnr ?? $tourDetails->pnr_number ?? $tourId ?? '');
                 
-                // Extract customer info from bookings (same logic as blade template)
-                @php
-                    $customerInfo = [];
-                    if (isset($itineraryByDate) && count($itineraryByDate) > 0) {
-                        foreach ($itineraryByDate as $date => $bookings) {
-                            foreach ($bookings as $booking) {
-                                $data = null;
-                                if (isset($booking->data_decoded) && is_array($booking->data_decoded) && !empty($booking->data_decoded)) {
-                                    $data = $booking->data_decoded[0] ?? null;
-                                } elseif (isset($booking->data) && is_string($booking->data)) {
-                                    try {
-                                        $data = json_decode($booking->data, true);
-                                        if (is_array($data) && isset($data[0])) {
-                                            $data = $data[0];
-                                        }
-                                    } catch (\Exception $e) {
-                                        $data = $booking->data;
-                                    }
-                                } elseif (isset($booking->data) && is_array($booking->data)) {
-                                    $data = isset($booking->data[0]) ? $booking->data[0] : $booking->data;
-                                }
-                                
-                                if ($data && is_array($data)) {
-                                    // Extract customer info from booking data
-                                    if (isset($data['fullName']) && !empty($data['fullName'])) {
-                                        $customerInfo = [
-                                            'fullName' => $data['fullName'] ?? '',
-                                            'email' => $data['email'] ?? '',
-                                            'phone' => $data['phone'] ?? '',
-                                        ];
-                                        break 2; // Found customer info, exit both loops
-                                    }
-                                }
-                            }
-                        }
-                    }
-                @endphp
-                const customerInfo = @json($customerInfo ?? []);
+                // Use the pre-extracted data (defined outside function)
+                const customerInfo = pdfCustomerInfo || [];
+                const allServices = pdfAllServices || {};
+                
+                // Debug: Log extracted data
+                console.log('=== PDF Data Extraction Debug ===');
+                console.log('ItineraryByDate dates count:', pdfDebugInfo.itineraryCount);
+                console.log('Total bookings processed:', pdfDebugInfo.bookingCount);
+                console.log('Customer Info:', customerInfo);
+                console.log('All Services (by date):', allServices);
+                console.log('Tour ID:', tourId);
+                console.log('Display ID:', displayId);
+                console.log('Destination:', destination);
+                console.log('Check In Time:', checkInTime);
+                console.log('Check Out Time:', checkOutTime);
+                console.log('===================================');
+                
+                // Validate that we have at least some data
+                if (!customerInfo || Object.keys(customerInfo).length === 0) {
+                    console.warn('Warning: No customer info found!');
+                }
+                if (Object.keys(allServices).length === 0) {
+                    console.warn('Warning: No services found!');
+                }
                 
                 // Format dates - match screenshot format: "23 Dec 2025" (no leading zero on day)
                 let travelDate = '';
@@ -4158,6 +4634,19 @@
                 const leftMargin = 20;
                 const rightMargin = 190;
                 const lineHeight = 7;
+                const pageHeight = 297; // A4 height in mm
+                const bottomMargin = 20; // Bottom margin
+                const maxY = pageHeight - bottomMargin; // Maximum y position before new page
+                
+                // Helper function to check and add new page if needed
+                const checkPageBreak = (requiredSpace = lineHeight) => {
+                    if (yPos + requiredSpace > maxY) {
+                        pdf.addPage();
+                        yPos = 20; // Reset to top of new page
+                        return true;
+                    }
+                    return false;
+                };
                 
                 // Company Header
                 pdf.setFontSize(14);
@@ -4215,13 +4704,21 @@
                     const childCount = @json($tourDetails->child ?? 0);
                     const infantCount = @json($tourDetails->infant ?? 0);
                     const totalPax = adultCount + childCount + infantCount;
-                    pdf.text(`Leading Guest Name: ${guestName} (${totalPax} ${totalPax > 1 ? 'Adult(s)' : 'Adult(s)'})`, leftMargin, yPos);
+                    pdf.text(`Leading Guest Name: ${guestName} (${totalPax} ${totalPax > 1 ? 'Passenger(s)' : 'Passenger'})`, leftMargin, yPos);
+                    yPos += lineHeight;
+                } else {
+                    // Fallback if no customer info
+                    pdf.text(`Leading Guest Name: N/A`, leftMargin, yPos);
                     yPos += lineHeight;
                 }
                 
                 // Travel Date
                 if (travelDate) {
                     pdf.text(`Travel Date: ${travelDate}`, leftMargin, yPos);
+                    yPos += lineHeight + 5;
+                } else {
+                    // Fallback if no travel date
+                    pdf.text(`Travel Date: N/A`, leftMargin, yPos);
                     yPos += lineHeight + 5;
                 }
                 
@@ -4242,117 +4739,372 @@
                 pdf.setFontSize(10);
                 pdf.setFont('helvetica', 'normal');
                 if (checkInTime) {
-                    const date = new Date(checkInTime);
-                    pdf.text(`Date: ${formatDate(date)}`, leftMargin, yPos);
+                    try {
+                        const date = new Date(checkInTime);
+                        if (!isNaN(date.getTime())) {
+                            pdf.text(`Date: ${formatDate(date)}`, leftMargin, yPos);
+                            yPos += lineHeight;
+                        } else {
+                            pdf.text(`Date: N/A`, leftMargin, yPos);
+                            yPos += lineHeight;
+                        }
+                    } catch (e) {
+                        pdf.text(`Date: N/A`, leftMargin, yPos);
+                        yPos += lineHeight;
+                    }
+                } else {
+                    pdf.text(`Date: N/A`, leftMargin, yPos);
                     yPos += lineHeight;
                 }
                 
                 // Destination
                 if (destination) {
                     pdf.text(`Destination: ${destination}`, leftMargin, yPos);
-                    yPos += lineHeight + 3;
+                    yPos += lineHeight + 5;
+                } else {
+                    pdf.text(`Destination: N/A`, leftMargin, yPos);
+                    yPos += lineHeight + 5;
                 }
                 
-                // Accommodation section
-                pdf.setFont('helvetica', 'bold');
-                pdf.text('Accommodation:', leftMargin, yPos);
-                yPos += lineHeight;
+                // Display all services organized by date (including hotels)
+                const sortedDates = Object.keys(allServices).sort();
                 
-                // Get hotel information from itinerary
-                @php
-                    $hotelInfo = null;
-                    if (isset($itineraryByDate) && count($itineraryByDate) > 0) {
-                        foreach ($itineraryByDate as $date => $bookings) {
-                            foreach ($bookings as $booking) {
-                                if (strtolower($booking->type ?? '') == 'hotel') {
-                                    $data = null;
-                                    if (isset($booking->data_decoded) && is_array($booking->data_decoded) && !empty($booking->data_decoded)) {
-                                        $data = $booking->data_decoded[0] ?? null;
-                                    } elseif (isset($booking->data) && is_string($booking->data)) {
-                                        try {
-                                            $data = json_decode($booking->data, true);
-                                        } catch (\Exception $e) {
-                                            $data = $booking->data;
-                                        }
-                                    } elseif (isset($booking->data) && is_array($booking->data)) {
-                                        $data = $booking->data;
-                                    }
-                                    
-                                    // Check for checkin or first hotel booking found
-                                    if ($data && (!isset($data['stay_type']) || strtolower($data['stay_type']) == 'checkin' || $hotelInfo === null)) {
-                                        $hotelName = $data['hotelDetails']['hotel_name'] ?? $data['hotelname'] ?? $data['name'] ?? null;
-                                        if ($hotelName) {
-                                            $hotelInfo = [
-                                                'name' => $hotelName,
-                                                'checkIn' => $data['bookingDate'][0] ?? (isset($data['bookingDate']) && is_array($data['bookingDate']) ? $data['bookingDate'][0] : ($data['bookingDate'] ?? $checkInTime ?? null)),
-                                                'checkOut' => $data['bookingDate'][1] ?? (isset($data['bookingDate']) && is_array($data['bookingDate']) ? $data['bookingDate'][1] : ($checkOutTime ?? null)),
-                                                'roomType' => isset($data['rooms'][0]['room_type']) ? $data['rooms'][0]['room_type'] : (isset($data['room_type']) ? $data['room_type'] : 'Standard'),
-                                                'roomCount' => isset($data['rooms']) && is_array($data['rooms']) ? count($data['rooms']) : (isset($data['room_count']) ? $data['room_count'] : 1),
-                                                'nights' => $data['total_nights'] ?? (isset($data['nights']) ? $data['nights'] : 1),
-                                                'confirmationNo' => $data['confirmationNo'] ?? $data['confirmation_no'] ?? $data['confirmation_number'] ?? null
-                                            ];
-                                            // If this is a checkin, break; otherwise continue to find checkin
-                                            if (isset($data['stay_type']) && strtolower($data['stay_type']) == 'checkin') {
-                                                break 2;
-                                            }
-                                        }
-                                    }
-                                }
+                if (sortedDates.length > 0) {
+                    let dayNumber = 1; // Start with Day 1
+                    let previousDateKey = null; // Track previous date key (MM-DD format) to detect date changes
+                    
+                    sortedDates.forEach(date => {
+                        const services = allServices[date];
+                        if (!services || services.length === 0) return;
+                        
+                        // Only increment day number if the date actually changed
+                        // Compare dates by month and day only (ignore year) so same calendar date stays same day
+                        let currentDateKey = date; // Default to original string
+                        try {
+                            const dateObj = new Date(date);
+                            if (!isNaN(dateObj.getTime())) {
+                                // Format as MM-DD for comparison (ignore year)
+                                const month = String(dateObj.getMonth() + 1).padStart(2, '0');
+                                const day = String(dateObj.getDate()).padStart(2, '0');
+                                currentDateKey = `${month}-${day}`;
+                            }
+                        } catch (e) {
+                            // If date parsing fails, try to extract MM-DD from string
+                            // Try to match patterns like "2025-01-15" or "15 Jan 2025"
+                            const dateMatch = date.match(/(\d{1,2})[-\s](\d{1,2})/);
+                            if (dateMatch) {
+                                const month = dateMatch[1].padStart(2, '0');
+                                const day = dateMatch[2].padStart(2, '0');
+                                currentDateKey = `${month}-${day}`;
                             }
                         }
-                    }
-                @endphp
-                
-                const hotelInfo = @json($hotelInfo ?? null);
-                
-                if (hotelInfo && hotelInfo.name) {
-                    pdf.setFont('helvetica', 'normal');
-                    
-                    // Hotel name
-                    pdf.text(`Hotel: ${hotelInfo.name}`, leftMargin, yPos);
-                    yPos += lineHeight;
-                    
-                    // Check-in/Check-out
-                    if (hotelInfo.checkIn && hotelInfo.checkOut) {
-                        const checkIn = new Date(hotelInfo.checkIn);
-                        const checkOut = new Date(hotelInfo.checkOut);
-                        pdf.text(`Check in ${formatDate(checkIn)} - ${formatDate(checkOut)}`, leftMargin, yPos);
-                        yPos += lineHeight;
-                    }
-                    
-                    // Room Type & Quantity
-                    const roomType = hotelInfo.roomType || 'Standard';
-                    const roomCount = hotelInfo.roomCount || 1;
-                    const roomTypeDisplay = roomType.includes('/') ? roomType.split('/')[0].trim() : roomType;
-                    const bedType = roomType.includes('/') ? roomType.split('/')[1]?.trim() : (roomCount > 1 ? 'Double' : 'Single');
-                    pdf.text(`Room Type & Quantity: ${roomTypeDisplay} / ${bedType} x ${roomCount} Room(s)`, leftMargin, yPos);
-                    yPos += lineHeight;
-                    
-                    // Nights
-                    const nights = hotelInfo.nights || 1;
-                    pdf.text(`Nights: ${nights} ${nights > 1 ? 'Night(s)' : 'Night(s)'}`, leftMargin, yPos);
-                    yPos += lineHeight;
-                    
-                    // Confirmation No
-                    if (hotelInfo.confirmationNo) {
-                        pdf.text(`Confirmation No: ${hotelInfo.confirmationNo}`, leftMargin, yPos);
-                        yPos += lineHeight;
-                    }
-                } else {
-                    pdf.setFont('helvetica', 'normal');
-                    pdf.text('No accommodation details available', leftMargin, yPos);
-                    yPos += lineHeight;
+                        
+                        // Increment day number only if date changed (same month-day = same day number)
+                        if (previousDateKey !== null && previousDateKey !== currentDateKey) {
+                            dayNumber++;
+                        }
+                        previousDateKey = currentDateKey;
+                        
+                        // Date header - make it prominent
+                        checkPageBreak(20); // Check if we need new page for date header
+                        yPos += 5; // Add spacing before date section
+                        pdf.setFontSize(12);
+                        pdf.setFont('helvetica', 'bold');
+                        try {
+                            const serviceDate = new Date(date);
+                            if (!isNaN(serviceDate.getTime())) {
+                                pdf.text(`Day ${dayNumber} Date: ${formatDate(serviceDate)}`, leftMargin, yPos);
+                                yPos += lineHeight;
+                                
+                                // Draw underline for date
+                                pdf.setLineWidth(0.3);
+                                pdf.line(leftMargin, yPos, rightMargin, yPos);
+                                yPos += 3;
+                            }
+                        } catch (e) {
+                            pdf.text(`Day ${dayNumber} Date: ${date}`, leftMargin, yPos);
+                            yPos += lineHeight;
+                            pdf.setLineWidth(0.3);
+                            pdf.line(leftMargin, yPos, rightMargin, yPos);
+                            yPos += 3;
+                        }
+                        
+                        pdf.setFontSize(10);
+                        pdf.setFont('helvetica', 'normal');
+                        
+                        // Display each service for this date
+                        services.forEach((service, serviceIndex) => {
+                            if (serviceIndex > 0) {
+                                yPos += 3; // Spacing between services
+                            }
+                            
+                            const serviceType = (service.type || '').toLowerCase();
+                            
+                            // Process HOTEL service - display like other services
+                            if (serviceType === 'hotel') {
+                                checkPageBreak(15);
+                                pdf.setFont('helvetica', 'normal');
+                                
+                                // Hotel name
+                                checkPageBreak();
+                                pdf.setFont('helvetica', 'bold');
+                                pdf.text('Hotel:', leftMargin, yPos);
+                                pdf.setFont('helvetica', 'normal');
+                                const hotelNameText = service.name || 'N/A';
+                                const hotelNameWidth = pdf.getTextWidth('Hotel:');
+                                pdf.text(hotelNameText, leftMargin + hotelNameWidth + 2, yPos); // Add 2mm spacing
+                                yPos += lineHeight;
+                                
+                                // Check-in/Check-out
+                                if (service.checkIn && service.checkOut) {
+                                    try {
+                                        const checkIn = new Date(service.checkIn);
+                                        const checkOut = new Date(service.checkOut);
+                                        if (!isNaN(checkIn.getTime()) && !isNaN(checkOut.getTime())) {
+                                            checkPageBreak();
+                                            pdf.text(`Check in ${formatDate(checkIn)} - ${formatDate(checkOut)}`, leftMargin, yPos);
+                                            yPos += lineHeight;
+                                        }
+                                    } catch (e) {
+                                        // Date parsing failed, skip
+                                    }
+                                }
+                                
+                                // Room Type & Quantity
+                                checkPageBreak();
+                                const roomType = service.roomType || 'Standard';
+                                const roomCount = service.roomCount || 1;
+                                const roomTypeDisplay = roomType.includes('/') ? roomType.split('/')[0].trim() : roomType;
+                                const bedType = roomType.includes('/') ? roomType.split('/')[1]?.trim() : (roomCount > 1 ? 'Double' : 'Single');
+                                pdf.text(`Room Type & Quantity: ${roomTypeDisplay} / ${bedType} x ${roomCount} Room(s)`, leftMargin, yPos);
+                                yPos += lineHeight;
+                                
+                                // Nights
+                                checkPageBreak();
+                                const nights = service.nights || 1;
+                                pdf.text(`Nights: ${nights} ${nights > 1 ? 'Night(s)' : 'Night(s)'}`, leftMargin, yPos);
+                                yPos += lineHeight;
+                                
+                                // Confirmation No
+                                if (service.confirmationNo) {
+                                    checkPageBreak();
+                                    pdf.text(`Confirmation No: ${service.confirmationNo}`, leftMargin, yPos);
+                                    yPos += lineHeight;
+                                }
+                            }
+                            // Process RESTAURANT service
+                            else if (serviceType === 'restaurant') {
+                                checkPageBreak();
+                                pdf.setFont('helvetica', 'bold');
+                                pdf.text('Restaurant:', leftMargin, yPos);
+                                pdf.setFont('helvetica', 'normal');
+                                const restaurantNameText = service.name || 'N/A';
+                                const restaurantNameWidth = pdf.getTextWidth('Restaurant:');
+                                pdf.text(restaurantNameText, leftMargin + restaurantNameWidth + 2, yPos); // Add 2mm spacing
+                                yPos += lineHeight;
+                                if (service.visitTime) {
+                                    checkPageBreak();
+                                    pdf.text(`Time: ${service.visitTime}`, leftMargin, yPos);
+                                    yPos += lineHeight;
+                                }
+                                if (service.mealType) {
+                                    checkPageBreak();
+                                    pdf.text(`Meal: ${service.mealType}${service.mealSpecificType ? ' - ' + service.mealSpecificType : ''}`, leftMargin, yPos);
+                                    yPos += lineHeight;
+                                }
+                                if (service.transferType) {
+                                    checkPageBreak();
+                                    let transferText = `Transfer: ${service.transferType}`;
+                                    if (service.pickupLocation) {
+                                        transferText += ` from ${service.pickupLocation}`;
+                                    }
+                                    if (service.way) {
+                                        transferText += `, Way: ${service.way}`;
+                                    }
+                                    pdf.text(transferText, leftMargin, yPos);
+                                    yPos += lineHeight;
+                                }
+                            } else if (serviceType === 'attraction') {
+                                checkPageBreak();
+                                pdf.setFont('helvetica', 'bold');
+                                pdf.text('Attraction:', leftMargin, yPos);
+                                pdf.setFont('helvetica', 'normal');
+                                const attractionNameText = service.name || 'N/A';
+                                const attractionNameWidth = pdf.getTextWidth('Attraction:');
+                                pdf.text(attractionNameText, leftMargin + attractionNameWidth + 2, yPos); // Add 2mm spacing
+                                yPos += lineHeight;
+                                if (service.visitTime) {
+                                    checkPageBreak();
+                                    pdf.text(`Time: ${service.visitTime}`, leftMargin, yPos);
+                                    yPos += lineHeight;
+                                }
+                                if (service.ticketName) {
+                                    checkPageBreak();
+                                    pdf.text(`Ticket: ${service.ticketName}`, leftMargin, yPos);
+                                    yPos += lineHeight;
+                                }
+                                if (service.transferType) {
+                                    checkPageBreak();
+                                    pdf.text(`Transfer: ${service.transferType}${service.pickupLocation ? ' from ' + service.pickupLocation : ''}`, leftMargin, yPos);
+                                    yPos += lineHeight;
+                                }
+                            } else if (serviceType === 'guide') {
+                                checkPageBreak();
+                                pdf.setFont('helvetica', 'bold');
+                                pdf.text('Guide:', leftMargin, yPos);
+                                pdf.setFont('helvetica', 'normal');
+                                const guideNameText = service.name || 'N/A';
+                                const guideNameWidth = pdf.getTextWidth('Guide:');
+                                pdf.text(guideNameText, leftMargin + guideNameWidth + 2, yPos); // Add 2mm spacing
+                                yPos += lineHeight;
+                                if (service.entryTime) {
+                                    checkPageBreak();
+                                    pdf.text(`Time: ${service.entryTime}`, leftMargin, yPos);
+                                    yPos += lineHeight;
+                                }
+                                if (service.hours) {
+                                    checkPageBreak();
+                                    pdf.text(`Duration: ${service.hours} hour(s)`, leftMargin, yPos);
+                                    yPos += lineHeight;
+                                }
+                                if (service.languages && service.languages.length > 0) {
+                                    checkPageBreak();
+                                    pdf.text(`Languages: ${service.languages.join(', ')}`, leftMargin, yPos);
+                                    yPos += lineHeight;
+                                }
+                            } else if (serviceType === 'travel_point' || serviceType === 'travel_hourly') {
+                                checkPageBreak();
+                                pdf.setFont('helvetica', 'bold');
+                                pdf.text('Local Transport:', leftMargin, yPos);
+                                pdf.setFont('helvetica', 'normal');
+                                const localTransportText = service.transferType || 'Transfer';
+                                const localTransportWidth = pdf.getTextWidth('Local Transport:');
+                                pdf.text(localTransportText, leftMargin + localTransportWidth + 4, yPos); // Add 4mm spacing
+                                yPos += lineHeight;
+                                // Combine pickup and dropoff in one line
+                                if (service.pickup || service.dropoff) {
+                                    checkPageBreak();
+                                    let fromToText = '';
+                                    if (service.pickup) {
+                                        fromToText = `From: ${service.pickup}`;
+                                    }
+                                    if (service.dropoff) {
+                                        if (fromToText) {
+                                            fromToText += ` To: ${service.dropoff}`;
+                                        } else {
+                                            fromToText = `To: ${service.dropoff}`;
+                                        }
+                                    }
+                                    pdf.text(fromToText, leftMargin, yPos);
+                                    yPos += lineHeight;
+                                }
+                                if (service.pickupTime) {
+                                    checkPageBreak();
+                                    pdf.text(`Time: ${service.pickupTime}`, leftMargin, yPos);
+                                    yPos += lineHeight;
+                                }
+                                if (service.vehicle) {
+                                    checkPageBreak();
+                                    pdf.text(`Vehicle: ${service.vehicle}`, leftMargin, yPos);
+                                    yPos += lineHeight;
+                                }
+                                if (service.selectedHours) {
+                                    checkPageBreak();
+                                    pdf.text(`Hours: ${service.selectedHours}`, leftMargin, yPos);
+                                    yPos += lineHeight;
+                                }
+                            } else if (serviceType === 'entry_port') {
+                                checkPageBreak();
+                                pdf.setFont('helvetica', 'bold');
+                                pdf.text('Arrival Transfer:', leftMargin, yPos);
+                                pdf.setFont('helvetica', 'normal');
+                                const arrivalTransferText = service.transferType || 'Transfer';
+                                const arrivalTransferWidth = pdf.getTextWidth('Arrival Transfer:');
+                                pdf.text(arrivalTransferText, leftMargin + arrivalTransferWidth + 4, yPos); // Add 4mm spacing
+                                yPos += lineHeight;
+                                // Combine pickup and dropoff in one line
+                                if (service.pickup || service.dropoff) {
+                                    checkPageBreak();
+                                    let fromToText = '';
+                                    if (service.pickup) {
+                                        fromToText = `From: ${service.pickup}`;
+                                    }
+                                    if (service.dropoff) {
+                                        if (fromToText) {
+                                            fromToText += ` To: ${service.dropoff}`;
+                                        } else {
+                                            fromToText = `To: ${service.dropoff}`;
+                                        }
+                                    }
+                                    pdf.text(fromToText, leftMargin, yPos);
+                                    yPos += lineHeight;
+                                }
+                                if (service.pickupTime) {
+                                    checkPageBreak();
+                                    pdf.text(`Time: ${service.pickupTime}`, leftMargin, yPos);
+                                    yPos += lineHeight;
+                                }
+                                if (service.vehicle) {
+                                    checkPageBreak();
+                                    pdf.text(`Vehicle: ${service.vehicle}`, leftMargin, yPos);
+                                    yPos += lineHeight;
+                                }
+                            } else if (serviceType === 'exit_port') {
+                                checkPageBreak();
+                                pdf.setFont('helvetica', 'bold');
+                                pdf.text('Departure Transfer:', leftMargin, yPos);
+                                pdf.setFont('helvetica', 'normal');
+                                const departureTransferText = service.transferType || 'Transfer';
+                                const departureTransferWidth = pdf.getTextWidth('Departure Transfer:');
+                                pdf.text(departureTransferText, leftMargin + departureTransferWidth + 4, yPos); // Add 4mm spacing
+                                yPos += lineHeight;
+                                // Combine pickup and dropoff in one line
+                                if (service.pickup || service.dropoff) {
+                                    checkPageBreak();
+                                    let fromToText = '';
+                                    if (service.pickup) {
+                                        fromToText = `From: ${service.pickup}`;
+                                    }
+                                    if (service.dropoff) {
+                                        if (fromToText) {
+                                            fromToText += ` To: ${service.dropoff}`;
+                                        } else {
+                                            fromToText = `To: ${service.dropoff}`;
+                                        }
+                                    }
+                                    pdf.text(fromToText, leftMargin, yPos);
+                                    yPos += lineHeight;
+                                }
+                                if (service.pickupTime) {
+                                    checkPageBreak();
+                                    pdf.text(`Time: ${service.pickupTime}`, leftMargin, yPos);
+                                    yPos += lineHeight;
+                                }
+                                if (service.vehicle) {
+                                    checkPageBreak();
+                                    pdf.text(`Vehicle: ${service.vehicle}`, leftMargin, yPos);
+                                    yPos += lineHeight;
+                                }
+                            }
+                            
+                            yPos += 2; // Spacing between services
+                        });
+                        
+                        yPos += 3; // Spacing between dates
+                    });
                 }
                 
                 yPos += 10;
                 
                 // Draw line
+                checkPageBreak(15); // Check if we need new page for footer
                 pdf.setDrawColor(0, 150, 136); // Teal color
                 pdf.setLineWidth(0.5);
                 pdf.line(leftMargin, yPos, rightMargin, yPos);
                 yPos += lineHeight;
                 
                 // END OF SERVICE
+                checkPageBreak();
                 pdf.setFontSize(10);
                 pdf.setFont('helvetica', 'normal');
                 pdf.setTextColor(0, 150, 136); // Teal color
@@ -4363,8 +5115,10 @@
                 pdf.setTextColor(0, 0, 0);
                 
                 // Remark
+                checkPageBreak();
                 pdf.text('Remark:', leftMargin, yPos);
                 yPos += lineHeight;
+                checkPageBreak();
                 pdf.text('-', leftMargin, yPos);
                 
                 // Save PDF
@@ -4377,6 +5131,1879 @@
                 loadingMsg.remove();
                 showErrorMessage('Failed to generate text itinerary: ' + (error.message || 'Unknown error'));
             }
+        }
+        
+        async function downloadAsExcelFormat() {
+            // Check if jsPDF is loaded
+            if (typeof window.jspdf === 'undefined') {
+                showErrorMessage('PDF library not loaded. Please refresh the page and try again.');
+                return;
+            }
+            
+            // Show loading message
+            const loadingMsg = showMessage('Generating Excel format itinerary...', 'info');
+            
+            try {
+                const { jsPDF } = window.jspdf;
+                
+                // Get data from PHP variables
+                const tourId = @json($tourId ?? '');
+                const tourDetails = @json($tourDetails ?? null);
+                const displayId = @json($tourDetails->display_id ?? '');
+                const destination = @json($tourDetails->destination ?? '');
+                const checkInTime = @json($tourDetails->check_in_time ?? null);
+                const checkOutTime = @json($tourDetails->check_out_time ?? null);
+                const pnrNumber = @json($tourDetails->pnr ?? $tourDetails->pnr_number ?? $tourId ?? '');
+                const customerInfo = pdfCustomerInfo || [];
+                const allServices = pdfAllServices || {};
+                const userDmc = @json($user_dmc ?? null);
+                const agentInfo = @json($agent_info ?? null);
+                // Debug logging
+                console.log('DMC Info:', userDmc);
+                console.log('Agent Info:', agentInfo);
+                
+                // Logo is already converted to base64 data URL server-side (no CORS issues)
+                const logoDataUrl = (userDmc && userDmc.logo) ? userDmc.logo : null;
+                
+                const pdf = new jsPDF('l', 'mm', 'a4'); // Landscape orientation for Excel-like format
+                
+                // Check if autotable is available (it should be if script is loaded)
+                if (typeof pdf.autoTable === 'undefined') {
+                    loadingMsg.remove();
+                    showErrorMessage('Table library not loaded. Please refresh the page and try again.');
+                    return;
+                }
+                
+                // Page dimensions (landscape A4)
+                const pageWidth = 297; // A4 landscape width in mm
+                const pageHeight = 210; // A4 landscape height in mm
+                const leftMargin = 5;
+                const rightMarginValue = 5; // Actual right margin value
+                const rightMargin = pageWidth - rightMarginValue; // Right edge position
+                const topMargin = 5;
+                const bottomMargin = pageHeight - 5;
+                let yPos = topMargin;
+                const lineHeight = 5;
+                const cellPadding = 2;
+                
+                // Helper function to check and add new page if needed
+                const checkPageBreak = (requiredSpace = lineHeight) => {
+                    if (yPos + requiredSpace > bottomMargin) {
+                        pdf.addPage();
+                        yPos = topMargin;
+                        return true;
+                    }
+                    return false;
+                };
+                
+                // Helper function to draw a cell with border and text (Excel-like)
+                const drawCell = (x, y, width, height, text, options = {}) => {
+                    const {
+                        align = 'left',
+                        bold = false,
+                        fillColor = null,
+                        fontSize = 9,
+                        border = true,
+                        cellPadding = 2
+                    } = options;
+                    
+                    // Draw border (Excel-like grid lines)
+                    if (border) {
+                        pdf.setDrawColor(0, 0, 0);
+                        pdf.setLineWidth(0.1);
+                        // Draw all four sides
+                        pdf.line(x, y, x + width, y); // Top
+                        pdf.line(x + width, y, x + width, y + height); // Right
+                        pdf.line(x + width, y + height, x, y + height); // Bottom
+                        pdf.line(x, y + height, x, y); // Left
+                    }
+                    
+                    // Fill background color if specified
+                    if (fillColor) {
+                        pdf.setFillColor(fillColor.r, fillColor.g, fillColor.b);
+                        pdf.rect(x, y, width, height, 'F');
+                    }
+                    
+                    // Draw text
+                    if (text) {
+                        const textStr = String(text || '');
+                        pdf.setFontSize(fontSize);
+                        pdf.setFont('helvetica', bold ? 'bold' : 'normal');
+                        pdf.setTextColor(0, 0, 0);
+                        
+                        const textX = align === 'center' ? x + width / 2 : 
+                                     align === 'right' ? x + width - cellPadding : 
+                                     x + cellPadding;
+                        const textY = y + height / 2 + fontSize / 3;
+                        
+                        // Simple text rendering - no rotation, no splitting
+                        pdf.text(textStr, textX, textY, {
+                            align: align === 'center' ? 'center' : align === 'right' ? 'right' : 'left',
+                            maxWidth: width - (cellPadding * 2)
+                        });
+                    }
+                };
+                
+                // Helper function to format date
+                const formatDate = (date) => {
+                    if (!date) return '';
+                    try {
+                        let d;
+                        if (typeof date === 'string') {
+                            // Handle YYYY-MM-DD format
+                            if (date.match(/^\d{4}-\d{2}-\d{2}$/)) {
+                                const parts = date.split('-');
+                                d = new Date(parseInt(parts[0]), parseInt(parts[1]) - 1, parseInt(parts[2]));
+                            } else {
+                                d = new Date(date);
+                            }
+                        } else {
+                            d = new Date(date);
+                        }
+                        if (isNaN(d.getTime())) return date.toString();
+                        const day = d.getDate();
+                        const month = d.toLocaleString('en-US', { month: 'short' });
+                        const year = d.getFullYear();
+                        return `${day} ${month} ${year}`;
+                    } catch (e) {
+                        return date.toString();
+                    }
+                };
+                
+                // HEADER SECTION - Compact Premium Style (Optimized for single page)
+                // Logo at top center (circular wrapper)
+                const logoSize = 20; // mm - increased size for better visibility
+                const logoRadius = logoSize / 2;
+                const logoCenterX = pageWidth / 2;
+                const logoY = yPos;
+                
+                if (logoDataUrl) {
+                    try {
+                        // Draw circular background for logo
+                        pdf.setFillColor(255, 255, 255);
+                        pdf.setDrawColor(220, 220, 220);
+                        pdf.setLineWidth(0.5);
+                        pdf.circle(logoCenterX, logoY + logoRadius, logoRadius, 'FD');
+                        
+                        // Add logo image
+                        const logoImageSize = logoSize - 4;
+                        const logoImageX = logoCenterX - (logoImageSize / 2);
+                        const logoImageY = logoY + 2;
+                        pdf.addImage(logoDataUrl, 'PNG', logoImageX, logoImageY, logoImageSize, logoImageSize, undefined, 'FAST');
+                    } catch (logoError) {
+                        console.warn('Could not add logo to PDF:', logoError);
+                    }
+                }
+                
+                yPos += logoSize + 8; // Spacing after logo (increased for better visual separation)
+                
+                // Title: TOUR ITINERARY
+                pdf.setFontSize(20);
+                pdf.setFont('helvetica', 'bold');
+                pdf.setTextColor(44, 62, 80);
+                pdf.text('TOUR ITINERARY', pageWidth / 2, yPos, { align: 'center' });
+                yPos += 6;
+                
+                // DMC Name
+                const dmcName = (userDmc && userDmc.company_name) ? userDmc.company_name : 
+                               (userDmc && userDmc.name) ? userDmc.name : 
+                               'DMC';
+                pdf.setFontSize(10);
+                pdf.setFont('helvetica', 'bold');
+                pdf.setTextColor(44, 62, 80);
+                pdf.text(dmcName, pageWidth / 2, yPos, { align: 'center' });
+                yPos += 4;
+                
+                // Tour ID
+                pdf.setFontSize(9);
+                pdf.setFont('helvetica', 'normal');
+                pdf.setTextColor(33, 37, 41);
+                pdf.text('Tour ID: ' + (displayId || tourId || 'DRAFT'), pageWidth / 2, yPos, { align: 'center' });
+                yPos += 7; // Compact spacing before tables
+                
+                // Client/Guest Information Table (Compact Premium format with parameter-value pairs)
+                const clientTableBody = [
+                    [{content: 'Client/Guest Information:', colSpan: 4, styles: {fontStyle: 'bold', fontSize: 9, textColor: [44, 62, 80], fillColor: [240, 248, 255]}}],
+                    [
+                        {content: 'Lead Guest:', styles: {fontStyle: 'bold', fillColor: [240, 248, 255], textColor: [44, 62, 80], fontSize: 9}},
+                        {content: (customerInfo.fullName || 'N/A'), styles: {fillColor: [255, 255, 255], textColor: [33, 37, 41], fontSize: 9}},
+                        {content: 'Address:', styles: {fontStyle: 'bold', fillColor: [240, 248, 255], textColor: [44, 62, 80], fontSize: 9}},
+                        {content: (customerInfo.address || customerInfo.address1 || 'N/A'), styles: {fillColor: [255, 255, 255], textColor: [33, 37, 41], fontSize: 9}},
+                        
+                    ],
+                    [
+                        {content: 'State:', styles: {fontStyle: 'bold', fillColor: [240, 248, 255], textColor: [44, 62, 80], fontSize: 9}},
+                        {content: (customerInfo.city || customerInfo.state || 'N/A'), styles: {fillColor: [255, 255, 255], textColor: [33, 37, 41], fontSize: 9}},
+                        {content: 'Postal Code:', styles: {fontStyle: 'bold', fillColor: [240, 248, 255], textColor: [44, 62, 80], fontSize: 9}},
+                        {content: (customerInfo.postal_code || customerInfo.zip || 'N/A'), styles: {fillColor: [255, 255, 255], textColor: [33, 37, 41], fontSize: 9}}
+                    ],
+                    [
+                        {content: 'Email:', styles: {fontStyle: 'bold', fillColor: [240, 248, 255], textColor: [44, 62, 80], fontSize: 9}},
+                        {content: (customerInfo.email || 'N/A'), styles: {fillColor: [255, 255, 255], textColor: [33, 37, 41], fontSize: 9}},
+                        {content: 'Phone:', styles: {fontStyle: 'bold', fillColor: [240, 248, 255], textColor: [44, 62, 80], fontSize: 9}},
+                        {content: (customerInfo.phone || 'N/A'), styles: {fillColor: [255, 255, 255], textColor: [33, 37, 41], fontSize: 9}}
+                    ],
+                    [
+                        {content: 'Booking ID:', styles: {fontStyle: 'bold', fillColor: [240, 248, 255], textColor: [44, 62, 80], fontSize: 9}},
+                        {content: (displayId || tourId || 'N/A'), styles: {fillColor: [255, 255, 255], textColor: [33, 37, 41], fontSize: 9}},
+                        {content: 'No. of Adults:', styles: {fontStyle: 'bold', fillColor: [240, 248, 255], textColor: [44, 62, 80], fontSize: 9}},
+                        {content: (tourDetails && tourDetails.adult ? tourDetails.adult : (customerInfo.adults || customerInfo.adultCount || 0)).toString(), styles: {fillColor: [255, 255, 255], textColor: [33, 37, 41], fontSize: 9}}
+                    ],
+                    [
+                        {content: 'No. of Children:', styles: {fontStyle: 'bold', fillColor: [240, 248, 255], textColor: [44, 62, 80], fontSize: 9}},
+                        {content: (tourDetails && tourDetails.child ? tourDetails.child : (customerInfo.children || customerInfo.childCount || 0)).toString(), styles: {fillColor: [255, 255, 255], textColor: [33, 37, 41], fontSize: 9}},
+                        {content: 'No. of Infants:', styles: {fontStyle: 'bold', fillColor: [240, 248, 255], textColor: [44, 62, 80], fontSize: 9}},
+                        {content: (tourDetails && tourDetails.infant ? tourDetails.infant : (customerInfo.infants || customerInfo.infantCount || 0)).toString(), styles: {fillColor: [255, 255, 255], textColor: [33, 37, 41], fontSize: 9}}
+                    ]
+                ];
+                
+                pdf.autoTable({
+                    startY: yPos,
+                    margin: { left: leftMargin, right: rightMarginValue },
+                    theme: 'grid',
+                    tableLineWidth: 0,
+                    headStyles: { fillColor: [240, 248, 255], textColor: [44, 62, 80], fontStyle: 'bold', fontSize: 9, lineWidth: 0.1 },
+                    bodyStyles: { fillColor: false, textColor: [33, 37, 41], fontSize: 9, lineWidth: 0.1, cellPadding: 2.5 },
+                    columnStyles: {
+                        0: { cellWidth: 32, fontStyle: 'bold' },
+                        1: { cellWidth: 50 },
+                        2: { cellWidth: 32, fontStyle: 'bold' },
+                        3: { cellWidth: 50 }
+                    },
+                    styles: { lineColor: [224, 224, 224], lineWidth: 0.1 },
+                    body: clientTableBody
+                });
+                
+                const clientTableEndY = pdf.lastAutoTable ? pdf.lastAutoTable.finalY : yPos;
+                
+                // Proposal Details Table (positioned on right side, same Y as Client table)
+                const proposalTableWidth = 90; // mm - compact
+                // Calculate client table end position: leftMargin + column widths (32 + 50 + 32 + 50 = 164)
+                const clientTableEndX = leftMargin + 32 + 50 + 32 + 50;
+                // Position proposal table with a small gap (5mm) after client table
+                const gapBetweenTables = 5; // mm
+                const proposalTableLeftMargin = clientTableEndX + gapBetweenTables;
+                const proposalTableBody = [
+                    [{content: 'Proposal Details:', colSpan: 2, styles: {fontStyle: 'bold', fontSize: 9, textColor: [44, 62, 80], fillColor: [240, 248, 255]}}],
+                    [
+                        {content: 'Postal / Pin:', styles: {fontStyle: 'bold', fillColor: [240, 248, 255], textColor: [44, 62, 80], fontSize: 9}},
+                        {content: ((userDmc && userDmc.address) ? userDmc.address : 'N/A'), styles: {fillColor: [255, 255, 255], textColor: [33, 37, 41], fontSize: 9}}
+                    ],
+                    [
+                        {content: 'Proposal Date:', styles: {fontStyle: 'bold', fillColor: [240, 248, 255], textColor: [44, 62, 80], fontSize: 9}},
+                        {content: formatDate(new Date()), styles: {fillColor: [255, 255, 255], textColor: [33, 37, 41], fontSize: 9}}
+                    ],
+                    [
+                        {content: 'Proposal Validity:', styles: {fontStyle: 'bold', fillColor: [240, 248, 255], textColor: [44, 62, 80], fontSize: 9}},
+                        {content: 'N/A', styles: {fillColor: [255, 255, 255], textColor: [33, 37, 41], fontSize: 9}}
+                    ],
+                    [
+                        {content: 'Proposal Sent by:', styles: {fontStyle: 'bold', fillColor: [240, 248, 255], textColor: [44, 62, 80], fontSize: 9}},
+                        {content: ((userDmc && userDmc.company_name) ? userDmc.company_name : ((userDmc && userDmc.name) ? userDmc.name : 'N/A')), styles: {fillColor: [255, 255, 255], textColor: [33, 37, 41], fontSize: 9}}
+                    ],
+                    [
+                        {content: '', styles: {fillColor: [255, 255, 255], textColor: [33, 37, 41], fontSize: 9}},
+                        {content: '', styles: {fillColor: [255, 255, 255], textColor: [33, 37, 41], fontSize: 9}}
+                    ], // Empty row to match height
+                    
+                ];
+                
+                pdf.autoTable({
+                    startY: yPos,
+                    margin: { left: proposalTableLeftMargin, right: rightMarginValue },
+                    theme: 'grid',
+                    tableLineWidth: 0,
+                    headStyles: { fillColor: [240, 248, 255], textColor: [44, 62, 80], fontStyle: 'bold', fontSize: 9, lineWidth: 0.1 },
+                    bodyStyles: { fillColor: false, textColor: [33, 37, 41], fontSize: 9, lineWidth: 0.1, cellPadding: 2.5 },
+                    columnStyles: {
+                        0: { cellWidth: 36, fontStyle: 'bold' },
+                        1: { cellWidth: 54 }
+                    },
+                    styles: { lineColor: [224, 224, 224], lineWidth: 0.1 },
+                    body: proposalTableBody
+                });
+                
+                // Travel Company/Agent Information Table
+                yPos = Math.max(clientTableEndY, pdf.lastAutoTable ? pdf.lastAutoTable.finalY : yPos) + 5;
+                
+                if (agentInfo) {
+                    const agentTableBody = [
+                        [{content: 'Travel Company / Agent Name: ' + (agentInfo.name || agentInfo.company_name || 'N/A'), colSpan: 2, styles: {fontStyle: 'bold', fontSize: 9, textColor: [44, 62, 80], fillColor: [240, 248, 255]}}]
+                    ];
+                    
+                    if (agentInfo.company_name && agentInfo.name !== agentInfo.company_name) {
+                        agentTableBody.push([
+                            {content: 'Travel Agency:', styles: {fontStyle: 'bold', fillColor: [240, 248, 255], textColor: [44, 62, 80], fontSize: 9}},
+                            {content: agentInfo.company_name || 'N/A', styles: {fillColor: [255, 255, 255], textColor: [33, 37, 41], fontSize: 9}}
+                        ]);
+                    }
+                    
+                    agentTableBody.push(
+                        [
+                            {content: 'Address:', styles: {fontStyle: 'bold', fillColor: [240, 248, 255], textColor: [44, 62, 80], fontSize: 9}},
+                            {content: agentInfo.address || 'N/A', styles: {fillColor: [255, 255, 255], textColor: [33, 37, 41], fontSize: 9}}
+                        ],
+                        [
+                            {content: 'Contact Person:', styles: {fontStyle: 'bold', fillColor: [240, 248, 255], textColor: [44, 62, 80], fontSize: 9}},
+                            {content: agentInfo.contact_person || 'N/A', styles: {fillColor: [255, 255, 255], textColor: [33, 37, 41], fontSize: 9}}
+                        ],
+                        [
+                            {content: 'Phone:', styles: {fontStyle: 'bold', fillColor: [240, 248, 255], textColor: [44, 62, 80], fontSize: 9}},
+                            {content: agentInfo.phone || 'N/A', styles: {fillColor: [255, 255, 255], textColor: [33, 37, 41], fontSize: 9}}
+                        ],
+                        [
+                            {content: 'Email:', styles: {fontStyle: 'bold', fillColor: [240, 248, 255], textColor: [44, 62, 80], fontSize: 9}},
+                            {content: agentInfo.email || 'N/A', styles: {fillColor: [255, 255, 255], textColor: [33, 37, 41], fontSize: 9}}
+                        ]
+                    );
+                    
+                    pdf.autoTable({
+                        startY: yPos,
+                        margin: { left: leftMargin, right: rightMarginValue },
+                        theme: 'grid',
+                        tableLineWidth: 0,
+                        headStyles: { fillColor: [240, 248, 255], textColor: [44, 62, 80], fontStyle: 'bold', fontSize: 9, lineWidth: 0.1 },
+                        bodyStyles: { fillColor: false, textColor: [33, 37, 41], fontSize: 9, lineWidth: 0.1, cellPadding: 2.5 },
+                        columnStyles: {
+                            0: { cellWidth: 54, fontStyle: 'bold' },
+                            1: { cellWidth: 156 }
+                        },
+                        styles: { lineColor: [224, 224, 224], lineWidth: 0.1 },
+                        body: agentTableBody
+                    });
+                    
+                    yPos = pdf.lastAutoTable.finalY + 5;
+                }
+                
+                // Travel Dates & Destination Table (Compact Premium styling)
+                // Calculate duration
+                let duration = 'N/A';
+                if (checkInTime && checkOutTime) {
+                    try {
+                        const start = new Date(checkInTime);
+                        const end = new Date(checkOutTime);
+                        if (!isNaN(start.getTime()) && !isNaN(end.getTime())) {
+                            const diffTime = Math.abs(end - start);
+                            const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24)) + 1;
+                            duration = diffDays.toString() + ' day(s)';
+                        }
+                    } catch (e) {
+                        duration = 'N/A';
+                    }
+                }
+                
+                const travelTableBody = [
+                    [{content: 'Destination: ' + (destination || 'N/A'), colSpan: 4, styles: {fontStyle: 'bold', fontSize: 9, textColor: [44, 62, 80], fillColor: [240, 248, 255]}}],
+                    [
+                        {content: 'Travel Date:', styles: {fontStyle: 'bold', fillColor: [240, 248, 255], textColor: [44, 62, 80], fontSize: 9}},
+                        {content: 'From: ' + (checkInTime ? formatDate(checkInTime) : 'N/A'), styles: {fillColor: [255, 255, 255], textColor: [33, 37, 41], fontSize: 9}},
+                        {content: 'To: ' + (checkOutTime ? formatDate(checkOutTime) : 'N/A'), styles: {fillColor: [255, 255, 255], textColor: [33, 37, 41], fontSize: 9}},
+                        {content: 'Duration / No of Days: ' + duration, styles: {fillColor: [255, 255, 255], textColor: [33, 37, 41], fontSize: 9}}
+                    ]
+                ];
+                
+                pdf.autoTable({
+                    startY: yPos,
+                    margin: { left: leftMargin, right: rightMarginValue },
+                    theme: 'grid',
+                    tableLineWidth: 0,
+                    headStyles: { fillColor: [240, 248, 255], textColor: [44, 62, 80], fontStyle: 'bold', fontSize: 9, lineWidth: 0.1 },
+                    bodyStyles: { fillColor: false, textColor: [33, 37, 41], fontSize: 9, lineWidth: 0.1, cellPadding: 2.5 },
+                    columnStyles: {
+                        0: { cellWidth: 44, fontStyle: 'bold' },
+                        1: { cellWidth: 64 },
+                        2: { cellWidth: 64 },
+                        3: { cellWidth: 64 }
+                    },
+                    styles: { lineColor: [224, 224, 224], lineWidth: 0.1 },
+                    body: travelTableBody
+                });
+                
+                yPos = pdf.lastAutoTable.finalY + 8;
+                
+                // Generate all dates between check-in and check-out
+                let allTourDates = [];
+                if (checkInTime && checkOutTime) {
+                    const startDate = new Date(checkInTime);
+                    const endDate = new Date(checkOutTime);
+                    if (!isNaN(startDate.getTime()) && !isNaN(endDate.getTime())) {
+                        const currentDate = new Date(startDate);
+                        while (currentDate <= endDate) {
+                            const year = currentDate.getFullYear();
+                            const month = String(currentDate.getMonth() + 1).padStart(2, '0');
+                            const day = String(currentDate.getDate()).padStart(2, '0');
+                            allTourDates.push(`${year}-${month}-${day}`);
+                            currentDate.setDate(currentDate.getDate() + 1);
+                        }
+                    }
+                } else {
+                    allTourDates = Object.keys(allServices).sort();
+                }
+                
+                // Normalize service dates
+                const normalizeDate = (dateStr) => {
+                    if (!dateStr) return null;
+                    try {
+                        const dateObj = new Date(dateStr);
+                        if (!isNaN(dateObj.getTime())) {
+                            const year = dateObj.getFullYear();
+                            const month = String(dateObj.getMonth() + 1).padStart(2, '0');
+                            const day = String(dateObj.getDate()).padStart(2, '0');
+                            return `${year}-${month}-${day}`;
+                        }
+                    } catch (e) {
+                        const match = dateStr.match(/(\d{4})[-\s](\d{1,2})[-\s](\d{1,2})/);
+                        if (match) {
+                            return `${match[1]}-${match[2].padStart(2, '0')}-${match[3].padStart(2, '0')}`;
+                        }
+                    }
+                    return dateStr;
+                };
+                
+                const normalizedServices = {};
+                Object.keys(allServices).forEach(serviceDate => {
+                    const normalizedDate = normalizeDate(serviceDate);
+                    if (normalizedDate) {
+                        if (!normalizedServices[normalizedDate]) {
+                            normalizedServices[normalizedDate] = [];
+                        }
+                        normalizedServices[normalizedDate].push(...allServices[serviceDate]);
+                    }
+                });
+                
+                // Debug: Log services by date
+                console.log('Normalized services:', normalizedServices);
+                console.log('All tour dates:', allTourDates);
+                
+                // Process each day
+                let dayNumber = 1;
+                allTourDates.forEach(date => {
+                    const normalizedDate = normalizeDate(date) || date;
+                    const services = normalizedServices[normalizedDate] || [];
+                    // Debug: Log services for this date
+                    if (services.length > 0) {
+                        console.log(`Date ${date} (normalized: ${normalizedDate}) has ${services.length} services:`, services.map(s => s.type || 'unknown'));
+                    }
+                    
+                    // Day Header using autotable (Premium Light Blue Colors)
+                    const dateText = formatDate(date);
+                    pdf.autoTable({
+                        startY: yPos,
+                        margin: { left: leftMargin, right: pageWidth - rightMargin },
+                        theme: 'grid',
+                        headStyles: { 
+                            fillColor: [108, 117, 125], 
+                            textColor: [255, 255, 255], 
+                            fontStyle: 'bold', 
+                            fontSize: 11 
+                        },
+                        bodyStyles: { fillColor: false, textColor: [33, 37, 41], fontSize: 10 },
+                        columnStyles: {
+                            0: { cellWidth: 30 },
+                            1: { cellWidth: pageWidth - leftMargin - rightMargin - 30, halign: 'right' }
+                        },
+                        head: [['Day ' + dayNumber, `Date: ${dateText}`]],
+                        body: []
+                    });
+                    
+                    yPos = pdf.lastAutoTable.finalY + 3;
+                    
+                    // Increment day number after rendering header
+                    dayNumber++;
+                    
+                    // Group services by type for this day
+                    const servicesByType = {
+                        entry_port: [],
+                        hotel: [],
+                        breakfast: [],
+                        lunch: [],
+                        dinner: [],
+                        city_tour: [],
+                        attraction: [],
+                        local_transfer: [],
+                        guide: [],
+                        exit_port: []
+                    };
+                    services.forEach(service => {
+                        const serviceType = (service.type || '').toLowerCase();
+                        if (serviceType === 'entry_port' || serviceType === 'entry port') {
+                            servicesByType.entry_port.push(service);
+                        } else if (serviceType === 'hotel') {
+                            servicesByType.hotel.push(service);
+                        } else if (serviceType === 'restaurant') {
+                            const mealType = (service.mealType || '').toLowerCase();
+                            if (mealType.includes('breakfast')) {
+                                servicesByType.breakfast.push(service);
+                            } else if (mealType.includes('lunch')) {
+                                servicesByType.lunch.push(service);
+                            } else if (mealType.includes('dinner')) {
+                                servicesByType.dinner.push(service);
+                            } else {
+                                servicesByType.breakfast.push(service); // Default to breakfast
+                            }
+                        } else if (serviceType === 'attraction') {
+                            servicesByType.attraction.push(service);
+                        } else if (serviceType === 'travel_point' || serviceType === 'point to point' || serviceType === 'travel_hourly' || serviceType === 'local_transport') {
+                            servicesByType.local_transfer.push(service);
+                        } else if (serviceType === 'guide') {
+                            servicesByType.guide.push(service);
+                        } else if (serviceType === 'exit_port' || serviceType === 'exit port') {
+                            servicesByType.exit_port.push(service);
+                            console.log('service in exit port condition-------->>>', service);
+                        }
+                    });
+                    
+                    // Render Airport Arrival Transfer (only for first day)
+                    if (dayNumber === 2 && servicesByType.entry_port.length > 0) {
+                        yPos = renderAirportArrivalTransfer(pdf, servicesByType.entry_port, leftMargin, yPos, pageWidth, rightMargin);
+                    }
+                    
+                    // Render Accommodation
+                    if (servicesByType.hotel.length > 0) {
+                        yPos = renderAccommodation(pdf, servicesByType.hotel, leftMargin, yPos, pageWidth, rightMargin);
+                    }
+                    
+                    // Render Breakfast
+                    if (servicesByType.breakfast.length > 0) {
+                        yPos = renderMealService(pdf, 'Breakfast', servicesByType.breakfast, leftMargin, yPos, pageWidth, rightMargin);
+                    }
+                    
+                    // Render Lunch
+                    if (servicesByType.lunch.length > 0) {
+                        yPos = renderMealService(pdf, 'Lunch', servicesByType.lunch, leftMargin, yPos, pageWidth, rightMargin);
+                    }
+                    
+                    // Render City Tour (if any guide services)
+                    if (servicesByType.guide.length > 0) {
+                        yPos = renderCityTour(pdf, servicesByType.guide, leftMargin, yPos, pageWidth, rightMargin);
+                    }
+                    
+                    // Render Attractions
+                    servicesByType.attraction.forEach((attraction, idx) => {
+                        yPos = renderAttraction(pdf, `Attraction ${idx + 1}`, attraction, leftMargin, yPos, pageWidth, rightMargin);
+                    });
+                    
+                    // Render Dinner
+                    if (servicesByType.dinner.length > 0) {
+                        yPos = renderMealService(pdf, 'Dinner', servicesByType.dinner, leftMargin, yPos, pageWidth, rightMargin);
+                    }
+                    
+                    // Render Local Transfer
+                    if (servicesByType.local_transfer.length > 0) {
+                        yPos = renderLocalTransfer(pdf, servicesByType.local_transfer, leftMargin, yPos, pageWidth, rightMargin);
+                    }
+                    
+                    // Render Airport Departure Transfer (only for last day)
+                    if (date === allTourDates[allTourDates.length - 1] && servicesByType.exit_port.length > 0) {
+                        console.log('servicesByType.exit_port-------->>>', servicesByType.exit_port);
+                        yPos = renderAirportDepartureTransfer(pdf, servicesByType.exit_port, leftMargin, yPos, pageWidth, rightMargin);
+                    }
+                    
+                    yPos += 5; // Spacing between days
+                });
+                
+                // Exclusions Section (Pink header with black border, matching quotation format)
+                checkPageBreak(35);
+                const exclusionsTableBody = [
+                    [{content: 'Exclusions :', colSpan: 2, styles: {fontStyle: 'bold', fontSize: 12, textColor: [0, 0, 0], fillColor: [255, 182, 193], cellPadding: {top: 3, bottom: 3, left: 5, right: 5}, minCellHeight: 8}}],
+                    [{content: ' ', colSpan: 2, styles: {fillColor: [255, 255, 255], textColor: [0, 0, 0], fontSize: 11, minCellHeight: 35, cellPadding: 20}}]
+                ];
+                
+                pdf.autoTable({
+                    startY: yPos,
+                    margin: { left: leftMargin, right: rightMarginValue },
+                    theme: 'grid',
+                    tableLineWidth: 0.7, // 2px border (0.7mm)
+                    bodyStyles: { 
+                        fillColor: [255, 255, 255], // White
+                        textColor: [0, 0, 0], 
+                        fontSize: 11,
+                        lineWidth: 0.7,
+                        lineColor: [0, 0, 0], // Black border
+                        cellPadding: 20,
+                        minCellHeight: 35
+                    },
+                    columnStyles: {
+                        0: { cellWidth: (pageWidth - leftMargin - rightMarginValue) / 2 },
+                        1: { cellWidth: (pageWidth - leftMargin - rightMarginValue) / 2 }
+                    },
+                    styles: { lineColor: [0, 0, 0], lineWidth: 0.7 },
+                    body: exclusionsTableBody
+                });
+                
+                yPos = pdf.lastAutoTable.finalY + 10;
+                
+                // Terms & Conditions Section (Pink header with black border, matching quotation format)
+                checkPageBreak(35);
+                const termsTableBody = [
+                    [{content: 'Terms & Conditions :', colSpan: 2, styles: {fontStyle: 'bold', fontSize: 12, textColor: [0, 0, 0], fillColor: [255, 182, 193], cellPadding: {top: 3, bottom: 3, left: 5, right: 5}, minCellHeight: 8}}],
+                    [{content: ' ', colSpan: 2, styles: {fillColor: [255, 255, 255], textColor: [0, 0, 0], fontSize: 11, minCellHeight: 35, cellPadding: 20}}]
+                ];
+                
+                pdf.autoTable({
+                    startY: yPos,
+                    margin: { left: leftMargin, right: rightMarginValue },
+                    theme: 'grid',
+                    tableLineWidth: 0.7, // 2px border (0.7mm)
+                    bodyStyles: { 
+                        fillColor: [255, 255, 255], // White
+                        textColor: [0, 0, 0], 
+                        fontSize: 11,
+                        lineWidth: 0.7,
+                        lineColor: [0, 0, 0], // Black border
+                        cellPadding: 20,
+                        minCellHeight: 35
+                    },
+                    columnStyles: {
+                        0: { cellWidth: (pageWidth - leftMargin - rightMarginValue) / 2 },
+                        1: { cellWidth: (pageWidth - leftMargin - rightMarginValue) / 2 }
+                    },
+                    styles: { lineColor: [0, 0, 0], lineWidth: 0.7 },
+                    body: termsTableBody
+                });
+                
+                yPos = pdf.lastAutoTable.finalY + 5;
+                
+                // Save PDF
+                pdf.save(`Tour_Itinerary_Excel_${tourId || 'format'}.pdf`);
+                
+                loadingMsg.remove();
+                showSuccessMessage('Excel format itinerary downloaded successfully!');
+            } catch (error) {
+                console.error('Error generating Excel format PDF:', error);
+                loadingMsg.remove();
+                showErrorMessage('Failed to generate Excel format itinerary: ' + (error.message || 'Unknown error'));
+            }
+        }
+        
+        // Helper functions to render different service sections using autotable
+        function renderAirportArrivalTransfer(pdf, services, leftMargin, yPos, pageWidth, rightMargin) {
+            services.forEach(service => {
+                console.log("service data in renderAirportArrivalTransfer: ", service);
+                // Extract all possible fields from data
+                const pickup = service.pickup || service.data?.entrypickup || service.data?.entry_pickup || service.data?.pickup || '';
+                const dropoff = service.dropoff || service.data?.entrydropoff || service.data?.entry_dropoff || service.data?.dropoff || '';
+                const vehicle = service.vehicle || service.data?.vehicles_name || service.data?.vehicle || '';
+                const transferType = service.transferType || service.data?.type || service.data?.transfer_options?.type || '';
+                const pickupTime = service.data?.entrytime || service.pickupTime || service.data?.pickupdate || '';
+                
+                // Flight Information (if available)
+                const originCity = service.data?.originCity || service.data?.origin_city || '';
+                const departureTime = service.data?.departureTime || service.data?.departure_time || '';
+                const originAirport = service.data?.originAirport || service.data?.origin_airport || '';
+                const originFlightNumber = service.data?.originFlightNumber || service.data?.origin_flight_number || '';
+                const originPNR = service.data?.originPNR || service.data?.origin_pnr || '';
+                
+                const arrivalCity = service.data?.arrivalCity || service.data?.arrival_city || service.data?.city || '';
+                const arrivalTime = service.data?.arrivalTime || service.data?.arrival_time || '';
+                const arrivalAirport = service.data?.arrivalAirport || service.data?.arrival_airport || '';
+                const arrivalFlightNumber = service.data?.arrivalFlightNumber || service.data?.arrival_flight_number || '';
+                const arrivalPNR = service.data?.arrivalPNR || service.data?.arrival_pnr || '';
+                
+                // Transfer Details - Get from serviceInfo first (populated from jobsheet/vehicles/drivers), then fallback to data
+                const terminal = service.data?.terminal || '';
+                const travelTime = service.data?.travelTime || service.data?.travel_time || '';
+                const driverName = service.driverName || service.data?.driverName || service.data?.driver_name || '';
+                const driverPhone = service.driverPhone || service.data?.driverPhone || service.data?.driver_phone || '';
+                const vehicleNumber = service.vehicleNumber || service.data?.vehicleNumber || service.data?.vehicle_number || '';
+                
+                // Capacity Details - Get from serviceInfo first (populated from jobsheet/vehicles/drivers), then fallback to data
+                const maxPassengerCapacity = service.maxPassengerCapacity || service.data?.maxPassengerCapacity || service.data?.max_passenger_capacity || service.data?.seating_capacity || '';
+                const maxLuggageCapacity = service.data?.maxLuggageCapacity || service.data?.max_luggage_capacity || '';
+                const childSeatAvailable = service.data?.childSeatAvailable || service.data?.child_seat_available || '';
+                
+                // Additional fields
+                const city = service.data?.city || '';
+                const country = service.data?.country || '';
+                const adults = service.data?.adults || '';
+                const children = service.data?.children || '';
+                const bookingDate = service.data?.bookingDate || service.date || '';
+                const remarks = service.data?.remarks || service.data?.specialRequests || '';
+                
+                // Format date
+                const formatDateForDisplay = (dateStr) => {
+                    if (!dateStr) return '';
+                    try {
+                        const date = new Date(dateStr);
+                        const day = date.getDate();
+                        const month = date.toLocaleString('en-US', { month: 'short' });
+                        const year = date.getFullYear();
+                        return `${day} ${month} ${year}`;
+                    } catch (e) {
+                        return dateStr;
+                    }
+                };
+                
+                // Format time (remove seconds if present, handle AM/PM format)
+                const formatTime = (timeStr) => {
+                    if (!timeStr) return '';
+                    // If it's already in HH:MM format, return as is
+                    if (timeStr.match(/^\d{2}:\d{2}$/)) {
+                        return timeStr.substring(0, 5);
+                    }
+                    // If it's in "04:00 AM" format, return as is
+                    if (timeStr.match(/\d{1,2}:\d{2}\s*(AM|PM)/i)) {
+                        return timeStr;
+                    }
+                    return timeStr;
+                };
+                
+                // Build table body - 8 columns (4 parameter-value pairs per row)
+                const tableBody = [];
+                
+                // Flight Information - Origin Row
+                tableBody.push([
+                    'Origin City (from) :', originCity || 'N/A',
+                    'Departure Time :', formatTime(departureTime) || 'N/A',
+                    'Origin Airport Name & Code :', originAirport || 'N/A',
+                    'Origin Flight Number :', originFlightNumber || 'N/A'
+                ]);
+                
+                // Flight Information - Arrival Row (Arrival Time same as Pick up time)
+                tableBody.push([
+                    'Arrival City (to) :', arrivalCity || 'N/A',
+                    'Arrival Time :', formatTime(pickupTime) || 'N/A',
+                    'Arrival Airport Name & Code :', arrivalAirport || 'N/A',
+                    'Arrival Flight Number :', arrivalFlightNumber || 'N/A'
+                ]);
+                
+                // PNR and Transfer Details Row
+                tableBody.push([
+                    'PNR :', originPNR || arrivalPNR || 'N/A',
+                    'Pick up time :', formatTime(pickupTime) || 'N/A',
+                    'Transfer Type :', transferType || 'N/A',
+                    'Vehicle Type :', vehicle || 'N/A'
+                ]);
+                
+                // Transfer Details - Second Row
+                tableBody.push([
+                    'Pick up from :', pickup || 'N/A',
+                    'Terminal :', terminal || 'N/A',
+                    'Vehicle Number :', vehicleNumber || 'N/A',
+                    'Max Passenger Capacity :', maxPassengerCapacity ? maxPassengerCapacity.toString() : 'N/A'
+                ]);
+                
+                // Transfer Details - Third Row
+                tableBody.push([
+                    'Drop off to :', dropoff || 'N/A',
+                    'Travel Time :', travelTime || 'N/A',
+                    'Max Luggage Capacity :', maxLuggageCapacity ? maxLuggageCapacity.toString() : 'N/A',
+                    'Child Seat Available :', childSeatAvailable ? childSeatAvailable.toString() : 'N/A'
+                ]);
+                
+                // Driver and Passenger Details Row
+                tableBody.push([
+                    'Driver Name :', driverName || 'N/A',
+                    'Driver Phone :', driverPhone || 'N/A',
+                    'Adults :', adults ? adults.toString() : '0',
+                    'Children :', children ? children.toString() : '0'
+                ]);
+                
+                // Location and Booking Details Row
+                tableBody.push([
+                    'City :', city || 'N/A',
+                    'Country :', country || 'N/A',
+                    'Booking Date :', bookingDate ? formatDateForDisplay(bookingDate) : 'N/A',
+                    '', ''
+                ]);
+                
+                // Remarks Row - Last row, full width (spans all 8 columns)
+                tableBody.push([
+                    {content: 'Remarks :', colSpan: 1, styles: {fontStyle: 'bold', fillColor: [240, 248, 255], textColor: [44, 62, 80]}},
+                    {content: remarks || 'N/A', colSpan: 7, styles: {fillColor: [255, 255, 255], textColor: [33, 37, 41]}}
+                ]);
+                
+                // Calculate column widths
+                const availableWidth = pageWidth - leftMargin - (pageWidth - rightMargin);
+                const columnWidth = availableWidth / 8;
+                
+                pdf.autoTable({
+                    startY: yPos,
+                    margin: { left: leftMargin, right: pageWidth - rightMargin },
+                    theme: 'grid',
+                    headStyles: { 
+                        fillColor: [108, 117, 125], 
+                        textColor: [255, 255, 255], 
+                        fontStyle: 'bold', 
+                        fontSize: 10 
+                    },
+                    bodyStyles: { 
+                        fillColor: false, 
+                        textColor: [33, 37, 41], 
+                        fontSize: 8 
+                    },
+                    columnStyles: {
+                        0: { fontStyle: 'bold', fillColor: [240, 248, 255], textColor: [44, 62, 80], cellWidth: columnWidth },
+                        1: { fillColor: [255, 255, 255], textColor: [33, 37, 41], cellWidth: columnWidth },
+                        2: { fontStyle: 'bold', fillColor: [240, 248, 255], textColor: [44, 62, 80], cellWidth: columnWidth },
+                        3: { fillColor: [255, 255, 255], textColor: [33, 37, 41], cellWidth: columnWidth },
+                        4: { fontStyle: 'bold', fillColor: [240, 248, 255], textColor: [44, 62, 80], cellWidth: columnWidth },
+                        5: { fillColor: [255, 255, 255], textColor: [33, 37, 41], cellWidth: columnWidth },
+                        6: { fontStyle: 'bold', fillColor: [240, 248, 255], textColor: [44, 62, 80], cellWidth: columnWidth },
+                        7: { fillColor: [255, 255, 255], textColor: [33, 37, 41], cellWidth: columnWidth }
+                    },
+                    head: [[{content: 'Airport Arrival Transfer', colSpan: 8, styles: {halign: 'left', textColor: [255, 255, 255]}}]],
+                    body: tableBody
+                });
+                yPos = pdf.lastAutoTable.finalY + 3;
+            });
+            return yPos;
+        }
+        
+        function renderAccommodation(pdf, hotels, leftMargin, yPos, pageWidth, rightMargin) {
+            
+            hotels.forEach((hotel) => {
+                // Extract hotel data - handle multiple possible field paths
+                const hotelName = hotel.name || 
+                                 hotel.data?.hotelDetails?.hotel_name || 
+                                 hotel.data?.hotelname || 
+                                 hotel.data?.name || 
+                                 'N/A';
+                const confirmationNo = hotel.confirmationNo || 
+                                      hotel.data?.confirmationNo || 
+                                      hotel.data?.confirmation_no || 
+                                      hotel.data?.confirmation_number || 
+                                      '';
+                const hotelAddress = hotel.data?.hotelDetails?.location || 
+                                   hotel.data?.hotelDetails?.address || 
+                                   hotel.data?.address || 
+                                   hotel.data?.location ||
+                                   '';
+                
+                // Extract check-in/check-out dates and times
+                const checkInDate = hotel.checkIn || hotel.data?.bookingDate?.[0] || '';
+                const checkOutDate = hotel.checkOut || hotel.data?.bookingDate?.[1] || '';
+                const checkInTime = hotel.data?.hotelDetails?.checkInTime || '15:00:00';
+                const checkOutTime = hotel.data?.hotelDetails?.checkOutTime || '11:00:00';
+                
+                // Format dates
+                const formatDateForDisplay = (dateStr) => {
+                    if (!dateStr) return '';
+                    try {
+                        const date = new Date(dateStr);
+                        const day = date.getDate();
+                        const month = date.toLocaleString('en-US', { month: 'short' });
+                        const year = date.getFullYear();
+                        return `${day} ${month} ${year}`;
+                    } catch (e) {
+                        return dateStr;
+                    }
+                };
+                
+                // Format time (remove seconds if present)
+                const formatTime = (timeStr) => {
+                    if (!timeStr) return '';
+                    return timeStr.substring(0, 5); // HH:MM format
+                };
+                
+                // Extract room information
+                const rooms = hotel.data?.rooms || [];
+                // Calculate total rooms - sum up number_of_rooms from each room
+                const totalRooms = rooms.length > 0 
+                    ? rooms.reduce((sum, room) => sum + (parseInt(room.number_of_rooms) || 1), 0)
+                    : (hotel.roomCount || 1);
+                
+                // Build table body - matching screenshot format with 8 columns (4 parameter-value pairs)
+                // Fill all 8 columns before starting a new row
+                const tableBody = [];
+                
+                // First row: Hotel Name, Confirmation Number, Hotel Address, Check in Date (4 pairs = 8 columns)
+                tableBody.push(
+                    ['Hotel Name :', hotelName, 'Hotel Confirmation number :', confirmationNo || 'N/A', 'Hotel Address :', hotelAddress, 'Check in Date :', formatDateForDisplay(checkInDate)]
+                );
+                
+                // Second row: Check in time, Check out date, Check out time, No. of Rooms (4 pairs = 8 columns)
+                tableBody.push(
+                    ['Check in time :', formatTime(checkInTime), 'Check out date :', formatDateForDisplay(checkOutDate), 'Check out time :', formatTime(checkOutTime), 'No. of Rooms :', totalRooms.toString()]
+                );
+                
+                // Room details - up to 3 rooms
+                const roomsToShow = rooms.length > 0 ? rooms.slice(0, 3) : [];
+                
+                // Third row: First Room details (if available)
+                if (roomsToShow.length === 0) {
+                    // If no rooms data, show at least one room with available info
+                    const roomType = hotel.roomType || 'Standard Room';
+                    tableBody.push(
+                        ['Room 1 -', roomType, 'Occupancy :', '', 'Inclusions :', '', '', '']
+                    );
+                } else {
+                    // First room details
+                    const firstRoom = roomsToShow[0];
+                    const roomType = firstRoom.room_type || hotel.roomType || 'Standard Room';
+                    
+                    // Extract occupancy from beds
+                    let occupancy = '';
+                    if (firstRoom.beds && firstRoom.beds.length > 0) {
+                        const maxOccupancy = firstRoom.beds[0].max_occupancy || firstRoom.beds[0].head_count || '';
+                        occupancy = maxOccupancy ? `${maxOccupancy} persons` : '';
+                    }
+                    
+                    // Extract inclusions/meals from beds
+                    let inclusions = '';
+                    if (firstRoom.beds && firstRoom.beds.length > 0) {
+                        const mealTypes = firstRoom.beds[0].mealTypes || [];
+                        if (mealTypes.length > 0) {
+                            inclusions = mealTypes.join(', ');
+                        }
+                    }
+                    
+                    tableBody.push(
+                        ['Room 1 -', roomType, 'Occupancy :', occupancy, 'Inclusions :', inclusions, '', '']
+                    );
+                    
+                    // Additional rooms (if any) - each on a new row, filling all 8 columns
+                    if (roomsToShow.length > 1) {
+                        for (let index = 1; index < roomsToShow.length; index++) {
+                            const room = roomsToShow[index];
+                            const roomType = room.room_type || hotel.roomType || 'Standard Room';
+                            
+                            // Extract occupancy from beds
+                            let occupancy = '';
+                            if (room.beds && room.beds.length > 0) {
+                                const maxOccupancy = room.beds[0].max_occupancy || room.beds[0].head_count || '';
+                                occupancy = maxOccupancy ? `${maxOccupancy} persons` : '';
+                            }
+                            
+                            // Extract inclusions/meals from beds
+                            let inclusions = '';
+                            if (room.beds && room.beds.length > 0) {
+                                const mealTypes = room.beds[0].mealTypes || [];
+                                if (mealTypes.length > 0) {
+                                    inclusions = mealTypes.join(', ');
+                                }
+                            }
+                            
+                            tableBody.push(
+                                [`Room ${index + 1} -`, roomType, 'Occupancy :', occupancy, 'Inclusions :', inclusions, '', '']
+                            );
+                        }
+                    }
+                }
+                
+                // Calculate column widths - smaller cells to fit 8 columns
+                const availableWidth = pageWidth - leftMargin - (pageWidth - rightMargin);
+                const columnWidth = availableWidth / 8;
+                
+                pdf.autoTable({
+                    startY: yPos,
+                    margin: { left: leftMargin, right: pageWidth - rightMargin },
+                    theme: 'grid',
+                    headStyles: { 
+                        fillColor: [108, 117, 125], 
+                        textColor: [255, 255, 255], 
+                        fontStyle: 'bold', 
+                        fontSize: 10 
+                    },
+                    bodyStyles: { 
+                        fillColor: false, 
+                        textColor: [33, 37, 41], 
+                        fontSize: 8 
+                    },
+                    columnStyles: {
+                        0: { fontStyle: 'bold', fillColor: [240, 248, 255], textColor: [44, 62, 80], cellWidth: columnWidth }, // Parameter column
+                        1: { fillColor: [255, 255, 255], textColor: [33, 37, 41], cellWidth: columnWidth }, // Value column
+                        2: { fontStyle: 'bold', fillColor: [240, 248, 255], textColor: [44, 62, 80], cellWidth: columnWidth }, // Parameter column
+                        3: { fillColor: [255, 255, 255], textColor: [33, 37, 41], cellWidth: columnWidth }, // Value column
+                        4: { fontStyle: 'bold', fillColor: [240, 248, 255], textColor: [44, 62, 80], cellWidth: columnWidth }, // Parameter column
+                        5: { fillColor: [255, 255, 255], textColor: [33, 37, 41], cellWidth: columnWidth }, // Value column
+                        6: { fontStyle: 'bold', fillColor: [240, 248, 255], textColor: [44, 62, 80], cellWidth: columnWidth }, // Parameter column
+                        7: { fillColor: [255, 255, 255], textColor: [33, 37, 41], cellWidth: columnWidth }  // Value column
+                    },
+                    head: [[{content: 'Accommodation', colSpan: 8, styles: {halign: 'left', textColor: [255, 255, 255]}}]],
+                    body: tableBody
+                });
+                yPos = pdf.lastAutoTable.finalY + 3;
+            });
+            return yPos;
+        }
+        
+        function renderMealService(pdf, mealType, services, leftMargin, yPos, pageWidth, rightMargin) {
+            console.log("Please check the meal service data in renderMealService function", services);
+            services.forEach(service => {
+                // Extract ALL fields from data - KEEP ALL EXISTING FIELDS FROM OLDER VERSION
+                const restaurantName = service.name || service.data?.restaurantName || service.data?.name || '';
+                const visitTime = service.visitTime || service.data?.visitTime || service.data?.time || '';
+                const mealSpecificType = service.mealSpecificType || service.data?.mealSpecificType || '';
+                const transferType = service.transferType || service.data?.transfer_options?.type || service.data?.type || '';
+                const pickupLocation = service.pickupLocation || service.data?.transfer_options?.pickup_location_name || '';
+                const way = service.way || service.data?.transfer_options?.way || service.data?.way || '';
+                
+                // Vehicle details (from older version)
+                const vehicleDetails = service.data?.vehicle_details || {};
+                const vehicleName = vehicleDetails?.vehicle_name || vehicleDetails?.vehicle_type || service.vehicle || service.data?.vehicle || '';
+                const vehicleType = vehicleDetails?.vehicle_type || vehicleDetails?.vehicle_name || service.vehicle || service.data?.vehicle || '';
+                const seatingCapacity = vehicleDetails?.seating_capacity || '';
+                const vehicleId = vehicleDetails?.vehicle_id || '';
+                
+                // Booking details (from older version)
+                const bookingDate = service.data?.bookingDate || service.date || '';
+                const restaurantId = service.data?.restaurantId || '';
+                
+                // Meal description/menu items (from older version)
+                const mealDescription = service.data?.MealDescription || [];
+                let menuItems = '';
+                if (Array.isArray(mealDescription) && mealDescription.length > 0) {
+                    menuItems = mealDescription.map(item => item.name || item.item_name || '').filter(Boolean).join(', ');
+                }
+                
+                // Pickup and Dropoff details (from current version)
+                const pickupFrom = pickupLocation || '';
+                const pickupTime = visitTime || '';
+                const dropoffTo = restaurantName || '';
+                const dropoffTime = visitTime || '';
+                
+                // Additional vehicle details - Get from serviceInfo first (populated from jobsheet/vehicles/drivers), then fallback to data
+                const vehicleNumber = service.vehicleNumber || service.data?.vehicleNumber || service.data?.vehicle_number || '';
+                const childSeatAvailable = service.data?.childSeatAvailable || service.data?.child_seat_available || '';
+                
+                // Driver details - Get from serviceInfo first (populated from jobsheet/vehicles/drivers), then fallback to data
+                const driverName = service.driverName || service.data?.driverName || service.data?.driver_name || '';
+                const driverPhone = service.driverPhone || service.data?.driverPhone || service.data?.driver_phone || '';
+                
+                // Max Passenger Capacity - Get from serviceInfo first (populated from jobsheet/vehicles/drivers), then fallback to data
+                const maxPassengerCapacity = service.maxPassengerCapacity || service.data?.maxPassengerCapacity || service.data?.max_passenger_capacity || seatingCapacity || '';
+                
+                // Passenger details (from current version)
+                const adultCount = service.data?.adultCount || service.data?.adults || '';
+                const childCount = service.data?.childCount || service.data?.children || '';
+                const infantCount = service.data?.infantCount || service.data?.infants || '';
+                
+                // Ticket details (from current version)
+                const ticketDetails = service.data?.ticketDetails || service.data?.ticket_details || '';
+                const numberOfTickets = service.data?.numberOfTickets || service.data?.number_of_tickets || '';
+                
+                // Restaurant details (from older version)
+                const restaurantOpen = service.data?.restaurantOpen || service.data?.restaurant_open || '';
+                const restaurantClose = service.data?.restaurantClose || service.data?.restaurant_close || '';
+                const openDays = service.data?.openDays || service.data?.open_days || '';
+                const closeDays = service.data?.closeDays || service.data?.close_days || '';
+                
+                // Booking details
+                const confirmationNumber = service.data?.confirmationNumber || service.data?.confirmation_no || service.data?.confirmation_number || '';
+                const specialRequests = service.data?.specialRequests || '';
+                
+                // Format date
+                const formatDateForDisplay = (dateStr) => {
+                    if (!dateStr) return '';
+                    try {
+                        const date = new Date(dateStr);
+                        const day = date.getDate();
+                        const month = date.toLocaleString('en-US', { month: 'short' });
+                        const year = date.getFullYear();
+                        return `${day} ${month} ${year}`;
+                    } catch (e) {
+                        return dateStr;
+                    }
+                };
+                
+                // Format time (remove seconds if present, handle AM/PM format)
+                const formatTime = (timeStr) => {
+                    if (!timeStr) return '';
+                    // If it's already in HH:MM format, return as is
+                    if (timeStr.match(/^\d{2}:\d{2}$/)) {
+                        return timeStr.substring(0, 5);
+                    }
+                    // If it's in "9:00 AM" format, return as is
+                    if (timeStr.match(/\d{1,2}:\d{2}\s*(AM|PM)/i)) {
+                        return timeStr;
+                    }
+                    return timeStr;
+                };
+                
+                // Build table body - 8 columns (4 parameter-value pairs per row)
+                const tableBody = [];
+                
+                // First row: Restaurant Name, Visit Time, Meal Type, Meal Specific Type (from older version)
+                tableBody.push([
+                    'Restaurant Name :', restaurantName || 'N/A',
+                    'Visit Time :', formatTime(visitTime) || 'N/A',
+                    'Meal Type :', mealType || 'N/A',
+                    'Meal Specific Type :', mealSpecificType || 'N/A'
+                ]);
+                
+                // Second row: Transfer Type, Pickup Location, Way, Vehicle Type (from older version)
+                tableBody.push([
+                    'Transfer Type :', transferType || 'N/A',
+                    'Pickup Location :', pickupLocation || 'N/A',
+                    'Way :', way || 'N/A',
+                    'Vehicle Type :', vehicleType || vehicleName || 'N/A'
+                ]);
+                
+                // Third row: Pick up from, Pick up time, Drop off to, Drop off time (from current version)
+                tableBody.push([
+                    'Pick up from :', pickupFrom || 'N/A',
+                    'Pick up time :', formatTime(pickupTime) || 'N/A',
+                    'Drop off to :', dropoffTo || 'N/A',
+                    'Drop off time :', formatTime(dropoffTime) || 'N/A'
+                ]);
+                
+                // Fourth row: Vehicle Name, Seating Capacity, Vehicle ID, Booking Date (from older version)
+                tableBody.push([
+                    'Vehicle Name :', vehicleName || 'N/A',
+                    'Seating Capacity :', seatingCapacity ? seatingCapacity.toString() : 'N/A',
+                    'Vehicle ID :', vehicleId ? vehicleId.toString() : 'N/A',
+                    'Booking Date :', bookingDate ? formatDateForDisplay(bookingDate) : 'N/A'
+                ]);
+                
+                // Fifth row: Max Passenger Capacity, Child Seat Available, Vehicle Number, Confirmation Number (from current version)
+                tableBody.push([
+                    'Max Passenger Capacity :', maxPassengerCapacity ? maxPassengerCapacity.toString() : (seatingCapacity ? seatingCapacity.toString() : 'N/A'),
+                    'Child Seat Available :', childSeatAvailable ? childSeatAvailable.toString() : 'N/A',
+                    'Vehicle Number :', vehicleNumber || 'N/A',
+                    'Confirmation Number :', confirmationNumber || 'N/A'
+                ]);
+                
+                // Sixth row: Driver Name, Driver Phone, Adults, Children (from current version + older version)
+                tableBody.push([
+                    'Driver Name :', driverName || 'N/A',
+                    'Driver Phone :', driverPhone || 'N/A',
+                    'Adults :', adultCount ? adultCount.toString() : '0',
+                    'Children :', childCount ? childCount.toString() : '0'
+                ]);
+                
+                // Seventh row: Ticket Details, No. of Tickets, No. of Adults, No. of Children (from current version)
+                tableBody.push([
+                    'Ticket Details :', ticketDetails || 'N/A',
+                    'No. of Tickets :', numberOfTickets ? numberOfTickets.toString() : 'N/A',
+                    'No. of Adults :', adultCount ? adultCount.toString() : '0',
+                    'No. of Children :', childCount ? childCount.toString() : '0'
+                ]);
+                
+                // Eighth row: No. of Infants, Restaurant ID, Menu Items, Restaurant Open (from current + older version)
+                tableBody.push([
+                    'No. of Infants :', infantCount ? infantCount.toString() : '0',
+                    'Restaurant ID :', restaurantId ? restaurantId.toString() : 'N/A',
+                    'Menu Items :', menuItems || 'N/A',
+                    'Restaurant Open :', formatTime(restaurantOpen) || 'N/A'
+                ]);
+                
+                // Ninth row: Restaurant Close, Open days, Close days (from older version)
+                tableBody.push([
+                    'Restaurant Close :', formatTime(restaurantClose) || 'N/A',
+                    'Open days :', openDays || 'N/A',
+                    'Close days :', closeDays || 'N/A',
+                    '', ''
+                ]);
+                
+                // Remarks Row - Last row, full width (spans all 8 columns)
+                tableBody.push([
+                    {content: 'Remarks :', colSpan: 1, styles: {fontStyle: 'bold', fillColor: [240, 248, 255], textColor: [44, 62, 80]}},
+                    {content: specialRequests || 'N/A', colSpan: 7, styles: {fillColor: [255, 255, 255], textColor: [33, 37, 41]}}
+                ]);
+                
+                // Calculate column widths
+                const availableWidth = pageWidth - leftMargin - (pageWidth - rightMargin);
+                const columnWidth = availableWidth / 8;
+                
+                pdf.autoTable({
+                    startY: yPos,
+                    margin: { left: leftMargin, right: pageWidth - rightMargin },
+                    theme: 'grid',
+                    headStyles: { 
+                        fillColor: [108, 117, 125], 
+                        textColor: [255, 255, 255], 
+                        fontStyle: 'bold', 
+                        fontSize: 10 
+                    },
+                    bodyStyles: { 
+                        fillColor: false, 
+                        textColor: [33, 37, 41], 
+                        fontSize: 8 
+                    },
+                    columnStyles: {
+                        0: { fontStyle: 'bold', fillColor: [240, 248, 255], textColor: [44, 62, 80], cellWidth: columnWidth },
+                        1: { fillColor: [255, 255, 255], textColor: [33, 37, 41], cellWidth: columnWidth },
+                        2: { fontStyle: 'bold', fillColor: [240, 248, 255], textColor: [44, 62, 80], cellWidth: columnWidth },
+                        3: { fillColor: [255, 255, 255], textColor: [33, 37, 41], cellWidth: columnWidth },
+                        4: { fontStyle: 'bold', fillColor: [240, 248, 255], textColor: [44, 62, 80], cellWidth: columnWidth },
+                        5: { fillColor: [255, 255, 255], textColor: [33, 37, 41], cellWidth: columnWidth },
+                        6: { fontStyle: 'bold', fillColor: [240, 248, 255], textColor: [44, 62, 80], cellWidth: columnWidth },
+                        7: { fillColor: [255, 255, 255], textColor: [33, 37, 41], cellWidth: columnWidth }
+                    },
+                    head: [[{content: mealType, colSpan: 8, styles: {halign: 'left', textColor: [255, 255, 255]}}]],
+                    body: tableBody
+                });
+                yPos = pdf.lastAutoTable.finalY + 3;
+            });
+            return yPos;
+        }
+        
+        function renderCityTour(pdf, guides, leftMargin, yPos, pageWidth, rightMargin) {
+            guides.forEach(guide => {
+                console.log("Please check the city tour data in renderCityTour function", guides);
+                
+                // Extract all possible fields from data
+                const guideName = guide.name || guide.data?.guide_name || guide.data?.guideName || '';
+                const hours = guide.hours || guide.data?.hours || '';
+                const entryTime = guide.entryTime || guide.data?.entrytime || guide.data?.entryTime || '';
+                const languages = guide.languages || guide.data?.languages || [];
+                const languagesStr = Array.isArray(languages) ? languages.join(', ') : '';
+                
+                // Pickup details
+                const pickupFrom = guide.data?.entrypickup || guide.data?.pickup || '';
+                const pickupTime = entryTime || guide.data?.pickupdate || '';
+                
+                // Dropoff details
+                const dropoffTo = guide.data?.dropoff || guide.data?.dropoffLocation || '';
+                const dropoffTime = guide.data?.dropoffTime || '';
+                
+                // Transfer details
+                const transferType = guide.data?.transferType || guide.data?.type || '';
+                const vehicleType = guide.data?.vehicleType || guide.data?.vehicle_type || guide.data?.vehicle || '';
+                const vehicleNumber = guide.data?.vehicleNumber || guide.data?.vehicle_number || '';
+                const seatingCapacity = guide.data?.seatingCapacity || guide.data?.seating_capacity || guide.data?.maxPassengerCapacity || '';
+                const childSeatAvailable = guide.data?.childSeatAvailable || guide.data?.child_seat_available || '';
+                
+                // Driver details
+                const driverName = guide.data?.driverName || guide.data?.driver_name || '';
+                const driverPhone = guide.data?.driverPhone || guide.data?.driver_phone || '';
+                
+                // Passenger details
+                const adultCount = guide.data?.adults || '';
+                const childCount = guide.data?.children || '';
+                
+                // Booking details
+                const bookingDate = guide.data?.bookingDate || guide.date || '';
+                const guideId = guide.data?.guide_id || '';
+                const city = guide.data?.city || '';
+                const country = guide.data?.country || '';
+                const confirmationNumber = guide.data?.confirmationNumber || guide.data?.confirmation_no || guide.data?.confirmation_number || '';
+                const specialRequests = guide.data?.specialRequests || '';
+                
+                // Format date
+                const formatDateForDisplay = (dateStr) => {
+                    if (!dateStr) return '';
+                    try {
+                        const date = new Date(dateStr);
+                        const day = date.getDate();
+                        const month = date.toLocaleString('en-US', { month: 'short' });
+                        const year = date.getFullYear();
+                        return `${day} ${month} ${year}`;
+                    } catch (e) {
+                        return dateStr;
+                    }
+                };
+                
+                // Format time (remove seconds if present, handle AM/PM format)
+                const formatTime = (timeStr) => {
+                    if (!timeStr) return '';
+                    // If it's already in HH:MM format, return as is
+                    if (timeStr.match(/^\d{2}:\d{2}$/)) {
+                        return timeStr.substring(0, 5);
+                    }
+                    // If it's in "1:00 AM" format, return as is
+                    if (timeStr.match(/\d{1,2}:\d{2}\s*(AM|PM)/i)) {
+                        return timeStr;
+                    }
+                    return timeStr;
+                };
+                
+                // Build table body - 8 columns (4 parameter-value pairs per row)
+                const tableBody = [];
+                
+                // First row: Guide Name, Tour Duration, Entry Time, Languages
+                tableBody.push([
+                    'Guide Name :', guideName || 'N/A',
+                    'Tour Duration :', hours ? `${hours} hour(s)` : 'N/A',
+                    'Entry Time :', formatTime(entryTime) || 'N/A',
+                    'Languages :', languagesStr || 'N/A'
+                ]);
+                
+                // Second row: Pick up from, Pick up time, Transfer Type, Vehicle Type
+                tableBody.push([
+                    'Pick up from :', pickupFrom || 'N/A',
+                    'Pick up time :', formatTime(pickupTime) || 'N/A',
+                    'Transfer Type :', transferType || 'N/A',
+                    'Vehicle Type :', vehicleType || 'N/A'
+                ]);
+                
+                // Third row: Drop off to, Drop off time, Max Passenger Capacity, Child Seat Available
+                tableBody.push([
+                    'Drop off to :', dropoffTo || 'N/A',
+                    'Drop off time :', formatTime(dropoffTime) || 'N/A',
+                    'Max Passenger Capacity :', seatingCapacity ? seatingCapacity.toString() : 'N/A',
+                    'Child Seat Available :', childSeatAvailable ? childSeatAvailable.toString() : 'N/A'
+                ]);
+                
+                // Fourth row: Vehicle Number, Driver Name, Driver Phone, Guide ID
+                tableBody.push([
+                    'Vehicle Number :', vehicleNumber || 'N/A',
+                    'Driver Name :', driverName || 'N/A',
+                    'Driver Phone :', driverPhone || 'N/A',
+                    'Guide ID :', guideId ? guideId.toString() : 'N/A'
+                ]);
+                
+                // Fifth row: Adults, Children, City, Country
+                tableBody.push([
+                    'Adults :', adultCount ? adultCount.toString() : '0',
+                    'Children :', childCount ? childCount.toString() : '0',
+                    'City :', city || 'N/A',
+                    'Country :', country || 'N/A'
+                ]);
+                
+                // Sixth row: Booking Date, Confirmation Number
+                if (bookingDate || confirmationNumber) {
+                    tableBody.push([
+                        'Booking Date :', bookingDate ? formatDateForDisplay(bookingDate) : 'N/A',
+                        'Confirmation Number :', confirmationNumber || 'N/A',
+                        '', '',
+                        '', ''
+                    ]);
+                }
+                
+                // Remarks Row - Last row, full width (spans all 8 columns)
+                tableBody.push([
+                    {content: 'Remarks :', colSpan: 1, styles: {fontStyle: 'bold', fillColor: [240, 248, 255], textColor: [44, 62, 80]}},
+                    {content: specialRequests || 'N/A', colSpan: 7, styles: {fillColor: [255, 255, 255], textColor: [33, 37, 41]}}
+                ]);
+                
+                // Calculate column widths
+                const availableWidth = pageWidth - leftMargin - (pageWidth - rightMargin);
+                const columnWidth = availableWidth / 8;
+                
+                pdf.autoTable({
+                    startY: yPos,
+                    margin: { left: leftMargin, right: pageWidth - rightMargin },
+                    theme: 'grid',
+                    headStyles: { 
+                        fillColor: [108, 117, 125], 
+                        textColor: [255, 255, 255], 
+                        fontStyle: 'bold', 
+                        fontSize: 10 
+                    },
+                    bodyStyles: { 
+                        fillColor: false, 
+                        textColor: [33, 37, 41], 
+                        fontSize: 8 
+                    },
+                    columnStyles: {
+                        0: { fontStyle: 'bold', fillColor: [240, 248, 255], textColor: [44, 62, 80], cellWidth: columnWidth },
+                        1: { fillColor: [255, 255, 255], textColor: [33, 37, 41], cellWidth: columnWidth },
+                        2: { fontStyle: 'bold', fillColor: [240, 248, 255], textColor: [44, 62, 80], cellWidth: columnWidth },
+                        3: { fillColor: [255, 255, 255], textColor: [33, 37, 41], cellWidth: columnWidth },
+                        4: { fontStyle: 'bold', fillColor: [240, 248, 255], textColor: [44, 62, 80], cellWidth: columnWidth },
+                        5: { fillColor: [255, 255, 255], textColor: [33, 37, 41], cellWidth: columnWidth },
+                        6: { fontStyle: 'bold', fillColor: [240, 248, 255], textColor: [44, 62, 80], cellWidth: columnWidth },
+                        7: { fillColor: [255, 255, 255], textColor: [33, 37, 41], cellWidth: columnWidth }
+                    },
+                    head: [[{content: 'Tour Guide', colSpan: 8, styles: {halign: 'left', textColor: [255, 255, 255]}}]],
+                    body: tableBody
+                });
+                yPos = pdf.lastAutoTable.finalY + 3;
+            });
+            return yPos;
+        }
+        
+        function renderAttraction(pdf, title, attraction, leftMargin, yPos, pageWidth, rightMargin) {
+            console.log("Please check the attraction data in renderAttraction function", attraction);
+            
+            // Extract all possible fields from data
+            const attractionName = attraction.name || attraction.data?.AttractionName || attraction.data?.name || '';
+            const visitTime = attraction.visitTime || attraction.data?.visitTime || attraction.data?.time || '';
+            const ticketName = attraction.ticketName || attraction.data?.ticketName || '';
+            const transferType = attraction.transferType || attraction.data?.transfer_options?.type || attraction.data?.type || '';
+            const pickupLocation = attraction.pickupLocation || attraction.data?.transfer_options?.pickup_location_name || '';
+            
+            // Pickup and Dropoff details
+            const pickupFrom = pickupLocation || '';
+            const pickupTime = visitTime || '';
+            const dropoffTo = attractionName || '';
+            const dropoffTime = visitTime || '';
+            
+            // Vehicle details
+            const vehicleDetails = attraction.data?.vehicle_details || {};
+            const vehicleName = vehicleDetails?.vehicle_name || vehicleDetails?.vehicle_type || attraction.vehicle || attraction.data?.vehicle || '';
+            const vehicleType = vehicleDetails?.vehicle_type || vehicleDetails?.vehicle_name || attraction.vehicle || attraction.data?.vehicle || '';
+            const seatingCapacity = attraction.maxPassengerCapacity || vehicleDetails?.seating_capacity || attraction.data?.seatingCapacity || attraction.data?.seating_capacity || '';
+            const vehicleNumber = attraction.vehicleNumber || attraction.data?.vehicleNumber || attraction.data?.vehicle_number || '';
+            const childSeatAvailable = attraction.data?.childSeatAvailable || attraction.data?.child_seat_available || '';
+            
+            // Driver details - Get from vehicle_driver_data first (populated from jobsheet/vehicles/drivers), then fallback to data
+            const driverName = attraction.driverName || attraction.data?.driverName || attraction.data?.driver_name || '';
+            const driverPhone = attraction.driverPhone || attraction.data?.driverPhone || attraction.data?.driver_phone || '';
+            
+            // Passenger details
+            const adultCount = attraction.data?.adults || attraction.data?.adultCount || '';
+            const childCount = attraction.data?.children || attraction.data?.childCount || '';
+            const infantCount = attraction.data?.infants || attraction.data?.infantCount || '';
+            
+            // Ticket details
+            const ticketDetails = ticketName || attraction.data?.ticketDetails || attraction.data?.ticket_details || '';
+            const numberOfTickets = attraction.data?.numberOfTickets || attraction.data?.number_of_tickets || '';
+            
+            // Attraction details
+            const attractionOpen = attraction.data?.attractionOpen || attraction.data?.attraction_open || attraction.data?.openTime || '';
+            const attractionClose = attraction.data?.attractionClose || attraction.data?.attraction_close || attraction.data?.closeTime || '';
+            const openDays = attraction.data?.openDays || attraction.data?.open_days || '';
+            const closeDays = attraction.data?.closeDays || attraction.data?.close_days || '';
+            
+            // Booking details
+            const bookingDate = attraction.data?.bookingDate || attraction.date || '';
+            const city = attraction.data?.city || '';
+            const country = attraction.data?.country || '';
+            const confirmationNumber = attraction.data?.confirmationNumber || attraction.data?.confirmation_no || attraction.data?.confirmation_number || '';
+            const specialRequests = attraction.data?.specialRequests || '';
+            
+            // Format date
+            const formatDateForDisplay = (dateStr) => {
+                if (!dateStr) return '';
+                try {
+                    const date = new Date(dateStr);
+                    const day = date.getDate();
+                    const month = date.toLocaleString('en-US', { month: 'short' });
+                    const year = date.getFullYear();
+                    return `${day} ${month} ${year}`;
+                } catch (e) {
+                    return dateStr;
+                }
+            };
+            
+            // Format time (remove seconds if present, handle AM/PM format)
+            const formatTime = (timeStr) => {
+                if (!timeStr) return '';
+                // If it's already in HH:MM format, return as is
+                if (timeStr.match(/^\d{2}:\d{2}$/)) {
+                    return timeStr.substring(0, 5);
+                }
+                // If it's in "9:00 AM" format, return as is
+                if (timeStr.match(/\d{1,2}:\d{2}\s*(AM|PM)/i)) {
+                    return timeStr;
+                }
+                return timeStr;
+            };
+            
+            // Build table body - 8 columns (4 parameter-value pairs per row)
+            const tableBody = [];
+            
+            // First row: Attraction Name, Visit Time, Ticket Name, Transfer Type
+            tableBody.push([
+                'Attraction Name :', attractionName || 'N/A',
+                'Visit Time :', formatTime(visitTime) || 'N/A',
+                'Ticket Name :', ticketName || 'N/A',
+                'Transfer Type :', transferType || 'N/A'
+            ]);
+            
+            // Second row: Pick up from, Pick up time, Vehicle Type, Max Passenger Capacity
+            tableBody.push([
+                'Pick up from :', pickupFrom || 'N/A',
+                'Pick up time :', formatTime(pickupTime) || 'N/A',
+                'Vehicle Type :', vehicleType || vehicleName || 'N/A',
+                'Max Passenger Capacity :', seatingCapacity ? seatingCapacity.toString() : 'N/A'
+            ]);
+            
+            // Third row: Drop off to, Drop off time, Vehicle Number, Child Seat Available
+            tableBody.push([
+                'Drop off to :', dropoffTo || 'N/A',
+                'Drop off time :', formatTime(dropoffTime) || 'N/A',
+                'Vehicle Number :', vehicleNumber || 'N/A',
+                'Child Seat Available :', childSeatAvailable ? childSeatAvailable.toString() : 'N/A'
+            ]);
+            
+            // Fourth row: Driver Name, Driver Phone, Ticket Details, No. of Tickets
+            tableBody.push([
+                'Driver Name :', driverName || 'N/A',
+                'Driver Phone :', driverPhone || 'N/A',
+                'Ticket Details :', ticketDetails || 'N/A',
+                'No. of Tickets :', numberOfTickets ? numberOfTickets.toString() : 'N/A'
+            ]);
+            
+            // Fifth row: No. of Adults, No. of Children, No. of Infants, Attraction Open
+            tableBody.push([
+                'No. of Adults :', adultCount ? adultCount.toString() : '0',
+                'No. of Children :', childCount ? childCount.toString() : '0',
+                'No. of Infants :', infantCount ? infantCount.toString() : '0',
+                'Attraction Open :', formatTime(attractionOpen) || 'N/A'
+            ]);
+            
+            // Sixth row: Attraction Close, Open days, Close days, Booking Date
+            tableBody.push([
+                'Attraction Close :', formatTime(attractionClose) || 'N/A',
+                'Open days :', openDays || 'N/A',
+                'Close days :', closeDays || 'N/A',
+                'Booking Date :', bookingDate ? formatDateForDisplay(bookingDate) : 'N/A'
+            ]);
+            
+            // Seventh row: City, Country, Confirmation Number
+            if (city || country || confirmationNumber) {
+                tableBody.push([
+                    'City :', city || 'N/A',
+                    'Country :', country || 'N/A',
+                    'Confirmation Number :', confirmationNumber || 'N/A',
+                    '', ''
+                ]);
+            }
+            
+            // Remarks Row - Last row, full width (spans all 8 columns)
+            tableBody.push([
+                {content: 'Remarks :', colSpan: 1, styles: {fontStyle: 'bold', fillColor: [240, 240, 240]}},
+                {content: specialRequests || 'N/A', colSpan: 7, styles: {fillColor: [255, 255, 255]}}
+            ]);
+            
+            // Calculate column widths
+            const availableWidth = pageWidth - leftMargin - (pageWidth - rightMargin);
+            const columnWidth = availableWidth / 8;
+            
+            pdf.autoTable({
+                startY: yPos,
+                margin: { left: leftMargin, right: pageWidth - rightMargin },
+                theme: 'grid',
+                headStyles: { 
+                    fillColor: [108, 117, 125], 
+                    textColor: [33, 37, 41], 
+                    fontStyle: 'bold', 
+                    fontSize: 10 
+                },
+                bodyStyles: { 
+                    fillColor: false, 
+                    textColor: [33, 37, 41], 
+                    fontSize: 8 
+                },
+                columnStyles: {
+                    0: { fontStyle: 'bold', fillColor: [240, 248, 255], textColor: [44, 62, 80], cellWidth: columnWidth },
+                    1: { fillColor: [255, 255, 255], textColor: [33, 37, 41], cellWidth: columnWidth },
+                    2: { fontStyle: 'bold', fillColor: [240, 248, 255], textColor: [44, 62, 80], cellWidth: columnWidth },
+                    3: { fillColor: [255, 255, 255], textColor: [33, 37, 41], cellWidth: columnWidth },
+                    4: { fontStyle: 'bold', fillColor: [240, 248, 255], textColor: [44, 62, 80], cellWidth: columnWidth },
+                    5: { fillColor: [255, 255, 255], textColor: [33, 37, 41], cellWidth: columnWidth },
+                    6: { fontStyle: 'bold', fillColor: [240, 248, 255], textColor: [44, 62, 80], cellWidth: columnWidth },
+                    7: { fillColor: [255, 255, 255], textColor: [33, 37, 41], cellWidth: columnWidth }
+                },
+                head: [[{content: title, colSpan: 8, styles: {halign: 'left', textColor: [255, 255, 255]}}]],
+                body: tableBody
+            });
+            yPos = pdf.lastAutoTable.finalY + 3;
+            return yPos;
+        }
+        
+        function renderLocalTransfer(pdf, services, leftMargin, yPos, pageWidth, rightMargin) {
+            services.forEach(service => {
+                console.log("Please check the local transfer data in renderLocalTransfer function", services);
+                
+                // Extract all possible fields from data
+                const pickup = service.pickup || service.data?.entrypickup || service.data?.pickup || '';
+                const dropoff = service.dropoff || service.data?.entrydropoff || service.data?.dropoff || service.data?.dropoffLocation || '';
+                const pickupTime = service.data?.entrytime || service.pickupTime || service.data?.pickupdate || '';
+                const vehicle = service.vehicle || service.data?.vehicles_name || service.data?.vehicle || '';
+                const transferType = service.transferType || service.data?.type || '';
+                const selectedHours = service.selectedHours || service.data?.selectedHours || '';
+                const serviceType = (service.data?.travel_type || service.data?.type || '').toLowerCase();
+                const transferTypeLabel = serviceType.includes('hourly') ? 'Hourly' : 'Point to Point';
+                
+                // Vehicle details
+                const vehicleDetails = service.data?.vehicle_details || {};
+                const vehicleName = vehicleDetails?.vehicle_name || vehicleDetails?.vehicle_type || vehicle || '';
+                const vehicleType = vehicleDetails?.vehicle_type || vehicleDetails?.vehicle_name || vehicle || '';
+                const seatingCapacity = vehicleDetails?.seating_capacity || '';
+                const vehicleNumber = service.data?.vehicleNumber || service.data?.vehicle_number || '';
+                const vehicleId = service.data?.vehicles_id || vehicleDetails?.vehicle_id || '';
+                const childSeatAvailable = service.data?.childSeatAvailable || service.data?.child_seat_available || '';
+                
+                // Driver details
+                const driverName = service.data?.driverName || service.data?.driver_name || '';
+                const driverPhone = service.data?.driverPhone || service.data?.driver_phone || '';
+                
+                // Passenger details
+                const adultCount = service.data?.adults || '';
+                const childCount = service.data?.children || '';
+                const infantCount = service.data?.infants || service.data?.infantCount || '';
+                
+                // Booking details
+                const bookingDate = service.data?.bookingDate || service.date || '';
+                const city = service.data?.city || '';
+                const country = service.data?.country || '';
+                const confirmationNumber = service.data?.confirmationNumber || service.data?.confirmation_no || service.data?.confirmation_number || '';
+                const specialRequests = service.data?.specialRequests || '';
+                
+                // Format date
+                const formatDateForDisplay = (dateStr) => {
+                    if (!dateStr) return '';
+                    try {
+                        const date = new Date(dateStr);
+                        const day = date.getDate();
+                        const month = date.toLocaleString('en-US', { month: 'short' });
+                        const year = date.getFullYear();
+                        return `${day} ${month} ${year}`;
+                    } catch (e) {
+                        return dateStr;
+                    }
+                };
+                
+                // Format time (remove seconds if present, handle AM/PM format)
+                const formatTime = (timeStr) => {
+                    if (!timeStr) return '';
+                    // If it's already in HH:MM format, return as is
+                    if (timeStr.match(/^\d{2}:\d{2}$/)) {
+                        return timeStr.substring(0, 5);
+                    }
+                    // If it's in "10:00 AM" format, return as is
+                    if (timeStr.match(/\d{1,2}:\d{2}\s*(AM|PM)/i)) {
+                        return timeStr;
+                    }
+                    return timeStr;
+                };
+                
+                // Build table body - 8 columns (4 parameter-value pairs per row)
+                const tableBody = [];
+                
+                // First row: Transfer Type Label, Pick up from, Pick up time, Vehicle Type
+                tableBody.push([
+                    'Transfer Type :', transferTypeLabel || transferType || 'N/A',
+                    'Pick up from :', pickup || 'N/A',
+                    'Pick up time :', formatTime(pickupTime) || 'N/A',
+                    'Vehicle Type :', vehicleType || vehicleName || 'N/A'
+                ]);
+                
+                // Second row: Drop off to, Drop off time, Max Passenger Capacity, Child Seat Available
+                tableBody.push([
+                    'Drop off to :', dropoff || 'N/A',
+                    'Drop off time :', formatTime(pickupTime) || 'N/A', // Usually same as pickup time
+                    'Max Passenger Capacity :', seatingCapacity ? seatingCapacity.toString() : 'N/A',
+                    'Child Seat Available :', childSeatAvailable ? childSeatAvailable.toString() : 'N/A'
+                ]);
+                
+                // Third row: Vehicle Number, Vehicle ID, Selected Hours, Driver Name
+                tableBody.push([
+                    'Vehicle Number :', vehicleNumber || 'N/A',
+                    'Vehicle ID :', vehicleId ? vehicleId.toString() : 'N/A',
+                    'Selected Hours :', selectedHours ? selectedHours.toString() : 'N/A',
+                    'Driver Name :', driverName || 'N/A'
+                ]);
+                
+                // Fourth row: Driver Phone, No. of Adults, No. of Children, No. of Infants
+                tableBody.push([
+                    'Driver Phone :', driverPhone || 'N/A',
+                    'No. of Adults :', adultCount ? adultCount.toString() : '0',
+                    'No. of Children :', childCount ? childCount.toString() : '0',
+                    'No. of Infants :', infantCount ? infantCount.toString() : '0'
+                ]);
+                
+                // Fifth row: City, Country, Booking Date, Confirmation Number
+                tableBody.push([
+                    'City :', city || 'N/A',
+                    'Country :', country || 'N/A',
+                    'Booking Date :', bookingDate ? formatDateForDisplay(bookingDate) : 'N/A',
+                    'Confirmation Number :', confirmationNumber || 'N/A'
+                ]);
+                
+                // Remarks Row - Last row, full width (spans all 8 columns)
+                tableBody.push([
+                    {content: 'Remarks :', colSpan: 1, styles: {fontStyle: 'bold', fillColor: [240, 248, 255], textColor: [44, 62, 80]}},
+                    {content: specialRequests || 'N/A', colSpan: 7, styles: {fillColor: [255, 255, 255], textColor: [33, 37, 41]}}
+                ]);
+                
+                // Calculate column widths
+                const availableWidth = pageWidth - leftMargin - (pageWidth - rightMargin);
+                const columnWidth = availableWidth / 8;
+                
+                pdf.autoTable({
+                    startY: yPos,
+                    margin: { left: leftMargin, right: pageWidth - rightMargin },
+                    theme: 'grid',
+                    headStyles: { 
+                        fillColor: [108, 117, 125], 
+                        textColor: [255, 255, 255], 
+                        fontStyle: 'bold', 
+                        fontSize: 10 
+                    },
+                    bodyStyles: { 
+                        fillColor: false, 
+                        textColor: [33, 37, 41], 
+                        fontSize: 8 
+                    },
+                    columnStyles: {
+                        0: { fontStyle: 'bold', fillColor: [240, 248, 255], textColor: [44, 62, 80], cellWidth: columnWidth },
+                        1: { fillColor: [255, 255, 255], textColor: [33, 37, 41], cellWidth: columnWidth },
+                        2: { fontStyle: 'bold', fillColor: [240, 248, 255], textColor: [44, 62, 80], cellWidth: columnWidth },
+                        3: { fillColor: [255, 255, 255], textColor: [33, 37, 41], cellWidth: columnWidth },
+                        4: { fontStyle: 'bold', fillColor: [240, 248, 255], textColor: [44, 62, 80], cellWidth: columnWidth },
+                        5: { fillColor: [255, 255, 255], textColor: [33, 37, 41], cellWidth: columnWidth },
+                        6: { fontStyle: 'bold', fillColor: [240, 248, 255], textColor: [44, 62, 80], cellWidth: columnWidth },
+                        7: { fillColor: [255, 255, 255], textColor: [33, 37, 41], cellWidth: columnWidth }
+                    },
+                    head: [[{content: 'Local Transfer', colSpan: 8, styles: {halign: 'left', textColor: [255, 255, 255]}}]],
+                    body: tableBody
+                });
+                yPos = pdf.lastAutoTable.finalY + 3;
+            });
+            return yPos;
+        }
+        
+        function renderAirportDepartureTransfer(pdf, services, leftMargin, yPos, pageWidth, rightMargin) {
+            console.log("Please check the airport departure transfer data in renderAirportDepartureTransfer function", services);
+            services.forEach(service => {
+                // Extract all possible fields from data
+                const pickup = service.pickup || service.data?.exitpickup || service.data?.exit_pickup || service.data?.pickup || '';
+                const dropoff = service.dropoff || service.data?.exitdropoff || service.data?.exit_dropoff || service.data?.dropoff || '';
+                const vehicle = service.vehicle || service.data?.vehicles_name || service.data?.vehicle || '';
+                const transferType = service.transferType || service.data?.type || '';
+                // Extract pickup time - prefer entrytime (which has the actual time like "06:00 AM")
+                const pickupTime = service.data?.entrytime || service.pickupTime || service.data?.exitpickupdate || service.data?.exitpickuptime || '';
+                
+                // Flight Information (if available)
+                const originCity = service.data?.originCity || service.data?.origin_city || '';
+                const departureTime = service.data?.departureTime || service.data?.departure_time || '';
+                const originAirport = service.data?.originAirport || service.data?.origin_airport || '';
+                const originFlightNumber = service.data?.originFlightNumber || service.data?.origin_flight_number || '';
+                const originPNR = service.data?.originPNR || service.data?.origin_pnr || '';
+                
+                const arrivalCity = service.data?.arrivalCity || service.data?.arrival_city || service.data?.city || '';
+                const arrivalTime = service.data?.arrivalTime || service.data?.arrival_time || '';
+                const arrivalAirport = service.data?.arrivalAirport || service.data?.arrival_airport || '';
+                const arrivalFlightNumber = service.data?.arrivalFlightNumber || service.data?.arrival_flight_number || '';
+                const arrivalPNR = service.data?.arrivalPNR || service.data?.arrival_pnr || '';
+                
+                // Transfer Details
+                const terminal = service.data?.terminal || '';
+                const travelTime = service.data?.travelTime || service.data?.travel_time || '';
+                
+                // Prioritize vehicle/driver data from serviceInfo (populated from controller)
+                // These come from vehicle_driver_data set in the controller
+                const driverName = service.driverName || service.data?.driverName || service.data?.driver_name || '';
+                const driverPhone = service.driverPhone || service.data?.driverPhone || service.data?.driver_phone || '';
+                const vehicleNumber = service.vehicleNumber || service.data?.vehicleNumber || service.data?.vehicle_number || '';
+                
+                // Capacity Details
+                const maxPassengerCapacity = service.maxPassengerCapacity || service.data?.maxPassengerCapacity || service.data?.max_passenger_capacity || service.data?.seating_capacity || '';
+                const maxLuggageCapacity = service.data?.maxLuggageCapacity || service.data?.max_luggage_capacity || '';
+                const childSeatAvailable = service.data?.childSeatAvailable || service.data?.child_seat_available || '';
+                
+                // Additional fields
+                const city = service.data?.city || '';
+                const country = service.data?.country || '';
+                const adults = service.data?.adults || '';
+                const children = service.data?.children || '';
+                const bookingDate = service.data?.bookingDate || service.date || '';
+                const remarks = service.data?.remarks || service.data?.specialRequests || '';
+                
+                // Format date
+                const formatDateForDisplay = (dateStr) => {
+                    if (!dateStr) return '';
+                    try {
+                        const date = new Date(dateStr);
+                        const day = date.getDate();
+                        const month = date.toLocaleString('en-US', { month: 'short' });
+                        const year = date.getFullYear();
+                        return `${day} ${month} ${year}`;
+                    } catch (e) {
+                        return dateStr;
+                    }
+                };
+                
+                // Format time (remove seconds if present, handle AM/PM format)
+                const formatTime = (timeStr) => {
+                    if (!timeStr) return '';
+                    // If it's already in HH:MM format, return as is
+                    if (timeStr.match(/^\d{2}:\d{2}$/)) {
+                        return timeStr.substring(0, 5);
+                    }
+                    // If it's in "06:00 AM" format, return as is
+                    if (timeStr.match(/\d{1,2}:\d{2}\s*(AM|PM)/i)) {
+                        return timeStr;
+                    }
+                    return timeStr;
+                };
+                
+                // Build table body - 8 columns (4 parameter-value pairs per row)
+                const tableBody = [];
+                
+                // Flight Information - Origin Row
+                tableBody.push([
+                    'Origin City (from) :', originCity || 'N/A',
+                    'Departure Time :', formatTime(departureTime) || 'N/A',
+                    'Origin Airport Name & Code :', originAirport || 'N/A',
+                    'Origin Flight Number :', originFlightNumber || 'N/A'
+                ]);
+                
+                // Flight Information - Arrival Row (Arrival Time same as Pick up time)
+                tableBody.push([
+                    'Arrival City (to) :', arrivalCity || 'N/A',
+                    'Arrival Time :', formatTime(pickupTime) || 'N/A',
+                    'Arrival Airport Name & Code :', arrivalAirport || 'N/A',
+                    'Arrival Flight Number :', arrivalFlightNumber || 'N/A'
+                ]);
+                
+                // PNR and Transfer Details Row
+                tableBody.push([
+                    'PNR :', originPNR || arrivalPNR || 'N/A',
+                    'Pick up time :', formatTime(pickupTime) || 'N/A',
+                    'Transfer Type :', transferType || 'N/A',
+                    'Vehicle Type :', vehicle || 'N/A'
+                ]);
+                
+                // Transfer Details - Second Row
+                tableBody.push([
+                    'Pick up from :', pickup || 'N/A',
+                    'Terminal :', terminal || 'N/A',
+                    'Vehicle Number :', vehicleNumber || 'N/A',
+                    'Max Passenger Capacity :', maxPassengerCapacity ? maxPassengerCapacity.toString() : 'N/A'
+                ]);
+                
+                // Transfer Details - Third Row
+                tableBody.push([
+                    'Drop off to :', dropoff || 'N/A',
+                    'Travel Time :', travelTime || 'N/A',
+                    'Max Luggage Capacity :', maxLuggageCapacity ? maxLuggageCapacity.toString() : 'N/A',
+                    'Child Seat Available :', childSeatAvailable ? childSeatAvailable.toString() : 'N/A'
+                ]);
+                
+                // Driver and Passenger Details Row
+                tableBody.push([
+                    'Driver Name :', driverName || 'N/A',
+                    'Driver Phone :', driverPhone || 'N/A',
+                    'Adults :', adults ? adults.toString() : '0',
+                    'Children :', children ? children.toString() : '0'
+                ]);
+                
+                // Location and Booking Details Row
+                tableBody.push([
+                    'City :', city || 'N/A',
+                    'Country :', country || 'N/A',
+                    'Booking Date :', bookingDate ? formatDateForDisplay(bookingDate) : 'N/A',
+                    '', ''
+                ]);
+                
+                // Remarks Row - Last row, full width (spans all 8 columns)
+                tableBody.push([
+                    {content: 'Remarks :', colSpan: 1, styles: {fontStyle: 'bold', fillColor: [240, 248, 255], textColor: [44, 62, 80]}},
+                    {content: remarks || 'N/A', colSpan: 7, styles: {fillColor: [255, 255, 255], textColor: [33, 37, 41]}}
+                ]);
+                
+                // Calculate column widths
+                const availableWidth = pageWidth - leftMargin - (pageWidth - rightMargin);
+                const columnWidth = availableWidth / 8;
+                
+                pdf.autoTable({
+                    startY: yPos,
+                    margin: { left: leftMargin, right: pageWidth - rightMargin },
+                    theme: 'grid',
+                    headStyles: { 
+                        fillColor: [108, 117, 125], 
+                        textColor: [255, 255, 255], 
+                        fontStyle: 'bold', 
+                        fontSize: 10 
+                    },
+                    bodyStyles: { 
+                        fillColor: false, 
+                        textColor: [33, 37, 41], 
+                        fontSize: 8 
+                    },
+                    columnStyles: {
+                        0: { fontStyle: 'bold', fillColor: [240, 248, 255], textColor: [44, 62, 80], cellWidth: columnWidth },
+                        1: { fillColor: [255, 255, 255], textColor: [33, 37, 41], cellWidth: columnWidth },
+                        2: { fontStyle: 'bold', fillColor: [240, 248, 255], textColor: [44, 62, 80], cellWidth: columnWidth },
+                        3: { fillColor: [255, 255, 255], textColor: [33, 37, 41], cellWidth: columnWidth },
+                        4: { fontStyle: 'bold', fillColor: [240, 248, 255], textColor: [44, 62, 80], cellWidth: columnWidth },
+                        5: { fillColor: [255, 255, 255], textColor: [33, 37, 41], cellWidth: columnWidth },
+                        6: { fontStyle: 'bold', fillColor: [240, 248, 255], textColor: [44, 62, 80], cellWidth: columnWidth },
+                        7: { fillColor: [255, 255, 255], textColor: [33, 37, 41], cellWidth: columnWidth }
+                    },
+                    head: [[{content: 'Airport Departure Transfer', colSpan: 8, styles: {halign: 'left', textColor: [255, 255, 255]}}]],
+                    body: tableBody
+                });
+                yPos = pdf.lastAutoTable.finalY + 3;
+            });
+            return yPos;
         }
         
         function preparePrint() {
