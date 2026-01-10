@@ -246,7 +246,79 @@ use Illuminate\Support\Facades\Crypt;
             miscellaneous: []
         };
         
-        // Group orders by type (excluding those marked for deletion)
+        // Helper function to create unique key for deduplication
+        function createUniqueKey(item, type) {
+            let keyData = {};
+            switch(type) {
+                case 'entry_port':
+                case 'exit_port':
+                    keyData = {
+                        port_id: item.port_id || '',
+                        port_name: item.port_name || '',
+                        bookingDate: item.bookingDate || '',
+                        type: item.type || ''
+                    };
+                    break;
+                case 'hotel':
+                    keyData = {
+                        hotel_id: item.hotel_unique_id || item.hotelDetails?.hotel_id || '',
+                        checkIn: item.checkIn || '',
+                        checkOut: item.checkOut || ''
+                    };
+                    break;
+                case 'attraction':
+                    keyData = {
+                        attraction_id: item.attraction_id || '',
+                        AttractionName: item.AttractionName || '',
+                        bookingDate: item.bookingDate || ''
+                    };
+                    break;
+                case 'restaurant':
+                    keyData = {
+                        restaurant_id: item.restaurant_id || '',
+                        restaurantName: item.restaurantName || '',
+                        bookingDate: item.bookingDate || ''
+                    };
+                    break;
+                case 'local_transport':
+                    keyData = {
+                        vehicle_id: item.vehicle_id || '',
+                        entrypickup: item.entrypickup || '',
+                        entrydropoff: item.entrydropoff || '',
+                        bookingDate: item.bookingDate || ''
+                    };
+                    break;
+                case 'guide':
+                    keyData = {
+                        guide_id: item.guide_id || '',
+                        guide_name: item.guide_name || '',
+                        bookingDate: item.bookingDate || ''
+                    };
+                    break;
+                case 'miscellaneous':
+                    keyData = {
+                        item_id: item.item_id || '',
+                        item_name: item.item_name || '',
+                        bookingDate: item.bookingDate || ''
+                    };
+                    break;
+            }
+            return JSON.stringify(keyData);
+        }
+        
+        // Track seen items to prevent duplicates
+        const seenKeys = {
+            entry_port: new Set(),
+            exit_port: new Set(),
+            hotel: new Set(),
+            attraction: new Set(),
+            restaurant: new Set(),
+            local_transport: new Set(),
+            guide: new Set(),
+            miscellaneous: new Set()
+        };
+        
+        // Group orders by type (excluding those marked for deletion and duplicates)
         orders.forEach(order => {
             if (ordersToDelete.includes(order.booking_id)) {
                 return; // Skip orders marked for deletion
@@ -254,6 +326,20 @@ use Illuminate\Support\Facades\Crypt;
             
             const orderData = typeof order.data === 'string' ? JSON.parse(order.data) : order.data;
             const firstItem = orderData[0] || {};
+            
+            // Create unique key for this item
+            const uniqueKey = createUniqueKey(firstItem, order.type);
+            
+            // Check if we've already seen this exact item
+            if (seenKeys[order.type] && seenKeys[order.type].has(uniqueKey)) {
+                console.log('Skipping duplicate order on frontend:', order.type, order.booking_id);
+                return; // Skip duplicate
+            }
+            
+            // Mark as seen
+            if (seenKeys[order.type]) {
+                seenKeys[order.type].add(uniqueKey);
+            }
             
             // Add tour_id to the item
             firstItem.tour_id = tourId;
@@ -285,6 +371,18 @@ use Illuminate\Support\Facades\Crypt;
                     servicesData.miscellaneous.push(firstItem);
                     break;
             }
+        });
+        
+        // Log deduplicated counts
+        console.log('Services after deduplication:', {
+            entry_port: servicesData.entry_port.length,
+            exit_port: servicesData.exit_port.length,
+            accommodations: servicesData.accommodations.length,
+            tours: servicesData.tours.length,
+            meals: servicesData.meals.length,
+            transfers: servicesData.transfers.length,
+            guides: servicesData.guides.length,
+            miscellaneous: servicesData.miscellaneous.length
         });
         
         // Prepare form data
