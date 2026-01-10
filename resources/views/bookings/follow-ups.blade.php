@@ -703,14 +703,14 @@
                                             <a href="{{ route('invoices.download', Crypt::encrypt($proformaInvoice->invoice_id)) }}" 
                                                class="btn btn-outline-info btn-sm rounded-pill"
                                                target="_blank"
-                                               title="Download Proforma Invoice with Services">
-                                                <i class="ri-file-paper-line me-1"></i> Proforma Invoice
+                                               title="Download Proforma Invoice (Price Breakup)">
+                                                <i class="ri-file-paper-line me-1"></i> Proforma Invoice(Price Breakup)
                                             </a>
                                             <a href="{{ route('invoices.download-price-only', Crypt::encrypt($proformaInvoice->invoice_id)) }}" 
                                                class="btn btn-outline-primary btn-sm rounded-pill"
                                                target="_blank"
-                                               title="Download Proforma Invoice (Price Only)">
-                                                <i class="ri-file-download-line me-1"></i> Proforma Invoice (Price Only)
+                                               title="Download Proforma Invoice (Package Price Only)">
+                                                <i class="ri-file-download-line me-1"></i> Proforma Invoice(Package Price Only)
                                             </a>
                                         @else
                                             <form action="{{ route('invoices.generate-proforma', $tour->tour_id) }}" method="POST" class="d-inline">
