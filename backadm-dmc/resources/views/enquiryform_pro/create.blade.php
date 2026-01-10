@@ -13223,6 +13223,42 @@
 
     // ==================== MEAL FUNCTIONS ====================
     
+    // Update meal total amount display
+    function updateMealTotalAmount() {
+        const mealTotalField = document.getElementById('mealTotalAmount');
+        if (!mealTotalField) return;
+        
+        let totalAmount = 0;
+        
+        // Get all checked meal rows
+        const checkedMeals = document.querySelectorAll('.meal-checkbox:checked');
+        
+        checkedMeals.forEach(checkbox => {
+            const mealId = checkbox.getAttribute('data-meal-id');
+            const row = checkbox.closest('.meal-row');
+            if (!row) return;
+            
+            // Get quantities
+            const mealCount = parseInt(row.querySelector('.meal-count')?.value || 0);
+            const adultQty = parseInt(row.querySelector('.meal-adult-qty')?.value || 0);
+            const childQty = parseInt(row.querySelector('.meal-child-qty')?.value || 0);
+            const infantQty = parseInt(row.querySelector('.meal-infant-qty')?.value || 0);
+            
+            // Get charges (remove "SGD " prefix and parse as float)
+            const adultCharge = parseFloat((row.querySelector('.meal-adult-charge')?.value || '0').replace(/[^\d.-]/g, ''));
+            const childCharge = parseFloat((row.querySelector('.meal-child-charge')?.value || '0').replace(/[^\d.-]/g, ''));
+            const infantCharge = parseFloat((row.querySelector('.meal-infant-charge')?.value || '0').replace(/[^\d.-]/g, ''));
+            
+            // Calculate subtotal for this meal: mealCount * (adultQty * adultCharge + childQty * childCharge + infantQty * infantCharge)
+            const mealSubtotal = mealCount * ((adultQty * adultCharge) + (childQty * childCharge) + (infantQty * infantCharge));
+            
+            totalAmount += mealSubtotal;
+        });
+        
+        // Update the total field
+        mealTotalField.value = `SGD ${totalAmount.toFixed(2)}`;
+    }
+    
     // Open Meal Modal
     function openMealModal() {
         window.editingMealIndex = null;
@@ -13676,7 +13712,7 @@
             
             row.innerHTML = `
                 <td style="padding: 2px 8px; text-align: center;">
-                    <input type="checkbox" class="meal-checkbox" data-meal-id="${meal.meal_id}">
+                    <input type="checkbox" class="meal-checkbox" data-meal-id="${meal.meal_id}" onchange="updateMealTotalAmount()">
                 </td>
                 <td style="padding: 2px 8px;">
                     <i class="${mealIcon} ${iconColor} me-1" style="font-size: 14px;"></i>
@@ -13684,25 +13720,25 @@
                     <small class="text-muted ms-2">(${mealType.charAt(0).toUpperCase() + mealType.slice(1)})</small>
                 </td>
                 <td style="padding: 2px 8px;">
-                    <input type="number" class="form-control form-control-sm meal-count" data-meal-id="${meal.meal_id}" value="1" min="0" style="font-size: 10px; padding: 2px 4px; text-align: center;">
+                    <input type="number" class="form-control form-control-sm meal-count" data-meal-id="${meal.meal_id}" value="1" min="0" style="font-size: 10px; padding: 2px 4px; text-align: center;" oninput="updateMealTotalAmount()">
                 </td>
                 <td style="padding: 2px 8px;">
-                    <input type="number" class="form-control form-control-sm meal-adult-qty" data-meal-id="${meal.meal_id}" value="0" min="0" style="font-size: 10px; padding: 2px 4px; text-align: center;">
+                    <input type="number" class="form-control form-control-sm meal-adult-qty" data-meal-id="${meal.meal_id}" value="0" min="0" style="font-size: 10px; padding: 2px 4px; text-align: center;" oninput="updateMealTotalAmount()">
                 </td>
                 <td style="padding: 2px 8px;">
-                    <input type="text" class="form-control form-control-sm meal-adult-charge" data-meal-id="${meal.meal_id}" value="SGD ${adultPrice}" style="font-size: 10px; padding: 2px 4px;">
+                    <input type="text" class="form-control form-control-sm meal-adult-charge" data-meal-id="${meal.meal_id}" value="SGD ${adultPrice}" style="font-size: 10px; padding: 2px 4px;" oninput="updateMealTotalAmount()">
                 </td>
                 <td style="padding: 2px 8px;">
-                    <input type="number" class="form-control form-control-sm meal-child-qty" data-meal-id="${meal.meal_id}" value="0" min="0" style="font-size: 10px; padding: 2px 4px; text-align: center;">
+                    <input type="number" class="form-control form-control-sm meal-child-qty" data-meal-id="${meal.meal_id}" value="0" min="0" style="font-size: 10px; padding: 2px 4px; text-align: center;" oninput="updateMealTotalAmount()">
                 </td>
                 <td style="padding: 2px 8px;">
-                    <input type="text" class="form-control form-control-sm meal-child-charge" data-meal-id="${meal.meal_id}" value="SGD ${childPrice}" style="font-size: 10px; padding: 2px 4px;">
+                    <input type="text" class="form-control form-control-sm meal-child-charge" data-meal-id="${meal.meal_id}" value="SGD ${childPrice}" style="font-size: 10px; padding: 2px 4px;" oninput="updateMealTotalAmount()">
                 </td>
                 <td style="padding: 2px 8px;">
-                    <input type="number" class="form-control form-control-sm meal-infant-qty" data-meal-id="${meal.meal_id}" value="0" min="0" style="font-size: 10px; padding: 2px 4px; text-align: center;">
+                    <input type="number" class="form-control form-control-sm meal-infant-qty" data-meal-id="${meal.meal_id}" value="0" min="0" style="font-size: 10px; padding: 2px 4px; text-align: center;" oninput="updateMealTotalAmount()">
                 </td>
                 <td style="padding: 2px 8px;">
-                    <input type="text" class="form-control form-control-sm meal-infant-charge" data-meal-id="${meal.meal_id}" value="SGD 0.00" style="font-size: 10px; padding: 2px 4px;">
+                    <input type="text" class="form-control form-control-sm meal-infant-charge" data-meal-id="${meal.meal_id}" value="SGD 0.00" style="font-size: 10px; padding: 2px 4px;" oninput="updateMealTotalAmount()">
                 </td>
             `;
             
@@ -13714,6 +13750,9 @@
         if (selectAllCheckbox) {
             selectAllCheckbox.checked = false;
         }
+        
+        // Initialize total amount calculation
+        updateMealTotalAmount();
         
         // Auto-fill adult/child/infant counts from header for all newly created rows
         const headerValues = getHeaderValues();
@@ -17312,6 +17351,29 @@
         };
     }
     
+    // Create unique key for deduplication
+    function createUniqueKey(item, type) {
+        try {
+            switch(type) {
+                case 'entry_port':
+                case 'exit_port':
+                    const portKey = [
+                        item.portName || item.port_name || '',
+                        item.transferDestinationName || item.transfer_destination_name || '',
+                        item.dateTime || item.bookingDate || '',
+                        item.vehicleId || item.vehicle_id || '',
+                        item.type || ''
+                    ].join('|');
+                    return portKey;
+                default:
+                    return null;
+            }
+        } catch (e) {
+            console.error('Error creating unique key:', e);
+            return null;
+        }
+    }
+    
     // Transform arrival/departure data to required format
     async function transformArrivalDepartureData() {
         const customerInfo = getCustomerInfo();
@@ -17320,6 +17382,10 @@
         
         const entryPortData = [];
         const exitPortData = [];
+        const seenKeys = {
+            entry_port: new Set(),
+            exit_port: new Set()
+        };
         
         for (const item of arrivalDepartureList) {
             if (item.type === 'Arrival') {
@@ -17342,6 +17408,16 @@
                 
                 // Fetch vehicle details if vehicle_id exists
                 const vehicleDetails = await fetchVehicleDetails(item.vehicleId, dmcId);
+                
+                // Check for duplicates
+                const uniqueKey = createUniqueKey(item, 'entry_port');
+                if (uniqueKey && seenKeys.entry_port.has(uniqueKey)) {
+                    console.warn('Skipping duplicate entry_port (frontend):', uniqueKey);
+                    continue; // Skip this duplicate
+                }
+                if (uniqueKey) {
+                    seenKeys.entry_port.add(uniqueKey);
+                }
                 
                 entryPortData.push({
                     id: item.id || `entry-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
@@ -17416,6 +17492,16 @@
                 
                 // Fetch vehicle details if vehicle_id exists
                 const vehicleDetails = await fetchVehicleDetails(item.vehicleId, dmcId);
+                
+                // Check for duplicates
+                const uniqueKey = createUniqueKey(item, 'exit_port');
+                if (uniqueKey && seenKeys.exit_port.has(uniqueKey)) {
+                    console.warn('Skipping duplicate exit_port (frontend):', uniqueKey);
+                    continue; // Skip this duplicate
+                }
+                if (uniqueKey) {
+                    seenKeys.exit_port.add(uniqueKey);
+                }
                 
                 exitPortData.push({
                     fullName: customerInfo.fullName,
