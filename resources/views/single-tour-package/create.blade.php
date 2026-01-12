@@ -22034,10 +22034,28 @@ function loadDropoffZones(day, section) {
     
     const selectedServiceType = serviceTypeSelect.value;
         console.log('Selected service type:', selectedServiceType);
-    const selectedVehicleOption = vehicleSelect.options[vehicleSelect.selectedIndex];
     
-    if (!selectedServiceType || !selectedVehicleOption.value) {
+    // Get the selected vehicle option - handle both native select and Select2
+    let selectedVehicleOption = null;
+    const selectedVehicleValue = vehicleSelect.value;
+    
+    if (selectedVehicleValue) {
+        // Try to find the option by value (works with both native and Select2)
+        selectedVehicleOption = vehicleSelect.querySelector(`option[value="${selectedVehicleValue}"]`);
+        
+        // Fallback to selectedIndex if querySelector doesn't work
+        if (!selectedVehicleOption && vehicleSelect.selectedIndex >= 0 && vehicleSelect.options[vehicleSelect.selectedIndex]) {
+            selectedVehicleOption = vehicleSelect.options[vehicleSelect.selectedIndex];
+        }
+    }
+    
+    if (!selectedServiceType || !selectedVehicleOption || !selectedVehicleOption.value) {
         priceDisplay.style.display = 'none';
+        console.log('Missing required data for pricing:', {
+            selectedServiceType: selectedServiceType,
+            selectedVehicleOption: selectedVehicleOption ? selectedVehicleOption.value : 'NOT FOUND',
+            vehicleSelectValue: selectedVehicleValue
+        });
         return;
     }
     
@@ -22158,17 +22176,27 @@ function loadDropoffZones(day, section) {
     }
     
     // Get pricing data from the selected vehicle option
-    const privatePrice = parseFloat(selectedVehicleOption.dataset.privatePrice) || 0;
-        const sharedPrice = parseFloat(selectedVehicleOption.dataset.sharedPrice) || parseFloat(selectedVehicleOption.dataset.sharableCostPerHour) || 0;
-    const costPerHour = parseFloat(selectedVehicleOption.dataset.costPerHour) || 0;
-    const sharableCostPerHour = parseFloat(selectedVehicleOption.dataset.sharableCostPerHour) || 0;
+    // Use getAttribute for reliable data attribute access (works better than dataset)
+    const privatePriceAttr = selectedVehicleOption.getAttribute('data-private-price') || '';
+    const sharedPriceAttr = selectedVehicleOption.getAttribute('data-shared-price') || '';
+    const sharableCostPerHourAttr = selectedVehicleOption.getAttribute('data-sharable-cost-per-hour') || '';
+    const costPerHourAttr = selectedVehicleOption.getAttribute('data-cost-per-hour') || '';
+    
+    const privatePrice = parseFloat(privatePriceAttr) || 0;
+    const sharedPrice = parseFloat(sharedPriceAttr) || parseFloat(sharableCostPerHourAttr) || 0;
+    const costPerHour = parseFloat(costPerHourAttr) || 0;
+    const sharableCostPerHour = parseFloat(sharableCostPerHourAttr) || 0;
     
     // Debug logging to verify prices
     console.log('=== PRICING DEBUG ===');
     console.log('Selected vehicle option:', selectedVehicleOption);
-    console.log('Vehicle dataset:', selectedVehicleOption.dataset);
-    console.log('Raw private_price:', selectedVehicleOption.dataset.privatePrice);
-    console.log('Raw shared_price:', selectedVehicleOption.dataset.sharedPrice);
+    console.log('Vehicle option value:', selectedVehicleOption.value);
+    console.log('Raw attributes:', {
+        'data-private-price': privatePriceAttr,
+        'data-shared-price': sharedPriceAttr,
+        'data-sharable-cost-per-hour': sharableCostPerHourAttr,
+        'data-cost-per-hour': costPerHourAttr
+    });
     console.log('Parsed privatePrice:', privatePrice);
     console.log('Parsed sharedPrice:', sharedPrice);
     console.log('Selected service type:', selectedServiceType);
@@ -22289,6 +22317,7 @@ function loadDropoffZones(day, section) {
         
         if (selectedServiceType === 'Private') {
             // For private service: price is per vehicle (not per person)
+            const isPrivate = true; // Set flag for private service
             if (isHourlyTransport && isHourlyService) {
                 // For hourly transport: base_price + (hourly_rate * selected_hours)
                 totalPrice = displayPrice + (costPerHour * selectedHours);
@@ -22376,6 +22405,7 @@ function loadDropoffZones(day, section) {
             }
         } else if (selectedServiceType === 'Shared') {
             // For shared service: price is per person (only for non-hourly transport)
+            const isPrivate = false; // Set flag for shared service
             totalPrice = displayPrice * totalGuests;
             
             if (isHourlyService) {
@@ -22405,6 +22435,14 @@ function loadDropoffZones(day, section) {
         
         priceDisplay.style.display = 'block';
         const isPrivate = priceType === 'Private';
+        
+        // Additional debug to ensure price is set
+        console.log('=== FINAL PRICE DISPLAY ===');
+        console.log('Price Type:', priceType);
+        console.log('Display Price:', displayPrice);
+        console.log('Total Price:', totalPrice);
+        console.log('Is Private:', isPrivate);
+        
         priceDisplay.innerHTML = `
             <div class="p-3 rounded" style="background: ${isPrivate ? 'linear-gradient(135deg, #f8f9ff 0%, #e7f3ff 100%)' : '#d1f2eb'}; border: 1px solid ${isPrivate ? '#b3d9ff' : '#7dd3c0'}; border-radius: 8px;">
                 <div class="d-flex align-items-start">
@@ -23824,17 +23862,37 @@ window.saveService = function(day, type) {
          .then(data => {
                 console.log('Vehicle search response (zone-based):', data);
              if (data.success && data.vehicles && data.vehicles.length > 0) {
+                 // Remove duplicate vehicles by vehicle_id (backend should handle this, but add safety check)
+                 const uniqueVehicles = [];
+                 const seenVehicleIds = new Set();
+                 
+                 data.vehicles.forEach(vehicle => {
+                     if (!seenVehicleIds.has(vehicle.vehicle_id)) {
+                         seenVehicleIds.add(vehicle.vehicle_id);
+                         uniqueVehicles.push(vehicle);
+                     } else {
+                         console.log(`Duplicate vehicle removed in frontend: ${vehicle.vehicle_name} (ID: ${vehicle.vehicle_id})`);
+                     }
+                 });
+                 
                  // Populate vehicle dropdown
                  if (vehicleSelect) {
                      vehicleSelect.innerHTML = '<option value="">Choose your vehicle</option>';
-                     data.vehicles.forEach(vehicle => {
-                         const vehicleInfo = `${vehicle.vehicle_name} (${vehicle.vehicle_type}) - ${vehicle.seating_capacity} seats`;
-                         
-                         // Debug logging for vehicle data
+                     
+                     if (uniqueVehicles.length === 0) {
+                         vehicleSelect.innerHTML = '<option value="">No vehicles with prices available</option>';
+                         vehicleSelect.disabled = true;
+                         console.log('No vehicles with prices found');
+                     } else {
+                         uniqueVehicles.forEach(vehicle => {
+                             const vehicleInfo = `${vehicle.vehicle_name} (${vehicle.vehicle_type}) - ${vehicle.seating_capacity} seats`;
+                             
+                             // Debug logging for vehicle data
                             console.log('=== VEHICLE DATA DEBUG (zone-based) ===');
                          console.log('Vehicle:', vehicle);
                          console.log('Private price:', vehicle.private_price);
                          console.log('Shared price:', vehicle.shared_price);
+                         console.log('Mapping ID:', vehicle.mapping_id);
                          
                         vehicleSelect.innerHTML += `<option value="${vehicle.vehicle_id}" 
                              data-private-price="${vehicle.private_price || ''}" 
@@ -23846,7 +23904,8 @@ window.saveService = function(day, type) {
                             data-image="${vehicle.image || ''}">
                              ${vehicleInfo}
                          </option>`;
-                     });
+                         });
+                     }
                      
                      // Enable the vehicle select
                      vehicleSelect.disabled = false;
@@ -23879,7 +23938,7 @@ window.saveService = function(day, type) {
                  searchBtn.innerHTML = '<i class="ri-search-line me-2"></i>Search Vehicles';
                  searchBtn.disabled = false;
                  
-                    console.log(`Populated ${data.vehicles.length} vehicles in dropdown (zone-based)`);
+                    console.log(`Populated ${uniqueVehicles.length} unique vehicles in dropdown (zone-based)`);
                     
                     // Add info message for exit port to indicate bidirectional search
                     if (section === 'exit') {
