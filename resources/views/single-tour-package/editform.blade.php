@@ -2180,7 +2180,7 @@
                                                             </select>
                                                         </div>
                                                         
-                                                        <div class="col-md-5">
+                                                        <div class="col-md-3">
                                                             <label class="form-label fw-semibold">Destination</label>
                                                             @php
                                                                 $destHotels = $hotels ?? collect();
@@ -2221,7 +2221,7 @@
                                                                 </optgroup>
                                                             </select>
                                                         </div>
-                                                        <div class="col-md-4">
+                                                        <div class="col-md-3">
                                                             <label class="form-label fw-semibold">Vehicle (by country)</label>
                                                             <select class="form-select restaurant-transport-vehicle-select" name="restaurant_transport_vehicle_{{ $order->booking_id }}" id="restaurant_transport_vehicle_{{ $order->booking_id }}" data-booking-id="{{ $order->booking_id }}">
                                                                 <option value="">{{ $transportDestination ? 'Select vehicle' : 'Select destination first' }}</option>
@@ -2255,9 +2255,8 @@
                                                                 @endif
                                                             </select>
                                                         </div>
-                                                    </div>
+                                                    <!-- </div>
                                                     <div class="row g-3 mt-2">
-                                                        <!-- Second Row: Seats, Passengers, Price -->
                                                         <div class="col-md-2">
                                                             <label class="form-label fw-semibold">Seats</label>
                                                             <input type="number" min="1" class="form-control" name="restaurant_transport_seats_{{ $order->booking_id }}" id="restaurant_transport_seats_{{ $order->booking_id }}" placeholder="0" value="{{ $transportSeats }}" readonly>
@@ -2272,14 +2271,20 @@
                                                                 </label>
                                                             </div>
                                                             <small class="text-danger d-none" id="restaurant_passenger_error_{{ $order->booking_id }}">Passengers cannot exceed total pax or vehicle capacity</small>
-                                                        </div>
-                                                        <div class="col-md-6">
+                                                        </div> -->
+                                                        <div class="col-md-3">
                                                             <label class="form-label fw-semibold">Estimated Price</label>
                                                             <div class="input-group">
                                                                 <span class="input-group-text">{{ $tour->currency ?? '$' }}</span>
                                                                 <input type="number" min="0" step="0.01" class="form-control" name="restaurant_transport_price_{{ $order->booking_id }}" id="restaurant_transport_price_{{ $order->booking_id }}" placeholder="0.00" value="{{ number_format((float)$transportPrice, 2, '.', '') }}" data-original-price="{{ $transportReturn ? number_format((float)$transportPrice / 2, 2, '.', '') : number_format((float)$transportPrice, 2, '.', '') }}">
                                                             </div>
                                                             <small class="text-muted">Optional, can be adjusted later.</small>
+                                                            <div class="form-check mt-2">
+                                                                <input class="form-check-input restaurant-transport-return-checkbox" type="checkbox" name="restaurant_transport_return_{{ $order->booking_id }}" id="restaurant_transport_return_{{ $order->booking_id }}" data-booking-id="{{ $order->booking_id }}" {{ $transportReturn ? 'checked' : '' }}>
+                                                                <label class="form-check-label fw-semibold" for="restaurant_transport_return_{{ $order->booking_id }}">
+                                                                    Return
+                                                                </label>
+                                                            </div>
                                                         </div>
                                                     </div>
                                                 </div>
@@ -3182,7 +3187,7 @@
                                                         </select>
                                                     </div>
                                                     
-                                                    <div class="col-md-5">
+                                                    <div class="col-md-3">
                                                         <label class="form-label fw-semibold">Destination</label>
                                                         @php
                                                             $destHotels = $hotels ?? collect();
@@ -3223,7 +3228,7 @@
                                                             </optgroup>
                                                         </select>
                                                     </div>
-                                                    <div class="col-md-4">
+                                                    <div class="col-md-3">
                                                         <label class="form-label fw-semibold">Vehicle (by country)</label>
                                                         <select class="form-select attraction-transport-vehicle-select" name="attraction_transport_vehicle_{{ $order->booking_id }}" id="attraction_transport_vehicle_{{ $order->booking_id }}" data-booking-id="{{ $order->booking_id }}">
                                                             <option value="">{{ $transportDestination ? 'Select vehicle' : 'Select destination first' }}</option>
@@ -3257,10 +3262,9 @@
                                                             @endif
                                                         </select>
                                                     </div>
-                                                </div>
-                                                <div class="row g-3 mt-2">
-                                                    <!-- Second Row: Seats, Passengers, Price -->
-                                                    <div class="col-md-2">
+                                                <!-- </div>
+                                                <div class="row g-3 mt-2"> -->
+                                                    <!-- <div class="col-md-2">
                                                         <label class="form-label fw-semibold">Seats</label>
                                                         <input type="number" min="1" class="form-control" name="attraction_transport_seats_{{ $order->booking_id }}" id="attraction_transport_seats_{{ $order->booking_id }}" placeholder="0" value="{{ $transportSeats }}" readonly>
                                                     </div>
@@ -3274,14 +3278,20 @@
                                                             </label>
                                                         </div>
                                                         <small class="text-danger d-none" id="attraction_passenger_error_{{ $order->booking_id }}">Passengers cannot exceed total pax or vehicle capacity</small>
-                                                    </div>
-                                                    <div class="col-md-6">
+                                                    </div> -->
+                                                    <div class="col-md-3">
                                                         <label class="form-label fw-semibold">Estimated Price</label>
                                                         <div class="input-group">
                                                             <span class="input-group-text">{{ $tour->currency ?? '$' }}</span>
                                                             <input type="number" min="0" step="0.01" class="form-control" name="attraction_transport_price_{{ $order->booking_id }}" id="attraction_transport_price_{{ $order->booking_id }}" placeholder="0.00" value="{{ number_format((float)$transportPrice, 2, '.', '') }}" data-original-price="{{ $transportReturn ? number_format((float)$transportPrice / 2, 2, '.', '') : number_format((float)$transportPrice, 2, '.', '') }}">
                                                         </div>
                                                         <small class="text-muted">Optional, can be adjusted later.</small>
+                                                        <div class="form-check mt-2">
+                                                            <input class="form-check-input attraction-transport-return-checkbox" type="checkbox" name="attraction_transport_return_{{ $order->booking_id }}" id="attraction_transport_return_{{ $order->booking_id }}" data-booking-id="{{ $order->booking_id }}" {{ $transportReturn ? 'checked' : '' }}>
+                                                            <label class="form-check-label fw-semibold" for="attraction_transport_return_{{ $order->booking_id }}">
+                                                                Return
+                                                            </label>
+                                                        </div>
                                                     </div>
                                                 </div>
                                             </div>
@@ -4441,7 +4451,7 @@
                                             </select>
                                         </div>
                                         
-                                        <div class="col-md-5">
+                                        <div class="col-md-3">
                                             <label class="form-label fw-semibold">Destination</label>
                                             @php
                                                 $destHotels = $hotels ?? collect();
@@ -4479,40 +4489,41 @@
                                                 </optgroup>
                                             </select>
                                         </div>
-                                        <div class="col-md-4">
+                                        <div class="col-md-3">
                                             <label class="form-label fw-semibold">Vehicle (by country)</label>
                                             <select class="form-select form-select-sm modal-restaurant-transport-vehicle-select" name="modal_restaurant_transport_vehicle" id="modal_restaurant_transport_vehicle" data-no-select2="true">
                                                 <option value="">Select destination first</option>
                                                 {{-- Vehicles will be loaded via JavaScript when destination is selected --}}
                                             </select>
                                         </div>
-                                    </div>
-                                    <div class="row g-3 mt-2">
+                                    <!-- <div class="row g-3 mt-2"> -->
                                         <!-- Second Row: Seats, Passengers, Price -->
-                                        <div class="col-md-2">
+                                        <!-- <div class="col-md-2">
                                             <label class="form-label fw-semibold">Seats</label>
                                             <input type="number" min="1" class="form-control form-control-sm" name="modal_restaurant_transport_seats" id="modal_restaurant_transport_seats" placeholder="0" readonly>
-                                        </div>
-                                        <div class="col-md-4">
+                                        </div> -->
+                                        <!-- <div class="col-md-4">
                                             <label class="form-label fw-semibold">Passengers</label>
                                             <input type="number" min="1" class="form-control form-control-sm" name="modal_restaurant_transport_passengers" id="modal_restaurant_transport_passengers" placeholder="0" data-transport-type="restaurant">
-                                            <div class="form-check mt-2">
-                                                <input class="form-check-input modal-restaurant-transport-return-checkbox" type="checkbox" name="modal_restaurant_transport_return" id="modal_restaurant_transport_return">
-                                                <label class="form-check-label fw-semibold" for="modal_restaurant_transport_return">
-                                                    Return
-                                                </label>
-                                            </div>
+                                            
                                             <small class="text-danger d-none" id="modal_restaurant_passenger_error">Passengers cannot exceed total pax or vehicle capacity</small>
-                                        </div>
-                                        <div class="col-md-6">
+                                        </div> -->
+                                        <div class="col-md-3">
                                             <label class="form-label fw-semibold">Transport Price</label>
                                             <div class="input-group input-group-sm">
                                                 <span class="input-group-text">{{ $tour->currency ?? '$' }}</span>
                                                 <input type="number" min="0" step="0.01" class="form-control form-control-sm" name="modal_restaurant_transport_price" id="modal_restaurant_transport_price" placeholder="0.00" data-original-price="" readonly>
                                             </div>
                                             <small class="text-muted">Calculated from zone-based pricing.</small>
+                                            <div class="form-check mt-2">
+                                                <input class="form-check-input modal-restaurant-transport-return-checkbox" type="checkbox" name="modal_restaurant_transport_return" id="modal_restaurant_transport_return">
+                                                <label class="form-check-label fw-semibold" for="modal_restaurant_transport_return">
+                                                    Return
+                                                </label>
+                                            </div>
                                         </div>
                                     </div>
+                                    <!-- </div> -->
                                 </div>
                             </div>
                         </div>
@@ -5051,7 +5062,7 @@
                                             </select>
                                         </div>
                                         
-                                        <div class="col-md-5">
+                                        <div class="col-md-3">
                                             <label class="form-label fw-semibold">Destination</label>
                                             @php
                                                 $destHotels = $hotels ?? collect();
@@ -5089,7 +5100,7 @@
                                                 </optgroup>
                                             </select>
                                         </div>
-                                        <div class="col-md-4">
+                                        <div class="col-md-3">
                                             <label class="form-label fw-semibold">Vehicle (by country)</label>
                                             <select class="form-select form-select-sm modal-attraction-transport-vehicle-select" name="modal_attraction_transport_vehicle" id="modal_attraction_transport_vehicle" data-no-select2="true">
                                                 <option value="">Select destination first</option>
@@ -5097,8 +5108,7 @@
                                             </select>
                                         </div>
                                     </div>
-                                    <div class="row g-3 mt-2">
-                                        <!-- Second Row: Seats, Passengers, Price -->
+                                    <!-- <div class="row g-3 mt-2">
                                         <div class="col-md-2">
                                             <label class="form-label fw-semibold">Seats</label>
                                             <input type="number" min="1" class="form-control form-control-sm" name="modal_attraction_transport_seats" id="modal_attraction_transport_seats" placeholder="0" readonly>
@@ -5113,14 +5123,20 @@
                                                 </label>
                                             </div>
                                             <small class="text-danger d-none" id="modal_attraction_passenger_error">Passengers cannot exceed total pax or vehicle capacity</small>
-                                        </div>
-                                        <div class="col-md-6">
+                                        </div> -->
+                                        <div class="col-md-3">
                                             <label class="form-label fw-semibold">Transport Price</label>
                                             <div class="position-relative">
                                                 <span class="position-absolute" style="left: 10px; top: 50%; transform: translateY(-50%); z-index: 5; color: #6c757d; font-weight: 500;">{{ $tour->currency ?? '$' }}</span>
                                                 <input type="number" min="0" step="0.01" class="form-control form-control-sm" name="modal_attraction_transport_price" id="modal_attraction_transport_price" placeholder="0.00" data-original-price="" style="padding-left: 30px;" readonly>
                                             </div>
                                             <small class="text-muted">Calculated from zone-based pricing.</small>
+                                            <div class="form-check mt-2">
+                                                <input class="form-check-input modal-attraction-transport-return-checkbox" type="checkbox" name="modal_attraction_transport_return" id="modal_attraction_transport_return">
+                                                <label class="form-check-label fw-semibold" for="modal_attraction_transport_return">
+                                                    Return
+                                                </label>
+                                            </div>
                                         </div>
                                     </div>
                                 </div>
@@ -17386,6 +17402,20 @@
     }
 
     // Function to populate pickup times from guide data
+    // Normalize time format for comparison (handles case and whitespace)
+    function normalizeTimeFormat(time) {
+        if (!time) return '';
+        // Remove extra whitespace and ensure consistent format
+        let normalized = time.toString().trim();
+        // If it's in AM/PM format, normalize case
+        if (normalized.match(/\d{1,2}:\d{2}\s*(AM|PM)/i)) {
+            normalized = normalized.replace(/\s*(AM|PM)\s*/i, (match, period) => {
+                return ' ' + period.toUpperCase();
+            });
+        }
+        return normalized;
+    }
+    
     function populateGuidePickupTimes(guideSelect, bookingId) {
         const pickupTimeSelect = document.getElementById(`guide_pickup_time_${bookingId}`);
         if (!pickupTimeSelect) return;
@@ -17403,10 +17433,30 @@
             }
         }
         
+        // Normalize current value before clearing options
+        let normalizedCurrentValue = '';
+        if (currentValue) {
+            // If already in AM/PM format, normalize it
+            if (currentValue.match(/\d{1,2}:\d{2}\s*(AM|PM)/i)) {
+                normalizedCurrentValue = normalizeTimeFormat(currentValue);
+            } else {
+                // Convert from 24-hour to AM/PM and normalize
+                normalizedCurrentValue = normalizeTimeFormat(convertToAMPM(currentValue));
+            }
+        }
+        
         // Clear existing options
         pickupTimeSelect.innerHTML = '<option value="">Select Pickup Time</option>';
         
         if (!selectedOption || !selectedOption.value) {
+            // If no guide selected but we have a current value, add it back
+            if (normalizedCurrentValue) {
+                const option = document.createElement('option');
+                option.value = normalizedCurrentValue;
+                option.textContent = normalizedCurrentValue;
+                option.selected = true;
+                pickupTimeSelect.appendChild(option);
+            }
             return;
         }
         
@@ -17416,19 +17466,28 @@
             // If no guide data, use default time slots
             const defaultTimes = generateDefaultTimeSlots();
             
-            // Convert current value to AM/PM if needed
-            let convertedCurrentValue = currentValue;
-            if (currentValue && !currentValue.match(/\d{1,2}:\d{2}\s*(AM|PM)/i)) {
-                convertedCurrentValue = convertToAMPM(currentValue);
-            }
+            // Normalize default times
+            const normalizedDefaultTimes = defaultTimes.map(t => normalizeTimeFormat(t));
             
-            defaultTimes.forEach(time => {
+            normalizedDefaultTimes.forEach(time => {
                 const option = document.createElement('option');
                 option.value = time;
                 option.textContent = time;
-                if (time === convertedCurrentValue) option.selected = true;
+                // Use normalized comparison
+                if (normalizedCurrentValue && normalizeTimeFormat(time) === normalizedCurrentValue) {
+                    option.selected = true;
+                }
                 pickupTimeSelect.appendChild(option);
             });
+            
+            // If current value is not in the default list, add it
+            if (normalizedCurrentValue && !normalizedDefaultTimes.some(t => normalizeTimeFormat(t) === normalizedCurrentValue)) {
+                const option = document.createElement('option');
+                option.value = normalizedCurrentValue;
+                option.textContent = normalizedCurrentValue;
+                option.selected = true;
+                pickupTimeSelect.appendChild(option);
+            }
             return;
         }
         
@@ -17461,36 +17520,33 @@
                 }
             }
             
-            // Convert times to AM/PM format if they're in 24-hour format
+            // Convert times to AM/PM format if they're in 24-hour format and normalize
             const convertedTimes = availableTimes.map(time => {
                 // Check if time is already in AM/PM format
                 if (time.match(/\d{1,2}:\d{2}\s*(AM|PM)/i)) {
-                    return time;
+                    return normalizeTimeFormat(time);
                 }
-                // Convert from 24-hour to AM/PM
-                return convertToAMPM(time);
+                // Convert from 24-hour to AM/PM and normalize
+                return normalizeTimeFormat(convertToAMPM(time));
             });
-            
-            // Convert current value to AM/PM if needed
-            let convertedCurrentValue = currentValue;
-            if (currentValue && !currentValue.match(/\d{1,2}:\d{2}\s*(AM|PM)/i)) {
-                convertedCurrentValue = convertToAMPM(currentValue);
-            }
             
             // Populate the select box
             convertedTimes.forEach(time => {
                 const option = document.createElement('option');
                 option.value = time;
                 option.textContent = time;
-                if (time === convertedCurrentValue) option.selected = true;
+                // Use normalized comparison (case-insensitive)
+                if (normalizedCurrentValue && normalizeTimeFormat(time) === normalizedCurrentValue) {
+                    option.selected = true;
+                }
                 pickupTimeSelect.appendChild(option);
             });
             
-            // If current value is not in the list, add it
-            if (convertedCurrentValue && !convertedTimes.includes(convertedCurrentValue)) {
+            // If current value is not in the list, add it (preserve the stored value)
+            if (normalizedCurrentValue && !convertedTimes.some(t => normalizeTimeFormat(t) === normalizedCurrentValue)) {
                 const option = document.createElement('option');
-                option.value = convertedCurrentValue;
-                option.textContent = convertedCurrentValue;
+                option.value = normalizedCurrentValue;
+                option.textContent = normalizedCurrentValue;
                 option.selected = true;
                 pickupTimeSelect.appendChild(option);
             }
@@ -17499,19 +17555,28 @@
             // Fallback to default time slots
             const defaultTimes = generateDefaultTimeSlots();
             
-            // Convert current value to AM/PM if needed
-            let convertedCurrentValue = currentValue;
-            if (currentValue && !currentValue.match(/\d{1,2}:\d{2}\s*(AM|PM)/i)) {
-                convertedCurrentValue = convertToAMPM(currentValue);
-            }
+            // Normalize default times
+            const normalizedDefaultTimes = defaultTimes.map(t => normalizeTimeFormat(t));
             
-            defaultTimes.forEach(time => {
+            normalizedDefaultTimes.forEach(time => {
                 const option = document.createElement('option');
                 option.value = time;
                 option.textContent = time;
-                if (time === convertedCurrentValue) option.selected = true;
+                // Use normalized comparison
+                if (normalizedCurrentValue && normalizeTimeFormat(time) === normalizedCurrentValue) {
+                    option.selected = true;
+                }
                 pickupTimeSelect.appendChild(option);
             });
+            
+            // If current value is not in the default list, add it
+            if (normalizedCurrentValue && !normalizedDefaultTimes.some(t => normalizeTimeFormat(t) === normalizedCurrentValue)) {
+                const option = document.createElement('option');
+                option.value = normalizedCurrentValue;
+                option.textContent = normalizedCurrentValue;
+                option.selected = true;
+                pickupTimeSelect.appendChild(option);
+            }
         }
     }
     

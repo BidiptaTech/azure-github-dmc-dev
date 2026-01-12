@@ -2081,6 +2081,10 @@
                                             const guideSelect = document.getElementById(`day${day}_attraction_${index}_guide`);
                                             const guideName = guideSelect ? guideSelect.options[guideSelect.selectedIndex]?.text || '' : '';
                                             
+                                            // Get selected language
+                                            const languageSelect = document.getElementById(`day${day}_attraction_${index}_guide_language`);
+                                            const language = languageSelect ? languageSelect.value || '' : '';
+                                            
                                             // Get pickup time - try hidden input first, then fallback to Select2 element
                                             let pickupTime = document.getElementById(`day${day}_attraction_${index}_guide_pickup_time`)?.value || '';
                                             if (!pickupTime) {
@@ -2105,6 +2109,7 @@
                                                 guide_required: true,
                                                 guide_id: guideId,
                                                 guide_name: guideName,
+                                                language: language,
                                                 pickup_time: pickupTime,
                                                 package_hours: packageHours,
                                                 base_price: basePrice,
@@ -7084,6 +7089,7 @@ document.addEventListener('DOMContentLoaded', function() {
                 if (guidePackageField) guidePackageField.style.display = 'none';
                 
                 // Reset guide fields
+                const languageSelect = document.getElementById(`day${day}_attraction_${index}_guide_language`);
                 const guideSelect = document.getElementById(`day${day}_attraction_${index}_guide`);
                 const packageSelect = document.getElementById(`day${day}_attraction_${index}_guide_package`);
                 const pickupTimeContainer = document.getElementById(`day${day}_attraction_${index}_guide_pickup_time_options`);
@@ -7094,10 +7100,16 @@ document.addEventListener('DOMContentLoaded', function() {
                     guidePricingContent.innerHTML = '<div class="text-muted small">No guide selected</div>';
                 }
                 
+                if (languageSelect) {
+                    languageSelect.value = '';
+                    languageSelect.disabled = true;
+                    languageSelect.innerHTML = '<option value="">Select city first</option>';
+                }
+                
                 if (guideSelect) {
                     guideSelect.value = '';
                     guideSelect.disabled = true;
-                    guideSelect.innerHTML = '<option value="">Select city first</option>';
+                    guideSelect.innerHTML = '<option value="">Select language first</option>';
                 }
                 if (packageSelect) {
                     packageSelect.value = '';
@@ -7127,36 +7139,23 @@ document.addEventListener('DOMContentLoaded', function() {
         }
     };
     
+    // Store guides data for each attraction (day_index combination)
+    window.attractionGuidesData = window.attractionGuidesData || {};
+    
     // Function to load guides for attraction based on city
     window.loadAttractionGuidesForCity = function(day, cityName, index) {
         const guideSelect = document.getElementById(`day${day}_attraction_${index}_guide`);
+        const languageSelect = document.getElementById(`day${day}_attraction_${index}_guide_language`);
         const guideRequired = document.getElementById(`day${day}_attraction_${index}_guide_required`);
         
-        if (!guideSelect || !guideRequired || guideRequired.value !== 'Yes') {
+        if (!guideSelect || !languageSelect || !guideRequired || guideRequired.value !== 'Yes') {
             return;
         }
         
-        // Check if Select2 is initialized
-        const isSelect2Initialized = $(guideSelect).hasClass('select2-hidden-accessible');
-        
         if (cityName) {
-            guideSelect.disabled = false;
-            
-            // Destroy Select2 if initialized before updating options
-            if (isSelect2Initialized) {
-                $(guideSelect).select2('destroy');
-            }
-            
-            guideSelect.innerHTML = '<option value="">Loading guides...</option>';
-            
-            // Reinitialize Select2 with loading state
-            if (isSelect2Initialized) {
-                $(guideSelect).select2({
-                    placeholder: "Loading guides...",
-                    allowClear: true,
-                    width: '100%'
-                });
-            }
+            // Enable language select
+            languageSelect.disabled = false;
+            languageSelect.innerHTML = '<option value="">Loading languages...</option>';
             
             // Load guides for the specific city
             const currentDmcId = '{{ $finalDmcId }}';
@@ -7164,64 +7163,168 @@ document.addEventListener('DOMContentLoaded', function() {
             fetch(`{{ route('fetch-guides-by-dmc') }}?city=${encodeURIComponent(cityName)}&dmc_id=${currentDmcId}`)
                 .then(response => response.json())
                 .then(data => {
-                    // Destroy Select2 before updating options
-                    if (isSelect2Initialized) {
-                        $(guideSelect).select2('destroy');
-                    }
+                    // Store guides data for this attraction
+                    const storageKey = `day${day}_attraction_${index}`;
+                    window.attractionGuidesData[storageKey] = data.success && data.guides ? data.guides : [];
                     
-                    guideSelect.innerHTML = '<option value="">Search Guide</option>';
-                    
+                    // Collect all unique languages from guides
+                    const allLanguages = new Set();
                     if (data.success && data.guides) {
                         data.guides.forEach(guide => {
-                            const option = document.createElement('option');
-                            option.value = guide.guide_id;
-                            // Extract language names from the languages relationship
-                            const languageNames = guide.languages ? guide.languages.map(lang => lang.language).join(', ') : 'Languages not specified';
-                            option.textContent = `${guide.name} - ${languageNames}`;
-                            option.dataset.city = guide.city;
-                            option.dataset.image = guide.image || '';
-                            option.dataset.languages = guide.languages ? JSON.stringify(guide.languages.map(lang => lang.language)) : JSON.stringify([]);
-                            option.dataset.experience = guide.experience || 0;
-                            
-                            // Add pricing data attributes
-                            option.dataset.nightStartTime = guide.night_start_time;
-                            option.dataset.nightEndTime = guide.night_end_time;
-                            option.dataset.dayRate = 0;
-                            option.dataset.nightSurcharge = guide.night_surcharge;
-                            option.dataset.hourlyPrice = guide.hourly_price;
-                            option.dataset.twoHourPrice = guide.two_hour_price;
-                            option.dataset.fourHourPrice = guide.four_hour_price;
-                            option.dataset.sixHourPrice = guide.six_hour_price;
-                            option.dataset.eightHourPrice = guide.eight_hour_price;
-                            option.dataset.tenHourPrice = guide.ten_hour_price;
-                            option.dataset.twelveHourPrice = guide.twelve_hour_price;
-                            
-                            guideSelect.appendChild(option);
-                        });
-                        console.log(`Loaded ${data.guides.length} guides for attraction in ${cityName}`);
-                    } else {
-                        guideSelect.innerHTML += '<option disabled>No guides found in this city</option>';
-                    }
-                    
-                    guideSelect.disabled = false;
-                    
-                    // Reinitialize Select2 after populating options
-                    if (isSelect2Initialized || typeof jQuery !== 'undefined' && typeof jQuery.fn.select2 !== 'undefined') {
-                        $(guideSelect).select2({
-                            placeholder: "Search Guide",
-                            allowClear: true,
-                            width: '100%'
+                            if (guide.languages && Array.isArray(guide.languages)) {
+                                guide.languages.forEach(lang => {
+                                    const langName = lang.language || (typeof lang === 'string' ? lang : '');
+                                    if (langName) {
+                                        allLanguages.add(langName);
+                                    }
+                                });
+                            }
                         });
                     }
+                    
+                    // Populate language select
+                    languageSelect.innerHTML = '<option value="">Select Language</option>';
+                    const sortedLanguages = Array.from(allLanguages).sort();
+                    sortedLanguages.forEach(language => {
+                        const option = document.createElement('option');
+                        option.value = language;
+                        option.textContent = language;
+                        languageSelect.appendChild(option);
+                    });
+                    
+                    // Reset guide select
+                    guideSelect.innerHTML = '<option value="">Select language first</option>';
+                    guideSelect.disabled = true;
+                    
+                    console.log(`Loaded ${data.guides ? data.guides.length : 0} guides with ${sortedLanguages.length} languages for attraction in ${cityName}`);
                 })
                 .catch(error => {
                     console.error('Error loading guides for attraction:', error);
-                    guideSelect.innerHTML = '<option disabled>Error loading guides</option>';
-                    guideSelect.disabled = false;
+                    languageSelect.innerHTML = '<option value="">Error loading</option>';
+                    guideSelect.innerHTML = '<option value="">Error loading guides</option>';
                 });
         } else {
+            languageSelect.disabled = true;
+            languageSelect.innerHTML = '<option value="">Select city first</option>';
             guideSelect.disabled = true;
             guideSelect.innerHTML = '<option value="">Select city first</option>';
+        }
+    };
+    
+    // Function to handle language change and filter guides
+    window.handleAttractionGuideLanguageChange = function(day, index) {
+        const languageSelect = document.getElementById(`day${day}_attraction_${index}_guide_language`);
+        const guideSelect = document.getElementById(`day${day}_attraction_${index}_guide`);
+        const selectedLanguage = languageSelect ? languageSelect.value : '';
+        
+        if (!guideSelect) {
+            return;
+        }
+        
+        // Check if Select2 is initialized
+        const isSelect2Initialized = $(guideSelect).hasClass('select2-hidden-accessible');
+        
+        // Destroy Select2 if initialized
+        if (isSelect2Initialized) {
+            $(guideSelect).select2('destroy');
+        }
+        
+        // Reset guide select
+        guideSelect.innerHTML = '<option value="">Select Guide</option>';
+        
+        if (!selectedLanguage) {
+            guideSelect.disabled = true;
+            return;
+        }
+        
+        // Get stored guides data
+        const storageKey = `day${day}_attraction_${index}`;
+        const guides = window.attractionGuidesData[storageKey] || [];
+        
+        // Filter guides by selected language
+        const filteredGuides = guides.filter(guide => {
+            if (guide.languages && Array.isArray(guide.languages)) {
+                return guide.languages.some(lang => {
+                    const langName = lang.language || (typeof lang === 'string' ? lang : '');
+                    return langName === selectedLanguage;
+                });
+            }
+            return false;
+        });
+        
+        // Populate guide select with filtered guides
+        if (filteredGuides.length > 0) {
+            filteredGuides.forEach(guide => {
+                const option = document.createElement('option');
+                option.value = guide.guide_id;
+                option.textContent = guide.name;
+                option.dataset.city = guide.city;
+                option.dataset.image = guide.image || '';
+                option.dataset.languages = guide.languages ? JSON.stringify(guide.languages.map(lang => lang.language)) : JSON.stringify([]);
+                option.dataset.experience = guide.experience || 0;
+                
+                // Add pricing data attributes
+                option.dataset.nightStartTime = guide.night_start_time;
+                option.dataset.nightEndTime = guide.night_end_time;
+                option.dataset.dayRate = 0;
+                option.dataset.nightSurcharge = guide.night_surcharge;
+                option.dataset.hourlyPrice = guide.hourly_price;
+                option.dataset.twoHourPrice = guide.two_hour_price;
+                option.dataset.fourHourPrice = guide.four_hour_price;
+                option.dataset.sixHourPrice = guide.six_hour_price;
+                option.dataset.eightHourPrice = guide.eight_hour_price;
+                option.dataset.tenHourPrice = guide.ten_hour_price;
+                option.dataset.twelveHourPrice = guide.twelve_hour_price;
+                
+                guideSelect.appendChild(option);
+            });
+            
+            guideSelect.disabled = false;
+            
+            // Reinitialize Select2 after populating options
+            if (isSelect2Initialized || (typeof jQuery !== 'undefined' && typeof jQuery.fn.select2 !== 'undefined')) {
+                $(guideSelect).select2({
+                    placeholder: "Search Guide",
+                    allowClear: true,
+                    width: '100%'
+                });
+            }
+            
+            console.log(`Filtered ${filteredGuides.length} guides for language: ${selectedLanguage}`);
+        } else {
+            guideSelect.innerHTML = '<option value="">No guides found for this language</option>';
+            guideSelect.disabled = true;
+        }
+        
+        // Reset guide-related fields when language changes
+        const pickupTimeField = document.getElementById(`day${day}_attraction_${index}_guide_pickup_time`);
+        const packageSelect = document.getElementById(`day${day}_attraction_${index}_guide_package`);
+        const pickupTimeOptions = document.getElementById(`day${day}_attraction_${index}_guide_pickup_time_options`);
+        
+        if (pickupTimeField) pickupTimeField.value = '';
+        if (packageSelect) {
+            packageSelect.value = '';
+            packageSelect.innerHTML = '<option value="">Select Duration</option>';
+        }
+        if (pickupTimeOptions) {
+            pickupTimeOptions.innerHTML = '<select class="form-select" disabled><option value="">Select guide first</option></select>';
+        }
+        
+        // Reset pricing fields
+        document.getElementById(`day${day}_attraction_${index}_guide_base_price`).value = '0';
+        document.getElementById(`day${day}_attraction_${index}_guide_hours`).value = '0';
+        document.getElementById(`day${day}_attraction_${index}_guide_surcharge`).value = '0';
+        document.getElementById(`day${day}_attraction_${index}_guide_total_price`).value = '0';
+        
+        // Clear guide pricing content
+        const guidePricingContent = document.getElementById(`day${day}_attraction_${index}_guide_pricing_content`);
+        if (guidePricingContent) {
+            guidePricingContent.innerHTML = '<div class="text-muted small">No guide selected</div>';
+        }
+        
+        // Update total price
+        if (typeof updateAttractionTotalPrice === 'function') {
+            updateAttractionTotalPrice(day, index);
         }
     };
     
@@ -12920,10 +13023,18 @@ document.addEventListener('DOMContentLoaded', function() {
                                          <div class="row g-2">
                                              <div class="col-md-4">
                                                  <label class="form-label fw-semibold mb-1" style="color: #495057; font-size: 0.8rem;">
+                                                     <i class="ri-global-line me-1"></i>Select Language
+                                                 </label>
+                                                 <select class="form-select" style="height: 36px; border-radius: 6px; border: 1px solid #dee2e6; font-size: 0.8rem; padding: 0.375rem 0.75rem; line-height: 1.4; overflow: hidden; text-overflow: ellipsis;" name="day${day}_attraction_1_guide_language" id="day${day}_attraction_1_guide_language" onchange="handleAttractionGuideLanguageChange(${day}, 1)" disabled>
+                                                     <option value="">Select city first</option>
+                                                 </select>
+                                             </div>
+                                             <div class="col-md-4">
+                                                 <label class="form-label fw-semibold mb-1" style="color: #495057; font-size: 0.8rem;">
                                                      <i class="ri-user-star-line me-1"></i>Select Guide
                                                  </label>
                                                  <select class="form-select attraction-guide-select" style="height: 36px; border-radius: 6px; border: 1px solid #dee2e6; font-size: 0.8rem; padding: 0.375rem 0.75rem; line-height: 1.4; overflow: hidden; text-overflow: ellipsis;" name="day${day}_attraction_1_guide" id="day${day}_attraction_1_guide" onchange="loadAttractionGuideDetails(${day}, this.value, 1)" disabled>
-                                                     <option value="">Select city first</option>
+                                                     <option value="">Select language first</option>
                                                  </select>
                                              </div>
                                              <div class="col-md-4">
@@ -14845,10 +14956,18 @@ document.addEventListener('DOMContentLoaded', function() {
                             <div class="row g-2">
                                 <div class="col-md-4">
                                     <label class="form-label fw-semibold mb-1" style="color: #495057; font-size: 0.8rem;">
+                                        <i class="ri-global-line me-1"></i>Select Language
+                                    </label>
+                                    <select class="form-select" style="height: 36px; border-radius: 6px; border: 1px solid #dee2e6; font-size: 0.8rem; padding: 0.375rem 0.75rem; line-height: 1.4; overflow: hidden; text-overflow: ellipsis;" name="day${day}_attraction_${newIndex}_guide_language" id="day${day}_attraction_${newIndex}_guide_language" onchange="handleAttractionGuideLanguageChange(${day}, ${newIndex})" disabled>
+                                        <option value="">Select city first</option>
+                                    </select>
+                                </div>
+                                <div class="col-md-4">
+                                    <label class="form-label fw-semibold mb-1" style="color: #495057; font-size: 0.8rem;">
                                         <i class="ri-user-star-line me-1"></i>Select Guide
                                     </label>
                                     <select class="form-select attraction-guide-select" style="height: 36px; border-radius: 6px; border: 1px solid #dee2e6; font-size: 0.8rem; padding: 0.375rem 0.75rem; line-height: 1.4; overflow: hidden; text-overflow: ellipsis;" name="day${day}_attraction_${newIndex}_guide" id="day${day}_attraction_${newIndex}_guide" onchange="loadAttractionGuideDetails(${day}, this.value, ${newIndex})" disabled>
-                                        <option value="">Select city first</option>
+                                        <option value="">Select language first</option>
                                     </select>
                                 </div>
                                 <div class="col-md-4">

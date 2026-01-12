@@ -3232,6 +3232,50 @@ class SingleTourPackageController extends Controller
                                 // Ensure attraction has proper price field (use totalPrice from frontend calculation)
                                 $attraction['price'] = $attraction['totalPrice'] ?? $attraction['price'] ?? 0;
                                 
+                                // Process transfer_options if it exists
+                                if (isset($attraction['transfer_options']) && is_array($attraction['transfer_options']) && !empty($attraction['transfer_options'])) {
+                                    $transferOptions = &$attraction['transfer_options'];
+                                    
+                                    // Process vehicle_id and fetch vehicle name from DB
+                                    if (isset($transferOptions['vehicle_id']) && !empty($transferOptions['vehicle_id'])) {
+                                        $vehicleId = $transferOptions['vehicle_id'];
+                                        
+                                        // Fetch vehicle from DB using vehicle_id
+                                        $vehicle = Vehicle::where('vehicle_id', $vehicleId)->first();
+                                        
+                                        if ($vehicle && $vehicle->vehicle_name) {
+                                            // Overwrite vehicle_name with value from DB
+                                            $transferOptions['vehicle_name'] = $vehicle->vehicle_name;
+                                            
+                                            // Also update vehicle_details if it exists
+                                            if (isset($transferOptions['vehicle_details']) && is_array($transferOptions['vehicle_details'])) {
+                                                $transferOptions['vehicle_details']['vehicle_name'] = $vehicle->vehicle_name;
+                                            }
+                                        }
+                                    }
+                                    
+                                    // Ensure type (Private/Shared) is normalized
+                                    if (isset($transferOptions['type']) && !empty($transferOptions['type'])) {
+                                        $typeValue = trim($transferOptions['type']);
+                                        $typeLower = strtolower($typeValue);
+                                        
+                                        if (in_array($typeLower, ['private', 'shared', 'sic'])) {
+                                            $transferOptions['type'] = ucfirst($typeLower);
+                                        } else {
+                                            // Map common variations
+                                            $typeMap = [
+                                                'sharable' => 'Shared',
+                                                'shareable' => 'Shared',
+                                                'share' => 'Shared',
+                                            ];
+                                            $transferOptions['type'] = $typeMap[$typeLower] ?? 'Private';
+                                        }
+                                    } else {
+                                        // Default to Private if type is missing
+                                        $transferOptions['type'] = 'Private';
+                                    }
+                                }
+                                
                                 // Generate new booking ID for each attraction
                                 $newAttractionBookingId = $this->getNextBookingId();
                                 
@@ -3262,6 +3306,50 @@ class SingleTourPackageController extends Controller
                         } elseif ($type === 'restaurant') {
                             // For restaurants, store each restaurant as a separate order
                             foreach ($decodedData as $restaurant) {
+                                // Process transfer_options if it exists
+                                if (isset($restaurant['transfer_options']) && is_array($restaurant['transfer_options']) && !empty($restaurant['transfer_options'])) {
+                                    $transferOptions = &$restaurant['transfer_options'];
+                                    
+                                    // Process vehicle_id and fetch vehicle name from DB
+                                    if (isset($transferOptions['vehicle_id']) && !empty($transferOptions['vehicle_id'])) {
+                                        $vehicleId = $transferOptions['vehicle_id'];
+                                        
+                                        // Fetch vehicle from DB using vehicle_id
+                                        $vehicle = Vehicle::where('vehicle_id', $vehicleId)->first();
+                                        
+                                        if ($vehicle && $vehicle->vehicle_name) {
+                                            // Overwrite vehicle_name with value from DB
+                                            $transferOptions['vehicle_name'] = $vehicle->vehicle_name;
+                                            
+                                            // Also update vehicle_details if it exists
+                                            if (isset($transferOptions['vehicle_details']) && is_array($transferOptions['vehicle_details'])) {
+                                                $transferOptions['vehicle_details']['vehicle_name'] = $vehicle->vehicle_name;
+                                            }
+                                        }
+                                    }
+                                    
+                                    // Ensure type (Private/Shared) is normalized
+                                    if (isset($transferOptions['type']) && !empty($transferOptions['type'])) {
+                                        $typeValue = trim($transferOptions['type']);
+                                        $typeLower = strtolower($typeValue);
+                                        
+                                        if (in_array($typeLower, ['private', 'shared', 'sic'])) {
+                                            $transferOptions['type'] = ucfirst($typeLower);
+                                        } else {
+                                            // Map common variations
+                                            $typeMap = [
+                                                'sharable' => 'Shared',
+                                                'shareable' => 'Shared',
+                                                'share' => 'Shared',
+                                            ];
+                                            $transferOptions['type'] = $typeMap[$typeLower] ?? 'Private';
+                                        }
+                                    } else {
+                                        // Default to Private if type is missing
+                                        $transferOptions['type'] = 'Private';
+                                    }
+                                }
+                                
                                 // Generate new booking ID for each restaurant
                                 $newRestaurantBookingId = $this->getNextBookingId();
                                 
