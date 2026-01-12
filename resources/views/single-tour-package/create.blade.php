@@ -327,22 +327,6 @@
                                 </div>
                             </div>
 
-                            <div class="tour-type-wrapper mt-3 mt-md-0" style="min-width: 200px;">
-                                <label class="form-label fw-semibold text-white mb-2 d-block" style="font-size: 0.875rem; opacity: 0.9;">
-                                    <i class="ri-group-line me-1"></i> Tour Type
-                                </label>
-                            
-                                <div class="tour-toggle">
-                                    <input type="radio" name="tour_type" id="fit" value="FIT" checked>
-                                    <label for="fit">FIT</label>
-                            
-                                    <input type="radio" name="tour_type" id="group" value="GROUP">
-                                    <label for="group">GROUP</label>
-                            
-                                    <span class="slider"></span>
-                                </div>
-                            </div>
-                            
                         </div>
                         
                     </div>
@@ -362,10 +346,24 @@
                 <div class="col-12">
                     <div class="card shadow-sm border-0" style="background: #ffffff; border-radius: 12px; overflow: hidden;">
                         <div class="card-header text-white" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); border: none; padding: 1.25rem 1.75rem;">
-                            <h6 class="mb-0 fw-bold d-flex align-items-center text-white" style="font-size: 1.1rem; letter-spacing: -0.01em; color: #ffffff !important;">
-                                <i class="ri-settings-3-line me-2 fs-5 text-white" style="color: #ffffff !important;"></i>
-                                <span style="color: #ffffff !important;">Tour Package Configuration</span>
-                            </h6>
+                            <div class="d-flex align-items-center justify-content-between flex-wrap">
+                                <h6 class="mb-0 fw-bold d-flex align-items-center text-white" style="font-size: 1.1rem; letter-spacing: -0.01em; color: #ffffff !important;">
+                                    <i class="ri-settings-3-line me-2 fs-5 text-white" style="color: #ffffff !important;"></i>
+                                    <span style="color: #ffffff !important;">Tour Package Configuration</span>
+                                </h6>
+                                
+                                <div class="tour-type-wrapper mt-2 mt-md-0" style="min-width: 200px;">
+                                    <div class="tour-toggle">
+                                        <input type="radio" name="tour_type" id="fit" value="FIT" checked>
+                                        <label for="fit">FIT</label>
+                                
+                                        <input type="radio" name="tour_type" id="group" value="GROUP">
+                                        <label for="group">GROUP</label>
+                                
+                                        <span class="slider"></span>
+                                    </div>
+                                </div>
+                            </div>
                         </div>
                         <div class="card-body" style="background: #ffffff; padding: 1.75rem;">
                             <div class="row g-3">
@@ -837,7 +835,7 @@
                     <div class="card shadow-sm border-0">
                         <div class="card-header bg-gradient-primary text-white">
                             <h6 class="mb-0 fw-bold">
-                                <i class="ri-user-line me-2"></i>Customer Information
+                                <i class="ri-user-line me-2"></i>Lead Guest Information
                             </h6>
                         </div>
                         <div class="card-body">

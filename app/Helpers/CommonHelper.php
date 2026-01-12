@@ -1993,6 +1993,23 @@ class CommonHelper
         $totalSingleSharing = 0;
         $totalDoubleSharing = 0;
         $totalTripleSharing = 0;
+        
+        // Segregated prices by service type
+        $segregatedPrices = [
+            'hotel' => ['single' => 0, 'double' => 0, 'triple' => 0],
+            'attraction' => ['single' => 0, 'double' => 0],
+            'restaurant' => ['single' => 0, 'double' => 0],
+            'entry_port' => ['single' => 0, 'double' => 0],
+            'exit_port' => ['single' => 0, 'double' => 0],
+            'guide' => ['single' => 0, 'double' => 0],
+            'travel_hourly' => ['single' => 0, 'double' => 0],
+            'travel_point' => ['single' => 0, 'double' => 0],
+            'local_transport' => ['single' => 0, 'double' => 0],
+            'other' => ['single' => 0, 'double' => 0],
+        ];
+        
+        // Flag to track if first hotel has been processed
+        $firstHotelProcessed = false;
 
         foreach ($orders as $order) {
             $rawData = $order->data;
@@ -2009,6 +2026,12 @@ class CommonHelper
 
             foreach ($items as $item) {
                 if ($type === 'hotel') {
+                    // Only process the first hotel, skip subsequent hotels
+                    if ($firstHotelProcessed) {
+                        continue;
+                    }
+                    $firstHotelProcessed = true;
+                    
                     // Hotel pricing calculation with date-based weekday/weekend check
                     $singleWeekdayPrice = null;
                     $singleWeekendPrice = null;
@@ -2419,27 +2442,112 @@ class CommonHelper
                     $totalSingleSharing += $hotelSingleTotal;
                     $totalDoubleSharing += $hotelDoubleTotal;
                     $totalTripleSharing += $hotelTripleTotal;
+                    
+                    // Add to segregated hotel prices
+                    $segregatedPrices['hotel']['single'] += $hotelSingleTotal;
+                    $segregatedPrices['hotel']['double'] += $hotelDoubleTotal;
+                    $segregatedPrices['hotel']['triple'] += $hotelTripleTotal;
                 } else {
                     // Other services pricing calculation
                     $totalPrice = $item['totalPrice'] ?? $item['total_price'] ?? $item['price'] ?? null;
                     if ($totalPrice !== null) {
                         $totalPriceFloat = floatval($totalPrice);
+                        $normalizedType = strtolower($type ?? '');
                         
-                        // Get pax count
-                        $pax = $item['pax'] 
-                            ?? (($item['adult'] ?? 0) + ($item['child'] ?? 0) + ($item['infant'] ?? 0))
-                            ?? (($item['adultCount'] ?? 0) + ($item['childCount'] ?? 0) + ($item['seniorCount'] ?? 0))
-                            ?? null;
-
-                        // Single sharing: per person price
-                        if ($pax && $pax > 0) {
-                            $singleSharing = $totalPriceFloat / floatval($pax);
-                        } else {
-                            $singleSharing = $totalPriceFloat;
+                        // Handle attraction and restaurant: adultCount + childCount = total pax, then totalPrice/pax = single pax price
+                        // Both single and double should be the same per-person price
+                        if ($normalizedType === 'attraction' || $normalizedType === 'restaurant') {
+                            $adultCount = floatval($item['adultCount'] ?? 0);
+                            $childCount = floatval($item['childCount'] ?? 0);
+                            $pax = $adultCount + $childCount;
+                            
+                            if ($pax > 0) {
+                                $singleSharing = $totalPriceFloat / $pax;
+                            } else {
+                                $singleSharing = $totalPriceFloat;
+                            }
+                            
+                            // Double sharing: same as single (per-person price)
+                            $doubleSharing = $singleSharing;
+                            
+                            // Add to segregated prices
+                            $serviceKey = $normalizedType === 'attraction' ? 'attraction' : 'restaurant';
+                            $segregatedPrices[$serviceKey]['single'] += $singleSharing;
+                            $segregatedPrices[$serviceKey]['double'] += $doubleSharing;
                         }
+                        // Handle entry_port and exit_port
+                        elseif ($normalizedType === 'entry_port' || $normalizedType === 'exit_port') {
+                            $serviceType = strtolower($item['type'] ?? '');
+                            
+                            // If shared: totalPrice/pax = single pax price
+                            if ($serviceType === 'shared') {
+                                $pax = $item['pax'] 
+                                    ?? (($item['adult'] ?? 0) + ($item['child'] ?? 0) + ($item['infant'] ?? 0))
+                                    ?? (($item['adults'] ?? 0) + ($item['children'] ?? 0))
+                                    ?? (($item['adultCount'] ?? 0) + ($item['childCount'] ?? 0))
+                                    ?? 1;
+                                
+                                if ($pax > 0) {
+                                    $singleSharing = $totalPriceFloat / floatval($pax);
+                                } else {
+                                    $singleSharing = $totalPriceFloat;
+                                }
+                            }
+                            // If private: totalPrice is single price (not divided)
+                            elseif ($serviceType === 'private') {
+                                $singleSharing = $totalPriceFloat;
+                            }
+                            // Fallback: use default calculation
+                            else {
+                                $pax = $item['pax'] 
+                                    ?? (($item['adult'] ?? 0) + ($item['child'] ?? 0) + ($item['infant'] ?? 0))
+                                    ?? (($item['adults'] ?? 0) + ($item['children'] ?? 0))
+                                    ?? (($item['adultCount'] ?? 0) + ($item['childCount'] ?? 0))
+                                    ?? null;
+                                
+                                if ($pax && $pax > 0) {
+                                    $singleSharing = $totalPriceFloat / floatval($pax);
+                                } else {
+                                    $singleSharing = $totalPriceFloat;
+                                }
+                            }
+                            
+                            // Double sharing: total / 2 (per person for 2 people)
+                            $doubleSharing = $totalPriceFloat;
+                            
+                            // Add to segregated prices
+                            $serviceKey = $normalizedType === 'entry_port' ? 'entry_port' : 'exit_port';
+                            $segregatedPrices[$serviceKey]['single'] += $singleSharing;
+                            $segregatedPrices[$serviceKey]['double'] += $doubleSharing;
+                        }
+                        // Default calculation for other service types
+                        else {
+                            // Get pax count
+                            $pax = $item['pax'] 
+                                ?? (($item['adult'] ?? 0) + ($item['child'] ?? 0) + ($item['infant'] ?? 0))
+                                ?? (($item['adultCount'] ?? 0) + ($item['childCount'] ?? 0) + ($item['seniorCount'] ?? 0))
+                                ?? null;
 
-                        // Double sharing: total / 2 (per person for 2 people)
-                        $doubleSharing = $totalPriceFloat;
+                            // Single sharing: per person price
+                            if ($pax && $pax > 0) {
+                                $singleSharing = $totalPriceFloat / floatval($pax);
+                            } else {
+                                $singleSharing = $totalPriceFloat;
+                            }
+
+                            // Double sharing: total / 2 (per person for 2 people)
+                            $doubleSharing = $totalPriceFloat;
+                            
+                            // Add to segregated prices based on service type
+                            $serviceKey = 'other';
+                            if (isset($segregatedPrices[$normalizedType])) {
+                                $serviceKey = $normalizedType;
+                            } elseif (in_array($normalizedType, ['travel_hourly', 'travel_point', 'local_transport', 'guide'])) {
+                                $serviceKey = $normalizedType;
+                            }
+                            $segregatedPrices[$serviceKey]['single'] += $singleSharing;
+                            $segregatedPrices[$serviceKey]['double'] += $doubleSharing;
+                        }
 
                         $totalSingleSharing += $singleSharing;
                         $totalDoubleSharing += $doubleSharing;
@@ -2448,10 +2556,23 @@ class CommonHelper
             }
         }
 
+        // Round segregated prices and format
+        $segregatedPricesRounded = [];
+        foreach ($segregatedPrices as $serviceType => $prices) {
+            $segregatedPricesRounded[$serviceType] = [
+                'single' => ceil($prices['single']),
+                'double' => ceil($prices['double']),
+            ];
+            if (isset($prices['triple'])) {
+                $segregatedPricesRounded[$serviceType]['triple'] = ceil($prices['triple']);
+            }
+        }
+        
         return [
             'single_sharing' => ceil($totalSingleSharing),
             'double_sharing' => ceil($totalDoubleSharing),
             'triple_sharing' => ceil($totalTripleSharing),
+            'segregated' => $segregatedPricesRounded,
         ];
     }
 

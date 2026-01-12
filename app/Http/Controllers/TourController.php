@@ -487,6 +487,23 @@ class TourController extends Controller
         try {
             $prices = CommonHelper::calculateTourPrices($tourId);
             
+            // Format segregated prices
+            $segregatedFormatted = [];
+            if (isset($prices['segregated']) && is_array($prices['segregated'])) {
+                foreach ($prices['segregated'] as $serviceType => $servicePrices) {
+                    $segregatedFormatted[$serviceType] = [
+                        'single' => $servicePrices['single'] ?? 0,
+                        'double' => $servicePrices['double'] ?? 0,
+                        'single_formatted' => '₹' . number_format($servicePrices['single'] ?? 0, 2),
+                        'double_formatted' => '₹' . number_format($servicePrices['double'] ?? 0, 2),
+                    ];
+                    if (isset($servicePrices['triple'])) {
+                        $segregatedFormatted[$serviceType]['triple'] = $servicePrices['triple'];
+                        $segregatedFormatted[$serviceType]['triple_formatted'] = '₹' . number_format($servicePrices['triple'], 2);
+                    }
+                }
+            }
+            
             return response()->json([
                 'success' => true,
                 'tour_id' => $tourId,
@@ -497,6 +514,7 @@ class TourController extends Controller
                     'single_sharing_formatted' => '₹' . number_format($prices['single_sharing'], 2),
                     'double_sharing_formatted' => '₹' . number_format($prices['double_sharing'], 2),
                     'triple_sharing_formatted' => '₹' . number_format($prices['triple_sharing'] ?? 0, 2),
+                    'segregated' => $segregatedFormatted,
                 ]
             ]);
         } catch (\Exception $e) {
