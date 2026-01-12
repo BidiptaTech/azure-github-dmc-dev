@@ -962,10 +962,10 @@
                             <td>
                                 <div class="d-flex flex-column gap-2">
                                     @if(auth()->user()->role_id == 33 ||auth()->user()->role_id == 11 || auth()->user()->role_id == 34 ||auth()->user()->role_id == 37 || auth()->user()->role_id == 38 ||auth()->user()->role_id == 124 || auth()->user()->role_id == 125 || in_array(auth()->user()->role_id, [128, 129, 130, 131, 132, 134, 135, 136, 137, 138]))
-                                    <a href="{{ route('single-tour-package.edit', Crypt::encrypt($tour->tour_id)) }}"
-                                       class="btn btn-outline-success btn-sm rounded-pill">
-                                        <i class="ri-pencil-line"></i> Edit
-                                    </a>
+                                        <a href="{{ route('single-tour-package.edit', Crypt::encrypt($tour->tour_id)) }}"
+                                        class="btn btn-outline-success btn-sm rounded-pill">
+                                            <i class="ri-pencil-line"></i> Edit
+                                        </a>
                                     @endif
                                     <a href="{{ route('bookings.view-tour', Crypt::encrypt($tour->tour_id)) }}" 
                                        class="btn btn-outline-primary btn-sm rounded-pill">
@@ -989,32 +989,71 @@
                                             ->first();
                                     @endphp
                                     
-                                    @if($finalInvoice)
-                                        <a href="{{ route('invoices.download', Crypt::encrypt($finalInvoice->invoice_id)) }}" 
-                                           class="btn btn-outline-info btn-sm rounded-pill"
-                                           target="_blank"
-                                           title="Download Final Invoice with Services">
-                                            <i class="ri-file-paper-2-line me-1"></i> Final Invoice
-                                        </a>
-                                        <a href="{{ route('invoices.download-price-only', Crypt::encrypt($finalInvoice->invoice_id)) }}" 
-                                           class="btn btn-outline-primary btn-sm rounded-pill"
-                                           target="_blank"
-                                           title="Download Final Invoice (Price Only)">
-                                            <i class="ri-file-download-line me-1"></i> Final Invoice (Price Only)
-                                        </a>
-                                    @elseif($proformaInvoice)
-                                        <a href="{{ route('invoices.download', Crypt::encrypt($proformaInvoice->invoice_id)) }}" 
-                                           class="btn btn-outline-info btn-sm rounded-pill"
-                                           target="_blank"
-                                           title="Download Proforma Invoice with Services">
-                                            <i class="ri-file-paper-line me-1"></i> Proforma Invoice
-                                        </a>
-                                        <a href="{{ route('invoices.download-price-only', Crypt::encrypt($proformaInvoice->invoice_id)) }}" 
-                                           class="btn btn-outline-primary btn-sm rounded-pill"
-                                           target="_blank"
-                                           title="Download Proforma Invoice (Price Only)">
-                                            <i class="ri-file-download-line me-1"></i> Proforma Invoice (Price Only)
-                                        </a>
+                                    @if($tour->tour_status == 'Confirmed')
+                                        @if($finalInvoice)
+                                            <a href="{{ route('invoices.download', Crypt::encrypt($finalInvoice->invoice_id)) }}" 
+                                               class="btn btn-outline-info btn-sm rounded-pill"
+                                               target="_blank"
+                                               title="Download Final Invoice (Price Breakup)">
+                                                <i class="ri-file-paper-2-line me-1"></i> Final Invoice(Price Breakup)
+                                            </a>
+                                            <a href="{{ route('invoices.download-price-only', Crypt::encrypt($finalInvoice->invoice_id)) }}" 
+                                               class="btn btn-outline-primary btn-sm rounded-pill"
+                                               target="_blank"
+                                               title="Download Final Invoice (Package Price Only)">
+                                                <i class="ri-file-download-line me-1"></i> Final Invoice(Package Price Only)
+                                            </a>
+                                        @elseif($proformaInvoice)
+                                            <a href="{{ route('invoices.download', Crypt::encrypt($proformaInvoice->invoice_id)) }}" 
+                                               class="btn btn-outline-info btn-sm rounded-pill"
+                                               target="_blank"
+                                               title="Download Proforma Invoice (Price Breakup)">
+                                                <i class="ri-file-paper-line me-1"></i> Proforma Invoice(Price Breakup)
+                                            </a>
+                                            <a href="{{ route('invoices.download-price-only', Crypt::encrypt($proformaInvoice->invoice_id)) }}" 
+                                               class="btn btn-outline-primary btn-sm rounded-pill"
+                                               target="_blank"
+                                               title="Download Proforma Invoice (Package Price Only)">
+                                                <i class="ri-file-download-line me-1"></i> Proforma Invoice(Package Price Only)
+                                            </a>
+                                        @else
+                                            <form action="{{ route('invoices.generate-proforma', $tour->tour_id) }}" method="POST" class="d-inline">
+                                                @csrf
+                                                <button type="submit" 
+                                                        class="btn btn-outline-info btn-sm rounded-pill"
+                                                        title="Generate Proforma Invoice">
+                                                    <i class="ri-file-add-line me-1"></i> Generate Invoice
+                                                </button>
+                                            </form>
+                                        @endif
+                                    @else
+                                        @if($finalInvoice)
+                                            <a href="{{ route('invoices.download', Crypt::encrypt($finalInvoice->invoice_id)) }}" 
+                                               class="btn btn-outline-info btn-sm rounded-pill"
+                                               target="_blank"
+                                               title="Download Final Invoice (Price Breakup)">
+                                                <i class="ri-file-paper-2-line me-1"></i> Final Invoice(Price Breakup)
+                                            </a>
+                                            <a href="{{ route('invoices.download-price-only', Crypt::encrypt($finalInvoice->invoice_id)) }}" 
+                                               class="btn btn-outline-primary btn-sm rounded-pill"
+                                               target="_blank"
+                                               title="Download Final Invoice (Package Price Only)">
+                                                <i class="ri-file-download-line me-1"></i> Final Invoice(Package Price Only)
+                                            </a>
+                                        @elseif($proformaInvoice)
+                                            <a href="{{ route('invoices.download', Crypt::encrypt($proformaInvoice->invoice_id)) }}" 
+                                               class="btn btn-outline-info btn-sm rounded-pill"
+                                               target="_blank"
+                                               title="Download Proforma Invoice (Price Breakup)">
+                                                <i class="ri-file-paper-line me-1"></i> Proforma Invoice(Price Breakup)
+                                            </a>
+                                            <a href="{{ route('invoices.download-price-only', Crypt::encrypt($proformaInvoice->invoice_id)) }}" 
+                                               class="btn btn-outline-primary btn-sm rounded-pill"
+                                               target="_blank"
+                                               title="Download Proforma Invoice (Package Price Only)">
+                                                <i class="ri-file-download-line me-1"></i> Proforma Invoice(Package Price Only)
+                                            </a>
+                                        @endif
                                     @endif
                                     @if(in_array(auth()->user()->role_id, $all_ids))
                                     <a href="{{ route('tour.itinerary', ['tourId' => Crypt::encrypt($tour->tour_id)]) }}" 

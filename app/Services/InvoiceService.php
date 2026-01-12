@@ -32,20 +32,24 @@ class InvoiceService
                 throw new \Exception("Tour not found");
             }
 
-            // Check if tour status is TENTATIVE
-            if ($tour->tour_status !== 'Tentative') {
-                throw new \Exception("Proforma invoice can only be generated for tours in Tentative status. Current status: " . ($tour->tour_status ?? 'N/A'));
+            // Check if tour status is TENTATIVE or CONFIRMED (for directly confirmed tours)
+            $allowedStatuses = ['Tentative', 'Confirmed'];
+            if (!in_array($tour->tour_status, $allowedStatuses)) {
+                throw new \Exception("Proforma invoice can only be generated for tours in Tentative or Confirmed status. Current status: " . ($tour->tour_status ?? 'N/A'));
             }
 
-            // Check if proforma invoice already exists
-            $existingProforma = Invoice::where('tour_id', $tourId)
-                ->where('invoice_type', 'proforma')
+            // Check if any invoice already exists (proforma or final)
+            $existingInvoice = Invoice::where('tour_id', $tourId)
                 ->whereNull('deleted_at')
                 ->first();
 
-            if ($existingProforma) {
-                // Return existing proforma for editing
-                return $existingProforma;
+            if ($existingInvoice) {
+                // If it's a proforma, return it for editing
+                if ($existingInvoice->invoice_type === 'proforma') {
+                    return $existingInvoice;
+                }
+                // If it's a final invoice, cannot generate proforma
+                throw new \Exception("A final invoice already exists for this tour. Cannot generate proforma invoice.");
             }
 
             // Generate invoice ID
