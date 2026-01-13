@@ -544,7 +544,7 @@
                                     <select class="form-select" id="bedTypeSelect" style="height: 36px; border-radius: 6px; border: 1px solid #dee2e6; font-size: 0.85rem;">
                                         <option value="">Bed Type</option>
                                     </select>
-                                    <div id="bedPriceDisplay" class="text-success small mt-1" style="display: none; font-size: 0.75rem;">
+                                    <div id="bedPriceDisplay" class="text-success small mt-1" style="display: none; font-size: 0.75rem;flex-wrap: nowrap;">
                                         Price: <span class="fw-bold">$0.00</span>
                                     </div>
                                 </div>
@@ -579,9 +579,9 @@
                                     <label class="form-label fw-semibold mb-1" style="color: #495057; font-size: 0.8rem;">
                                         <i class="ri-money-dollar-circle-line me-1"></i>Price
                                     </label>
-                                    <div class="input-group" style="max-width: 180px;">
-                                        <span class="input-group-text" style="background-color: #f8f9fa; font-size: 0.75rem; height: 36px; border: 1px solid #dee2e6; border-right: none; border-radius: 6px 0 0 6px; padding: 0.375rem 0.5rem; width: 45px;">SGD</span>
-                                        <input type="text" class="form-control" id="roomPriceDisplay" value="0.00" style="height: 36px; border-radius: 0 6px 6px 0; border: 1px solid #dee2e6; border-left: none; background-color: #f8f9fa; color: #198754; font-size: 0.8rem; font-weight: 500; text-align: right; padding: 0.375rem 0.5rem; width: 135px;"> 
+                                    <div class="input-group" style="max-width: 180px; flex-wrap: nowrap;">
+                                        <span class="input-group-text" style="background-color: #f8f9fa; font-size: 0.75rem; height: 36px; border: 1px solid #dee2e6; border-right: none; border-radius: 6px 0 0 6px; padding: 0.375rem 0.5rem;">SGD</span>
+                                        <input type="text" class="form-control" id="roomPriceDisplay" value="0.00" style="height: 36px; border-radius: 0 6px 6px 0; border: 1px solid #dee2e6; border-left: none; background-color: #f8f9fa; color: #198754; font-size: 0.8rem; font-weight: 500; text-align: right; padding: 0.375rem 0.5rem;"> 
                                     </div>
                                 </div>
                             </div>
@@ -846,43 +846,43 @@
                             <i class="ri-arrow-down-s-line ms-2 fs-5 text-white" style="color: #ffffff !important;"></i>
                         </div>
                         <div id="customerInformationSection" class="collapse">
-                            <div class="card-body" style="background: #ffffff; padding: 1.25rem;">
-                                <div class="row g-3">
-                                    <div class="col-md-6">
-                                        <label class="form-label">Full Name</label>
-                                        <input type="text" class="form-control" id="customerFullName" name="customer_full_name" placeholder="Enter full name" >
-                                    </div>
-                                    <div class="col-md-6">
-                                        <label class="form-label">Email</label>
-                                        <input type="email" class="form-control" id="customerEmail" name="customer_email" placeholder="Enter email" >
+                            <div class="card-body" style="background: #ffffff; padding: 0.75rem 1rem;">
+                                <div class="row g-2">
+                                    <div class="col-md-3">
+                                        <label class="form-label mb-1" style="font-size: 0.8rem;">Full Name</label>
+                                        <input type="text" class="form-control form-control-sm" id="customerFullName" name="customer_full_name" placeholder="Enter full name" style="font-size: 0.85rem;">
                                     </div>
                                     <div class="col-md-3">
-                                        <label class="form-label">Country Code</label>
-                                        <input type="number" class="form-control" id="customerCountryCode" name="customer_country_code" placeholder="e.g. +91" >
+                                        <label class="form-label mb-1" style="font-size: 0.8rem;">Email</label>
+                                        <input type="email" class="form-control form-control-sm" id="customerEmail" name="customer_email" placeholder="Enter email" style="font-size: 0.85rem;">
                                     </div>
-                                    <div class="col-md-9">
-                                        <label class="form-label">Phone Number</label>
-                                        <input type="number" class="form-control" id="customerPhone" name="customer_phone" placeholder="Enter phone number" >
+                                    <div class="col-md-2">
+                                        <label class="form-label mb-1" style="font-size: 0.8rem;">Country Code</label>
+                                        <input type="number" class="form-control form-control-sm" id="customerCountryCode" name="customer_country_code" placeholder="e.g. +91" style="font-size: 0.85rem;">
                                     </div>
-                                    <div class="col-12">
-                                        <label class="form-label">Address Line 1</label>
-                                        <input type="text" class="form-control" id="customerAddress1" name="customer_address1" placeholder="Enter address line 1" >
+                                    <div class="col-md-4">
+                                        <label class="form-label mb-1" style="font-size: 0.8rem;">Phone Number</label>
+                                        <input type="number" class="form-control form-control-sm" id="customerPhone" name="customer_phone" placeholder="Enter phone number" style="font-size: 0.85rem;">
                                     </div>
-                                    <div class="col-12">
-                                        <label class="form-label">Address Line 2</label>
-                                        <input type="text" class="form-control" id="customerAddress2" name="customer_address2" placeholder="Enter address line 2">
+                                    <div class="col-md-3">
+                                        <label class="form-label mb-1" style="font-size: 0.8rem;">Address Line 1</label>
+                                        <input type="text" class="form-control form-control-sm" id="customerAddress1" name="customer_address1" placeholder="Enter address line 1" style="font-size: 0.85rem;">
+                                    </div>
+                                    <div class="col-md-3">
+                                        <label class="form-label mb-1" style="font-size: 0.8rem;">Address Line 2</label>
+                                        <input type="text" class="form-control form-control-sm" id="customerAddress2" name="customer_address2" placeholder="Enter address line 2" style="font-size: 0.85rem;">
+                                    </div>
+                                    <div class="col-md-3">
+                                        <label class="form-label mb-1" style="font-size: 0.8rem;">State</label>
+                                        <input type="text" class="form-control form-control-sm" id="customerState" name="customer_state" placeholder="Enter state" style="font-size: 0.85rem;">
+                                    </div>
+                                    <div class="col-md-3">
+                                        <label class="form-label mb-1" style="font-size: 0.8rem;">ZIP Code</label>
+                                        <input type="number" class="form-control form-control-sm" id="customerZip" name="customer_zip" placeholder="Enter ZIP code" style="font-size: 0.85rem;">
                                     </div>
                                     <div class="col-md-6">
-                                        <label class="form-label">State</label>
-                                        <input type="text" class="form-control" id="customerState" name="customer_state" placeholder="Enter state">
-                                    </div>
-                                    <div class="col-md-6">
-                                        <label class="form-label">ZIP Code</label>
-                                        <input type="number" class="form-control" id="customerZip" name="customer_zip" placeholder="Enter ZIP code">
-                                    </div>
-                                    <div class="col-12">
-                                        <label class="form-label">Special Requests</label>
-                                        <textarea class="form-control" id="customerSpecialRequests" name="customer_special_requests" rows="3" placeholder="Enter any special requests or notes"></textarea>
+                                        <label class="form-label mb-1" style="font-size: 0.8rem;">Special Requests</label>
+                                        <textarea class="form-control form-control-sm" id="customerSpecialRequests" name="customer_special_requests" rows="2" placeholder="Enter any special requests or notes" style="font-size: 0.85rem;"></textarea>
                                     </div>
                                 </div>
                             </div>
@@ -907,12 +907,15 @@
                                     </small>
                                 </div>
                             </div>
-                            <button type="button" class="btn btn-sm btn-light" id="addGuestBtn" onclick="addAdditionalGuest()" style="font-size: 0.8rem; font-weight: 600;">
-                                <i class="ri-add-line me-1"></i>Add Guest
-                            </button>
+                            <i class="ri-arrow-up-s-line ms-2 fs-5 text-white" style="color: #ffffff !important;"></i>
                         </div>
                         <div id="additionalGuestsSection" class="collapse show">
                             <div class="card-body" style="background: #ffffff; padding: 1.25rem;">
+                                <div class="mb-3 text-end">
+                                    <button type="button" class="btn btn-sm btn-light" id="addGuestBtn" onclick="addAdditionalGuest()" style="font-size: 0.8rem; font-weight: 600; box-shadow: 0 2px 4px rgba(0,0,0,0.1);">
+                                        <i class="ri-add-line me-1"></i>Add Guest
+                                    </button>
+                                </div>
                                 <div id="additionalGuestsContainer">
                                     <!-- Additional guests will be rendered here -->
                                 </div>
@@ -927,7 +930,7 @@
             </div>
 
             <!-- Final Submit Section -->
-            <div class="row mb-5" id="submitSection">
+            <div class="row mb-5" id="submitSection">   
                 <div class="col-12">
                     <div class="card shadow-sm border-0">
                         <div class="card-body">
@@ -1014,20 +1017,20 @@
                     const guestIndex = additionalGuestCount + 1;
 
                     const guestHtml = `
-                        <div class="card mb-3 border guest-card" data-guest-index="${guestIndex}">
-                            <div class="card-header bg-light d-flex justify-content-between align-items-center">
-                                <h6 class="mb-0 fw-semibold">
+                        <div class="card mb-2 border guest-card" data-guest-index="${guestIndex}" style="border-radius: 8px;">
+                            <div class="card-header bg-light d-flex justify-content-between align-items-center" style="padding: 0.5rem 1rem;">
+                                <h6 class="mb-0 fw-semibold" style="font-size: 0.9rem;">
                                     <i class="ri-user-line me-2"></i>Guest ${guestIndex}
                                 </h6>
-                                <button type="button" class="btn btn-sm btn-outline-danger" onclick="removeAdditionalGuest(${guestIndex})">
+                                <button type="button" class="btn btn-sm btn-outline-danger" onclick="removeAdditionalGuest(${guestIndex})" style="font-size: 0.75rem; padding: 0.25rem 0.5rem;">
                                     <i class="ri-delete-bin-line me-1"></i>Remove
                                 </button>
                             </div>
-                            <div class="card-body">
-                                <div class="row g-3">
-                                    <div class="col-md-3">
-                                        <label class="form-label">Salutation <span class="text-danger">*</span></label>
-                                        <select class="form-select" name="additional_guests[${guestIndex}][salutation]" required>
+                            <div class="card-body" style="padding: 0.75rem 1rem;">
+                                <div class="row g-2">
+                                    <div class="col-md-2">
+                                        <label class="form-label mb-1" style="font-size: 0.8rem;">Salutation <span class="text-danger">*</span></label>
+                                        <select class="form-select form-select-sm" name="additional_guests[${guestIndex}][salutation]" required style="font-size: 0.85rem;">
                                             <option value="">Select</option>
                                             <option value="Mr">Mr</option>
                                             <option value="Mrs">Mrs</option>
@@ -1037,20 +1040,20 @@
                                         </select>
                                     </div>
                                     <div class="col-md-3">
-                                        <label class="form-label">Name <span class="text-danger">*</span></label>
-                                        <input type="text" class="form-control" name="additional_guests[${guestIndex}][name]" placeholder="Enter full name" required>
+                                        <label class="form-label mb-1" style="font-size: 0.8rem;">Name <span class="text-danger">*</span></label>
+                                        <input type="text" class="form-control form-control-sm" name="additional_guests[${guestIndex}][name]" placeholder="Enter full name" required style="font-size: 0.85rem;">
                                     </div>
                                     <div class="col-md-3">
-                                        <label class="form-label">Passport No.</label>
-                                        <input type="text" class="form-control" name="additional_guests[${guestIndex}][passport_no]" placeholder="Enter passport number">
+                                        <label class="form-label mb-1" style="font-size: 0.8rem;">Passport No.</label>
+                                        <input type="text" class="form-control form-control-sm" name="additional_guests[${guestIndex}][passport_no]" placeholder="Enter passport number" style="font-size: 0.85rem;">
                                     </div>
-                                    <div class="col-md-3">
-                                        <label class="form-label">Passport Expiry</label>
-                                        <input type="date" class="form-control" name="additional_guests[${guestIndex}][passport_exp]" placeholder="Passport expiry date">
+                                    <div class="col-md-2">
+                                        <label class="form-label mb-1" style="font-size: 0.8rem;">Passport Expiry</label>
+                                        <input type="date" class="form-control form-control-sm" name="additional_guests[${guestIndex}][passport_exp]" style="font-size: 0.85rem;">
                                     </div>
-                                    <div class="col-md-4 mt-2">
-                                        <label class="form-label">Contact No.</label>
-                                        <input type="text" class="form-control" name="additional_guests[${guestIndex}][contact_no]" placeholder="Enter contact number">
+                                    <div class="col-md-2">
+                                        <label class="form-label mb-1" style="font-size: 0.8rem;">Contact No.</label>
+                                        <input type="text" class="form-control form-control-sm" name="additional_guests[${guestIndex}][contact_no]" placeholder="Enter contact number" style="font-size: 0.85rem;">
                                     </div>
                                 </div>
                             </div>
