@@ -702,6 +702,61 @@ class SingleTourPackageController extends Controller
             $tour->auto_cancel_date = $auto_cancel_date;
             $tour->taxes = !empty($taxArray) ? json_encode($taxArray) : null;
             $tour->tour_type = $request->tour_type ?? 'FIT';
+            
+            // Store main guest data as JSON
+            if ($request->has('mainguest') && $request->mainguest) {
+                try {
+                    $mainGuestData = $request->mainguest;
+                    if (is_string($mainGuestData)) {
+                        $mainGuestData = json_decode($mainGuestData, true);
+                        if (json_last_error() !== JSON_ERROR_NONE) {
+                            \Log::warning('Invalid JSON in mainguest data', [
+                                'error' => json_last_error_msg(),
+                                'data' => $request->mainguest
+                            ]);
+                            $mainGuestData = null;
+                        }
+                    }
+                    $tour->mainguest = !empty($mainGuestData) ? json_encode($mainGuestData) : null;
+                } catch (\Exception $e) {
+                    \Log::error('Error processing main guest data', [
+                        'error' => $e->getMessage(),
+                        'tour_id' => $tourId
+                    ]);
+                    // Continue without failing the tour creation
+                    $tour->mainguest = null;
+                }
+            }
+            
+            // Store additional guests data as JSON
+            if ($request->has('additionalguest') && $request->additionalguest) {
+                try {
+                    $additionalGuestData = $request->additionalguest;
+                    if (is_string($additionalGuestData)) {
+                        $additionalGuestData = json_decode($additionalGuestData, true);
+                        if (json_last_error() !== JSON_ERROR_NONE) {
+                            \Log::warning('Invalid JSON in additionalguest data', [
+                                'error' => json_last_error_msg(),
+                                'data' => $request->additionalguest
+                            ]);
+                            $additionalGuestData = null;
+                        }
+                    }
+                    // Ensure it's an array
+                    if (!is_array($additionalGuestData)) {
+                        $additionalGuestData = [];
+                    }
+                    $tour->additionalguest = !empty($additionalGuestData) ? json_encode($additionalGuestData) : null;
+                } catch (\Exception $e) {
+                    \Log::error('Error processing additional guest data', [
+                        'error' => $e->getMessage(),
+                        'tour_id' => $tourId
+                    ]);
+                    // Continue without failing the tour creation
+                    $tour->additionalguest = null;
+                }
+            }
+            
             $tour->save();
 
             $thisTour = Tour::where('tour_id', $tour->tour_id)->first();
