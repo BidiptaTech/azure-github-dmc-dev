@@ -832,51 +832,60 @@
             <input type="hidden" id="exit_port_data" name="exit_port_data" value="">
 
             <!-- Customer Information Section -->
-            <div class="row mb-4">
-                <div class="col-12">
+            <div class="accordion mb-4" id="customerAccordion">
+                <div class="accordion-item border-0">
                     <div class="card shadow-sm border-0">
-                        <div class="card-header bg-gradient-primary text-white">
-                            <h6 class="mb-0 fw-bold">
-                                <i class="ri-user-line me-2"></i>Customer Information
-                            </h6>
+                        <div class="card-header text-white d-flex justify-content-between align-items-center" role="button" data-bs-toggle="collapse" data-bs-target="#customerInformationSection" aria-expanded="false" aria-controls="customerInformationSection" style="cursor: pointer; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); border: none; padding: 1.25rem 1.75rem;">
+                            <div class="d-flex align-items-center">
+                                <div style="width: 40px; height: 40px; background: rgba(255, 255, 255, 0.2); border-radius: 10px; display: flex; align-items: center; justify-content: center; margin-right: 12px;">
+                                    <i class="ri-user-line fs-5 text-white" style="color: #ffffff !important;"></i>
+                                </div>
+                                <div>
+                                    <h6 class="mb-0 fw-bold text-white" style="color: #ffffff !important; font-size: 1.1rem;">Customer Information</h6>
+                                    <small class="text-white-75" style="color: rgba(255, 255, 255, 0.85) !important; font-size: 0.85rem;">Manage customer details and contact information</small>
+                                </div>
+                            </div>
+                            <i class="ri-arrow-down-s-line ms-2 fs-5 text-white" style="color: #ffffff !important;"></i>
                         </div>
-                        <div class="card-body">
-                            <div class="row g-3">
-                                <div class="col-md-6">
-                                    <label class="form-label">Full Name</label>
-                                    <input type="text" class="form-control" id="customerFullName" name="customer_full_name" placeholder="Enter full name" >
-                                </div>
-                                <div class="col-md-6">
-                                    <label class="form-label">Email</label>
-                                    <input type="email" class="form-control" id="customerEmail" name="customer_email" placeholder="Enter email" >
-                                </div>
-                                <div class="col-md-3">
-                                    <label class="form-label">Country Code</label>
-                                    <input type="number" class="form-control" id="customerCountryCode" name="customer_country_code" placeholder="e.g. +91" >
-                                </div>
-                                <div class="col-md-9">
-                                    <label class="form-label">Phone Number</label>
-                                    <input type="number" class="form-control" id="customerPhone" name="customer_phone" placeholder="Enter phone number" >
-                                </div>
-                                <div class="col-12">
-                                    <label class="form-label">Address Line 1</label>
-                                    <input type="text" class="form-control" id="customerAddress1" name="customer_address1" placeholder="Enter address line 1" >
-                                </div>
-                                <div class="col-12">
-                                    <label class="form-label">Address Line 2</label>
-                                    <input type="text" class="form-control" id="customerAddress2" name="customer_address2" placeholder="Enter address line 2">
-                                </div>
-                                <div class="col-md-6">
-                                    <label class="form-label">State</label>
-                                    <input type="text" class="form-control" id="customerState" name="customer_state" placeholder="Enter state">
-                                </div>
-                                <div class="col-md-6">
-                                    <label class="form-label">ZIP Code</label>
-                                    <input type="number" class="form-control" id="customerZip" name="customer_zip" placeholder="Enter ZIP code">
-                                </div>
-                                <div class="col-12">
-                                    <label class="form-label">Special Requests</label>
-                                    <textarea class="form-control" id="customerSpecialRequests" name="customer_special_requests" rows="3" placeholder="Enter any special requests or notes"></textarea>
+                        <div id="customerInformationSection" class="collapse">
+                            <div class="card-body" style="background: #ffffff; padding: 1.25rem;">
+                                <div class="row g-3">
+                                    <div class="col-md-6">
+                                        <label class="form-label">Full Name</label>
+                                        <input type="text" class="form-control" id="customerFullName" name="customer_full_name" placeholder="Enter full name" >
+                                    </div>
+                                    <div class="col-md-6">
+                                        <label class="form-label">Email</label>
+                                        <input type="email" class="form-control" id="customerEmail" name="customer_email" placeholder="Enter email" >
+                                    </div>
+                                    <div class="col-md-3">
+                                        <label class="form-label">Country Code</label>
+                                        <input type="number" class="form-control" id="customerCountryCode" name="customer_country_code" placeholder="e.g. +91" >
+                                    </div>
+                                    <div class="col-md-9">
+                                        <label class="form-label">Phone Number</label>
+                                        <input type="number" class="form-control" id="customerPhone" name="customer_phone" placeholder="Enter phone number" >
+                                    </div>
+                                    <div class="col-12">
+                                        <label class="form-label">Address Line 1</label>
+                                        <input type="text" class="form-control" id="customerAddress1" name="customer_address1" placeholder="Enter address line 1" >
+                                    </div>
+                                    <div class="col-12">
+                                        <label class="form-label">Address Line 2</label>
+                                        <input type="text" class="form-control" id="customerAddress2" name="customer_address2" placeholder="Enter address line 2">
+                                    </div>
+                                    <div class="col-md-6">
+                                        <label class="form-label">State</label>
+                                        <input type="text" class="form-control" id="customerState" name="customer_state" placeholder="Enter state">
+                                    </div>
+                                    <div class="col-md-6">
+                                        <label class="form-label">ZIP Code</label>
+                                        <input type="number" class="form-control" id="customerZip" name="customer_zip" placeholder="Enter ZIP code">
+                                    </div>
+                                    <div class="col-12">
+                                        <label class="form-label">Special Requests</label>
+                                        <textarea class="form-control" id="customerSpecialRequests" name="customer_special_requests" rows="3" placeholder="Enter any special requests or notes"></textarea>
+                                    </div>
                                 </div>
                             </div>
                         </div>
@@ -895,7 +904,7 @@
                                     <p class="text-muted mb-0" id="bookingsSummary">No bookings added yet</p>
                                 </div>
                                 <div>
-                                    <button type="button" class="btn btn-success btn-lg px-5 me-3" id="savePackageBtn" onclick="handleSavePackage(this)">
+                                    <button type="button" class="btn btn-lg px-5 me-3" id="savePackageBtn" onclick="handleSavePackage(this)" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: #ffffff; border: none;">
                                         <i class="ri-save-line me-2"></i>Save Tour Package
                                     </button>
                                     <a href="{{ route('single-tour-package.index') }}" class="btn btn-outline-secondary btn-lg px-5">
