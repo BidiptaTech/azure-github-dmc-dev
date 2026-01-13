@@ -13,8 +13,9 @@
         body {
             font-family: Arial, sans-serif;
             font-size: 11px;
-            color: #000;
+            color: #333;
             padding: 20px;
+            background-color: #ffffff;
         }
         table {
             width: 100%;
@@ -43,12 +44,113 @@
             page-break-after: avoid;
         }
         .header {
-            text-align: center;
+            width: 100%;
             margin-bottom: 20px;
         }
+        .header-table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+        .header-table td {
+            vertical-align: top;
+            padding: 5px;
+        }
+        .header-left {
+            width: 25%;
+        }
+        .header-center {
+            width: 45%;
+            text-align: center;
+            padding-top: 15px;
+        }
+        .header-right {
+            width: 30%;
+            text-align: right;
+        }
         .header h1 {
-            font-size: 24px;
-            margin-bottom: 5px;
+            font-size: 36px;
+            margin-bottom: 0;
+            font-weight: bold;
+            margin-top: 0;
+            color: #333;
+            letter-spacing: 2px;
+        }
+        .header .dmc-name {
+            font-size: 18px;
+            font-weight: bold;
+            margin-top: 15px;
+            margin-bottom: 0;
+            color: #333;
+        }
+        .invoice-number-badge {
+            background-color: #20B2AA;
+            color: #ffffff;
+            padding: 10px 15px;
+            border-radius: 8px;
+            display: inline-block;
+            font-size: 12px;
+            font-weight: bold;
+            margin-top: 5px;
+        }
+        .invoice-number-badge strong {
+            display: block;
+            margin-bottom: 3px;
+        }
+        .info-section {
+            margin-bottom: 20px;
+            background-color: #f5f5f5;
+            border-radius: 8px;
+            padding: 15px;
+            border: 1px solid #e0e0e0;
+        }
+        .info-section-title {
+            font-weight: bold;
+            font-size: 13px;
+            margin-bottom: 12px;
+            color: #555;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            padding-bottom: 8px;
+            border-bottom: 2px solid #ccc;
+        }
+        .info-row {
+            margin-bottom: 8px;
+            font-size: 11px;
+            line-height: 1.6;
+        }
+        .info-label {
+            font-weight: bold;
+            display: inline-block;
+            min-width: 140px;
+            color: #555;
+        }
+        .info-value {
+            display: inline;
+            color: #333;
+        }
+        .info-box-container {
+            width: 100%;
+            margin-bottom: 20px;
+        }
+        .info-box-container-table {
+            width: 100%;
+            border-collapse: collapse;
+            border-spacing: 0;
+        }
+        .info-box-container-table td {
+            vertical-align: top;
+            padding: 0;
+            width: 50%;
+        }
+        .info-box-left {
+            padding-right: 10px;
+        }
+        .info-box-right {
+            padding-left: 10px;
+        }
+        .currency-conversion-section {
+            page-break-inside: avoid;
+            break-inside: avoid;
         }
         .invoice-info {
             margin-bottom: 15px;
@@ -64,6 +166,8 @@
         }
         .currency-section {
             margin-top: 20px;
+            page-break-inside: avoid;
+            break-inside: avoid;
         }
         .currency-table {
             width: 50%;
@@ -115,190 +219,226 @@
         .mt-2 {
             margin-top: 8px;
         }
-        .header-top {
-            text-align: center;
-            margin-bottom: 16px;
-            padding: 12px;
-            border-bottom: 1px solid #ddd;
-        }
         .dmc-logo-wrapper {
-            width: 80px;
-            height: 80px;
-            border-radius: 50%;
-            background-color: #f8f8f8;
-            border: 1px solid #ddd;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            margin: 0 auto;
+            text-align: left;
+            padding: 0;
+        }
+        .dmc-logo-wrapper img {
+            max-width: 150px;
+            max-height: 80px;
+            height: auto;
         }
         .dmc-logo {
-            max-width: 70px;
-            max-height: 70px;
+            max-width: 90px;
+            max-height: 90px;
             object-fit: contain;
+        }
+        .client-info-table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 10px;
+        }
+        .client-info-table th {
+            background-color: #555;
+            color: #ffffff;
+            padding: 10px;
+            text-align: left;
+            font-size: 11px;
+            font-weight: bold;
+            text-transform: uppercase;
+        }
+        .client-info-table td {
+            padding: 10px;
+            border: 1px solid #ddd;
+            background-color: #ffffff;
+            font-size: 11px;
+        }
+        .footer-section {
+            margin-top: 30px;
+            padding-top: 20px;
+            border-top: 2px solid #e0e0e0;
+            text-align: center;
+        }
+        .footer-company-name {
+            font-size: 16px;
+            font-weight: bold;
+            color: #333;
+            margin-bottom: 10px;
+        }
+        .footer-contact {
+            font-size: 11px;
+            color: #666;
+            line-height: 1.8;
         }
     </style>
 </head>
 <body>
     <!-- Header -->
-    <div class="header">
-        @php
-            $dmcUser = $invoice->dmc;
-            // Resolve root DMC through created_by chain (for sales head / managers)
+    @php
+        $dmcUser = $invoice->dmc;
+        // Resolve root DMC through created_by chain (for sales head / managers)
+        $rootDmc = $dmcUser;
+        $visited = [];
+        while ($rootDmc && $rootDmc->role_id != 11 && $rootDmc->created_by && !in_array($rootDmc->created_by, $visited)) {
+            $visited[] = $rootDmc->created_by;
+            $rootDmc = \App\Models\User::where('userId', $rootDmc->created_by)->first();
+        }
+        if (!$rootDmc) {
             $rootDmc = $dmcUser;
-            $visited = [];
-            while ($rootDmc && $rootDmc->role_id != 11 && $rootDmc->created_by && !in_array($rootDmc->created_by, $visited)) {
-                $visited[] = $rootDmc->created_by;
-                $rootDmc = \App\Models\User::where('userId', $rootDmc->created_by)->first();
-            }
-            if (!$rootDmc) {
-                $rootDmc = $dmcUser;
-            }
-            $dmcLogo = $rootDmc->logo ?? $dmcUser->logo ?? null;
-            $dmcCompanyName = $rootDmc->company_name ?? $dmcUser->company_name ?? 'DMC Name';
+        }
+        $dmcLogo = $rootDmc->logo ?? $dmcUser->logo ?? null;
+        $dmcCompanyName = $rootDmc->company_name ?? $dmcUser->company_name ?? 'DMC Name';
 
-            // Build a data URI for DomPDF from local path or remote URL
-            $dmcLogoSrc = null;
-            if ($dmcLogo) {
-                try {
-                    // If it's already a data URI, just use it
-                    if (preg_match('/^data:image\\//i', $dmcLogo)) {
-                        $dmcLogoSrc = $dmcLogo;
+        // Build a data URI for DomPDF from local path or remote URL
+        $dmcLogoSrc = null;
+        if ($dmcLogo) {
+            try {
+                // If it's already a data URI, just use it
+                if (preg_match('/^data:image\\//i', $dmcLogo)) {
+                    $dmcLogoSrc = $dmcLogo;
+                } else {
+                    // Decide source: remote URL or local file
+                    if (preg_match('/^https?:\\/\\//i', $dmcLogo)) {
+                        $logoContent = @file_get_contents($dmcLogo);
                     } else {
-                        // Decide source: remote URL or local file
-                        if (preg_match('/^https?:\\/\\//i', $dmcLogo)) {
-                            $logoContent = @file_get_contents($dmcLogo);
-                        } else {
-                            $logoPath = public_path(ltrim($dmcLogo, '/'));
-                            $logoContent = @file_get_contents($logoPath);
-                        }
-                        if ($logoContent) {
-                            $base64 = base64_encode($logoContent);
-                            $dmcLogoSrc = 'data:image/png;base64,' . $base64;
-                        }
+                        $logoPath = public_path(ltrim($dmcLogo, '/'));
+                        $logoContent = @file_get_contents($logoPath);
                     }
-                } catch (\Exception $e) {
-                    $dmcLogoSrc = null;
+                    if ($logoContent) {
+                        $base64 = base64_encode($logoContent);
+                        $dmcLogoSrc = 'data:image/png;base64,' . $base64;
+                    }
                 }
+            } catch (\Exception $e) {
+                $dmcLogoSrc = null;
             }
-        @endphp
-        @if($dmcLogoSrc)
-        <div class="header-top">
-            <div class="dmc-logo-wrapper">
-                <img src="{{ $dmcLogoSrc }}" class="dmc-logo" />
-            </div>
-        </div>
-        @endif
-        <h1>INVOICE</h1>
-        <p><strong>{{ $dmcCompanyName }}</strong></p>
-        <p>Invoice Number: <strong>{{ $invoice->invoice_number ?? 'DRAFT' }}</strong></p>
+        }
+    @endphp
+    <div class="header">
+        <table class="header-table">
+            <tr>
+                <td class="header-left">
+                    @if($dmcLogoSrc)
+                    <div class="dmc-logo-wrapper">
+                        <img src="{{ $dmcLogoSrc }}" class="dmc-logo" />
+                    </div>
+                    @endif
+                </td>
+                <td class="header-center">
+                    <h1>INVOICE</h1>
+                    <div class="dmc-name">{{ $dmcCompanyName }}</div>
+                </td>
+                <td class="header-right">
+                    <div class="invoice-number-badge">
+                        <strong>Invoice Number:</strong>
+                        {{ $invoice->invoice_number ?? 'DRAFT' }}
+                    </div>
+                </td>
+            </tr>
+        </table>
     </div>
 
-    <!-- Client/Guest Information -->
-    <table class="invoice-info">
-        <tr>
-            <td colspan="3"><strong>Client/Guest Information:</strong></td>
-        </tr>
-        @php
-            $clientDetails = $invoice->client_details ?? [];
-        @endphp
-        <tr>
-            <td>Address:</td>
-            <td colspan="2">{{ $clientDetails['address'] ?? '' }}</td>
-        </tr>
-        <tr>
-            <td>State:</td>
-            <td>{{ $clientDetails['city'] ?? '' }}</td>
-            <td>Postal Code: {{ $clientDetails['postal_code'] ?? '' }}</td>
-        </tr>
-        <tr>
-            <td>Email:</td>
-            <td>{{ $clientDetails['email'] ?? '' }}</td>
-            <td>Phone: {{ $clientDetails['phone'] ?? '' }}</td>
-        </tr>
-        <tr>
-            <td>Booking ID:</td>
-            <td>{{ $clientDetails['booking_id'] ?? '' }}</td>
-            <td>Lead Guest: {{ $clientDetails['lead_guest_name'] ?? '' }}</td>
-        </tr>
-        <tr>
-            <td>No. of Adults:</td>
-            <td>{{ $invoice->no_of_adults ?? 0 }}</td>
-            <td>No. of Children: {{ $invoice->no_of_children ?? 0 }}</td>
-        </tr>
-        <tr>
-            <td>No. of Infants:</td>
-            <td colspan="2">{{ $invoice->no_of_infants ?? 0 }}</td>
-        </tr>
-    </table>
-
-    <!-- Invoice Details -->
-    <table class="invoice-info" style="width: 50%; float: right;">
-        <tr>
-            <td><strong>Invoice Details:</strong></td>
-        </tr>
-        <tr>
-            <td>Postal / Pin: {{ $clientDetails['postal_code'] ?? '' }}</td>
-        </tr>
-        <tr>
-            <td>Invoice Date: {{ $invoice->invoice_date ? \Carbon\Carbon::parse($invoice->invoice_date)->format('jS M Y') : '' }}</td>
-        </tr>
-        <tr>
-            <td>Due Date: {{ $invoice->due_date ? \Carbon\Carbon::parse($invoice->due_date)->format('jS M Y') : '' }}</td>
-        </tr>
-        <tr>
-            <td>Invoice Sent by: {{ $invoice->sent_by ?? '' }}</td>
-        </tr>
-    </table>
-
-    <div style="clear: both;"></div>
-
-    <!-- Travel Company/Agent Information -->
     @php
+        $clientDetails = $invoice->client_details ?? [];
         $travelCompany = $invoice->travel_company_details ?? [];
     @endphp
-    @if(!empty($travelCompany))
-    <table class="invoice-info">
-        <tr>
-            <td colspan="2"><strong>Travel Company / Agent Name:</strong> {{ $travelCompany['name'] ?? '' }}</td>
-        </tr>
-        @if(!empty($travelCompany['company_name']))
-        <tr>
-            <td>Travel Agency:</td>
-            <td>{{ $travelCompany['company_name'] ?? '' }}</td>
-        </tr>
-        @endif
-        <tr>
-            <td>Address:</td>
-            <td>{{ $travelCompany['address'] ?? '' }}</td>
-        </tr>
-        <tr>
-            <td>Contact Person:</td>
-            <td>{{ $travelCompany['contact_person'] ?? '' }}</td>
-        </tr>
-        <tr>
-            <td>Phone:</td>
-            <td>{{ $travelCompany['phone'] ?? '' }}</td>
-        </tr>
-        <tr>
-            <td>Email:</td>
-            <td>{{ $travelCompany['email'] ?? '' }}</td>
-        </tr>
-    </table>
-    @endif
 
-    <!-- Travel Dates & Destination -->
-    <table class="invoice-info">
-        <tr>
-            <td><strong>Destination:</strong> {{ $invoice->destination ?? '' }}</td>
-        </tr>
-        <tr>
-            <td><strong>Travel Date:</strong></td>
-            <td><strong>From:</strong> {{ $invoice->travel_from_date ? \Carbon\Carbon::parse($invoice->travel_from_date)->format('jS M Y') : '' }}</td>
-            <td><strong>To:</strong> {{ $invoice->travel_to_date ? \Carbon\Carbon::parse($invoice->travel_to_date)->format('jS M Y') : '' }}</td>
-            <td><strong>Duration / No of Days:</strong> {{ $invoice->duration_days ?? '' }} days</td>
-        </tr>
-    </table>
+    <!-- Client/Guest Information -->
+    <div class="info-section">
+        <div class="info-section-title">Client/Guest Information</div>
+        <div class="info-row">
+            <span class="info-label">Address:</span>
+            <span class="info-value">{{ $clientDetails['address'] ?? '' }}</span>
+        </div>
+        <div class="info-row">
+            <span class="info-label">State:</span>
+            <span class="info-value">{{ $clientDetails['city'] ?? '' }}</span>
+            <span class="info-label" style="margin-left: 30px;">Postal Code:</span>
+            <span class="info-value">{{ $clientDetails['postal_code'] ?? '' }}</span>
+        </div>
+        <div class="info-row">
+            <span class="info-label">Email:</span>
+            <span class="info-value">{{ $clientDetails['email'] ?? '' }}</span>
+            <span class="info-label" style="margin-left: 30px;">Phone:</span>
+            <span class="info-value">{{ $clientDetails['phone'] ?? '' }}</span>
+        </div>
+        <div class="info-row">
+            <span class="info-label">Booking ID:</span>
+            <span class="info-value">{{ $clientDetails['booking_id'] ?? '' }}</span>
+            <span class="info-label" style="margin-left: 30px;">Lead Guest:</span>
+            <span class="info-value">{{ $clientDetails['lead_guest_name'] ?? '' }}</span>
+        </div>
+        <div class="info-row">
+            <span class="info-label">No. of Adults:</span>
+            <span class="info-value">{{ $invoice->no_of_adults ?? 0 }}</span>
+            <span class="info-label" style="margin-left: 30px;">No. of Children:</span>
+            <span class="info-value">{{ $invoice->no_of_children ?? 0 }}</span>
+            <span class="info-label" style="margin-left: 30px;">No. of Infants:</span>
+            <span class="info-value">{{ $invoice->no_of_infants ?? 0 }}</span>
+        </div>
+    </div>
+
+    <!-- Travel Company / Agent -->
+    <div class="info-section">
+        <div class="info-section-title">Travel Company / Agent</div>
+        @if(!empty($travelCompany['company_name']))
+        <div class="info-row">
+            <span class="info-label">Travel Agency:</span>
+            <span class="info-value">{{ $travelCompany['company_name'] ?? '' }}</span>
+        </div>
+        @endif
+        @if(!empty($travelCompany))
+        <div class="info-row">
+            <span class="info-label">Travel Agent:</span>
+            <span class="info-value">{{ $travelCompany['name'] ?? '' }}</span>
+        </div>
+        <div class="info-row">
+            <span class="info-label">Address:</span>
+            <span class="info-value">{{ $travelCompany['address'] ?? '' }}</span>
+        </div>
+        <div class="info-row">
+            <span class="info-label">Contact Person:</span>
+            <span class="info-value">{{ $travelCompany['contact_person'] ?? '' }}</span>
+        </div>
+        <div class="info-row">
+            <span class="info-label">Phone:</span>
+            <span class="info-value">{{ $travelCompany['phone'] ?? '' }}</span>
+        </div>
+        <div class="info-row">
+            <span class="info-label">Email:</span>
+            <span class="info-value">{{ $travelCompany['email'] ?? '' }}</span>
+        </div>
+        @endif
+        <div class="info-row">
+            <span class="info-label">Invoice Date:</span>
+            <span class="info-value">{{ $invoice->invoice_date ? \Carbon\Carbon::parse($invoice->invoice_date)->format('jS M Y') : '' }}</span>
+        </div>
+        <div class="info-row">
+            <span class="info-label">Due Date:</span>
+            <span class="info-value">{{ $invoice->due_date ? \Carbon\Carbon::parse($invoice->due_date)->format('jS M Y') : '' }}</span>
+        </div>
+        <div class="info-row">
+            <span class="info-label">Invoice Sent By:</span>
+            <span class="info-value">{{ $invoice->sent_by ?? '' }}</span>
+        </div>
+    </div>
+
+    <!-- Travel Summary -->
+    <div class="info-section">
+        <div class="info-section-title">Travel Summary</div>
+        <div class="info-row">
+            <span class="info-label">Destination:</span>
+            <span class="info-value">{{ $invoice->destination ?? '' }}</span>
+        </div>
+        <div class="info-row">
+            <span class="info-label">Travel Date:</span>
+            <span class="info-value">
+                <strong>From:</strong> {{ $invoice->travel_from_date ? \Carbon\Carbon::parse($invoice->travel_from_date)->format('jS M Y') : '' }}
+                <strong style="margin-left: 15px;">To:</strong> {{ $invoice->travel_to_date ? \Carbon\Carbon::parse($invoice->travel_to_date)->format('jS M Y') : '' }}
+                <strong style="margin-left: 15px;">Duration / No of Days:</strong> {{ $invoice->duration_days ?? '' }} days
+            </span>
+        </div>
+    </div>
 
     <!-- Service Description (Without Prices) -->
     <div class="section-title">Description</div>
@@ -1077,7 +1217,6 @@
     @endif
 
     <div style="clear: both;"></div>
-
     <!-- Payment Terms and Bank Details -->
     @php
         // Fetch bank details from database based on tour's dmc_id
