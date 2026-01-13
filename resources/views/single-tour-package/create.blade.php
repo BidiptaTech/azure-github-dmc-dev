@@ -839,7 +839,7 @@
                                     <i class="ri-user-line fs-5 text-white" style="color: #ffffff !important;"></i>
                                 </div>
                                 <div>
-                                    <h6 class="mb-0 fw-bold text-white" style="color: #ffffff !important; font-size: 1.1rem;">Customer Information</h6>
+                                    <h6 class="mb-0 fw-bold text-white" style="color: #ffffff !important; font-size: 1.1rem;">Lead Guest information</h6>
                                     <small class="text-white-75" style="color: rgba(255, 255, 255, 0.85) !important; font-size: 0.85rem;">Manage customer details and contact information</small>
                                 </div>
                             </div>
@@ -891,6 +891,41 @@
                 </div>
             </div>
 
+            <!-- Additional Guests Section -->
+            <div class="accordion mb-4" id="additionalGuestsAccordion">
+                <div class="accordion-item border-0">
+                    <div class="card shadow-sm border-0">
+                        <div class="card-header text-white d-flex justify-content-between align-items-center" role="button" data-bs-toggle="collapse" data-bs-target="#additionalGuestsSection" aria-expanded="true" aria-controls="additionalGuestsSection" style="cursor: pointer; background: linear-gradient(135deg, #0dcaf0 0%, #0d6efd 100%); border: none; padding: 1.25rem 1.75rem;">
+                            <div class="d-flex align-items-center">
+                                <div style="width: 40px; height: 40px; background: rgba(255, 255, 255, 0.2); border-radius: 10px; display: flex; align-items: center; justify-content: center; margin-right: 12px;">
+                                    <i class="ri-group-line fs-5 text-white" style="color: #ffffff !important;"></i>
+                                </div>
+                                <div>
+                                    <h6 class="mb-0 fw-bold text-white" style="color: #ffffff !important; font-size: 1.1rem;">Additional Guest(s)</h6>
+                                    <small class="text-white-75" style="color: rgba(255, 255, 255, 0.85) !important; font-size: 0.85rem;">
+                                        Add guest details up to the tour pax (Adults + Children)
+                                    </small>
+                                </div>
+                            </div>
+                            <button type="button" class="btn btn-sm btn-light" id="addGuestBtn" onclick="addAdditionalGuest()" style="font-size: 0.8rem; font-weight: 600;">
+                                <i class="ri-add-line me-1"></i>Add Guest
+                            </button>
+                        </div>
+                        <div id="additionalGuestsSection" class="collapse show">
+                            <div class="card-body" style="background: #ffffff; padding: 1.25rem;">
+                                <div id="additionalGuestsContainer">
+                                    <!-- Additional guests will be rendered here -->
+                                </div>
+                                <div class="mt-3 small" id="guestLimitInfo" style="padding: 10px; background: #e7f3ff; border-radius: 6px; border: 1px solid #b3d9ff;">
+                                    <i class="ri-information-line me-1"></i>
+                                    Maximum <span id="maxAdditionalGuests">0</span> additional guest(s) can be added based on total pax (Adults + Children): <span id="totalPaxCount">0</span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
             <!-- Final Submit Section -->
             <div class="row mb-5" id="submitSection">
                 <div class="col-12">
@@ -921,6 +956,166 @@
                 
                 // DMC User data for zone handling
                 const UserDmc = @json($dmcUser);
+
+                // ==============================
+                // Additional Guests Management
+                // ==============================
+
+                let additionalGuestCount = 0;
+
+                // Get total pax (Adults + Children)
+                function getTotalPax() {
+                    const adults = parseInt(document.getElementById('adults')?.value || 1);
+                    const children = parseInt(document.getElementById('children')?.value || 0);
+                    return adults + children;
+                }
+
+                // Max additional guests = total pax (Adults + Children)
+                function getMaxAdditionalGuests() {
+                    const totalPax = getTotalPax();
+                    return Math.max(0, totalPax);
+                }
+
+                function updateGuestLimitInfo() {
+                    const totalPax = getTotalPax();
+                    const maxGuests = getMaxAdditionalGuests();
+
+                    const totalPaxSpan = document.getElementById('totalPaxCount');
+                    const maxGuestsSpan = document.getElementById('maxAdditionalGuests');
+                    const addBtn = document.getElementById('addGuestBtn');
+
+                    if (totalPaxSpan) totalPaxSpan.textContent = totalPax;
+                    if (maxGuestsSpan) maxGuestsSpan.textContent = maxGuests;
+
+                    if (addBtn) {
+                        if (additionalGuestCount >= maxGuests || maxGuests === 0) {
+                            addBtn.disabled = true;
+                            addBtn.classList.add('disabled');
+                        } else {
+                            addBtn.disabled = false;
+                            addBtn.classList.remove('disabled');
+                        }
+                    }
+                }
+
+                function addAdditionalGuest() {
+                    const maxGuests = getMaxAdditionalGuests();
+
+                    if (maxGuests === 0) {
+                        alert('Total pax (Adults + Children) is 0. Please set pax before adding additional guests.');
+                        return;
+                    }
+
+                    if (additionalGuestCount >= maxGuests) {
+                        alert('Maximum number of additional guests reached. Maximum allowed: ' + maxGuests);
+                        return;
+                    }
+
+                    const guestIndex = additionalGuestCount + 1;
+
+                    const guestHtml = `
+                        <div class="card mb-3 border guest-card" data-guest-index="${guestIndex}">
+                            <div class="card-header bg-light d-flex justify-content-between align-items-center">
+                                <h6 class="mb-0 fw-semibold">
+                                    <i class="ri-user-line me-2"></i>Guest ${guestIndex}
+                                </h6>
+                                <button type="button" class="btn btn-sm btn-outline-danger" onclick="removeAdditionalGuest(${guestIndex})">
+                                    <i class="ri-delete-bin-line me-1"></i>Remove
+                                </button>
+                            </div>
+                            <div class="card-body">
+                                <div class="row g-3">
+                                    <div class="col-md-3">
+                                        <label class="form-label">Salutation <span class="text-danger">*</span></label>
+                                        <select class="form-select" name="additional_guests[${guestIndex}][salutation]" required>
+                                            <option value="">Select</option>
+                                            <option value="Mr">Mr</option>
+                                            <option value="Mrs">Mrs</option>
+                                            <option value="Ms">Ms</option>
+                                            <option value="Miss">Miss</option>
+                                            <option value="Dr">Dr</option>
+                                        </select>
+                                    </div>
+                                    <div class="col-md-3">
+                                        <label class="form-label">Name <span class="text-danger">*</span></label>
+                                        <input type="text" class="form-control" name="additional_guests[${guestIndex}][name]" placeholder="Enter full name" required>
+                                    </div>
+                                    <div class="col-md-3">
+                                        <label class="form-label">Passport No.</label>
+                                        <input type="text" class="form-control" name="additional_guests[${guestIndex}][passport_no]" placeholder="Enter passport number">
+                                    </div>
+                                    <div class="col-md-3">
+                                        <label class="form-label">Passport Expiry</label>
+                                        <input type="date" class="form-control" name="additional_guests[${guestIndex}][passport_exp]" placeholder="Passport expiry date">
+                                    </div>
+                                    <div class="col-md-4 mt-2">
+                                        <label class="form-label">Contact No.</label>
+                                        <input type="text" class="form-control" name="additional_guests[${guestIndex}][contact_no]" placeholder="Enter contact number">
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    `;
+
+                    const container = document.getElementById('additionalGuestsContainer');
+                    if (container) {
+                        container.insertAdjacentHTML('beforeend', guestHtml);
+                        additionalGuestCount++;
+                        updateGuestLimitInfo();
+                    }
+                }
+
+                function removeAdditionalGuest(guestIndex) {
+                    const guestCard = document.querySelector('.guest-card[data-guest-index="' + guestIndex + '"]');
+                    if (guestCard) {
+                        guestCard.remove();
+                        additionalGuestCount--;
+                        renumberAdditionalGuests();
+                        updateGuestLimitInfo();
+                    }
+                }
+
+                function renumberAdditionalGuests() {
+                    const cards = document.querySelectorAll('.guest-card');
+                    additionalGuestCount = cards.length;
+
+                    cards.forEach((card, index) => {
+                        const newIndex = index + 1;
+                        card.setAttribute('data-guest-index', newIndex);
+
+                        const header = card.querySelector('.card-header h6');
+                        if (header) {
+                            header.innerHTML = '<i class="ri-user-line me-2"></i>Guest ' + newIndex;
+                        }
+
+                        const inputs = card.querySelectorAll('input, select');
+                        inputs.forEach(input => {
+                            const name = input.getAttribute('name');
+                            if (name) {
+                                input.setAttribute('name', name.replace(/additional_guests\[\d+\]/, 'additional_guests[' + newIndex + ']'));
+                            }
+                        });
+
+                        const removeBtn = card.querySelector('button[onclick*="removeAdditionalGuest"]');
+                        if (removeBtn) {
+                            removeBtn.setAttribute('onclick', 'removeAdditionalGuest(' + newIndex + ')');
+                        }
+                    });
+                }
+
+                document.addEventListener('DOMContentLoaded', function () {
+                    updateGuestLimitInfo();
+
+                    const adultsInput = document.getElementById('adults');
+                    const childrenInput = document.getElementById('children');
+
+                    if (adultsInput) {
+                        adultsInput.addEventListener('change', updateGuestLimitInfo);
+                    }
+                    if (childrenInput) {
+                        childrenInput.addEventListener('change', updateGuestLimitInfo);
+                    }
+                });
                 
                 // Define calculateCorrectMealCosts early to ensure it's available
                 window.calculateCorrectMealCosts = function(mealPlan, numNights, adults, children, mealPrices, numRooms) {
@@ -4416,6 +4611,40 @@
                             return false;
                         }
                         
+                        // Collect main guest data
+                        const mainGuestData = {
+                            full_name: document.getElementById('customerFullName')?.value || '',
+                            email: document.getElementById('customerEmail')?.value || '',
+                            country_code: document.getElementById('customerCountryCode')?.value || '',
+                            phone: document.getElementById('customerPhone')?.value || '',
+                            address1: document.getElementById('customerAddress1')?.value || '',
+                            address2: document.getElementById('customerAddress2')?.value || '',
+                            state: document.getElementById('customerState')?.value || '',
+                            zip: document.getElementById('customerZip')?.value || '',
+                            special_requests: document.getElementById('customerSpecialRequests')?.value || ''
+                        };
+
+                        // Collect additional guests data
+                        const additionalGuests = [];
+                        const guestCards = document.querySelectorAll('.guest-card');
+                        guestCards.forEach((card) => {
+                            const inputs = card.querySelectorAll('input, select');
+                            const guestData = {};
+                            inputs.forEach(input => {
+                                const name = input.getAttribute('name');
+                                if (name && name.includes('additional_guests')) {
+                                    const fieldName = name.match(/\[(\d+)\]\[(\w+)\]/);
+                                    if (fieldName) {
+                                        const fieldKey = fieldName[2];
+                                        guestData[fieldKey] = input.value || '';
+                                    }
+                                }
+                            });
+                            if (Object.keys(guestData).length > 0) {
+                                additionalGuests.push(guestData);
+                            }
+                        });
+
                         // Prepare form data for tour creation
                         const tourFormData = new FormData();
                         tourFormData.append('_token', document.querySelector('input[name="_token"]').value);
@@ -4430,6 +4659,8 @@
                         tourFormData.append('child_ages', childAgesData);
                         tourFormData.append('agent_id', agent);
                         tourFormData.append('enquiry_id', enquiry?enquiry.enquiry_id:0);
+                        tourFormData.append('mainguest', JSON.stringify(mainGuestData));
+                        tourFormData.append('additionalguest', JSON.stringify(additionalGuests));
                         
                         // Send AJAX request to create tour
                         try {

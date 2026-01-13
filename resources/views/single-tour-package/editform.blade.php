@@ -516,63 +516,8 @@
         </div>
         @endif
 
-        @if(!isset($customer_info))
-            <!-- Customer Information Section -->
-            <div class="row mb-4">
-                <div class="col-12">
-                    <div class="card shadow-sm border-0">
-                        <div class="card-header bg-gradient-primary text-white">
-                            <h6 class="mb-0 fw-bold">
-                                <i class="ri-user-line me-2"></i>Customer Information
-                            </h6>
-                        </div>
-                        <div class="card-body mt-3">
-                            <div class="row g-3">
-                                <div class="col-md-6">
-                                    <label class="form-label">Full Name</label>
-                                    <input type="text" class="form-control" id="customerFullName" name="customer_full_name" placeholder="Enter full name" value="{{ $customer_info['fullName'] ?? '' }}">
-                                </div>
-                                <div class="col-md-6">
-                                    <label class="form-label">Email</label>
-                                    <input type="email" class="form-control" id="customerEmail" name="customer_email" placeholder="Enter email" value="{{ $customer_info['email'] ?? '' }}">
-                                </div>
-                                <div class="col-md-3">
-                                    <label class="form-label">Country Code</label>
-                                    <input type="text" class="form-control" id="customerCountryCode" name="customer_country_code" placeholder="e.g. +91" value="{{ $customer_info['countryCode'] ?? '' }}">
-                                </div>
-                                <div class="col-md-9">
-                                    <label class="form-label">Phone Number</label>
-                                    <input type="tel" class="form-control" id="customerPhone" name="customer_phone" placeholder="Enter phone number" value="{{ $customer_info['phone'] ?? '' }}">
-                                </div>
-                                <div class="col-12">
-                                    <label class="form-label">Address Line 1</label>
-                                    <input type="text" class="form-control" id="customerAddress1" name="customer_address1" placeholder="Enter address line 1" value="{{ $customer_info['address1'] ?? '' }}">
-                                </div>
-                                <div class="col-12">
-                                    <label class="form-label">Address Line 2</label>
-                                    <input type="text" class="form-control" id="customerAddress2" name="customer_address2" placeholder="Enter address line 2" value="{{ $customer_info['address2'] ?? '' }}">
-                                </div>
-                                <div class="col-md-6">
-                                    <label class="form-label">State</label>
-                                    <input type="text" class="form-control" id="customerState" name="customer_state" placeholder="Enter state" value="{{ $customer_info['state'] ?? '' }}">
-                                </div>
-                                <div class="col-md-6">
-                                    <label class="form-label">ZIP Code</label>
-                                    <input type="text" class="form-control" id="customerZip" name="customer_zip" placeholder="Enter ZIP code" value="{{ $customer_info['zip'] ?? '' }}">
-                                </div>
-                                <div class="col-12">
-                                    <label class="form-label">Special Requests</label>
-                                    <textarea class="form-control" id="customerSpecialRequests" name="customer_special_requests" rows="3" placeholder="Enter any special requests or notes">{{ $customer_info['specialRequests'] ?? '' }}</textarea>
-                                </div>  
-                            </div>
-                        </div>
-                    </div>
-                </div>
-            </div>
-        @endif
-        
 
-        <form id="singleTourPackageForm" method="POST" action="{{ route('single-tour-package.store') }}" data-update-info-url="{{ isset($tour) ? route('single-tour-package.update-info', $tour->tour_id) : '' }}">
+        <form id="singleTourPackageForm" method="POST" action="{{ route('single-tour-package.store') }}" data-update-info-url="{{ isset($tour) ? route('single-tour-package.update-info', $tour->tour_id) : '' }}" data-update-guests-url="{{ isset($tour) ? route('single-tour-package.update-guests', $tour->tour_id) : '' }}">
             @csrf
             
             <!-- Main Form Card - All in One Row -->
@@ -705,9 +650,20 @@
                     </div>
                 </div>
             </div>
+        @php
+            $additionalGuests = [];
+            if (isset($tour->additionalguest)) {
+                if (is_string($tour->additionalguest)) {
+                    $decoded = json_decode($tour->additionalguest, true);
+                    $additionalGuests = is_array($decoded) ? $decoded : [];
+                } elseif (is_array($tour->additionalguest)) {
+                    $additionalGuests = $tour->additionalguest;
+                }
+            }
+        @endphp
         </form>
         <!-- End of main tour information form -->
-
+        
             <!-- Service Action Buttons -->
 
             <!-- Hotel Accommodation Section -->
@@ -3795,6 +3751,127 @@
                                         </div>
                                     </div>
                                     </div> <!-- end departureTransportSection collapse -->
+                                </div>
+                            </div>
+
+                            <!-- Combined Guest Information Section (Lead Guest + Additional Guests in same grid) -->
+                            <div class="row mb-4">
+                                <div class="col-12">
+                                    <div class="card shadow-sm border-0">
+                                        <div class="card-header bg-gradient-primary text-white">
+                                            <h6 class="mb-0 fw-bold">
+                                                <i class="ri-group-line me-2"></i>Guest Information
+                                            </h6>
+                                            <small class="d-block mt-1" style="font-size: 0.85rem;">
+                                                Manage lead guest and additional guest details
+                                            </small>
+                                        </div>
+                                        <div class="card-body mt-3">
+                                            @if(isset($customer_info) && !empty($customer_info))
+                                                <!-- Lead Guest Section -->
+                                                <div class="mb-4 pb-3 border-bottom">
+                                                    <h6 class="fw-semibold mb-3 text-primary">
+                                                        <i class="ri-user-star-line me-2"></i>Lead Guest
+                                                    </h6>
+                                                    <div class="row g-3">
+                                                        <div class="col-md-6">
+                                                            <label class="form-label">Full Name</label>
+                                                            <input type="text" class="form-control" id="customerFullName" name="customer_full_name" placeholder="Enter full name" value="{{ $customer_info['fullName'] ?? '' }}">
+                                                        </div>
+                                                        <div class="col-md-6">
+                                                            <label class="form-label">Email</label>
+                                                            <input type="email" class="form-control" id="customerEmail" name="customer_email" placeholder="Enter email" value="{{ $customer_info['email'] ?? '' }}">
+                                                        </div>
+                                                        <div class="col-md-3">
+                                                            <label class="form-label">Country Code</label>
+                                                            <input type="text" class="form-control" id="customerCountryCode" name="customer_country_code" placeholder="e.g. +91" value="{{ $customer_info['countryCode'] ?? '' }}">
+                                                        </div>
+                                                        <div class="col-md-9">
+                                                            <label class="form-label">Phone Number</label>
+                                                            <input type="tel" class="form-control" id="customerPhone" name="customer_phone" placeholder="Enter phone number" value="{{ $customer_info['phone'] ?? '' }}">
+                                                        </div>
+                                                        <div class="col-12">
+                                                            <label class="form-label">Address Line 1</label>
+                                                            <input type="text" class="form-control" id="customerAddress1" name="customer_address1" placeholder="Enter address line 1" value="{{ $customer_info['address1'] ?? '' }}">
+                                                        </div>
+                                                        <div class="col-12">
+                                                            <label class="form-label">Address Line 2</label>
+                                                            <input type="text" class="form-control" id="customerAddress2" name="customer_address2" placeholder="Enter address line 2" value="{{ $customer_info['address2'] ?? '' }}">
+                                                        </div>
+                                                        <div class="col-md-6">
+                                                            <label class="form-label">State</label>
+                                                            <input type="text" class="form-control" id="customerState" name="customer_state" placeholder="Enter state" value="{{ $customer_info['state'] ?? '' }}">
+                                                        </div>
+                                                        <div class="col-md-6">
+                                                            <label class="form-label">ZIP Code</label>
+                                                            <input type="text" class="form-control" id="customerZip" name="customer_zip" placeholder="Enter ZIP code" value="{{ $customer_info['zip'] ?? '' }}">
+                                                        </div>
+                                                        <div class="col-12">
+                                                            <label class="form-label">Special Requests</label>
+                                                            <textarea class="form-control" id="customerSpecialRequests" name="customer_special_requests" rows="3" placeholder="Enter any special requests or notes">{{ $customer_info['specialRequests'] ?? '' }}</textarea>
+                                                        </div>  
+                                                    </div>
+                                                </div>
+                                            @endif
+
+                                            <!-- Additional Guests Section -->
+                                            <div class="mb-3">
+                                                <h6 class="fw-semibold mb-3 text-info">
+                                                    <i class="ri-group-line me-2"></i>Additional Guest(s)
+                                                </h6>
+                                                <div id="additionalGuestsContainer">
+                                                    @if(!empty($additionalGuests))
+                                                        @foreach($additionalGuests as $index => $guest)
+                                                            <div class="card mb-3 border guest-card" data-guest-index="{{ $index }}">
+                                                                <div class="card-header bg-light d-flex justify-content-between align-items-center">
+                                                                    <h6 class="mb-0 fw-semibold">
+                                                                        <i class="ri-user-line me-2"></i>Guest {{ $index + 1 }}
+                                                                    </h6>
+                                                                </div>
+                                                                <div class="card-body">
+                                                                    <div class="row g-3">
+                                                                        <div class="col-md-3">
+                                                                            <label class="form-label">Salutation</label>
+                                                                            <input type="text" class="form-control guest-salutation" name="additional_guests[{{ $index }}][salutation]" value="{{ $guest['salutation'] ?? '' }}" placeholder="Mr/Mrs/Ms">
+                                                                        </div>
+                                                                        <div class="col-md-3">
+                                                                            <label class="form-label">Name</label>
+                                                                            <input type="text" class="form-control guest-name" name="additional_guests[{{ $index }}][name]" value="{{ $guest['name'] ?? '' }}" placeholder="Enter full name">
+                                                                        </div>
+                                                                        <div class="col-md-3">
+                                                                            <label class="form-label">Passport No.</label>
+                                                                            <input type="text" class="form-control guest-passport-no" name="additional_guests[{{ $index }}][passport_no]" value="{{ $guest['passport_no'] ?? '' }}" placeholder="Enter passport number">
+                                                                        </div>
+                                                                        <div class="col-md-3">
+                                                                            <label class="form-label">Passport Expiry</label>
+                                                                            <input type="date" class="form-control guest-passport-exp" name="additional_guests[{{ $index }}][passport_exp]" value="{{ $guest['passport_exp'] ?? '' }}">
+                                                                        </div>
+                                                                        <div class="col-md-4">
+                                                                            <label class="form-label">Contact No.</label>
+                                                                            <input type="text" class="form-control guest-contact-no" name="additional_guests[{{ $index }}][contact_no]" value="{{ $guest['contact_no'] ?? '' }}" placeholder="Enter contact number">
+                                                                        </div>
+                                                                    </div>
+                                                                </div>
+                                                            </div>
+                                                        @endforeach
+                                                    @else
+                                                        <div class="text-muted small mb-3">
+                                                            No additional guest information has been added for this tour.
+                                                        </div>
+                                                    @endif
+                                                </div>
+                                            </div>
+
+                                            <!-- Save Changes Button -->
+                                            <div class="d-flex justify-content-end mt-4 pt-3 border-top">
+                                                <button type="button" class="btn btn-primary d-flex align-items-center gap-2" onclick="updateGuestInformation(event)">
+                                                    <span class="spinner-border spinner-border-sm d-none" id="guest_info_spinner"></span>
+                                                    <i class="ri-save-3-line"></i>
+                                                    <span>Save Guest Changes</span>
+                                                </button>
+                                            </div>
+                                        </div>
+                                    </div>
                                 </div>
                             </div>
                         </div>
@@ -18734,6 +18811,121 @@
         }
     }
 
+    // Existing additional guests data made available to JS for updates
+    window.existingAdditionalGuests = @json($additionalGuests ?? []);
+
+    /**
+     * Update only guest information (lead guest + additional guests) via AJAX
+     * Updates tours.mainguest and tours.additionalguest JSON fields only
+     */
+    async function updateGuestInformation(event) {
+        event.preventDefault();
+        
+        const form = document.getElementById('singleTourPackageForm');
+        if (!form) {
+            console.error('Form element not found');
+            showToastr('error', 'Form not found. Please refresh the page.');
+            return;
+        }
+        
+        const url = form.dataset.updateGuestsUrl;
+        const spinner = document.getElementById('guest_info_spinner');
+        const submitButton = event.target.closest('button');
+        
+        const csrfMeta = document.querySelector('meta[name="csrf-token"]');
+        if (!csrfMeta) {
+            console.error('CSRF token meta tag not found');
+            showToastr('error', 'Security token not found. Please refresh the page.');
+            return;
+        }
+        const csrfToken = csrfMeta.getAttribute('content');
+
+        if (!url) {
+            showToastr('error', 'Guest update URL not found.');
+            return;
+        }
+
+        // Collect main guest data
+        const mainGuestData = {
+            full_name: document.getElementById('customerFullName')?.value || '',
+            email: document.getElementById('customerEmail')?.value || '',
+            country_code: document.getElementById('customerCountryCode')?.value || '',
+            phone: document.getElementById('customerPhone')?.value || '',
+            address1: document.getElementById('customerAddress1')?.value || '',
+            address2: document.getElementById('customerAddress2')?.value || '',
+            state: document.getElementById('customerState')?.value || '',
+            zip: document.getElementById('customerZip')?.value || '',
+            special_requests: document.getElementById('customerSpecialRequests')?.value || ''
+        };
+
+        // Collect additional guests data from editable fields
+        const additionalGuests = [];
+        const guestCards = document.querySelectorAll('#additionalGuestsContainer .guest-card');
+        guestCards.forEach((card, index) => {
+            const guest = {
+                salutation: card.querySelector('.guest-salutation')?.value || '',
+                name: card.querySelector('.guest-name')?.value || '',
+                passport_no: card.querySelector('.guest-passport-no')?.value || '',
+                passport_exp: card.querySelector('.guest-passport-exp')?.value || '',
+                contact_no: card.querySelector('.guest-contact-no')?.value || '',
+            };
+            // Only add if at least name is provided
+            if (guest.name.trim() !== '') {
+                additionalGuests.push(guest);
+            }
+        });
+
+        // Prepare form data
+        const formData = new FormData();
+        formData.append('mainguest', JSON.stringify(mainGuestData));
+        formData.append('additionalguest', JSON.stringify(additionalGuests));
+
+        try {
+            submitButton.disabled = true;
+            if (spinner) spinner.classList.remove('d-none');
+
+            const response = await fetch(url, {
+                method: 'POST',
+                headers: {
+                    'X-CSRF-TOKEN': csrfToken,
+                    'Accept': 'application/json',
+                },
+                body: formData
+            });
+
+            let data;
+            try {
+                const responseText = await response.text();
+                if (!responseText) {
+                    throw new Error('Empty response from server');
+                }
+                data = JSON.parse(responseText);
+            } catch (parseError) {
+                console.error('Error parsing response:', parseError);
+                throw new Error('Invalid response from server. Please try again.');
+            }
+
+            if (!response.ok || !data.success) {
+                let errorMessage = data.message || 'Unable to save guest information right now.';
+                showToastr('error', errorMessage);
+                return;
+            }
+
+            // Success
+            showToastr('success', data.message || 'Guest details updated successfully.');
+            
+            // Optionally reload page to reflect changes
+            // window.location.reload();
+
+        } catch (error) {
+            console.error('Error updating guest information:', error);
+            showToastr('error', 'An error occurred while saving guest information. Please try again.');
+        } finally {
+            submitButton.disabled = false;
+            if (spinner) spinner.classList.add('d-none');
+        }
+    }
+
     async function UpdateTourInformation(event) {
         event.preventDefault();
         
@@ -18811,6 +19003,29 @@
         }
         
         formData.append('child_ages', childAges);
+
+        // Collect main guest data (same structure as create form)
+        const mainGuestData = {
+            full_name: document.getElementById('customerFullName')?.value || '',
+            email: document.getElementById('customerEmail')?.value || '',
+            country_code: document.getElementById('customerCountryCode')?.value || '',
+            phone: document.getElementById('customerPhone')?.value || '',
+            address1: document.getElementById('customerAddress1')?.value || '',
+            address2: document.getElementById('customerAddress2')?.value || '',
+            state: document.getElementById('customerState')?.value || '',
+            zip: document.getElementById('customerZip')?.value || '',
+            special_requests: document.getElementById('customerSpecialRequests')?.value || ''
+        };
+        formData.append('mainguest', JSON.stringify(mainGuestData));
+
+        // Use existing additional guest data from server (read-only view)
+        if (typeof window.existingAdditionalGuests !== 'undefined') {
+            try {
+                formData.append('additionalguest', JSON.stringify(window.existingAdditionalGuests || []));
+            } catch (e) {
+                console.error('Error stringifying additional guests:', e);
+            }
+        }
 
         // Clear previous feedback
         feedback.textContent = '';
