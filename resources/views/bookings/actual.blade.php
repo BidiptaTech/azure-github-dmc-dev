@@ -296,16 +296,33 @@
                             }
                             
                             // Calculate payment status - following confirmed/definite pattern
+                            // Includes: base price + transfer price + guide price (for attractions)
                             $tourTotalPrice = 0;
                             $orders = \App\Models\Order::where('tour_id', $tour->tour_id)->whereNull('deleted_at')->get();
                             foreach($orders as $order) {
                                 if($order->data) {
                                     $orderData = is_string($order->data) ? json_decode($order->data, true) : $order->data;
                                     if(is_array($orderData)) {
-                                        foreach($orderData as $item) {
-                                            if(isset($item['totalPrice'])) {
-                                                $tourTotalPrice += (float)$item['totalPrice'];
+                                        // Handle both single item and array of items
+                                        $items = isset($orderData[0]) && is_array($orderData[0]) ? $orderData : [$orderData];
+                                        foreach($items as $item) {
+                                            if(!is_array($item)) continue;
+                                            
+                                            $itemPrice = (float) ($item['totalPrice'] ?? $item['price'] ?? 0);
+                                            
+                                            // Add transfer price if exists
+                                            $transferPrice = 0;
+                                            if (isset($item['transfer_options']['cost']) && $item['transfer_options']['cost'] > 0) {
+                                                $transferPrice = (float) $item['transfer_options']['cost'];
                                             }
+                                            
+                                            // Add guide price if exists (for attractions)
+                                            $guidePrice = 0;
+                                            if (isset($item['guide_options']['total_price']) && $item['guide_options']['total_price'] > 0) {
+                                                $guidePrice = (float) $item['guide_options']['total_price'];
+                                            }
+                                            
+                                            $tourTotalPrice += $itemPrice + $transferPrice + $guidePrice;
                                         }
                                     }
                                 }
@@ -362,6 +379,11 @@
                                     <small class="text-muted">Tour ID: #{{ $tour->tour_id }}</small>
                                     @if($tour->multi_enq_id)
                                         <small class="text-info">Multi: {{ $tour->multi_enq_id }}</small>
+                                    @endif
+                                    @if($tour->tour_type)
+                                        <small class="text-white" style="display: inline-block; padding: 2px 8px; background: #3b82f6; border-radius: 4px; font-weight: 500;">
+                                            {{ $tour->tour_type }}
+                                        </small>
                                     @endif
                                 </div>
                             </td>
@@ -3612,16 +3634,33 @@
 @foreach($tours as $tour)
     @php
         // Calculate payment details - following confirmed/definite pattern
+        // Includes: base price + transfer price + guide price (for attractions)
         $tourTotalPrice = 0;
         $orders = \App\Models\Order::where('tour_id', $tour->tour_id)->whereNull('deleted_at')->get();
         foreach($orders as $order) {
             if($order->data) {
                 $orderData = is_string($order->data) ? json_decode($order->data, true) : $order->data;
                 if(is_array($orderData)) {
-                    foreach($orderData as $item) {
-                        if(isset($item['totalPrice'])) {
-                            $tourTotalPrice += (float)$item['totalPrice'];
+                    // Handle both single item and array of items
+                    $items = isset($orderData[0]) && is_array($orderData[0]) ? $orderData : [$orderData];
+                    foreach($items as $item) {
+                        if(!is_array($item)) continue;
+                        
+                        $itemPrice = (float) ($item['totalPrice'] ?? $item['price'] ?? 0);
+                        
+                        // Add transfer price if exists
+                        $transferPrice = 0;
+                        if (isset($item['transfer_options']['cost']) && $item['transfer_options']['cost'] > 0) {
+                            $transferPrice = (float) $item['transfer_options']['cost'];
                         }
+                        
+                        // Add guide price if exists (for attractions)
+                        $guidePrice = 0;
+                        if (isset($item['guide_options']['total_price']) && $item['guide_options']['total_price'] > 0) {
+                            $guidePrice = (float) $item['guide_options']['total_price'];
+                        }
+                        
+                        $tourTotalPrice += $itemPrice + $transferPrice + $guidePrice;
                     }
                 }
             }

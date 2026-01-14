@@ -147,6 +147,103 @@ class EditTourController extends Controller
     }
 
     /**
+     * Update only guest information (main guest + additional guests) for a tour.
+     * No validation on tour dates/pax – only guest JSON fields are touched.
+     */
+    public function updateGuests(Request $request, $tour)
+    {
+        // Resolve tour by tour_id
+        $tour = Tour::where('tour_id', $tour)->firstOrFail();
+
+        try {
+            DB::beginTransaction();
+
+            // Main guest data
+            if ($request->has('mainguest')) {
+                try {
+                    $mainGuestData = $request->mainguest;
+                    if (is_string($mainGuestData) && !empty(trim($mainGuestData))) {
+                        $decoded = json_decode($mainGuestData, true);
+                        if (json_last_error() === JSON_ERROR_NONE && is_array($decoded)) {
+                            $mainGuestData = $decoded;
+                        } else {
+                            Log::warning('Invalid JSON in mainguest data during updateGuests', [
+                                'error' => json_last_error_msg(),
+                                'data' => $request->mainguest,
+                                'tour_id' => $tour->tour_id,
+                            ]);
+                            $mainGuestData = [];
+                        }
+                    } elseif (is_string($mainGuestData) && empty(trim($mainGuestData))) {
+                        $mainGuestData = [];
+                    } elseif (!is_array($mainGuestData)) {
+                        $mainGuestData = [];
+                    }
+
+                    $tour->mainguest = !empty($mainGuestData) ? json_encode($mainGuestData) : null;
+                } catch (\Throwable $e) {
+                    Log::error('Error processing main guest data during updateGuests', [
+                        'error' => $e->getMessage(),
+                        'tour_id' => $tour->tour_id,
+                    ]);
+                }
+            }
+
+            // Additional guests data
+            if ($request->has('additionalguest')) {
+                try {
+                    $additionalGuestData = $request->additionalguest;
+                    if (is_string($additionalGuestData) && !empty(trim($additionalGuestData))) {
+                        $decoded = json_decode($additionalGuestData, true);
+                        if (json_last_error() === JSON_ERROR_NONE && is_array($decoded)) {
+                            $additionalGuestData = $decoded;
+                        } else {
+                            Log::warning('Invalid JSON in additionalguest data during updateGuests', [
+                                'error' => json_last_error_msg(),
+                                'data' => $request->additionalguest,
+                                'tour_id' => $tour->tour_id,
+                            ]);
+                            $additionalGuestData = [];
+                        }
+                    } elseif (is_string($additionalGuestData) && empty(trim($additionalGuestData))) {
+                        $additionalGuestData = [];
+                    } elseif (!is_array($additionalGuestData)) {
+                        $additionalGuestData = [];
+                    }
+
+                    $tour->additionalguest = !empty($additionalGuestData) ? json_encode($additionalGuestData) : null;
+                } catch (\Throwable $e) {
+                    Log::error('Error processing additional guest data during updateGuests', [
+                        'error' => $e->getMessage(),
+                        'tour_id' => $tour->tour_id,
+                    ]);
+                }
+            }
+
+            $tour->save();
+            DB::commit();
+
+            return response()->json([
+                'success' => true,
+                'message' => 'Guest details updated successfully.',
+            ]);
+        } catch (\Throwable $exception) {
+            DB::rollBack();
+            Log::error('Failed to update guest information', [
+                'tour_id' => $tour->tour_id ?? null,
+                'error' => $exception->getMessage(),
+                'trace' => $exception->getTraceAsString(),
+            ]);
+
+            return response()->json([
+                'success' => false,
+                'message' => 'Unable to save guest information right now.',
+                'error' => config('app.debug') ? $exception->getMessage() : null,
+            ], 500);
+        }
+    }
+
+    /**
      * Update hotel service order.
      */
     public function updateHotel(Request $request, $orderId)

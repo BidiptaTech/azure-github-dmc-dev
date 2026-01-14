@@ -22,6 +22,8 @@ class Tour extends Model
         'updated_at' => 'datetime',
         'deleted_at' => 'datetime',
         'taxes' => 'array',
+        'mainguest' => 'array',
+        'additionalguest' => 'array',
     ];
 
     protected static $TourStatus = [
