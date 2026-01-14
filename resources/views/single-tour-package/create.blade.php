@@ -10158,12 +10158,12 @@ document.addEventListener('DOMContentLoaded', function() {
          }
     }
 
-     // Handle night selection with automatic consecutive filling
+     // Handle night selection - treat each night individually (no auto-filling)
     function handleNightSelection(selectedNight) {
          const allNightButtons = document.querySelectorAll('.night-btn');
          let manuallySelectedNights = [];
          
-         // Get currently manually selected nights (not auto-filled)
+         // Get currently manually selected nights
          allNightButtons.forEach(btn => {
              if (btn.classList.contains('manually-selected')) {
                  manuallySelectedNights.push(parseInt(btn.dataset.night));
@@ -10179,9 +10179,8 @@ document.addEventListener('DOMContentLoaded', function() {
              manuallySelectedNights.push(selectedNight);
          }
          
-        // Fill gaps and update selection
-        const allConsecutiveNights = fillConsecutiveNights(manuallySelectedNights);
-        updateConsecutiveSelectionWithColors(manuallySelectedNights, allConsecutiveNights);
+        // Update selection - use only manually selected nights (no auto-filling)
+        updateConsecutiveSelectionWithColors(manuallySelectedNights, manuallySelectedNights);
         updateNightDisplay();
         
         // Update room price display based on selected nights (weekday/weekend calculation)
@@ -10220,17 +10219,10 @@ document.addEventListener('DOMContentLoaded', function() {
              btn.classList.remove('active', 'manually-selected', 'auto-selected', 'btn-success', 'btn-warning');
              btn.classList.add('btn-outline-primary');
              
-             if (allConsecutive.includes(nightNumber)) {
-                 btn.classList.add('active');
+             // Only show manually selected nights (no auto-filling)
+             if (manuallySelected.includes(nightNumber)) {
+                 btn.classList.add('active', 'manually-selected', 'btn-success');
                  btn.classList.remove('btn-outline-primary');
-                 
-                 if (manuallySelected.includes(nightNumber)) {
-                     // Manually selected nights - Green
-                     btn.classList.add('manually-selected', 'btn-success');
-                 } else {
-                     // Auto-filled nights - Orange/Warning
-                     btn.classList.add('auto-selected', 'btn-warning');
-                 }
              }
          });
     }
@@ -10261,33 +10253,47 @@ document.addEventListener('DOMContentLoaded', function() {
          manualNights.sort((a, b) => a - b);
          autoNights.sort((a, b) => a - b);
          
-         if (selectedNights.length > 0) {
-             const startNight = Math.min(...selectedNights);
-             const endNight = Math.max(...selectedNights);
-             const startDate = moment(tourStartDate).add(startNight-1, 'days');
-             const endDate = moment(tourStartDate).add(endNight, 'days');
-             
-            let summaryHTML = `
+        if (selectedNights.length > 0) {
+            // Format dates for each selected night
+            const nightDates = selectedNights.map(night => {
+                const nightDate = moment(tourStartDate).add(night-1, 'days');
+                return nightDate.format('MMM DD');
+            });
+            
+            // Check if nights are consecutive
+            const isConsecutive = selectedNights.length > 1 && 
+                selectedNights.every((night, index) => 
+                    index === 0 || night === selectedNights[index - 1] + 1
+                );
+            
+            const startNight = Math.min(...selectedNights);
+            const endNight = Math.max(...selectedNights);
+            const startDate = moment(tourStartDate).add(startNight-1, 'days');
+            const endDate = moment(tourStartDate).add(endNight, 'days');
+            
+           let summaryHTML = `
                 <div class="alert" style="background: #d1f2eb; border: 1px solid #7dd3c0; border-radius: 6px; padding: 0.75rem 1rem; margin: 0;">
                     <i class="ri-calendar-check-line me-2" style="color: #667eea;"></i>
-                    <strong style="color: #212529; font-size: 0.9rem;">Hotel booked for ${selectedNights.length} nights</strong><br>
-                    <small style="color: #495057; font-size: 0.8rem;">${startDate.format('MMM DD')} - ${endDate.format('MMM DD, YYYY')}</small><br>
-                    <small style="color: #6c757d; font-size: 0.75rem;">Consecutive hotel nights selected - applies to all rooms in this hotel</small>
+                    <strong style="color: #212529; font-size: 0.9rem;">Hotel booked for ${selectedNights.length} night${selectedNights.length > 1 ? 's' : ''}</strong><br>
             `;
             
-            // Add legend if there are auto-selected nights
-            if (autoNights.length > 0) {
+            // Show date range if consecutive, otherwise show individual nights
+            if (isConsecutive && selectedNights.length > 1) {
+                summaryHTML += `<small style="color: #495057; font-size: 0.8rem;">${startDate.format('MMM DD')} - ${endDate.format('MMM DD, YYYY')}</small><br>`;
+            } else {
+                summaryHTML += `<small style="color: #495057; font-size: 0.8rem;">Selected nights: ${selectedNights.join(', ')} (${nightDates.join(', ')})</small><br>`;
+            }
+            
+            summaryHTML += `<small style="color: #6c757d; font-size: 0.75rem;">Selected nights apply to all rooms in this hotel</small>`;
+            
+           // Show selected nights list
+            if (selectedNights.length > 0) {
                 summaryHTML += `
                     <hr class="my-2" style="border-color: #b3d9ff;">
-                    <div class="d-flex justify-content-between align-items-center flex-wrap gap-2">
-                        <div>
-                            <span class="badge me-2" style="background: #667eea; color: #ffffff; border-radius: 4px; font-size: 0.75rem; padding: 0.25rem 0.5rem;">${manualNights.length}</span>
-                            <small style="color: #495057; font-size: 0.8rem;">Manually Selected: ${manualNights.join(', ')}</small>
-                        </div>
-                        <div>
-                            <span class="badge me-2" style="background: #b3d9ff; color: #667eea; border-radius: 4px; font-size: 0.75rem; padding: 0.25rem 0.5rem;">${autoNights.length}</span>
-                            <small style="color: #495057; font-size: 0.8rem;">Auto-Required: ${autoNights.join(', ')}</small>
-                        </div>
+                    <div>
+                        <small style="color: #495057; font-size: 0.8rem;">
+                            <strong>Nights:</strong> ${selectedNights.join(', ')}
+                        </small>
                     </div>
                 `;
             }

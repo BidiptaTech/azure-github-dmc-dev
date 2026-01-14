@@ -54,7 +54,6 @@ class SingleTourPackageController extends Controller
      */
     public function create(Request $request, $enquiry_id = null)
     {
-
         $user = Auth::user();
         $allowedRoleIds = [11, 33, 34, 128, 129, 130, 131, 132, 134, 135, 136, 137, 138, 37, 64, 65, 66, 67, 68, 38, 81, 90, 108, 117, 124, 125, 126, 127];
 
@@ -78,7 +77,20 @@ class SingleTourPackageController extends Controller
             $dmc_id = $sales_head->created_by;
         }
 
-        $countries = Country::where('is_active', 1)->orderBy('name')->get();
+        $mdmc_user = User::where('userId', $dmc_id)->first();
+        $mdmc_id = User::where('userId', $mdmc_user->created_by)->first();
+        $mdmc_country = $mdmc_id->country;
+        
+        // Extract and map countries from comma-separated string
+        $countriesQuery = Country::where('is_active', 1);
+        if ($mdmc_country) {
+            $countryNames = array_map('trim', explode(',', $mdmc_country));
+            $countryNames = array_filter($countryNames); // Remove empty values
+            if (!empty($countryNames)) {
+                $countriesQuery->whereIn('name', $countryNames);
+            }
+        }
+        $countries = $countriesQuery->orderBy('name')->get();
         $portsQuery = Port::query();
         if ($request->has('country') && $request->country) {
             $country = Country::find($request->country);
