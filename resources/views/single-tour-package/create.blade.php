@@ -544,7 +544,7 @@
                                     <select class="form-select" id="bedTypeSelect" style="height: 36px; border-radius: 6px; border: 1px solid #dee2e6; font-size: 0.85rem;">
                                         <option value="">Bed Type</option>
                                     </select>
-                                    <div id="bedPriceDisplay" class="text-success small mt-1" style="display: none; font-size: 0.75rem;">
+                                    <div id="bedPriceDisplay" class="text-success small mt-1" style="display: none; font-size: 0.75rem;flex-wrap: nowrap;">
                                         Price: <span class="fw-bold">$0.00</span>
                                     </div>
                                 </div>
@@ -579,9 +579,9 @@
                                     <label class="form-label fw-semibold mb-1" style="color: #495057; font-size: 0.8rem;">
                                         <i class="ri-money-dollar-circle-line me-1"></i>Price
                                     </label>
-                                    <div class="input-group" style="max-width: 180px;">
-                                        <span class="input-group-text" style="background-color: #f8f9fa; font-size: 0.75rem; height: 36px; border: 1px solid #dee2e6; border-right: none; border-radius: 6px 0 0 6px; padding: 0.375rem 0.5rem; width: 45px;">SGD</span>
-                                        <input type="text" class="form-control" id="roomPriceDisplay" value="0.00" style="height: 36px; border-radius: 0 6px 6px 0; border: 1px solid #dee2e6; border-left: none; background-color: #f8f9fa; color: #198754; font-size: 0.8rem; font-weight: 500; text-align: right; padding: 0.375rem 0.5rem; width: 135px;"> 
+                                    <div class="input-group" style="max-width: 180px; flex-wrap: nowrap;">
+                                        <span class="input-group-text" style="background-color: #f8f9fa; font-size: 0.75rem; height: 36px; border: 1px solid #dee2e6; border-right: none; border-radius: 6px 0 0 6px; padding: 0.375rem 0.5rem;">SGD</span>
+                                        <input type="text" class="form-control" id="roomPriceDisplay" value="0.00" style="height: 36px; border-radius: 0 6px 6px 0; border: 1px solid #dee2e6; border-left: none; background-color: #f8f9fa; color: #198754; font-size: 0.8rem; font-weight: 500; text-align: right; padding: 0.375rem 0.5rem;"> 
                                     </div>
                                 </div>
                             </div>
@@ -846,43 +846,43 @@
                             <i class="ri-arrow-down-s-line ms-2 fs-5 text-white" style="color: #ffffff !important;"></i>
                         </div>
                         <div id="customerInformationSection" class="collapse">
-                            <div class="card-body" style="background: #ffffff; padding: 1.25rem;">
-                                <div class="row g-3">
-                                    <div class="col-md-6">
-                                        <label class="form-label">Full Name</label>
-                                        <input type="text" class="form-control" id="customerFullName" name="customer_full_name" placeholder="Enter full name" >
-                                    </div>
-                                    <div class="col-md-6">
-                                        <label class="form-label">Email</label>
-                                        <input type="email" class="form-control" id="customerEmail" name="customer_email" placeholder="Enter email" >
+                            <div class="card-body" style="background: #ffffff; padding: 0.75rem 1rem;">
+                                <div class="row g-2">
+                                    <div class="col-md-3">
+                                        <label class="form-label mb-1" style="font-size: 0.8rem;">Full Name</label>
+                                        <input type="text" class="form-control form-control-sm" id="customerFullName" name="customer_full_name" placeholder="Enter full name" style="font-size: 0.85rem;">
                                     </div>
                                     <div class="col-md-3">
-                                        <label class="form-label">Country Code</label>
-                                        <input type="number" class="form-control" id="customerCountryCode" name="customer_country_code" placeholder="e.g. +91" >
+                                        <label class="form-label mb-1" style="font-size: 0.8rem;">Email</label>
+                                        <input type="email" class="form-control form-control-sm" id="customerEmail" name="customer_email" placeholder="Enter email" style="font-size: 0.85rem;">
                                     </div>
-                                    <div class="col-md-9">
-                                        <label class="form-label">Phone Number</label>
-                                        <input type="number" class="form-control" id="customerPhone" name="customer_phone" placeholder="Enter phone number" >
+                                    <div class="col-md-2">
+                                        <label class="form-label mb-1" style="font-size: 0.8rem;">Country Code</label>
+                                        <input type="number" class="form-control form-control-sm" id="customerCountryCode" name="customer_country_code" placeholder="e.g. +91" style="font-size: 0.85rem;">
                                     </div>
-                                    <div class="col-12">
-                                        <label class="form-label">Address Line 1</label>
-                                        <input type="text" class="form-control" id="customerAddress1" name="customer_address1" placeholder="Enter address line 1" >
+                                    <div class="col-md-4">
+                                        <label class="form-label mb-1" style="font-size: 0.8rem;">Phone Number</label>
+                                        <input type="number" class="form-control form-control-sm" id="customerPhone" name="customer_phone" placeholder="Enter phone number" style="font-size: 0.85rem;">
                                     </div>
-                                    <div class="col-12">
-                                        <label class="form-label">Address Line 2</label>
-                                        <input type="text" class="form-control" id="customerAddress2" name="customer_address2" placeholder="Enter address line 2">
+                                    <div class="col-md-3">
+                                        <label class="form-label mb-1" style="font-size: 0.8rem;">Address Line 1</label>
+                                        <input type="text" class="form-control form-control-sm" id="customerAddress1" name="customer_address1" placeholder="Enter address line 1" style="font-size: 0.85rem;">
+                                    </div>
+                                    <div class="col-md-3">
+                                        <label class="form-label mb-1" style="font-size: 0.8rem;">Address Line 2</label>
+                                        <input type="text" class="form-control form-control-sm" id="customerAddress2" name="customer_address2" placeholder="Enter address line 2" style="font-size: 0.85rem;">
+                                    </div>
+                                    <div class="col-md-3">
+                                        <label class="form-label mb-1" style="font-size: 0.8rem;">State</label>
+                                        <input type="text" class="form-control form-control-sm" id="customerState" name="customer_state" placeholder="Enter state" style="font-size: 0.85rem;">
+                                    </div>
+                                    <div class="col-md-3">
+                                        <label class="form-label mb-1" style="font-size: 0.8rem;">ZIP Code</label>
+                                        <input type="number" class="form-control form-control-sm" id="customerZip" name="customer_zip" placeholder="Enter ZIP code" style="font-size: 0.85rem;">
                                     </div>
                                     <div class="col-md-6">
-                                        <label class="form-label">State</label>
-                                        <input type="text" class="form-control" id="customerState" name="customer_state" placeholder="Enter state">
-                                    </div>
-                                    <div class="col-md-6">
-                                        <label class="form-label">ZIP Code</label>
-                                        <input type="number" class="form-control" id="customerZip" name="customer_zip" placeholder="Enter ZIP code">
-                                    </div>
-                                    <div class="col-12">
-                                        <label class="form-label">Special Requests</label>
-                                        <textarea class="form-control" id="customerSpecialRequests" name="customer_special_requests" rows="3" placeholder="Enter any special requests or notes"></textarea>
+                                        <label class="form-label mb-1" style="font-size: 0.8rem;">Special Requests</label>
+                                        <textarea class="form-control form-control-sm" id="customerSpecialRequests" name="customer_special_requests" rows="2" placeholder="Enter any special requests or notes" style="font-size: 0.85rem;"></textarea>
                                     </div>
                                 </div>
                             </div>
@@ -907,12 +907,15 @@
                                     </small>
                                 </div>
                             </div>
-                            <button type="button" class="btn btn-sm btn-light" id="addGuestBtn" onclick="addAdditionalGuest()" style="font-size: 0.8rem; font-weight: 600;">
-                                <i class="ri-add-line me-1"></i>Add Guest
-                            </button>
+                            <i class="ri-arrow-up-s-line ms-2 fs-5 text-white" style="color: #ffffff !important;"></i>
                         </div>
                         <div id="additionalGuestsSection" class="collapse show">
                             <div class="card-body" style="background: #ffffff; padding: 1.25rem;">
+                                <div class="mb-3 text-end">
+                                    <button type="button" class="btn btn-sm btn-light" id="addGuestBtn" onclick="addAdditionalGuest()" style="font-size: 0.8rem; font-weight: 600; box-shadow: 0 2px 4px rgba(0,0,0,0.1);">
+                                        <i class="ri-add-line me-1"></i>Add Guest
+                                    </button>
+                                </div>
                                 <div id="additionalGuestsContainer">
                                     <!-- Additional guests will be rendered here -->
                                 </div>
@@ -927,7 +930,7 @@
             </div>
 
             <!-- Final Submit Section -->
-            <div class="row mb-5" id="submitSection">
+            <div class="row mb-5" id="submitSection">   
                 <div class="col-12">
                     <div class="card shadow-sm border-0">
                         <div class="card-body">
@@ -1014,20 +1017,20 @@
                     const guestIndex = additionalGuestCount + 1;
 
                     const guestHtml = `
-                        <div class="card mb-3 border guest-card" data-guest-index="${guestIndex}">
-                            <div class="card-header bg-light d-flex justify-content-between align-items-center">
-                                <h6 class="mb-0 fw-semibold">
+                        <div class="card mb-2 border guest-card" data-guest-index="${guestIndex}" style="border-radius: 8px;">
+                            <div class="card-header bg-light d-flex justify-content-between align-items-center" style="padding: 0.5rem 1rem;">
+                                <h6 class="mb-0 fw-semibold" style="font-size: 0.9rem;">
                                     <i class="ri-user-line me-2"></i>Guest ${guestIndex}
                                 </h6>
-                                <button type="button" class="btn btn-sm btn-outline-danger" onclick="removeAdditionalGuest(${guestIndex})">
+                                <button type="button" class="btn btn-sm btn-outline-danger" onclick="removeAdditionalGuest(${guestIndex})" style="font-size: 0.75rem; padding: 0.25rem 0.5rem;">
                                     <i class="ri-delete-bin-line me-1"></i>Remove
                                 </button>
                             </div>
-                            <div class="card-body">
-                                <div class="row g-3">
-                                    <div class="col-md-3">
-                                        <label class="form-label">Salutation <span class="text-danger">*</span></label>
-                                        <select class="form-select" name="additional_guests[${guestIndex}][salutation]" required>
+                            <div class="card-body" style="padding: 0.75rem 1rem;">
+                                <div class="row g-2">
+                                    <div class="col-md-2">
+                                        <label class="form-label mb-1" style="font-size: 0.8rem;">Salutation <span class="text-danger">*</span></label>
+                                        <select class="form-select form-select-sm" name="additional_guests[${guestIndex}][salutation]" required style="font-size: 0.85rem;">
                                             <option value="">Select</option>
                                             <option value="Mr">Mr</option>
                                             <option value="Mrs">Mrs</option>
@@ -1037,20 +1040,20 @@
                                         </select>
                                     </div>
                                     <div class="col-md-3">
-                                        <label class="form-label">Name <span class="text-danger">*</span></label>
-                                        <input type="text" class="form-control" name="additional_guests[${guestIndex}][name]" placeholder="Enter full name" required>
+                                        <label class="form-label mb-1" style="font-size: 0.8rem;">Name <span class="text-danger">*</span></label>
+                                        <input type="text" class="form-control form-control-sm" name="additional_guests[${guestIndex}][name]" placeholder="Enter full name" required style="font-size: 0.85rem;">
                                     </div>
                                     <div class="col-md-3">
-                                        <label class="form-label">Passport No.</label>
-                                        <input type="text" class="form-control" name="additional_guests[${guestIndex}][passport_no]" placeholder="Enter passport number">
+                                        <label class="form-label mb-1" style="font-size: 0.8rem;">Passport No.</label>
+                                        <input type="text" class="form-control form-control-sm" name="additional_guests[${guestIndex}][passport_no]" placeholder="Enter passport number" style="font-size: 0.85rem;">
                                     </div>
-                                    <div class="col-md-3">
-                                        <label class="form-label">Passport Expiry</label>
-                                        <input type="date" class="form-control" name="additional_guests[${guestIndex}][passport_exp]" placeholder="Passport expiry date">
+                                    <div class="col-md-2">
+                                        <label class="form-label mb-1" style="font-size: 0.8rem;">Passport Expiry</label>
+                                        <input type="date" class="form-control form-control-sm" name="additional_guests[${guestIndex}][passport_exp]" style="font-size: 0.85rem;">
                                     </div>
-                                    <div class="col-md-4 mt-2">
-                                        <label class="form-label">Contact No.</label>
-                                        <input type="text" class="form-control" name="additional_guests[${guestIndex}][contact_no]" placeholder="Enter contact number">
+                                    <div class="col-md-2">
+                                        <label class="form-label mb-1" style="font-size: 0.8rem;">Contact No.</label>
+                                        <input type="text" class="form-control form-control-sm" name="additional_guests[${guestIndex}][contact_no]" placeholder="Enter contact number" style="font-size: 0.85rem;">
                                     </div>
                                 </div>
                             </div>
@@ -7267,6 +7270,11 @@ document.addEventListener('DOMContentLoaded', function() {
                     loadAttractionTransferVehicles(day, citySelect.value, index);
                     loadAttractionTransferPickupLocations(day, citySelect.value, index);
                 }
+
+                // Ensure pricing grid reflects that transport is now active
+                if (typeof window.updateAttractionTransportPricing === 'function') {
+                    window.updateAttractionTransportPricing(day, index);
+                }
             } else {
                 // Hide transfer card
                 if (transferCard) transferCard.style.display = 'none';
@@ -7288,8 +7296,17 @@ document.addEventListener('DOMContentLoaded', function() {
                 if (typeSelect) typeSelect.value = '';
                 if (waySelect) waySelect.value = '';
                 if (vehicleSelect) vehicleSelect.innerHTML = '<option value="">Select Vehicle</option>';
-                if (costInput) costInput.value = '';
-                if (pickupSelect) pickupSelect.innerHTML = '<option value="">Select Pickup Location</option>';
+                if (costInput) {
+                    costInput.value = '';
+                    costInput.removeAttribute('data-ajax-base-price');
+                    costInput.removeAttribute('data-ajax-final-price');
+                }
+                if (pickupSelect) pickupSelect.innerHTML = '<option value=\"\">Select Pickup Location</option>';
+
+                // Refresh pricing so any previous transport price is cleared
+                if (typeof window.updateAttractionTransportPricing === 'function') {
+                    window.updateAttractionTransportPricing(day, index);
+                }
             }
         }
     }
@@ -8026,6 +8043,8 @@ document.addEventListener('DOMContentLoaded', function() {
                         option.setAttribute('data-seating-capacity', vehicle.seating_capacity || '');
                         option.setAttribute('data-private-price', vehicle.private_price || '');
                         option.setAttribute('data-shared-price', vehicle.shared_price || '');
+                        // sharable: 1 = Private, 2 = Shared, 3 = Both
+                        option.setAttribute('data-sharable', vehicle.sharable || '');
                         vehicleSelect.appendChild(option);
                     });
                     console.log(`Loaded ${data.vehicles.length} vehicles for attraction transfer in ${cityName}`);
@@ -8041,6 +8060,55 @@ document.addEventListener('DOMContentLoaded', function() {
                 vehicleSelect.disabled = false;
             });
     }
+    
+    // Helper: filter attraction transfer vehicles based on selected type (Private/Shared)
+    window.filterAttractionTransferVehiclesByType = function(day, index) {
+        const vehicleSelect = document.getElementById(`day${day}_attraction_${index}_transfer_vehicle`);
+        const transferTypeSelect = document.getElementById(`day${day}_attraction_${index}_transfer_type`);
+        
+        if (!vehicleSelect || !transferTypeSelect) return;
+
+        const selectedType = transferTypeSelect.value;
+        let allowedSharables = null;
+
+        // sharable: 1 = Private, 2 = Shared, 3 = Both
+        if (selectedType === 'Private') {
+            allowedSharables = ['1', '3'];
+        } else if (selectedType === 'Shared') {
+            allowedSharables = ['2', '3'];
+        }
+
+        Array.from(vehicleSelect.options).forEach(option => {
+            if (!option.value) {
+                // Always keep placeholder visible
+                option.disabled = false;
+                option.hidden = false;
+                return;
+            }
+
+            const sharableAttr = option.getAttribute('data-sharable');
+
+            // If no type selected or sharable missing, show all options
+            if (!allowedSharables || !sharableAttr) {
+                option.disabled = false;
+                option.hidden = false;
+                return;
+            }
+
+            const isAllowed = allowedSharables.includes(String(sharableAttr));
+            option.disabled = !isAllowed;
+            option.hidden = !isAllowed;
+        });
+
+        // If current selection is no longer allowed, clear it so user re-chooses
+        if (
+            vehicleSelect.value &&
+            vehicleSelect.selectedOptions.length &&
+            vehicleSelect.selectedOptions[0].disabled
+        ) {
+            vehicleSelect.value = '';
+        }
+    };
     
     // Function to handle vehicle selection change and prepopulate cost
     window.handleAttractionVehicleChange = function(day, index) {
@@ -8225,6 +8293,9 @@ document.addEventListener('DOMContentLoaded', function() {
         const transferWay = document.getElementById(`day${day}_attraction_${index}_transfer_way`);
         const attractionSelect = document.getElementById(`day${day}_attraction_${index}`);
         const costField = document.getElementById(`day${day}_attraction_${index}_transfer_cost`);
+        
+        // Keep vehicle dropdown in sync with selected type (Private/Shared)
+        window.filterAttractionTransferVehiclesByType(day, index);
         
         // If pickup location is already selected, ALWAYS use AJAX pricing
         if (pickupLocationSelect && pickupLocationSelect.value) {
@@ -8570,6 +8641,55 @@ document.addEventListener('DOMContentLoaded', function() {
     }
     
     // Function to handle restaurant transfer type or way change - prioritize AJAX pricing if pickup location is selected
+    // Function to filter restaurant transfer vehicles by type (Private/Shared)
+    window.filterRestaurantTransferVehiclesByType = function(day, index) {
+        const vehicleSelect = document.getElementById(`day${day}_restaurant_${index}_transfer_vehicle`);
+        const transferTypeSelect = document.getElementById(`day${day}_restaurant_${index}_transfer_type`);
+        
+        if (!vehicleSelect || !transferTypeSelect) return;
+
+        const selectedType = transferTypeSelect.value;
+        let allowedSharables = null;
+
+        // sharable: 1 = Private, 2 = Shared, 3 = Both
+        if (selectedType === 'Private') {
+            allowedSharables = ['1', '3'];
+        } else if (selectedType === 'Shared') {
+            allowedSharables = ['2', '3'];
+        }
+
+        Array.from(vehicleSelect.options).forEach(option => {
+            if (!option.value) {
+                // Always keep placeholder visible
+                option.disabled = false;
+                option.hidden = false;
+                return;
+            }
+
+            const sharableAttr = option.getAttribute('data-sharable');
+
+            // If no type selected or sharable missing, show all options
+            if (!allowedSharables || !sharableAttr) {
+                option.disabled = false;
+                option.hidden = false;
+                return;
+            }
+
+            const isAllowed = allowedSharables.includes(String(sharableAttr));
+            option.disabled = !isAllowed;
+            option.hidden = !isAllowed;
+        });
+
+        // If current selection is no longer allowed, clear it so user re-chooses
+        if (
+            vehicleSelect.value &&
+            vehicleSelect.selectedOptions.length &&
+            vehicleSelect.selectedOptions[0].disabled
+        ) {
+            vehicleSelect.value = '';
+        }
+    };
+    
     window.handleRestaurantTransferTypeOrWayChange = function(day, index) {
         const pickupLocationSelect = document.getElementById(`day${day}_restaurant_${index}_transfer_pickup_location`);
         const vehicleSelect = document.getElementById(`day${day}_restaurant_${index}_transfer_vehicle`);
@@ -8577,6 +8697,9 @@ document.addEventListener('DOMContentLoaded', function() {
         const transferWay = document.getElementById(`day${day}_restaurant_${index}_transfer_way`);
         const restaurantSelect = document.getElementById(`day${day}_restaurant_${index}`);
         const costField = document.getElementById(`day${day}_restaurant_${index}_transfer_cost`);
+        
+        // Keep vehicle dropdown in sync with selected type (Private/Shared)
+        window.filterRestaurantTransferVehiclesByType(day, index);
         
         // If pickup location is already selected, ALWAYS use AJAX pricing
         if (pickupLocationSelect && pickupLocationSelect.value) {
@@ -9151,6 +9274,9 @@ document.addEventListener('DOMContentLoaded', function() {
                 if (citySelect && citySelect.value) {
                     loadRestaurantTransferVehicles(day, citySelect.value, index);
                     loadRestaurantTransferPickupLocations(day, citySelect.value, index);
+                } else {
+                    // If vehicles are already loaded, apply filter based on current transfer type
+                    window.filterRestaurantTransferVehiclesByType(day, index);
                 }
             } else {
                 // Hide transfer card
@@ -9206,9 +9332,13 @@ document.addEventListener('DOMContentLoaded', function() {
                         option.setAttribute('data-seating-capacity', vehicle.seating_capacity || '');
                         option.setAttribute('data-private-price', vehicle.private_price || '');
                         option.setAttribute('data-shared-price', vehicle.shared_price || '');
+                        option.setAttribute('data-sharable', vehicle.sharable || '0');
                         vehicleSelect.appendChild(option);
                     });
                     console.log(`Loaded ${data.vehicles.length} vehicles for restaurant transfer in ${cityName}`);
+                    
+                    // Apply filter based on selected transfer type
+                    window.filterRestaurantTransferVehiclesByType(day, index);
                 } else {
                     vehicleSelect.innerHTML += '<option disabled>No vehicles available</option>';
                 }
@@ -10158,12 +10288,12 @@ document.addEventListener('DOMContentLoaded', function() {
          }
     }
 
-     // Handle night selection with automatic consecutive filling
+     // Handle night selection - treat each night individually (no auto-filling)
     function handleNightSelection(selectedNight) {
          const allNightButtons = document.querySelectorAll('.night-btn');
          let manuallySelectedNights = [];
          
-         // Get currently manually selected nights (not auto-filled)
+         // Get currently manually selected nights
          allNightButtons.forEach(btn => {
              if (btn.classList.contains('manually-selected')) {
                  manuallySelectedNights.push(parseInt(btn.dataset.night));
@@ -10179,9 +10309,8 @@ document.addEventListener('DOMContentLoaded', function() {
              manuallySelectedNights.push(selectedNight);
          }
          
-        // Fill gaps and update selection
-        const allConsecutiveNights = fillConsecutiveNights(manuallySelectedNights);
-        updateConsecutiveSelectionWithColors(manuallySelectedNights, allConsecutiveNights);
+        // Update selection - use only manually selected nights (no auto-filling)
+        updateConsecutiveSelectionWithColors(manuallySelectedNights, manuallySelectedNights);
         updateNightDisplay();
         
         // Update room price display based on selected nights (weekday/weekend calculation)
@@ -10220,17 +10349,10 @@ document.addEventListener('DOMContentLoaded', function() {
              btn.classList.remove('active', 'manually-selected', 'auto-selected', 'btn-success', 'btn-warning');
              btn.classList.add('btn-outline-primary');
              
-             if (allConsecutive.includes(nightNumber)) {
-                 btn.classList.add('active');
-                 btn.classList.remove('btn-outline-primary');
-                 
+             // Only show manually selected nights (no auto-filling)
                  if (manuallySelected.includes(nightNumber)) {
-                     // Manually selected nights - Green
-                     btn.classList.add('manually-selected', 'btn-success');
-                 } else {
-                     // Auto-filled nights - Orange/Warning
-                     btn.classList.add('auto-selected', 'btn-warning');
-                 }
+                 btn.classList.add('active', 'manually-selected', 'btn-success');
+                 btn.classList.remove('btn-outline-primary');
              }
          });
     }
@@ -10262,6 +10384,18 @@ document.addEventListener('DOMContentLoaded', function() {
          autoNights.sort((a, b) => a - b);
          
          if (selectedNights.length > 0) {
+            // Format dates for each selected night
+            const nightDates = selectedNights.map(night => {
+                const nightDate = moment(tourStartDate).add(night-1, 'days');
+                return nightDate.format('MMM DD');
+            });
+            
+            // Check if nights are consecutive
+            const isConsecutive = selectedNights.length > 1 && 
+                selectedNights.every((night, index) => 
+                    index === 0 || night === selectedNights[index - 1] + 1
+                );
+            
              const startNight = Math.min(...selectedNights);
              const endNight = Math.max(...selectedNights);
              const startDate = moment(tourStartDate).add(startNight-1, 'days');
@@ -10270,24 +10404,26 @@ document.addEventListener('DOMContentLoaded', function() {
             let summaryHTML = `
                 <div class="alert" style="background: #d1f2eb; border: 1px solid #7dd3c0; border-radius: 6px; padding: 0.75rem 1rem; margin: 0;">
                     <i class="ri-calendar-check-line me-2" style="color: #667eea;"></i>
-                    <strong style="color: #212529; font-size: 0.9rem;">Hotel booked for ${selectedNights.length} nights</strong><br>
-                    <small style="color: #495057; font-size: 0.8rem;">${startDate.format('MMM DD')} - ${endDate.format('MMM DD, YYYY')}</small><br>
-                    <small style="color: #6c757d; font-size: 0.75rem;">Consecutive hotel nights selected - applies to all rooms in this hotel</small>
+                    <strong style="color: #212529; font-size: 0.9rem;">Hotel booked for ${selectedNights.length} night${selectedNights.length > 1 ? 's' : ''}</strong><br>
             `;
             
-            // Add legend if there are auto-selected nights
-            if (autoNights.length > 0) {
+            // Show date range if consecutive, otherwise show individual nights
+            if (isConsecutive && selectedNights.length > 1) {
+                summaryHTML += `<small style="color: #495057; font-size: 0.8rem;">${startDate.format('MMM DD')} - ${endDate.format('MMM DD, YYYY')}</small><br>`;
+            } else {
+                summaryHTML += `<small style="color: #495057; font-size: 0.8rem;">Selected nights: ${selectedNights.join(', ')} (${nightDates.join(', ')})</small><br>`;
+            }
+            
+            summaryHTML += `<small style="color: #6c757d; font-size: 0.75rem;">Selected nights apply to all rooms in this hotel</small>`;
+            
+           // Show selected nights list
+            if (selectedNights.length > 0) {
                 summaryHTML += `
                     <hr class="my-2" style="border-color: #b3d9ff;">
-                    <div class="d-flex justify-content-between align-items-center flex-wrap gap-2">
                         <div>
-                            <span class="badge me-2" style="background: #667eea; color: #ffffff; border-radius: 4px; font-size: 0.75rem; padding: 0.25rem 0.5rem;">${manualNights.length}</span>
-                            <small style="color: #495057; font-size: 0.8rem;">Manually Selected: ${manualNights.join(', ')}</small>
-                        </div>
-                        <div>
-                            <span class="badge me-2" style="background: #b3d9ff; color: #667eea; border-radius: 4px; font-size: 0.75rem; padding: 0.25rem 0.5rem;">${autoNights.length}</span>
-                            <small style="color: #495057; font-size: 0.8rem;">Auto-Required: ${autoNights.join(', ')}</small>
-                        </div>
+                        <small style="color: #495057; font-size: 0.8rem;">
+                            <strong>Nights:</strong> ${selectedNights.join(', ')}
+                        </small>
                     </div>
                 `;
             }
@@ -14922,13 +15058,14 @@ document.addEventListener('DOMContentLoaded', function() {
         // Always show the price display when we have data
         priceDisplay.style.display = 'block';
         
-        // Update ticket pricing column
+        // Update ticket pricing column (show only calculation, not base ticket prices)
         const ticketPricingContent = document.getElementById(`day${day}_attraction_${index}_ticket_pricing_content`);
         if (ticketPricingContent) {
             if (totalPrice > 0) {
                 ticketPricingContent.innerHTML = `
                     <div class="small">
                         <div class="mb-2"><strong>${selectedTicket.text}</strong></div>
+                        <div class="mb-1"><strong>Calculation:</strong></div>
                         <div class="mb-1">Adult: $${adultPrice.toFixed(2)} × ${guestInfo.adults} = $${(adultPrice * guestInfo.adults).toFixed(2)}</div>
                         <div class="mb-1">Child: $${childPrice.toFixed(2)} × ${guestInfo.children} = $${(childPrice * guestInfo.children).toFixed(2)}</div>
                         <div class="mb-2">Senior: $${seniorPrice.toFixed(2)} × ${guestInfo.seniors} = $${(seniorPrice * guestInfo.seniors).toFixed(2)}</div>
@@ -15752,23 +15889,24 @@ document.addEventListener('DOMContentLoaded', function() {
             
             console.log('Meal type selected:', mealType, 'day:', day, 'index:', index);
             
-            // Show/hide dish dropdown based on meal type selection
-            if (mealType && mealType !== '') {
-                if (dishContainer) {
-                    dishContainer.style.display = 'block';
-                }
-                // Also ensure the dish select element is visible
-                if (dishSelect) {
-                    dishSelect.style.display = 'block';
-                }
-            } else {
-                if (dishContainer) {
-                    dishContainer.style.display = 'none';
-                }
-                // Also hide the dish select element (reuse the dishSelect variable from above)
-                if (dishSelect) {
-                    dishSelect.style.display = 'none';
-                }
+            // Clear dish selection when meal type changes
+            if (dishSelect) {
+                dishSelect.value = '';
+                dishSelect.innerHTML = '<option value="">Select Dish</option>';
+            }
+            
+            // Hide dish container initially - will show only if dishes are available
+            if (dishContainer) {
+                dishContainer.style.display = 'none';
+            }
+            if (dishSelect) {
+                dishSelect.style.display = 'none';
+            }
+            
+            // Update pricing immediately to reset/clear pricing when meal type changes
+            updateRestaurantPricing(day, index);
+            
+            if (!mealType || mealType === '') {
                 return; // Exit early if no meal type selected
             }
             
@@ -15801,6 +15939,9 @@ document.addEventListener('DOMContentLoaded', function() {
                 if (dishContainer) {
                     dishContainer.style.display = 'none';
                 }
+                
+                // Update pricing when no valid restaurant
+                updateRestaurantPricing(day, index);
             }
         }
         
@@ -16478,7 +16619,11 @@ document.addEventListener('DOMContentLoaded', function() {
                 dishSelect.innerHTML = '<option value="">Select Dish</option>';
                 
                 if (data.success && data.meals && data.meals.length > 0) {
-                    // If we have meal data, show the dropdown
+                    // If we have meal data, show the dropdown and container
+                    const dishContainer = document.getElementById('day' + day + '_dish_container_' + index);
+                    if (dishContainer) {
+                        dishContainer.style.display = 'block';
+                    }
                     dishSelect.style.display = 'block';
                     console.log('Dishes loaded successfully, showing dropdown with', data.meals.length, 'options');
                     
@@ -16508,34 +16653,23 @@ document.addEventListener('DOMContentLoaded', function() {
                         
                         dishSelect.appendChild(option);
                     });
-                } else {
-                    // If API returns no dishes, create default options based on meal types
-                    dishSelect.style.display = 'block';
-                    console.log('No dishes from API, showing default options');
                     
-                    const mealTypeSelect = document.getElementById('day' + day + '_meal_type_' + index);
-                    if (mealTypeSelect && mealTypeSelect.selectedIndex > 0) {
-                        const selectedMealType = mealTypeSelect.options[mealTypeSelect.selectedIndex].value;
-                        
-                        // Create default dish options based on meal type
-                        const defaultDishes = [
-                            { id: 'default_buffet', name: `${selectedMealType} Buffet`, type: 1 },
-                            { id: 'default_set', name: `${selectedMealType} Set Menu`, type: 2 }
-                        ];
-                        
-                        defaultDishes.forEach(dish => {
-                            const option = document.createElement('option');
-                            option.value = dish.id;
-                            option.textContent = dish.name;
-                            dishSelect.appendChild(option);
-                        });
-                    } else {
-                        const option = document.createElement('option');
-                        option.value = '';
-                        option.textContent = data.message || 'No dishes available for this restaurant';
-                        option.disabled = true;
-                        dishSelect.appendChild(option);
+                    // Update pricing after dishes are loaded
+                    updateRestaurantPricing(day, index);
+                } else {
+                    // If API returns no dishes, show container with "No dish available" message
+                    const dishContainer = document.getElementById('day' + day + '_dish_container_' + index);
+                    if (dishContainer) {
+                        dishContainer.style.display = 'block';
                     }
+                    dishSelect.style.display = 'block';
+                    console.log('No dishes from API, showing "No dish available" message');
+                    
+                    // Show "No dish available" message in the select dropdown
+                    dishSelect.innerHTML = '<option value="" disabled>No dish available</option>';
+                    
+                    // Update pricing when no dishes available
+                    updateRestaurantPricing(day, index);
                 }
             })
             .catch(error => {
@@ -22557,21 +22691,32 @@ function loadDropoffZones(day, section) {
             serviceTypeSelect.style.backgroundColor = '#f8f9fa';
             serviceTypeSelect.style.cursor = 'not-allowed';
         } else {
-            // For local transfer, show options based on vehicle sharable property
-            console.log('Local transfer radio button is selected');
-            if(selectedOption && selectedOption.dataset.sharable == 1){
+            // For local transfer, entry, and exit ports, show options based on vehicle sharable property
+            // sharable: 1 = Private only, 2 = Shared only, 3 = Both Private and Shared
+            const sharable = selectedOption ? parseInt(selectedOption.dataset.sharable) : null;
+            console.log('Vehicle sharable value:', sharable, 'for section:', section);
+            
+            if (sharable === 1 || sharable === 3) {
+                // Show Private option (for sharable = 1 or 3)
                 const privateOption = document.createElement('option');
                 privateOption.value = 'Private';
                 privateOption.textContent = 'Private';
                 serviceTypeSelect.appendChild(privateOption);
+                console.log('Added Private option (sharable =', sharable, ')');
             }
-            else if(selectedOption && selectedOption.dataset.sharable == 2){
+            
+            if (sharable === 2 || sharable === 3) {
+                // Show Shared option (for sharable = 2 or 3)
                 const sharedOption = document.createElement('option');
                 sharedOption.value = 'Shared';
                 sharedOption.textContent = 'Shared';
                 serviceTypeSelect.appendChild(sharedOption);
+                console.log('Added Shared option (sharable =', sharable, ')');
             }
-            else{
+            
+            // If sharable is not 1, 2, or 3, show both options as fallback
+            if (sharable !== 1 && sharable !== 2 && sharable !== 3) {
+                console.log('Sharable value not recognized (', sharable, '), showing both options as fallback');
                 const privateOption = document.createElement('option');
                 privateOption.value = 'Private';
                 privateOption.textContent = 'Private';
@@ -24572,11 +24717,42 @@ window.saveService = function(day, type) {
        const user_dmc = UserDmc;
        const zone_status = user_dmc ? user_dmc.zone_on : 1; // Default to 1 if no DMC data
        
+       // Check if this is a local_transfer transport type
+       const localTransferRadio = document.querySelector(`input[name="day${day}_transport_service_type"][value="local_transfer"]`);
+       const isLocalTransfer = localTransferRadio && localTransferRadio.checked;
+       
        if (zone_status == 1) {
         if (section === 'exit') {
             // For exit port, pickup is typically attraction/restaurant, dropoff is port
             fromZoneType = pickupZoneSelect.options[pickupZoneSelect.selectedIndex]?.dataset?.type || 'attraction';
             toZoneType = dropoffZoneSelect.options[dropoffZoneSelect.selectedIndex]?.dataset?.type || 'port';
+        } else if (isLocalTransfer && section === 'transport') {
+            // For local_transfer, read the actual data-type from the selected options
+            // Don't default to 'port' or 'attraction' - use the actual type (hotel, attraction, restaurant, etc.)
+            fromZoneType = pickupZoneSelect.options[pickupZoneSelect.selectedIndex]?.dataset?.type || '';
+            toZoneType = dropoffZoneSelect.options[dropoffZoneSelect.selectedIndex]?.dataset?.type || '';
+            
+            // If data-type is missing, try to infer from option text
+            if (!fromZoneType && pickupZoneSelect.options[pickupZoneSelect.selectedIndex]?.text) {
+                const pickupText = pickupZoneSelect.options[pickupZoneSelect.selectedIndex].text.toLowerCase();
+                if (pickupText.includes('hotel')) fromZoneType = 'hotel';
+                else if (pickupText.includes('attraction')) fromZoneType = 'attraction';
+                else if (pickupText.includes('restaurant')) fromZoneType = 'restaurant';
+            }
+            
+            if (!toZoneType && dropoffZoneSelect.options[dropoffZoneSelect.selectedIndex]?.text) {
+                const dropoffText = dropoffZoneSelect.options[dropoffZoneSelect.selectedIndex].text.toLowerCase();
+                if (dropoffText.includes('hotel')) toZoneType = 'hotel';
+                else if (dropoffText.includes('attraction')) toZoneType = 'attraction';
+                else if (dropoffText.includes('restaurant')) toZoneType = 'restaurant';
+            }
+            
+            console.log('Local transfer zone types detected:', {
+                fromZoneType: fromZoneType,
+                toZoneType: toZoneType,
+                pickupText: pickupZoneSelect.options[pickupZoneSelect.selectedIndex]?.text,
+                dropoffText: dropoffZoneSelect.options[dropoffZoneSelect.selectedIndex]?.text
+            });
         } else {
             // For entry port and other sections, use original logic
             fromZoneType = pickupZoneSelect.options[pickupZoneSelect.selectedIndex]?.dataset?.type || 'port';
@@ -24593,12 +24769,26 @@ window.saveService = function(day, type) {
          let actualToZoneId = toZoneId;
          
          // For ports, use port_id from data attribute
-         if (fromZoneType === 'port') {
+         // Only do this if the zone type is actually 'port' or 'Port'
+         if (fromZoneType === 'port' || fromZoneType === 'Port') {
              actualFromZoneId = pickupZoneSelect.options[pickupZoneSelect.selectedIndex]?.dataset?.portId || fromZoneId;
          }
          
-         if (toZoneType === 'port') {
+         if (toZoneType === 'port' || toZoneType === 'Port') {
              actualToZoneId = dropoffZoneSelect.options[dropoffZoneSelect.selectedIndex]?.dataset?.portId || toZoneId;
+         }
+         
+         // For local_transfer with hotels/attractions/restaurants, keep the original IDs
+         // The backend will convert them to zone_ids using getActualZoneId
+         if (isLocalTransfer && section === 'transport') {
+             // Don't modify the IDs - pass them as-is to the backend
+             // The backend's getActualZoneId will handle the conversion based on the zone type
+             console.log('Local transfer: keeping original IDs for backend conversion:', {
+                 fromZoneId: fromZoneId,
+                 toZoneId: toZoneId,
+                 fromZoneType: fromZoneType,
+                 toZoneType: toZoneType
+             });
          }
 
          // Enhanced debugging for zone ID mapping
