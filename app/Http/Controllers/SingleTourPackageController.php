@@ -2669,20 +2669,70 @@ class SingleTourPackageController extends Controller
 
             if($zone_status == 1){
                 
-                $actualFromZoneId = intval($this->getActualZoneId($fromZoneId, $fromZoneType, $dmcId));
-                $actualToZoneId = intval($this->getActualZoneId($toZoneId, $toZoneType, $dmcId));
+                $actualFromZoneId = $this->getActualZoneId($fromZoneId, $fromZoneType, $dmcId);
+                $actualToZoneId = $this->getActualZoneId($toZoneId, $toZoneType, $dmcId);
+                
+                // Convert to integers for database query (zone_id and port_id are integers)
+                // If conversion fails (e.g., hotel_unique_id), log and skip query
+                $actualFromZoneIdInt = is_numeric($actualFromZoneId) ? intval($actualFromZoneId) : null;
+                $actualToZoneIdInt = is_numeric($actualToZoneId) ? intval($actualToZoneId) : null;
+                
+                if (!$actualFromZoneIdInt || !$actualToZoneIdInt) {
+                    \Log::warning('Invalid zone IDs for vehicle mapping query', [
+                        'from_zone_id' => $actualFromZoneId,
+                        'to_zone_id' => $actualToZoneId,
+                        'from_zone_type' => $fromZoneType,
+                        'to_zone_type' => $toZoneType
+                    ]);
+                    return response()->json([
+                        'success' => false,
+                        'message' => 'Unable to determine valid zone IDs for the selected locations',
+                        'vehicles' => []
+                    ]);
+                }
+                
+                // Use integer zone IDs for query
+                $actualFromZoneId = $actualFromZoneIdInt;
+                $actualToZoneId = $actualToZoneIdInt;
 
-                // Get vehicle mappings for both directions (bidirectional)
-                $vehicleMappings = VehicleZoneMapping::where(function($query) use ($actualFromZoneId, $actualToZoneId) {
-                    // Original direction
-                    $query->where(function($q) use ($actualFromZoneId, $actualToZoneId) {
+                // Normalize zone types to match database format
+                // Database stores: "Port", "Hotel", "Attraction", "Restaurant"
+                $normalizedFromZoneType = $fromZoneType ? ucfirst(strtolower($fromZoneType)) : null;
+                $normalizedToZoneType = $toZoneType ? ucfirst(strtolower($toZoneType)) : null;
+                
+                // Handle "Port" vs "port" - ensure it's "Port" in database
+                if ($normalizedFromZoneType === 'Port') {
+                    $normalizedFromZoneType = 'Port';
+                }
+                if ($normalizedToZoneType === 'Port') {
+                    $normalizedToZoneType = 'Port';
+                }
+
+                // Get vehicle mappings for both directions (bidirectional) with zone type matching
+                $vehicleMappings = VehicleZoneMapping::where(function($query) use ($actualFromZoneId, $actualToZoneId, $normalizedFromZoneType, $normalizedToZoneType) {
+                    // Original direction: from -> to
+                    $query->where(function($q) use ($actualFromZoneId, $actualToZoneId, $normalizedFromZoneType, $normalizedToZoneType) {
                         $q->where('from_zone_id', $actualFromZoneId)
                           ->where('to_zone_id', $actualToZoneId);
+                        // Add zone type filters if provided
+                        if ($normalizedFromZoneType) {
+                            $q->where('from_zone_type', $normalizedFromZoneType);
+                        }
+                        if ($normalizedToZoneType) {
+                            $q->where('to_zone_type', $normalizedToZoneType);
+                        }
                     })
-                    // Reverse direction
-                    ->orWhere(function($q) use ($actualFromZoneId, $actualToZoneId) {
+                    // Reverse direction: to -> from (swapped)
+                    ->orWhere(function($q) use ($actualFromZoneId, $actualToZoneId, $normalizedFromZoneType, $normalizedToZoneType) {
                         $q->where('from_zone_id', $actualToZoneId)
                           ->where('to_zone_id', $actualFromZoneId);
+                        // Add zone type filters (swapped for reverse direction)
+                        if ($normalizedToZoneType) {
+                            $q->where('from_zone_type', $normalizedToZoneType);
+                        }
+                        if ($normalizedFromZoneType) {
+                            $q->where('to_zone_type', $normalizedFromZoneType);
+                        }
                     });
                 })
                 ->get();
@@ -2858,7 +2908,7 @@ class SingleTourPackageController extends Controller
             case 'port':
                 case 'Port':
                 // For ports, get the port_id
-                $port = Port::where('id', $locationId)->first();
+                $port = Port::where('port_id', $locationId)->first();
                 return $port ? $port->port_id : $locationId;
                 
             case 'attraction':
@@ -2872,9 +2922,13 @@ class SingleTourPackageController extends Controller
                 
             case 'hotel':
                 case 'Hotel':
-                // For hotels, use hotel_unique_id directly
+                // For hotels, get the zone_id for the specific DMC
                 $hotel = Hotel::where('hotel_unique_id', $locationId)->first();
-                return $hotel->getZoneForDmc($dmcId);
+                if ($hotel && $dmcId) {
+                    $zoneId = $hotel->getZoneForDmc($dmcId);
+                    return $zoneId ? $zoneId : $locationId;
+                }
+                return $locationId;
                 
             case 'restaurant':
                 case 'Restaurant':

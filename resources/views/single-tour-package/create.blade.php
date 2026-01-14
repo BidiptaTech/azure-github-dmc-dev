@@ -7267,6 +7267,11 @@ document.addEventListener('DOMContentLoaded', function() {
                     loadAttractionTransferVehicles(day, citySelect.value, index);
                     loadAttractionTransferPickupLocations(day, citySelect.value, index);
                 }
+
+                // Ensure pricing grid reflects that transport is now active
+                if (typeof window.updateAttractionTransportPricing === 'function') {
+                    window.updateAttractionTransportPricing(day, index);
+                }
             } else {
                 // Hide transfer card
                 if (transferCard) transferCard.style.display = 'none';
@@ -7288,8 +7293,17 @@ document.addEventListener('DOMContentLoaded', function() {
                 if (typeSelect) typeSelect.value = '';
                 if (waySelect) waySelect.value = '';
                 if (vehicleSelect) vehicleSelect.innerHTML = '<option value="">Select Vehicle</option>';
-                if (costInput) costInput.value = '';
-                if (pickupSelect) pickupSelect.innerHTML = '<option value="">Select Pickup Location</option>';
+                if (costInput) {
+                    costInput.value = '';
+                    costInput.removeAttribute('data-ajax-base-price');
+                    costInput.removeAttribute('data-ajax-final-price');
+                }
+                if (pickupSelect) pickupSelect.innerHTML = '<option value=\"\">Select Pickup Location</option>';
+
+                // Refresh pricing so any previous transport price is cleared
+                if (typeof window.updateAttractionTransportPricing === 'function') {
+                    window.updateAttractionTransportPricing(day, index);
+                }
             }
         }
     }
@@ -8026,6 +8040,8 @@ document.addEventListener('DOMContentLoaded', function() {
                         option.setAttribute('data-seating-capacity', vehicle.seating_capacity || '');
                         option.setAttribute('data-private-price', vehicle.private_price || '');
                         option.setAttribute('data-shared-price', vehicle.shared_price || '');
+                        // sharable: 1 = Private, 2 = Shared, 3 = Both
+                        option.setAttribute('data-sharable', vehicle.sharable || '');
                         vehicleSelect.appendChild(option);
                     });
                     console.log(`Loaded ${data.vehicles.length} vehicles for attraction transfer in ${cityName}`);
@@ -8041,6 +8057,55 @@ document.addEventListener('DOMContentLoaded', function() {
                 vehicleSelect.disabled = false;
             });
     }
+    
+    // Helper: filter attraction transfer vehicles based on selected type (Private/Shared)
+    window.filterAttractionTransferVehiclesByType = function(day, index) {
+        const vehicleSelect = document.getElementById(`day${day}_attraction_${index}_transfer_vehicle`);
+        const transferTypeSelect = document.getElementById(`day${day}_attraction_${index}_transfer_type`);
+        
+        if (!vehicleSelect || !transferTypeSelect) return;
+
+        const selectedType = transferTypeSelect.value;
+        let allowedSharables = null;
+
+        // sharable: 1 = Private, 2 = Shared, 3 = Both
+        if (selectedType === 'Private') {
+            allowedSharables = ['1', '3'];
+        } else if (selectedType === 'Shared') {
+            allowedSharables = ['2', '3'];
+        }
+
+        Array.from(vehicleSelect.options).forEach(option => {
+            if (!option.value) {
+                // Always keep placeholder visible
+                option.disabled = false;
+                option.hidden = false;
+                return;
+            }
+
+            const sharableAttr = option.getAttribute('data-sharable');
+
+            // If no type selected or sharable missing, show all options
+            if (!allowedSharables || !sharableAttr) {
+                option.disabled = false;
+                option.hidden = false;
+                return;
+            }
+
+            const isAllowed = allowedSharables.includes(String(sharableAttr));
+            option.disabled = !isAllowed;
+            option.hidden = !isAllowed;
+        });
+
+        // If current selection is no longer allowed, clear it so user re-chooses
+        if (
+            vehicleSelect.value &&
+            vehicleSelect.selectedOptions.length &&
+            vehicleSelect.selectedOptions[0].disabled
+        ) {
+            vehicleSelect.value = '';
+        }
+    };
     
     // Function to handle vehicle selection change and prepopulate cost
     window.handleAttractionVehicleChange = function(day, index) {
@@ -8225,6 +8290,9 @@ document.addEventListener('DOMContentLoaded', function() {
         const transferWay = document.getElementById(`day${day}_attraction_${index}_transfer_way`);
         const attractionSelect = document.getElementById(`day${day}_attraction_${index}`);
         const costField = document.getElementById(`day${day}_attraction_${index}_transfer_cost`);
+        
+        // Keep vehicle dropdown in sync with selected type (Private/Shared)
+        window.filterAttractionTransferVehiclesByType(day, index);
         
         // If pickup location is already selected, ALWAYS use AJAX pricing
         if (pickupLocationSelect && pickupLocationSelect.value) {
@@ -10220,7 +10288,7 @@ document.addEventListener('DOMContentLoaded', function() {
              btn.classList.add('btn-outline-primary');
              
              // Only show manually selected nights (no auto-filling)
-             if (manuallySelected.includes(nightNumber)) {
+                 if (manuallySelected.includes(nightNumber)) {
                  btn.classList.add('active', 'manually-selected', 'btn-success');
                  btn.classList.remove('btn-outline-primary');
              }
@@ -10253,7 +10321,7 @@ document.addEventListener('DOMContentLoaded', function() {
          manualNights.sort((a, b) => a - b);
          autoNights.sort((a, b) => a - b);
          
-        if (selectedNights.length > 0) {
+         if (selectedNights.length > 0) {
             // Format dates for each selected night
             const nightDates = selectedNights.map(night => {
                 const nightDate = moment(tourStartDate).add(night-1, 'days');
@@ -10266,12 +10334,12 @@ document.addEventListener('DOMContentLoaded', function() {
                     index === 0 || night === selectedNights[index - 1] + 1
                 );
             
-            const startNight = Math.min(...selectedNights);
-            const endNight = Math.max(...selectedNights);
-            const startDate = moment(tourStartDate).add(startNight-1, 'days');
-            const endDate = moment(tourStartDate).add(endNight, 'days');
-            
-           let summaryHTML = `
+             const startNight = Math.min(...selectedNights);
+             const endNight = Math.max(...selectedNights);
+             const startDate = moment(tourStartDate).add(startNight-1, 'days');
+             const endDate = moment(tourStartDate).add(endNight, 'days');
+             
+            let summaryHTML = `
                 <div class="alert" style="background: #d1f2eb; border: 1px solid #7dd3c0; border-radius: 6px; padding: 0.75rem 1rem; margin: 0;">
                     <i class="ri-calendar-check-line me-2" style="color: #667eea;"></i>
                     <strong style="color: #212529; font-size: 0.9rem;">Hotel booked for ${selectedNights.length} night${selectedNights.length > 1 ? 's' : ''}</strong><br>
@@ -10290,7 +10358,7 @@ document.addEventListener('DOMContentLoaded', function() {
             if (selectedNights.length > 0) {
                 summaryHTML += `
                     <hr class="my-2" style="border-color: #b3d9ff;">
-                    <div>
+                        <div>
                         <small style="color: #495057; font-size: 0.8rem;">
                             <strong>Nights:</strong> ${selectedNights.join(', ')}
                         </small>
