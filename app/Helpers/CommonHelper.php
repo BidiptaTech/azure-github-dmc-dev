@@ -1700,7 +1700,7 @@ class CommonHelper
             if ($dmcUser) {
                 $logoUrl = $dmcUser->logo ?? null;
                 $dmcCompanyName = $dmcUser->company_name ?? null;
-                
+                $dmc_name = $dmcUser->name ?? null;
                 // Populate DMC details
                 $dmcDetails = [
                     'name' => $dmcUser->name ?? 'N/A',
@@ -1803,7 +1803,7 @@ class CommonHelper
         $proposalDetails = [
             'proposal_date' => now()->format('d M Y'),
             'proposal_validity' => 'N/A',
-            'proposal_sent_by' => $dmcCompanyName ?? 'N/A',
+            'proposal_sent_by' => $dmc_name ?? 'N/A',
         ];
 
         // Get booking and guest details from orders
@@ -1834,6 +1834,9 @@ class CommonHelper
                 // Extract guest information
                 $bookingDetails['lead_guest_name'] = $firstItem['fullName'] ?? $firstItem['name'] ?? 'N/A';
                 $bookingDetails['email'] = $firstItem['email'] ?? 'N/A';
+                $bookingDetails['gender'] = $firstItem['gender'] ?? 'N/A';
+                $bookingDetails['passenger_type'] = $firstItem['passenger_type'] ?? 'N/A';
+                $bookingDetails['salutation'] = $firstItem['salutation'] ?? 'N/A';
                 
                 // Format phone number with country code if available
                 $phone = $firstItem['phone'] ?? 'N/A';
@@ -3200,7 +3203,7 @@ class CommonHelper
                         $firstRoom = $roomsOfType[0];
                         $noOfRooms = 0;
                         foreach ($roomsOfType as $room) {
-                            $noOfRooms += (int)($room['no_of_room'] ?? $room['number_of_room'] ?? 0);
+                            $noOfRooms += (int)($room['no_of_room'] ?? $room['number_of_rooms'] ?? 0);
                         }
 
                         // Calculate prices using the same logic as calculateTourPrices

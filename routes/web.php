@@ -301,7 +301,7 @@ Route::get('/clear', function () {
                     return $pdfResponse;
                 }
                 return redirect()->back()->with('error', 'Unable to generate itinerary PDF.');
-            })->name('tour.itinerary.pdf');
+            })->name('tour.itinerary.pdf');`
 
             // API routes for single tour packages (follow agent controller pattern)
             Route::get('/fetch-cities-by-country-single-tour', [SingleTourPackageController::class, 'fetchCitiesByCountry'])->name('fetch-cities-by-country-single-tour');
