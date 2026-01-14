@@ -7270,6 +7270,11 @@ document.addEventListener('DOMContentLoaded', function() {
                     loadAttractionTransferVehicles(day, citySelect.value, index);
                     loadAttractionTransferPickupLocations(day, citySelect.value, index);
                 }
+
+                // Ensure pricing grid reflects that transport is now active
+                if (typeof window.updateAttractionTransportPricing === 'function') {
+                    window.updateAttractionTransportPricing(day, index);
+                }
             } else {
                 // Hide transfer card
                 if (transferCard) transferCard.style.display = 'none';
@@ -7291,8 +7296,17 @@ document.addEventListener('DOMContentLoaded', function() {
                 if (typeSelect) typeSelect.value = '';
                 if (waySelect) waySelect.value = '';
                 if (vehicleSelect) vehicleSelect.innerHTML = '<option value="">Select Vehicle</option>';
-                if (costInput) costInput.value = '';
-                if (pickupSelect) pickupSelect.innerHTML = '<option value="">Select Pickup Location</option>';
+                if (costInput) {
+                    costInput.value = '';
+                    costInput.removeAttribute('data-ajax-base-price');
+                    costInput.removeAttribute('data-ajax-final-price');
+                }
+                if (pickupSelect) pickupSelect.innerHTML = '<option value=\"\">Select Pickup Location</option>';
+
+                // Refresh pricing so any previous transport price is cleared
+                if (typeof window.updateAttractionTransportPricing === 'function') {
+                    window.updateAttractionTransportPricing(day, index);
+                }
             }
         }
     }
@@ -8029,6 +8043,8 @@ document.addEventListener('DOMContentLoaded', function() {
                         option.setAttribute('data-seating-capacity', vehicle.seating_capacity || '');
                         option.setAttribute('data-private-price', vehicle.private_price || '');
                         option.setAttribute('data-shared-price', vehicle.shared_price || '');
+                        // sharable: 1 = Private, 2 = Shared, 3 = Both
+                        option.setAttribute('data-sharable', vehicle.sharable || '');
                         vehicleSelect.appendChild(option);
                     });
                     console.log(`Loaded ${data.vehicles.length} vehicles for attraction transfer in ${cityName}`);
@@ -8044,6 +8060,55 @@ document.addEventListener('DOMContentLoaded', function() {
                 vehicleSelect.disabled = false;
             });
     }
+    
+    // Helper: filter attraction transfer vehicles based on selected type (Private/Shared)
+    window.filterAttractionTransferVehiclesByType = function(day, index) {
+        const vehicleSelect = document.getElementById(`day${day}_attraction_${index}_transfer_vehicle`);
+        const transferTypeSelect = document.getElementById(`day${day}_attraction_${index}_transfer_type`);
+        
+        if (!vehicleSelect || !transferTypeSelect) return;
+
+        const selectedType = transferTypeSelect.value;
+        let allowedSharables = null;
+
+        // sharable: 1 = Private, 2 = Shared, 3 = Both
+        if (selectedType === 'Private') {
+            allowedSharables = ['1', '3'];
+        } else if (selectedType === 'Shared') {
+            allowedSharables = ['2', '3'];
+        }
+
+        Array.from(vehicleSelect.options).forEach(option => {
+            if (!option.value) {
+                // Always keep placeholder visible
+                option.disabled = false;
+                option.hidden = false;
+                return;
+            }
+
+            const sharableAttr = option.getAttribute('data-sharable');
+
+            // If no type selected or sharable missing, show all options
+            if (!allowedSharables || !sharableAttr) {
+                option.disabled = false;
+                option.hidden = false;
+                return;
+            }
+
+            const isAllowed = allowedSharables.includes(String(sharableAttr));
+            option.disabled = !isAllowed;
+            option.hidden = !isAllowed;
+        });
+
+        // If current selection is no longer allowed, clear it so user re-chooses
+        if (
+            vehicleSelect.value &&
+            vehicleSelect.selectedOptions.length &&
+            vehicleSelect.selectedOptions[0].disabled
+        ) {
+            vehicleSelect.value = '';
+        }
+    };
     
     // Function to handle vehicle selection change and prepopulate cost
     window.handleAttractionVehicleChange = function(day, index) {
@@ -8228,6 +8293,9 @@ document.addEventListener('DOMContentLoaded', function() {
         const transferWay = document.getElementById(`day${day}_attraction_${index}_transfer_way`);
         const attractionSelect = document.getElementById(`day${day}_attraction_${index}`);
         const costField = document.getElementById(`day${day}_attraction_${index}_transfer_cost`);
+        
+        // Keep vehicle dropdown in sync with selected type (Private/Shared)
+        window.filterAttractionTransferVehiclesByType(day, index);
         
         // If pickup location is already selected, ALWAYS use AJAX pricing
         if (pickupLocationSelect && pickupLocationSelect.value) {
@@ -10161,12 +10229,12 @@ document.addEventListener('DOMContentLoaded', function() {
          }
     }
 
-     // Handle night selection with automatic consecutive filling
+     // Handle night selection - treat each night individually (no auto-filling)
     function handleNightSelection(selectedNight) {
          const allNightButtons = document.querySelectorAll('.night-btn');
          let manuallySelectedNights = [];
          
-         // Get currently manually selected nights (not auto-filled)
+         // Get currently manually selected nights
          allNightButtons.forEach(btn => {
              if (btn.classList.contains('manually-selected')) {
                  manuallySelectedNights.push(parseInt(btn.dataset.night));
@@ -10182,9 +10250,8 @@ document.addEventListener('DOMContentLoaded', function() {
              manuallySelectedNights.push(selectedNight);
          }
          
-        // Fill gaps and update selection
-        const allConsecutiveNights = fillConsecutiveNights(manuallySelectedNights);
-        updateConsecutiveSelectionWithColors(manuallySelectedNights, allConsecutiveNights);
+        // Update selection - use only manually selected nights (no auto-filling)
+        updateConsecutiveSelectionWithColors(manuallySelectedNights, manuallySelectedNights);
         updateNightDisplay();
         
         // Update room price display based on selected nights (weekday/weekend calculation)
@@ -10223,17 +10290,10 @@ document.addEventListener('DOMContentLoaded', function() {
              btn.classList.remove('active', 'manually-selected', 'auto-selected', 'btn-success', 'btn-warning');
              btn.classList.add('btn-outline-primary');
              
-             if (allConsecutive.includes(nightNumber)) {
-                 btn.classList.add('active');
-                 btn.classList.remove('btn-outline-primary');
-                 
+             // Only show manually selected nights (no auto-filling)
                  if (manuallySelected.includes(nightNumber)) {
-                     // Manually selected nights - Green
-                     btn.classList.add('manually-selected', 'btn-success');
-                 } else {
-                     // Auto-filled nights - Orange/Warning
-                     btn.classList.add('auto-selected', 'btn-warning');
-                 }
+                 btn.classList.add('active', 'manually-selected', 'btn-success');
+                 btn.classList.remove('btn-outline-primary');
              }
          });
     }
@@ -10265,6 +10325,18 @@ document.addEventListener('DOMContentLoaded', function() {
          autoNights.sort((a, b) => a - b);
          
          if (selectedNights.length > 0) {
+            // Format dates for each selected night
+            const nightDates = selectedNights.map(night => {
+                const nightDate = moment(tourStartDate).add(night-1, 'days');
+                return nightDate.format('MMM DD');
+            });
+            
+            // Check if nights are consecutive
+            const isConsecutive = selectedNights.length > 1 && 
+                selectedNights.every((night, index) => 
+                    index === 0 || night === selectedNights[index - 1] + 1
+                );
+            
              const startNight = Math.min(...selectedNights);
              const endNight = Math.max(...selectedNights);
              const startDate = moment(tourStartDate).add(startNight-1, 'days');
@@ -10273,24 +10345,26 @@ document.addEventListener('DOMContentLoaded', function() {
             let summaryHTML = `
                 <div class="alert" style="background: #d1f2eb; border: 1px solid #7dd3c0; border-radius: 6px; padding: 0.75rem 1rem; margin: 0;">
                     <i class="ri-calendar-check-line me-2" style="color: #667eea;"></i>
-                    <strong style="color: #212529; font-size: 0.9rem;">Hotel booked for ${selectedNights.length} nights</strong><br>
-                    <small style="color: #495057; font-size: 0.8rem;">${startDate.format('MMM DD')} - ${endDate.format('MMM DD, YYYY')}</small><br>
-                    <small style="color: #6c757d; font-size: 0.75rem;">Consecutive hotel nights selected - applies to all rooms in this hotel</small>
+                    <strong style="color: #212529; font-size: 0.9rem;">Hotel booked for ${selectedNights.length} night${selectedNights.length > 1 ? 's' : ''}</strong><br>
             `;
             
-            // Add legend if there are auto-selected nights
-            if (autoNights.length > 0) {
+            // Show date range if consecutive, otherwise show individual nights
+            if (isConsecutive && selectedNights.length > 1) {
+                summaryHTML += `<small style="color: #495057; font-size: 0.8rem;">${startDate.format('MMM DD')} - ${endDate.format('MMM DD, YYYY')}</small><br>`;
+            } else {
+                summaryHTML += `<small style="color: #495057; font-size: 0.8rem;">Selected nights: ${selectedNights.join(', ')} (${nightDates.join(', ')})</small><br>`;
+            }
+            
+            summaryHTML += `<small style="color: #6c757d; font-size: 0.75rem;">Selected nights apply to all rooms in this hotel</small>`;
+            
+           // Show selected nights list
+            if (selectedNights.length > 0) {
                 summaryHTML += `
                     <hr class="my-2" style="border-color: #b3d9ff;">
-                    <div class="d-flex justify-content-between align-items-center flex-wrap gap-2">
                         <div>
-                            <span class="badge me-2" style="background: #667eea; color: #ffffff; border-radius: 4px; font-size: 0.75rem; padding: 0.25rem 0.5rem;">${manualNights.length}</span>
-                            <small style="color: #495057; font-size: 0.8rem;">Manually Selected: ${manualNights.join(', ')}</small>
-                        </div>
-                        <div>
-                            <span class="badge me-2" style="background: #b3d9ff; color: #667eea; border-radius: 4px; font-size: 0.75rem; padding: 0.25rem 0.5rem;">${autoNights.length}</span>
-                            <small style="color: #495057; font-size: 0.8rem;">Auto-Required: ${autoNights.join(', ')}</small>
-                        </div>
+                        <small style="color: #495057; font-size: 0.8rem;">
+                            <strong>Nights:</strong> ${selectedNights.join(', ')}
+                        </small>
                     </div>
                 `;
             }
@@ -14925,13 +14999,14 @@ document.addEventListener('DOMContentLoaded', function() {
         // Always show the price display when we have data
         priceDisplay.style.display = 'block';
         
-        // Update ticket pricing column
+        // Update ticket pricing column (show only calculation, not base ticket prices)
         const ticketPricingContent = document.getElementById(`day${day}_attraction_${index}_ticket_pricing_content`);
         if (ticketPricingContent) {
             if (totalPrice > 0) {
                 ticketPricingContent.innerHTML = `
                     <div class="small">
                         <div class="mb-2"><strong>${selectedTicket.text}</strong></div>
+                        <div class="mb-1"><strong>Calculation:</strong></div>
                         <div class="mb-1">Adult: $${adultPrice.toFixed(2)} × ${guestInfo.adults} = $${(adultPrice * guestInfo.adults).toFixed(2)}</div>
                         <div class="mb-1">Child: $${childPrice.toFixed(2)} × ${guestInfo.children} = $${(childPrice * guestInfo.children).toFixed(2)}</div>
                         <div class="mb-2">Senior: $${seniorPrice.toFixed(2)} × ${guestInfo.seniors} = $${(seniorPrice * guestInfo.seniors).toFixed(2)}</div>
@@ -15755,23 +15830,24 @@ document.addEventListener('DOMContentLoaded', function() {
             
             console.log('Meal type selected:', mealType, 'day:', day, 'index:', index);
             
-            // Show/hide dish dropdown based on meal type selection
-            if (mealType && mealType !== '') {
-                if (dishContainer) {
-                    dishContainer.style.display = 'block';
-                }
-                // Also ensure the dish select element is visible
-                if (dishSelect) {
-                    dishSelect.style.display = 'block';
-                }
-            } else {
-                if (dishContainer) {
-                    dishContainer.style.display = 'none';
-                }
-                // Also hide the dish select element (reuse the dishSelect variable from above)
-                if (dishSelect) {
-                    dishSelect.style.display = 'none';
-                }
+            // Clear dish selection when meal type changes
+            if (dishSelect) {
+                dishSelect.value = '';
+                dishSelect.innerHTML = '<option value="">Select Dish</option>';
+            }
+            
+            // Hide dish container initially - will show only if dishes are available
+            if (dishContainer) {
+                dishContainer.style.display = 'none';
+            }
+            if (dishSelect) {
+                dishSelect.style.display = 'none';
+            }
+            
+            // Update pricing immediately to reset/clear pricing when meal type changes
+            updateRestaurantPricing(day, index);
+            
+            if (!mealType || mealType === '') {
                 return; // Exit early if no meal type selected
             }
             
@@ -15804,6 +15880,9 @@ document.addEventListener('DOMContentLoaded', function() {
                 if (dishContainer) {
                     dishContainer.style.display = 'none';
                 }
+                
+                // Update pricing when no valid restaurant
+                updateRestaurantPricing(day, index);
             }
         }
         
@@ -16481,7 +16560,11 @@ document.addEventListener('DOMContentLoaded', function() {
                 dishSelect.innerHTML = '<option value="">Select Dish</option>';
                 
                 if (data.success && data.meals && data.meals.length > 0) {
-                    // If we have meal data, show the dropdown
+                    // If we have meal data, show the dropdown and container
+                    const dishContainer = document.getElementById('day' + day + '_dish_container_' + index);
+                    if (dishContainer) {
+                        dishContainer.style.display = 'block';
+                    }
                     dishSelect.style.display = 'block';
                     console.log('Dishes loaded successfully, showing dropdown with', data.meals.length, 'options');
                     
@@ -16511,34 +16594,23 @@ document.addEventListener('DOMContentLoaded', function() {
                         
                         dishSelect.appendChild(option);
                     });
-                } else {
-                    // If API returns no dishes, create default options based on meal types
-                    dishSelect.style.display = 'block';
-                    console.log('No dishes from API, showing default options');
                     
-                    const mealTypeSelect = document.getElementById('day' + day + '_meal_type_' + index);
-                    if (mealTypeSelect && mealTypeSelect.selectedIndex > 0) {
-                        const selectedMealType = mealTypeSelect.options[mealTypeSelect.selectedIndex].value;
-                        
-                        // Create default dish options based on meal type
-                        const defaultDishes = [
-                            { id: 'default_buffet', name: `${selectedMealType} Buffet`, type: 1 },
-                            { id: 'default_set', name: `${selectedMealType} Set Menu`, type: 2 }
-                        ];
-                        
-                        defaultDishes.forEach(dish => {
-                            const option = document.createElement('option');
-                            option.value = dish.id;
-                            option.textContent = dish.name;
-                            dishSelect.appendChild(option);
-                        });
-                    } else {
-                        const option = document.createElement('option');
-                        option.value = '';
-                        option.textContent = data.message || 'No dishes available for this restaurant';
-                        option.disabled = true;
-                        dishSelect.appendChild(option);
+                    // Update pricing after dishes are loaded
+                    updateRestaurantPricing(day, index);
+                } else {
+                    // If API returns no dishes, show container with "No dish available" message
+                    const dishContainer = document.getElementById('day' + day + '_dish_container_' + index);
+                    if (dishContainer) {
+                        dishContainer.style.display = 'block';
                     }
+                    dishSelect.style.display = 'block';
+                    console.log('No dishes from API, showing "No dish available" message');
+                    
+                    // Show "No dish available" message in the select dropdown
+                    dishSelect.innerHTML = '<option value="" disabled>No dish available</option>';
+                    
+                    // Update pricing when no dishes available
+                    updateRestaurantPricing(day, index);
                 }
             })
             .catch(error => {
