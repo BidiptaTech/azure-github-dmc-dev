@@ -8641,6 +8641,55 @@ document.addEventListener('DOMContentLoaded', function() {
     }
     
     // Function to handle restaurant transfer type or way change - prioritize AJAX pricing if pickup location is selected
+    // Function to filter restaurant transfer vehicles by type (Private/Shared)
+    window.filterRestaurantTransferVehiclesByType = function(day, index) {
+        const vehicleSelect = document.getElementById(`day${day}_restaurant_${index}_transfer_vehicle`);
+        const transferTypeSelect = document.getElementById(`day${day}_restaurant_${index}_transfer_type`);
+        
+        if (!vehicleSelect || !transferTypeSelect) return;
+
+        const selectedType = transferTypeSelect.value;
+        let allowedSharables = null;
+
+        // sharable: 1 = Private, 2 = Shared, 3 = Both
+        if (selectedType === 'Private') {
+            allowedSharables = ['1', '3'];
+        } else if (selectedType === 'Shared') {
+            allowedSharables = ['2', '3'];
+        }
+
+        Array.from(vehicleSelect.options).forEach(option => {
+            if (!option.value) {
+                // Always keep placeholder visible
+                option.disabled = false;
+                option.hidden = false;
+                return;
+            }
+
+            const sharableAttr = option.getAttribute('data-sharable');
+
+            // If no type selected or sharable missing, show all options
+            if (!allowedSharables || !sharableAttr) {
+                option.disabled = false;
+                option.hidden = false;
+                return;
+            }
+
+            const isAllowed = allowedSharables.includes(String(sharableAttr));
+            option.disabled = !isAllowed;
+            option.hidden = !isAllowed;
+        });
+
+        // If current selection is no longer allowed, clear it so user re-chooses
+        if (
+            vehicleSelect.value &&
+            vehicleSelect.selectedOptions.length &&
+            vehicleSelect.selectedOptions[0].disabled
+        ) {
+            vehicleSelect.value = '';
+        }
+    };
+    
     window.handleRestaurantTransferTypeOrWayChange = function(day, index) {
         const pickupLocationSelect = document.getElementById(`day${day}_restaurant_${index}_transfer_pickup_location`);
         const vehicleSelect = document.getElementById(`day${day}_restaurant_${index}_transfer_vehicle`);
@@ -8648,6 +8697,9 @@ document.addEventListener('DOMContentLoaded', function() {
         const transferWay = document.getElementById(`day${day}_restaurant_${index}_transfer_way`);
         const restaurantSelect = document.getElementById(`day${day}_restaurant_${index}`);
         const costField = document.getElementById(`day${day}_restaurant_${index}_transfer_cost`);
+        
+        // Keep vehicle dropdown in sync with selected type (Private/Shared)
+        window.filterRestaurantTransferVehiclesByType(day, index);
         
         // If pickup location is already selected, ALWAYS use AJAX pricing
         if (pickupLocationSelect && pickupLocationSelect.value) {
@@ -9222,6 +9274,9 @@ document.addEventListener('DOMContentLoaded', function() {
                 if (citySelect && citySelect.value) {
                     loadRestaurantTransferVehicles(day, citySelect.value, index);
                     loadRestaurantTransferPickupLocations(day, citySelect.value, index);
+                } else {
+                    // If vehicles are already loaded, apply filter based on current transfer type
+                    window.filterRestaurantTransferVehiclesByType(day, index);
                 }
             } else {
                 // Hide transfer card
@@ -9277,9 +9332,13 @@ document.addEventListener('DOMContentLoaded', function() {
                         option.setAttribute('data-seating-capacity', vehicle.seating_capacity || '');
                         option.setAttribute('data-private-price', vehicle.private_price || '');
                         option.setAttribute('data-shared-price', vehicle.shared_price || '');
+                        option.setAttribute('data-sharable', vehicle.sharable || '0');
                         vehicleSelect.appendChild(option);
                     });
                     console.log(`Loaded ${data.vehicles.length} vehicles for restaurant transfer in ${cityName}`);
+                    
+                    // Apply filter based on selected transfer type
+                    window.filterRestaurantTransferVehiclesByType(day, index);
                 } else {
                     vehicleSelect.innerHTML += '<option disabled>No vehicles available</option>';
                 }
@@ -22632,21 +22691,32 @@ function loadDropoffZones(day, section) {
             serviceTypeSelect.style.backgroundColor = '#f8f9fa';
             serviceTypeSelect.style.cursor = 'not-allowed';
         } else {
-            // For local transfer, show options based on vehicle sharable property
-            console.log('Local transfer radio button is selected');
-            if(selectedOption && selectedOption.dataset.sharable == 1){
+            // For local transfer, entry, and exit ports, show options based on vehicle sharable property
+            // sharable: 1 = Private only, 2 = Shared only, 3 = Both Private and Shared
+            const sharable = selectedOption ? parseInt(selectedOption.dataset.sharable) : null;
+            console.log('Vehicle sharable value:', sharable, 'for section:', section);
+            
+            if (sharable === 1 || sharable === 3) {
+                // Show Private option (for sharable = 1 or 3)
                 const privateOption = document.createElement('option');
                 privateOption.value = 'Private';
                 privateOption.textContent = 'Private';
                 serviceTypeSelect.appendChild(privateOption);
+                console.log('Added Private option (sharable =', sharable, ')');
             }
-            else if(selectedOption && selectedOption.dataset.sharable == 2){
+            
+            if (sharable === 2 || sharable === 3) {
+                // Show Shared option (for sharable = 2 or 3)
                 const sharedOption = document.createElement('option');
                 sharedOption.value = 'Shared';
                 sharedOption.textContent = 'Shared';
                 serviceTypeSelect.appendChild(sharedOption);
+                console.log('Added Shared option (sharable =', sharable, ')');
             }
-            else{
+            
+            // If sharable is not 1, 2, or 3, show both options as fallback
+            if (sharable !== 1 && sharable !== 2 && sharable !== 3) {
+                console.log('Sharable value not recognized (', sharable, '), showing both options as fallback');
                 const privateOption = document.createElement('option');
                 privateOption.value = 'Private';
                 privateOption.textContent = 'Private';
@@ -24647,11 +24717,42 @@ window.saveService = function(day, type) {
        const user_dmc = UserDmc;
        const zone_status = user_dmc ? user_dmc.zone_on : 1; // Default to 1 if no DMC data
        
+       // Check if this is a local_transfer transport type
+       const localTransferRadio = document.querySelector(`input[name="day${day}_transport_service_type"][value="local_transfer"]`);
+       const isLocalTransfer = localTransferRadio && localTransferRadio.checked;
+       
        if (zone_status == 1) {
         if (section === 'exit') {
             // For exit port, pickup is typically attraction/restaurant, dropoff is port
             fromZoneType = pickupZoneSelect.options[pickupZoneSelect.selectedIndex]?.dataset?.type || 'attraction';
             toZoneType = dropoffZoneSelect.options[dropoffZoneSelect.selectedIndex]?.dataset?.type || 'port';
+        } else if (isLocalTransfer && section === 'transport') {
+            // For local_transfer, read the actual data-type from the selected options
+            // Don't default to 'port' or 'attraction' - use the actual type (hotel, attraction, restaurant, etc.)
+            fromZoneType = pickupZoneSelect.options[pickupZoneSelect.selectedIndex]?.dataset?.type || '';
+            toZoneType = dropoffZoneSelect.options[dropoffZoneSelect.selectedIndex]?.dataset?.type || '';
+            
+            // If data-type is missing, try to infer from option text
+            if (!fromZoneType && pickupZoneSelect.options[pickupZoneSelect.selectedIndex]?.text) {
+                const pickupText = pickupZoneSelect.options[pickupZoneSelect.selectedIndex].text.toLowerCase();
+                if (pickupText.includes('hotel')) fromZoneType = 'hotel';
+                else if (pickupText.includes('attraction')) fromZoneType = 'attraction';
+                else if (pickupText.includes('restaurant')) fromZoneType = 'restaurant';
+            }
+            
+            if (!toZoneType && dropoffZoneSelect.options[dropoffZoneSelect.selectedIndex]?.text) {
+                const dropoffText = dropoffZoneSelect.options[dropoffZoneSelect.selectedIndex].text.toLowerCase();
+                if (dropoffText.includes('hotel')) toZoneType = 'hotel';
+                else if (dropoffText.includes('attraction')) toZoneType = 'attraction';
+                else if (dropoffText.includes('restaurant')) toZoneType = 'restaurant';
+            }
+            
+            console.log('Local transfer zone types detected:', {
+                fromZoneType: fromZoneType,
+                toZoneType: toZoneType,
+                pickupText: pickupZoneSelect.options[pickupZoneSelect.selectedIndex]?.text,
+                dropoffText: dropoffZoneSelect.options[dropoffZoneSelect.selectedIndex]?.text
+            });
         } else {
             // For entry port and other sections, use original logic
             fromZoneType = pickupZoneSelect.options[pickupZoneSelect.selectedIndex]?.dataset?.type || 'port';
@@ -24668,12 +24769,26 @@ window.saveService = function(day, type) {
          let actualToZoneId = toZoneId;
          
          // For ports, use port_id from data attribute
-         if (fromZoneType === 'port') {
+         // Only do this if the zone type is actually 'port' or 'Port'
+         if (fromZoneType === 'port' || fromZoneType === 'Port') {
              actualFromZoneId = pickupZoneSelect.options[pickupZoneSelect.selectedIndex]?.dataset?.portId || fromZoneId;
          }
          
-         if (toZoneType === 'port') {
+         if (toZoneType === 'port' || toZoneType === 'Port') {
              actualToZoneId = dropoffZoneSelect.options[dropoffZoneSelect.selectedIndex]?.dataset?.portId || toZoneId;
+         }
+         
+         // For local_transfer with hotels/attractions/restaurants, keep the original IDs
+         // The backend will convert them to zone_ids using getActualZoneId
+         if (isLocalTransfer && section === 'transport') {
+             // Don't modify the IDs - pass them as-is to the backend
+             // The backend's getActualZoneId will handle the conversion based on the zone type
+             console.log('Local transfer: keeping original IDs for backend conversion:', {
+                 fromZoneId: fromZoneId,
+                 toZoneId: toZoneId,
+                 fromZoneType: fromZoneType,
+                 toZoneType: toZoneType
+             });
          }
 
          // Enhanced debugging for zone ID mapping
