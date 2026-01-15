@@ -19022,55 +19022,28 @@ document.addEventListener('DOMContentLoaded', function() {
             return;
         }
         
-        // Find the service card that contains the danger border card (exit port)
-        const serviceCards = dayContainer.querySelectorAll('.service-card');
-        let exitPortServiceCard = null;
-        
-        serviceCards.forEach(card => {
-            if (card.querySelector('.card.border-danger.shadow-sm')) {
-                exitPortServiceCard = card;
-            }
-        });
-        
-        if (!exitPortServiceCard) {
-            showNotification(`Exit port services are only available on the last day of the tour. This is Day ${day}.`, 'warning');
-            console.error('Exit port service card not found for day', day);
+        // Find the departure transport section (exit ports are in this section)
+        const departureSection = dayContainer.querySelector('#departureTransportSection');
+        if (!departureSection) {
+            showNotification(`Exit port section not found for Day ${day}. Exit ports are only available on the last day of the tour.`, 'warning');
+            console.error('Departure transport section not found for day', day);
             return;
         }
-         
-                 // Find existing exit port items container (it's outside the service card)
-        console.log('Looking for exit ports container for day', day);
-        console.log('Exit port service card:', exitPortServiceCard);
-        console.log('Service card parent:', exitPortServiceCard.parentElement);
-        
-        // Try multiple approaches to find the container
-        let container = exitPortServiceCard.parentElement.querySelector('.exit-ports-container');
-        
-        if (!container) {
-            // Try looking in the day container directly
-            container = dayContainer.querySelector('.exit-ports-container');
-            console.log('Trying day container approach:', container);
-        }
-        
-        if (!container) {
-            // Try looking in all service cards' parents
-            const allServiceCards = dayContainer.querySelectorAll('.service-card');
-            allServiceCards.forEach(card => {
-                if (!container) {
-                    const potentialContainer = card.parentElement.querySelector('.exit-ports-container');
-                    if (potentialContainer) {
-                        container = potentialContainer;
-                        console.log('Found container via service card parent search:', container);
-                    }
-                }
-            });
-        }
-        
+               
+        // Find existing exit port items container
+        let container = departureSection.querySelector('.exit-ports-container');
         if (!container) {
             console.error('Exit ports container not found for day', day);
-            console.log('Available elements in day container:', dayContainer.innerHTML);
-            showNotification(`Exit ports container not found for Day ${day}. Please refresh the page and try again.`, 'error');
-            return;
+            // Try to find it in the card-body
+            const cardBody = departureSection.querySelector('.card-body');
+            if (cardBody) {
+                container = cardBody.querySelector('.exit-ports-container');
+            }
+            if (!container) {
+                console.error('Exit ports container not found in card-body for day', day);
+                showNotification(`Exit ports container not found for Day ${day}. Please refresh the page and try again.`, 'error');
+                return;
+            }
         }
         
         console.log('Successfully found exit ports container:', container);
