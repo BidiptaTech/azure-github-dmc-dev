@@ -542,15 +542,28 @@
                                 $first_enquiry_actual_amount = $frstenquiry->actual_amount ?? 0;
                                 
                                 // Calculate total tour price from ALL bookings with status 1 or 3
+                                // Includes: base price + transfer price + guide price (for attractions)
                                 $tourTotalPrice = 0;
                                 foreach ($tour->booking as $booking) {
                                     if (in_array($booking->status, [1, 3])) {
                                         $data = is_string($booking->data) ? json_decode($booking->data, true) : $booking->data;
                                         if (is_array($data)) {
                                             foreach ($data as $item) {
-                                                if (isset($item['totalPrice'])) {
-                                                    $tourTotalPrice += (float) $item['totalPrice'];
+                                                $itemPrice = (float) ($item['totalPrice'] ?? $item['price'] ?? 0);
+                                                
+                                                // Add transfer price if exists
+                                                $transferPrice = 0;
+                                                if (isset($item['transfer_options']['cost']) && $item['transfer_options']['cost'] > 0) {
+                                                    $transferPrice = (float) $item['transfer_options']['cost'];
                                                 }
+                                                
+                                                // Add guide price if exists (for attractions)
+                                                $guidePrice = 0;
+                                                if (isset($item['guide_options']['total_price']) && $item['guide_options']['total_price'] > 0) {
+                                                    $guidePrice = (float) $item['guide_options']['total_price'];
+                                                }
+                                                
+                                                $tourTotalPrice += $itemPrice + $transferPrice + $guidePrice;
                                             }
                                         }
                                     }
@@ -1076,22 +1089,27 @@
                                             </div>
                                             
                                             @foreach($booking['rooms'] as $roomIndex => $room)
+                                                @php
+                                                    $numberOfRooms = $room['number_of_rooms'] ?? 1;
+                                                    $bedPrice = 0;
+                                                    if(isset($room['beds']) && is_array($room['beds']) && count($room['beds']) > 0) {
+                                                        $bedPrice = $room['beds'][0]['price'] ?? 0;
+                                                    }
+                                                    $roomTotalPrice = $bedPrice * $numberOfRooms;
+                                                @endphp
                                                 <div class="card mb-3" style="border: 2px solid #e9ecef; border-radius: 12px; overflow: hidden;">
                                                     <div class="card-header border-0" style="background: linear-gradient(90deg, #74b9ff 0%, #0984e3 100%); padding: 15px;">
                                                         <div class="row align-items-center">
                                                             <div class="col-md-8">
                                                                 <h6 class="fw-bold text-white mb-1">
-                                                                    <i class="ri-door-line me-2"></i>Room {{ $roomIndex + 1 }}: {{ $room['room_type'] ?? 'Standard Room' }}
+                                                                    <i class="ri-door-line me-2"></i>{{ $room['room_type'] ?? 'Standard Room' }}
                                                                 </h6>
-                                                                <small class="text-white opacity-75">Room ID: {{ $room['room_id'] ?? 'N/A' }}</small>
+                                                                <small class="text-white opacity-75">{{ $numberOfRooms }} Room{{ $numberOfRooms > 1 ? 's' : '' }}</small>
                                                             </div>
                                                             <div class="col-md-4 text-end">
-                                                                @if(isset($room['beds']) && is_array($room['beds']))
-                                                                    @php $totalRoomPrice = collect($room['beds'])->sum('price'); @endphp
-                                                                    <div class="bg-white rounded-pill px-3 py-2 d-inline-block">
-                                                                        <span class="text-success fw-bold fs-5">SGD {{ number_format($totalRoomPrice, 2) }}</span>
-                                                                    </div>
-                                                                @endif
+                                                                <div class="bg-white rounded-pill px-3 py-2 d-inline-block">
+                                                                    <span class="text-success fw-bold fs-5">SGD {{ number_format($roomTotalPrice, 2) }}</span>
+                                                                </div>
                                                             </div>
                                                         </div>
                                                     </div>
@@ -1108,7 +1126,6 @@
                                                                                 </div>
                                                                                 <div>
                                                                                     <h6 class="fw-bold text-dark mb-0">{{ $bed['bed_type'] ?? 'Bed' }}</h6>
-                                                                                    <small class="text-muted">Bed ID: {{ $bed['bed_id'] ?? 'N/A' }}</small>
                                                                                 </div>
                                                                             </div>
                                                                             <div class="row">
@@ -1121,14 +1138,20 @@
                                                                                     <div class="fw-medium">{{ $bed['max_occupancy'] ?? 'N/A' }}</div>
                                                                                 </div>
                                                                                 <div class="col-12">
-                                                                                    <small class="text-muted">Room Price</small>
+                                                                                    <small class="text-muted">Price per Room</small>
                                                                                     <div class="fs-5 fw-bold text-success">SGD {{ number_format($bed['price'] ?? 0, 2) }}</div>
                                                                                 </div>
+                                                                                @if($numberOfRooms > 1)
+                                                                                <div class="col-12 mt-2">
+                                                                                    <small class="text-muted">Total ({{ $numberOfRooms }} × SGD {{ number_format($bed['price'] ?? 0, 2) }})</small>
+                                                                                    <div class="fs-4 fw-bold text-primary">SGD {{ number_format($roomTotalPrice, 2) }}</div>
+                                                                                </div>
+                                                                                @endif
                                                                             </div>
                                                                         </div>
                                                                         
                                                                         <div class="col-md-6">
-                                                                            @if(isset($bed['selectedMeals']) && is_array($bed['selectedMeals']))
+                                                                            @if(isset($bed['selectedMeals']) && is_array($bed['selectedMeals']) && count($bed['selectedMeals']) > 0)
                                                                                 <div class="mb-3">
                                                                                     <div class="d-flex align-items-center mb-2">
                                                                                         <div class="bg-warning rounded-circle p-2 me-2">
@@ -1138,30 +1161,9 @@
                                                                                     </div>
                                                                                     @foreach($bed['selectedMeals'] as $mealKey => $meal)
                                                                                         <div class="bg-light rounded p-2 mb-2">
-                                                                                            <div class="d-flex justify-content-between align-items-center">
-                                                                                                <span class="fw-medium">{{ $meal['type'] ?? 'Meal Plan' }}</span>
-                                                                                                <span class="badge bg-success">SGD {{ number_format($meal['price'] ?? 0, 2) }}</span>
-                                                                                            </div>
+                                                                                            <span class="fw-medium">{{ $meal['type'] ?? 'Meal Plan' }}</span>
                                                                                         </div>
                                                                                     @endforeach
-                                                                                    @php $totalMealPrice = collect($bed['selectedMeals'])->sum('price'); @endphp
-                                                                                    <div class="border-top pt-2 mt-2">
-                                                                                        <div class="d-flex justify-content-between">
-                                                                                            <strong>Meal Total:</strong>
-                                                                                            <strong class="text-warning">SGD {{ number_format($totalMealPrice, 2) }}</strong>
-                                                                                        </div>
-                                                                                    </div>
-                                                                                </div>
-                                                                            @endif
-                                                                            
-                                                                            @if(isset($bed['mealTypes']) && is_array($bed['mealTypes']))
-                                                                                <div>
-                                                                                    <small class="text-muted fw-bold d-block mb-2">Available Meal Options:</small>
-                                                                                    <div class="d-flex flex-wrap gap-1">
-                                                                                        @foreach($bed['mealTypes'] as $mealType)
-                                                                                            <span class="badge bg-outline-secondary">{{ $mealType }}</span>
-                                                                                        @endforeach
-                                                                                    </div>
                                                                                 </div>
                                                                             @endif
                                                                         </div>
@@ -1178,11 +1180,14 @@
                                                 <div class="row align-items-center">
                                                     <div class="col-md-8">
                                                         <h6 class="fw-bold text-dark mb-1">Hotel Booking Summary</h6>
-                                                        <small class="text-muted">{{ count($booking['rooms']) }} room(s) • {{ ucfirst($booking['bookingType'] ?? 'Standard') }} booking</small>
+                                                        @php
+                                                            $totalRooms = collect($booking['rooms'])->sum('number_of_rooms');
+                                                        @endphp
+                                                        <small class="text-muted">{{ $totalRooms }} room(s) • {{ ucfirst($booking['bookingType'] ?? 'Standard') }} booking</small>
                                                     </div>
                                                     <div class="col-md-4 text-end">
                                                         <small class="text-muted d-block">Total Amount</small>
-                                                        <div class="fs-3 fw-bold text-white">SGD {{ number_format($booking['totalPrice'] ?? 0, 2) }}</div>
+                                                        <div class="fs-3 fw-bold text-primary">SGD {{ number_format($booking['totalPrice'] ?? 0, 2) }}</div>
                                                     </div>
                                                 </div>
                                             </div>
@@ -1363,8 +1368,14 @@
                                              <p class="mb-0 text-white opacity-75">{{ $booking['ticketName'] ?? 'Standard Ticket' }} • Enquiry {{ $index + 1 }}</p>
                                          </div>
                                          <div class="col-md-4 text-end">
+                                             @php
+                                                 $attractionPrice = $booking['price'] ?? $booking['totalPrice'] ?? 0;
+                                                 $transferPrice = isset($booking['transfer_options']['cost']) && $booking['transfer_options']['cost'] > 0 ? $booking['transfer_options']['cost'] : 0;
+                                                 $guidePrice = isset($booking['guide_options']['total_price']) && $booking['guide_options']['total_price'] > 0 ? $booking['guide_options']['total_price'] : 0;
+                                                 $grandTotal = $attractionPrice + $transferPrice + $guidePrice;
+                                             @endphp
                                              <div class="bg-white rounded-pill px-3 py-2 d-inline-block">
-                                                 <span class="text-success fw-bold fs-5">SGD {{ number_format($booking['totalPrice'] ?? 0, 2) }}</span>
+                                                 <span class="text-success fw-bold fs-5">SGD {{ number_format($grandTotal, 2) }}</span>
                                              </div>
                                          </div>
                                      </div>
@@ -1482,29 +1493,29 @@
                                          </div>
                                      </div>
 
-                                     <!-- Attraction Details -->
-                                     <div class="bg-white rounded p-3 shadow-sm mb-4">
-                                         <div class="d-flex align-items-center mb-3">
-                                             <div class="bg-success rounded-circle p-2 me-3">
-                                                 <i class="ri-building-2-line text-white"></i>
-                                             </div>
-                                             <h6 class="fw-bold mb-0 text-dark">Attraction Details</h6>
-                                         </div>
-                                         <div class="row">
-                                             <div class="col-md-4 mb-3">
-                                                 <small class="text-muted">Attraction ID</small>
-                                                 <div class="fw-medium">{{ $booking['AttractionId'] ?? 'N/A' }}</div>
-                                             </div>
-                                             <div class="col-md-4 mb-3">
-                                                 <small class="text-muted">Ticket ID</small>
-                                                 <div class="fw-medium">{{ $booking['ticketId'] ?? 'N/A' }}</div>
-                                             </div>
-                                             <div class="col-md-4 mb-3">
-                                                 <small class="text-muted">NRI Status</small>
-                                                 <span class="badge bg-info">{{ ucfirst($booking['nri'] ?? 'N/A') }}</span>
-                                             </div>
-                                         </div>
-                                     </div>
+                                    <!-- Attraction Details -->
+                                    <div class="bg-white rounded p-3 shadow-sm mb-4">
+                                        <div class="d-flex align-items-center mb-3">
+                                            <div class="bg-success rounded-circle p-2 me-3">
+                                                <i class="ri-building-2-line text-white"></i>
+                                            </div>
+                                            <h6 class="fw-bold mb-0 text-dark">Attraction Details</h6>
+                                        </div>
+                                        <div class="row">
+                                            <div class="col-md-6 mb-3">
+                                                <small class="text-muted">Attraction Name</small>
+                                                <div class="fw-medium text-primary">{{ $booking['AttractionName'] ?? 'N/A' }}</div>
+                                            </div>
+                                            <div class="col-md-6 mb-3">
+                                                <small class="text-muted">Ticket Type</small>
+                                                <div class="fw-medium">{{ $booking['ticketName'] ?? 'Standard Ticket' }}</div>
+                                            </div>
+                                            <div class="col-md-12 mb-3">
+                                                <small class="text-muted">NRI Status</small>
+                                                <div><span class="badge bg-info">{{ ucfirst($booking['nri'] ?? 'N/A') }}</span></div>
+                                            </div>
+                                        </div>
+                                    </div>
 
                                      <!-- Ticket & Pricing Details -->
                                      @if(isset($booking['ticket_details']))
@@ -1830,8 +1841,13 @@
                                              <p class="mb-0 text-white opacity-75">{{ ucfirst($booking['mealType'] ?? 'Meal') }} • {{ $booking['mealSpecificType'] ?? 'Standard' }}</p>
                                          </div>
                                          <div class="col-md-4 text-end">
+                                             @php
+                                                 $restaurantPrice = $booking['totalPrice'] ?? $booking['mealPrice'] ?? 0;
+                                                 $transferPrice = isset($booking['transfer_options']['cost']) && $booking['transfer_options']['cost'] > 0 ? $booking['transfer_options']['cost'] : 0;
+                                                 $restaurantGrandTotal = $restaurantPrice + $transferPrice;
+                                             @endphp
                                              <div class="bg-white rounded-pill px-3 py-2 d-inline-block">
-                                                 <span class="text-success fw-bold fs-5">SGD {{ number_format($booking['totalPrice'] ?? 0, 2) }}</span>
+                                                 <span class="text-success fw-bold fs-5">SGD {{ number_format($restaurantGrandTotal, 2) }}</span>
                                              </div>
                                          </div>
                                      </div>
@@ -1914,10 +1930,6 @@
                                                  <small class="text-muted">Meal Price</small>
                                                  <div class="fw-medium text-success">SGD {{ number_format($booking['mealPrice'] ?? 0, 2) }}</div>
                                              </div>
-                                             <div class="col-md-4 mb-3">
-                                                 <small class="text-muted">Transport Price</small>
-                                                 <div class="fw-medium text-info">SGD {{ number_format($booking['transportPrice'] ?? 0, 2) }}</div>
-                                             </div>
                                              {{-- <div class="col-md-4 mb-3">
                                                  <small class="text-muted">DMC ID</small>
                                                  <span class="badge bg-secondary">{{ $booking['dmc_id'] ?? 'N/A' }}</span>
@@ -1934,10 +1946,6 @@
                                                      @endif
                                                  </div>
                                              </div> --}}
-                                             <div class="col-md-6 mb-3">
-                                                 <small class="text-muted">Transport</small>
-                                                 <div class="fw-medium">{{ $booking['transport'] ?? 'Not included' }}</div>
-                                             </div>
                                          </div>
                                      </div>
 
@@ -2118,13 +2126,21 @@
                                                                  <i class="ri-money-dollar-circle-line text-success ri-24px me-2"></i>
                                                                  <div>
                                                                      <h6 class="fw-bold text-dark mb-0">Payment Summary</h6>
-                                                                     <small class="text-muted">Meal Price: SGD {{ number_format($booking['mealPrice'] ?? 0, 2) }} | Transport: SGD {{ number_format($booking['transportPrice'] ?? 0, 2) }}</small>
+                                                                     @php
+                                                                         $restaurantPrice = $booking['totalPrice'] ?? $booking['mealPrice'] ?? 0;
+                                                                         $transferPrice = isset($booking['transfer_options']['cost']) && $booking['transfer_options']['cost'] > 0 ? $booking['transfer_options']['cost'] : 0;
+                                                                         $restaurantGrandTotal = $restaurantPrice + $transferPrice;
+                                                                     @endphp
+                                                                     <small class="text-muted">Meal Price: SGD {{ number_format($restaurantPrice, 2) }}</small>
+                                                                     @if($transferPrice > 0)
+                                                                         <br><small class="text-muted">Transfer: SGD {{ number_format($transferPrice, 2) }}</small>
+                                                                     @endif
                                                                  </div>
                                                              </div>
                                                          </div>
                                                          <div class="col-md-6 text-end">
                                                              <div class="fw-bold text-success fs-4">
-                                                                 Total: SGD {{ number_format($booking['totalPrice'] ?? 0, 2) }}
+                                                                 Total: SGD {{ number_format($restaurantGrandTotal, 2) }}
                                                              </div>
                                                          </div>
                                                      </div>
@@ -2190,11 +2206,6 @@
                                                                  </div>
                                                              </div>
                                                              @endif
-                                                         @elseif(isset($booking['transfer_options']['vehicle_id']))
-                                                             <div class="mb-2">
-                                                                 <small class="text-muted d-block">Vehicle ID</small>
-                                                                 <div class="fw-medium">{{ $booking['transfer_options']['vehicle_id'] }}</div>
-                                                             </div>
                                                          @endif
                                                          
                                                          @if(isset($booking['transfer_options']['cost']) && $booking['transfer_options']['cost'] > 0)
@@ -3106,7 +3117,9 @@
                                 </span>
                             </div>
                         </div>
-                        <button type="button" class="btn-close btn-close-white" onclick="closeServiceModal('travel_hourly', {{ $tour->tour_id }})" aria-label="Close" style="filter: brightness(0) invert(1); font-size: 1.2rem;"></button>
+                        <div class="text-end">
+                            <button type="button" class="btn-close btn-close-white" onclick="closeServiceModal('travel_hourly', {{ $tour->tour_id }})" aria-label="Close" style="filter: brightness(0) invert(1); font-size: 1.2rem;"></button>
+                        </div>
                     </div>
                 </div>
 
@@ -3136,7 +3149,7 @@
                                 </div>
                             </div>
 
-                            <!-- Service Schedule & Group Information -->
+                            <!-- Service Schedule -->
                             <div class="row mb-4">
                                 <div class="col-md-6">
                                     <div class="bg-white rounded p-3 shadow-sm h-100">
@@ -3169,27 +3182,15 @@
                                 <div class="col-md-6">
                                     <div class="bg-white rounded p-3 shadow-sm h-100">
                                         <div class="d-flex align-items-center mb-3">
-                                            <div class="bg-success rounded-circle p-2 me-3">
-                                                <i class="ri-group-line text-white"></i>
+                                            <div class="bg-warning rounded-circle p-2 me-3">
+                                                <i class="ri-money-dollar-circle-line text-white"></i>
                                             </div>
-                                            <h6 class="fw-bold mb-0 text-dark">Group Information</h6>
+                                            <h6 class="fw-bold mb-0 text-dark">Pricing Details</h6>
                                         </div>
-                                        <div class="row">
-                                            <div class="col-md-6 mb-3">
-                                                <small class="text-muted">Adults</small>
-                                                <div class="fw-medium">{{ $booking['adults'] ?? 0 }}</div>
-                                            </div>
-                                            <div class="col-md-6 mb-3">
-                                                <small class="text-muted">Children</small>
-                                                <div class="fw-medium">{{ $booking['children'] ?? 0 }}</div>
-                                            </div>
-                                            <div class="col-md-6 mb-3">
-                                                <small class="text-muted">Total Guests</small>
-                                                <span class="badge bg-primary">{{ ($booking['adults'] ?? 0) + ($booking['children'] ?? 0) }}</span>
-                                            </div>
-                                            <div class="col-md-6 mb-3">
-                                                <small class="text-muted">Night Service Timing</small>
-                                                <div class="fw-medium text-muted small">{{ $booking['Night_Start_Time'] ?? 'N/A' }} - {{ $booking['Night_End_Time'] ?? 'N/A' }}</div>
+                                        <div class="d-flex align-items-center justify-content-center h-100">
+                                            <div class="text-center">
+                                                <small class="text-muted d-block mb-2">Total Price</small>
+                                                <div class="fs-4 fw-bold text-success">SGD {{ number_format($booking['totalPrice'] ?? 0, 2) }}</div>
                                             </div>
                                         </div>
                                     </div>
@@ -3224,7 +3225,7 @@
                                 </div>
                                 <div class="col-md-6">
                                     <!-- Vehicle Information -->
-                                    <div class="row mb-4">
+                                    <div class="row">
                                         <div class="col-md-8">
                                             <div class="bg-white rounded p-3 shadow-sm h-100">
                                                 <div class="d-flex align-items-center mb-3">
@@ -3246,7 +3247,7 @@
                                             </div>
                                         </div>
                                         <div class="col-md-4">
-                                            @if(isset($booking['image']))
+                                            @if(isset($booking['image']) && !empty($booking['image']))
                                                 <img src="{{ $booking['image'] }}" 
                                                      alt="{{ $booking['vehicles_name'] ?? 'Vehicle' }}" 
                                                      class="img-fluid rounded shadow-sm" 
@@ -3261,28 +3262,8 @@
                                 </div>
                             </div>
 
-                            <!-- Pricing & Customer Information -->
+                            <!-- Customer Information -->
                             <div class="row mb-4">
-                                <div class="col-md-6">
-                                    <div class="bg-white rounded p-3 shadow-sm h-100">
-                                        <div class="d-flex align-items-center mb-3">
-                                            <div class="bg-warning rounded-circle p-2 me-3">
-                                                <i class="ri-money-dollar-circle-line text-white"></i>
-                                            </div>
-                                            <h6 class="fw-bold mb-0 text-dark">Pricing Details</h6>
-                                        </div>
-                                        <div class="row">
-                                            <div class="col-md-6 mb-3">
-                                                <small class="text-muted">Total Price</small>
-                                                <div class="fw-bold text-success">${{ $booking['totalPrice'] ?? '0' }}</div>
-                                            </div>
-                                            {{-- <div class="col-12 mb-3">
-                                                <small class="text-muted">Booking Type</small>
-                                                <span class="badge bg-primary">{{ ucfirst($booking['bookingType'] ?? 'Standard') }}</span>
-                                            </div> --}}
-                                        </div>
-                                    </div>
-                                </div>
                                 <div class="col-md-6">
                                     <div class="bg-white rounded p-3 shadow-sm h-100">
                                         <div class="d-flex align-items-center mb-3">
@@ -3381,7 +3362,7 @@
                             <h3 class="mb-1 fw-bold">
                                 <i class="ri-route-line me-2"></i>Local-Tour Point to Point
                             </h3>
-                            <p class="mb-0 opacity-75">Tour #{{ $tour->tour_id }} Point to Point Transfer • {{ $headerFromZone }} → {{ $headerToZone }}</p>
+                            <p class="mb-0 opacity-75">Tour #{{ $tour->tour_id }} Point to Point Transfer</p>
                             <div class="mt-2">
                                 <span class="badge bg-white bg-opacity-90 text-primary px-3 py-2">
                                     <i class="ri-calendar-line me-1"></i>
@@ -3435,7 +3416,7 @@
                                 </div>
                             </div>
 
-                            <!-- Service Schedule & Group Information -->
+                            <!-- Transfer Schedule -->
                             <div class="row mb-4">
                                 <div class="col-md-6">
                                     <div class="bg-white rounded p-3 shadow-sm h-100">
@@ -3461,34 +3442,6 @@
                                             <div class="col-md-6 mb-3">
                                                 <small class="text-muted">Service Type</small>
                                                 <span class="badge bg-warning">{{ $booking['type'] ?? 'Standard' }}</span>
-                                            </div>
-                                        </div>
-                                    </div>
-                                </div>
-                                <div class="col-md-6">
-                                    <div class="bg-white rounded p-3 shadow-sm h-100">
-                                        <div class="d-flex align-items-center mb-3">
-                                            <div class="bg-success rounded-circle p-2 me-3">
-                                                <i class="ri-group-line text-white"></i>
-                                            </div>
-                                            <h6 class="fw-bold mb-0 text-dark">Group Information</h6>
-                                        </div>
-                                        <div class="row">
-                                            <div class="col-md-6 mb-3">
-                                                <small class="text-muted">Adults</small>
-                                                <div class="fw-medium">{{ $booking['adults'] ?? 0 }}</div>
-                                            </div>
-                                            <div class="col-md-6 mb-3">
-                                                <small class="text-muted">Children</small>
-                                                <div class="fw-medium">{{ $booking['children'] ?? 0 }}</div>
-                                            </div>
-                                            <div class="col-md-6 mb-3">
-                                                <small class="text-muted">Total Guests</small>
-                                                <span class="badge bg-primary">{{ ($booking['adults'] ?? 0) + ($booking['children'] ?? 0) }}</span>
-                                            </div>
-                                            <div class="col-md-6 mb-3">
-                                                <small class="text-muted">Night Service Timing</small>
-                                                <div class="fw-medium text-muted small">{{ $booking['Night_Start_Time'] ?? 'N/A' }} - {{ $booking['Night_End_Time'] ?? 'N/A' }}</div>
                                             </div>
                                         </div>
                                     </div>
@@ -3590,14 +3543,7 @@
                                                 <small class="text-muted">Total Price</small>
                                                 <div class="fw-bold text-success">${{ $booking['totalPrice'] ?? '0' }}</div>
                                             </div>
-                                            <div class="col-md-6 mb-3">
-                                                <small class="text-muted">From Zone</small>
-                                                <div class="fw-medium">{{ $fromZoneName }}</div>
-                                            </div>
-                                            <div class="col-md-6 mb-3">
-                                                <small class="text-muted">To Zone</small>
-                                                <div class="fw-medium">{{ $toZoneName }}</div>
-                                            </div>
+                                            
                                         </div>
                                     </div>
                                 </div>

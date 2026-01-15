@@ -439,6 +439,128 @@
         $attractionItems = $allItems->where('item_type', 'attraction');
         $restaurantItems = $allItems->where('item_type', 'restaurant');
         $guideItems = $allItems->where('item_type', 'guide');
+        
+        // Helper function to get attraction prices (base and grand total)
+        $getAttractionPrices = function($item, $serviceDetails) use ($invoice) {
+            $basePrice = 0;
+            $transferCost = 0;
+            $guideTotalPrice = 0;
+            
+            // If service_details has breakdown, use it
+            if (isset($serviceDetails['attraction_base_price']) || isset($serviceDetails['transfer_cost']) || isset($serviceDetails['guide_total_price'])) {
+                $basePrice = $serviceDetails['attraction_base_price'] ?? 0;
+                $transferCost = $serviceDetails['transfer_cost'] ?? 0;
+                $guideTotalPrice = $serviceDetails['guide_total_price'] ?? 0;
+                return [
+                    'base' => $basePrice,
+                    'transfer' => $transferCost,
+                    'guide' => $guideTotalPrice,
+                    'total' => $basePrice + $transferCost + $guideTotalPrice
+                ];
+            }
+            
+            // Try to get from order data
+            if ($invoice->tour) {
+                $orders = \App\Models\Order::where('tour_id', $invoice->tour->tour_id)
+                    ->where('type', 'attraction')
+                    ->whereNull('deleted_at')
+                    ->get();
+                
+                foreach ($orders as $order) {
+                    $orderData = is_string($order->data) ? json_decode($order->data, true) : $order->data;
+                    if (!is_array($orderData)) continue;
+                    
+                    $bookings = isset($orderData[0]) && is_array($orderData[0]) ? $orderData : [$orderData];
+                    foreach ($bookings as $booking) {
+                        if (!is_array($booking)) continue;
+                        
+                        // Try to match by attraction name
+                        $itemAttractionName = $serviceDetails['attraction_name'] ?? '';
+                        $bookingAttractionName = $booking['AttractionName'] ?? '';
+                        
+                        if ($itemAttractionName && $bookingAttractionName && 
+                            strtolower(trim($itemAttractionName)) === strtolower(trim($bookingAttractionName))) {
+                            $basePrice = (float)($booking['price'] ?? $booking['totalPrice'] ?? 0);
+                            $transferCost = isset($booking['transfer_options']['cost']) && $booking['transfer_options']['cost'] > 0 ? (float) $booking['transfer_options']['cost'] : 0;
+                            $guideTotalPrice = isset($booking['guide_options']['total_price']) && $booking['guide_options']['total_price'] > 0 ? (float) $booking['guide_options']['total_price'] : 0;
+                            return [
+                                'base' => $basePrice,
+                                'transfer' => $transferCost,
+                                'guide' => $guideTotalPrice,
+                                'total' => $basePrice + $transferCost + $guideTotalPrice
+                            ];
+                        }
+                    }
+                }
+            }
+            
+            // Final fallback
+            $fallbackTotal = $item->total_price ?? 0;
+            return [
+                'base' => $fallbackTotal,
+                'transfer' => 0,
+                'guide' => 0,
+                'total' => $fallbackTotal
+            ];
+        };
+        
+        // Helper function to get restaurant prices (base and grand total)
+        $getRestaurantPrices = function($item, $serviceDetails) use ($invoice) {
+            $basePrice = 0;
+            $transferCost = 0;
+            
+            // If service_details has breakdown, use it
+            if (isset($serviceDetails['restaurant_base_price']) || isset($serviceDetails['transfer_cost'])) {
+                $basePrice = $serviceDetails['restaurant_base_price'] ?? 0;
+                $transferCost = $serviceDetails['transfer_cost'] ?? 0;
+                return [
+                    'base' => $basePrice,
+                    'transfer' => $transferCost,
+                    'total' => $basePrice + $transferCost
+                ];
+            }
+            
+            // Try to get from order data
+            if ($invoice->tour) {
+                $orders = \App\Models\Order::where('tour_id', $invoice->tour->tour_id)
+                    ->where('type', 'restaurant')
+                    ->whereNull('deleted_at')
+                    ->get();
+                
+                foreach ($orders as $order) {
+                    $orderData = is_string($order->data) ? json_decode($order->data, true) : $order->data;
+                    if (!is_array($orderData)) continue;
+                    
+                    $bookings = isset($orderData[0]) && is_array($orderData[0]) ? $orderData : [$orderData];
+                    foreach ($bookings as $booking) {
+                        if (!is_array($booking)) continue;
+                        
+                        // Try to match by restaurant name
+                        $itemRestaurantName = $serviceDetails['restaurant_name'] ?? '';
+                        $bookingRestaurantName = $booking['restaurantName'] ?? '';
+                        
+                        if ($itemRestaurantName && $bookingRestaurantName && 
+                            strtolower(trim($itemRestaurantName)) === strtolower(trim($bookingRestaurantName))) {
+                            $basePrice = (float)($booking['mealPrice'] ?? $booking['totalPrice'] ?? 0);
+                            $transferCost = isset($booking['transfer_options']['cost']) && $booking['transfer_options']['cost'] > 0 ? (float) $booking['transfer_options']['cost'] : 0;
+                            return [
+                                'base' => $basePrice,
+                                'transfer' => $transferCost,
+                                'total' => $basePrice + $transferCost
+                            ];
+                        }
+                    }
+                }
+            }
+            
+            // Final fallback
+            $fallbackTotal = $item->total_price ?? 0;
+            return [
+                'base' => $fallbackTotal,
+                'transfer' => 0,
+                'total' => $fallbackTotal
+            ];
+        };
         $travelPointItems = $allItems->where('item_type', 'travel_point');
         $travelHourlyItems = $allItems->where('item_type', 'travel_hourly');
         $localTransportItems = $allItems->where('item_type', 'local_transport');
@@ -589,7 +711,7 @@
     @endif
 
     @if($attractionItems->count() > 0)
-    <!-- Attraction Services Table (No Prices) -->
+    <!-- Attraction Services Table -->
     <div class="section-title">Attraction Services</div>
     <div style="page-break-inside: avoid;">
     <table style="margin-bottom: 20px;">
@@ -644,7 +766,7 @@
     @endif
 
     @if($restaurantItems->count() > 0)
-    <!-- Restaurant Services Table (No Prices) -->
+    <!-- Restaurant Services Table -->
     <div class="section-title">Restaurant Services</div>
     <div style="page-break-inside: avoid;">
     <table style="margin-bottom: 20px;">
@@ -811,7 +933,6 @@
         <thead>
             <tr>
                 <th>Pickup Location</th>
-                <th>Dropoff Location</th>
                 <th>Vehicle Name</th>
                 <th>Pickup Date</th>
                 <th>Total Persons</th>
@@ -854,7 +975,6 @@
             @endphp
             <tr>
                 <td>{{ $serviceDetails['entrypickup'] ?? '' }}</td>
-                <td>{{ $serviceDetails['entrydropoff'] ?? '' }}</td>
                 <td>{{ $serviceDetails['vehicle_name'] ?? '' }}</td>
                 <td>{{ $pickupDateDisplay }}</td>
                 <td>{{ $totalPersons }}</td>
