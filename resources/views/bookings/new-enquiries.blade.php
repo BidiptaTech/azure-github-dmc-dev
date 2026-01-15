@@ -1092,10 +1092,19 @@
                                                 @php
                                                     $numberOfRooms = $room['number_of_rooms'] ?? 1;
                                                     $bedPrice = 0;
+                                                    $mealCount = 0;
                                                     if(isset($room['beds']) && is_array($room['beds']) && count($room['beds']) > 0) {
                                                         $bedPrice = $room['beds'][0]['price'] ?? 0;
+                                                        // Count selected meals (can be array or object)
+                                                        if(isset($room['beds'][0]['selectedMeals'])) {
+                                                            $selectedMeals = $room['beds'][0]['selectedMeals'];
+                                                            if(is_array($selectedMeals) || is_object($selectedMeals)) {
+                                                                $mealCount = count($selectedMeals);
+                                                            }
+                                                        }
                                                     }
-                                                    $roomTotalPrice = $bedPrice * $numberOfRooms;
+                                                    // Calculate: room price * number of rooms * number of meals
+                                                    $roomTotalPrice = $bedPrice * $numberOfRooms * ($mealCount > 0 ? $mealCount : 1);
                                                 @endphp
                                                 <div class="card mb-3" style="border: 2px solid #e9ecef; border-radius: 12px; overflow: hidden;">
                                                     <div class="card-header border-0" style="background: linear-gradient(90deg, #74b9ff 0%, #0984e3 100%); padding: 15px;">
@@ -1840,16 +1849,16 @@
                                              </h5>
                                              <p class="mb-0 text-white opacity-75">{{ ucfirst($booking['mealType'] ?? 'Meal') }} • {{ $booking['mealSpecificType'] ?? 'Standard' }}</p>
                                          </div>
-                                         <div class="col-md-4 text-end">
-                                             @php
-                                                 $restaurantPrice = $booking['totalPrice'] ?? $booking['mealPrice'] ?? 0;
-                                                 $transferPrice = isset($booking['transfer_options']['cost']) && $booking['transfer_options']['cost'] > 0 ? $booking['transfer_options']['cost'] : 0;
-                                                 $restaurantGrandTotal = $restaurantPrice + $transferPrice;
-                                             @endphp
-                                             <div class="bg-white rounded-pill px-3 py-2 d-inline-block">
-                                                 <span class="text-success fw-bold fs-5">SGD {{ number_format($restaurantGrandTotal, 2) }}</span>
-                                             </div>
-                                         </div>
+                                        <div class="col-md-4 text-end">
+                                            @php
+                                                $restaurantPrice = $booking['totalPrice'] ?? $booking['mealPrice'] ?? 0;
+                                                $transferPrice = isset($booking['transfer_options']['cost']) && $booking['transfer_options']['cost'] > 0 ? $booking['transfer_options']['cost'] : 0;
+                                                $restaurantGrandTotal = round($restaurantPrice + $transferPrice);
+                                            @endphp
+                                            <div class="bg-white rounded-pill px-3 py-2 d-inline-block">
+                                                <span class="text-success fw-bold fs-5">SGD {{ number_format($restaurantGrandTotal, 0) }}</span>
+                                            </div>
+                                        </div>
                                      </div>
                                  </div>
                                  
