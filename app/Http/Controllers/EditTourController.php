@@ -1673,36 +1673,33 @@ class EditTourController extends Controller
                 break;
                 
             case 'attraction':
-                // Attractions have visitTime
-                if (isset($service['visitTime'])) {
-                    $dates[] = $service['visitTime'];
+                // Attractions have bookingDate (the actual booking date)
+                // visitTime is just a time range (e.g., "15:00 - 17:00"), not a date, so skip it
+                if (isset($service['bookingDate']) && !empty($service['bookingDate'])) {
+                    $dates[] = $service['bookingDate'];
                 }
+                // Skip visitTime as it's a time field, not a date field
                 break;
                 
             case 'guide':
-                // Guides have pickupdate and entrytime
-                if (isset($service['pickupdate'])) {
+                // Guides have pickupdate and bookingDate
+                // entrytime is just a time (e.g., "1:00 AM"), not a date, so skip it
+                // Priority: bookingDate (actual booking date) > pickupdate
+                if (isset($service['bookingDate']) && !empty($service['bookingDate'])) {
+                    $dates[] = $service['bookingDate'];
+                } elseif (isset($service['pickupdate']) && !empty($service['pickupdate'])) {
                     $dates[] = $service['pickupdate'];
                 }
-                if (isset($service['entrytime'])) {
-                    // entrytime might be datetime, extract date
-                    try {
-                        $parsed = Carbon::parse($service['entrytime']);
-                        $dates[] = $parsed->format('Y-m-d');
-                    } catch (\Exception $e) {
-                        $dates[] = $service['entrytime'];
-                    }
-                }
-                if (isset($service['bookingDate'])) {
-                    $dates[] = $service['bookingDate'];
-                }
+                // Skip entrytime as it's a time field, not a date field
                 break;
                 
             case 'restaurant':
-                // Restaurants have visitTime
-                if (isset($service['visitTime'])) {
-                    $dates[] = $service['visitTime'];
+                // Restaurants have bookingDate (the actual booking date)
+                // visitTime is just a time (e.g., "2:00 PM"), not a date, so skip it
+                if (isset($service['bookingDate']) && !empty($service['bookingDate'])) {
+                    $dates[] = $service['bookingDate'];
                 }
+                // Skip visitTime as it's a time field, not a date field
                 break;
                 
             case 'entry_port':
