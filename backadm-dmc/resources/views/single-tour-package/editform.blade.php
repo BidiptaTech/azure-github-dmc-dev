@@ -2182,34 +2182,55 @@
                                                         <select class="form-select restaurant-transport-vehicle-select" name="restaurant_transport_vehicle_{{ $order->booking_id }}" id="restaurant_transport_vehicle_{{ $order->booking_id }}" data-booking-id="{{ $order->booking_id }}">
                                                             <option value="">{{ $transportDestination ? 'Select vehicle' : 'Select destination first' }}</option>
                                                             @if($transportDestination)
-                                                            {{-- Vehicles will be loaded via JavaScript when destination is selected --}}
-                                                            @if($transportVehicle)
+                                                                @if($filteredVehicles && count($filteredVehicles) > 0)
                                                                     @foreach($filteredVehicles as $vehicle)
                                                                         @php
                                                                             $vehicleName = $vehicle->vehicle_name ?? $vehicle->vehicle_id ?? 'Vehicle';
                                                                             $vehicleId = $vehicle->vehicle_id ?? '';
                                                                             $vehicleType = $vehicle->vehicle_type ?? '';
                                                                             $seatingCapacity = $vehicle->seating_capacity ?? '';
-                                                                            $isSelected = ($transportVehicle === $vehicleName || 
-                                                                                            $transportVehicle === $vehicleId || 
-                                                                                            $transportVehicleId === $vehicleId ||
-                                                                                            $transportVehicleId === (string)$vehicleId);
+                                                                            // Match by vehicle_id for proper mapping
+                                                                            $isSelected = ($transportVehicleId == $vehicleId || 
+                                                                                           $transportVehicleId == (string)$vehicleId ||
+                                                                                           ($transportVehicle && ($transportVehicle == $vehicleId || $transportVehicle == (string)$vehicleId)));
                                                                         @endphp
-                                                                        @if($isSelected)
-                                                                            <option value="{{ $vehicleName }}" data-vehicle-id="{{ $vehicleId }}" data-seating-capacity="{{ $seatingCapacity }}" selected>
-                                                                                {{ $vehicleName }}
-                                                                                @if($vehicleType)
-                                                                                    ({{ $vehicleType }})
-                                                                                @endif
-                                                                                @if($seatingCapacity)
-                                                                                    - {{ $seatingCapacity }} seats
-                                                                                @endif
-                                                                            </option>
-                                                                        @endif
+                                                                        <option value="{{ $vehicleId }}" data-vehicle-id="{{ $vehicleId }}" data-vehicle-name="{{ $vehicleName }}" data-seating-capacity="{{ $seatingCapacity }}" {{ $isSelected ? 'selected' : '' }}>
+                                                                            {{ $vehicleName }}
+                                                                            @if($isSelected)
+                                                                                ({{ $vehicleName }})
+                                                                            @endif
+                                                                            @if($seatingCapacity)
+                                                                                - {{ $seatingCapacity }} seats
+                                                                            @endif
+                                                                        </option>
                                                                     @endforeach
                                                                 @endif
                                                             @endif
                                                         </select>
+                                                        <script>
+                                                            // Ensure selected vehicle is displayed and Select2 is initialized
+                                                            $(document).ready(function() {
+                                                                const vehicleSelect = $('#restaurant_transport_vehicle_{{ $order->booking_id }}');
+                                                                
+                                                                // Set selected value if exists
+                                                                const selectedOption = vehicleSelect.find('option[selected]');
+                                                                if (selectedOption.length) {
+                                                                    const selectedValue = selectedOption.attr('value');
+                                                                    if (selectedValue) {
+                                                                        vehicleSelect.val(selectedValue);
+                                                                    }
+                                                                }
+                                                                
+                                                                // Initialize Select2 if not already initialized
+                                                                if (!vehicleSelect.data('select2') && !vehicleSelect.attr('data-no-select2')) {
+                                                                    if (window.initializeAllSelect2) {
+                                                                        setTimeout(function() {
+                                                                            window.initializeAllSelect2(vehicleSelect.parent());
+                                                                        }, 200);
+                                                                    }
+                                                                }
+                                                            });
+                                                        </script>
                                                     </div>
                                                 
                                                     <div class="col-md-3">
@@ -3171,36 +3192,47 @@
                                                     <div class="col-md-3">
                                                         <label class="form-label fw-semibold">Vehicle (by country)</label>
                                                         <select class="form-select attraction-transport-vehicle-select" name="attraction_transport_vehicle_{{ $order->booking_id }}" id="attraction_transport_vehicle_{{ $order->booking_id }}" data-booking-id="{{ $order->booking_id }}">
-                                                            <option value="">{{ $transportDestination ? 'Select vehicle' : 'Select destination first' }}</option>
+                                                            
+                                                        <option value="">{{ $transportDestination ? 'Select vehicle' : 'Select destination first' }}</option>
                                                             @if($transportDestination)
-                                                                @if($transportVehicle)
-                                                                    @foreach($filteredVehicles as $vehicle)
-                                                                        @php
-                                                                            $vehicleName = $vehicle->vehicle_name ?? $vehicle->vehicle_id ?? 'Vehicle';
-                                                                            $vehicleId = $vehicle->vehicle_id ?? '';
-                                                                            $vehicleType = $vehicle->vehicle_type ?? '';
-                                                                            $seatingCapacity = $vehicle->seating_capacity ?? '';
-                                                                            $isSelected = ($transportVehicle == $vehicleName || 
-                                                                                           $transportVehicle == $vehicleId || 
-                                                                                           $transportVehicle == (string)$vehicleId ||
-                                                                                           $transportVehicleId == $vehicleId ||
-                                                                                           $transportVehicleId == (string)$vehicleId);
-                                                                        @endphp
-                                                                        @if($isSelected)
-                                                                            <option value="{{ $vehicleName }}" data-vehicle-id="{{ $vehicleId }}" data-seating-capacity="{{ $seatingCapacity }}" selected>
-                                                                                {{ $vehicleName }}
-                                                                                @if($vehicleType)
-                                                                                    ({{ $vehicleType }})
-                                                                                @endif
-                                                                                @if($seatingCapacity)
-                                                                                    - {{ $seatingCapacity }} seats
-                                                                                @endif
-                                                                            </option>
-                                                                        @endif
+                                                                @if($filteredVehicles && count($filteredVehicles) > 0)
+                                                                @foreach($filteredVehicles as $vehicle)
+                                                                @php
+                                                                $vehicleName = $vehicle->vehicle_name ?? $vehicle->vehicle_id ?? 'Vehicle';
+                                                                $vehicleId = $vehicle->vehicle_id ?? '';
+                                                                $vehicleType = $vehicle->vehicle_type ?? '';
+                                                                $seatingCapacity = $vehicle->seating_capacity ?? '';
+                                                                // Match by vehicle_id for proper mapping
+                                                                $isSelected = ($transportVehicleId == $vehicleId || 
+                                                                $transportVehicleId == (string)$vehicleId ||
+                                                                ($transportVehicle && ($transportVehicle == $vehicleId || $transportVehicle == (string)$vehicleId)));
+                                                                @endphp
+                                                                <option value="{{ $vehicleId }}" data-vehicle-id="{{ $vehicleId }}" data-vehicle-name="{{ $vehicleName }}" data-seating-capacity="{{ $seatingCapacity }}" {{ $isSelected ? 'selected' : '' }}>
+                                                                    {{ $vehicleName }}
+                                                                    @if($isSelected)
+                                                                        ({{ $vehicleId }})
+                                                                    @endif
+                                                                    @if($seatingCapacity)
+                                                                        - {{ $seatingCapacity }} seats
+                                                                    @endif
+                                                                </option>
                                                                     @endforeach
                                                                 @endif
                                                             @endif
                                                         </select>
+                                                        <script>
+                                                            // Ensure selected vehicle is displayed in select box on page load
+                                                            $(document).ready(function() {
+                                                                const vehicleSelect = $('#attraction_transport_vehicle_{{ $order->booking_id }}');
+                                                                const selectedOption = vehicleSelect.find('option[selected]');
+                                                                if (selectedOption.length) {
+                                                                    const selectedValue = selectedOption.attr('value');
+                                                                    if (selectedValue) {
+                                                                        vehicleSelect.val(selectedValue);
+                                                                    }
+                                                                }
+                                                            });
+                                                        </script>
                                                     </div>
                                                 <!-- </div>
                                                 <div class="row g-3 mt-2"> -->
@@ -7363,39 +7395,78 @@
                     
                     if (data.success && data.vehicles && data.vehicles.length > 0) {
                         const vehicleSelect = $('#restaurant_transport_vehicle_' + bookingId);
+                        
+                        // Save the currently selected vehicle_id before replacing HTML
+                        const previouslySelectedValue = vehicleSelect.val();
+                        const previouslySelectedOption = vehicleSelect.find('option:selected');
+                        const previouslySelectedVehicleId = previouslySelectedOption.data('vehicle-id') || previouslySelectedOption.attr('value') || previouslySelectedValue;
+                        
                         vehicleSelect.html('<option value="">Select vehicle</option>');
                         
                         data.vehicles.forEach(vehicle => {
                             const option = $('<option></option>');
-                            option.val(vehicle.vehicle_name || vehicle.vehicle_id);
-                            option.text(`${vehicle.vehicle_name || vehicle.vehicle_id}${vehicle.vehicle_type ? ' (' + vehicle.vehicle_type + ')' : ''}${vehicle.seating_capacity ? ' - ' + vehicle.seating_capacity + ' seats' : ''}`);
+                            // Use vehicle_id as value to match Blade template
+                            const vehicleId = vehicle.vehicle_id || '';
+                            option.val(vehicleId);
+                            option.text(`${vehicle.vehicle_name || vehicle.vehicle_id || 'Vehicle'}${vehicle.vehicle_type ? ' (' + vehicle.vehicle_type + ')' : ''}${vehicle.seating_capacity ? ' - ' + vehicle.seating_capacity + ' seats' : ''}`);
                             option.attr('data-seating-capacity', vehicle.seating_capacity || '');
-                            option.attr('data-vehicle-id', vehicle.vehicle_id || '');
+                            option.attr('data-vehicle-id', vehicleId);
+                            option.attr('data-vehicle-name', vehicle.vehicle_name || '');
                             option.attr('data-private-price', vehicle.private_price || '0');
                             option.attr('data-shared-price', vehicle.shared_price || '0');
                             option.attr('data-vehicle', JSON.stringify(vehicle));
                             vehicleSelect.append(option);
                         });
 
-                        // Auto-select first vehicle and calculate price
-                        if (data.vehicles.length > 0) {
-                            const firstVehicle = data.vehicles[0];
-                            vehicleSelect.val(firstVehicle.vehicle_name || firstVehicle.vehicle_id);
+                        // Try to restore previously selected vehicle by ID, otherwise don't auto-select
+                        let selectedVehicle = null;
+                        if (previouslySelectedVehicleId && previouslySelectedVehicleId.toString().trim()) {
+                            // Try to find the previously selected vehicle by ID
+                            const matchingVehicle = data.vehicles.find(v => 
+                                String(v.vehicle_id) === String(previouslySelectedVehicleId) ||
+                                String(v.vehicle_id) === previouslySelectedVehicleId.toString()
+                            );
                             
-                            // Update seats field
-                            const seatsInput = $('#restaurant_transport_seats_' + bookingId);
-                            if (seatsInput.length && firstVehicle.seating_capacity) {
-                                seatsInput.val(firstVehicle.seating_capacity);
-                            }
+                            if (matchingVehicle) {
+                                selectedVehicle = matchingVehicle;
+                                vehicleSelect.val(String(matchingVehicle.vehicle_id));
+                                
+                                // Update seats field
+                                const seatsInput = $('#restaurant_transport_seats_' + bookingId);
+                                if (seatsInput.length && matchingVehicle.seating_capacity) {
+                                    seatsInput.val(matchingVehicle.seating_capacity);
+                                }
                             
                             // Trigger change event to ensure all handlers fire
                             vehicleSelect.trigger('change');
                             
-                            // Calculate price
-                            calculateRestaurantTransportPrice(bookingId);
+                                // Calculate price
+                                calculateRestaurantTransportPrice(bookingId);
+                            }
+                        }
+                        // If no previous selection, don't auto-select - let user choose
+                        
+                        // Destroy Select2 if it was initialized before updating options
+                        if (vehicleSelect.data('select2')) {
+                            vehicleSelect.select2('destroy');
+                            vehicleSelect.removeAttr('data-select2-initialized');
+                        }
+                        
+                        // Initialize Select2 after options are populated
+                        if (window.initializeAllSelect2) {
+                            setTimeout(function() {
+                                window.initializeAllSelect2(vehicleSelect.parent());
+                            }, 100);
                         }
                     } else {
                         const vehicleSelect = $('#restaurant_transport_vehicle_' + bookingId);
+                        
+                        // Destroy Select2 if it was initialized
+                        if (vehicleSelect.data('select2')) {
+                            vehicleSelect.select2('destroy');
+                            vehicleSelect.removeAttr('data-select2-initialized');
+                        }
+                        
                         vehicleSelect.html('<option value="">No vehicles available for this route</option>');
                         $('#restaurant_transport_price_' + bookingId).val('0.00');
                     }
@@ -7542,37 +7613,56 @@
                     
                     if (data.success && data.vehicles && data.vehicles.length > 0) {
                         const vehicleSelect = $('#attraction_transport_vehicle_' + bookingId);
+                        
+                        // Save the currently selected vehicle_id before replacing HTML
+                        const previouslySelectedValue = vehicleSelect.val();
+                        const previouslySelectedOption = vehicleSelect.find('option:selected');
+                        const previouslySelectedVehicleId = previouslySelectedOption.data('vehicle-id') || previouslySelectedOption.attr('value') || previouslySelectedValue;
+                        
                         vehicleSelect.html('<option value="">Select vehicle</option>');
                         
                         data.vehicles.forEach(vehicle => {
                             const option = $('<option></option>');
-                            option.val(vehicle.vehicle_name || vehicle.vehicle_id);
-                            option.text(`${vehicle.vehicle_name || vehicle.vehicle_id}${vehicle.vehicle_type ? ' (' + vehicle.vehicle_type + ')' : ''}${vehicle.seating_capacity ? ' - ' + vehicle.seating_capacity + ' seats' : ''}`);
+                            // Use vehicle_id as value to match Blade template
+                            const vehicleId = vehicle.vehicle_id || '';
+                            option.val(vehicleId);
+                            option.text(`${vehicle.vehicle_name || vehicle.vehicle_id || 'Vehicle'}${vehicle.vehicle_type ? ' (' + vehicle.vehicle_type + ')' : ''}${vehicle.seating_capacity ? ' - ' + vehicle.seating_capacity + ' seats' : ''}`);
                             option.attr('data-seating-capacity', vehicle.seating_capacity || '');
-                            option.attr('data-vehicle-id', vehicle.vehicle_id || '');
+                            option.attr('data-vehicle-id', vehicleId);
+                            option.attr('data-vehicle-name', vehicle.vehicle_name || '');
                             option.attr('data-private-price', vehicle.private_price || '0');
                             option.attr('data-shared-price', vehicle.shared_price || '0');
                             option.attr('data-vehicle', JSON.stringify(vehicle));
                             vehicleSelect.append(option);
                         });
 
-                        // Auto-select first vehicle and calculate price
-                        if (data.vehicles.length > 0) {
-                            const firstVehicle = data.vehicles[0];
-                            vehicleSelect.val(firstVehicle.vehicle_name || firstVehicle.vehicle_id);
+                        // Try to restore previously selected vehicle by ID, otherwise don't auto-select
+                        let selectedVehicle = null;
+                        if (previouslySelectedVehicleId && previouslySelectedVehicleId.toString().trim()) {
+                            // Try to find the previously selected vehicle by ID
+                            const matchingVehicle = data.vehicles.find(v => 
+                                String(v.vehicle_id) === String(previouslySelectedVehicleId) ||
+                                String(v.vehicle_id) === previouslySelectedVehicleId.toString()
+                            );
                             
-                            // Update seats field
-                            const seatsInput = $('#attraction_transport_seats_' + bookingId);
-                            if (seatsInput.length && firstVehicle.seating_capacity) {
-                                seatsInput.val(firstVehicle.seating_capacity);
+                            if (matchingVehicle) {
+                                selectedVehicle = matchingVehicle;
+                                vehicleSelect.val(String(matchingVehicle.vehicle_id));
+                                
+                                // Update seats field
+                                const seatsInput = $('#attraction_transport_seats_' + bookingId);
+                                if (seatsInput.length && matchingVehicle.seating_capacity) {
+                                    seatsInput.val(matchingVehicle.seating_capacity);
+                                }
+                                
+                                // Trigger change event to ensure all handlers fire
+                                vehicleSelect.trigger('change');
+                                
+                                // Calculate price
+                                calculateAttractionTransportPrice(bookingId);
                             }
-                            
-                            // Trigger change event to ensure all handlers fire
-                            vehicleSelect.trigger('change');
-                            
-                            // Calculate price
-                            calculateAttractionTransportPrice(bookingId);
                         }
+                        // If no previous selection, don't auto-select - let user choose
                     } else {
                         const vehicleSelect = $('#attraction_transport_vehicle_' + bookingId);
                         vehicleSelect.html('<option value="">No vehicles available for this route</option>');
@@ -7596,13 +7686,27 @@
                 const destinationSelect = $(this);
                 const bookingId = destinationSelect.data('booking-id');
                 const selectedOption = destinationSelect.find('option:selected');
+                const vehicleSelect = $('#attraction_transport_vehicle_' + bookingId);
                 
                 if (selectedOption.val() && selectedOption.val().trim()) {
-                    // Trigger the change event to load vehicles for pre-selected destination
-                    destinationSelect.trigger('change');
+                    // Check if vehicle select already has options from server-side rendering
+                    const hasVehicleOptions = vehicleSelect.find('option').length > 1; // More than just placeholder
+                    
+                    if (hasVehicleOptions) {
+                        // Vehicles are already loaded from server, ensure selected value is displayed
+                        const selectedOption = vehicleSelect.find('option[selected]');
+                        if (selectedOption.length) {
+                            const selectedValue = selectedOption.attr('value');
+                            if (selectedValue) {
+                                vehicleSelect.val(selectedValue);
+                            }
+                        }
+                    } else {
+                        // No vehicles loaded yet, trigger the change event to load vehicles via AJAX
+                        destinationSelect.trigger('change');
+                    }
                 } else {
                     // No destination selected, clear vehicle dropdown
-                    const vehicleSelect = $('#attraction_transport_vehicle_' + bookingId);
                     if (vehicleSelect.length) {
                         vehicleSelect.html('<option value="">Select destination first</option>');
                     }
@@ -7614,13 +7718,27 @@
                 const destinationSelect = $(this);
                 const bookingId = destinationSelect.data('booking-id');
                 const selectedOption = destinationSelect.find('option:selected');
+                const vehicleSelect = $('#restaurant_transport_vehicle_' + bookingId);
                 
                 if (selectedOption.val() && selectedOption.val().trim()) {
-                    // Trigger the change event to load vehicles for pre-selected destination
-                    destinationSelect.trigger('change');
+                    // Check if vehicle select already has options from server-side rendering
+                    const hasVehicleOptions = vehicleSelect.find('option').length > 1; // More than just placeholder
+                    
+                    if (hasVehicleOptions) {
+                        // Vehicles are already loaded from server, ensure selected value is displayed
+                        const selectedOption = vehicleSelect.find('option[selected]');
+                        if (selectedOption.length) {
+                            const selectedValue = selectedOption.attr('value');
+                            if (selectedValue) {
+                                vehicleSelect.val(selectedValue);
+                            }
+                        }
+                    } else {
+                        // No vehicles loaded yet, trigger the change event to load vehicles via AJAX
+                        destinationSelect.trigger('change');
+                    }
                 } else {
                     // No destination selected, clear vehicle dropdown
-                    const vehicleSelect = $('#restaurant_transport_vehicle_' + bookingId);
                     if (vehicleSelect.length) {
                         vehicleSelect.html('<option value="">Select destination first</option>');
                     }
