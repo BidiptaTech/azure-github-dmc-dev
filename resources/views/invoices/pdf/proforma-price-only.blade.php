@@ -579,7 +579,7 @@
                 <th>Room Category</th>
                 <th>Check in</th>
                 <th>Check out</th>
-                <th>No. of days</th>
+                <th>No. of Nights</th>
                 <th>Total Pax</th>
             </tr>
         </thead>
