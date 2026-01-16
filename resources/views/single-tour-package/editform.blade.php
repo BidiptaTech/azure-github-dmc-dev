@@ -3641,24 +3641,45 @@
                                                         </div>
                                                         <div class="col-md-3">
                                                             <label class="form-label fw-semibold text-muted mb-1"><i class="ri-map-pin-line me-1 text-success"></i>Pick Up Location</label>
-                                                            <select class="form-select border-2" name="pickup_location">
+                                                            <select class="form-select border-2 departure-pickup-location" name="pickup_location" data-booking-id="{{ $order->booking_id }}" onchange="updateDepartureVehicles({{ $order->booking_id }})">
                                                                 <option value="">Select pickup location</option>
-                                                                @foreach($hotels as $hotel)
-                                                                    <option value="{{ $hotel->name }}" {{ $hotel->name == $pickupLocation ? 'selected' : '' }}>
-                                                                        {{ $hotel->name }}
-                                                                    </option>
-                                                                @endforeach
-                                                                @if($pickupLocation && !$hotels->contains('name', $pickupLocation))
+                                                                @if(isset($hotels))
+                                                                    @foreach($hotels as $hotel)
+                                                                        <option value="{{ $hotel->name }}" 
+                                                                                data-hotel-id="{{ $hotel->hotel_unique_id ?? $hotel->hotel_id ?? '' }}" 
+                                                                                data-zone-id="{{ $hotel->hotel_unique_id ?? $hotel->hotel_id ?? '' }}"
+                                                                                data-type="Hotel"
+                                                                                {{ $hotel->name == $pickupLocation ? 'selected' : '' }}>
+                                                                            {{ $hotel->name }}
+                                                                        </option>
+                                                                    @endforeach
+                                                                @endif
+                                                                @if(isset($restaurants))
+                                                                    @foreach($restaurants as $restaurant)
+                                                                        <option value="{{ $restaurant->name }}" 
+                                                                                data-restaurant-id="{{ $restaurant->restaurant_id ?? '' }}" 
+                                                                                data-zone-id="{{ $restaurant->restaurant_id ?? '' }}"
+                                                                                data-type="Restaurant"
+                                                                                {{ $restaurant->name == $pickupLocation ? 'selected' : '' }}>
+                                                                            {{ $restaurant->name }}
+                                                                        </option>
+                                                                    @endforeach
+                                                                @endif
+                                                                @if($pickupLocation && (!isset($hotels) || !$hotels->contains('name', $pickupLocation)) && (!isset($restaurants) || !$restaurants->contains('name', $pickupLocation)))
                                                                     <option value="{{ $pickupLocation }}" selected>{{ $pickupLocation }}</option>
                                                                 @endif
                                                             </select>
                                                         </div>
                                                         <div class="col-md-3">
                                                             <label class="form-label fw-semibold text-muted mb-1"><i class="ri-map-pin-line me-1 text-danger"></i>Drop Off Location</label>
-                                                            <select class="form-select border-2" name="dropoff_location">
+                                                            <select class="form-select border-2 departure-dropoff-location" name="dropoff_location" data-booking-id="{{ $order->booking_id }}" onchange="updateDepartureVehicles({{ $order->booking_id }})">
                                                                 <option value="">Select dropoff port</option>
                                                                 @foreach($ports as $port)
-                                                                    <option value="{{ $port->port_name }}" {{ $port->port_name == $dropoffLocation ? 'selected' : '' }}>
+                                                                    <option value="{{ $port->port_name }}" 
+                                                                            data-port-id="{{ $port->port_id }}" 
+                                                                            data-zone-id="{{ $port->port_id }}"
+                                                                            data-type="Port"
+                                                                            {{ $port->port_name == $dropoffLocation ? 'selected' : '' }}>
                                                                         {{ $port->port_name }}
                                                                     </option>
                                                                 @endforeach
@@ -3705,7 +3726,7 @@
                                                         <div class="col-md-3">
                                                             <label class="form-label fw-semibold text-muted mb-1"><i class="ri-car-line me-1 text-info"></i>Vehicle</label>
                                                             @php $vehicleMatched = false; @endphp
-                                                            <select class="form-select border-2" name="vehicle_name">
+                                                            <select class="form-select border-2 departure-vehicle-select" name="vehicle_name" id="departure_vehicle_{{ $order->booking_id }}" data-booking-id="{{ $order->booking_id }}" onchange="updateDepartureServiceType({{ $order->booking_id }})"> 
                                                                 <option value="">{{ $vehicleName ? 'Select vehicle' : 'Select vehicle' }}</option>
                                                                 @foreach($availableVehicles as $vehicleOption)
                                                                     @php
@@ -3713,7 +3734,12 @@
                                                                         $isSelected = $vehicleDisplayName && strcasecmp($vehicleDisplayName, $vehicleName ?? '') === 0;
                                                                         $vehicleMatched = $vehicleMatched || $isSelected;
                                                                     @endphp
-                                                                    <option value="{{ $vehicleDisplayName }}" {{ $isSelected ? 'selected' : '' }}>
+                                                                    <option value="{{ $vehicleDisplayName }}" 
+                                                                            data-vehicle-id="{{ $vehicleOption->vehicle_id ?? '' }}"
+                                                                            data-private-price="{{ $vehicleOption->base_price ?? $vehicleOption->private_price ?? 0 }}"
+                                                                            data-shared-price="{{ $vehicleOption->sharable_base_price ?? $vehicleOption->shared_price ?? 0 }}"
+                                                                            data-sharable="{{ $vehicleOption->sharable ?? 0 }}"
+                                                                            {{ $isSelected ? 'selected' : '' }}>
                                                                         {{ $vehicleDisplayName }}
                                                                         @if(!empty($vehicleOption->vehicle_type))
                                                                             ({{ $vehicleOption->vehicle_type }})
@@ -3727,7 +3753,7 @@
                                                         </div>
                                                         <div class="col-md-2">
                                                             <label class="form-label fw-semibold text-muted mb-1">Service Type</label>
-                                                            <select class="form-select border-2" name="vehicle_type">
+                                                            <select class="form-select border-2 departure-service-type" name="vehicle_type" id="departure_service_type_{{ $order->booking_id }}" data-booking-id="{{ $order->booking_id }}" onchange="updateDeparturePrice({{ $order->booking_id }})">
                                                                 <option value="">Select type</option>
                                                                 <option value="Private" {{ strtolower($vehicleType) === 'private' ? 'selected' : '' }}>Private</option>
                                                                 <option value="Shared" {{ strtolower($vehicleType) === 'shared' ? 'selected' : '' }}>Shared</option>
@@ -3735,8 +3761,7 @@
                                                         </div>
                                                         <div class="col-md-2">
                                                             <label class="form-label fw-semibold text-muted mb-1"><i class="ri-money-dollar-circle-line me-1 text-success"></i>Total Price</label>
-                                                            <input type="number" class="form-control border-2"
-                                                            style="height: 38px;" name="total_price" step="0.01" min="0" value="{{ number_format((float)$totalPrice, 2, '.', '') }}" placeholder="0.00" readonly>
+                                                            <input type="number" class="form-control border-2 departure-total-price" style="height: 38px;" name="total_price" id="departure_price_{{ $order->booking_id }}" step="0.01" min="0" value="{{ number_format((float)$totalPrice, 2, '.', '') }}" placeholder="0.00" readonly>
                                                         </div>
                                                         <!-- <div class="col-md-2">
                                                             <label class="form-label fw-semibold text-muted mb-1">Passengers</label>
@@ -3773,123 +3798,302 @@
                             <!-- Combined Guest Information Section (Lead Guest + Additional Guests in same grid) -->
                             <div class="row mb-4">
                                 <div class="col-12">
-                                    <div class="card shadow-sm border-0">
-                                        <div class="card-header bg-gradient-primary text-white">
-                                            <h6 class="mb-0 fw-bold">
-                                                <i class="ri-group-line me-2"></i>Guest Information
-                                            </h6>
-                                            <small class="d-block mt-1" style="font-size: 0.85rem;">
-                                                Manage lead guest and additional guest details
-                                            </small>
-                                        </div>
-                                        <div class="card-body mt-3">
-                                            @if(isset($customer_info) && !empty($customer_info))
-                                                <!-- Lead Guest Section -->
-                                                <div class="mb-4 pb-3 border-bottom">
-                                                    <h6 class="fw-semibold mb-3 text-primary">
-                                                        <i class="ri-user-star-line me-2"></i>Lead Guest
-                                                    </h6>
+                                    <div class="accordion" id="guestInformationAccordion">
+                                        <!-- Lead Guest Accordion Item -->
+                                        @if(isset($customer_info) && !empty($customer_info))
+                                        <div class="accordion-item border-0 shadow-sm mb-3">
+                                            <h2 class="accordion-header" id="leadGuestHeading">
+                                                <button class="accordion-button collapsed fw-bold text-white" type="button" data-bs-toggle="collapse" data-bs-target="#leadGuestCollapse" aria-expanded="false" aria-controls="leadGuestCollapse" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);">
+                                                    <i class="ri-user-star-line me-2"></i>Lead Guest
+                                                </button>
+                                            </h2>
+                                            <div id="leadGuestCollapse"  style="margin-top: 10px class="accordion-collapse collapse" aria-labelledby="leadGuestHeading" data-bs-parent="#guestInformationAccordion">
+                                                <div class="accordion-body" style="background: linear-gradient(to bottom, #f8f9ff 0%, #ffffff 100%);">
                                                     <div class="row g-3">
                                                         <div class="col-md-6">
-                                                            <label class="form-label">Full Name</label>
-                                                            <input type="text" class="form-control" id="customerFullName" name="customer_full_name" placeholder="Enter full name" value="{{ $customer_info['fullName'] ?? '' }}">
+                                                            <label class="form-label fw-semibold">Full Name</label>
+                                                            <input type="text" class="form-control" id="customerFullName" name="customer_full_name" placeholder="Enter full name" value="{{ $customer_info['fullName'] ?? '' }}" readonly>
                                                         </div>
                                                         <div class="col-md-6">
-                                                            <label class="form-label">Email</label>
-                                                            <input type="email" class="form-control" id="customerEmail" name="customer_email" placeholder="Enter email" value="{{ $customer_info['email'] ?? '' }}">
+                                                            <label class="form-label fw-semibold">Email</label>
+                                                            <input type="email" class="form-control" id="customerEmail" name="customer_email" placeholder="Enter email" value="{{ $customer_info['email'] ?? '' }}" readonly>
                                                         </div>
                                                         <div class="col-md-3">
-                                                            <label class="form-label">Country Code</label>
+                                                            <label class="form-label fw-semibold">Country Code</label>
                                                             <input type="text" class="form-control" id="customerCountryCode" name="customer_country_code" placeholder="e.g. +91" value="{{ $customer_info['countryCode'] ?? '' }}">
                                                         </div>
                                                         <div class="col-md-9">
-                                                            <label class="form-label">Phone Number</label>
+                                                            <label class="form-label fw-semibold">Phone Number</label>
                                                             <input type="tel" class="form-control" id="customerPhone" name="customer_phone" placeholder="Enter phone number" value="{{ $customer_info['phone'] ?? '' }}">
                                                         </div>
                                                         <div class="col-12">
-                                                            <label class="form-label">Address Line 1</label>
+                                                            <label class="form-label fw-semibold">Address Line 1</label>
                                                             <input type="text" class="form-control" id="customerAddress1" name="customer_address1" placeholder="Enter address line 1" value="{{ $customer_info['address1'] ?? '' }}">
                                                         </div>
                                                         <div class="col-12">
-                                                            <label class="form-label">Address Line 2</label>
+                                                            <label class="form-label fw-semibold">Address Line 2</label>
                                                             <input type="text" class="form-control" id="customerAddress2" name="customer_address2" placeholder="Enter address line 2" value="{{ $customer_info['address2'] ?? '' }}">
                                                         </div>
                                                         <div class="col-md-6">
-                                                            <label class="form-label">State</label>
+                                                            <label class="form-label fw-semibold">State</label>
                                                             <input type="text" class="form-control" id="customerState" name="customer_state" placeholder="Enter state" value="{{ $customer_info['state'] ?? '' }}">
                                                         </div>
                                                         <div class="col-md-6">
-                                                            <label class="form-label">ZIP Code</label>
+                                                            <label class="form-label fw-semibold">ZIP Code</label>
                                                             <input type="text" class="form-control" id="customerZip" name="customer_zip" placeholder="Enter ZIP code" value="{{ $customer_info['zip'] ?? '' }}">
                                                         </div>
                                                         <div class="col-12">
-                                                            <label class="form-label">Special Requests</label>
+                                                            <label class="form-label fw-semibold">Special Requests</label>
                                                             <textarea class="form-control" id="customerSpecialRequests" name="customer_special_requests" rows="3" placeholder="Enter any special requests or notes">{{ $customer_info['specialRequests'] ?? '' }}</textarea>
                                                         </div>  
                                                     </div>
                                                 </div>
-                                            @endif
+                                            </div>
+                                        </div>
+                                        @endif
 
-                                            <!-- Additional Guests Section -->
-                                            <div class="mb-3">
-                                                <h6 class="fw-semibold mb-3 text-info">
-                                                    <i class="ri-group-line me-2"></i>Additional Guest(s)
-                                                </h6>
-                                                <div id="additionalGuestsContainer">
-                                                    @if(!empty($additionalGuests))
-                                                        @foreach($additionalGuests as $index => $guest)
-                                                            <div class="card mb-3 border guest-card" data-guest-index="{{ $index }}">
-                                                                <div class="card-header bg-light d-flex justify-content-between align-items-center">
-                                                                    <h6 class="mb-0 fw-semibold">
-                                                                        <i class="ri-user-line me-2"></i>Guest {{ $index + 1 }}
-                                                                    </h6>
-                                                                </div>
-                                                                <div class="card-body">
-                                                                    <div class="row g-3">
-                                                                        <div class="col-md-3">
-                                                                            <label class="form-label">Salutation</label>
-                                                                            <input type="text" class="form-control guest-salutation" name="additional_guests[{{ $index }}][salutation]" value="{{ $guest['salutation'] ?? '' }}" placeholder="Mr/Mrs/Ms">
-                                                                        </div>
-                                                                        <div class="col-md-3">
-                                                                            <label class="form-label">Name</label>
-                                                                            <input type="text" class="form-control guest-name" name="additional_guests[{{ $index }}][name]" value="{{ $guest['name'] ?? '' }}" placeholder="Enter full name">
-                                                                        </div>
-                                                                        <div class="col-md-3">
-                                                                            <label class="form-label">Passport No.</label>
-                                                                            <input type="text" class="form-control guest-passport-no" name="additional_guests[{{ $index }}][passport_no]" value="{{ $guest['passport_no'] ?? '' }}" placeholder="Enter passport number">
-                                                                        </div>
-                                                                        <div class="col-md-3">
-                                                                            <label class="form-label">Passport Expiry</label>
-                                                                            <input type="date" class="form-control guest-passport-exp" name="additional_guests[{{ $index }}][passport_exp]" value="{{ $guest['passport_exp'] ?? '' }}">
-                                                                        </div>
-                                                                        <div class="col-md-4">
-                                                                            <label class="form-label">Contact No.</label>
-                                                                            <input type="text" class="form-control guest-contact-no" name="additional_guests[{{ $index }}][contact_no]" value="{{ $guest['contact_no'] ?? '' }}" placeholder="Enter contact number">
+                                        <!-- Additional Guests Accordion Item -->
+                                        <div class="accordion-item border-0 shadow-sm">
+                                            <h2 class="accordion-header" id="additionalGuestsHeading" style=margin-top:10px>
+                                                <button class="accordion-button collapsed fw-bold text-white" type="button" data-bs-toggle="collapse" data-bs-target="#additionalGuestsCollapse" aria-expanded="false" aria-controls="additionalGuestsCollapse" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);">
+                                                    <i class="ri-group-line me-2"></i>Additional Guest(s) 
+                                                    <span class="badge bg-light text-dark ms-2" id="additionalGuestsCount">{{ !empty($additionalGuests) ? count($additionalGuests) : 0 }}</span>
+                                                </button>
+                                            </h2>
+                                            <div id="additionalGuestsCollapse" class="accordion-collapse collapse" aria-labelledby="additionalGuestsHeading" data-bs-parent="#guestInformationAccordion">
+                                                <div class="accordion-body">
+                                                    <div id="additionalGuestsContainer">
+                                                        @if(!empty($additionalGuests))
+                                                            @foreach($additionalGuests as $index => $guest)
+                                                                <div class="card mb-3 border shadow-sm guest-card" data-guest-index="{{ $index }}">
+                                                                    <div class="card-header bg-light d-flex justify-content-between align-items-center">
+                                                                        <h6 class="mb-0 fw-semibold">
+                                                                            <i class="ri-user-line me-2"></i>Guest {{ $index + 1 }}
+                                                                        </h6>
+                                                                        <button type="button" class="btn btn-sm btn-danger remove-guest-btn" onclick="removeGuest(this)" data-guest-index="{{ $index }}" title="Remove Guest">
+                                                                            <i class="ri-delete-bin-line"></i> Remove
+                                                                        </button>
+                                                                    </div>
+                                                                    <div class="card-body" style="margin-top:10px">
+                                                                        <div class="row g-3">
+                                                                            <div class="col-md-3">
+                                                                                <label class="form-label fw-semibold">Salutation</label>
+                                                                                <input type="text" class="form-control guest-salutation" name="additional_guests[{{ $index }}][salutation]" value="{{ $guest['salutation'] ?? '' }}" placeholder="Mr/Mrs/Ms">
+                                                                            </div>
+                                                                            <div class="col-md-3">
+                                                                                <label class="form-label fw-semibold">Name</label>
+                                                                                <input type="text" class="form-control guest-name" name="additional_guests[{{ $index }}][name]" value="{{ $guest['name'] ?? '' }}" placeholder="Enter full name">
+                                                                            </div>
+                                                                            <div class="col-md-3">
+                                                                                <label class="form-label fw-semibold">Passport No.</label>
+                                                                                <input type="text" class="form-control guest-passport-no" name="additional_guests[{{ $index }}][passport_no]" value="{{ $guest['passport_no'] ?? '' }}" placeholder="Enter passport number">
+                                                                            </div>
+                                                                            <div class="col-md-3">
+                                                                                <label class="form-label fw-semibold">Passport Expiry</label>
+                                                                                <input type="date" class="form-control guest-passport-exp" name="additional_guests[{{ $index }}][passport_exp]" value="{{ $guest['passport_exp'] ?? '' }}">
+                                                                            </div>
+                                                                            <div class="col-md-4">
+                                                                                <label class="form-label fw-semibold">Contact No.</label>
+                                                                                <input type="text" class="form-control guest-contact-no" name="additional_guests[{{ $index }}][contact_no]" value="{{ $guest['contact_no'] ?? '' }}" placeholder="Enter contact number">
+                                                                            </div>
                                                                         </div>
                                                                     </div>
                                                                 </div>
+                                                            @endforeach
+                                                        @else
+                                                            <div class="text-muted small mb-3 p-3 bg-light rounded">
+                                                                <i class="ri-information-line me-2"></i>No additional guest information has been added for this tour.
                                                             </div>
-                                                        @endforeach
-                                                    @else
-                                                        <div class="text-muted small mb-3">
-                                                            No additional guest information has been added for this tour.
+                                                        @endif
+                                                    </div>
+                                                    
+                                                    <!-- Add More Guest Button -->
+                                                    <div class="mt-3 pt-3 border-top">
+                                                        <button type="button" class="btn btn-success d-flex align-items-center gap-2" onclick="addNewGuest()" id="addGuestBtn">
+                                                            <i class="ri-user-add-line"></i>
+                                                            <span>Add More Guest</span>
+                                                        </button>
+                                                        <small class="text-muted d-block mt-2">
+                                                            <span id="guestLimitInfo">Total guests (including lead guest): <strong id="currentGuestCount">{{ isset($customer_info) && !empty($customer_info) ? 1 : 0 }}{{ !empty($additionalGuests) ? ' + ' . count($additionalGuests) : '' }}</strong> / <strong id="maxPax">{{ ($tour->adult ?? 0) + ($tour->child ?? 0) }}</strong> (Total Pax)</span>
+                                                        </small>
+                                                        <div class="text-danger small d-none mt-2" id="guestLimitError">
+                                                            <i class="ri-error-warning-line me-1"></i>Cannot add more guests. Total guests cannot exceed total pax.
                                                         </div>
-                                                    @endif
+                                                    </div>
                                                 </div>
-                                            </div>
-
-                                            <!-- Save Changes Button -->
-                                            <div class="d-flex justify-content-end mt-4 pt-3 border-top">
-                                                <button type="button" class="btn btn-primary d-flex align-items-center gap-2" onclick="updateGuestInformation(event)">
-                                                    <span class="spinner-border spinner-border-sm d-none" id="guest_info_spinner"></span>
-                                                    <i class="ri-save-3-line"></i>
-                                                    <span>Save Guest Changes</span>
-                                                </button>
                                             </div>
                                         </div>
                                     </div>
+
+                                    <!-- Save Changes Button -->
+                                    <div class="d-flex justify-content-end mt-4 pt-3">
+                                        <button type="button" class="btn btn-primary d-flex align-items-center gap-2 shadow-sm" onclick="updateGuestInformation(event)" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); border: none;">
+                                            <span class="spinner-border spinner-border-sm d-none" id="guest_info_spinner"></span>
+                                            <i class="ri-save-3-line"></i>
+                                            <span>Save Guest Changes</span>
+                                        </button>
+                                    </div>
                                 </div>
                             </div>
+                            <script>
+                                // Get total pax from tour data
+                                const totalPax = {{ ($tour->adult ?? 0) + ($tour->child ?? 0) }};
+                                let guestIndexCounter = {{ !empty($additionalGuests) ? count($additionalGuests) : 0 }};
+                                
+                                // Function to get current guest count
+                                function getCurrentGuestCount() {
+                                    const hasLeadGuest = {{ isset($customer_info) && !empty($customer_info) ? 1 : 0 }};
+                                    const additionalGuests = document.querySelectorAll('.guest-card').length;
+                                    return hasLeadGuest + additionalGuests;
+                                }
+                                
+                                // Function to check if can add more guests
+                                function canAddMoreGuests() {
+                                    const currentCount = getCurrentGuestCount();
+                                    return currentCount < totalPax;
+                                }
+                                
+                                // Function to add new guest
+                                function addNewGuest() {
+                                    if (!canAddMoreGuests()) {
+                                        document.getElementById('guestLimitError').classList.remove('d-none');
+                                        document.getElementById('addGuestBtn').disabled = true;
+                                        return;
+                                    }
+                                    
+                                    document.getElementById('guestLimitError').classList.add('d-none');
+                                    document.getElementById('addGuestBtn').disabled = false;
+                                    
+                                    const container = document.getElementById('additionalGuestsContainer');
+                                    
+                                    // Remove "no guests" message if exists
+                                    const noGuestsMsg = container.querySelector('.text-muted');
+                                    if (noGuestsMsg) {
+                                        noGuestsMsg.remove();
+                                    }
+                                    
+                                    const newIndex = guestIndexCounter++;
+                                    const guestCard = document.createElement('div');
+                                    guestCard.className = 'card mb-3 border shadow-sm guest-card';
+                                    guestCard.setAttribute('data-guest-index', newIndex);
+                                    
+                                    guestCard.innerHTML = `
+                                        <div class="card-header bg-light d-flex justify-content-between align-items-center">
+                                            <h6 class="mb-0 fw-semibold">
+                                                <i class="ri-user-line me-2"></i>Guest ${newIndex + 1}
+                                            </h6>
+                                            <button type="button" class="btn btn-sm btn-danger remove-guest-btn" onclick="removeGuest(this)" data-guest-index="${newIndex}" title="Remove Guest">
+                                                <i class="ri-delete-bin-line"></i> Remove
+                                            </button>
+                                        </div>
+                                        <div class="card-body" style="margin-top:10px">
+                                            <div class="row g-3">
+                                                <div class="col-md-3">
+                                                    <label class="form-label fw-semibold">Salutation</label>
+                                                    <input type="text" class="form-control guest-salutation" name="additional_guests[${newIndex}][salutation]" placeholder="Mr/Mrs/Ms">
+                                                </div>
+                                                <div class="col-md-3">
+                                                    <label class="form-label fw-semibold">Name</label>
+                                                    <input type="text" class="form-control guest-name" name="additional_guests[${newIndex}][name]" placeholder="Enter full name">
+                                                </div>
+                                                <div class="col-md-3">
+                                                    <label class="form-label fw-semibold">Passport No.</label>
+                                                    <input type="text" class="form-control guest-passport-no" name="additional_guests[${newIndex}][passport_no]" placeholder="Enter passport number">
+                                                </div>
+                                                <div class="col-md-3">
+                                                    <label class="form-label fw-semibold">Passport Expiry</label>
+                                                    <input type="date" class="form-control guest-passport-exp" name="additional_guests[${newIndex}][passport_exp]">
+                                                </div>
+                                                <div class="col-md-4">
+                                                    <label class="form-label fw-semibold">Contact No.</label>
+                                                    <input type="text" class="form-control guest-contact-no" name="additional_guests[${newIndex}][contact_no]" placeholder="Enter contact number">
+                                                </div>
+                                            </div>
+                                        </div>
+                                    `;
+                                    
+                                    container.appendChild(guestCard);
+                                    updateGuestCount();
+                                    
+                                    // Scroll to new guest card
+                                    guestCard.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+                                }
+                                
+                                // Function to remove guest
+                                function removeGuest(button) {
+                                    if (confirm('Are you sure you want to remove this guest?')) {
+                                        const guestCard = button.closest('.guest-card');
+                                        guestCard.style.transition = 'all 0.3s ease';
+                                        guestCard.style.opacity = '0';
+                                        guestCard.style.transform = 'translateX(-100%)';
+                                        
+                                        setTimeout(() => {
+                                            guestCard.remove();
+                                            updateGuestCount();
+                                            
+                                            // Show "no guests" message if no guests left
+                                            const container = document.getElementById('additionalGuestsContainer');
+                                            if (container.querySelectorAll('.guest-card').length === 0) {
+                                                container.innerHTML = `
+                                                    <div class="text-muted small mb-3 p-3 bg-light rounded">
+                                                        <i class="ri-information-line me-2"></i>No additional guest information has been added for this tour.
+                                                    </div>
+                                                `;
+                                            }
+                                        }, 300);
+                                    }
+                                }
+                                
+                                // Update guest count badge and info
+                                function updateGuestCount() {
+                                    const guestCards = document.querySelectorAll('.guest-card');
+                                    const count = guestCards.length;
+                                    const currentTotal = getCurrentGuestCount();
+                                    
+                                    // Update badge
+                                    const badge = document.getElementById('additionalGuestsCount');
+                                    if (badge) {
+                                        badge.textContent = count;
+                                        if (count === 0) {
+                                            badge.classList.add('bg-secondary');
+                                            badge.classList.remove('bg-light', 'text-dark');
+                                        } else {
+                                            badge.classList.remove('bg-secondary');
+                                            badge.classList.add('bg-light', 'text-dark');
+                                        }
+                                    }
+                                    
+                                    // Update guest count info
+                                    const countInfo = document.getElementById('currentGuestCount');
+                                    const hasLeadGuest = {{ isset($customer_info) && !empty($customer_info) ? 1 : 0 }};
+                                    if (countInfo) {
+                                        if (hasLeadGuest && count > 0) {
+                                            countInfo.textContent = hasLeadGuest + ' + ' + count;
+                                        } else if (hasLeadGuest) {
+                                            countInfo.textContent = hasLeadGuest;
+                                        } else {
+                                            countInfo.textContent = count;
+                                        }
+                                    }
+                                    
+                                    // Update add button state
+                                    const addBtn = document.getElementById('addGuestBtn');
+                                    const errorMsg = document.getElementById('guestLimitError');
+                                    
+                                    if (currentTotal >= totalPax) {
+                                        if (addBtn) addBtn.disabled = true;
+                                        if (errorMsg) errorMsg.classList.remove('d-none');
+                                    } else {
+                                        if (addBtn) addBtn.disabled = false;
+                                        if (errorMsg) errorMsg.classList.add('d-none');
+                                    }
+                                }
+                                
+                                // Initialize on page load
+                                $(document).ready(function() {
+                                    updateGuestCount();
+                                });
+                            </script>
                         </div>
                     </div>
                 </div>
@@ -10666,8 +10870,21 @@
         
         const pickupZoneId = pickupOption?.value;
         const dropoffZoneId = dropoffOption?.value;
-        const pickupZoneType = pickupOption?.dataset?.type;
-        const dropoffZoneType = dropoffOption?.dataset?.type;
+        
+        // Get zone types from selected options' data-type attribute
+        let pickupZoneType = null;
+        let dropoffZoneType = null;
+        
+        if (pickupOption && pickupOption.selectedIndex > 0) {
+            const selectedPickupOption = pickupOption.options[pickupOption.selectedIndex];
+            pickupZoneType = selectedPickupOption?.getAttribute('data-type');
+        }
+        
+        if (dropoffOption && dropoffOption.selectedIndex > 0) {
+            const selectedDropoffOption = dropoffOption.options[dropoffOption.selectedIndex];
+            dropoffZoneType = selectedDropoffOption?.getAttribute('data-type');
+        }
+        
         const pickupTime = document.getElementById('modal_transport_pickup_time').value;
         const pickupDate = document.getElementById('modal_transport_pickup_date').value;
         
@@ -10676,7 +10893,25 @@
             return;
         }
         
-        console.log('Searching vehicles for zone-based transport:', { pickupZoneId, dropoffZoneId, pickupTime, pickupDate, selectedCity });
+        // Determine transport type (exit_port or entry_port) based on zone types
+        // For exit_port: pickup should be Hotel/Restaurant, dropoff should be Port
+        // For entry_port: pickup should be Port, dropoff should be Hotel/Attraction/Restaurant
+        const isExitPort = pickupZoneType && (pickupZoneType === 'Hotel' || pickupZoneType === 'Restaurant') && 
+                          dropoffZoneType && dropoffZoneType === 'Port';
+        const isEntryPort = pickupZoneType && pickupZoneType === 'Port' && 
+                           dropoffZoneType && (dropoffZoneType === 'Hotel' || dropoffZoneType === 'Attraction' || dropoffZoneType === 'Restaurant');
+        
+        console.log('Searching vehicles for zone-based transport:', { 
+            pickupZoneId, 
+            dropoffZoneId, 
+            pickupZoneType,
+            dropoffZoneType,
+            isExitPort,
+            isEntryPort,
+            pickupTime, 
+            pickupDate, 
+            selectedCity 
+        });
         
         const searchBtn = document.getElementById('transport_search_btn');
         const vehicleResultsSection = document.getElementById('transport_vehicle_results');
@@ -10689,14 +10924,31 @@
         }
         const user_dmc = @json($UserDmc);
         const zone_status = user_dmc.zone_on;
+        
         if(zone_status == 1){
-            fromZoneType = pickupZoneType || 'Port';
-            toZoneType = dropoffZoneType || 'Hotel';
+            // Use actual zone types from selected options
+            // For exit_port: fromZoneType should be Hotel/Restaurant, toZoneType should be Port
+            // For entry_port: fromZoneType should be Port, toZoneType should be Hotel/Attraction/Restaurant
+            if (isExitPort) {
+                // Departure: pickup from hotel/restaurant, dropoff to port
+                fromZoneType = pickupZoneType || 'Hotel';
+                toZoneType = dropoffZoneType || 'Port';
+            } else if (isEntryPort) {
+                // Arrival: pickup from port, dropoff to hotel/attraction/restaurant
+                fromZoneType = pickupZoneType || 'Port';
+                toZoneType = dropoffZoneType || 'Hotel';
+            } else {
+                // Fallback: use detected types or defaults based on what we have
+                fromZoneType = pickupZoneType || 'Port';
+                toZoneType = dropoffZoneType || 'Hotel';
+            }
         }
         else{
             fromZoneType = '';
             toZoneType = '';
         }
+        
+        console.log('Zone types determined:', { fromZoneType, toZoneType, isExitPort, isEntryPort });
         // Make API call to fetch vehicles by zones
         const routeUrl = `{{ route('fetch-vehicles-by-zones') }}`;
         console.log('Fetching vehicles from route:', routeUrl);
@@ -19533,6 +19785,210 @@
             submitButton.disabled = false;
             spinner?.classList.add('d-none');
         }
+    }
+    
+    // Function to update vehicles for departure transport based on pickup/dropoff zones
+    async function updateDepartureVehicles(bookingId) {
+        const form = document.querySelector(`form[data-update-url*="${bookingId}"]`);
+        if (!form) return;
+        
+        const pickupSelect = form.querySelector('.departure-pickup-location');
+        const dropoffSelect = form.querySelector('.departure-dropoff-location');
+        const vehicleSelect = form.querySelector('.departure-vehicle-select') || document.getElementById(`departure_vehicle_${bookingId}`);
+        const citySelect = form.querySelector('select[name="city"]');
+        
+        if (!pickupSelect || !dropoffSelect || !vehicleSelect) return;
+        
+        const pickupZoneId = pickupSelect.options[pickupSelect.selectedIndex]?.getAttribute('data-zone-id');
+        const dropoffZoneId = dropoffSelect.options[dropoffSelect.selectedIndex]?.getAttribute('data-zone-id');
+        const pickupZoneType = pickupSelect.options[pickupSelect.selectedIndex]?.getAttribute('data-type');
+        const dropoffZoneType = dropoffSelect.options[dropoffSelect.selectedIndex]?.getAttribute('data-type');
+        const city = citySelect?.value || '';
+        
+        if (!pickupZoneId || !dropoffZoneId || !city) {
+            // Clear vehicle select if zones not selected
+            if (vehicleSelect) {
+                vehicleSelect.innerHTML = '<option value="">Select pickup and dropoff locations first</option>';
+                vehicleSelect.disabled = true;
+            }
+            return;
+        }
+        
+        // Show loading state
+        if (vehicleSelect) {
+            vehicleSelect.disabled = true;
+            vehicleSelect.innerHTML = '<option value="">Loading vehicles...</option>';
+        }
+        
+        const user_dmc = @json($UserDmc);
+        const zone_status = user_dmc?.zone_on ?? 0;
+        
+        try {
+            const response = await fetch(`{{ route('fetch-vehicles-by-zones') }}`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRF-TOKEN': '{{ csrf_token() }}'
+                },
+                body: JSON.stringify({
+                    from_zone_id: pickupZoneId,
+                    to_zone_id: dropoffZoneId,
+                    from_zone_type: zone_status == 1 ? pickupZoneType : '',
+                    to_zone_type: zone_status == 1 ? dropoffZoneType : '',
+                    zone_status: zone_status,
+                    city: city
+                })
+            });
+            
+            const data = await response.json();
+            
+            if (data.success && data.vehicles && data.vehicles.length > 0) {
+                // Populate vehicle dropdown
+                vehicleSelect.innerHTML = '<option value="">Select vehicle</option>';
+                data.vehicles.forEach(vehicle => {
+                    const vehicleInfo = `${vehicle.vehicle_name} (${vehicle.vehicle_type || ''}) - ${vehicle.seating_capacity || ''} seats`;
+                    vehicleSelect.innerHTML += `<option value="${vehicle.vehicle_name || vehicle.vehicle_id}" 
+                        data-vehicle-id="${vehicle.vehicle_id || ''}"
+                        data-private-price="${vehicle.private_price || vehicle.base_price || 0}"
+                        data-shared-price="${vehicle.shared_price || vehicle.sharable_base_price || 0}"
+                        data-sharable="${vehicle.sharable || 0}">
+                        ${vehicleInfo}
+                    </option>`;
+                });
+                vehicleSelect.disabled = false;
+                
+                // Update service type based on vehicle sharability
+                updateDepartureServiceType(bookingId);
+            } else {
+                vehicleSelect.innerHTML = '<option value="">No vehicles available for this route</option>';
+                vehicleSelect.disabled = true;
+            }
+        } catch (error) {
+            console.error('Error fetching vehicles:', error);
+            if (vehicleSelect) {
+                vehicleSelect.innerHTML = '<option value="">Error loading vehicles</option>';
+                vehicleSelect.disabled = true;
+            }
+        }
+    }
+    
+    // Function to update service type based on selected vehicle for departure
+    function updateDepartureServiceType(bookingId) {
+        const form = document.querySelector(`form[data-update-url*="${bookingId}"]`);
+        if (!form) return;
+        
+        const vehicleSelect = form.querySelector('.departure-vehicle-select') || document.getElementById(`departure_vehicle_${bookingId}`);
+        const serviceTypeSelect = form.querySelector('.departure-service-type') || document.getElementById(`departure_service_type_${bookingId}`);
+        
+        if (!vehicleSelect || !serviceTypeSelect) return;
+        
+        const selectedOption = vehicleSelect.options[vehicleSelect.selectedIndex];
+        if (!selectedOption || !selectedOption.value) {
+            serviceTypeSelect.value = '';
+            serviceTypeSelect.disabled = true;
+            // Disable both options
+            const privateOption = serviceTypeSelect.querySelector('option[value="Private"]');
+            const sharedOption = serviceTypeSelect.querySelector('option[value="Shared"]');
+            if (privateOption) privateOption.disabled = true;
+            if (sharedOption) sharedOption.disabled = true;
+            return;
+        }
+        
+        const sharable = parseInt(selectedOption.getAttribute('data-sharable') || 0);
+        
+        // Enable service type select
+        serviceTypeSelect.disabled = false;
+        
+        // Get options
+        const privateOption = serviceTypeSelect.querySelector('option[value="Private"]');
+        const sharedOption = serviceTypeSelect.querySelector('option[value="Shared"]');
+        
+        // Service type logic based on sharable value:
+        // sharable = 1 or 3: show Private
+        // sharable = 2 or 3: show Shared
+        // sharable = 3: show both
+        // sharable = 0 or other: show only Private (default)
+        
+        if (sharable === 1 || sharable === 3) {
+            // Show Private option
+            if (privateOption) {
+                privateOption.disabled = false;
+                privateOption.style.display = '';
+            }
+        } else {
+            // Hide Private option
+            if (privateOption) {
+                privateOption.disabled = true;
+                privateOption.style.display = 'none';
+            }
+        }
+        
+        if (sharable === 2 || sharable === 3) {
+            // Show Shared option
+            if (sharedOption) {
+                sharedOption.disabled = false;
+                sharedOption.style.display = '';
+            }
+        } else {
+            // Hide Shared option
+            if (sharedOption) {
+                sharedOption.disabled = true;
+                sharedOption.style.display = 'none';
+            }
+        }
+        
+        // Set default value based on available options
+        if (sharable === 1 || sharable === 3) {
+            // Private is available, set as default if not already selected
+            if (!serviceTypeSelect.value || serviceTypeSelect.value === '') {
+                serviceTypeSelect.value = 'Private';
+            }
+        } else if (sharable === 2) {
+            // Only Shared is available
+            serviceTypeSelect.value = 'Shared';
+        } else {
+            // Default to Private if available, otherwise clear
+            if (privateOption && !privateOption.disabled) {
+                serviceTypeSelect.value = 'Private';
+            } else {
+                serviceTypeSelect.value = '';
+            }
+        }
+        
+        // Update price
+        updateDeparturePrice(bookingId);
+    }
+    
+    // Function to update price based on vehicle and service type for departure
+    function updateDeparturePrice(bookingId) {
+        const form = document.querySelector(`form[data-update-url*="${bookingId}"]`);
+        if (!form) return;
+        
+        const vehicleSelect = form.querySelector('.departure-vehicle-select') || document.getElementById(`departure_vehicle_${bookingId}`);
+        const serviceTypeSelect = form.querySelector('.departure-service-type') || document.getElementById(`departure_service_type_${bookingId}`);
+        const priceInput = form.querySelector('.departure-total-price') || document.getElementById(`departure_price_${bookingId}`);
+        
+        if (!vehicleSelect || !serviceTypeSelect || !priceInput) return;
+        
+        const selectedVehicle = vehicleSelect.options[vehicleSelect.selectedIndex];
+        const serviceType = serviceTypeSelect.value;
+        
+        if (!selectedVehicle || !selectedVehicle.value || !serviceType) {
+            priceInput.value = '0.00';
+            return;
+        }
+        
+        const privatePrice = parseFloat(selectedVehicle.getAttribute('data-private-price') || 0);
+        const sharedPrice = parseFloat(selectedVehicle.getAttribute('data-shared-price') || 0);
+        
+        let price = 0;
+        if (serviceType === 'Private') {
+            price = privatePrice;
+        } else if (serviceType === 'Shared') {
+            price = sharedPrice;
+        }
+        
+        priceInput.value = price.toFixed(2);
     }
 
     // Toastr notification helper function
