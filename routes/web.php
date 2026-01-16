@@ -196,6 +196,7 @@ Route::get('/clear', function () {
             Route::post('/package-store-orders', [SingleTourPackageController::class, 'storeServiceOrders'])->name('single-tour-package.store-orders');
             Route::post('/single-tour-package/orders/{order}/update', [SingleTourPackageController::class, 'updateServiceOrder'])->name('single-tour-package.orders.update');
             Route::post('/single-tour-package/{tour}/info', [EditTourController::class, 'updateTour'])->name('single-tour-package.update-info');
+            Route::post('/single-tour-package/{tour}/guests', [EditTourController::class, 'updateGuests'])->name('single-tour-package.update-guests');
             // Service update routes via EditTourController
             Route::post('/edit-tour/hotel/{order}', [EditTourController::class, 'updateHotel'])->name('edit-tour.update-hotel');
             Route::post('/edit-tour/attraction/{order}', [EditTourController::class, 'updateAttraction'])->name('edit-tour.update-attraction');
@@ -301,7 +302,7 @@ Route::get('/clear', function () {
                     return $pdfResponse;
                 }
                 return redirect()->back()->with('error', 'Unable to generate itinerary PDF.');
-            })->name('tour.itinerary.pdf');`
+            })->name('tour.itinerary.pdf');
 
             // API routes for single tour packages (follow agent controller pattern)
             Route::get('/fetch-cities-by-country-single-tour', [SingleTourPackageController::class, 'fetchCitiesByCountry'])->name('fetch-cities-by-country-single-tour');

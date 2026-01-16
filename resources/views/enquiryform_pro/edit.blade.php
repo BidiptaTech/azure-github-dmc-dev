@@ -2,6 +2,10 @@
 
 @section('title', 'Edit Tour Enquiry')
 
+@php
+use Illuminate\Support\Facades\Crypt;
+@endphp
+
 @section('content')
 <div class="container-fluid">
     <div class="row">
@@ -119,14 +123,14 @@
                             </thead>
                             <tbody id="ordersTableBody">
                                 @forelse($orders as $order)
-                                <tr data-order-id="{{ $order->id }}">
-                                    <td>{{ ucfirst($order->type) }}</td>
+                                <tr data-order-id="{{ $order->id }}" data-booking-id="{{ $order->booking_id }}">
+                                    <td>{{ ucfirst(str_replace('_', ' ', $order->type)) }}</td>
                                     <td>{{ $order->booking_id }}</td>
                                     <td>
                                         @php
                                             $orderData = is_array($order->data) ? $order->data : json_decode($order->data, true);
                                             $firstItem = $orderData[0] ?? [];
-                                            $serviceDate = $firstItem['bookingDate'] ?? $firstItem['checkIn'] ?? 'N/A';
+                                            $serviceDate = $firstItem['bookingDate'] ?? $firstItem['checkIn'] ?? $firstItem['pickupdate'] ?? 'N/A';
                                         @endphp
                                         {{ $serviceDate }}
                                     </td>
@@ -142,7 +146,11 @@
                                             } elseif ($order->type == 'guide') {
                                                 echo $firstItem['guide_name'] ?? 'N/A';
                                             } elseif ($order->type == 'vehicle' || $order->type == 'local_transport') {
-                                                echo $firstItem['vehicles_name'] ?? 'N/A';
+                                                echo ($firstItem['entrypickup'] ?? 'Pickup') . ' → ' . ($firstItem['entrydropoff'] ?? 'Dropoff');
+                                            } elseif ($order->type == 'entry_port' || $order->type == 'exit_port') {
+                                                echo ($firstItem['port_name'] ?? 'Port') . ' Transfer';
+                                            } elseif ($order->type == 'miscellaneous') {
+                                                echo $firstItem['item_name'] ?? 'Misc Item';
                                             } else {
                                                 echo 'N/A';
                                             }
@@ -150,7 +158,7 @@
                                     </td>
                                     <td>
                                         @php
-                                            $cost = $firstItem['cost'] ?? $firstItem['adultCost'] ?? 0;
+                                            $cost = $firstItem['cost'] ?? $firstItem['adultCost'] ?? $firstItem['totalPrice'] ?? 0;
                                             $sell = $firstItem['sell'] ?? $firstItem['adultSell'] ?? $firstItem['price'] ?? $firstItem['totalPrice'] ?? 0;
                                         @endphp
                                         Cost: {{ number_format($cost, 2) }}<br>
@@ -164,11 +172,8 @@
                                         @endif
                                     </td>
                                     <td>
-                                        <button class="btn btn-sm btn-primary" onclick="editOrder({{ $order->id }})">
-                                            <i class="ri-edit-line"></i>
-                                        </button>
-                                        <button class="btn btn-sm btn-danger" onclick="deleteOrder({{ $order->id }})">
-                                            <i class="ri-delete-bin-line"></i>
+                                        <button class="btn btn-sm btn-danger" onclick="markOrderForDeletion({{ $order->id }}, {{ $order->booking_id }})">
+                                            <i class="ri-delete-bin-line"></i> Delete
                                         </button>
                                     </td>
                                 </tr>
@@ -198,151 +203,29 @@
     </div>
 </div>
 
-<!-- Order Edit Modal -->
-<div class="modal fade" id="orderEditModal" tabindex="-1" aria-labelledby="orderEditModalLabel" aria-hidden="true">
-    <div class="modal-dialog modal-lg">
-        <div class="modal-content">
-            <div class="modal-header">
-                <h5 class="modal-title" id="orderEditModalLabel">Edit Order</h5>
-                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
-            </div>
-            <div class="modal-body">
-                <div id="orderEditForm">
-                    <!-- Order edit form will be dynamically loaded here -->
-                    <p>Loading order details...</p>
-                </div>
-            </div>
-            <div class="modal-footer">
-                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
-                <button type="button" class="btn btn-primary" onclick="saveOrderChanges()">Save Changes</button>
-            </div>
-        </div>
-    </div>
-</div>
-
 <script>
     const tourId = {{ $tour->tour_id }};
-    const orders = @json($orders);
+    let orders = @json($orders);
+    let ordersToDelete = []; // Track orders marked for deletion
     
-    function editOrder(orderId) {
-        // Find the order in the orders array
-        const order = orders.find(o => o.id === orderId);
-        if (!order) {
-            alert('Order not found');
+    function markOrderForDeletion(orderId, bookingId) {
+        if (!confirm('Are you sure you want to delete this order? This action cannot be undone.')) {
             return;
         }
         
-        // Parse order data
-        const orderData = typeof order.data === 'string' ? JSON.parse(order.data) : order.data;
-        const firstItem = orderData[0] || {};
+        // Add to deletion list
+        ordersToDelete.push(bookingId);
         
-        // Build edit form based on order type
-        let formHTML = `<div class="row">`;
-        
-        // Display cost and sell fields for editing
-        if (order.type === 'hotel') {
-            formHTML += `
-                <div class="col-md-6">
-                    <label class="form-label">Hotel Name</label>
-                    <input type="text" class="form-control" value="${firstItem.hotelDetails?.hotel_name || 'N/A'}" readonly>
-                </div>
-                <div class="col-md-3">
-                    <label class="form-label">Cost</label>
-                    <input type="number" class="form-control" id="editCost" value="${firstItem.cost || 0}" step="0.01">
-                </div>
-                <div class="col-md-3">
-                    <label class="form-label">Sell</label>
-                    <input type="number" class="form-control" id="editSell" value="${firstItem.sell || firstItem.price || 0}" step="0.01">
-                </div>
-            `;
-        } else if (order.type === 'attraction') {
-            formHTML += `
-                <div class="col-md-6">
-                    <label class="form-label">Attraction Name</label>
-                    <input type="text" class="form-control" value="${firstItem.AttractionName || 'N/A'}" readonly>
-                </div>
-                <div class="col-md-3">
-                    <label class="form-label">Adult Cost</label>
-                    <input type="number" class="form-control" id="editAdultCost" value="${firstItem.ticket_details?.adult_cost || 0}" step="0.01">
-                </div>
-                <div class="col-md-3">
-                    <label class="form-label">Adult Sell</label>
-                    <input type="number" class="form-control" id="editAdultSell" value="${firstItem.ticket_details?.adult_sell || 0}" step="0.01">
-                </div>
-                <div class="col-md-3">
-                    <label class="form-label">Child Cost</label>
-                    <input type="number" class="form-control" id="editChildCost" value="${firstItem.ticket_details?.child_cost || 0}" step="0.01">
-                </div>
-                <div class="col-md-3">
-                    <label class="form-label">Child Sell</label>
-                    <input type="number" class="form-control" id="editChildSell" value="${firstItem.ticket_details?.child_sell || 0}" step="0.01">
-                </div>
-            `;
-        } else if (order.type === 'restaurant') {
-            formHTML += `
-                <div class="col-md-6">
-                    <label class="form-label">Restaurant Name</label>
-                    <input type="text" class="form-control" value="${firstItem.restaurantName || 'N/A'}" readonly>
-                </div>
-                <div class="col-md-3">
-                    <label class="form-label">Adult Cost</label>
-                    <input type="number" class="form-control" id="editAdultCost" value="${firstItem.adultCost || 0}" step="0.01">
-                </div>
-                <div class="col-md-3">
-                    <label class="form-label">Adult Sell</label>
-                    <input type="number" class="form-control" id="editAdultSell" value="${firstItem.adultSell || 0}" step="0.01">
-                </div>
-                <div class="col-md-3">
-                    <label class="form-label">Child Cost</label>
-                    <input type="number" class="form-control" id="editChildCost" value="${firstItem.childCost || 0}" step="0.01">
-                </div>
-                <div class="col-md-3">
-                    <label class="form-label">Child Sell</label>
-                    <input type="number" class="form-control" id="editChildSell" value="${firstItem.childSell || 0}" step="0.01">
-                </div>
-            `;
-        } else {
-            formHTML += `
-                <div class="col-12">
-                    <p>Order type: ${order.type}</p>
-                    <pre>${JSON.stringify(firstItem, null, 2)}</pre>
-                </div>
-            `;
+        // Remove from display
+        const row = document.querySelector(`tr[data-order-id="${orderId}"]`);
+        if (row) {
+            row.style.backgroundColor = '#ffebee';
+            row.style.textDecoration = 'line-through';
+            row.querySelector('.btn-danger').disabled = true;
+            row.querySelector('.btn-danger').textContent = 'Marked for deletion';
         }
         
-        formHTML += `</div>`;
-        formHTML += `<input type="hidden" id="editOrderId" value="${orderId}">`;
-        
-        document.getElementById('orderEditForm').innerHTML = formHTML;
-        
-        // Show modal
-        const modal = new bootstrap.Modal(document.getElementById('orderEditModal'));
-        modal.show();
-    }
-    
-    function saveOrderChanges() {
-        const orderId = document.getElementById('editOrderId').value;
-        
-        // Get updated values
-        // This is a simplified version - full implementation would handle all order types
-        const updatedData = {
-            order_id: orderId,
-            // Add updated cost/sell values here
-        };
-        
-        // Send update request
-        alert('Order update functionality - to be implemented fully');
-        
-        // Close modal
-        bootstrap.Modal.getInstance(document.getElementById('orderEditModal')).hide();
-    }
-    
-    function deleteOrder(orderId) {
-        if (!confirm('Are you sure you want to delete this order?')) {
-            return;
-        }
-        
-        alert('Order deletion functionality - to be implemented');
+        console.log('Orders to delete:', ordersToDelete);
     }
     
     function saveChanges() {
@@ -351,7 +234,158 @@
         const discountValue = document.getElementById('discountValueEdit').value;
         const discountType = document.getElementById('discountTypeEdit').value;
         
-        // Collect all order data
+        // Prepare services data by grouping orders by type
+        const servicesData = {
+            entry_port: [],
+            exit_port: [],
+            accommodations: [],
+            tours: [],
+            meals: [],
+            transfers: [],
+            guides: [],
+            miscellaneous: []
+        };
+        
+        // Helper function to create unique key for deduplication
+        function createUniqueKey(item, type) {
+            let keyData = {};
+            switch(type) {
+                case 'entry_port':
+                case 'exit_port':
+                    keyData = {
+                        port_id: item.port_id || '',
+                        port_name: item.port_name || '',
+                        bookingDate: item.bookingDate || '',
+                        type: item.type || ''
+                    };
+                    break;
+                case 'hotel':
+                    keyData = {
+                        hotel_id: item.hotel_unique_id || item.hotelDetails?.hotel_id || '',
+                        checkIn: item.checkIn || '',
+                        checkOut: item.checkOut || ''
+                    };
+                    break;
+                case 'attraction':
+                    keyData = {
+                        attraction_id: item.attraction_id || '',
+                        AttractionName: item.AttractionName || '',
+                        bookingDate: item.bookingDate || ''
+                    };
+                    break;
+                case 'restaurant':
+                    keyData = {
+                        restaurant_id: item.restaurant_id || '',
+                        restaurantName: item.restaurantName || '',
+                        bookingDate: item.bookingDate || ''
+                    };
+                    break;
+                case 'local_transport':
+                    keyData = {
+                        vehicle_id: item.vehicle_id || '',
+                        entrypickup: item.entrypickup || '',
+                        entrydropoff: item.entrydropoff || '',
+                        bookingDate: item.bookingDate || ''
+                    };
+                    break;
+                case 'guide':
+                    keyData = {
+                        guide_id: item.guide_id || '',
+                        guide_name: item.guide_name || '',
+                        bookingDate: item.bookingDate || ''
+                    };
+                    break;
+                case 'miscellaneous':
+                    keyData = {
+                        item_id: item.item_id || '',
+                        item_name: item.item_name || '',
+                        bookingDate: item.bookingDate || ''
+                    };
+                    break;
+            }
+            return JSON.stringify(keyData);
+        }
+        
+        // Track seen items to prevent duplicates
+        const seenKeys = {
+            entry_port: new Set(),
+            exit_port: new Set(),
+            hotel: new Set(),
+            attraction: new Set(),
+            restaurant: new Set(),
+            local_transport: new Set(),
+            guide: new Set(),
+            miscellaneous: new Set()
+        };
+        
+        // Group orders by type (excluding those marked for deletion and duplicates)
+        orders.forEach(order => {
+            if (ordersToDelete.includes(order.booking_id)) {
+                return; // Skip orders marked for deletion
+            }
+            
+            const orderData = typeof order.data === 'string' ? JSON.parse(order.data) : order.data;
+            const firstItem = orderData[0] || {};
+            
+            // Create unique key for this item
+            const uniqueKey = createUniqueKey(firstItem, order.type);
+            
+            // Check if we've already seen this exact item
+            if (seenKeys[order.type] && seenKeys[order.type].has(uniqueKey)) {
+                console.log('Skipping duplicate order on frontend:', order.type, order.booking_id);
+                return; // Skip duplicate
+            }
+            
+            // Mark as seen
+            if (seenKeys[order.type]) {
+                seenKeys[order.type].add(uniqueKey);
+            }
+            
+            // Add tour_id to the item
+            firstItem.tour_id = tourId;
+            firstItem.booking_id = order.booking_id;
+            
+            switch(order.type) {
+                case 'entry_port':
+                    servicesData.entry_port.push(firstItem);
+                    break;
+                case 'exit_port':
+                    servicesData.exit_port.push(firstItem);
+                    break;
+                case 'hotel':
+                    servicesData.accommodations.push(firstItem);
+                    break;
+                case 'attraction':
+                    servicesData.tours.push(firstItem);
+                    break;
+                case 'restaurant':
+                    servicesData.meals.push(firstItem);
+                    break;
+                case 'local_transport':
+                    servicesData.transfers.push(firstItem);
+                    break;
+                case 'guide':
+                    servicesData.guides.push(firstItem);
+                    break;
+                case 'miscellaneous':
+                    servicesData.miscellaneous.push(firstItem);
+                    break;
+            }
+        });
+        
+        // Log deduplicated counts
+        console.log('Services after deduplication:', {
+            entry_port: servicesData.entry_port.length,
+            exit_port: servicesData.exit_port.length,
+            accommodations: servicesData.accommodations.length,
+            tours: servicesData.tours.length,
+            meals: servicesData.meals.length,
+            transfers: servicesData.transfers.length,
+            guides: servicesData.guides.length,
+            miscellaneous: servicesData.miscellaneous.length
+        });
+        
+        // Prepare form data
         const formData = new FormData();
         formData.append('_method', 'PUT');
         formData.append('destination', document.getElementById('destinationInput').value);
@@ -367,6 +401,43 @@
         formData.append('discount_value', discountValue);
         formData.append('discount_type', discountType);
         
+        // Append services data
+        if (servicesData.entry_port.length > 0) {
+            formData.append('entry_port', JSON.stringify(servicesData.entry_port));
+        }
+        if (servicesData.exit_port.length > 0) {
+            formData.append('exit_port', JSON.stringify(servicesData.exit_port));
+        }
+        if (servicesData.accommodations.length > 0) {
+            formData.append('accommodations', JSON.stringify(servicesData.accommodations));
+        }
+        if (servicesData.tours.length > 0) {
+            formData.append('tours', JSON.stringify(servicesData.tours));
+        }
+        if (servicesData.meals.length > 0) {
+            formData.append('meals', JSON.stringify(servicesData.meals));
+        }
+        if (servicesData.transfers.length > 0) {
+            formData.append('transfers', JSON.stringify(servicesData.transfers));
+        }
+        if (servicesData.guides.length > 0) {
+            formData.append('guides', JSON.stringify(servicesData.guides));
+        }
+        if (servicesData.miscellaneous.length > 0) {
+            formData.append('miscellaneous', JSON.stringify(servicesData.miscellaneous));
+        }
+        
+        // Append orders to delete
+        if (ordersToDelete.length > 0) {
+            formData.append('orders_to_delete', JSON.stringify(ordersToDelete));
+        }
+        
+        // Show loading state
+        const saveBtn = document.querySelector('button[onclick="saveChanges()"]');
+        const originalText = saveBtn.innerHTML;
+        saveBtn.disabled = true;
+        saveBtn.innerHTML = '<span class="spinner-border spinner-border-sm me-2" role="status" aria-hidden="true"></span>Saving...';
+        
         // Send to server
         fetch('{{ route("enquiry-form-pro.update", $tour->tour_id) }}', {
             method: 'POST',
@@ -378,6 +449,9 @@
         })
         .then(response => response.json())
         .then(data => {
+            saveBtn.disabled = false;
+            saveBtn.innerHTML = originalText;
+            
             if (data.success) {
                 alert('Tour enquiry updated successfully!');
                 window.location.reload();
@@ -386,10 +460,11 @@
             }
         })
         .catch(error => {
+            saveBtn.disabled = false;
+            saveBtn.innerHTML = originalText;
             console.error('Error:', error);
             alert('An error occurred while updating the tour');
         });
     }
 </script>
 @endsection
-

@@ -16,6 +16,7 @@ use App\Models\Restaurant;
 use App\Models\OperationalCountry;
 use App\Models\Agency;
 use App\Models\Rate;
+use App\Models\Jobsheet;
 use Carbon\Carbon;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
@@ -1677,7 +1678,7 @@ class CommonHelper
         $servicesByDate = self::groupServicesByDate($orders);
         ksort($servicesByDate);
 
-        $servicesByType = self::groupServicesByType($orders);
+        $servicesByType = self::groupServicesByType($orders, $tour);
 
         // Fetch DMC user data for logo and company name
         $dmcUser = null;
@@ -1880,10 +1881,8 @@ class CommonHelper
 
         // Calculate tour prices
         $tourPrices = self::calculateTourPrices($tourId);
-
         // Format hotels for Excel-like display
-        $hotelOptions = self::formatHotelsForPdf($orders, $tour);
-        
+        $hotelOptions = self::formatHotelsForPdf($orders, $tour, $tourPrices);
         // Fetch bank details from DMC user
         $bankDetails = [];
         if ($dmcUser && isset($dmcUser->bank_details)) {
@@ -1893,8 +1892,9 @@ class CommonHelper
             }
         }
         
-        // Terms and conditions and payment terms (can be extended to fetch from database)
+        // Terms and conditions, exclusions, and payment terms (can be extended to fetch from database)
         $termsAndConditions = '';
+        $exclusions = '';
         $paymentTerms = [];
         
         try {
@@ -1915,6 +1915,7 @@ class CommonHelper
                 'hotelOptions' => $hotelOptions,
                 'bankDetails' => $bankDetails,
                 'termsAndConditions' => $termsAndConditions,
+                'exclusions' => $exclusions,
                 'paymentTerms' => $paymentTerms,
             ]);
             
@@ -1996,6 +1997,23 @@ class CommonHelper
         $totalSingleSharing = 0;
         $totalDoubleSharing = 0;
         $totalTripleSharing = 0;
+        
+        // Segregated prices by service type
+        $segregatedPrices = [
+            'hotel' => ['single' => 0, 'double' => 0, 'triple' => 0, 'baby_cot' => 0],
+            'attraction' => ['single' => 0, 'double' => 0],
+            'restaurant' => ['single' => 0, 'double' => 0],
+            'entry_port' => ['single' => 0, 'double' => 0],
+            'exit_port' => ['single' => 0, 'double' => 0],
+            'guide' => ['single' => 0, 'double' => 0],
+            'travel_hourly' => ['single' => 0, 'double' => 0],
+            'travel_point' => ['single' => 0, 'double' => 0],
+            'local_transport' => ['single' => 0, 'double' => 0],
+            'other' => ['single' => 0, 'double' => 0],
+        ];
+        
+        // Flag to track if first hotel has been processed
+        $firstHotelProcessed = false;
 
         foreach ($orders as $order) {
             $rawData = $order->data;
@@ -2009,9 +2027,15 @@ class CommonHelper
 
             $items = isset($rawData[0]) ? $rawData : [$rawData];
             $type = strtolower($order->type ?? '');
-
+            $babyCotPrice = null;
             foreach ($items as $item) {
                 if ($type === 'hotel') {
+                    // Only process the first hotel, skip subsequent hotels
+                    if ($firstHotelProcessed) {
+                        continue;
+                    }
+                    $firstHotelProcessed = true;
+                    
                     // Hotel pricing calculation with date-based weekday/weekend check
                     $singleWeekdayPrice = null;
                     $singleWeekendPrice = null;
@@ -2057,7 +2081,6 @@ class CommonHelper
                                         ->where('hotel_id', $dbHotelId)
                                         ->where('status', 1)
                                         ->first();
-                                    
                                     if ($roomRecord) {
                                         if ($roomRecord->weekday_price !== null && $roomRecord->weekday_price !== '') {
                                             $singleWeekdayPrice = floatval($roomRecord->weekday_price);
@@ -2071,7 +2094,10 @@ class CommonHelper
                                         if ($roomRecord->double_weekend_price !== null && $roomRecord->double_weekend_price !== '') {
                                             $doubleWeekendPrice = floatval($roomRecord->double_weekend_price) / 2;
                                         }
-                                        
+                                        $bed = Bed::where('room_id', $roomRecord->room_id)->first();
+                                        if ($bed && $bed->baby_cot_price !== null) {
+                                            $babyCotPrice = floatval($bed->baby_cot_price);
+                                        }
                                         // If we got prices from database, break
                                         if ($singleWeekdayPrice !== null || $singleWeekendPrice !== null || $doubleWeekdayPrice !== null || $doubleWeekendPrice !== null) {
                                             break;
@@ -2232,6 +2258,7 @@ class CommonHelper
                                         $roomIdForBed = $roomRecord->room_id;
                                         
                                         // Check beds table for extra_bed
+                                        
                                         $bedRecord = Bed::where('room_id', $roomIdForBed)
                                             ->where('extra_bed', true)
                                             ->where('is_active', 1)
@@ -2246,6 +2273,9 @@ class CommonHelper
                                                 'room_id' => $roomIdForBed,
                                                 'extra_bed_price' => $extraBedPrice
                                             ]);
+                                        }
+                                        if ($bedRecord && $bedRecord->baby_cot_price !== null) {
+                                            $babyCotPrice = floatval($bedRecord->baby_cot_price);
                                         }
                                         
                                         // If we found the room, break
@@ -2422,27 +2452,113 @@ class CommonHelper
                     $totalSingleSharing += $hotelSingleTotal;
                     $totalDoubleSharing += $hotelDoubleTotal;
                     $totalTripleSharing += $hotelTripleTotal;
+                    
+                    // Add to segregated hotel prices
+                    $segregatedPrices['hotel']['single'] += $hotelSingleTotal;
+                    $segregatedPrices['hotel']['double'] += $hotelDoubleTotal;
+                    $segregatedPrices['hotel']['triple'] += $hotelTripleTotal;
+                    $segregatedPrices['hotel']['baby_cot'] += $babyCotPrice;
                 } else {
                     // Other services pricing calculation
                     $totalPrice = $item['totalPrice'] ?? $item['total_price'] ?? $item['price'] ?? null;
                     if ($totalPrice !== null) {
                         $totalPriceFloat = floatval($totalPrice);
+                        $normalizedType = strtolower($type ?? '');
                         
-                        // Get pax count
-                        $pax = $item['pax'] 
-                            ?? (($item['adult'] ?? 0) + ($item['child'] ?? 0) + ($item['infant'] ?? 0))
-                            ?? (($item['adultCount'] ?? 0) + ($item['childCount'] ?? 0) + ($item['seniorCount'] ?? 0))
-                            ?? null;
-
-                        // Single sharing: per person price
-                        if ($pax && $pax > 0) {
-                            $singleSharing = $totalPriceFloat / floatval($pax);
-                        } else {
-                            $singleSharing = $totalPriceFloat;
+                        // Handle attraction and restaurant: adultCount + childCount = total pax, then totalPrice/pax = single pax price
+                        // Both single and double should be the same per-person price
+                        if ($normalizedType === 'attraction' || $normalizedType === 'restaurant') {
+                            $adultCount = floatval($item['adultCount'] ?? 0);
+                            $childCount = floatval($item['childCount'] ?? 0);
+                            $pax = $adultCount + $childCount;
+                            
+                            if ($pax > 0) {
+                                $singleSharing = $totalPriceFloat / $pax;
+                            } else {
+                                $singleSharing = $totalPriceFloat;
+                            }
+                            
+                            // Double sharing: same as single (per-person price)
+                            $doubleSharing = $singleSharing;
+                            
+                            // Add to segregated prices
+                            $serviceKey = $normalizedType === 'attraction' ? 'attraction' : 'restaurant';
+                            $segregatedPrices[$serviceKey]['single'] += $singleSharing;
+                            $segregatedPrices[$serviceKey]['double'] += $doubleSharing;
                         }
+                        // Handle entry_port and exit_port
+                        elseif ($normalizedType === 'entry_port' || $normalizedType === 'exit_port') {
+                            $serviceType = strtolower($item['type'] ?? '');
+                            
+                            // If shared: totalPrice/pax = single pax price
+                            if ($serviceType === 'shared') {
+                                $pax = $item['pax'] 
+                                    ?? (($item['adult'] ?? 0) + ($item['child'] ?? 0) + ($item['infant'] ?? 0))
+                                    ?? (($item['adults'] ?? 0) + ($item['children'] ?? 0))
+                                    ?? (($item['adultCount'] ?? 0) + ($item['childCount'] ?? 0))
+                                    ?? 1;
+                                
+                                if ($pax > 0) {
+                                    $singleSharing = $totalPriceFloat / floatval($pax);
+                                } else {
+                                    $singleSharing = $totalPriceFloat;
+                                }
+                            }
+                            // If private: totalPrice is single price (not divided)
+                            elseif ($serviceType === 'private') {
+                                $singleSharing = $totalPriceFloat;
+                            }
+                            // Fallback: use default calculation
+                            else {
+                                $pax = $item['pax'] 
+                                    ?? (($item['adult'] ?? 0) + ($item['child'] ?? 0) + ($item['infant'] ?? 0))
+                                    ?? (($item['adults'] ?? 0) + ($item['children'] ?? 0))
+                                    ?? (($item['adultCount'] ?? 0) + ($item['childCount'] ?? 0))
+                                    ?? null;
+                                
+                                if ($pax && $pax > 0) {
+                                    $singleSharing = $totalPriceFloat / floatval($pax);
+                                } else {
+                                    $singleSharing = $totalPriceFloat;
+                                }
+                            }
+                            
+                            // Double sharing: total / 2 (per person for 2 people)
+                            $doubleSharing = $totalPriceFloat;
+                            
+                            // Add to segregated prices
+                            $serviceKey = $normalizedType === 'entry_port' ? 'entry_port' : 'exit_port';
+                            $segregatedPrices[$serviceKey]['single'] += $singleSharing;
+                            $segregatedPrices[$serviceKey]['double'] += $doubleSharing;
+                        }
+                        // Default calculation for other service types
+                        else {
+                            // Get pax count
+                            $pax = $item['pax'] 
+                                ?? (($item['adult'] ?? 0) + ($item['child'] ?? 0) + ($item['infant'] ?? 0))
+                                ?? (($item['adultCount'] ?? 0) + ($item['childCount'] ?? 0) + ($item['seniorCount'] ?? 0))
+                                ?? null;
 
-                        // Double sharing: total / 2 (per person for 2 people)
-                        $doubleSharing = $totalPriceFloat;
+                            // Single sharing: per person price
+                            if ($pax && $pax > 0) {
+                                $singleSharing = $totalPriceFloat / floatval($pax);
+                            } else {
+                                $singleSharing = $totalPriceFloat;
+                            }
+
+                            // Double sharing: total / 2 (per person for 2 people)
+                            $doubleSharing = $totalPriceFloat;
+                            
+                            // Add to segregated prices based on service type
+                            $serviceKey = 'other';
+                            if (isset($segregatedPrices[$normalizedType])) {
+                                $serviceKey = $normalizedType;
+                            } elseif (in_array($normalizedType, ['travel_hourly', 'travel_point', 'local_transport', 'guide'])) {
+                                $serviceKey = $normalizedType;
+                            }
+                            $segregatedPrices[$serviceKey]['single'] += $singleSharing;
+                            $segregatedPrices[$serviceKey]['double'] += $doubleSharing;
+                        }
 
                         $totalSingleSharing += $singleSharing;
                         $totalDoubleSharing += $doubleSharing;
@@ -2450,11 +2566,27 @@ class CommonHelper
                 }
             }
         }
+        // Round segregated prices and format
+        $segregatedPricesRounded = [];
+        foreach ($segregatedPrices as $serviceType => $prices) {
+            $segregatedPricesRounded[$serviceType] = [
+                'single' => ceil($prices['single']),
+                'double' => ceil($prices['double']),
 
+            ];
+            if (isset($prices['triple'])) {
+                $segregatedPricesRounded[$serviceType]['triple'] = ceil($prices['triple']);
+            }
+            if (isset($prices['baby_cot'])) {
+                $segregatedPricesRounded[$serviceType]['baby_cot'] = ceil($prices['baby_cot']);
+            }
+        }
         return [
             'single_sharing' => ceil($totalSingleSharing),
             'double_sharing' => ceil($totalDoubleSharing),
             'triple_sharing' => ceil($totalTripleSharing),
+            'baby_cot_sharing' => ceil($babyCotPrice),
+            'segregated' => $segregatedPricesRounded,
         ];
     }
 
@@ -2497,7 +2629,7 @@ class CommonHelper
         return $grouped;
     }
 
-    protected static function groupServicesByType($orders)
+    protected static function groupServicesByType($orders, $tour = null)
     {
         $grouped = [];
 
@@ -2516,7 +2648,7 @@ class CommonHelper
             $items = isset($rawData[0]) ? $rawData : [$rawData];
 
             foreach ($items as $item) {
-                $card = self::formatServiceCard($order->type, $item);
+                $card = self::formatServiceCard($order->type, $item, $order, $tour);
                 if ($card) {
                     $grouped[$typeKey][] = $card;
                 }
@@ -2647,7 +2779,7 @@ class CommonHelper
         ];
     }
 
-    protected static function formatServiceCard($type, $item)
+    protected static function formatServiceCard($type, $item, $order = null, $tour = null)
     {
         $serviceType = ucwords(str_replace('_', ' ', $type ?? 'Service'));
         $normalizedType = strtolower(str_replace(' ', '_', $type ?? ''));
@@ -2854,11 +2986,39 @@ class CommonHelper
             $vehicleNumber = null;
             $vehicleBrand = null;
             
-            // Try to fetch from Vehicle model if vehicles_id is available
+            // Try to fetch from Vehicle model - check jobsheet first, then fallback to vehicles_id
             $vehicleRecord = null;
-            if (!empty($item['vehicles_id'])) {
+            $vehicleId = null;
+            
+            // Check jobsheet first if order and tour are available
+            if ($order && $tour && !empty($order->booking_id)) {
                 try {
-                    $vehicleRecord = \App\Models\Vehicle::where('vehicle_id', $item['vehicles_id'])->first();
+                    $jobsheet = Jobsheet::where('order_id', $order->booking_id)->first();
+                    if ($jobsheet && !empty($jobsheet->vehicle_id)) {
+                        // Get vehicle from jobsheet where vehicle_id matches and dmc_id matches tour->dmc_id
+                        $vehicleRecord = Vehicle::where('vehicle_id', $jobsheet->vehicle_id)
+                            ->where('dmc_id', $tour->dmc_id)
+                            ->first();
+                        if ($vehicleRecord) {
+                            $vehicleId = $jobsheet->vehicle_id;
+                        }
+                    }
+                } catch (\Exception $e) {
+                    // If jobsheet check fails, continue to fallback
+                    Log::warning('Failed to fetch vehicle from jobsheet', [
+                        'booking_id' => $order->booking_id ?? null,
+                        'error' => $e->getMessage()
+                    ]);
+                }
+            }
+            
+            // Fallback to vehicles_id from item if no jobsheet vehicle found
+            if (!$vehicleRecord && !empty($item['vehicles_id'])) {
+                try {
+                    $vehicleRecord = Vehicle::where('vehicle_id', $item['vehicles_id'])->first();
+                    if ($vehicleRecord) {
+                        $vehicleId = $item['vehicles_id'];
+                    }
                 } catch (\Exception $e) {
                     // If Vehicle model not found, continue without it
                 }
@@ -2866,7 +3026,7 @@ class CommonHelper
             
             if ($vehicleRecord) {
                 $vehicleType = $vehicleRecord->vehicle_type ?? null;
-                $seatingCapacity = $vehicleRecord->sitting_capacity ?? null;
+                $seatingCapacity = $vehicleRecord->sitting_capacity ?? $vehicleRecord->seating_capacity ?? $vehicleRecord->max_passenger_capacity ?? null;
                 $vehicleNumber = $vehicleRecord->vehicle_plate_no ?? null;
                 $vehicleBrand = $vehicleRecord->vehicle_model ?? $vehicleRecord->vehicle_name ?? null;
             }
@@ -3132,7 +3292,7 @@ class CommonHelper
      * Format hotels for Excel-like PDF display
      * Returns array of hotel options with pricing details
      */
-    protected static function formatHotelsForPdf($orders, $tour = null)
+    protected static function formatHotelsForPdf($orders, $tour = null, $tourPrices = null)
     {
         $hotelOptions = [];
         $hotelIndex = 1;
@@ -3197,7 +3357,7 @@ class CommonHelper
                         $roomsByType[$roomType][] = $room;
                     }
 
-                    // Calculate prices for each unique room type
+                    // Calculate prices for each unique room type using the same logic as calculateTourPrices
                     foreach ($roomsByType as $roomType => $roomsOfType) {
                         // Use the first room of this type to get pricing
                         $firstRoom = $roomsOfType[0];

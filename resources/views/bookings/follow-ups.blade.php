@@ -380,6 +380,11 @@
                                     @if($tour->multi_enq_id)
                                         <small class="text-info">Multi: {{ $tour->multi_enq_id }}</small>
                                     @endif
+                                    @if($tour->tour_type)
+                                        <small class="text-white" style="display: inline-block; padding: 2px 8px; background: #3b82f6; border-radius: 4px; font-weight: 500;">
+                                            {{ $tour->tour_type }}
+                                        </small>
+                                    @endif
                                 </div>
                             </td>
                             <td>
@@ -703,14 +708,14 @@
                                             <a href="{{ route('invoices.download', Crypt::encrypt($proformaInvoice->invoice_id)) }}" 
                                                class="btn btn-outline-info btn-sm rounded-pill"
                                                target="_blank"
-                                               title="Download Proforma Invoice with Services">
-                                                <i class="ri-file-paper-line me-1"></i> Proforma Invoice
+                                               title="Download Proforma Invoice (Price Breakup)">
+                                                <i class="ri-file-paper-line me-1"></i> Proforma Invoice(Price Breakup)
                                             </a>
                                             <a href="{{ route('invoices.download-price-only', Crypt::encrypt($proformaInvoice->invoice_id)) }}" 
                                                class="btn btn-outline-primary btn-sm rounded-pill"
                                                target="_blank"
-                                               title="Download Proforma Invoice (Price Only)">
-                                                <i class="ri-file-download-line me-1"></i> Proforma Invoice (Price Only)
+                                               title="Download Proforma Invoice (Package Price Only)">
+                                                <i class="ri-file-download-line me-1"></i> Proforma Invoice(Package Price Only)
                                             </a>
                                         @else
                                             <form action="{{ route('invoices.generate-proforma', $tour->tour_id) }}" method="POST" class="d-inline">

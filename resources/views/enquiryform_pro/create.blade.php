@@ -9640,71 +9640,8 @@
             arrivalDepartureIds: []
         }));
 
-        // Update standalone arrival/departure entries if they exist
-        const standaloneArrival = arrivalDepartureList.find(item => item.type === 'Arrival' && item.accommodationIndex === null);
-        const standaloneDeparture = arrivalDepartureList.find(item => item.type === 'Departure' && item.accommodationIndex === null);
-        
-        if (standaloneArrival && arrivalDateTime && arrivalPortId) {
-            // Update existing standalone arrival
-            standaloneArrival.dateTime = arrivalDateTime;
-            standaloneArrival.portId = arrivalPortId;
-            standaloneArrival.portName = arrivalPortName;
-            standaloneArrival.flightNo = arrivalFlightNo || '-';
-        } else if (!standaloneArrival && arrivalDateTime && arrivalPortId) {
-            // Create new standalone arrival if it doesn't exist
-            const arrivalTransferType = document.getElementById('arrivalTransferType')?.value || 'S';
-            const arrivalVehiclePrice = calculateVehiclePrice('arrivalVehicleType', arrivalTransferType, adults, child);
-            
-            arrivalDepartureList.push({
-                id: generateId('arrdep'),
-                dateTime: arrivalDateTime,
-                portId: arrivalPortId,
-                portName: arrivalPortName,
-                flightNo: arrivalFlightNo || '-',
-                type: 'Arrival',
-                adultsQty: adults,
-                adultCost: arrivalVehiclePrice,
-                adultSell: arrivalVehiclePrice, // Default: cost = sell
-                childQty: child,
-                childCost: arrivalVehiclePrice,
-                childSell: arrivalVehiclePrice, // Default: cost = sell
-                infantQty: infant,
-                amount: 0,
-                supplement: '',
-                accommodationIndex: null
-            });
-        }
-        
-        if (standaloneDeparture && departureDateTime && departurePortId) {
-            // Update existing standalone departure
-            standaloneDeparture.dateTime = departureDateTime;
-            standaloneDeparture.portId = departurePortId;
-            standaloneDeparture.portName = departurePortName;
-            standaloneDeparture.flightNo = departureFlightNo || '-';
-        } else if (!standaloneDeparture && departureDateTime && departurePortId) {
-            // Create new standalone departure if it doesn't exist
-            const departureTransferType = document.getElementById('departureTransferType')?.value || 'S';
-            const departureVehiclePrice = calculateVehiclePrice('departureVehicleType', departureTransferType, adults, child);
-            
-            arrivalDepartureList.push({
-                id: generateId('arrdep'),
-                dateTime: departureDateTime,
-                portId: departurePortId,
-                portName: departurePortName,
-                flightNo: departureFlightNo || '-',
-                type: 'Departure',
-                adultsQty: adults,
-                adultCost: departureVehiclePrice,
-                adultSell: departureVehiclePrice, // Default: cost = sell
-                childQty: child,
-                childCost: departureVehiclePrice,
-                childSell: departureVehiclePrice, // Default: cost = sell
-                infantQty: infant,
-                amount: 0,
-                supplement: '',
-                accommodationIndex: null
-            });
-        }
+        // Note: Standalone arrival/departure entries are only created via saveArrivalDepartureOnly() function
+        // When saving accommodation, we create accommodation-linked entries below (not standalone)
         
         // Add to main accommodation list
         const startIndex = accommodationList.length;
@@ -9948,15 +9885,15 @@
         // Recalculate totals
         recalculateTotals();
 
-        // Expand header dates if check-in/check-out are outside range
-        const checkIn = document.getElementById('checkInDate').value;
-        const checkOut = document.getElementById('checkOutDate').value;
-        if (checkIn) {
-            expandHeaderDatesIfNeeded(checkIn, false);
-        }
-        if (checkOut) {
-            expandHeaderDatesIfNeeded(checkOut, false);
-        }
+        // Expand header dates for ALL newly added accommodations' check-in/check-out dates
+        selectedHotelsTemp.forEach(hotel => {
+            if (hotel.checkIn) {
+                expandHeaderDatesIfNeeded(hotel.checkIn, false);
+            }
+            if (hotel.checkOut) {
+                expandHeaderDatesIfNeeded(hotel.checkOut, false);
+            }
+        });
         
         // Expand header dates for arrival/departure if provided
         if (arrivalDateTime) {
@@ -10102,6 +10039,9 @@
                     }
                 });
                 updateArrivalDepartureTable();
+                
+                // Update header dates to include the new accommodation date
+                expandHeaderDatesIfNeeded(value, false);
             }
         }
     }
@@ -13283,6 +13223,42 @@
 
     // ==================== MEAL FUNCTIONS ====================
     
+    // Update meal total amount display
+    function updateMealTotalAmount() {
+        const mealTotalField = document.getElementById('mealTotalAmount');
+        if (!mealTotalField) return;
+        
+        let totalAmount = 0;
+        
+        // Get all checked meal rows
+        const checkedMeals = document.querySelectorAll('.meal-checkbox:checked');
+        
+        checkedMeals.forEach(checkbox => {
+            const mealId = checkbox.getAttribute('data-meal-id');
+            const row = checkbox.closest('.meal-row');
+            if (!row) return;
+            
+            // Get quantities
+            const mealCount = parseInt(row.querySelector('.meal-count')?.value || 0);
+            const adultQty = parseInt(row.querySelector('.meal-adult-qty')?.value || 0);
+            const childQty = parseInt(row.querySelector('.meal-child-qty')?.value || 0);
+            const infantQty = parseInt(row.querySelector('.meal-infant-qty')?.value || 0);
+            
+            // Get charges (remove "SGD " prefix and parse as float)
+            const adultCharge = parseFloat((row.querySelector('.meal-adult-charge')?.value || '0').replace(/[^\d.-]/g, ''));
+            const childCharge = parseFloat((row.querySelector('.meal-child-charge')?.value || '0').replace(/[^\d.-]/g, ''));
+            const infantCharge = parseFloat((row.querySelector('.meal-infant-charge')?.value || '0').replace(/[^\d.-]/g, ''));
+            
+            // Calculate subtotal for this meal: mealCount * (adultQty * adultCharge + childQty * childCharge + infantQty * infantCharge)
+            const mealSubtotal = mealCount * ((adultQty * adultCharge) + (childQty * childCharge) + (infantQty * infantCharge));
+            
+            totalAmount += mealSubtotal;
+        });
+        
+        // Update the total field
+        mealTotalField.value = `SGD ${totalAmount.toFixed(2)}`;
+    }
+    
     // Open Meal Modal
     function openMealModal() {
         window.editingMealIndex = null;
@@ -13736,7 +13712,7 @@
             
             row.innerHTML = `
                 <td style="padding: 2px 8px; text-align: center;">
-                    <input type="checkbox" class="meal-checkbox" data-meal-id="${meal.meal_id}">
+                    <input type="checkbox" class="meal-checkbox" data-meal-id="${meal.meal_id}" onchange="updateMealTotalAmount()">
                 </td>
                 <td style="padding: 2px 8px;">
                     <i class="${mealIcon} ${iconColor} me-1" style="font-size: 14px;"></i>
@@ -13744,25 +13720,25 @@
                     <small class="text-muted ms-2">(${mealType.charAt(0).toUpperCase() + mealType.slice(1)})</small>
                 </td>
                 <td style="padding: 2px 8px;">
-                    <input type="number" class="form-control form-control-sm meal-count" data-meal-id="${meal.meal_id}" value="1" min="0" style="font-size: 10px; padding: 2px 4px; text-align: center;">
+                    <input type="number" class="form-control form-control-sm meal-count" data-meal-id="${meal.meal_id}" value="1" min="0" style="font-size: 10px; padding: 2px 4px; text-align: center;" oninput="updateMealTotalAmount()">
                 </td>
                 <td style="padding: 2px 8px;">
-                    <input type="number" class="form-control form-control-sm meal-adult-qty" data-meal-id="${meal.meal_id}" value="0" min="0" style="font-size: 10px; padding: 2px 4px; text-align: center;">
+                    <input type="number" class="form-control form-control-sm meal-adult-qty" data-meal-id="${meal.meal_id}" value="0" min="0" style="font-size: 10px; padding: 2px 4px; text-align: center;" oninput="updateMealTotalAmount()">
                 </td>
                 <td style="padding: 2px 8px;">
-                    <input type="text" class="form-control form-control-sm meal-adult-charge" data-meal-id="${meal.meal_id}" value="SGD ${adultPrice}" style="font-size: 10px; padding: 2px 4px;">
+                    <input type="text" class="form-control form-control-sm meal-adult-charge" data-meal-id="${meal.meal_id}" value="SGD ${adultPrice}" style="font-size: 10px; padding: 2px 4px;" oninput="updateMealTotalAmount()">
                 </td>
                 <td style="padding: 2px 8px;">
-                    <input type="number" class="form-control form-control-sm meal-child-qty" data-meal-id="${meal.meal_id}" value="0" min="0" style="font-size: 10px; padding: 2px 4px; text-align: center;">
+                    <input type="number" class="form-control form-control-sm meal-child-qty" data-meal-id="${meal.meal_id}" value="0" min="0" style="font-size: 10px; padding: 2px 4px; text-align: center;" oninput="updateMealTotalAmount()">
                 </td>
                 <td style="padding: 2px 8px;">
-                    <input type="text" class="form-control form-control-sm meal-child-charge" data-meal-id="${meal.meal_id}" value="SGD ${childPrice}" style="font-size: 10px; padding: 2px 4px;">
+                    <input type="text" class="form-control form-control-sm meal-child-charge" data-meal-id="${meal.meal_id}" value="SGD ${childPrice}" style="font-size: 10px; padding: 2px 4px;" oninput="updateMealTotalAmount()">
                 </td>
                 <td style="padding: 2px 8px;">
-                    <input type="number" class="form-control form-control-sm meal-infant-qty" data-meal-id="${meal.meal_id}" value="0" min="0" style="font-size: 10px; padding: 2px 4px; text-align: center;">
+                    <input type="number" class="form-control form-control-sm meal-infant-qty" data-meal-id="${meal.meal_id}" value="0" min="0" style="font-size: 10px; padding: 2px 4px; text-align: center;" oninput="updateMealTotalAmount()">
                 </td>
                 <td style="padding: 2px 8px;">
-                    <input type="text" class="form-control form-control-sm meal-infant-charge" data-meal-id="${meal.meal_id}" value="SGD 0.00" style="font-size: 10px; padding: 2px 4px;">
+                    <input type="text" class="form-control form-control-sm meal-infant-charge" data-meal-id="${meal.meal_id}" value="SGD 0.00" style="font-size: 10px; padding: 2px 4px;" oninput="updateMealTotalAmount()">
                 </td>
             `;
             
@@ -13774,6 +13750,9 @@
         if (selectAllCheckbox) {
             selectAllCheckbox.checked = false;
         }
+        
+        // Initialize total amount calculation
+        updateMealTotalAmount();
         
         // Auto-fill adult/child/infant counts from header for all newly created rows
         const headerValues = getHeaderValues();
@@ -16241,9 +16220,11 @@
                 dateTime: dateTime,
                 pickupId: pickupSelect.value,
                 pickupName: pickupName,
+                pickup: pickupName, // Add for consistency with transformation
                 pickupType: pickupType,
                 dropId: dropSelect.value,
                 dropName: dropName,
+                dropoff: dropName, // Add for consistency with transformation
                 dropType: dropType,
                 destination: `${pickupName} → ${dropName}`,
                 vehicleId: vehicleId,
@@ -17370,6 +17351,29 @@
         };
     }
     
+    // Create unique key for deduplication
+    function createUniqueKey(item, type) {
+        try {
+            switch(type) {
+                case 'entry_port':
+                case 'exit_port':
+                    const portKey = [
+                        item.portName || item.port_name || '',
+                        item.transferDestinationName || item.transfer_destination_name || '',
+                        item.dateTime || item.bookingDate || '',
+                        item.vehicleId || item.vehicle_id || '',
+                        item.type || ''
+                    ].join('|');
+                    return portKey;
+                default:
+                    return null;
+            }
+        } catch (e) {
+            console.error('Error creating unique key:', e);
+            return null;
+        }
+    }
+    
     // Transform arrival/departure data to required format
     async function transformArrivalDepartureData() {
         const customerInfo = getCustomerInfo();
@@ -17378,6 +17382,10 @@
         
         const entryPortData = [];
         const exitPortData = [];
+        const seenKeys = {
+            entry_port: new Set(),
+            exit_port: new Set()
+        };
         
         for (const item of arrivalDepartureList) {
             if (item.type === 'Arrival') {
@@ -17400,6 +17408,16 @@
                 
                 // Fetch vehicle details if vehicle_id exists
                 const vehicleDetails = await fetchVehicleDetails(item.vehicleId, dmcId);
+                
+                // Check for duplicates
+                const uniqueKey = createUniqueKey(item, 'entry_port');
+                if (uniqueKey && seenKeys.entry_port.has(uniqueKey)) {
+                    console.warn('Skipping duplicate entry_port (frontend):', uniqueKey);
+                    continue; // Skip this duplicate
+                }
+                if (uniqueKey) {
+                    seenKeys.entry_port.add(uniqueKey);
+                }
                 
                 entryPortData.push({
                     id: item.id || `entry-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
@@ -17474,6 +17492,16 @@
                 
                 // Fetch vehicle details if vehicle_id exists
                 const vehicleDetails = await fetchVehicleDetails(item.vehicleId, dmcId);
+                
+                // Check for duplicates
+                const uniqueKey = createUniqueKey(item, 'exit_port');
+                if (uniqueKey && seenKeys.exit_port.has(uniqueKey)) {
+                    console.warn('Skipping duplicate exit_port (frontend):', uniqueKey);
+                    continue; // Skip this duplicate
+                }
+                if (uniqueKey) {
+                    seenKeys.exit_port.add(uniqueKey);
+                }
                 
                 exitPortData.push({
                     fullName: customerInfo.fullName,
@@ -17659,7 +17687,8 @@
                     } : null,
                     cost: linkedTransfer.cost || parseFloat(linkedTransfer.sell) || 0,
                     destination_id: linkedTransfer.destinationId || "",
-                    destination_name: linkedTransfer.destinationName || linkedTransfer.destination || ""
+                    pickup_location_name: linkedTransfer.pickup || "",
+                    destination_name: linkedTransfer.dropoff || ""
                 } : null,
                 tour_id: hotel.tour_id || defaultTourId || null
             };
@@ -17720,9 +17749,10 @@
             if (tour.transferId) {
                 const linkedTransfer = transferList.find(t => t.id === tour.transferId);
                 if (linkedTransfer) {
-                    // Use pickup and dropoff from transfer object (respects "Is PickUp?" checkbox)
-                    const pickupName = linkedTransfer.pickup || linkedTransfer.attractionName || tour.attractionName || '';
-                    const dropoffName = linkedTransfer.dropoff || linkedTransfer.destination || '';
+                    // IMPORTANT: Use pickup and dropoff from transfer object (MUST respect "Is PickUp?" checkbox)
+                    // The pickup and dropoff fields are already correctly set based on checkbox state
+                    const pickupName = linkedTransfer.pickup || '';
+                    const dropoffName = linkedTransfer.dropoff || '';
                     
                     tourData.transfer_options = {
                         transfer_required: true,
@@ -17802,9 +17832,10 @@
             if (meal.transferId) {
                 const linkedTransfer = transferList.find(t => t.id === meal.transferId);
                 if (linkedTransfer) {
-                    // Use pickup and dropoff from transfer object (respects "Is PickUp?" checkbox)
-                    const pickupName = linkedTransfer.pickup || linkedTransfer.restaurantName || meal.restaurantName || '';
-                    const dropoffName = linkedTransfer.dropoff || linkedTransfer.destination || '';
+                    // Use pickup and dropoff from transfer object (MUST respect "Is PickUp?" checkbox)
+                    // The pickup and dropoff fields are already set correctly based on checkbox state
+                    const pickupName = linkedTransfer.pickup || '';
+                    const dropoffName = linkedTransfer.dropoff || '';
                     
                     mealData.transfer_options = {
                         transfer_required: true,
@@ -17881,10 +17912,15 @@
         const dmcId = '{{ $dmc_id ?? "" }}';
         const destination = document.getElementById('destinationSelect')?.value || 'Singapore';
         
-        const standaloneTransfers = transferList.filter(transfer => transfer.isStandalone);
+        // Only include truly standalone transfers
+        // Exclude transfers that are embedded in their parent service JSON (hotel, meal, restaurant, tour)
+        const transfersToTransform = transferList.filter(transfer => {
+            // Only include standalone transfers (those not linked to any service)
+            return transfer.isStandalone === true;
+        });
         const transformedData = [];
         
-        for (const transfer of standaloneTransfers) {
+        for (const transfer of transfersToTransform) {
             // Extract date and time
             let bookingDate = normalizeDateToYYYYMMDD(transfer.dateTime);
             let entrytime = "07:00 AM";
@@ -17905,9 +17941,11 @@
             // Fetch vehicle details if vehicle_id exists
             const vehicleDetails = await fetchVehicleDetails(transfer.vehicleId, dmcId);
             
-            // Use pickup and dropoff from transfer object (respects "Is PickUp?" checkbox)
-            const pickupName = transfer.pickup || transfer.restaurantName || transfer.hotelName || transfer.attractionName || "";
-            const dropoffName = transfer.dropoff || transfer.destination || "";
+            // IMPORTANT: Use pickup and dropoff from transfer object (MUST respect "Is PickUp?" checkbox)
+            // The pickup and dropoff fields are already correctly set based on checkbox state
+            // Do NOT use fallback values that could override the correct values
+            const pickupName = transfer.pickup || "";
+            const dropoffName = transfer.dropoff || "";
             
             transformedData.push({
                 bookingDate: bookingDate,

@@ -208,6 +208,36 @@
             font-weight: 500;
         }
         
+        /* Additional Guest Cards Styles */
+        .guest-card {
+            transition: all 0.3s ease;
+            border-left: 3px solid #0dcaf0 !important;
+        }
+        
+        .guest-card:hover {
+            box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+        }
+        
+        .guest-card .card-header {
+            background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%) !important;
+        }
+        
+        #additionalGuestsContainer {
+            min-height: 50px;
+        }
+        
+        #addGuestBtn.disabled {
+            opacity: 0.6;
+            cursor: not-allowed;
+        }
+        
+        #guestLimitInfo {
+            padding: 10px;
+            background: #e7f3ff;
+            border: 1px solid #b3d9ff;
+            border-radius: 6px;
+        }
+        
         /* Cost Summary Styles */
         .cost-summary {
             min-height: 60px;
@@ -308,7 +338,7 @@
         - Pricing is calculated based on DMC-specific room prices
         - All services include DMC tracking information
     --}}
-    <div class="content-wrapper">
+<div class="content-wrapper">
     <div class="container-xxl flex-grow-1 container-p-y">
         
         <!-- Header Section -->
@@ -839,7 +869,7 @@
                                     <i class="ri-user-line fs-5 text-white" style="color: #ffffff !important;"></i>
                                 </div>
                                 <div>
-                                    <h6 class="mb-0 fw-bold text-white" style="color: #ffffff !important; font-size: 1.1rem;">Lead Guest information</h6>
+                                    <h6 class="mb-0 fw-bold text-white" style="color: #ffffff !important; font-size: 1.1rem;">Customer Information</h6>
                                     <small class="text-white-75" style="color: rgba(255, 255, 255, 0.85) !important; font-size: 0.85rem;">Manage customer details and contact information</small>
                                 </div>
                             </div>
@@ -891,35 +921,27 @@
                 </div>
             </div>
 
-            <!-- Additional Guests Section -->
-            <div class="accordion mb-4" id="additionalGuestsAccordion">
-                <div class="accordion-item border-0">
+            <!-- Additional Guest Information Section -->
+            <div class="row mb-4">
+                <div class="col-12">
                     <div class="card shadow-sm border-0">
-                        <div class="card-header text-white d-flex justify-content-between align-items-center" role="button" data-bs-toggle="collapse" data-bs-target="#additionalGuestsSection" aria-expanded="true" aria-controls="additionalGuestsSection" style="cursor: pointer; background: linear-gradient(135deg, #0dcaf0 0%, #0d6efd 100%); border: none; padding: 1.25rem 1.75rem;">
-                            <div class="d-flex align-items-center">
-                                <div style="width: 40px; height: 40px; background: rgba(255, 255, 255, 0.2); border-radius: 10px; display: flex; align-items: center; justify-content: center; margin-right: 12px;">
-                                    <i class="ri-group-line fs-5 text-white" style="color: #ffffff !important;"></i>
-                                </div>
-                                <div>
-                                    <h6 class="mb-0 fw-bold text-white" style="color: #ffffff !important; font-size: 1.1rem;">Additional Guest(s)</h6>
-                                    <small class="text-white-75" style="color: rgba(255, 255, 255, 0.85) !important; font-size: 0.85rem;">
-                                        Add guest details up to the tour pax (Adults + Children)
-                                    </small>
-                                </div>
+                        <div class="card-header bg-gradient-info text-white">
+                            <div class="d-flex justify-content-between align-items-center">
+                                <h6 class="mb-0 fw-bold">
+                                    <i class="ri-group-line me-2"></i>Additional Guest Information
+                                </h6>
+                                <button type="button" class="btn btn-sm btn-light" id="addGuestBtn" onclick="addAdditionalGuest()">
+                                    <i class="ri-add-line me-1"></i>Add Guest
+                                </button>
                             </div>
-                            <button type="button" class="btn btn-sm btn-light" id="addGuestBtn" onclick="addAdditionalGuest()" style="font-size: 0.8rem; font-weight: 600;">
-                                <i class="ri-add-line me-1"></i>Add Guest
-                            </button>
                         </div>
-                        <div id="additionalGuestsSection" class="collapse show">
-                            <div class="card-body" style="background: #ffffff; padding: 1.25rem;">
-                                <div id="additionalGuestsContainer">
-                                    <!-- Additional guests will be rendered here -->
-                                </div>
-                                <div class="mt-3 small" id="guestLimitInfo" style="padding: 10px; background: #e7f3ff; border-radius: 6px; border: 1px solid #b3d9ff;">
-                                    <i class="ri-information-line me-1"></i>
-                                    Maximum <span id="maxAdditionalGuests">0</span> additional guest(s) can be added based on total pax (Adults + Children): <span id="totalPaxCount">0</span>
-                                </div>
+                        <div class="card-body">
+                            <div id="additionalGuestsContainer">
+                                <!-- Additional guests will be added here dynamically -->
+                            </div>
+                            <div class="text-muted small mt-2" id="guestLimitInfo">
+                                <i class="ri-information-line me-1"></i>
+                                Maximum <span id="maxGuestsCount">0</span> additional guest(s) can be added (based on total pax: <span id="totalPaxCount">0</span>)
                             </div>
                         </div>
                     </div>
@@ -956,63 +978,49 @@
                 
                 // DMC User data for zone handling
                 const UserDmc = @json($dmcUser);
-
-                // ==============================
+                
                 // Additional Guests Management
-                // ==============================
-
                 let additionalGuestCount = 0;
-
-                // Get total pax (Adults + Children)
-                function getTotalPax() {
+                
+                // Calculate max guests based on adults + children (excluding lead guest)
+                function getMaxAdditionalGuests() {
                     const adults = parseInt(document.getElementById('adults')?.value || 1);
                     const children = parseInt(document.getElementById('children')?.value || 0);
-                    return adults + children;
+                    const totalPax = adults + children;
+                    // Max additional guests = total pax - 1 (lead guest)
+                    return Math.max(0, totalPax - 1);
                 }
-
-                // Max additional guests = total pax (Adults + Children)
-                function getMaxAdditionalGuests() {
-                    const totalPax = getTotalPax();
-                    return Math.max(0, totalPax);
-                }
-
+                
+                // Update guest limit info
                 function updateGuestLimitInfo() {
-                    const totalPax = getTotalPax();
                     const maxGuests = getMaxAdditionalGuests();
-
-                    const totalPaxSpan = document.getElementById('totalPaxCount');
-                    const maxGuestsSpan = document.getElementById('maxAdditionalGuests');
+                    const adults = parseInt(document.getElementById('adults')?.value || 1);
+                    const children = parseInt(document.getElementById('children')?.value || 0);
+                    const totalPax = adults + children;
+                    
+                    document.getElementById('maxGuestsCount').textContent = maxGuests;
+                    document.getElementById('totalPaxCount').textContent = totalPax;
+                    
                     const addBtn = document.getElementById('addGuestBtn');
-
-                    if (totalPaxSpan) totalPaxSpan.textContent = totalPax;
-                    if (maxGuestsSpan) maxGuestsSpan.textContent = maxGuests;
-
-                    if (addBtn) {
-                        if (additionalGuestCount >= maxGuests || maxGuests === 0) {
-                            addBtn.disabled = true;
-                            addBtn.classList.add('disabled');
-                        } else {
-                            addBtn.disabled = false;
-                            addBtn.classList.remove('disabled');
-                        }
+                    if (additionalGuestCount >= maxGuests) {
+                        addBtn.disabled = true;
+                        addBtn.classList.add('disabled');
+                    } else {
+                        addBtn.disabled = false;
+                        addBtn.classList.remove('disabled');
                     }
                 }
-
+                
+                // Add additional guest
                 function addAdditionalGuest() {
                     const maxGuests = getMaxAdditionalGuests();
-
-                    if (maxGuests === 0) {
-                        alert('Total pax (Adults + Children) is 0. Please set pax before adding additional guests.');
-                        return;
-                    }
-
+                    
                     if (additionalGuestCount >= maxGuests) {
-                        alert('Maximum number of additional guests reached. Maximum allowed: ' + maxGuests);
+                        alert('Maximum number of additional guests reached. Maximum: ' + maxGuests);
                         return;
                     }
-
+                    
                     const guestIndex = additionalGuestCount + 1;
-
                     const guestHtml = `
                         <div class="card mb-3 border guest-card" data-guest-index="${guestIndex}">
                             <div class="card-header bg-light d-flex justify-content-between align-items-center">
@@ -1025,7 +1033,7 @@
                             </div>
                             <div class="card-body">
                                 <div class="row g-3">
-                                    <div class="col-md-3">
+                                    <div class="col-md-2">
                                         <label class="form-label">Salutation <span class="text-danger">*</span></label>
                                         <select class="form-select" name="additional_guests[${guestIndex}][salutation]" required>
                                             <option value="">Select</option>
@@ -1036,79 +1044,81 @@
                                             <option value="Dr">Dr</option>
                                         </select>
                                     </div>
-                                    <div class="col-md-3">
-                                        <label class="form-label">Name <span class="text-danger">*</span></label>
+                                    <div class="col-md-4">
+                                        <label class="form-label">Full Name <span class="text-danger">*</span></label>
                                         <input type="text" class="form-control" name="additional_guests[${guestIndex}][name]" placeholder="Enter full name" required>
                                     </div>
-                                    <div class="col-md-3">
-                                        <label class="form-label">Passport No.</label>
+                                    <div class="col-md-2">
+                                        <label class="form-label">Age <span class="text-danger">*</span></label>
+                                        <input type="number" class="form-control" name="additional_guests[${guestIndex}][age]" placeholder="Age" min="1" max="120" required>
+                                    </div>
+                                    <div class="col-md-4">
+                                        <label class="form-label">Contact Number</label>
+                                        <input type="text" class="form-control" name="additional_guests[${guestIndex}][contact_no]" placeholder="Enter contact number">
+                                    </div>
+                                    <div class="col-md-6">
+                                        <label class="form-label">Passport Number</label>
                                         <input type="text" class="form-control" name="additional_guests[${guestIndex}][passport_no]" placeholder="Enter passport number">
                                     </div>
-                                    <div class="col-md-3">
-                                        <label class="form-label">Passport Expiry</label>
-                                        <input type="date" class="form-control" name="additional_guests[${guestIndex}][passport_exp]" placeholder="Passport expiry date">
-                                    </div>
-                                    <div class="col-md-4 mt-2">
-                                        <label class="form-label">Contact No.</label>
-                                        <input type="text" class="form-control" name="additional_guests[${guestIndex}][contact_no]" placeholder="Enter contact number">
+                                    <div class="col-md-6">
+                                        <label class="form-label">Passport Expiry Date</label>
+                                        <input type="date" class="form-control" name="additional_guests[${guestIndex}][passport_exp]" placeholder="Select expiry date">
                                     </div>
                                 </div>
                             </div>
                         </div>
                     `;
-
-                    const container = document.getElementById('additionalGuestsContainer');
-                    if (container) {
-                        container.insertAdjacentHTML('beforeend', guestHtml);
-                        additionalGuestCount++;
-                        updateGuestLimitInfo();
-                    }
+                    
+                    document.getElementById('additionalGuestsContainer').insertAdjacentHTML('beforeend', guestHtml);
+                    additionalGuestCount++;
+                    updateGuestLimitInfo();
                 }
-
+                
+                // Remove additional guest
                 function removeAdditionalGuest(guestIndex) {
-                    const guestCard = document.querySelector('.guest-card[data-guest-index="' + guestIndex + '"]');
+                    const guestCard = document.querySelector(`.guest-card[data-guest-index="${guestIndex}"]`);
                     if (guestCard) {
                         guestCard.remove();
                         additionalGuestCount--;
-                        renumberAdditionalGuests();
                         updateGuestLimitInfo();
+                        // Renumber remaining guests
+                        renumberGuests();
                     }
                 }
-
-                function renumberAdditionalGuests() {
-                    const cards = document.querySelectorAll('.guest-card');
-                    additionalGuestCount = cards.length;
-
-                    cards.forEach((card, index) => {
+                
+                // Renumber guests after removal
+                function renumberGuests() {
+                    const guestCards = document.querySelectorAll('.guest-card');
+                    guestCards.forEach((card, index) => {
                         const newIndex = index + 1;
                         card.setAttribute('data-guest-index', newIndex);
-
                         const header = card.querySelector('.card-header h6');
                         if (header) {
-                            header.innerHTML = '<i class="ri-user-line me-2"></i>Guest ' + newIndex;
+                            header.innerHTML = `<i class="ri-user-line me-2"></i>Guest ${newIndex}`;
                         }
-
+                        // Update all input names
                         const inputs = card.querySelectorAll('input, select');
                         inputs.forEach(input => {
                             const name = input.getAttribute('name');
                             if (name) {
-                                input.setAttribute('name', name.replace(/additional_guests\[\d+\]/, 'additional_guests[' + newIndex + ']'));
+                                input.setAttribute('name', name.replace(/additional_guests\[\d+\]/, `additional_guests[${newIndex}]`));
                             }
                         });
-
+                        // Update remove button onclick
                         const removeBtn = card.querySelector('button[onclick*="removeAdditionalGuest"]');
                         if (removeBtn) {
-                            removeBtn.setAttribute('onclick', 'removeAdditionalGuest(' + newIndex + ')');
+                            removeBtn.setAttribute('onclick', `removeAdditionalGuest(${newIndex})`);
                         }
                     });
                 }
-
-                document.addEventListener('DOMContentLoaded', function () {
+                
+                // Initialize guest limit info on page load
+                document.addEventListener('DOMContentLoaded', function() {
                     updateGuestLimitInfo();
-
+                    
+                    // Update guest limit when adults/children change
                     const adultsInput = document.getElementById('adults');
                     const childrenInput = document.getElementById('children');
-
                     if (adultsInput) {
                         adultsInput.addEventListener('change', updateGuestLimitInfo);
                     }
@@ -4611,40 +4621,6 @@
                             return false;
                         }
                         
-                        // Collect main guest data
-                        const mainGuestData = {
-                            full_name: document.getElementById('customerFullName')?.value || '',
-                            email: document.getElementById('customerEmail')?.value || '',
-                            country_code: document.getElementById('customerCountryCode')?.value || '',
-                            phone: document.getElementById('customerPhone')?.value || '',
-                            address1: document.getElementById('customerAddress1')?.value || '',
-                            address2: document.getElementById('customerAddress2')?.value || '',
-                            state: document.getElementById('customerState')?.value || '',
-                            zip: document.getElementById('customerZip')?.value || '',
-                            special_requests: document.getElementById('customerSpecialRequests')?.value || ''
-                        };
-
-                        // Collect additional guests data
-                        const additionalGuests = [];
-                        const guestCards = document.querySelectorAll('.guest-card');
-                        guestCards.forEach((card) => {
-                            const inputs = card.querySelectorAll('input, select');
-                            const guestData = {};
-                            inputs.forEach(input => {
-                                const name = input.getAttribute('name');
-                                if (name && name.includes('additional_guests')) {
-                                    const fieldName = name.match(/\[(\d+)\]\[(\w+)\]/);
-                                    if (fieldName) {
-                                        const fieldKey = fieldName[2];
-                                        guestData[fieldKey] = input.value || '';
-                                    }
-                                }
-                            });
-                            if (Object.keys(guestData).length > 0) {
-                                additionalGuests.push(guestData);
-                            }
-                        });
-
                         // Prepare form data for tour creation
                         const tourFormData = new FormData();
                         tourFormData.append('_token', document.querySelector('input[name="_token"]').value);
@@ -4659,8 +4635,6 @@
                         tourFormData.append('child_ages', childAgesData);
                         tourFormData.append('agent_id', agent);
                         tourFormData.append('enquiry_id', enquiry?enquiry.enquiry_id:0);
-                        tourFormData.append('mainguest', JSON.stringify(mainGuestData));
-                        tourFormData.append('additionalguest', JSON.stringify(additionalGuests));
                         
                         // Send AJAX request to create tour
                         try {
@@ -12654,7 +12628,7 @@ document.addEventListener('DOMContentLoaded', function() {
                                          <i class="ri-information-line me-2"></i>Location & Time Information
                                      </h6>
                                      <div class="row g-3">
-                                         <div class="col-md-2">
+                                         <div class="col-md-3">
                                              <label class="form-label fw-semibold text-dark">
                                                  <i class="ri-building-line me-1 text-primary"></i>City
                                              </label>
@@ -12716,7 +12690,7 @@ document.addEventListener('DOMContentLoaded', function() {
                                                  <i class="ri-time-fill position-absolute text-primary" style="left: 12px; top: 50%; transform: translateY(-50%); z-index: 5; pointer-events: none;"></i>
                                              </div>
                                          </div>
-                                        <div class="col-md-2 d-flex align-items-end">
+                                        <div class="col-md-1 d-flex align-items-end">
                                             <button type="button" class="btn w-100" onclick="searchVehicles(${day}, 'entry', 0)" id="day${day}_entry_search_btn" disabled style="height: 40px; border-radius: 6px; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); border: none; color: #ffffff; font-weight: 500; font-size: 0.9rem; display: flex; align-items: center; justify-content: center; box-shadow: 0 2px 6px rgba(102, 126, 234, 0.3); transition: all 0.2s; cursor: pointer; padding: 1.5rem 3rem;">
                                                 <i class="ri-search-line me-1"></i> Search
                                             </button>
@@ -12747,7 +12721,7 @@ document.addEventListener('DOMContentLoaded', function() {
                                                 <i class="ri-car-line me-2"></i>Vehicle Configuration
                                             </h6>
                                             <div class="row g-3">
-                                                <div class="col-md-4">
+                                                <div class="col-md-6">
                                                     <label class="form-label fw-semibold text-dark">
                                                         <i class="ri-car-line me-1 text-primary"></i>Vehicle
                                                     </label>
@@ -12758,7 +12732,7 @@ document.addEventListener('DOMContentLoaded', function() {
                                                         <option value="">Choose vehicle</option>
                                                     </select>
                                                 </div>
-                                                <div class="col-md-4">
+                                                <div class="col-md-6">
                                                     <label class="form-label fw-semibold text-dark">
                                                         <i class="ri-service-line me-1 text-primary"></i>Service Type
                                                     </label>
@@ -12772,7 +12746,7 @@ document.addEventListener('DOMContentLoaded', function() {
                                                         <option value="Private">Private</option>
                                                     </select>
                                                 </div>
-                                                <div class="col-md-4">
+                                                <div class="col-md-12">
                                                     <label class="form-label fw-semibold text-dark">
                                                         <i class="ri-group-line me-1 text-primary"></i>Number of Passengers
                                                     </label>
@@ -12794,62 +12768,14 @@ document.addEventListener('DOMContentLoaded', function() {
                                         
                                         <!-- Price Display for Entry Port -->
                                         <div class="col-12">
-                                            <div id="day${day}_entry_0_price_display" class="card shadow-sm border-0" style="background: #ffffff; border-radius: 12px; overflow: hidden; display: none;">
-                                                <div class="card-header text-white" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); border: none; padding: 1rem 1.25rem;">
-                                                    <div class="d-flex align-items-center justify-content-between">
-                                                        <div class="d-flex align-items-center">
-                                                            <div style="width: 40px; height: 40px; background: rgba(255, 255, 255, 0.2); border-radius: 10px; display: flex; align-items: center; justify-content: center; margin-right: 12px;">
-                                                                <i class="ri-ship-line text-white" style="color: #ffffff !important; font-size: 1.25rem;"></i>
-                                                            </div>
-                                                            <div>
-                                                                <h6 class="mb-0 fw-bold text-white" style="color: #ffffff !important; font-size: 1.1rem;">Entry Port Pricing</h6>
-                                                                <small class="text-white-75" style="color: rgba(255, 255, 255, 0.85) !important; font-size: 0.8rem;">Vehicle pricing details for entry port service</small>
-                                                            </div>
-                                                        </div>
-                                                        <button type="button" class="btn btn-sm text-white" onclick="forceUpdateEntryPortPricing(${day}, 0)" title="Refresh Pricing" style="background: rgba(255, 255, 255, 0.2); border: 1px solid rgba(255, 255, 255, 0.3); border-radius: 6px; padding: 0.375rem 0.75rem; transition: all 0.2s;">
-                                                            <i class="ri-refresh-line"></i>
-                                                        </button>
+                                            <div id="day${day}_entry_0_price_display" class="rounded" style="display: none; background: linear-gradient(135deg, #f8f9ff 0%, #e7f3ff 100%); border: 1px solid #b3d9ff; border-radius: 8px; padding: 1rem;">
+                                                <div class="d-flex align-items-start">
+                                                    <div style="width: 40px; height: 40px; background: rgba(102, 126, 234, 0.15); border-radius: 8px; display: flex; align-items: center; justify-content: center; margin-right: 12px; flex-shrink: 0;">
+                                                        <i class="ri-money-dollar-circle-line" style="color: #667eea; font-size: 1.25rem;"></i>
                                                     </div>
-                                                </div>
-                                                <div class="card-body" style="background: #ffffff; padding: 1.25rem;">
-                                                    <!-- Entry Port Pricing Details -->
-                                                    <div class="row g-3">
-                                                        <div class="col-12">
-                                                            <div class="card shadow-sm border-0" style="background: linear-gradient(135deg, #f8f9ff 0%, #e7f3ff 100%); border: 1px solid #b3d9ff !important; border-radius: 8px;">
-                                                                <div class="card-header" style="background: rgba(102, 126, 234, 0.1); border: none; border-bottom: 1px solid #b3d9ff; padding: 0.75rem 1rem; border-radius: 8px 8px 0 0;">
-                                                                    <h6 class="mb-0 fw-semibold d-flex align-items-center" style="color: #495057; font-size: 0.9rem;">
-                                                                        <div style="width: 28px; height: 28px; background: rgba(102, 126, 234, 0.15); border-radius: 6px; display: flex; align-items: center; justify-content: center; margin-right: 8px;">
-                                                                            <i class="ri-car-line" style="color: #667eea; font-size: 0.9rem;"></i>
-                                                                        </div>
-                                                                        Vehicle Pricing Details
-                                                                    </h6>
-                                                                </div>
-                                                                <div class="card-body" style="padding: 1rem;">
-                                                                    <div id="day${day}_entry_0_pricing_content" style="font-size: 0.85rem; color: #495057;">
-                                                                        <div class="text-muted" style="font-size: 0.8rem; color: #6c757d;">Select entry port options to see pricing</div>
-                                                                    </div>
-                                                                </div>
-                                                            </div>
-                                                        </div>
-                                                    </div>
-                                                    
-                                                    <!-- Total Price Row -->
-                                                    <div class="row mt-3">
-                                                        <div class="col-12">
-                                                            <div class="card shadow-sm border-0" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); border-radius: 8px; box-shadow: 0 4px 12px rgba(102, 126, 234, 0.3);">
-                                                                <div class="card-body" style="padding: 1rem 1.25rem;">
-                                                                    <div class="d-flex justify-content-between align-items-center">
-                                                                        <h6 class="mb-0 fw-bold text-white d-flex align-items-center" style="color: #ffffff !important; font-size: 1rem;">
-                                                                            <div style="width: 32px; height: 32px; background: rgba(255, 255, 255, 0.2); border-radius: 8px; display: flex; align-items: center; justify-content: center; margin-right: 10px;">
-                                                                                <i class="ri-calculator-line" style="color: #ffffff !important; font-size: 1rem;"></i>
-                                                                            </div>
-                                                                            Total Price
-                                                                        </h6>
-                                                                        <span class="fw-bold text-white" style="font-size: 1.5rem; color: #ffffff !important;" id="day${day}_entry_0_total_price_display">$0.00</span>
-                                                                    </div>
-                                                                </div>
-                                                            </div>
-                                                        </div>
+                                                    <div style="flex: 1;">
+                                                        <strong style="color: #212529; font-size: 0.95rem; display: block; margin-bottom: 0.5rem;">Price Information</strong>
+                                                        <div style="color: #6c757d; font-size: 0.85rem;">Vehicle pricing details</div>
                                                     </div>
                                                 </div>
                                             </div>
@@ -12926,7 +12852,7 @@ document.addEventListener('DOMContentLoaded', function() {
                                          <i class="ri-information-line me-2"></i>Location & Time Information
                                      </h6>
                                      <div class="row g-3">
-                                         <div class="col-md-2">
+                                         <div class="col-md-3">
                                              <label class="form-label fw-semibold text-dark">
                                                  <i class="ri-building-line me-1 text-primary"></i>City
                                              </label>
@@ -12987,7 +12913,7 @@ document.addEventListener('DOMContentLoaded', function() {
                                                  </select>
                                              </div>
                                          </div>
-                                         <div class="col-md-2 d-flex align-items-end">
+                                         <div class="col-md-1 d-flex align-items-end">
                                              <button type="button" class="btn w-100" onclick="searchVehicles(${day}, 'exit', 0)" id="day${day}_exit_search_btn" disabled style="height: 42px; border-radius: 6px; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); border: none; color: #ffffff; font-weight: 500; font-size: 0.9rem; display: flex; align-items: center; justify-content: center; box-shadow: 0 2px 6px rgba(102, 126, 234, 0.3); transition: all 0.2s; cursor: pointer; padding: 0.5rem 1rem;">
                                                  <i class="ri-search-line me-1"></i> Search
                                              </button>
@@ -13018,7 +12944,7 @@ document.addEventListener('DOMContentLoaded', function() {
                                                 <i class="ri-car-line me-2"></i>Vehicle Configuration
                                             </h6>
                                             <div class="row g-3">
-                                                <div class="col-md-4">
+                                                <div class="col-md-6">
                                                     <label class="form-label fw-semibold text-dark">
                                                         <i class="ri-car-line me-1 text-primary"></i>Vehicle
                                                     </label>
@@ -13030,7 +12956,7 @@ document.addEventListener('DOMContentLoaded', function() {
                                                         <option value="">Choose vehicle</option>
                                                     </select>
                                                 </div>
-                                                <div class="col-md-4">
+                                                <div class="col-md-6">
                                                     <label class="form-label fw-semibold text-dark">
                                                         <i class="ri-service-line me-1 text-primary"></i>Service Type
                                                     </label>
@@ -13044,7 +12970,7 @@ document.addEventListener('DOMContentLoaded', function() {
                                                         <option value="Private">Private</option>
                                                     </select>
                                                 </div>
-                                                <div class="col-md-4">
+                                                <div class="col-md-12">
                                                     <label class="form-label fw-semibold text-dark">
                                                         <i class="ri-group-line me-1 text-primary"></i>Number of Passengers
                                                     </label>
@@ -13066,62 +12992,14 @@ document.addEventListener('DOMContentLoaded', function() {
                                         
                                         <!-- Price Display for Exit Port -->
                                         <div class="col-12">
-                                            <div id="day${day}_exit_0_price_display" class="card shadow-sm border-0" style="background: #ffffff; border-radius: 12px; overflow: hidden; display: none;">
-                                                <div class="card-header text-white" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); border: none; padding: 1rem 1.25rem;">
-                                                    <div class="d-flex align-items-center justify-content-between">
-                                                        <div class="d-flex align-items-center">
-                                                            <div style="width: 40px; height: 40px; background: rgba(255, 255, 255, 0.2); border-radius: 10px; display: flex; align-items-center; justify-content: center; margin-right: 12px;">
-                                                                <i class="ri-ship-line text-white" style="color: #ffffff !important; font-size: 1.25rem;"></i>
-                                                            </div>
-                                                            <div>
-                                                                <h6 class="mb-0 fw-bold text-white" style="color: #ffffff !important; font-size: 1.1rem;">Exit Port Pricing</h6>
-                                                                <small class="text-white-75" style="color: rgba(255, 255, 255, 0.85) !important; font-size: 0.8rem;">Vehicle pricing details for exit port service</small>
-                                                            </div>
-                                                        </div>
-                                                        <button type="button" class="btn btn-sm text-white" onclick="forceUpdateExitPortPricing(${day}, 0)" title="Refresh Pricing" style="background: rgba(255, 255, 255, 0.2); border: 1px solid rgba(255, 255, 255, 0.3); border-radius: 6px; padding: 0.375rem 0.75rem; transition: all 0.2s;">
-                                                            <i class="ri-refresh-line"></i>
-                                                        </button>
+                                            <div id="day${day}_exit_0_price_display" class="rounded" style="display: none; background: linear-gradient(135deg, #f8f9ff 0%, #e7f3ff 100%); border: 1px solid #b3d9ff; border-radius: 8px; padding: 1rem;">
+                                                <div class="d-flex align-items-start">
+                                                    <div style="width: 40px; height: 40px; background: rgba(102, 126, 234, 0.15); border-radius: 8px; display: flex; align-items: center; justify-content: center; margin-right: 12px; flex-shrink: 0;">
+                                                        <i class="ri-money-dollar-circle-line" style="color: #667eea; font-size: 1.25rem;"></i>
                                                     </div>
-                                                </div>
-                                                <div class="card-body" style="background: #ffffff; padding: 1.25rem;">
-                                                    <!-- Exit Port Pricing Details -->
-                                                    <div class="row g-3">
-                                                        <div class="col-12">
-                                                            <div class="card shadow-sm border-0" style="background: linear-gradient(135deg, #f8f9ff 0%, #e7f3ff 100%); border: 1px solid #b3d9ff !important; border-radius: 8px;">
-                                                                <div class="card-header" style="background: rgba(102, 126, 234, 0.1); border: none; border-bottom: 1px solid #b3d9ff; padding: 0.75rem 1rem; border-radius: 8px 8px 0 0;">
-                                                                    <h6 class="mb-0 fw-semibold d-flex align-items-center" style="color: #495057; font-size: 0.9rem;">
-                                                                        <div style="width: 28px; height: 28px; background: rgba(102, 126, 234, 0.15); border-radius: 6px; display: flex; align-items: center; justify-content: center; margin-right: 8px;">
-                                                                            <i class="ri-car-line" style="color: #667eea; font-size: 0.9rem;"></i>
-                                                                        </div>
-                                                                        Vehicle Pricing Details
-                                                                    </h6>
-                                                                </div>
-                                                                <div class="card-body" style="padding: 1rem;">
-                                                                    <div id="day${day}_exit_0_pricing_content" style="font-size: 0.85rem; color: #495057;">
-                                                                        <div class="text-muted" style="font-size: 0.8rem; color: #6c757d;">Select exit port options to see pricing</div>
-                                                                    </div>
-                                                                </div>
-                                                            </div>
-                                                        </div>
-                                                    </div>
-                                                    
-                                                    <!-- Total Price Row -->
-                                                    <div class="row mt-3">
-                                                        <div class="col-12">
-                                                            <div class="card shadow-sm border-0" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); border-radius: 8px; box-shadow: 0 4px 12px rgba(102, 126, 234, 0.3);">
-                                                                <div class="card-body" style="padding: 1rem 1.25rem;">
-                                                                    <div class="d-flex justify-content-between align-items-center">
-                                                                        <h6 class="mb-0 fw-bold text-white d-flex align-items-center" style="color: #ffffff !important; font-size: 1rem;">
-                                                                            <div style="width: 32px; height: 32px; background: rgba(255, 255, 255, 0.2); border-radius: 8px; display: flex; align-items: center; justify-content: center; margin-right: 10px;">
-                                                                                <i class="ri-calculator-line" style="color: #ffffff !important; font-size: 1rem;"></i>
-                                                                            </div>
-                                                                            Total Price
-                                                                        </h6>
-                                                                        <span class="fw-bold text-white" style="font-size: 1.5rem; color: #ffffff !important;" id="day${day}_exit_0_total_price_display">$0.00</span>
-                                                                    </div>
-                                                                </div>
-                                                            </div>
-                                                        </div>
+                                                    <div style="flex: 1;">
+                                                        <strong style="color: #212529; font-size: 0.95rem; display: block; margin-bottom: 0.5rem;">Price Information</strong>
+                                                        <div style="color: #6c757d; font-size: 0.85rem;">Vehicle pricing details</div>
                                                     </div>
                                                 </div>
                                             </div>
@@ -13593,80 +13471,42 @@ document.addEventListener('DOMContentLoaded', function() {
                                      <div class="col-md-12">
                                          
                                          
-                                        <!-- Guide Price Display Section -->
-                                        <div id="day${day}_guide_1_price_display" class="mt-3" style="display: none;">
-                                            <div class="card shadow-sm border-0" style="background: #ffffff; border-radius: 12px; overflow: hidden;">
-                                                <div class="card-header text-white" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); border: none; padding: 1rem 1.25rem;">
-                                                    <div class="d-flex align-items-center justify-content-between">
-                                                        <div class="d-flex align-items-center">
-                                                            <div style="width: 40px; height: 40px; background: rgba(255, 255, 255, 0.2); border-radius: 10px; display: flex; align-items: center; justify-content: center; margin-right: 12px;">
-                                                                <i class="ri-user-star-line text-white" style="color: #ffffff !important; font-size: 1.25rem;"></i>
-                                                            </div>
-                                                            <div>
-                                                                <h6 class="mb-0 fw-bold text-white" style="color: #ffffff !important; font-size: 1.1rem;">Guide Pricing</h6>
-                                                                <small class="text-white-75" style="color: rgba(255, 255, 255, 0.85) !important; font-size: 0.8rem;">Selected Guide: <span id="day${day}_guide_1_guide_name" style="font-weight: 600;">Guide Name</span></small>
-                                                            </div>
-                                                        </div>
-                                                        <button type="button" class="btn btn-sm text-white" onclick="forceUpdateGuidePricing(${day}, 1)" title="Refresh Pricing" style="background: rgba(255, 255, 255, 0.2); border: 1px solid rgba(255, 255, 255, 0.3); border-radius: 6px; padding: 0.375rem 0.75rem; transition: all 0.2s;">
-                                                            <i class="ri-refresh-line"></i>
-                                                        </button>
-                                                    </div>
-                                                </div>
-                                                <div class="card-body" style="background: #ffffff; padding: 1.25rem;">
-                                                    <!-- Guide Pricing Details -->
-                                                    <div class="row g-3">
-                                                        <div class="col-12">
-                                                            <div class="card shadow-sm border-0" style="background: linear-gradient(135deg, #f8f9ff 0%, #e7f3ff 100%); border: 1px solid #b3d9ff !important; border-radius: 8px;">
-                                                                <div class="card-body" style="padding: 1rem;">
-                                                                    <div class="d-flex align-items-center justify-content-between mb-3" style="font-size: 0.85rem;">
-                                                                        <span style="color: #6c757d;">
-                                                                            <i class="ri-price-tag-3-line" style="color: #667eea; margin-right: 5px;"></i>
-                                                                            Package Price:
-                                                                        </span>
-                                                                        <span class="fw-semibold" style="color: #495057;" id="day${day}_guide_1_package_price_display">$0.00</span>
-                                                                    </div>
-                                                                    
-                                                                    <div class="d-flex align-items-center justify-content-between mb-3" style="font-size: 0.85rem;">
-                                                                        <span style="color: #6c757d;">
-                                                                            <i class="ri-time-line" style="color: #667eea; margin-right: 5px;"></i>
-                                                                            Duration:
-                                                                        </span>
-                                                                        <span class="fw-semibold" style="color: #495057;" id="day${day}_guide_1_hours_display">0 hours</span>
-                                                                    </div>
-                                                                    
-                                                                    <div class="d-flex align-items-center justify-content-between" id="day${day}_guide_1_surcharge_row" style="display: none; font-size: 0.85rem;">
-                                                                        <span style="color: #6c757d;">
-                                                                            <i class="ri-moon-line" style="color: #ff9800; margin-right: 5px;"></i>
-                                                                            Night Surcharge:
-                                                                        </span>
-                                                                        <span class="fw-semibold" style="color: #ff9800;" id="day${day}_guide_1_surcharge_display">$0.00</span>
-                                                                    </div>
-                                                                </div>
-                                                            </div>
-                                                        </div>
-                                                    </div>
-                                                    
-                                                    <!-- Total Price Row -->
-                                                    <div class="row mt-3">
-                                                        <div class="col-12">
-                                                            <div class="card shadow-sm border-0" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); border-radius: 8px; box-shadow: 0 4px 12px rgba(102, 126, 234, 0.3);">
-                                                                <div class="card-body" style="padding: 1rem 1.25rem;">
-                                                                    <div class="d-flex justify-content-between align-items-center">
-                                                                        <h6 class="mb-0 fw-bold text-white d-flex align-items-center" style="color: #ffffff !important; font-size: 1rem;">
-                                                                            <div style="width: 32px; height: 32px; background: rgba(255, 255, 255, 0.2); border-radius: 8px; display: flex; align-items: center; justify-content: center; margin-right: 10px;">
-                                                                                <i class="ri-calculator-line" style="color: #ffffff !important; font-size: 1rem;"></i>
-                                                                            </div>
-                                                                            Total Price
-                                                                        </h6>
-                                                                        <span class="fw-bold text-white" style="font-size: 1.5rem; color: #ffffff !important;" id="day${day}_guide_1_total_price_display">$0.00</span>
-                                                                    </div>
-                                                                </div>
-                                                            </div>
-                                                        </div>
-                                                    </div>
-                                                </div>
-                                            </div>
-                                        </div>
+                                         <!-- Guide Price Display Section -->
+                                         <div id="day${day}_guide_1_price_display" class="mt-3" style="display: none;">
+                                             <div class="card shadow-sm border-0" style="background: linear-gradient(135deg, #f8f9ff 0%, #e7f3ff 100%); border: 1px solid #b3d9ff !important; border-radius: 8px; overflow: hidden;">
+                                                 <div class="card-header" style="background: rgba(102, 126, 234, 0.1); border: none; border-bottom: 1px solid #b3d9ff; padding: 0.75rem 1rem;">
+                                                     <h6 class="mb-0 fw-semibold d-flex align-items-center" style="color: #495057; font-size: 0.9rem;">
+                                                         <div style="width: 28px; height: 28px; background: rgba(102, 126, 234, 0.15); border-radius: 6px; display: flex; align-items: center; justify-content: center; margin-right: 8px;">
+                                                             <i class="ri-user-star-line" style="color: #667eea; font-size: 0.9rem;"></i>
+                                                         </div>
+                                                         Guide Pricing: <span id="day${day}_guide_1_guide_name" style="color: #667eea; font-weight: 600;">Guide Name</span>
+                                                     </h6>
+                                                 </div>
+                                                 <div class="card-body" style="padding: 1rem; background: #ffffff;">
+                                                     <div class="d-flex align-items-center justify-content-between mb-2" style="font-size: 0.85rem;">
+                                                         <span style="color: #6c757d;">Package Price:</span>
+                                                         <span class="fw-semibold" style="color: #495057;" id="day${day}_guide_1_package_price_display">$0.00</span>
+                                                     </div>
+                                                     
+                                                     <div class="d-flex align-items-center justify-content-between mb-2" style="font-size: 0.85rem;">
+                                                         <span style="color: #6c757d;">Duration:</span>
+                                                         <span class="fw-semibold" style="color: #495057;" id="day${day}_guide_1_hours_display">0 hours</span>
+                                                     </div>
+                                                     
+                                                     <div class="d-flex align-items-center justify-content-between mb-2" id="day${day}_guide_1_surcharge_row" style="display: none; font-size: 0.85rem;">
+                                                         <span style="color: #6c757d;">Night Surcharge:</span>
+                                                         <span class="fw-semibold" style="color: #ff9800;" id="day${day}_guide_1_surcharge_display">$0.00</span>
+                                                     </div>
+                                                     
+                                                     <hr class="my-2" style="border-color: #b3d9ff; border-width: 1px; opacity: 0.5;">
+                                                     
+                                                     <div class="d-flex align-items-center justify-content-between">
+                                                         <span class="fw-bold" style="color: #495057; font-size: 0.95rem;">Total Price:</span>
+                                                         <span class="fw-bold" style="color: #667eea; font-size: 1.25rem;" id="day${day}_guide_1_total_price_display">$0.00</span>
+                                                     </div>
+                                                 </div>
+                                             </div>
+                                         </div>
                                          
                                          <!-- Hidden fields for pricing -->
                                          <input type="hidden" id="day${day}_guide_1_base_price" name="day${day}_guide_1_base_price" value="0">
@@ -13872,88 +13712,87 @@ document.addEventListener('DOMContentLoaded', function() {
                                                      </div>
                                                  </div>
 
-                                                <!-- Restaurant Pricing Section -->
-                                                <div id="day${day}_restaurant_1_price_display" class="mt-2" style="display: none;">
-                                                    <div class="card shadow-sm border-0" style="background: #ffffff; border-radius: 12px; overflow: hidden;">
-                                                        <div class="card-header text-white" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); border: none; padding: 1rem 1.25rem;">
-                                                            <div class="d-flex align-items-center justify-content-between">
-                                                                <div class="d-flex align-items-center">
-                                                                    <div style="width: 40px; height: 40px; background: rgba(255, 255, 255, 0.2); border-radius: 10px; display: flex; align-items: center; justify-content: center; margin-right: 12px;">
-                                                                        <i class="ri-restaurant-line text-white" style="color: #ffffff !important; font-size: 1.25rem;"></i>
-                                                                    </div>
-                                                                    <div>
-                                                                        <h6 class="mb-0 fw-bold text-white" style="color: #ffffff !important; font-size: 1.1rem;">Restaurant Pricing</h6>
-                                                                        <small class="text-white-75" style="color: rgba(255, 255, 255, 0.85) !important; font-size: 0.8rem;">Selected Restaurant: <span id="day${day}_restaurant_1_restaurant_name" style="font-weight: 600;">Restaurant Name</span></small>
-                                                                    </div>
-                                                                </div>
-                                                                <button type="button" class="btn btn-sm text-white" onclick="forceUpdateRestaurantPricing(${day}, 1)" title="Refresh Pricing" style="background: rgba(255, 255, 255, 0.2); border: 1px solid rgba(255, 255, 255, 0.3); border-radius: 6px; padding: 0.375rem 0.75rem; transition: all 0.2s;">
-                                                                    <i class="ri-refresh-line"></i>
-                                                                </button>
-                                                            </div>
-                                                        </div>
-                                                        <div class="card-body" style="background: #ffffff; padding: 1.25rem;">
-                                                            <!-- Two Column Pricing Layout -->
-                                                            <div class="row g-3">
-                                                                <!-- Column 1: Restaurant Pricing -->
-                                                                <div class="col-md-8">
-                                                                    <div class="card shadow-sm border-0" style="background: linear-gradient(135deg, #f8f9ff 0%, #e7f3ff 100%); border: 1px solid #b3d9ff !important; border-radius: 8px; height: 100%;">
-                                                                        <div class="card-header" style="background: rgba(102, 126, 234, 0.1); border: none; border-bottom: 1px solid #b3d9ff; padding: 0.75rem 1rem; border-radius: 8px 8px 0 0;">
-                                                                            <h6 class="mb-0 fw-semibold d-flex align-items-center" style="color: #495057; font-size: 0.9rem;">
-                                                                                <div style="width: 28px; height: 28px; background: rgba(102, 126, 234, 0.15); border-radius: 6px; display: flex; align-items-center; justify-content: center; margin-right: 8px;">
-                                                                                    <i class="ri-restaurant-2-line" style="color: #667eea; font-size: 0.9rem;"></i>
-                                                                                </div>
-                                                                                Restaurant Pricing Details
-                                                                            </h6>
-                                                                        </div>
-                                                                        <div class="card-body" style="padding: 1rem;">
-                                                                            <div id="day${day}_restaurant_1_pricing_details" style="font-size: 0.85rem; color: #495057;">
-                                                                                <div class="text-muted" style="font-size: 0.8rem; color: #6c757d;">Select a restaurant and configure guests to see pricing</div>
-                                                                            </div>
-                                                                        </div>
-                                                                    </div>
-                                                                </div>
-                                                                
-                                                                <!-- Column 2: Transfer Pricing -->
-                                                                <div class="col-md-4">
-                                                                    <div class="card shadow-sm border-0" style="background: linear-gradient(135deg, #f8f9ff 0%, #e7f3ff 100%); border: 1px solid #b3d9ff !important; border-radius: 8px; height: 100%;">
-                                                                        <div class="card-header" style="background: rgba(102, 126, 234, 0.1); border: none; border-bottom: 1px solid #b3d9ff; padding: 0.75rem 1rem; border-radius: 8px 8px 0 0;">
-                                                                            <h6 class="mb-0 fw-semibold d-flex align-items-center" style="color: #495057; font-size: 0.9rem;">
-                                                                                <div style="width: 28px; height: 28px; background: rgba(102, 126, 234, 0.15); border-radius: 6px; display: flex; align-items-center; justify-content: center; margin-right: 8px;">
-                                                                                    <i class="ri-car-line" style="color: #667eea; font-size: 0.9rem;"></i>
-                                                                                </div>
-                                                                                Transfer Pricing
-                                                                            </h6>
-                                                                        </div>
-                                                                        <div class="card-body" style="padding: 1rem;">
-                                                                            <div id="day${day}_restaurant_1_transport_pricing_content" style="font-size: 0.85rem; color: #495057;">
-                                                                                <div class="text-muted" style="font-size: 0.8rem; color: #6c757d;">No transport selected</div>
-                                                                            </div>
-                                                                        </div>
-                                                                    </div>
-                                                                </div>
-                                                            </div>
-                                                            
-                                                            <!-- Total Price Row -->
-                                                            <div class="row mt-3">
-                                                                <div class="col-12">
-                                                                    <div class="card shadow-sm border-0" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); border-radius: 8px; box-shadow: 0 4px 12px rgba(102, 126, 234, 0.3);">
-                                                                        <div class="card-body" style="padding: 1rem 1.25rem;">
-                                                                            <div class="d-flex justify-content-between align-items-center">
-                                                                                <h6 class="mb-0 fw-bold text-white d-flex align-items-center" style="color: #ffffff !important; font-size: 1rem;">
-                                                                                    <div style="width: 32px; height: 32px; background: rgba(255, 255, 255, 0.2); border-radius: 8px; display: flex; align-items: center; justify-content: center; margin-right: 10px;">
-                                                                                        <i class="ri-calculator-line" style="color: #ffffff !important; font-size: 1rem;"></i>
-                                                                                    </div>
-                                                                                    Total Price
-                                                                                </h6>
-                                                                                <span class="fw-bold text-white" style="font-size: 1.5rem; color: #ffffff !important;">$<span id="day${day}_restaurant_1_total_display">0.00</span></span>
-                                                                            </div>
-                                                                        </div>
-                                                                    </div>
-                                                                </div>
-                                                            </div>
-                                                        </div>
-                                                    </div>
-                                                </div>
+                                                 <!-- Restaurant Pricing Section -->
+                                                 <div id="day${day}_restaurant_1_price_display" class="mt-2" style="display: none;">
+                                                     <div class="card shadow-sm border-0" style="background: #ffffff; border-radius: 8px; overflow: hidden;">
+                                                         <div class="card-header text-white" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); border: none; padding: 0.625rem 0.875rem;">
+                                                             <div class="d-flex align-items-center justify-content-between">
+                                                                 <div class="d-flex align-items-center">
+                                                                     <div style="width: 32px; height: 32px; background: rgba(255, 255, 255, 0.2); border-radius: 8px; display: flex; align-items: center; justify-content: center; margin-right: 10px;">
+                                                                         <i class="ri-restaurant-line text-white" style="color: #ffffff !important; font-size: 1rem;"></i>
+                                                                     </div>
+                                                                     <div>
+                                                                         <h6 class="mb-0 fw-bold text-white" style="color: #ffffff !important; font-size: 0.95rem; line-height: 1.2;">Restaurant Pricing</h6>
+                                                                         <small class="text-white-75" style="color: rgba(255, 255, 255, 0.85) !important; font-size: 0.75rem; line-height: 1.2;">Restaurant: <span id="day${day}_restaurant_1_restaurant_name" style="color: rgba(255, 255, 255, 0.95) !important; font-weight: 600;">Restaurant Name</span></small>
+                                                                     </div>
+                                                                 </div>
+                                                             </div>
+                                                         </div>
+                                                         <div class="card-body" style="background: #ffffff; padding: 0.875rem;">
+                                                             <!-- Two Column Pricing Layout -->
+                                                             <div class="row g-2">
+                                                                 <!-- Column 1: Restaurant Pricing -->
+                                                                 <div class="col-md-8">
+                                                                     <div class="card shadow-sm border-0" style="background: linear-gradient(135deg, #f8f9ff 0%, #e7f3ff 100%); border: 1px solid #b3d9ff !important; border-radius: 6px; height: 100%;">
+                                                                         <div class="card-header" style="background: rgba(102, 126, 234, 0.1); border: none; border-bottom: 1px solid #b3d9ff; padding: 0.5rem 0.75rem; border-radius: 6px 6px 0 0;">
+                                                                             <h6 class="mb-0 fw-semibold d-flex align-items-center" style="color: #495057; font-size: 0.85rem;">
+                                                                                 <div style="width: 24px; height: 24px; background: rgba(102, 126, 234, 0.15); border-radius: 5px; display: flex; align-items: center; justify-content: center; margin-right: 6px;">
+                                                                                     <i class="ri-restaurant-2-line" style="color: #667eea; font-size: 0.8rem;"></i>
+                                                                                 </div>
+                                                                                 Restaurant Pricing Details
+                                                                             </h6>
+                                                                         </div>
+                                                                         <div class="card-body" style="padding: 0.75rem;">
+                                                                             <div id="day${day}_restaurant_1_pricing_details" style="font-size: 0.8rem; color: #495057; line-height: 1.4;">
+                                                                                 <div class="text-muted" style="font-size: 0.75rem; color: #6c757d;">Select a restaurant and configure guests to see pricing</div>
+                                                                             </div>
+                                                                         </div>
+                                                                     </div>
+                                                                 </div>
+                                                                 
+                                                                 <!-- Column 2: Transfer Pricing -->
+                                                                 <div class="col-md-4">
+                                                                     <div class="card shadow-sm border-0" style="background: linear-gradient(135deg, #f8f9ff 0%, #e7f3ff 100%); border: 1px solid #b3d9ff !important; border-radius: 6px; height: 100%;">
+                                                                         <div class="card-header" style="background: rgba(102, 126, 234, 0.1); border: none; border-bottom: 1px solid #b3d9ff; padding: 0.5rem 0.75rem; border-radius: 6px 6px 0 0;">
+                                                                             <h6 class="mb-0 fw-semibold d-flex align-items-center" style="color: #495057; font-size: 0.85rem;">
+                                                                                 <div style="width: 24px; height: 24px; background: rgba(102, 126, 234, 0.15); border-radius: 5px; display: flex; align-items: center; justify-content: center; margin-right: 6px;">
+                                                                                     <i class="ri-car-line" style="color: #667eea; font-size: 0.8rem;"></i>
+                                                                                 </div>
+                                                                                 Transfer Pricing
+                                                                             </h6>
+                                                                         </div>
+                                                                         <div class="card-body" style="padding: 0.75rem;">
+                                                                             <div id="day${day}_restaurant_1_transport_pricing_content" style="font-size: 0.8rem; color: #495057; line-height: 1.4;">
+                                                                                 <div class="text-muted" style="font-size: 0.75rem; color: #6c757d;">No transport selected</div>
+                                                                             </div>
+                                                                         </div>
+                                                                     </div>
+                                                                 </div>
+                                                             </div>
+                                                             
+                                                             <!-- Total Price Row -->
+                                                             <div class="row mt-2">
+                                                                 <div class="col-12">
+                                                                     <div class="card shadow-sm border-0" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); border: none; border-radius: 6px; overflow: hidden;">
+                                                                         <div class="card-body" style="padding: 0.75rem 0.875rem;">
+                                                                             <div class="d-flex align-items-center justify-content-between">
+                                                                                 <div class="d-flex align-items-center text-white">
+                                                                                     <div style="width: 28px; height: 28px; background: rgba(255, 255, 255, 0.2); border-radius: 6px; display: flex; align-items: center; justify-content: center; margin-right: 10px;">
+                                                                                         <i class="ri-calculator-line text-white" style="color: #ffffff !important; font-size: 0.95rem;"></i>
+                                                                                     </div>
+                                                                                     <span class="fw-bold" style="font-size: 0.9rem; color: #ffffff !important;">Total Amount:</span>
+                                                                                 </div>
+                                                                                 <div class="text-white">
+                                                                                     <span class="fw-bold" style="font-size: 1.25rem; color: #ffffff !important;">$<span id="day${day}_restaurant_1_total_display">0.00</span></span>
+                                                                                 </div>
+                                                                             </div>
+                                                                         </div>
+                                                                     </div>
+                                                                 </div>
+                                                             </div>
+                                                         </div>
+                                                     </div>
+                                                 </div>
                                              </div>
                                          </div>
                                      </div>
@@ -14091,12 +13930,12 @@ document.addEventListener('DOMContentLoaded', function() {
                                      </div>
                                      <div class="col-md-2 local-transfer-field" style="display: none;">
                                          <button type="button" class="btn btn-primary w-100 py-2 px-3" style="height: 42px; font-size: 0.735rem;" onclick="searchVehicles(${day}, 'transport',0)" id="day${day}_transport_search_btn" disabled>
-                                             <i class="ri-search-line me-2"></i>Search
+                                             <i class="ri-search-line me-2"></i>Search Vehicles
                                          </button>
                                      </div>
                                      
                                      <!-- Point To Point Fields (Hidden Initially) -->
-                                     <div class="col-md-3 point-to-point-field" id="day${day}_transport_pickup_location_field" style="display: none;">
+                                     <div class="col-md-4 point-to-point-field" id="day${day}_transport_pickup_location_field" style="display: none;">
                                          <div class="form-group">
                                              <label class="form-label fw-semibold text-muted mb-2">
                                                  <i class="ri-map-pin-line text-success me-2"></i>Pick Up Location
@@ -14109,7 +13948,7 @@ document.addEventListener('DOMContentLoaded', function() {
                                              </div>
                                          </div>
                                      </div>
-                                     <div class="col-md-3 point-to-point-field" id="day${day}_transport_dropoff_location_field" style="display: none;">
+                                     <div class="col-md-4 point-to-point-field" id="day${day}_transport_dropoff_location_field" style="display: none;">
                                          <div class="form-group">
                                              <label class="form-label fw-semibold text-muted mb-2">
                                                  <i class="ri-map-pin-line text-danger me-2"></i>Drop Off Location
@@ -14159,7 +13998,7 @@ document.addEventListener('DOMContentLoaded', function() {
                                          </div>
                                      </div>
                                      
-                                     <div class="col-md-3 point-to-point-field" id="day${day}_transport_additional_search_field" style="display: none;">
+                                     <div class="col-md-2 point-to-point-field" id="day${day}_transport_additional_search_field" style="display: none;">
                                          <button type="button" class="btn btn-danger w-100 py-2" onclick="searchVehicles(${day}, 'transport_additional', 0)" id="day${day}_transport_additional_search_btn" disabled>
                                              <i class="ri-search-line me-2"></i>Search
                                          </button>
@@ -14266,7 +14105,7 @@ document.addEventListener('DOMContentLoaded', function() {
                                     <!-- Vehicle + Service Type in one row -->
                                     <div class="col-12">
                                         <div class="row g-3">
-                                            <div class="col-md-4">
+                                            <div class="col-md-8">
                                                 <label class="form-label fw-semibold">Vehicle</label>
                                                 <select class="form-select vehicle-select" style="height: 42px; font-size: 0.735rem;" 
                                                         id="day${day}_transport_vehicle_id"
@@ -14287,9 +14126,11 @@ document.addEventListener('DOMContentLoaded', function() {
                                                     <option value="Private">Private</option>
                                                 </select>
                                             </div>
-                                              <!-- Price Field for Point to Point -->
-                                        <div class="col-md-4 point-to-point-price-field" id="day${day}_transport_price_field" style="display: none;">
-                                          
+                                        </div>
+                                        
+                                        <!-- Price Field for Point to Point -->
+                                        <div class="row mt-3 point-to-point-price-field" id="day${day}_transport_price_field" style="display: none;">
+                                            <div class="col-md-12">
                                                 <div class="form-group">
                                                     <label class="form-label fw-semibold">Price <span class="text-danger">*</span></label>
                                                     <div class="input-group">
@@ -14300,71 +14141,18 @@ document.addEventListener('DOMContentLoaded', function() {
                                                         Enter the custom price for this point-to-point service
                                                     </small>
                                                 </div>
-                                           
+                                            </div>
                                         </div>
-                                        </div>
-                                        
-                                      
                                         
                                         
                                         <!-- Price Display for Transport -->
                                         <div class="col-12 mt-3">
-                                            <div id="day${day}_transport_price_display" class="card shadow-sm border-0" style="background: #ffffff; border-radius: 12px; overflow: hidden; display: none;">
-                                                <div class="card-header text-white" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); border: none; padding: 1rem 1.25rem;">
-                                                    <div class="d-flex align-items-center justify-content-between">
-                                                        <div class="d-flex align-items-center">
-                                                            <div style="width: 40px; height: 40px; background: rgba(255, 255, 255, 0.2); border-radius: 10px; display: flex; align-items: center; justify-content: center; margin-right: 12px;">
-                                                                <i class="ri-car-line text-white" style="color: #ffffff !important; font-size: 1.25rem;"></i>
-                                                            </div>
-                                                            <div>
-                                                                <h6 class="mb-0 fw-bold text-white" style="color: #ffffff !important; font-size: 1.1rem;">Transport Pricing</h6>
-                                                                <small class="text-white-75" style="color: rgba(255, 255, 255, 0.85) !important; font-size: 0.8rem;">Select a vehicle and service type to see pricing</small>
-                                                            </div>
-                                                        </div>
-                                                        <button type="button" class="btn btn-sm text-white" onclick="forceUpdateTransportPricing(${day})" title="Refresh Pricing" style="background: rgba(255, 255, 255, 0.2); border: 1px solid rgba(255, 255, 255, 0.3); border-radius: 6px; padding: 0.375rem 0.75rem; transition: all 0.2s;">
-                                                            <i class="ri-refresh-line"></i>
-                                                        </button>
-                                                    </div>
-                                                </div>
-                                                <div class="card-body" style="background: #ffffff; padding: 1.25rem;">
-                                                    <!-- Transport Pricing Details -->
-                                                    <div class="row g-3">
-                                                        <div class="col-12">
-                                                            <div class="card shadow-sm border-0" style="background: linear-gradient(135deg, #f8f9ff 0%, #e7f3ff 100%); border: 1px solid #b3d9ff !important; border-radius: 8px;">
-                                                                <div class="card-header" style="background: rgba(102, 126, 234, 0.1); border: none; border-bottom: 1px solid #b3d9ff; padding: 0.75rem 1rem; border-radius: 8px 8px 0 0;">
-                                                                    <h6 class="mb-0 fw-semibold d-flex align-items-center" style="color: #495057; font-size: 0.9rem;">
-                                                                        <div style="width: 28px; height: 28px; background: rgba(102, 126, 234, 0.15); border-radius: 6px; display: flex; align-items: center; justify-content: center; margin-right: 8px;">
-                                                                            <i class="ri-taxi-line" style="color: #667eea; font-size: 0.9rem;"></i>
-                                                                        </div>
-                                                                        Transport Pricing Details
-                                                                    </h6>
-                                                                </div>
-                                                                <div class="card-body" style="padding: 1rem;">
-                                                                    <div id="day${day}_transport_pricing_content" style="font-size: 0.85rem; color: #495057;">
-                                                                        <div class="text-muted" style="font-size: 0.8rem; color: #6c757d;">Select transport options to see pricing</div>
-                                                                    </div>
-                                                                </div>
-                                                            </div>
-                                                        </div>
-                                                    </div>
-                                                    
-                                                    <!-- Total Price Row -->
-                                                    <div class="row mt-3">
-                                                        <div class="col-12">
-                                                            <div class="card shadow-sm border-0" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); border-radius: 8px; box-shadow: 0 4px 12px rgba(102, 126, 234, 0.3);">
-                                                                <div class="card-body" style="padding: 1rem 1.25rem;">
-                                                                    <div class="d-flex justify-content-between align-items-center">
-                                                                        <h6 class="mb-0 fw-bold text-white d-flex align-items-center" style="color: #ffffff !important; font-size: 1rem;">
-                                                                            <div style="width: 32px; height: 32px; background: rgba(255, 255, 255, 0.2); border-radius: 8px; display: flex; align-items: center; justify-content: center; margin-right: 10px;">
-                                                                                <i class="ri-calculator-line" style="color: #ffffff !important; font-size: 1rem;"></i>
-                                                                            </div>
-                                                                            Total Price
-                                                                        </h6>
-                                                                        <span class="fw-bold text-white" style="font-size: 1.5rem; color: #ffffff !important;" id="day${day}_transport_total_price_display">$0.00</span>
-                                                                    </div>
-                                                                </div>
-                                                            </div>
-                                                        </div>
+                                            <div id="day${day}_transport_price_display" class="alert alert-success" style="display: none;">
+                                                <div class="d-flex align-items-center">
+                                                    <i class="ri-money-dollar-circle-line me-2 fs-4"></i>
+                                                    <div>
+                                                        <strong>Price Information</strong>
+                                                        <div class="small">Select a vehicle and service type to see pricing</div>
                                                     </div>
                                                 </div>
                                             </div>
@@ -15221,7 +15009,7 @@ document.addEventListener('DOMContentLoaded', function() {
                                 <small class="opacity-75">Select your preferred attractions</small>
                             </div>
                         </div>
-                        <button type="button" class="btn btn-sm btn-outline-danger" onclick="removeAttraction(this, ${day}, ${newIndex})">
+                        <button type="button" class="btn btn-sm btn-outline-light" onclick="removeAttraction(this, ${day}, ${newIndex})">
                             <i class="ri-close-line"></i>
                         </button>
                     </div>
@@ -16702,7 +16490,7 @@ document.addEventListener('DOMContentLoaded', function() {
                                 <small class="opacity-75">Select your dining experience</small>
                             </div>
                         </div>
-                        <button type="button" class="btn btn-sm btn-outline-danger" onclick="removeRestaurant(this, ${day}, ${newIndex})">
+                        <button type="button" class="btn btn-sm btn-outline-light" onclick="removeRestaurant(this, ${day}, ${newIndex})">
                             <i class="ri-close-line"></i>
                         </button>
                     </div>
@@ -16850,40 +16638,37 @@ document.addEventListener('DOMContentLoaded', function() {
                     
                     <!-- Restaurant Pricing Section -->
                     <div id="day${day}_restaurant_${newIndex}_price_display" class="mt-2" style="display: none;">
-                        <div class="card shadow-sm border-0" style="background: #ffffff; border-radius: 12px; overflow: hidden;">
-                            <div class="card-header text-white" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); border: none; padding: 1rem 1.25rem;">
+                        <div class="card shadow-sm border-0" style="background: #ffffff; border-radius: 8px; overflow: hidden;">
+                            <div class="card-header text-white" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); border: none; padding: 0.625rem 0.875rem;">
                                 <div class="d-flex align-items-center justify-content-between">
                                     <div class="d-flex align-items-center">
-                                        <div style="width: 40px; height: 40px; background: rgba(255, 255, 255, 0.2); border-radius: 10px; display: flex; align-items: center; justify-content: center; margin-right: 12px;">
-                                            <i class="ri-restaurant-line text-white" style="color: #ffffff !important; font-size: 1.25rem;"></i>
+                                        <div style="width: 32px; height: 32px; background: rgba(255, 255, 255, 0.2); border-radius: 8px; display: flex; align-items: center; justify-content: center; margin-right: 10px;">
+                                            <i class="ri-restaurant-line text-white" style="color: #ffffff !important; font-size: 1rem;"></i>
                                         </div>
                                         <div>
-                                            <h6 class="mb-0 fw-bold text-white" style="color: #ffffff !important; font-size: 1.1rem;">Restaurant Pricing</h6>
-                                            <small class="text-white-75" style="color: rgba(255, 255, 255, 0.85) !important; font-size: 0.8rem;">Selected Restaurant: <span id="day${day}_restaurant_${newIndex}_restaurant_name" style="font-weight: 600;">Restaurant Name</span></small>
+                                            <h6 class="mb-0 fw-bold text-white" style="color: #ffffff !important; font-size: 0.95rem; line-height: 1.2;">Restaurant Pricing</h6>
+                                            <small class="text-white-75" style="color: rgba(255, 255, 255, 0.85) !important; font-size: 0.75rem; line-height: 1.2;">Restaurant: <span id="day${day}_restaurant_${newIndex}_restaurant_name" style="color: rgba(255, 255, 255, 0.95) !important; font-weight: 600;">Restaurant Name</span></small>
                                         </div>
                                     </div>
-                                    <button type="button" class="btn btn-sm text-white" onclick="forceUpdateRestaurantPricing(${day}, ${newIndex})" title="Refresh Pricing" style="background: rgba(255, 255, 255, 0.2); border: 1px solid rgba(255, 255, 255, 0.3); border-radius: 6px; padding: 0.375rem 0.75rem; transition: all 0.2s;">
-                                        <i class="ri-refresh-line"></i>
-                                    </button>
                                 </div>
                             </div>
-                            <div class="card-body" style="background: #ffffff; padding: 1.25rem;">
+                            <div class="card-body" style="background: #ffffff; padding: 0.875rem;">
                                 <!-- Two Column Pricing Layout -->
-                                <div class="row g-3">
+                                <div class="row g-2">
                                     <!-- Column 1: Restaurant Pricing -->
                                     <div class="col-md-8">
-                                        <div class="card shadow-sm border-0" style="background: linear-gradient(135deg, #f8f9ff 0%, #e7f3ff 100%); border: 1px solid #b3d9ff !important; border-radius: 8px; height: 100%;">
-                                            <div class="card-header" style="background: rgba(102, 126, 234, 0.1); border: none; border-bottom: 1px solid #b3d9ff; padding: 0.75rem 1rem; border-radius: 8px 8px 0 0;">
-                                                <h6 class="mb-0 fw-semibold d-flex align-items-center" style="color: #495057; font-size: 0.9rem;">
-                                                    <div style="width: 28px; height: 28px; background: rgba(102, 126, 234, 0.15); border-radius: 6px; display: flex; align-items: center; justify-content: center; margin-right: 8px;">
-                                                        <i class="ri-restaurant-2-line" style="color: #667eea; font-size: 0.9rem;"></i>
+                                        <div class="card shadow-sm border-0" style="background: linear-gradient(135deg, #f8f9ff 0%, #e7f3ff 100%); border: 1px solid #b3d9ff !important; border-radius: 6px; height: 100%;">
+                                            <div class="card-header" style="background: rgba(102, 126, 234, 0.1); border: none; border-bottom: 1px solid #b3d9ff; padding: 0.5rem 0.75rem; border-radius: 6px 6px 0 0;">
+                                                <h6 class="mb-0 fw-semibold d-flex align-items-center" style="color: #495057; font-size: 0.85rem;">
+                                                    <div style="width: 24px; height: 24px; background: rgba(102, 126, 234, 0.15); border-radius: 5px; display: flex; align-items: center; justify-content: center; margin-right: 6px;">
+                                                        <i class="ri-restaurant-2-line" style="color: #667eea; font-size: 0.8rem;"></i>
                                                     </div>
                                                     Restaurant Pricing Details
                                                 </h6>
                                             </div>
-                                            <div class="card-body" style="padding: 1rem;">
-                                                <div id="day${day}_restaurant_${newIndex}_pricing_details" style="font-size: 0.85rem; color: #495057;">
-                                                    <div class="text-muted" style="font-size: 0.8rem; color: #6c757d;">Select a restaurant and configure guests to see pricing</div>
+                                            <div class="card-body" style="padding: 0.75rem;">
+                                                <div id="day${day}_restaurant_${newIndex}_pricing_details" style="font-size: 0.8rem; color: #495057; line-height: 1.4;">
+                                                    <div class="text-muted" style="font-size: 0.75rem; color: #6c757d;">Select a restaurant and configure guests to see pricing</div>
                                                 </div>
                                             </div>
                                         </div>
@@ -16891,18 +16676,18 @@ document.addEventListener('DOMContentLoaded', function() {
                                     
                                     <!-- Column 2: Transfer Pricing -->
                                     <div class="col-md-4">
-                                        <div class="card shadow-sm border-0" style="background: linear-gradient(135deg, #f8f9ff 0%, #e7f3ff 100%); border: 1px solid #b3d9ff !important; border-radius: 8px; height: 100%;">
-                                            <div class="card-header" style="background: rgba(102, 126, 234, 0.1); border: none; border-bottom: 1px solid #b3d9ff; padding: 0.75rem 1rem; border-radius: 8px 8px 0 0;">
-                                                <h6 class="mb-0 fw-semibold d-flex align-items-center" style="color: #495057; font-size: 0.9rem;">
-                                                    <div style="width: 28px; height: 28px; background: rgba(102, 126, 234, 0.15); border-radius: 6px; display: flex; align-items: center; justify-content: center; margin-right: 8px;">
-                                                        <i class="ri-car-line" style="color: #667eea; font-size: 0.9rem;"></i>
+                                        <div class="card shadow-sm border-0" style="background: linear-gradient(135deg, #f8f9ff 0%, #e7f3ff 100%); border: 1px solid #b3d9ff !important; border-radius: 6px; height: 100%;">
+                                            <div class="card-header" style="background: rgba(102, 126, 234, 0.1); border: none; border-bottom: 1px solid #b3d9ff; padding: 0.5rem 0.75rem; border-radius: 6px 6px 0 0;">
+                                                <h6 class="mb-0 fw-semibold d-flex align-items-center" style="color: #495057; font-size: 0.85rem;">
+                                                    <div style="width: 24px; height: 24px; background: rgba(102, 126, 234, 0.15); border-radius: 5px; display: flex; align-items: center; justify-content: center; margin-right: 6px;">
+                                                        <i class="ri-car-line" style="color: #667eea; font-size: 0.8rem;"></i>
                                                     </div>
                                                     Transfer Pricing
                                                 </h6>
                                             </div>
-                                            <div class="card-body" style="padding: 1rem;">
-                                                <div id="day${day}_restaurant_${newIndex}_transport_pricing_content" style="font-size: 0.85rem; color: #495057;">
-                                                    <div class="text-muted" style="font-size: 0.8rem; color: #6c757d;">No transport selected</div>
+                                            <div class="card-body" style="padding: 0.75rem;">
+                                                <div id="day${day}_restaurant_${newIndex}_transport_pricing_content" style="font-size: 0.8rem; color: #495057; line-height: 1.4;">
+                                                    <div class="text-muted" style="font-size: 0.75rem; color: #6c757d;">No transport selected</div>
                                                 </div>
                                             </div>
                                         </div>
@@ -16910,18 +16695,20 @@ document.addEventListener('DOMContentLoaded', function() {
                                 </div>
                                 
                                 <!-- Total Price Row -->
-                                <div class="row mt-3">
+                                <div class="row mt-2">
                                     <div class="col-12">
-                                        <div class="card shadow-sm border-0" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); border-radius: 8px; box-shadow: 0 4px 12px rgba(102, 126, 234, 0.3);">
-                                            <div class="card-body" style="padding: 1rem 1.25rem;">
-                                                <div class="d-flex justify-content-between align-items-center">
-                                                    <h6 class="mb-0 fw-bold text-white d-flex align-items-center" style="color: #ffffff !important; font-size: 1rem;">
-                                                        <div style="width: 32px; height: 32px; background: rgba(255, 255, 255, 0.2); border-radius: 8px; display: flex; align-items-center; justify-content: center; margin-right: 10px;">
-                                                            <i class="ri-calculator-line" style="color: #ffffff !important; font-size: 1rem;"></i>
+                                        <div class="card shadow-sm border-0" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); border: none; border-radius: 6px; overflow: hidden;">
+                                            <div class="card-body" style="padding: 0.75rem 0.875rem;">
+                                                <div class="d-flex align-items-center justify-content-between">
+                                                    <div class="d-flex align-items-center text-white">
+                                                        <div style="width: 28px; height: 28px; background: rgba(255, 255, 255, 0.2); border-radius: 6px; display: flex; align-items: center; justify-content: center; margin-right: 10px;">
+                                                            <i class="ri-calculator-line text-white" style="color: #ffffff !important; font-size: 0.95rem;"></i>
                                                         </div>
-                                                        Total Price
-                                                    </h6>
-                                                    <span class="fw-bold text-white" style="font-size: 1.5rem; color: #ffffff !important;">$<span id="day${day}_restaurant_${newIndex}_total_display">0.00</span></span>
+                                                        <span class="fw-bold" style="font-size: 0.9rem; color: #ffffff !important;">Total Amount:</span>
+                                                    </div>
+                                                    <div class="text-white">
+                                                        <span class="fw-bold" style="font-size: 1.25rem; color: #ffffff !important;">$<span id="day${day}_restaurant_${newIndex}_total_display">0.00</span></span>
+                                                    </div>
                                                 </div>
                                             </div>
                                         </div>
@@ -17476,7 +17263,7 @@ document.addEventListener('DOMContentLoaded', function() {
                                 <small class="opacity-75">Professional guide services</small>
                             </div>
                         </div>
-                        <button type="button" class="btn btn-sm btn-outline-danger" onclick="removeGuide(this, ${day}, ${newIndex})">
+                        <button type="button" class="btn btn-sm btn-outline-light" onclick="removeGuide(this, ${day}, ${newIndex})">
                             <i class="ri-close-line"></i>
                         </button>
                     </div>
@@ -17492,7 +17279,7 @@ document.addEventListener('DOMContentLoaded', function() {
                             </select>
                             <small class="text-danger" style="display: none;" id="day${day}_guide_city_message_${newIndex}">Please select a city first.</small>
                         </div>
-                        <div class="col-md-2">
+                        <div class="col-md-3">
                             <label class="form-label fw-semibold">Select Guide</label>
                             <select class="form-select guide-select" name="day${day}_guide_${newIndex}" id="day${day}_guide_${newIndex}" onchange="loadGuideDetails(${day}, this.value, ${newIndex})" disabled>
                                 <option value="">Select city first</option>
@@ -17520,96 +17307,55 @@ document.addEventListener('DOMContentLoaded', function() {
                                 </div>
                             </div>
                         </div>
-                        <div class="col-md-2">
-                            <label class="form-label fw-semibold">Pickup Time</label>
-                            <div id="day${day}_guide_${newIndex}_pickup_time_options">
-                                <select class="form-select" disabled>
-                                    <option value="">Select guide first</option>
-                                </select>
-                            </div>
-                            <input type="hidden" name="day${day}_guide_${newIndex}_pickup_time" id="day${day}_guide_${newIndex}_pickup_time">
-                        </div>
-                        <div class="col-md-3">
-                            <label class="form-label fw-semibold">Select Package</label>
-                            <select class="form-select" name="day${day}_guide_${newIndex}_package" id="day${day}_guide_${newIndex}_package" onchange="updateGuidePricing(${day}, ${newIndex})">
-                                <option value="">Select Duration</option>
-                            </select>
-                        </div>
-                    </div>
-                    
-                    <div class="row g-3 mt-2">
+                                                 <div class="col-md-3">
+                             <label class="form-label fw-semibold">Pickup Time</label>
+                             <div id="day${day}_guide_${newIndex}_pickup_time_options">
+                                 <select class="form-select" disabled>
+                                     <option value="">Select guide first</option>
+                                 </select>
+                             </div>
+                             <input type="hidden" name="day${day}_guide_${newIndex}_pickup_time" id="day${day}_guide_${newIndex}_pickup_time">
+                         </div>
+                         <div class="col-md-3">
+                             <label class="form-label fw-semibold">Select Package</label>
+                             <select class="form-select" name="day${day}_guide_${newIndex}_package" id="day${day}_guide_${newIndex}_package" onchange="updateGuidePricing(${day}, ${newIndex})">
+                                 <option value="">Select Duration</option>
+                             </select>
+                         </div>
                         <div class="col-md-12">
                             
                             <!-- Guide Price Display Section -->
                             <div id="day${day}_guide_${newIndex}_price_display" class="mt-3" style="display: none;">
-                                <div class="card shadow-sm border-0" style="background: #ffffff; border-radius: 12px; overflow: hidden;">
-                                    <div class="card-header text-white" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); border: none; padding: 1rem 1.25rem;">
-                                        <div class="d-flex align-items-center justify-content-between">
-                                            <div class="d-flex align-items-center">
-                                                <div style="width: 40px; height: 40px; background: rgba(255, 255, 255, 0.2); border-radius: 10px; display: flex; align-items: center; justify-content: center; margin-right: 12px;">
-                                                    <i class="ri-user-star-line text-white" style="color: #ffffff !important; font-size: 1.25rem;"></i>
-                                                </div>
-                                                <div>
-                                                    <h6 class="mb-0 fw-bold text-white" style="color: #ffffff !important; font-size: 1.1rem;">Guide Pricing</h6>
-                                                    <small class="text-white-75" style="color: rgba(255, 255, 255, 0.85) !important; font-size: 0.8rem;">Selected Guide: <span id="day${day}_guide_${newIndex}_guide_name" style="font-weight: 600;">Guide Name</span></small>
-                                                </div>
+                                <div class="card shadow-sm border-0" style="background: linear-gradient(135deg, #f8f9ff 0%, #e7f3ff 100%); border: 1px solid #b3d9ff !important; border-radius: 8px; overflow: hidden;">
+                                    <div class="card-header" style="background: rgba(102, 126, 234, 0.1); border: none; border-bottom: 1px solid #b3d9ff; padding: 0.75rem 1rem;">
+                                        <h6 class="mb-0 fw-semibold d-flex align-items-center" style="color: #495057; font-size: 0.9rem;">
+                                            <div style="width: 28px; height: 28px; background: rgba(102, 126, 234, 0.15); border-radius: 6px; display: flex; align-items: center; justify-content: center; margin-right: 8px;">
+                                                <i class="ri-user-star-line" style="color: #667eea; font-size: 0.9rem;"></i>
                                             </div>
-                                            <button type="button" class="btn btn-sm text-white" onclick="forceUpdateGuidePricing(${day}, ${newIndex})" title="Refresh Pricing" style="background: rgba(255, 255, 255, 0.2); border: 1px solid rgba(255, 255, 255, 0.3); border-radius: 6px; padding: 0.375rem 0.75rem; transition: all 0.2s;">
-                                                <i class="ri-refresh-line"></i>
-                                            </button>
-                                        </div>
+                                            Guide Pricing: <span id="day${day}_guide_${newIndex}_guide_name" style="color: #667eea; font-weight: 600;">Guide Name</span>
+                                        </h6>
                                     </div>
-                                    <div class="card-body" style="background: #ffffff; padding: 1.25rem;">
-                                        <!-- Guide Pricing Details -->
-                                        <div class="row g-3">
-                                            <div class="col-12">
-                                                <div class="card shadow-sm border-0" style="background: linear-gradient(135deg, #f8f9ff 0%, #e7f3ff 100%); border: 1px solid #b3d9ff !important; border-radius: 8px;">
-                                                    <div class="card-body" style="padding: 1rem;">
-                                                        <div class="d-flex align-items-center justify-content-between mb-3" style="font-size: 0.85rem;">
-                                                            <span style="color: #6c757d;">
-                                                                <i class="ri-price-tag-3-line" style="color: #667eea; margin-right: 5px;"></i>
-                                                                Package Price:
-                                                            </span>
-                                                            <span class="fw-semibold" style="color: #495057;" id="day${day}_guide_${newIndex}_package_price_display">$0.00</span>
-                                                        </div>
-                                                        
-                                                        <div class="d-flex align-items-center justify-content-between mb-3" style="font-size: 0.85rem;">
-                                                            <span style="color: #6c757d;">
-                                                                <i class="ri-time-line" style="color: #667eea; margin-right: 5px;"></i>
-                                                                Duration:
-                                                            </span>
-                                                            <span class="fw-semibold" style="color: #495057;" id="day${day}_guide_${newIndex}_hours_display">0 hours</span>
-                                                        </div>
-                                                        
-                                                        <div class="d-flex align-items-center justify-content-between" id="day${day}_guide_${newIndex}_surcharge_row" style="display: none; font-size: 0.85rem;">
-                                                            <span style="color: #6c757d;">
-                                                                <i class="ri-moon-line" style="color: #ff9800; margin-right: 5px;"></i>
-                                                                Night Surcharge:
-                                                            </span>
-                                                            <span class="fw-semibold" style="color: #ff9800;" id="day${day}_guide_${newIndex}_surcharge_display">$0.00</span>
-                                                        </div>
-                                                    </div>
-                                                </div>
-                                            </div>
+                                    <div class="card-body" style="padding: 1rem; background: #ffffff;">
+                                        <div class="d-flex align-items-center justify-content-between mb-2" style="font-size: 0.85rem;">
+                                            <span style="color: #6c757d;">Package Price:</span>
+                                            <span class="fw-semibold" style="color: #495057;" id="day${day}_guide_${newIndex}_package_price_display">$0.00</span>
                                         </div>
                                         
-                                        <!-- Total Price Row -->
-                                        <div class="row mt-3">
-                                            <div class="col-12">
-                                                <div class="card shadow-sm border-0" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); border-radius: 8px; box-shadow: 0 4px 12px rgba(102, 126, 234, 0.3);">
-                                                    <div class="card-body" style="padding: 1rem 1.25rem;">
-                                                        <div class="d-flex justify-content-between align-items-center">
-                                                            <h6 class="mb-0 fw-bold text-white d-flex align-items-center" style="color: #ffffff !important; font-size: 1rem;">
-                                                                <div style="width: 32px; height: 32px; background: rgba(255, 255, 255, 0.2); border-radius: 8px; display: flex; align-items: center; justify-content: center; margin-right: 10px;">
-                                                                    <i class="ri-calculator-line" style="color: #ffffff !important; font-size: 1rem;"></i>
-                                                                </div>
-                                                                Total Price
-                                                            </h6>
-                                                            <span class="fw-bold text-white" style="font-size: 1.5rem; color: #ffffff !important;" id="day${day}_guide_${newIndex}_total_price_display">$0.00</span>
-                                                        </div>
-                                                    </div>
-                                                </div>
-                                            </div>
+                                        <div class="d-flex align-items-center justify-content-between mb-2" style="font-size: 0.85rem;">
+                                            <span style="color: #6c757d;">Duration:</span>
+                                            <span class="fw-semibold" style="color: #495057;" id="day${day}_guide_${newIndex}_hours_display">0 hours</span>
+                                        </div>
+                                        
+                                        <div class="d-flex align-items-center justify-content-between mb-2" id="day${day}_guide_${newIndex}_surcharge_row" style="display: none; font-size: 0.85rem;">
+                                            <span style="color: #6c757d;">Night Surcharge:</span>
+                                            <span class="fw-semibold" style="color: #ff9800;" id="day${day}_guide_${newIndex}_surcharge_display">$0.00</span>
+                                        </div>
+                                        
+                                        <hr class="my-2" style="border-color: #b3d9ff; border-width: 1px; opacity: 0.5;">
+                                        
+                                        <div class="d-flex align-items-center justify-content-between">
+                                            <span class="fw-bold" style="color: #495057; font-size: 0.95rem;">Total Price:</span>
+                                            <span class="fw-bold" style="color: #667eea; font-size: 1.25rem;" id="day${day}_guide_${newIndex}_total_price_display">$0.00</span>
                                         </div>
                                     </div>
                                 </div>
@@ -17720,9 +17466,9 @@ document.addEventListener('DOMContentLoaded', function() {
                                  <small class="opacity-75">Configure transport service</small>
                              </div>
                          </div>
-                        <button type="button" class="btn btn-sm btn-outline-danger" onclick="removeTransport(this, ${day}, ${newIndex})">
-                            <i class="ri-close-line"></i>
-                        </button>
+                         <button type="button" class="btn btn-sm btn-outline-light" onclick="removeTransport(this, ${day}, ${newIndex})">
+                             <i class="ri-close-line"></i>
+                         </button>
                      </div>
                  </div>
                  <div class="card-body">
@@ -17791,7 +17537,7 @@ document.addEventListener('DOMContentLoaded', function() {
                                 </div>
                              </div>
                          </div>
-                         <div class="col-md-4 local-transfer-field" style="display: none;">
+                         <div class="col-md-3 local-transfer-field" style="display: none;">
                              <div class="form-group">
                                  <label class="form-label fw-semibold text-muted mb-2">
                                      <i class="ri-time-line text-warning me-2"></i>Pick Up Time
@@ -17807,64 +17553,59 @@ document.addEventListener('DOMContentLoaded', function() {
                          </div>
                          <div class="col-md-2 local-transfer-field" style="display: none;">
                              <button type="button" class="btn btn-primary w-100 py-2" onclick="searchVehicles(${day}, 'transport_${newIndex}',${newIndex})" id="day${day}_transport_${newIndex}_search_btn" disabled>
-                                 <i class="ri-search-line me-2"></i>Search
+                                 <i class="ri-search-line me-2"></i>Search Vehicles
                              </button>
                          </div>
                          
-    <!-- Point To Point Fields (Hidden Initially) -->
-                                                             <div class="col-md-3 point-to-point-field" id="day${day}_transport_${newIndex}_pickup_location_field" style="display: none;">
-                                        <div class="form-group">
-                                            <label class="form-label fw-semibold text-muted mb-2">
-                                                <i class="ri-map-pin-line text-success me-2"></i>Pick Up Location
-                                            </label>
-                                            <div class="position-relative location-input">
-                                                <input type="text" class="form-control border-2 google-maps-autocomplete" name="day${day}_transport_${newIndex}_pickup_location" id="day${day}_transport_${newIndex}_pickup_location" placeholder="Search for pickup location..." style="padding-left: 45px;">
-                                                <i class="ri-search-line position-absolute text-success location-icon"></i>
-                                                <input type="hidden" name="day${day}_transport_${newIndex}_pickup_lat" id="day${day}_transport_${newIndex}_pickup_lat">
-                                                <input type="hidden" name="day${day}_transport_${newIndex}_pickup_lng" id="day${day}_transport_${newIndex}_pickup_lng">
-                                                <input type="hidden" name="day${day}_transport_${newIndex}_pickup_place_id" id="day${day}_transport_${newIndex}_pickup_place_id">
-                                            </div>
-                                        </div>
-                                    </div>
-                                    
-                                    <div class="col-md-3 point-to-point-field" id="day${day}_transport_${newIndex}_dropoff_location_field" style="display: none;">
-                                        <div class="form-group">
-                                            <label class="form-label fw-semibold text-muted mb-2">
-                                                <i class="ri-map-pin-line text-danger me-2"></i>Drop Off Location
-                                            </label>
-                                            <div class="position-relative location-input">
-                                                <input type="text" class="form-control border-2 google-maps-autocomplete" name="day${day}_transport_${newIndex}_dropoff_location" id="day${day}_transport_${newIndex}_dropoff_location" placeholder="Search for dropoff location..." style="padding-left: 45px;">
-                                                <i class="ri-map-pin-fill position-absolute text-danger location-icon"></i>
-                                                <input type="hidden" name="day${day}_transport_${newIndex}_dropoff_lat" id="day${day}_transport_${newIndex}_dropoff_lat">
-                                                <input type="hidden" name="day${day}_transport_${newIndex}_dropoff_lng" id="day${day}_transport_${newIndex}_dropoff_lng">
-                                                <input type="hidden" name="day${day}_transport_${newIndex}_dropoff_place_id" id="day${day}_transport_${newIndex}_dropoff_place_id">
-                                            </div>
-                                        </div>
-                                    </div>
-                                    
-                                    <div class="col-md-4 point-to-point-field" id="day${day}_transport_${newIndex}_additional_time_field" style="display: none;">
-                                        <div class="form-group">
-                                            <label class="form-label fw-semibold text-muted mb-2">
-                                                <i class="ri-time-line text-warning me-2"></i>Pick Up Time
-                                            </label>
-                                            <div class="position-relative">
-                                                <select class="form-select border-1" name="day${day}_transport_${newIndex}_additional_pickup_time" style="padding-left: 35px;" >
-                                                    <option value="">Select time</option>
-                                                    ${generateTimeOptions()}
-                                                </select>
-                                                <i class="ri-time-fill position-absolute text-warning" style="left: 15px; top: 50%; transform: translateY(-50%); z-index: 5;"></i>
-                                            </div>
-                                        </div>
-                                    </div>
-                                    
-                                    <div class="col-md-2 point-to-point-field" id="day${day}_transport_${newIndex}_additional_search_field" style="display: none;">
-                                        <div class="form-group">
-                                            <label class="form-label fw-semibold text-muted mb-2" style="visibility: hidden;">Search</label>
-                                            <button type="button" class="btn btn-danger w-100" onclick="searchVehicles(${day}, 'transport_${newIndex}_additional',${newIndex})" id="day${day}_transport_${newIndex}_additional_search_btn" disabled>
-                                                <i class="ri-search-line me-2"></i>Search
-                                            </button>
-                                        </div>
-                                    </div>
+                         <!-- Point To Point Fields (Hidden Initially) -->
+                                                              <div class="col-md-4 point-to-point-field" id="day${day}_transport_${newIndex}_pickup_location_field" style="display: none;">
+                                         <div class="form-group">
+                                             <label class="form-label fw-semibold text-muted mb-2">
+                                                 <i class="ri-map-pin-line text-success me-2"></i>Pick Up Location
+                                             </label>
+                                             <div class="position-relative location-input">
+                                                 <input type="text" class="form-control border-2 google-maps-autocomplete" name="day${day}_transport_${newIndex}_pickup_location" id="day${day}_transport_${newIndex}_pickup_location" placeholder="Search for pickup location..." style="padding-left: 45px;">
+                                                 <i class="ri-search-line position-absolute text-success location-icon"></i>
+                                                 <input type="hidden" name="day${day}_transport_${newIndex}_pickup_lat" id="day${day}_transport_${newIndex}_pickup_lat">
+                                                 <input type="hidden" name="day${day}_transport_${newIndex}_pickup_lng" id="day${day}_transport_${newIndex}_pickup_lng">
+                                                 <input type="hidden" name="day${day}_transport_${newIndex}_pickup_place_id" id="day${day}_transport_${newIndex}_pickup_place_id">
+                                             </div>
+                                         </div>
+                                     </div>
+                                                              <div class="col-md-4 point-to-point-field" id="day${day}_transport_${newIndex}_dropoff_location_field" style="display: none;">
+                                         <div class="form-group">
+                                             <label class="form-label fw-semibold text-muted mb-2">
+                                                 <i class="ri-map-pin-line text-danger me-2"></i>Drop Off Location
+                                             </label>
+                                             <div class="position-relative location-input">
+                                                 <input type="text" class="form-control border-2 google-maps-autocomplete" name="day${day}_transport_${newIndex}_dropoff_location" id="day${day}_transport_${newIndex}_dropoff_location" placeholder="Search for dropoff location..." style="padding-left: 45px;">
+                                                 <i class="ri-map-pin-fill position-absolute text-danger location-icon"></i>
+                                                 <input type="hidden" name="day${day}_transport_${newIndex}_dropoff_lat" id="day${day}_transport_${newIndex}_dropoff_lat">
+                                                 <input type="hidden" name="day${day}_transport_${newIndex}_dropoff_lng" id="day${day}_transport_${newIndex}_dropoff_lng">
+                                                 <input type="hidden" name="day${day}_transport_${newIndex}_dropoff_place_id" id="day${day}_transport_${newIndex}_dropoff_place_id">
+                                             </div>
+                                         </div>
+                                     </div>
+                         <div class="col-md-3 point-to-point-field" id="day${day}_transport_${newIndex}_additional_time_field" style="display: none;">
+                             <div class="form-group">
+                                 <label class="form-label fw-semibold text-muted mb-2">
+                                     <i class="ri-time-line text-warning me-2"></i>Pick Up Time
+                                 </label>
+                                 <div class="position-relative">
+                                     <select class="form-select border-1" name="day${day}_transport_${newIndex}_additional_pickup_time" style="padding-left: 35px;" >
+                                         <option value="">Select time</option>
+                                         ${generateTimeOptions()}
+                                     </select>
+                                     <i class="ri-time-fill position-absolute text-warning" style="left: 15px; top: 50%; transform: translateY(-50%); z-index: 5;"></i>
+                                 </div>
+                             </div>
+                         </div>
+                        
+                         <div class="col-md-2 point-to-point-field" id="day${day}_transport_${newIndex}_additional_search_field" style="display: none;">
+                             <button type="button" class="btn btn-danger w-100 py-2" onclick="searchVehicles(${day}, 'transport_${newIndex}_additional',${newIndex})" id="day${day}_transport_${newIndex}_additional_search_btn" disabled>
+                                 <i class="ri-search-line me-2"></i>Search
+                             </button>
+                         </div>
                          
                          <!-- Hourly Fields (Hidden Initially) -->
                                                               <div class="col-md-4 hourly-field" id="day${day}_transport_${newIndex}_hourly_pickup_location_field" style="display: none;">
@@ -17941,27 +17682,41 @@ document.addEventListener('DOMContentLoaded', function() {
                                  </div>
                              </div>
                          </div>   
-                        <div class="col-12">
-                            <div class="row g-3">
-                                <div class="col-md-5 vehicle-field">
-                                    <label class="form-label fw-semibold">Vehicle</label>
-                                    <select class="form-select vehicle-select" name="day${day}_transport_${newIndex}_vehicle_id" onchange="updateVehicleDetails(${day}, 'transport_${newIndex}'); validatePassengerCapacity(${day}, 'transport_${newIndex}'); updateTypeSelect(event, ${day}, 'transport_${newIndex}');">
-                                        <option value="">Choose vehicle</option>
-                                    </select>
-                                </div>
-                                
-                                <div class="col-md-3 service-type-field" id="day${day}_transport_${newIndex}_service_type_field">
-                                    <label class="form-label fw-semibold">Service Type</label>
-                                    <select class="form-select" name="day${day}_transport_${newIndex}_service_type" id="day${day}_transport_${newIndex}_service_type_select" onchange="updatePricing(${day}, 'transport_${newIndex}')">
-                                        <option value="">Select service type</option>
-                                        <option value="Shared">Shared</option>
-                                        <option value="Private">Private</option>
-                                    </select>
-                                </div>
-                                
-                                <!-- Custom Price Field for Point to Point (In Same Row) -->
-                                <div class="col-md-4 point-to-point-price-field" id="day${day}_transport_${newIndex}_price_field" style="display: none;">
-                                    <label class="form-label fw-semibold">
+                         <div class="col-12">
+                             <div class="row g-3">
+                                <div class="col-md-8 vehicle-field">
+                             <label class="form-label fw-semibold">Vehicle</label>
+                             <select class="form-select vehicle-select" name="day${day}_transport_${newIndex}_vehicle_id" onchange="updateVehicleDetails(${day}, 'transport_${newIndex}'); validatePassengerCapacity(${day}, 'transport_${newIndex}'); updateTypeSelect(event, ${day}, 'transport_${newIndex}');">
+                                 <option value="">Choose vehicle</option>
+                             </select>
+                         </div>
+                               <div class="col-md-4 service-type-field" id="day${day}_transport_${newIndex}_service_type_field">
+                             <label class="form-label fw-semibold">Service Type</label>
+                            <select class="form-select" name="day${day}_transport_${newIndex}_service_type" id="day${day}_transport_${newIndex}_service_type_select" onchange="updatePricing(${day}, 'transport_${newIndex}')">
+                                 <option value="">Select service type</option>
+                                 <option value="Shared">Shared</option>
+                                 <option value="Private">Private</option>
+                             </select>
+                         </div>
+                             </div>
+                         </div>
+                         <div class="col-12 mt-3">
+                             <div id="day${day}_transport_${newIndex}_price_display" class="alert alert-success" style="display: none;">
+                                 <div class="d-flex align-items-center">
+                                     <i class="ri-money-dollar-circle-line me-2 fs-4"></i>
+                                     <div>
+                                         <strong>Price Information</strong>
+                                         <div class="small">Select a vehicle and service type to see pricing</div>
+                                     </div>
+                                 </div>
+                             </div>
+                         </div>
+                        
+                        <!-- Custom Price Field for Point to Point (Below Vehicle Selection) -->
+                        <div class="col-12 mt-3 point-to-point-price-field" id="day${day}_transport_${newIndex}_price_field" style="display: none;">
+                            <div class="alert alert-warning">
+                                <div class="form-group mb-0">
+                                    <label class="form-label fw-semibold mb-2">
                                         <i class="ri-money-dollar-circle-line me-2"></i>Custom Price <span class="text-danger">*</span>
                                     </label>
                                     <div class="input-group">
@@ -17969,75 +17724,12 @@ document.addEventListener('DOMContentLoaded', function() {
                                         <input type="number" class="form-control" id="day${day}_transport_${newIndex}_custom_price" name="day${day}_transport_${newIndex}_custom_price" min="0" step="0.01" placeholder="Enter custom price" oninput="updateCustomPricing(${day}, 'transport_${newIndex}')" onchange="updateCustomPricing(${day}, 'transport_${newIndex}')">
                                         <span class="input-group-text">.00</span>
                                     </div>
-                                    <small class="form-text text-muted">
+                                    <small class="form-text text-muted mt-1">
                                         <i class="ri-information-line me-1"></i>Enter the custom price for this point-to-point service
                                     </small>
                                 </div>
                             </div>
                         </div>
-                         <div class="col-12 mt-3">
-                             <div id="day${day}_transport_${newIndex}_price_display" class="card shadow-sm border-0" style="background: #ffffff; border-radius: 12px; overflow: hidden; display: none;">
-                                 <div class="card-header text-white" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); border: none; padding: 1rem 1.25rem;">
-                                     <div class="d-flex align-items-center justify-content-between">
-                                         <div class="d-flex align-items-center">
-                                             <div style="width: 40px; height: 40px; background: rgba(255, 255, 255, 0.2); border-radius: 10px; display: flex; align-items: center; justify-content: center; margin-right: 12px;">
-                                                 <i class="ri-car-line text-white" style="color: #ffffff !important; font-size: 1.25rem;"></i>
-                                             </div>
-                                             <div>
-                                                 <h6 class="mb-0 fw-bold text-white" style="color: #ffffff !important; font-size: 1.1rem;">Transport Pricing</h6>
-                                                 <small class="text-white-75" style="color: rgba(255, 255, 255, 0.85) !important; font-size: 0.8rem;">Select a vehicle and service type to see pricing</small>
-                                             </div>
-                                         </div>
-                                         <button type="button" class="btn btn-sm text-white" onclick="forceUpdateTransportPricing(${day}, ${newIndex})" title="Refresh Pricing" style="background: rgba(255, 255, 255, 0.2); border: 1px solid rgba(255, 255, 255, 0.3); border-radius: 6px; padding: 0.375rem 0.75rem; transition: all 0.2s;">
-                                             <i class="ri-refresh-line"></i>
-                                         </button>
-                                     </div>
-                                 </div>
-                                 <div class="card-body" style="background: #ffffff; padding: 1.25rem;">
-                                     <!-- Transport Pricing Details -->
-                                     <div class="row g-3">
-                                         <div class="col-12">
-                                             <div class="card shadow-sm border-0" style="background: linear-gradient(135deg, #f8f9ff 0%, #e7f3ff 100%); border: 1px solid #b3d9ff !important; border-radius: 8px;">
-                                                 <div class="card-header" style="background: rgba(102, 126, 234, 0.1); border: none; border-bottom: 1px solid #b3d9ff; padding: 0.75rem 1rem; border-radius: 8px 8px 0 0;">
-                                                     <h6 class="mb-0 fw-semibold d-flex align-items-center" style="color: #495057; font-size: 0.9rem;">
-                                                         <div style="width: 28px; height: 28px; background: rgba(102, 126, 234, 0.15); border-radius: 6px; display: flex; align-items: center; justify-content: center; margin-right: 8px;">
-                                                             <i class="ri-taxi-line" style="color: #667eea; font-size: 0.9rem;"></i>
-                                                         </div>
-                                                         Transport Pricing Details
-                                                     </h6>
-                                                 </div>
-                                                 <div class="card-body" style="padding: 1rem;">
-                                                     <div id="day${day}_transport_${newIndex}_pricing_content" style="font-size: 0.85rem; color: #495057;">
-                                                         <div class="text-muted" style="font-size: 0.8rem; color: #6c757d;">Select transport options to see pricing</div>
-                                                     </div>
-                                                 </div>
-                                             </div>
-                                         </div>
-                                     </div>
-                                     
-                                     <!-- Total Price Row -->
-                                     <div class="row mt-3">
-                                         <div class="col-12">
-                                             <div class="card shadow-sm border-0" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); border-radius: 8px; box-shadow: 0 4px 12px rgba(102, 126, 234, 0.3);">
-                                                 <div class="card-body" style="padding: 1rem 1.25rem;">
-                                                     <div class="d-flex justify-content-between align-items-center">
-                                                         <h6 class="mb-0 fw-bold text-white d-flex align-items-center" style="color: #ffffff !important; font-size: 1rem;">
-                                                             <div style="width: 32px; height: 32px; background: rgba(255, 255, 255, 0.2); border-radius: 8px; display: flex; align-items: center; justify-content: center; margin-right: 10px;">
-                                                                 <i class="ri-calculator-line" style="color: #ffffff !important; font-size: 1rem;"></i>
-                                                             </div>
-                                                             Total Price
-                                                         </h6>
-                                                         <span class="fw-bold text-white" style="font-size: 1.5rem; color: #ffffff !important;" id="day${day}_transport_${newIndex}_total_price_display">$0.00</span>
-                                                     </div>
-                                                 </div>
-                                             </div>
-                                         </div>
-                                     </div>
-                                 </div>
-                             </div>
-                         </div>
-                        
-                      
                         
                      </div>
                      
@@ -18648,62 +18340,14 @@ document.addEventListener('DOMContentLoaded', function() {
                         </div>
                         
                         <div class="col-12 mt-2">
-                            <div id="day${day}_entry_${newIndex}_price_display" class="card shadow-sm border-0" style="background: #ffffff; border-radius: 12px; overflow: hidden; display: none;">
-                                <div class="card-header text-white" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); border: none; padding: 1rem 1.25rem;">
-                                    <div class="d-flex align-items-center justify-content-between">
-                                        <div class="d-flex align-items-center">
-                                            <div style="width: 40px; height: 40px; background: rgba(255, 255, 255, 0.2); border-radius: 10px; display: flex; align-items: center; justify-content: center; margin-right: 12px;">
-                                                <i class="ri-ship-line text-white" style="color: #ffffff !important; font-size: 1.25rem;"></i>
-                                            </div>
-                                            <div>
-                                                <h6 class="mb-0 fw-bold text-white" style="color: #ffffff !important; font-size: 1.1rem;">Entry Port Pricing</h6>
-                                                <small class="text-white-75" style="color: rgba(255, 255, 255, 0.85) !important; font-size: 0.8rem;">Vehicle pricing details for entry port service</small>
-                                            </div>
-                                        </div>
-                                        <button type="button" class="btn btn-sm text-white" onclick="forceUpdateEntryPortPricing(${day}, ${newIndex})" title="Refresh Pricing" style="background: rgba(255, 255, 255, 0.2); border: 1px solid rgba(255, 255, 255, 0.3); border-radius: 6px; padding: 0.375rem 0.75rem; transition: all 0.2s;">
-                                            <i class="ri-refresh-line"></i>
-                                        </button>
+                            <div id="day${day}_entry_${newIndex}_price_display" class="rounded" style="display: none; background: linear-gradient(135deg, #f8f9ff 0%, #e7f3ff 100%); border: 1px solid #b3d9ff; border-radius: 8px; padding: 1rem; margin: 0;">
+                                <div class="d-flex align-items-start">
+                                    <div style="width: 40px; height: 40px; background: rgba(102, 126, 234, 0.15); border-radius: 8px; display: flex; align-items: center; justify-content: center; margin-right: 12px; flex-shrink: 0;">
+                                        <i class="ri-money-dollar-circle-line" style="color: #667eea; font-size: 1.25rem;"></i>
                                     </div>
-                                </div>
-                                <div class="card-body" style="background: #ffffff; padding: 1.25rem;">
-                                    <!-- Entry Port Pricing Details -->
-                                    <div class="row g-3">
-                                        <div class="col-12">
-                                            <div class="card shadow-sm border-0" style="background: linear-gradient(135deg, #f8f9ff 0%, #e7f3ff 100%); border: 1px solid #b3d9ff !important; border-radius: 8px;">
-                                                <div class="card-header" style="background: rgba(102, 126, 234, 0.1); border: none; border-bottom: 1px solid #b3d9ff; padding: 0.75rem 1rem; border-radius: 8px 8px 0 0;">
-                                                    <h6 class="mb-0 fw-semibold d-flex align-items-center" style="color: #495057; font-size: 0.9rem;">
-                                                        <div style="width: 28px; height: 28px; background: rgba(102, 126, 234, 0.15); border-radius: 6px; display: flex; align-items: center; justify-content: center; margin-right: 8px;">
-                                                            <i class="ri-car-line" style="color: #667eea; font-size: 0.9rem;"></i>
-                                                        </div>
-                                                        Vehicle Pricing Details
-                                                    </h6>
-                                                </div>
-                                                <div class="card-body" style="padding: 1rem;">
-                                                    <div id="day${day}_entry_${newIndex}_pricing_content" style="font-size: 0.85rem; color: #495057;">
-                                                        <div class="text-muted" style="font-size: 0.8rem; color: #6c757d;">Select entry port options to see pricing</div>
-                                                    </div>
-                                                </div>
-                                            </div>
-                                        </div>
-                                    </div>
-                                    
-                                    <!-- Total Price Row -->
-                                    <div class="row mt-3">
-                                        <div class="col-12">
-                                            <div class="card shadow-sm border-0" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); border-radius: 8px; box-shadow: 0 4px 12px rgba(102, 126, 234, 0.3);">
-                                                <div class="card-body" style="padding: 1rem 1.25rem;">
-                                                    <div class="d-flex justify-content-between align-items-center">
-                                                        <h6 class="mb-0 fw-bold text-white d-flex align-items-center" style="color: #ffffff !important; font-size: 1rem;">
-                                                            <div style="width: 32px; height: 32px; background: rgba(255, 255, 255, 0.2); border-radius: 8px; display: flex; align-items: center; justify-content: center; margin-right: 10px;">
-                                                                <i class="ri-calculator-line" style="color: #ffffff !important; font-size: 1rem;"></i>
-                                                            </div>
-                                                            Total Price
-                                                        </h6>
-                                                        <span class="fw-bold text-white" style="font-size: 1.5rem; color: #ffffff !important;" id="day${day}_entry_${newIndex}_total_price_display">$0.00</span>
-                                                    </div>
-                                                </div>
-                                            </div>
-                                        </div>
+                                    <div style="flex: 1;">
+                                        <strong style="color: #212529; font-size: 0.95rem; display: block; margin-bottom: 0.5rem;">Price Information</strong>
+                                        <div style="color: #6c757d; font-size: 0.85rem;">Select a vehicle and service type to see pricing</div>
                                     </div>
                                 </div>
                             </div>
@@ -19001,62 +18645,12 @@ document.addEventListener('DOMContentLoaded', function() {
                         </div>
                         
                         <div class="col-12 mt-3">
-                            <div id="day${day}_exit_${newIndex}_price_display" class="card shadow-sm border-0" style="background: #ffffff; border-radius: 12px; overflow: hidden; display: none;">
-                                <div class="card-header text-white" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); border: none; padding: 1rem 1.25rem;">
-                                    <div class="d-flex align-items-center justify-content-between">
-                                        <div class="d-flex align-items-center">
-                                            <div style="width: 40px; height: 40px; background: rgba(255, 255, 255, 0.2); border-radius: 10px; display: flex; align-items: center; justify-content: center; margin-right: 12px;">
-                                                <i class="ri-ship-line text-white" style="color: #ffffff !important; font-size: 1.25rem;"></i>
-                                            </div>
-                                            <div>
-                                                <h6 class="mb-0 fw-bold text-white" style="color: #ffffff !important; font-size: 1.1rem;">Exit Port Pricing</h6>
-                                                <small class="text-white-75" style="color: rgba(255, 255, 255, 0.85) !important; font-size: 0.8rem;">Vehicle pricing details for exit port service</small>
-                                            </div>
-                                        </div>
-                                        <button type="button" class="btn btn-sm text-white" onclick="forceUpdateExitPortPricing(${day}, ${newIndex})" title="Refresh Pricing" style="background: rgba(255, 255, 255, 0.2); border: 1px solid rgba(255, 255, 255, 0.3); border-radius: 6px; padding: 0.375rem 0.75rem; transition: all 0.2s;">
-                                            <i class="ri-refresh-line"></i>
-                                        </button>
-                                    </div>
-                                </div>
-                                <div class="card-body" style="background: #ffffff; padding: 1.25rem;">
-                                    <!-- Exit Port Pricing Details -->
-                                    <div class="row g-3">
-                                        <div class="col-12">
-                                            <div class="card shadow-sm border-0" style="background: linear-gradient(135deg, #f8f9ff 0%, #e7f3ff 100%); border: 1px solid #b3d9ff !important; border-radius: 8px;">
-                                                <div class="card-header" style="background: rgba(102, 126, 234, 0.1); border: none; border-bottom: 1px solid #b3d9ff; padding: 0.75rem 1rem; border-radius: 8px 8px 0 0;">
-                                                    <h6 class="mb-0 fw-semibold d-flex align-items-center" style="color: #495057; font-size: 0.9rem;">
-                                                        <div style="width: 28px; height: 28px; background: rgba(102, 126, 234, 0.15); border-radius: 6px; display: flex; align-items: center; justify-content: center; margin-right: 8px;">
-                                                            <i class="ri-car-line" style="color: #667eea; font-size: 0.9rem;"></i>
-                                                        </div>
-                                                        Vehicle Pricing Details
-                                                    </h6>
-                                                </div>
-                                                <div class="card-body" style="padding: 1rem;">
-                                                    <div id="day${day}_exit_${newIndex}_pricing_content" style="font-size: 0.85rem; color: #495057;">
-                                                        <div class="text-muted" style="font-size: 0.8rem; color: #6c757d;">Select exit port options to see pricing</div>
-                                                    </div>
-                                                </div>
-                                            </div>
-                                        </div>
-                                    </div>
-                                    
-                                    <!-- Total Price Row -->
-                                    <div class="row mt-3">
-                                        <div class="col-12">
-                                            <div class="card shadow-sm border-0" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); border-radius: 8px; box-shadow: 0 4px 12px rgba(102, 126, 234, 0.3);">
-                                                <div class="card-body" style="padding: 1rem 1.25rem;">
-                                                    <div class="d-flex justify-content-between align-items-center">
-                                                        <h6 class="mb-0 fw-bold text-white d-flex align-items-center" style="color: #ffffff !important; font-size: 1rem;">
-                                                            <div style="width: 32px; height: 32px; background: rgba(255, 255, 255, 0.2); border-radius: 8px; display: flex; align-items: center; justify-content: center; margin-right: 10px;">
-                                                                <i class="ri-calculator-line" style="color: #ffffff !important; font-size: 1rem;"></i>
-                                                            </div>
-                                                            Total Price
-                                                        </h6>
-                                                        <span class="fw-bold text-white" style="font-size: 1.5rem; color: #ffffff !important;" id="day${day}_exit_${newIndex}_total_price_display">$0.00</span>
-                                                    </div>
-                                                </div>
-                                            </div>
-                                        </div>
+                            <div id="day${day}_exit_${newIndex}_price_display" class="alert alert-success" style="display: none;">
+                                <div class="d-flex align-items-center">
+                                    <i class="ri-money-dollar-circle-line me-2 fs-4"></i>
+                                    <div>
+                                        <strong>Price Information</strong>
+                                        <div class="small">Select a vehicle and service type to see pricing</div>
                                     </div>
                                 </div>
                             </div>
@@ -22731,69 +22325,17 @@ function loadDropoffZones(day, section) {
             const isZoneZero = dmcUser && dmcUser.zone_on == 0;
             
             let pricingHTML = `
-                <div class="card shadow-sm border-0" style="background: #ffffff; border-radius: 12px; overflow: hidden;">
-                    <div class="card-header text-white" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); border: none; padding: 1rem 1.25rem;">
-                        <div class="d-flex align-items-center justify-content-between">
-                            <div class="d-flex align-items-center">
-                                <div style="width: 40px; height: 40px; background: rgba(255, 255, 255, 0.2); border-radius: 10px; display: flex; align-items: center; justify-content: center; margin-right: 12px;">
-                                    <i class="ri-car-line text-white" style="color: #ffffff !important; font-size: 1.25rem;"></i>
-                                </div>
-                                <div>
-                                    <h6 class="mb-0 fw-bold text-white" style="color: #ffffff !important; font-size: 1.1rem;">Transport Pricing</h6>
-                                    <small class="text-white-75" style="color: rgba(255, 255, 255, 0.85) !important; font-size: 0.8rem;">Point-to-Point Service with custom pricing</small>
-                                </div>
-                            </div>
-                            <button type="button" class="btn btn-sm text-white" onclick="updatePricing(${day}, '${section}')" title="Refresh Pricing" style="background: rgba(255, 255, 255, 0.2); border: 1px solid rgba(255, 255, 255, 0.3); border-radius: 6px; padding: 0.375rem 0.75rem; transition: all 0.2s;">
-                                <i class="ri-refresh-line"></i>
-                            </button>
-                        </div>
-                    </div>
-                    <div class="card-body" style="background: #ffffff; padding: 1.25rem;">
-                        <!-- Transport Pricing Details -->
-                        <div class="row g-3">
-                            <div class="col-12">
-                                <div class="card shadow-sm border-0" style="background: linear-gradient(135deg, #f8f9ff 0%, #e7f3ff 100%); border: 1px solid #b3d9ff !important; border-radius: 8px;">
-                                    <div class="card-header" style="background: rgba(102, 126, 234, 0.1); border: none; border-bottom: 1px solid #b3d9ff; padding: 0.75rem 1rem; border-radius: 8px 8px 0 0;">
-                                        <h6 class="mb-0 fw-semibold d-flex align-items-center" style="color: #495057; font-size: 0.9rem;">
-                                            <div style="width: 28px; height: 28px; background: rgba(102, 126, 234, 0.15); border-radius: 6px; display: flex; align-items-center; justify-content: center; margin-right: 8px;">
-                                                <i class="ri-taxi-line" style="color: #667eea; font-size: 0.9rem;"></i>
-                                            </div>
-                                            Point-to-Point Service Pricing Details
-                                        </h6>
-                                    </div>
-                                    <div class="card-body" style="padding: 1rem;">
-                                        <div class="d-flex align-items-center justify-content-between mb-2" style="font-size: 0.85rem;">
-                                            <span style="color: #6c757d;">
-                                                <i class="ri-price-tag-3-line" style="color: #667eea; margin-right: 5px;"></i>
-                                                Custom Price:
-                                            </span>
-                                            <span class="fw-semibold" style="color: #495057;">$${customPrice.toFixed(2)} <small style="color: #6c757d; font-weight: normal;">(fixed price)</small></span>
-                                        </div>
-                                        <small style="color: #6c757d; font-size: 0.8rem; display: block; margin-top: 0.5rem;">
-                                            <i class="ri-information-line me-1" style="color: #667eea;"></i>Point-to-point service with custom pricing
-                                        </small>
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
-                        
-                        <!-- Total Price Row -->
-                        <div class="row mt-3">
-                            <div class="col-12">
-                                <div class="card shadow-sm border-0" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); border-radius: 8px; box-shadow: 0 4px 12px rgba(102, 126, 234, 0.3);">
-                                    <div class="card-body" style="padding: 1rem 1.25rem;">
-                                        <div class="d-flex justify-content-between align-items-center">
-                                            <h6 class="mb-0 fw-bold text-white d-flex align-items-center" style="color: #ffffff !important; font-size: 1rem;">
-                                                <div style="width: 32px; height: 32px; background: rgba(255, 255, 255, 0.2); border-radius: 8px; display: flex; align-items-center; justify-content: center; margin-right: 10px;">
-                                                    <i class="ri-calculator-line" style="color: #ffffff !important; font-size: 1rem;"></i>
-                                                </div>
-                                                Total Price
-                                            </h6>
-                                            <span class="fw-bold text-white" style="font-size: 1.5rem; color: #ffffff !important;">$${customPrice.toFixed(2)}</span>
-                                        </div>
-                                    </div>
-                                </div>
-                            </div>
+                <div class="d-flex align-items-center">
+                    <i class="ri-money-dollar-circle-line me-2 fs-4"></i>
+                    <div>
+                        <strong>Point-to-Point Service Pricing</strong>
+                        <div class="small">
+                            <strong>Custom Price:</strong> $${customPrice.toFixed(2)} (fixed price)<br>`;
+            
+            // Total Passengers line removed as requested
+            
+            pricingHTML += `<strong>Total Price:</strong> <span class="text-success fw-bold">$${customPrice.toFixed(2)}</span><br>
+                            <small class="text-info">Point-to-point service with custom pricing</small>
                         </div>
                     </div>
                 </div>
@@ -22831,41 +22373,12 @@ function loadDropoffZones(day, section) {
             // Custom price not entered yet
             priceDisplay.style.display = 'block';
             priceDisplay.innerHTML = `
-                <div class="card shadow-sm border-0" style="background: #ffffff; border-radius: 12px; overflow: hidden;">
-                    <div class="card-header text-white" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); border: none; padding: 1rem 1.25rem;">
-                        <div class="d-flex align-items-center justify-content-between">
-                            <div class="d-flex align-items-center">
-                                <div style="width: 40px; height: 40px; background: rgba(255, 255, 255, 0.2); border-radius: 10px; display: flex; align-items: center; justify-content: center; margin-right: 12px;">
-                                    <i class="ri-car-line text-white" style="color: #ffffff !important; font-size: 1.25rem;"></i>
-                                </div>
-                                <div>
-                                    <h6 class="mb-0 fw-bold text-white" style="color: #ffffff !important; font-size: 1.1rem;">Transport Pricing</h6>
-                                    <small class="text-white-75" style="color: rgba(255, 255, 255, 0.85) !important; font-size: 0.8rem;">Point-to-Point Service</small>
-                                </div>
-                            </div>
-                            <button type="button" class="btn btn-sm text-white" onclick="updatePricing(${day}, '${section}')" title="Refresh Pricing" style="background: rgba(255, 255, 255, 0.2); border: 1px solid rgba(255, 255, 255, 0.3); border-radius: 6px; padding: 0.375rem 0.75rem; transition: all 0.2s;">
-                                <i class="ri-refresh-line"></i>
-                            </button>
-                        </div>
-                    </div>
-                    <div class="card-body" style="background: #ffffff; padding: 1.25rem;">
-                        <!-- Warning Message -->
-                        <div class="row g-3">
-                            <div class="col-12">
-                                <div class="alert alert-warning mb-0" style="background: #fff3cd; border: 1px solid #ffc107; border-radius: 8px;">
-                                    <div class="d-flex align-items-start">
-                                        <div style="width: 40px; height: 40px; background: rgba(255, 193, 7, 0.2); border-radius: 8px; display: flex; align-items-center; justify-content: center; margin-right: 12px; flex-shrink: 0;">
-                                            <i class="ri-alert-line" style="color: #856404; font-size: 1.25rem;"></i>
-                                        </div>
-                                        <div style="flex: 1;">
-                                            <h6 class="mb-1 fw-semibold" style="color: #856404; font-size: 0.95rem;">Point-to-Point Service Pricing</h6>
-                                            <div style="font-size: 0.85rem; color: #856404;">
-                                                <i class="ri-information-line me-1"></i>Please enter a custom price for this point-to-point service
-                                            </div>
-                                        </div>
-                                    </div>
-                                </div>
-                            </div>
+                <div class="d-flex align-items-center">
+                    <i class="ri-money-dollar-circle-line me-2 fs-4"></i>
+                    <div>
+                        <strong>Point-to-Point Service Pricing</strong>
+                        <div class="small text-warning">
+                            Please enter a custom price for this point-to-point service
                         </div>
                     </div>
                 </div>
@@ -23032,41 +22545,49 @@ function loadDropoffZones(day, section) {
                     
                 if (isHourlyTransport) {
                     pricingDescription = `
-                        <div class="d-flex justify-content-between align-items-center mb-3">
-                            <span style="color: #6c757d;"><i class="ri-car-line" style="color: #667eea; margin-right: 5px;"></i>Vehicle Price:</span>
-                            <span class="fw-semibold" style="color: #495057;">$${displayPrice.toFixed(2)} <small style="color: #6c757d;">(base)</small></span>
+                        <div class="d-flex justify-content-between align-items-center mb-2" style="padding: 0.5rem; background: rgba(255, 255, 255, 0.6); border-radius: 6px;">
+                            <span style="color: #495057;"><strong>Vehicle Price:</strong></span>
+                            <span style="color: #667eea; font-weight: 600;">$${displayPrice.toFixed(2)} <small style="color: #6c757d; font-weight: normal;">(base)</small></span>
                         </div>
-                        <div class="d-flex justify-content-between align-items-center mb-3">
-                            <span style="color: #6c757d;"><i class="ri-time-line" style="color: #667eea; margin-right: 5px;"></i>Hourly Rate:</span>
-                            <span class="fw-semibold" style="color: #495057;">$${costPerHour.toFixed(2)} <small style="color: #6c757d;">per hour</small></span>
+                        <div class="d-flex justify-content-between align-items-center mb-2" style="padding: 0.5rem; background: rgba(255, 255, 255, 0.6); border-radius: 6px;">
+                            <span style="color: #495057;"><strong>Hourly Rate:</strong></span>
+                            <span style="color: #667eea; font-weight: 600;">$${costPerHour.toFixed(2)} <small style="color: #6c757d; font-weight: normal;">per hour</small></span>
                         </div>
-                        <div class="d-flex justify-content-between align-items-center mb-3">
-                            <span style="color: #6c757d;"><i class="ri-calendar-check-line" style="color: #667eea; margin-right: 5px;"></i>Selected Hours:</span>
-                            <span class="fw-semibold" style="color: #495057;">${selectedHours} hour${selectedHours > 1 ? 's' : ''}</span>
+                        <div class="d-flex justify-content-between align-items-center mb-2" style="padding: 0.5rem; background: rgba(255, 255, 255, 0.6); border-radius: 6px;">
+                            <span style="color: #495057;"><strong>Selected Hours:</strong></span>
+                            <span style="color: #495057;">${selectedHours} hour${selectedHours > 1 ? 's' : ''}</span>
                         </div>
-                        <div class="d-flex justify-content-between align-items-center mb-2">
-                            <span style="color: #6c757d;"><i class="ri-money-dollar-circle-line" style="color: #667eea; margin-right: 5px;"></i>Hourly Cost:</span>
-                            <span class="fw-semibold" style="color: #495057;">$${(costPerHour * selectedHours).toFixed(2)} <small style="color: #6c757d;">($${costPerHour.toFixed(2)} × ${selectedHours})</small></span>
+                        <div class="d-flex justify-content-between align-items-center mb-2" style="padding: 0.5rem; background: rgba(255, 255, 255, 0.6); border-radius: 6px;">
+                            <span style="color: #495057;"><strong>Hourly Cost:</strong></span>
+                            <span style="color: #667eea; font-weight: 600;">$${(costPerHour * selectedHours).toFixed(2)} <small style="color: #6c757d; font-weight: normal;">($${costPerHour.toFixed(2)} × ${selectedHours})</small></span>
                         </div>
-                        <small style="color: #6c757d; font-size: 0.8rem; display: block; margin-top: 1rem;">
+                        <div class="d-flex justify-content-between align-items-center mt-2 pt-2" style="border-top: 2px solid #b3d9ff; padding-top: 0.75rem;">
+                            <span style="color: #212529; font-size: 0.9rem; font-weight: 600;"><strong>Total Price:</strong></span>
+                            <span style="color: #667eea; font-size: 1.1rem; font-weight: 700;">$${totalPrice.toFixed(2)}</span>
+                        </div>
+                        <small style="color: #6c757d; font-size: 0.75rem; display: block; margin-top: 0.5rem;">
                             <i class="ri-information-line me-1" style="color: #667eea;"></i>Private vehicle price is fixed. Hourly rate applies for extended services.
                         </small>
                     `;
                 } else {
                     pricingDescription = `
-                        <div class="d-flex justify-content-between align-items-center mb-3">
-                            <span style="color: #6c757d;"><i class="ri-car-line" style="color: #667eea; margin-right: 5px;"></i>Vehicle Price:</span>
-                            <span class="fw-semibold" style="color: #495057;">$${displayPrice.toFixed(2)} <small style="color: #6c757d;">(base)</small></span>
+                        <div class="d-flex justify-content-between align-items-center mb-2" style="padding: 0.5rem; background: rgba(255, 255, 255, 0.6); border-radius: 6px;">
+                            <span style="color: #495057;"><strong>Vehicle Price:</strong></span>
+                            <span style="color: #667eea; font-weight: 600;">$${displayPrice.toFixed(2)} <small style="color: #6c757d; font-weight: normal;">(base)</small></span>
                         </div>
-                        <div class="d-flex justify-content-between align-items-center mb-3">
-                            <span style="color: #6c757d;"><i class="ri-time-line" style="color: #667eea; margin-right: 5px;"></i>Hourly Rate:</span>
-                            <span class="fw-semibold" style="color: #495057;">$${costPerHour.toFixed(2)} <small style="color: #6c757d;">per hour</small></span>
+                        <div class="d-flex justify-content-between align-items-center mb-2" style="padding: 0.5rem; background: rgba(255, 255, 255, 0.6); border-radius: 6px;">
+                            <span style="color: #495057;"><strong>Hourly Rate:</strong></span>
+                            <span style="color: #667eea; font-weight: 600;">$${costPerHour.toFixed(2)} <small style="color: #6c757d; font-weight: normal;">per hour</small></span>
                         </div>
-                        <div class="d-flex justify-content-between align-items-center mb-2">
-                            <span style="color: #6c757d;"><i class="ri-group-line" style="color: #667eea; margin-right: 5px;"></i>Total Guests:</span>
-                            <span class="fw-semibold" style="color: #495057;">${totalGuests} <small style="color: #6c757d;">(${adults} adults, ${children} children)</small></span>
+                        <div class="d-flex justify-content-between align-items-center mb-2" style="padding: 0.5rem; background: rgba(255, 255, 255, 0.6); border-radius: 6px;">
+                            <span style="color: #495057;"><strong>Total Guests:</strong></span>
+                            <span style="color: #495057;">${totalGuests} <small style="color: #6c757d;">(${adults} adults, ${children} children)</small></span>
                         </div>
-                        <small style="color: #6c757d; font-size: 0.8rem; display: block; margin-top: 1rem;">
+                        <div class="d-flex justify-content-between align-items-center mt-2 pt-2" style="border-top: 2px solid #b3d9ff; padding-top: 0.75rem;">
+                            <span style="color: #212529; font-size: 0.9rem; font-weight: 600;"><strong>Base Price:</strong></span>
+                            <span style="color: #667eea; font-size: 1.1rem; font-weight: 700;">$${totalPrice.toFixed(2)}</span>
+                        </div>
+                        <small style="color: #6c757d; font-size: 0.75rem; display: block; margin-top: 0.5rem;">
                             <i class="ri-information-line me-1" style="color: #667eea;"></i>Private vehicle price is fixed. Hourly rate applies for extended services.
                         </small>
                     `;
@@ -23077,16 +22598,20 @@ function loadDropoffZones(day, section) {
                     const children = parseInt(document.getElementById('children')?.value) || 0;
                     
             pricingDescription = `
-                <div class="d-flex justify-content-between align-items-center mb-3">
-                    <span style="color: #6c757d;"><i class="ri-car-line" style="color: #667eea; margin-right: 5px;"></i>Vehicle Price:</span>
-                    <span class="fw-semibold" style="color: #495057;">$${displayPrice.toFixed(2)} <small style="color: #6c757d;">(per vehicle)</small></span>
+                <div class="d-flex justify-content-between align-items-center mb-2" style="padding: 0.5rem; background: rgba(255, 255, 255, 0.6); border-radius: 6px;">
+                    <span style="color: #495057;"><strong>Vehicle Price:</strong></span>
+                    <span style="color: #667eea; font-weight: 600;">$${displayPrice.toFixed(2)} <small style="color: #6c757d; font-weight: normal;">(per vehicle)</small></span>
                 </div>
-                <div class="d-flex justify-content-between align-items-center mb-2">
-                    <span style="color: #6c757d;"><i class="ri-group-line" style="color: #667eea; margin-right: 5px;"></i>Total Guests:</span>
-                    <span class="fw-semibold" style="color: #495057;">${totalGuests} <small style="color: #6c757d;">(${adults} adults, ${children} children)</small></span>
+                <div class="d-flex justify-content-between align-items-center mb-2" style="padding: 0.5rem; background: rgba(255, 255, 255, 0.6); border-radius: 6px;">
+                    <span style="color: #495057;"><strong>Total Guests:</strong></span>
+                    <span style="color: #495057;">${totalGuests} <small style="color: #6c757d;">(${adults} adults, ${children} children)</small></span>
                 </div>
-                <small style="color: #6c757d; font-size: 0.8rem; display: block; margin-top: 1rem;">
-                    <i class="ri-information-line me-1" style="color: #667eea;"></i>Private vehicle price is fixed regardless of guest count
+                <div class="d-flex justify-content-between align-items-center mt-2 pt-2" style="border-top: 2px solid ${isPrivate ? '#b3d9ff' : '#7dd3c0'}; padding-top: 0.75rem;">
+                    <span style="color: #212529; font-size: 0.9rem; font-weight: 600;"><strong>Total Price:</strong></span>
+                    <span style="color: ${isPrivate ? '#667eea' : '#28a745'}; font-size: 1.1rem; font-weight: 700;">$${totalPrice.toFixed(2)}</span>
+                </div>
+                <small style="color: #6c757d; font-size: 0.75rem; display: block; margin-top: 0.5rem;">
+                    <i class="ri-information-line me-1" style="color: ${isPrivate ? '#667eea' : '#28a745'};"></i>Private vehicle price is fixed regardless of guest count
                 </small>
             `;
             }
@@ -23101,21 +22626,11 @@ function loadDropoffZones(day, section) {
                     const children = parseInt(document.getElementById('children')?.value) || 0;
                     
                 pricingDescription = `
-                    <div class="d-flex justify-content-between align-items-center mb-3">
-                        <span style="color: #6c757d;"><i class="ri-price-tag-3-line" style="color: #28a745; margin-right: 5px;"></i>Base Price:</span>
-                        <span class="fw-semibold" style="color: #495057;">$${displayPrice.toFixed(2)} <small style="color: #6c757d;">per person</small></span>
-                    </div>
-                    <div class="d-flex justify-content-between align-items-center mb-3">
-                        <span style="color: #6c757d;"><i class="ri-time-line" style="color: #28a745; margin-right: 5px;"></i>Hourly Rate:</span>
-                        <span class="fw-semibold" style="color: #495057;">$${sharableCostPerHour.toFixed(2)} <small style="color: #6c757d;">per person per hour</small></span>
-                    </div>
-                    <div class="d-flex justify-content-between align-items-center mb-2">
-                        <span style="color: #6c757d;"><i class="ri-group-line" style="color: #28a745; margin-right: 5px;"></i>Total Guests:</span>
-                        <span class="fw-semibold" style="color: #495057;">${totalGuests} <small style="color: #6c757d;">(${adults} adults, ${children} children)</small></span>
-                    </div>
-                    <small style="color: #6c757d; font-size: 0.8rem; display: block; margin-top: 1rem;">
-                        <i class="ri-information-line me-1" style="color: #28a745;"></i>Shared service pricing per person. Hourly rate applies for extended services.
-                    </small>
+                    <strong>Base Price:</strong> $${displayPrice.toFixed(2)} per person<br>
+                    <strong>Hourly Rate:</strong> $${sharableCostPerHour.toFixed(2)} per person per hour<br>
+                    <strong>Total Guests:</strong> ${totalGuests} (${adults} adults, ${children} children)<br>
+                    <strong>Base Total:</strong> <span class="text-success fw-bold">$${totalPrice.toFixed(2)}</span><br>
+                    <small class="text-info">Shared service pricing per person. Hourly rate applies for extended services.</small>
                 `;
             } else {
                     // Get adults and children values for display
@@ -23123,14 +22638,9 @@ function loadDropoffZones(day, section) {
                     const children = parseInt(document.getElementById('children')?.value) || 0;
                     
             pricingDescription = `
-                <div class="d-flex justify-content-between align-items-center mb-3">
-                    <span style="color: #6c757d;"><i class="ri-price-tag-3-line" style="color: #28a745; margin-right: 5px;"></i>Base Price:</span>
-                    <span class="fw-semibold" style="color: #495057;">$${displayPrice.toFixed(2)} <small style="color: #6c757d;">per person</small></span>
-                </div>
-                <div class="d-flex justify-content-between align-items-center mb-2">
-                    <span style="color: #6c757d;"><i class="ri-group-line" style="color: #28a745; margin-right: 5px;"></i>Total Guests:</span>
-                    <span class="fw-semibold" style="color: #495057;">${totalGuests} <small style="color: #6c757d;">(${adults} adults, ${children} children)</small></span>
-                </div>
+                <strong>Base Price:</strong> $${displayPrice.toFixed(2)} per person<br>
+                <strong>Total Guests:</strong> ${totalGuests} (${adults} adults, ${children} children)<br>
+                <strong>Total Price:</strong> <span class="text-success fw-bold">$${totalPrice.toFixed(2)}</span>
             `;
         }
         }
@@ -23146,61 +22656,15 @@ function loadDropoffZones(day, section) {
         console.log('Is Private:', isPrivate);
         
         priceDisplay.innerHTML = `
-            <div class="card shadow-sm border-0" style="background: #ffffff; border-radius: 12px; overflow: hidden;">
-                <div class="card-header text-white" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); border: none; padding: 1rem 1.25rem;">
-                    <div class="d-flex align-items-center justify-content-between">
-                        <div class="d-flex align-items-center">
-                            <div style="width: 40px; height: 40px; background: rgba(255, 255, 255, 0.2); border-radius: 10px; display: flex; align-items: center; justify-content: center; margin-right: 12px;">
-                                <i class="ri-car-line text-white" style="color: #ffffff !important; font-size: 1.25rem;"></i>
-                            </div>
-                            <div>
-                                <h6 class="mb-0 fw-bold text-white" style="color: #ffffff !important; font-size: 1.1rem;">Transport Pricing</h6>
-                                <small class="text-white-75" style="color: rgba(255, 255, 255, 0.85) !important; font-size: 0.8rem;">${priceType} Service</small>
-                            </div>
-                        </div>
-                        <button type="button" class="btn btn-sm text-white" onclick="updatePricing(${day}, '${section}')" title="Refresh Pricing" style="background: rgba(255, 255, 255, 0.2); border: 1px solid rgba(255, 255, 255, 0.3); border-radius: 6px; padding: 0.375rem 0.75rem; transition: all 0.2s;">
-                            <i class="ri-refresh-line"></i>
-                        </button>
+            <div class="p-3 rounded" style="background: ${isPrivate ? 'linear-gradient(135deg, #f8f9ff 0%, #e7f3ff 100%)' : '#d1f2eb'}; border: 1px solid ${isPrivate ? '#b3d9ff' : '#7dd3c0'}; border-radius: 8px;">
+                <div class="d-flex align-items-start">
+                    <div style="width: 40px; height: 40px; background: ${isPrivate ? 'rgba(102, 126, 234, 0.15)' : 'rgba(40, 167, 69, 0.15)'}; border-radius: 8px; display: flex; align-items: center; justify-content: center; margin-right: 12px; flex-shrink: 0;">
+                        <i class="ri-money-dollar-circle-line" style="color: ${isPrivate ? '#667eea' : '#28a745'}; font-size: 1.25rem;"></i>
                     </div>
-                </div>
-                <div class="card-body" style="background: #ffffff; padding: 1.25rem;">
-                    <!-- Transport Pricing Details -->
-                    <div class="row g-3">
-                        <div class="col-12">
-                            <div class="card shadow-sm border-0" style="background: linear-gradient(135deg, #f8f9ff 0%, #e7f3ff 100%); border: 1px solid #b3d9ff !important; border-radius: 8px;">
-                                <div class="card-header" style="background: rgba(102, 126, 234, 0.1); border: none; border-bottom: 1px solid #b3d9ff; padding: 0.75rem 1rem; border-radius: 8px 8px 0 0;">
-                                    <h6 class="mb-0 fw-semibold d-flex align-items-center" style="color: #495057; font-size: 0.9rem;">
-                                        <div style="width: 28px; height: 28px; background: ${isPrivate ? 'rgba(102, 126, 234, 0.15)' : 'rgba(40, 167, 69, 0.15)'}; border-radius: 6px; display: flex; align-items: center; justify-content: center; margin-right: 8px;">
-                                            <i class="ri-taxi-line" style="color: ${isPrivate ? '#667eea' : '#28a745'}; font-size: 0.9rem;"></i>
-                                        </div>
-                                        ${priceType} Service Pricing Details
-                                    </h6>
-                                </div>
-                                <div class="card-body" style="padding: 1rem;">
-                                    <div style="font-size: 0.85rem; color: #495057;">
-                                        ${pricingDescription}
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-                    
-                    <!-- Total Price Row -->
-                    <div class="row mt-3">
-                        <div class="col-12">
-                            <div class="card shadow-sm border-0" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); border-radius: 8px; box-shadow: 0 4px 12px rgba(102, 126, 234, 0.3);">
-                                <div class="card-body" style="padding: 1rem 1.25rem;">
-                                    <div class="d-flex justify-content-between align-items-center">
-                                        <h6 class="mb-0 fw-bold text-white d-flex align-items-center" style="color: #ffffff !important; font-size: 1rem;">
-                                            <div style="width: 32px; height: 32px; background: rgba(255, 255, 255, 0.2); border-radius: 8px; display: flex; align-items-center; justify-content: center; margin-right: 10px;">
-                                                <i class="ri-calculator-line" style="color: #ffffff !important; font-size: 1rem;"></i>
-                                            </div>
-                                            Total Price
-                                        </h6>
-                                        <span class="fw-bold text-white" style="font-size: 1.5rem; color: #ffffff !important;">$${totalPrice.toFixed(2)}</span>
-                                    </div>
-                                </div>
-                            </div>
+                    <div style="flex: 1;">
+                        <strong style="color: #212529; font-size: 0.95rem; display: block; margin-bottom: 0.5rem;">${priceType} Service Pricing</strong>
+                        <div style="font-size: 0.85rem; color: #495057; line-height: 1.6;">
+                            ${pricingDescription}
                         </div>
                     </div>
                 </div>
@@ -23317,56 +22781,15 @@ window.updateCustomPricing = function(day, section) {
         // Update price display with custom price
         priceDisplay.style.display = 'block';
         priceDisplay.innerHTML = `
-            <div class="card-body" style="background: #ffffff; padding: 1.25rem;">
-                <!-- Transport Pricing Details -->
-                <div class="row g-3">
-                    <div class="col-12">
-                        <div class="card shadow-sm border-0" style="background: linear-gradient(135deg, #f8f9ff 0%, #e7f3ff 100%); border: 1px solid #b3d9ff !important; border-radius: 8px;">
-                            <div class="card-header" style="background: rgba(102, 126, 234, 0.1); border: none; border-bottom: 1px solid #b3d9ff; padding: 0.75rem 1rem; border-radius: 8px 8px 0 0;">
-                                <h6 class="mb-0 fw-semibold d-flex align-items-center" style="color: #495057; font-size: 0.9rem;">
-                                    <div style="width: 28px; height: 28px; background: rgba(102, 126, 234, 0.15); border-radius: 6px; display: flex; align-items-center; justify-content: center; margin-right: 8px;">
-                                        <i class="ri-taxi-line" style="color: #667eea; font-size: 0.9rem;"></i>
-                                    </div>
-                                    Point-to-Point Custom Pricing
-                                </h6>
-                            </div>
-                            <div class="card-body" style="padding: 1rem;">
-                                <div class="d-flex justify-content-between align-items-center mb-3">
-                                    <span style="color: #6c757d;"><i class="ri-price-tag-3-line" style="color: #667eea; margin-right: 5px;"></i>Custom Price:</span>
-                                    <span class="fw-semibold" style="color: #495057;">SGD ${customPrice.toFixed(2)}</span>
-                                </div>
-                                <div class="d-flex justify-content-between align-items-center mb-3">
-                                    <span style="color: #6c757d;"><i class="ri-map-pin-line" style="color: #667eea; margin-right: 5px;"></i>Service Type:</span>
-                                    <span class="fw-semibold" style="color: #495057;">Point-to-Point</span>
-                                </div>
-                                <div class="d-flex justify-content-between align-items-center mb-2">
-                                    <span style="color: #6c757d;"><i class="ri-group-line" style="color: #667eea; margin-right: 5px;"></i>Total Guests:</span>
-                                    <span class="fw-semibold" style="color: #495057;">${totalGuests} <small style="color: #6c757d;">(${adults} adults, ${children} children)</small></span>
-                                </div>
-                                <small style="color: #6c757d; font-size: 0.8rem; display: block; margin-top: 1rem;">
-                                    <i class="ri-information-line me-1" style="color: #667eea;"></i>Fixed price for point-to-point service regardless of guest count.
-                                </small>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-                
-                <!-- Total Price Row -->
-                <div class="row mt-3">
-                    <div class="col-12">
-                        <div class="card shadow-sm border-0" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); border-radius: 8px; box-shadow: 0 4px 12px rgba(102, 126, 234, 0.3);">
-                            <div class="card-body" style="padding: 1rem 1.25rem;">
-                                <div class="d-flex justify-content-between align-items-center">
-                                    <h6 class="mb-0 fw-bold text-white d-flex align-items-center" style="color: #ffffff !important; font-size: 1rem;">
-                                        <div style="width: 32px; height: 32px; background: rgba(255, 255, 255, 0.2); border-radius: 8px; display: flex; align-items: center; justify-content: center; margin-right: 10px;">
-                                            <i class="ri-calculator-line" style="color: #ffffff !important; font-size: 1rem;"></i>
-                                        </div>
-                                        Total Price
-                                    </h6>
-                                    <span class="fw-bold text-white" style="font-size: 1.5rem; color: #ffffff !important;">SGD ${customPrice.toFixed(2)}</span>
-                                </div>
-                            </div>
-                        </div>
+            <div class="d-flex align-items-center">
+                <i class="ri-money-dollar-circle-line me-2 fs-4"></i>
+                <div>
+                    <strong>Point-to-Point Custom Pricing</strong>
+                    <div class="small">
+                        <strong>Custom Price:</strong> <span class="text-success fw-bold">SGD ${customPrice.toFixed(2)}</span><br>
+                        <strong>Service Type:</strong> Point-to-Point<br>
+                        <strong>Total Guests:</strong> ${totalGuests} (${adults} adults, ${children} children)<br>
+                        <small class="text-info">Fixed price for point-to-point service regardless of guest count.</small>
                     </div>
                 </div>
             </div>
@@ -24436,7 +23859,7 @@ window.saveService = function(day, type) {
                         }
                         console.log(`No vehicles found matching criteria for ${transportType} (sharable=1 or sharable=3)`);
                         alert(`No vehicles available for ${transportType} service. Please try a different city or contact support.`);
-                        searchBtn.innerHTML = '<i class="ri-search-line me-2"></i>Search';
+                        searchBtn.innerHTML = '<i class="ri-search-line me-2"></i>Search Vehicles';
                         searchBtn.disabled = false;
                         return;
                     }
@@ -24538,20 +23961,20 @@ window.saveService = function(day, type) {
                     }, 100);
 
                      // Reset search button
-                     searchBtn.innerHTML = '<i class="ri-search-line me-2"></i>Search';
+                     searchBtn.innerHTML = '<i class="ri-search-line me-2"></i>Search Vehicles';
                      searchBtn.disabled = false;
                      
                      console.log(`Populated ${filteredVehicles.length} vehicles in dropdown (city-based) for ${transportType}`);
                  } else {
                      alert('No vehicles available for this city. Please try a different city.');
-                     searchBtn.innerHTML = '<i class="ri-search-line me-2"></i>Search';
+                     searchBtn.innerHTML = '<i class="ri-search-line me-2"></i>Search Vehicles';
                      searchBtn.disabled = false;
                  }
              })
              .catch(error => {
                  console.error('Error searching vehicles (city-based):', error);
                  alert('Error searching vehicles. Please try again.');
-                 searchBtn.innerHTML = '<i class="ri-search-line me-2"></i>Search';
+                 searchBtn.innerHTML = '<i class="ri-search-line me-2"></i>Search Vehicles';
                  searchBtn.disabled = false;
              });
      } else {
@@ -24724,7 +24147,7 @@ window.saveService = function(day, type) {
                  }, 100);
 
                  // Reset search button
-                 searchBtn.innerHTML = '<i class="ri-search-line me-2"></i>Search';
+                 searchBtn.innerHTML = '<i class="ri-search-line me-2"></i>Search Vehicles';
                  searchBtn.disabled = false;
                  
                     console.log(`Populated ${uniqueVehicles.length} unique vehicles in dropdown (zone-based)`);
@@ -24746,14 +24169,14 @@ window.saveService = function(day, type) {
                     }
              } else {
                  alert('No vehicles available for this route. Please try different zones.');
-                 searchBtn.innerHTML = '<i class="ri-search-line me-2"></i>Search';
+                 searchBtn.innerHTML = '<i class="ri-search-line me-2"></i>Search Vehicles';
                  searchBtn.disabled = false;
              }
          })
          .catch(error => {
                  console.error('Error searching vehicles (zone-based):', error);
              alert('Error searching vehicles. Please try again.');
-             searchBtn.innerHTML = '<i class="ri-search-line me-2"></i>Search';
+             searchBtn.innerHTML = '<i class="ri-search-line me-2"></i>Search Vehicles';
              searchBtn.disabled = false;
          });
  }
@@ -26681,20 +26104,20 @@ window.saveService = function(day, type) {
                                 }
 
                                 // Reset search button
-                                searchBtn.innerHTML = '<i class="ri-search-line me-2"></i>Search';
+                                searchBtn.innerHTML = '<i class="ri-search-line me-2"></i>Search Vehicles';
                                 searchBtn.disabled = false;
                                 
                                 console.log(`Populated ${data.vehicles.length} vehicles in dropdown (Point-to-Point ${section} port)`);
                             } else {
                                 alert('No vehicles available for this city. Please try a different city.');
-                                searchBtn.innerHTML = '<i class="ri-search-line me-2"></i>Search';
+                                searchBtn.innerHTML = '<i class="ri-search-line me-2"></i>Search Vehicles';
                                 searchBtn.disabled = false;
                             }
                         })
                         .catch(error => {
                             console.error('Error searching Point-to-Point vehicles:', error);
                             alert('Error searching vehicles. Please try again.');
-                            searchBtn.innerHTML = '<i class="ri-search-line me-2"></i>Search';
+                            searchBtn.innerHTML = '<i class="ri-search-line me-2"></i>Search Vehicles';
                             searchBtn.disabled = false;
                         });
                 };
@@ -27033,7 +26456,7 @@ function handleTransportServiceTypeChange(day, serviceType, index = 0) {
             pickupTimeSelect.value = '';
         }
         if (searchButton) {
-            searchButton.innerHTML = '<i class="ri-search-line me-2"></i>Search';
+            searchButton.innerHTML = '<i class="ri-search-line me-2"></i>Search Vehicles';
         }
     }
     
@@ -27352,7 +26775,7 @@ function searchLocalTransferVehicles(day, section) {
             
             // Reset search button
             if (searchBtn) {
-                searchBtn.innerHTML = '<i class="ri-search-line me-2"></i>Search';
+                searchBtn.innerHTML = '<i class="ri-search-line me-2"></i>Search Vehicles';
                 searchBtn.disabled = false;
             }
         })
@@ -27361,7 +26784,7 @@ function searchLocalTransferVehicles(day, section) {
             showNotification('Error searching vehicles. Please try again.', 'error');
             
             if (searchBtn) {
-                searchBtn.innerHTML = '<i class="ri-search-line me-2"></i>Search';
+                searchBtn.innerHTML = '<i class="ri-search-line me-2"></i>Search Vehicles';
                 searchBtn.disabled = false;
             }
         });

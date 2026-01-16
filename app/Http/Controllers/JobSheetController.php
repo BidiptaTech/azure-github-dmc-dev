@@ -150,6 +150,7 @@ class JobSheetController extends Controller
             $drivers = [];
             $vehicles = [];
             $tomorrow = Carbon::tomorrow()->toDateString(); // e.g., '2025-06-12'
+            
             if (in_array($user->role_id, [11, 34, 66, 108, 124, 128, 131, 132, 134, 135, 137, 138])) {
                 
                 if($user->role_id == 11 || $user->role_id == 20){
@@ -167,7 +168,7 @@ class JobSheetController extends Controller
                     $operation_head = $operation_manager ? User::where('userId', $operation_manager->created_by)->first() : null;
                     $dmcId = $operation_head ? $operation_head->created_by : null;
                 }
-
+                
                 $drivers = Driver::where('dmc_id', $dmcId)->get();
                 $vehicles = Vehicle::where('dmc_id', $dmcId)->get();
                 if(!is_null($dmcId)){
@@ -428,7 +429,6 @@ class JobSheetController extends Controller
             return redirect()->back()->with('error', 'Error loading driver jobsheet form: ' . $e->getMessage());
         }
     }
-
 
     /**
      * Get DMCs by Master DMC ID
@@ -1421,6 +1421,7 @@ class JobSheetController extends Controller
      */
     public function updateDriverVehicleAssignment(Request $request)
     {
+        
         try {
             // Log all incoming request data for debugging
             \Log::info('updateDriverVehicleAssignment called', [
@@ -1464,7 +1465,6 @@ class JobSheetController extends Controller
                     'message' => 'Order not found'
                 ], 404);
             }
-            
             // Extract entry_time from order data if not provided in request
             $entryTimeFromRequest = $request->entry_time;
             if (empty($entryTimeFromRequest)) {
@@ -1478,6 +1478,7 @@ class JobSheetController extends Controller
                     'dataItem' => $dataItem
                 ]);
             }
+            
 
             // Convert entry_time to proper time format (HH:MM:SS)
             $entryTime = $entryTimeFromRequest;
@@ -1548,8 +1549,8 @@ class JobSheetController extends Controller
                     'driver_id' => $request->driver_id,
                     'vehicle_id' => $request->vehicle_id
                 ]);
-                
                 if ($request->has('driver_id') && !empty($request->driver_id)) {
+                    
                     $existingJobsheet->driver_id = $request->driver_id;
                     $vehicle = Vehicle::where('driver_id', $request->driver_id)
                         ->where('dmc_id', $request->dmc_id)
@@ -1584,6 +1585,7 @@ class JobSheetController extends Controller
                     ], 500);
                 }
             } else {
+                
                 // Create new record
                 $jobsheet = new Jobsheet();
                 $jobsheet->jobsheet_id = $jobsheetId;
@@ -1605,6 +1607,8 @@ class JobSheetController extends Controller
                         ->where('dmc_id', $request->dmc_id)
                         ->orderBy('created_at', 'desc')
                         ->first();
+                    $jobsheet->vehicle_id = $order->data[0]['vehicles_id'];
+                    
                 }
                 if ($request->has('vehicle_id') && !empty($request->vehicle_id)) {
                     $jobsheet->vehicle_id = $request->vehicle_id;
@@ -2411,6 +2415,7 @@ class JobSheetController extends Controller
                             ->where('journey_time', $dataItem['entrytime'] ?? null)
                             ->where('order_id', $order->booking_id)
                             ->first();
+                            
                         // Priority: Jobsheet assignment > Vehicle from order data
                         if ($jobsheet) {
                             $order->assigned_driver_id = $jobsheet->driver_id;

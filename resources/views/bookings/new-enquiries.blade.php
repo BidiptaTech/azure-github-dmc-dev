@@ -347,6 +347,11 @@
                                     @if($tour->multi_enq_id)
                                         <small class="text-info">Multi: {{ $tour->multi_enq_id }}</small>
                                     @endif
+                                    @if($tour->tour_type)
+                                        <small class="text-white" style="display: inline-block; padding: 2px 8px; background: #3b82f6; border-radius: 4px; font-weight: 500;">
+                                            {{ $tour->tour_type }}
+                                        </small>
+                                    @endif
                                 </div>
                             </td>
                             <td>
@@ -639,12 +644,22 @@
                             </td> --}}
                             <td>
                                 <div class="d-flex gap-2 justify-content-center">
+                                    @if($tour->is_pro == 0)
                                     <a href="{{ route('single-tour-package.edit', Crypt::encrypt($tour->tour_id)) }}"
                                        class="btn btn-outline-success btn-sm rounded-circle d-flex align-items-center justify-content-center"
                                        style="width: 32px; height: 32px;"
                                        title="Edit Tour">
                                         <i class="ri-pencil-line"></i>
                                     </a>
+                                    @else
+                                    <a href="{{ route('enquiry-form-pro.edit', Crypt::encrypt($tour->tour_id)) }}"
+                                       class="btn btn-outline-success btn-sm rounded-circle d-flex align-items-center justify-content-center"
+                                       style="width: 32px; height: 32px;"
+                                       title="Edit Tour">
+                                        <i class="ri-pencil-line"></i>
+                                    </a>
+                                    @endif
+                                    
                                     <a href="{{ route('bookings.view-tour', Crypt::encrypt($tour->tour_id)) }}" 
                                        class="btn btn-outline-primary btn-sm rounded-circle d-flex align-items-center justify-content-center" 
                                        style="width: 32px; height: 32px;"

@@ -1330,6 +1330,12 @@
             $allHotels = $hotelOptions;
             $firstHotel = $allHotels[0] ?? null;
             $additionalHotels = array_slice($allHotels, 1); // Hotels after the first one
+            
+            // Get baby_cot price from tourPrices to use as infant price
+            $infantPrice = 0;
+            if (isset($tourPrices['segregated']['hotel']['baby_cot']) && is_numeric($tourPrices['segregated']['hotel']['baby_cot'])) {
+                $infantPrice = floatval($tourPrices['segregated']['hotel']['baby_cot']);
+            }
         @endphp
         <div class="hotel-options-section" style="width: 100%; text-align: center;">
             <table class="hotel-option-table" style="width: 90%; border-collapse: collapse; border: 2px solid #000000; font-size: 11px; margin: 0 auto 20px auto; padding: 0;">
@@ -1388,8 +1394,8 @@
                                         <td class="hotel-option-value" style="background: #ffffff; padding: 6px 8px; border: 1px solid #000000; text-align: center; color: #000000; width: 20%; vertical-align: middle;">{{ is_numeric($roomCategory['single_price']) ? number_format($roomCategory['single_price'], 2) : '100.00' }}</td>
                                         <td class="hotel-option-value" style="background: #ffffff; padding: 6px 8px; border: 1px solid #000000; text-align: center; color: #000000; width: 20%; vertical-align: middle;">{{ is_numeric($roomCategory['double_price']) ? number_format($roomCategory['double_price'], 2) : '150.00' }}</td>
                                         <td class="hotel-option-value" style="background: #ffffff; padding: 6px 8px; border: 1px solid #000000; text-align: center; color: #000000; width: 20%; vertical-align: middle;">{{ (is_numeric($roomCategory['triple_price']) && floatval($roomCategory['triple_price']) > 0) ? number_format($roomCategory['triple_price'], 2) : 'N/A' }}</td>
-                                        <td class="hotel-option-value" style="background: #ffffff; padding: 6px 8px; border: 1px solid #000000; text-align: center; color: #000000; width: 20%; vertical-align: middle;">{{ (isset($roomCategory['child_price']) && is_numeric($roomCategory['child_price'])) ? number_format($roomCategory['child_price'], 2) : '10.00' }}</td>
-                                        <td class="hotel-option-value" style="background: #ffffff; padding: 6px 8px; border: 1px solid #000000; text-align: center; color: #000000; width: 20%; vertical-align: middle;">{{ (isset($roomCategory['infant_price']) && is_numeric($roomCategory['infant_price'])) ? number_format($roomCategory['infant_price'], 2) : '5.00' }}</td>
+                                        <td class="hotel-option-value" style="background: #ffffff; padding: 6px 8px; border: 1px solid #000000; text-align: center; color: #000000; width: 20%; vertical-align: middle;">{{ (isset($roomCategory['child_price']) && is_numeric($roomCategory['child_price'])) ? number_format($roomCategory['child_price'], 2) : '0.00' }}</td>
+                                        <td class="hotel-option-value" style="background: #ffffff; padding: 6px 8px; border: 1px solid #000000; text-align: center; color: #000000; width: 20%; vertical-align: middle;">{{ number_format($infantPrice, 2) }}</td>
                                     </tr>
                                 </table>
                             </td>
@@ -1403,7 +1409,7 @@
                     $optionFirstTotalDouble = floatval($firstHotel['first_total']['double'] ?? 0);
                     $optionFirstTotalTriple = floatval($firstHotel['first_total']['triple'] ?? 0);
                     $optionFirstTotalChild = floatval($firstHotel['first_total']['child'] ?? 0);
-                    $optionFirstTotalInfant = floatval($firstHotel['first_total']['infant'] ?? 0);
+                    $optionFirstTotalInfant = $infantPrice; // Use baby_cot price from tourPrices
                 @endphp
                 <tr>
                     <td class="hotel-total-row" style="background-color: #6c7a89; color: #ffffff; font-weight: bold; text-align: center; padding: 8px; border: 1px solid #5a6c7d;">Total :</td>
@@ -1440,8 +1446,8 @@
                     $optionSupplementalSingle = floatval($firstHotel['supplemental_cost']['single'] ?? 0);
                     $optionSupplementalDouble = floatval($firstHotel['supplemental_cost']['double'] ?? 0);
                     $optionSupplementalTriple = floatval($firstHotel['supplemental_cost']['triple'] ?? 0);
-                    $optionSupplementalChild = floatval($firstHotel['supplemental_cost']['child'] ?? 10);
-                    $optionSupplementalInfant = floatval($firstHotel['supplemental_cost']['infant'] ?? 5);
+                    $optionSupplementalChild = floatval($firstHotel['supplemental_cost']['child'] ?? 0);
+                    $optionSupplementalInfant = $infantPrice; // Use baby_cot price from tourPrices
                 @endphp
                 @if(count($additionalHotels) > 0)
                     @foreach($additionalHotels as $hotel)
@@ -1463,8 +1469,8 @@
                                             <td class="hotel-option-value" style="background: #ffffff; padding: 6px 8px; border: 1px solid #000000; text-align: center; color: #000000; width: 20%; vertical-align: middle;">{{ is_numeric($roomCategory['single_price']) ? number_format($roomCategory['single_price'], 2) : '0.00' }}</td>
                                             <td class="hotel-option-value" style="background: #ffffff; padding: 6px 8px; border: 1px solid #000000; text-align: center; color: #000000; width: 20%; vertical-align: middle;">{{ is_numeric($roomCategory['double_price']) ? number_format($roomCategory['double_price'], 2) : '0.00' }}</td>
                                             <td class="hotel-option-value" style="background: #ffffff; padding: 6px 8px; border: 1px solid #000000; text-align: center; color: #000000; width: 20%; vertical-align: middle;">{{ (is_numeric($roomCategory['triple_price']) && floatval($roomCategory['triple_price']) > 0) ? number_format($roomCategory['triple_price'], 2) : 'N/A' }}</td>
-                                            <td class="hotel-option-value" style="background: #ffffff; padding: 6px 8px; border: 1px solid #000000; text-align: center; color: #000000; width: 20%; vertical-align: middle;">{{ (isset($roomCategory['child_price']) && is_numeric($roomCategory['child_price'])) ? number_format($roomCategory['child_price'], 2) : '10.00' }}</td>
-                                            <td class="hotel-option-value" style="background: #ffffff; padding: 6px 8px; border: 1px solid #000000; text-align: center; color: #000000; width: 20%; vertical-align: middle;">{{ (isset($roomCategory['infant_price']) && is_numeric($roomCategory['infant_price'])) ? number_format($roomCategory['infant_price'], 2) : '5.00' }}</td>
+                                            <td class="hotel-option-value" style="background: #ffffff; padding: 6px 8px; border: 1px solid #000000; text-align: center; color: #000000; width: 20%; vertical-align: middle;">{{ (isset($roomCategory['child_price']) && is_numeric($roomCategory['child_price'])) ? number_format($roomCategory['child_price'], 2) : '0.00' }}</td>
+                                            <td class="hotel-option-value" style="background: #ffffff; padding: 6px 8px; border: 1px solid #000000; text-align: center; color: #000000; width: 20%; vertical-align: middle;">{{ number_format($infantPrice, 2) }}</td>
                                         </tr>
                                     </table>
                                 </td>
@@ -1604,7 +1610,7 @@
                         <thead>
                             <tr style="page-break-inside: avoid;">
                                 <th colspan="6" style="background-color: #a0aec0; color: #2c3e50; font-weight: bold; padding: 6px; border: 1px solid #90a0b0; text-align: center; font-size: 12px;">
-                                    Port of Arrival Transfer :
+                                    Port of Arrival Transfer
                                 </th>
                             </tr>
                             <tr style="page-break-inside: avoid;">
@@ -2007,6 +2013,26 @@
                                         </div>
                                                     @endforeach
                                             @endif
+
+    <!-- Exclusions Section -->
+    <div style="margin-top: 30px; page-break-inside: avoid;">
+        <table style="width: 100%; border-collapse: collapse; border: 2px solid #000000;">
+            <thead>
+                <tr>
+                    <th colspan="2" style="background-color: #ffb6c1; color: #000000; font-weight: bold; padding: 10px; border: 2px solid #000000; text-align: left; font-size: 14px;">
+                        Exclusions :
+                    </th>
+                </tr>
+            </thead>
+            <tbody>
+                <tr>
+                    <td colspan="2" style="background-color: #ffffff; padding: 20px; border: 2px solid #000000; min-height: 100px; vertical-align: top;">
+                        {{ $exclusions ?? '' }}
+                    </td>
+                </tr>
+            </tbody>
+        </table>
+    </div>
 
     <!-- Terms & Conditions Section -->
     <div style="margin-top: 30px; page-break-inside: avoid;">

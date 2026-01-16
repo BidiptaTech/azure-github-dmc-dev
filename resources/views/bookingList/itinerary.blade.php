@@ -4147,6 +4147,7 @@
                                 // Set vehicle and driver data to serviceInfo - always set these properties
                                 // This ensures they're available in JavaScript even if data is missing
                                 $serviceInfo['vehicleNumber'] = ($vehicleDriverData && is_array($vehicleDriverData) && isset($vehicleDriverData['vehicleNumber'])) ? $vehicleDriverData['vehicleNumber'] : 'N/A';
+                                $serviceInfo['vehicleName'] = ($vehicleDriverData && is_array($vehicleDriverData) && isset($vehicleDriverData['vehicleName'])) ? $vehicleDriverData['vehicleName'] : 'N/A';
                                 $serviceInfo['maxPassengerCapacity'] = ($vehicleDriverData && is_array($vehicleDriverData) && isset($vehicleDriverData['maxPassengerCapacity'])) ? $vehicleDriverData['maxPassengerCapacity'] : 'N/A';
                                 $serviceInfo['driverName'] = ($vehicleDriverData && is_array($vehicleDriverData) && isset($vehicleDriverData['driverName'])) ? $vehicleDriverData['driverName'] : 'N/A';
                                 $serviceInfo['driverPhone'] = ($vehicleDriverData && is_array($vehicleDriverData) && isset($vehicleDriverData['driverPhone'])) ? $vehicleDriverData['driverPhone'] : 'N/A';
@@ -4165,6 +4166,7 @@
                                 // Set vehicle and driver data to serviceInfo
                                 if ($vehicleDriverData && is_array($vehicleDriverData) && !empty($vehicleDriverData)) {
                                     $serviceInfo['vehicleNumber'] = $vehicleDriverData['vehicleNumber'] ?? 'N/A';
+                                    $serviceInfo['vehicleName'] = $vehicleDriverData['vehicleName'] ?? 'N/A';
                                     $serviceInfo['maxPassengerCapacity'] = $vehicleDriverData['maxPassengerCapacity'] ?? 'N/A';
                                     $serviceInfo['driverName'] = $vehicleDriverData['driverName'] ?? 'N/A';
                                     $serviceInfo['driverPhone'] = $vehicleDriverData['driverPhone'] ?? 'N/A';
@@ -4218,6 +4220,7 @@
                                 // Set vehicle and driver data to serviceInfo - always set these properties
                                 // This ensures they're available in JavaScript even if data is missing
                                 $serviceInfo['vehicleNumber'] = ($vehicleDriverData && is_array($vehicleDriverData) && isset($vehicleDriverData['vehicleNumber'])) ? $vehicleDriverData['vehicleNumber'] : 'N/A';
+                                $serviceInfo['vehicleName'] = ($vehicleDriverData && is_array($vehicleDriverData) && isset($vehicleDriverData['vehicleName'])) ? $vehicleDriverData['vehicleName'] : 'N/A';
                                 $serviceInfo['maxPassengerCapacity'] = ($vehicleDriverData && is_array($vehicleDriverData) && isset($vehicleDriverData['maxPassengerCapacity'])) ? $vehicleDriverData['maxPassengerCapacity'] : 'N/A';
                                 $serviceInfo['driverName'] = ($vehicleDriverData && is_array($vehicleDriverData) && isset($vehicleDriverData['driverName'])) ? $vehicleDriverData['driverName'] : 'N/A';
                                 $serviceInfo['driverPhone'] = ($vehicleDriverData && is_array($vehicleDriverData) && isset($vehicleDriverData['driverPhone'])) ? $vehicleDriverData['driverPhone'] : 'N/A';
@@ -4254,6 +4257,7 @@
                                 // Set vehicle and driver data to serviceInfo - always set these properties
                                 // This ensures they're available in JavaScript even if data is missing
                                 $serviceInfo['vehicleNumber'] = ($vehicleDriverData && is_array($vehicleDriverData) && isset($vehicleDriverData['vehicleNumber'])) ? $vehicleDriverData['vehicleNumber'] : 'N/A';
+                                $serviceInfo['vehicleName'] = ($vehicleDriverData && is_array($vehicleDriverData) && isset($vehicleDriverData['vehicleName'])) ? $vehicleDriverData['vehicleName'] : 'N/A';
                                 $serviceInfo['maxPassengerCapacity'] = ($vehicleDriverData && is_array($vehicleDriverData) && isset($vehicleDriverData['maxPassengerCapacity'])) ? $vehicleDriverData['maxPassengerCapacity'] : 'N/A';
                                 $serviceInfo['driverName'] = ($vehicleDriverData && is_array($vehicleDriverData) && isset($vehicleDriverData['driverName'])) ? $vehicleDriverData['driverName'] : 'N/A';
                                 $serviceInfo['driverPhone'] = ($vehicleDriverData && is_array($vehicleDriverData) && isset($vehicleDriverData['driverPhone'])) ? $vehicleDriverData['driverPhone'] : 'N/A';
@@ -5177,8 +5181,8 @@
                 // Page dimensions (landscape A4)
                 const pageWidth = 297; // A4 landscape width in mm
                 const pageHeight = 210; // A4 landscape height in mm
-                const leftMargin = 5;
-                const rightMarginValue = 5; // Actual right margin value
+                const leftMargin = 10; // Increased from 5 to reduce usable width
+                const rightMarginValue = 10; // Increased from 5 to reduce usable width
                 const rightMargin = pageWidth - rightMarginValue; // Right edge position
                 const topMargin = 5;
                 const bottomMargin = pageHeight - 5;
@@ -5324,7 +5328,7 @@
                 pdf.setTextColor(44, 62, 80);
                 pdf.text('TOUR ITINERARY', pageWidth / 2, logoY + logoSize / 2 + 2, { align: 'center' });
                 
-                yPos += logoSize + 10; // Spacing after header
+                yPos += logoSize + 5; // Spacing after header
                 
                 // Draw border line below header
                 pdf.setDrawColor(221, 221, 221);
@@ -5344,13 +5348,13 @@
                 const dmcEmail = (userDmc && userDmc.email) ? userDmc.email : 
                                 (userDmc && userDmc.company_email) ? userDmc.company_email : 'N/A';
                 
-                pdf.setFontSize(16);
+                pdf.setFontSize(12);
                 pdf.setFont('helvetica', 'bold');
                 pdf.setTextColor(44, 62, 80);
                 pdf.text(dmcName, leftMargin, yPos);
                 yPos += 5;
                 
-                pdf.setFontSize(14);
+                pdf.setFontSize(10);
                 pdf.setFont('helvetica', 'normal');
                 pdf.setTextColor(33, 37, 41);
                 let companyDetailsY = yPos;
@@ -5363,11 +5367,11 @@
                 }
                 companyDetailsY += 5;
                 pdf.text('Email: ' + dmcEmail, leftMargin, companyDetailsY);
-                yPos = companyDetailsY + 15; // Increased padding after company info
+                yPos = companyDetailsY + 5; // Increased padding after company info
                 
                 // Two Side-by-Side Panels - Matching Quotation Format
                 const panelStartY = yPos;
-                const gapBetweenPanels = 10;
+                const gapBetweenPanels = 6;
                 const availableWidth = pageWidth - leftMargin - rightMarginValue - gapBetweenPanels;
                 const leftPanelWidth = availableWidth * 0.52; // 52% for left panel (matching quotation)
                 const rightPanelWidth = availableWidth * 0.48; // 48% for right panel (matching quotation)
@@ -5382,46 +5386,46 @@
                 
                 // Build left panel body with 4 columns (2 internal columns, each with label and value)
                 const leftPanelBody = [
-                    [{content: 'BOOKING & PROPOSAL DETAILS', colSpan: 4, styles: {fontStyle: 'bold', fontSize: 10, textColor: [255, 255, 255], fillColor: [160, 174, 192], halign: 'center', cellPadding: {top: 5, bottom: 5, left: 3, right: 3}}}],
+                    [{content: 'BOOKING & PROPOSAL DETAILS', colSpan: 4, styles: {fontStyle: 'bold', fontSize: 10, textColor: [255, 255, 255], fillColor: [160, 174, 192], halign: 'center', cellPadding: {top: 3, bottom: 3, left: 2, right: 2}}}],
                     // Row 1: Booking ID (left) | Value | Proposal Date (right) | Value
                     [
-                        {content: 'Booking ID:', styles: {fontStyle: 'normal', fontSize: 12, textColor: [100, 116, 139], fillColor: [245, 247, 248], cellPadding: {top: 3, bottom: 3, left: 2, right: 2}}},
-                        {content: (displayId || tourId || 'N/A'), styles: {fontStyle: 'bold', fontSize: 12, textColor: [15, 23, 42], fillColor: [255, 255, 255], cellPadding: {top: 3, bottom: 3, left: 2, right: 2}}},
-                        {content: 'Proposal Date:', styles: {fontStyle: 'normal', fontSize: 12, textColor: [100, 116, 139], fillColor: [245, 247, 248], cellPadding: {top: 3, bottom: 3, left: 2, right: 2}}},
-                        {content: formatDate(new Date()), styles: {fontStyle: 'bold', fontSize: 12, textColor: [15, 23, 42], fillColor: [255, 255, 255], cellPadding: {top: 3, bottom: 3, left: 2, right: 2}}}
+                        {content: 'Booking ID:', styles: {fontStyle: 'normal', fontSize: 10, textColor: [100, 116, 139], fillColor: [245, 247, 248], cellPadding: {top: 2, bottom: 2, left: 1, right: 1}}},
+                        {content: (displayId || tourId || 'N/A'), styles: {fontStyle: 'bold', fontSize: 10, textColor: [15, 23, 42], fillColor: [255, 255, 255], cellPadding: {top: 2, bottom: 2, left: 1, right: 1}}},
+                        {content: 'Proposal Date:', styles: {fontStyle: 'normal', fontSize: 10, textColor: [100, 116, 139], fillColor: [245, 247, 248], cellPadding: {top: 2, bottom: 2, left: 1, right: 1}}},
+                        {content: formatDate(new Date()), styles: {fontStyle: 'bold', fontSize: 10, textColor: [15, 23, 42], fillColor: [255, 255, 255], cellPadding: {top: 2, bottom: 2, left: 1, right: 1}}}
                     ],
                     // Row 2: Lead Guest (left) | Value | Proposal Validity (right) | Value
                     [
-                        {content: 'Lead Guest:', styles: {fontStyle: 'normal', fontSize: 12, textColor: [100, 116, 139], fillColor: [245, 247, 248], cellPadding: {top: 3, bottom: 3, left: 2, right: 2}}},
-                        {content: (customerInfo.fullName || 'N/A'), styles: {fontStyle: 'bold', fontSize: 12, textColor: [15, 23, 42], fillColor: [255, 255, 255], cellPadding: {top: 3, bottom: 3, left: 2, right: 2}}},
-                        {content: 'Proposal Validity:', styles: {fontStyle: 'normal', fontSize: 12, textColor: [100, 116, 139], fillColor: [245, 247, 248], cellPadding: {top: 3, bottom: 3, left: 2, right: 2}}},
-                        {content: 'N/A', styles: {fontStyle: 'bold', fontSize: 12, textColor: [15, 23, 42], fillColor: [255, 255, 255], cellPadding: {top: 3, bottom: 3, left: 2, right: 2}}}
+                        {content: 'Lead Guest:', styles: {fontStyle: 'normal', fontSize: 10, textColor: [100, 116, 139], fillColor: [245, 247, 248], cellPadding: {top: 2, bottom: 2, left: 1, right: 1}}},
+                        {content: (customerInfo.fullName || 'N/A'), styles: {fontStyle: 'bold', fontSize: 10, textColor: [15, 23, 42], fillColor: [255, 255, 255], cellPadding: {top: 2, bottom: 2, left: 1, right: 1}}},
+                        {content: 'Proposal Validity:', styles: {fontStyle: 'normal', fontSize: 10, textColor: [100, 116, 139], fillColor: [245, 247, 248], cellPadding: {top: 2, bottom: 2, left: 1, right: 1}}},
+                        {content: 'N/A', styles: {fontStyle: 'bold', fontSize: 10, textColor: [15, 23, 42], fillColor: [255, 255, 255], cellPadding: {top: 2, bottom: 2, left: 1, right: 1}}}
                     ],
                     // Row 3: Adults (left) | Value | Proposal Sent By (right) | Value
                     [
-                        {content: 'Adults:', styles: {fontStyle: 'normal', fontSize: 12, textColor: [100, 116, 139], fillColor: [245, 247, 248], cellPadding: {top: 3, bottom: 3, left: 2, right: 2}}},
-                        {content: (tourDetails && tourDetails.adult ? tourDetails.adult : (customerInfo.adults || customerInfo.adultCount || 0)).toString(), styles: {fontStyle: 'bold', fontSize: 12, textColor: [15, 23, 42], fillColor: [255, 255, 255], cellPadding: {top: 3, bottom: 3, left: 2, right: 2}}},
-                        {content: 'Proposal Sent By:', styles: {fontStyle: 'normal', fontSize: 12, textColor: [100, 116, 139], fillColor: [245, 247, 248], cellPadding: {top: 3, bottom: 3, left: 2, right: 2}}},
-                        {content: (userDmc && userDmc.company_name) ? userDmc.company_name : ((userDmc && userDmc.name) ? userDmc.name : 'N/A'), styles: {fontStyle: 'bold', fontSize: 12, textColor: [15, 23, 42], fillColor: [255, 255, 255], cellPadding: {top: 3, bottom: 3, left: 2, right: 2}}}
+                        {content: 'Adults:', styles: {fontStyle: 'normal', fontSize: 10, textColor: [100, 116, 139], fillColor: [245, 247, 248], cellPadding: {top: 2, bottom: 2, left: 1, right: 1}}},
+                        {content: (tourDetails && tourDetails.adult ? tourDetails.adult : (customerInfo.adults || customerInfo.adultCount || 0)).toString(), styles: {fontStyle: 'bold', fontSize: 12, textColor: [15, 23, 42], fillColor: [255, 255, 255], cellPadding: {top: 2, bottom: 2, left: 1, right: 1}}},
+                        {content: 'Proposal Sent By:', styles: {fontStyle: 'normal', fontSize: 10, textColor: [100, 116, 139], fillColor: [245, 247, 248], cellPadding: {top: 2, bottom: 2, left: 1, right: 1}}},
+                        {content: (userDmc && userDmc.name) ? userDmc.name : ((userDmc && userDmc.company_name) ? userDmc.company_name : 'N/A'), styles: {fontStyle: 'bold', fontSize: 10, textColor: [15, 23, 42], fillColor: [255, 255, 255], cellPadding: {top: 2, bottom: 2, left: 1, right: 1}}}
                     ],
                     // Row 4: Children (left) | Value | Empty | Empty
                     [
-                        {content: 'Children:', styles: {fontStyle: 'normal', fontSize: 12, textColor: [100, 116, 139], fillColor: [245, 247, 248], cellPadding: {top: 3, bottom: 3, left: 2, right: 2}}},
-                        {content: (tourDetails && tourDetails.child ? tourDetails.child : (customerInfo.children || customerInfo.childCount || 0)).toString(), styles: {fontStyle: 'bold', fontSize: 12, textColor: [15, 23, 42], fillColor: [255, 255, 255], cellPadding: {top: 3, bottom: 3, left: 2, right: 2}}},
-                        {content: '', styles: {fontStyle: 'normal', fontSize: 12, textColor: [15, 23, 42], fillColor: [255, 255, 255], cellPadding: {top: 3, bottom: 3, left: 2, right: 2}}},
-                        {content: '', styles: {fontStyle: 'normal', fontSize: 12, textColor: [15, 23, 42], fillColor: [255, 255, 255], cellPadding: {top: 3, bottom: 3, left: 2, right: 2}}}
+                        {content: 'Children:', styles: {fontStyle: 'normal', fontSize: 10, textColor: [100, 116, 139], fillColor: [245, 247, 248], cellPadding: {top: 2, bottom: 2, left: 1, right: 1}}},
+                        {content: (tourDetails && tourDetails.child ? tourDetails.child : (customerInfo.children || customerInfo.childCount || 0)).toString(), styles: {fontStyle: 'bold', fontSize: 12, textColor: [15, 23, 42], fillColor: [255, 255, 255], cellPadding: {top: 2, bottom: 2, left: 1, right: 1}}},
+                        {content: '', styles: {fontStyle: 'normal', fontSize: 10, textColor: [15, 23, 42], fillColor: [255, 255, 255], cellPadding: {top: 2, bottom: 2, left: 1, right: 1}}},
+                        {content: '', styles: {fontStyle: 'normal', fontSize: 10, textColor: [15, 23, 42], fillColor: [255, 255, 255], cellPadding: {top: 2, bottom: 2, left: 1, right: 1}}}
                     ],
                     // Row 5: Infants (left) | Value | Empty | Empty
                     [
-                        {content: 'Infants:', styles: {fontStyle: 'normal', fontSize: 12, textColor: [100, 116, 139], fillColor: [245, 247, 248], cellPadding: {top: 3, bottom: 3, left: 2, right: 2}}},
-                        {content: (tourDetails && tourDetails.infant ? tourDetails.infant : (customerInfo.infants || customerInfo.infantCount || 0)).toString(), styles: {fontStyle: 'bold', fontSize: 12, textColor: [15, 23, 42], fillColor: [255, 255, 255], cellPadding: {top: 3, bottom: 3, left: 2, right: 2}}},
-                        {content: '', styles: {fontStyle: 'normal', fontSize: 12, textColor: [15, 23, 42], fillColor: [255, 255, 255], cellPadding: {top: 3, bottom: 3, left: 2, right: 2}}},
-                        {content: '', styles: {fontStyle: 'normal', fontSize: 12, textColor: [15, 23, 42], fillColor: [255, 255, 255], cellPadding: {top: 3, bottom: 3, left: 2, right: 2}}}
+                        {content: 'Infants:', styles: {fontStyle: 'normal', fontSize: 10, textColor: [100, 116, 139], fillColor: [245, 247, 248], cellPadding: {top: 2, bottom: 2, left: 1, right: 1}}},
+                        {content: (tourDetails && tourDetails.infant ? tourDetails.infant : (customerInfo.infants || customerInfo.infantCount || 0)).toString(), styles: {fontStyle: 'bold', fontSize: 12, textColor: [15, 23, 42], fillColor: [255, 255, 255], cellPadding: {top: 2, bottom: 2, left: 1, right: 1}}},
+                        {content: '', styles: {fontStyle: 'normal', fontSize: 10, textColor: [15, 23, 42], fillColor: [255, 255, 255], cellPadding: {top: 2, bottom: 2, left: 1, right: 1}}},
+                        {content: '', styles: {fontStyle: 'normal', fontSize: 10, textColor: [15, 23, 42], fillColor: [255, 255, 255], cellPadding: {top: 2, bottom: 2, left: 1, right: 1}}}
                     ]
                 ];
                 
                 // Draw left panel background first (estimate height) with rounded corners
-                const estimatedLeftHeight = 75;
+                const estimatedLeftHeight = 50;
                 
                 // Draw panel background with rounded corners
                 pdf.setFillColor(245, 247, 248);
@@ -5463,51 +5467,70 @@
                 const leftPanelEndY = pdf.lastAutoTable ? pdf.lastAutoTable.finalY : panelStartY;
                 
                 // Right Panel: TRAVEL COMPANY / AGENT
-                // Matching quotation format: Single column with agent name bold at top, then details
+                // Matching quotation format: Two columns (Left: Company/Agency details, Right: Agent details)
+                // Direct display without key-value pairs, matching quotation format
                 const rightPanelX = leftPanelX + leftPanelWidth + gapBetweenPanels;
                 
-                // Build right panel body
-                const rightPanelBody = [];
-                rightPanelBody.push([
-                    {content: 'TRAVEL COMPANY / AGENT', colSpan: 1, styles: {fontStyle: 'bold', fontSize: 10, textColor: [255, 255, 255], fillColor: [160, 174, 192], halign: 'center', cellPadding: {top: 5, bottom: 5, left: 3, right: 3}}}
-                ]);
+                // Build right panel body with 2 columns (matching quotation format)
+                const rightPanelBody = [
+                    [{content: 'TRAVEL COMPANY / AGENT', colSpan: 2, styles: {fontStyle: 'bold', fontSize: 10, textColor: [255, 255, 255], fillColor: [160, 174, 192], halign: 'center', cellPadding: {top: 3, bottom: 3, left: 2, right: 2}}}],
+                ];
                 
                 if (agentInfo) {
-                    const agentName = (agentInfo.name || agentInfo.company_name || 'N/A');
-                    // Agent name in bold, larger font
-                    rightPanelBody.push([
-                        {content: agentName, styles: {fontStyle: 'bold', fontSize: 16, textColor: [44, 62, 80], fillColor: [255, 255, 255], cellPadding: {top: 5, bottom: 3, left: 3, right: 3}}}
-                    ]);
+                    const companyName = (agentInfo.company_name || agentInfo.name || '');
+                    const agentName = (agentInfo.agent_name || '');
                     
-                    // Agent details - each on separate row for better control
-                    if (agentInfo.address) {
+                    // Row 1: Company name (bold, larger) | Agent name (bold, larger)
+                    if (companyName || agentName) {
                         rightPanelBody.push([
-                            {content: agentInfo.address, styles: {fontStyle: 'normal', fontSize: 14, textColor: [33, 37, 41], fillColor: [255, 255, 255], cellPadding: {top: 2, bottom: 2, left: 3, right: 3}}}
+                            {content: companyName || '', styles: {fontStyle: 'bold', fontSize: 12, textColor: [44, 62, 80], fillColor: [255, 255, 255], cellPadding: {top: 2, bottom: 2, left: 1, right: 1}}},
+                            {content: agentName || '', styles: {fontStyle: 'bold', fontSize: 12, textColor: [44, 62, 80], fillColor: [255, 255, 255], cellPadding: {top: 2, bottom: 2, left: 1, right: 1}}}
                         ]);
+                    }
+                    
+                    // Build company details with inline labels (matching quotation format)
+                    const companyDetails = [];
+                    if (agentInfo.address) {
+                        companyDetails.push(agentInfo.address);
                     }
                     if (agentInfo.contact_person) {
-                        rightPanelBody.push([
-                            {content: 'Contact Person: ' + agentInfo.contact_person, styles: {fontStyle: 'normal', fontSize: 14, textColor: [33, 37, 41], fillColor: [255, 255, 255], cellPadding: {top: 2, bottom: 2, left: 3, right: 3}}}
-                        ]);
+                        companyDetails.push('Contact Person: ' + agentInfo.contact_person);
                     }
                     if (agentInfo.phone) {
-                        rightPanelBody.push([
-                            {content: 'Tel: ' + agentInfo.phone, styles: {fontStyle: 'normal', fontSize: 14, textColor: [33, 37, 41], fillColor: [255, 255, 255], cellPadding: {top: 2, bottom: 2, left: 3, right: 3}}}
-                        ]);
+                        companyDetails.push('Tel: ' + agentInfo.phone);
                     }
                     if (agentInfo.email) {
+                        companyDetails.push('Email: ' + agentInfo.email);
+                    }
+                    
+                    // Build agent details with inline labels
+                    const agentDetails = [];
+                    if (agentInfo.agent_address) {
+                        agentDetails.push(agentInfo.agent_address);
+                    }
+                    if (agentInfo.agent_phone) {
+                        agentDetails.push('Tel: ' + agentInfo.agent_phone);
+                    }
+                    if (agentInfo.agent_email) {
+                        agentDetails.push('Email: ' + agentInfo.agent_email);
+                    }
+                    
+                    // Add details rows
+                    const maxDetails = Math.max(companyDetails.length, agentDetails.length);
+                    for (let i = 0; i < maxDetails; i++) {
                         rightPanelBody.push([
-                            {content: 'Email: ' + agentInfo.email, styles: {fontStyle: 'normal', fontSize: 14, textColor: [33, 37, 41], fillColor: [255, 255, 255], cellPadding: {top: 2, bottom: 2, left: 3, right: 3}}}
+                            {content: companyDetails[i] || '', styles: {fontStyle: 'normal', fontSize: 10, textColor: [33, 37, 41], fillColor: [255, 255, 255], cellPadding: {top: 2, bottom: 2, left: 1, right: 1}}},
+                            {content: agentDetails[i] || '', styles: {fontStyle: 'normal', fontSize: 10, textColor: [33, 37, 41], fillColor: [255, 255, 255], cellPadding: {top: 2, bottom: 2, left: 1, right: 1}}}
                         ]);
                     }
                 } else {
                     rightPanelBody.push([
-                        {content: 'N/A', styles: {fontStyle: 'normal', fontSize: 14, textColor: [33, 37, 41], fillColor: [255, 255, 255], cellPadding: 3}}
+                        {content: 'N/A', colSpan: 2, styles: {fontStyle: 'normal', fontSize: 10, textColor: [33, 37, 41], fillColor: [255, 255, 255], cellPadding: {top: 3, bottom: 3, left: 2, right: 2}}}
                     ]);
                 }
                 
                 // Draw right panel background first (estimate height) with rounded corners
-                const estimatedRightHeight = 75;
+                const estimatedRightHeight = 50;
                 
                 // Draw panel background with rounded corners
                 pdf.setFillColor(245, 247, 248);
@@ -5535,32 +5558,31 @@
                     theme: 'plain',
                     tableLineWidth: 0,
                     headStyles: { fillColor: [160, 174, 192], textColor: [255, 255, 255], fontStyle: 'bold', fontSize: 10, lineWidth: 0 },
-                    bodyStyles: { fillColor: false, textColor: [33, 37, 41], fontSize: 14, lineWidth: 0, cellPadding: {top: 3, bottom: 3, left: 3, right: 3} },
+                    bodyStyles: { fillColor: false, textColor: [33, 37, 41], fontSize: 12, lineWidth: 0, cellPadding: {top: 2, bottom: 2, left: 1, right: 1} },
                     columnStyles: {
-                        0: { cellWidth: rightPanelWidth, halign: 'left' }
+                        0: { cellWidth: rightPanelWidth * 0.5, halign: 'left' }, // Left column (50%)
+                        1: { cellWidth: rightPanelWidth * 0.5, halign: 'left' }  // Right column (50%)
                     },
                     styles: { lineColor: [255, 255, 255], lineWidth: 0 },
                     body: rightPanelBody
                 });
                 
-                yPos = Math.max(leftPanelEndY, pdf.lastAutoTable ? pdf.lastAutoTable.finalY : panelStartY) + 15; // Increased padding after panels
+                yPos = Math.max(leftPanelEndY, pdf.lastAutoTable ? pdf.lastAutoTable.finalY : panelStartY) + 8; // Increased padding after panels
                 
                 // Travel Summary Section - Matching Quotation Format
                 const travelSummaryY = yPos;
-                const travelSummaryHeight = 25; // Increased height for better padding
+                const travelSummaryHeight = 20; // Increased height for better padding
                 const travelSummaryWidth = pageWidth - leftMargin - rightMarginValue;
                 
-                // Draw travel summary background
-                pdf.setFillColor(255, 255, 255);
+                // Draw travel summary background container (Fill and Draw)
                 pdf.setDrawColor(224, 224, 224);
+                pdf.setFillColor(255, 255, 255);
                 pdf.setLineWidth(0.1);
-                safeRect(leftMargin, travelSummaryY, travelSummaryWidth, travelSummaryHeight);
-                pdf.fillStroke();
+                pdf.rect(leftMargin, travelSummaryY, travelSummaryWidth, travelSummaryHeight, 'FD');
                 
-                // Travel Summary Header
+                // Travel Summary Header (Fill only, drawn AFTER container)
                 pdf.setFillColor(160, 174, 192); // #a0aec0
-                safeRect(leftMargin, travelSummaryY, travelSummaryWidth, 6);
-                pdf.fillStroke();
+                pdf.rect(leftMargin, travelSummaryY, travelSummaryWidth, 6, 'F');
                 
                 pdf.setFontSize(12);
                 pdf.setFont('helvetica', 'bold');
@@ -5607,7 +5629,7 @@
                 const travelContentY = travelSummaryY + 12; // Increased top padding
                 const itemWidth = travelSummaryWidth / 3;
                 
-                pdf.setFontSize(12);
+                pdf.setFontSize(10);
                 pdf.setFont('helvetica', 'bold');
                 pdf.setTextColor(44, 62, 80);
                 
@@ -5620,7 +5642,7 @@
                 // Duration
                 pdf.text('Duration: ' + duration, leftMargin + itemWidth * 2 + itemWidth / 2, travelContentY, { align: 'center' });
                 
-                yPos = travelSummaryY + travelSummaryHeight + 12; // Increased padding after travel summary
+                yPos = travelSummaryY + travelSummaryHeight + 8; // Increased padding after travel summary
                 
                 // Passenger Details Table - Matching Quotation Format
                 const passengerData = customerInfo.passengers || [];
@@ -5642,6 +5664,25 @@
                 }
                 
                 if (passengers && passengers.length > 0) {
+                    // Check if we're on the first page and ensure passenger table fits
+                    // Use getNumberOfPages() to check if we're still on page 1
+                    const currentPageCount = pdf.internal.getNumberOfPages();
+                    if (currentPageCount === 1) {
+                        // Estimate passenger table height: header (8mm) + rows (8mm per row) + padding (8mm)
+                        const estimatedTableHeight = 8 + (passengers.length * 8) + 8;
+                        const spaceNeeded = estimatedTableHeight + 6; // Add some buffer
+                        
+                        // If not enough space on first page, move to next page
+                        // This ensures passenger details is the last content on first page
+                        if (yPos + spaceNeeded > bottomMargin) {
+                            pdf.addPage();
+                            yPos = topMargin;
+                        }
+                    }
+                    
+                    // Calculate passenger table width to match travel summary width
+                    const passengerTableWidth = pageWidth - leftMargin - rightMarginValue;
+                    
                     const passengerTableBody = [];
                     
                     // Header row
@@ -5666,6 +5707,10 @@
                         ]);
                     });
                     
+                    // Calculate column widths as percentages of passengerTableWidth
+                    // Original proportions: 25, 60, 35, 25, 50, 60 (total: 255)
+                    // Convert to percentages and apply to passengerTableWidth
+                    const totalOriginalWidth = 255;
                     pdf.autoTable({
                         startY: yPos,
                         margin: { left: leftMargin, right: rightMarginValue },
@@ -5685,19 +5730,27 @@
                             cellPadding: 2.5
                         },
                         columnStyles: {
-                            0: { cellWidth: 25, halign: 'center' },
-                            1: { cellWidth: 60, halign: 'left' },
-                            2: { cellWidth: 35, halign: 'center' },
-                            3: { cellWidth: 25, halign: 'center' },
-                            4: { cellWidth: 50, halign: 'center' },
-                            5: { cellWidth: 60, halign: 'left' }
+                            0: { cellWidth: (25 / totalOriginalWidth) * passengerTableWidth, halign: 'center' },
+                            1: { cellWidth: (60 / totalOriginalWidth) * passengerTableWidth, halign: 'left' },
+                            2: { cellWidth: (35 / totalOriginalWidth) * passengerTableWidth, halign: 'center' },
+                            3: { cellWidth: (25 / totalOriginalWidth) * passengerTableWidth, halign: 'center' },
+                            4: { cellWidth: (50 / totalOriginalWidth) * passengerTableWidth, halign: 'center' },
+                            5: { cellWidth: (60 / totalOriginalWidth) * passengerTableWidth, halign: 'left' }
                         },
                         styles: { lineColor: [224, 224, 224], lineWidth: 0.1 },
                         head: [],
                         body: passengerTableBody
                     });
                     
-                    yPos = pdf.lastAutoTable.finalY + 8;
+                    yPos = pdf.lastAutoTable.finalY + 4;
+                }
+                
+                // Ensure itinerary starts on page 2 - add new page if still on page 1
+                const currentPageCount = pdf.internal.getNumberOfPages();
+                if (currentPageCount === 1) {
+                    // Add a new page so itinerary starts on page 2
+                    pdf.addPage();
+                    yPos = topMargin;
                 }
                 
                 // Generate all dates between check-in and check-out
@@ -5962,7 +6015,8 @@
                 // Extract all possible fields from data
                 const pickup = service.pickup || service.data?.entrypickup || service.data?.entry_pickup || service.data?.pickup || '';
                 const dropoff = service.dropoff || service.data?.entrydropoff || service.data?.entry_dropoff || service.data?.dropoff || '';
-                const vehicle = service.vehicle || service.data?.vehicles_name || service.data?.vehicle || '';
+                // Get vehicle name from vehicle_driver_data (from jobsheet) first, then fallback to other sources
+                const vehicle = service.vehicleName || service.vehicle || service.data?.vehicles_name || service.data?.vehicle || '';
                 const transferType = service.transferType || service.data?.type || service.data?.transfer_options?.type || '';
                 const pickupTime = service.data?.entrytime || service.pickupTime || service.data?.pickupdate || '';
                 
@@ -6865,7 +6919,8 @@
                 const pickup = service.pickup || service.data?.entrypickup || service.data?.pickup || '';
                 const dropoff = service.dropoff || service.data?.entrydropoff || service.data?.dropoff || service.data?.dropoffLocation || '';
                 const pickupTime = service.data?.entrytime || service.pickupTime || service.data?.pickupdate || '';
-                const vehicle = service.vehicle || service.data?.vehicles_name || service.data?.vehicle || '';
+                // Get vehicle name from vehicle_driver_data (from jobsheet) first, then fallback to other sources
+                const vehicle = service.vehicleName || service.vehicle || service.data?.vehicles_name || service.data?.vehicle || '';
                 const transferType = service.transferType || service.data?.type || '';
                 const selectedHours = service.selectedHours || service.data?.selectedHours || '';
                 const serviceType = (service.data?.travel_type || service.data?.type || '').toLowerCase();
@@ -7016,7 +7071,8 @@
                 // Extract all possible fields from data
                 const pickup = service.pickup || service.data?.exitpickup || service.data?.exit_pickup || service.data?.pickup || '';
                 const dropoff = service.dropoff || service.data?.exitdropoff || service.data?.exit_dropoff || service.data?.dropoff || '';
-                const vehicle = service.vehicle || service.data?.vehicles_name || service.data?.vehicle || '';
+                // Get vehicle name from vehicle_driver_data (from jobsheet) first, then fallback to other sources
+                const vehicle = service.vehicleName || service.vehicle || service.data?.vehicles_name || service.data?.vehicle || '';
                 const transferType = service.transferType || service.data?.type || '';
                 // Extract pickup time - prefer entrytime (which has the actual time like "06:00 AM")
                 const pickupTime = service.data?.entrytime || service.pickupTime || service.data?.exitpickupdate || service.data?.exitpickuptime || '';

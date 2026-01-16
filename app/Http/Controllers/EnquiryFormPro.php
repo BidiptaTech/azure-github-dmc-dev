@@ -1100,7 +1100,26 @@ class EnquiryFormPro extends Controller
             // 0. Entry Port Orders (Arrival)
             if ($request->has('entry_port') && !empty($request->entry_port)) {
                 $entryPorts = json_decode($request->entry_port, true);
+                
+                // Track unique entries to prevent duplicates within the same request
+                $seenEntries = [];
+                
                 foreach ($entryPorts as $entryPort) {
+                    // Create a unique identifier for this entry (based on key data fields)
+                    $uniqueKey = md5(json_encode([
+                        'port_id' => $entryPort['port_id'] ?? '',
+                        'port_name' => $entryPort['port_name'] ?? '',
+                        'bookingDate' => $entryPort['bookingDate'] ?? '',
+                        'type' => $entryPort['type'] ?? ''
+                    ]));
+                    
+                    // Skip if we've already processed this exact entry
+                    if (in_array($uniqueKey, $seenEntries)) {
+                        \Log::info('Skipping duplicate entry_port within create request', ['unique_key' => $uniqueKey]);
+                        continue;
+                    }
+                    $seenEntries[] = $uniqueKey;
+                    
                     // Get vehicle details from database if vehicle_id exists
                     if (!empty($entryPort['vehicle_id'])) {
                         $vehicleDetails = $this->getVehicleDetails($entryPort['vehicle_id']);
@@ -1150,7 +1169,26 @@ class EnquiryFormPro extends Controller
             // 0b. Exit Port Orders (Departure)
             if ($request->has('exit_port') && !empty($request->exit_port)) {
                 $exitPorts = json_decode($request->exit_port, true);
+                
+                // Track unique exits to prevent duplicates within the same request
+                $seenExits = [];
+                
                 foreach ($exitPorts as $exitPort) {
+                    // Create a unique identifier for this exit (based on key data fields)
+                    $uniqueKey = md5(json_encode([
+                        'port_id' => $exitPort['port_id'] ?? '',
+                        'port_name' => $exitPort['port_name'] ?? '',
+                        'bookingDate' => $exitPort['bookingDate'] ?? '',
+                        'type' => $exitPort['type'] ?? ''
+                    ]));
+                    
+                    // Skip if we've already processed this exact exit
+                    if (in_array($uniqueKey, $seenExits)) {
+                        \Log::info('Skipping duplicate exit_port within create request', ['unique_key' => $uniqueKey]);
+                        continue;
+                    }
+                    $seenExits[] = $uniqueKey;
+                    
                     // Get vehicle details from database if vehicle_id exists
                     if (!empty($exitPort['vehicle_id'])) {
                         $vehicleDetails = $this->getVehicleDetails($exitPort['vehicle_id']);
@@ -2028,6 +2066,17 @@ class EnquiryFormPro extends Controller
      */
     public function edit($tour_id)
     {
+        // Try to decrypt tour_id if it's encrypted
+        try {
+            $decryptedTourId = \Crypt::decrypt($tour_id);
+            $tour_id = $decryptedTourId;
+        } catch (\Exception $e) {
+            // If decryption fails, use tour_id as-is
+        }
+        
+        // Clean up any duplicate orders for this tour before loading edit page
+        $this->cleanupDuplicateOrders($tour_id);
+        
         // Get the tour
         $tour = Tour::where('tour_id', $tour_id)->firstOrFail();
         
@@ -2129,6 +2178,14 @@ class EnquiryFormPro extends Controller
     public function update(Request $request, $tour_id)
     {
         try {
+            // Try to decrypt tour_id if it's encrypted
+            try {
+                $decryptedTourId = \Crypt::decrypt($tour_id);
+                $tour_id = $decryptedTourId;
+            } catch (\Exception $e) {
+                // If decryption fails, use tour_id as-is
+            }
+            
             // Validate the request
             $request->validate([
                 'destination' => 'required|string',
@@ -2171,7 +2228,16 @@ class EnquiryFormPro extends Controller
             $tour->check_out_time = $checkOutTime;
             $tour->city = $request->city ?? null;
             $tour->child_ages = $request->child_ages ?? null;
-            $tour->save();
+            
+            // Save tour with updated dates
+            $saved = $tour->save();
+            
+            \Log::info('Tour dates updated', [
+                'saved' => $saved,
+                'tour_id' => $tour_id,
+                'check_in_time' => $tour->check_in_time->format('Y-m-d H:i:s'),
+                'check_out_time' => $tour->check_out_time->format('Y-m-d H:i:s')
+            ]);
             
             \Log::info('Tour updated', [
                 'tour_id' => $tour_id,
@@ -2179,25 +2245,83 @@ class EnquiryFormPro extends Controller
                 'agent_id' => $request->agent_id
             ]);
             
-            // Delete all existing orders for this tour
-            Order::where('tour_id', $tour_id)->delete();
+            // Handle orders marked for deletion
+            if ($request->has('orders_to_delete') && !empty($request->orders_to_delete)) {
+                $ordersToDelete = json_decode($request->orders_to_delete, true);
+                if (is_array($ordersToDelete) && count($ordersToDelete) > 0) {
+                    \Log::info('Deleting orders', ['booking_ids' => $ordersToDelete]);
+                    Order::where('tour_id', $tour_id)
+                        ->whereIn('booking_id', $ordersToDelete)
+                        ->delete();
+                }
+            }
+            
+            // Collect all existing booking_ids to track what we're updating
+            $existingBookingIds = Order::where('tour_id', $tour_id)->pluck('booking_id')->toArray();
+            \Log::info('Existing booking IDs before update', ['booking_ids' => $existingBookingIds]);
             
             // Determine booking type
             $bookingType = 'enquiry';
             
-            // Recreate orders using the same logic as store method
+            // Update or create orders for each service type
+            // Note: We'll update existing orders by booking_id or create new ones
             $createdOrders = [];
+            $updatedOrders = [];
+            $processedBookingIds = []; // Track processed booking IDs to prevent duplicates
             
-            // For simplicity, we'll handle the main order types
-            // Full implementation would mirror store method completely
-            
-            // Entry Port Orders (Arrival)
+            // 1. Entry Port Orders (Arrival)
             if ($request->has('entry_port') && !empty($request->entry_port)) {
+                // First, delete ALL existing entry_port orders for this tour to prevent duplicates
+                $deletedEntryPorts = Order::where('tour_id', $tour_id)
+                    ->where('type', 'entry_port')
+                    ->delete();
+                \Log::info('Deleted existing entry_port orders', ['count' => $deletedEntryPorts, 'tour_id' => $tour_id]);
+                
                 $entryPorts = json_decode($request->entry_port, true);
+                
+                // Use a set to track unique entries to prevent duplicates within the same request
+                $seenEntries = [];
+                
                 foreach ($entryPorts as $entryPort) {
-                    $bookingId = $this->generateBookingId();
+                    // Create a unique identifier for this entry (based on key data fields)
+                    $uniqueKey = md5(json_encode([
+                        'port_id' => $entryPort['port_id'] ?? '',
+                        'port_name' => $entryPort['port_name'] ?? '',
+                        'bookingDate' => $entryPort['bookingDate'] ?? '',
+                        'type' => $entryPort['type'] ?? ''
+                    ]));
+                    
+                    // Skip if we've already processed this exact entry
+                    if (in_array($uniqueKey, $seenEntries)) {
+                        \Log::info('Skipping duplicate entry_port within request', ['unique_key' => $uniqueKey]);
+                        continue;
+                    }
+                    $seenEntries[] = $uniqueKey;
+                    
+                    // Get vehicle details from database if vehicle_id exists
+                    if (!empty($entryPort['vehicle_id'])) {
+                        $vehicleDetails = $this->getVehicleDetails($entryPort['vehicle_id']);
+                        if ($vehicleDetails) {
+                            $entryPort['vehicle_id'] = $vehicleDetails['vehicle_id'];
+                            $entryPort['vehicles_name'] = $vehicleDetails['vehicles_name'];
+                            $entryPort['vehicle_type'] = $vehicleDetails['vehicle_type'];
+                            $entryPort['vehicle_model'] = $vehicleDetails['vehicle_model'];
+                            $entryPort['model_year'] = $vehicleDetails['model_year'];
+                            $entryPort['seating_capacity'] = $vehicleDetails['seating_capacity'];
+                            $entryPort['image'] = $vehicleDetails['image'];
+                        }
+                    }
+                    
+                    // Normalize transfer type
+                    if (!empty($entryPort['type'])) {
+                        $entryPort['type'] = $this->normalizeTransferType($entryPort['type']);
+                    }
+                    
+                    // Add tour_id to the JSON data
                     $entryPort['tour_id'] = $tour_id;
                     
+                    // Create new order (always create new since we deleted all existing ones)
+                    $bookingId = $this->generateBookingId();
                     Order::create([
                         'booking_id' => $bookingId,
                         'agent_id' => $request->agent_id,
@@ -2216,9 +2340,346 @@ class EnquiryFormPro extends Controller
                 }
             }
             
-            // Add similar logic for other order types...
+            // 2. Exit Port Orders (Departure)
+            if ($request->has('exit_port') && !empty($request->exit_port)) {
+                // First, delete ALL existing exit_port orders for this tour to prevent duplicates
+                $deletedExitPorts = Order::where('tour_id', $tour_id)
+                    ->where('type', 'exit_port')
+                    ->delete();
+                \Log::info('Deleted existing exit_port orders', ['count' => $deletedExitPorts, 'tour_id' => $tour_id]);
+                
+                $exitPorts = json_decode($request->exit_port, true);
+                
+                // Use a set to track unique entries to prevent duplicates within the same request
+                $seenExits = [];
+                
+                foreach ($exitPorts as $exitPort) {
+                    // Create a unique identifier for this exit (based on key data fields)
+                    $uniqueKey = md5(json_encode([
+                        'port_id' => $exitPort['port_id'] ?? '',
+                        'port_name' => $exitPort['port_name'] ?? '',
+                        'bookingDate' => $exitPort['bookingDate'] ?? '',
+                        'type' => $exitPort['type'] ?? ''
+                    ]));
+                    
+                    // Skip if we've already processed this exact exit
+                    if (in_array($uniqueKey, $seenExits)) {
+                        \Log::info('Skipping duplicate exit_port within request', ['unique_key' => $uniqueKey]);
+                        continue;
+                    }
+                    $seenExits[] = $uniqueKey;
+                    
+                    // Get vehicle details from database if vehicle_id exists
+                    if (!empty($exitPort['vehicle_id'])) {
+                        $vehicleDetails = $this->getVehicleDetails($exitPort['vehicle_id']);
+                        if ($vehicleDetails) {
+                            $exitPort['vehicle_id'] = $vehicleDetails['vehicle_id'];
+                            $exitPort['vehicles_name'] = $vehicleDetails['vehicles_name'];
+                            $exitPort['vehicle_type'] = $vehicleDetails['vehicle_type'];
+                            $exitPort['vehicle_model'] = $vehicleDetails['vehicle_model'];
+                            $exitPort['model_year'] = $vehicleDetails['model_year'];
+                            $exitPort['seating_capacity'] = $vehicleDetails['seating_capacity'];
+                            $exitPort['image'] = $vehicleDetails['image'];
+                        }
+                    }
+                    
+                    // Normalize transfer type
+                    if (!empty($exitPort['type'])) {
+                        $exitPort['type'] = $this->normalizeTransferType($exitPort['type']);
+                    }
+                    
+                    // Add tour_id to the JSON data
+                    $exitPort['tour_id'] = $tour_id;
+                    
+                    // Create new order (always create new since we deleted all existing ones)
+                    $bookingId = $this->generateBookingId();
+                    Order::create([
+                        'booking_id' => $bookingId,
+                        'agent_id' => $request->agent_id,
+                        'tour_id' => $tour_id,
+                        'data' => [$exitPort],
+                        'type' => 'exit_port',
+                        'bookingType' => $bookingType,
+                        'discount' => $discountValue,
+                        'discount_type' => $discountType,
+                        'markup_percentage' => $markupValue,
+                        'markup_type' => $markupType,
+                        'status' => 1,
+                    ]);
+                    
+                    $createdOrders[] = ['type' => 'exit_port', 'booking_id' => $bookingId];
+                }
+            }
+            
+            // 3. Accommodation Orders
+            if ($request->has('accommodations') && !empty($request->accommodations)) {
+                // Delete ALL existing hotel orders for this tour to prevent duplicates
+                $deletedHotels = Order::where('tour_id', $tour_id)
+                    ->where('type', 'hotel')
+                    ->delete();
+                \Log::info('Deleted existing hotel orders', ['count' => $deletedHotels, 'tour_id' => $tour_id]);
+                
+                $accommodations = json_decode($request->accommodations, true);
+                $seenHotels = [];
+                
+                foreach ($accommodations as $accommodation) {
+                    // Create unique identifier
+                    $uniqueKey = md5(json_encode([
+                        'hotel_id' => $accommodation['hotel_unique_id'] ?? $accommodation['hotelDetails']['hotel_id'] ?? '',
+                        'checkIn' => $accommodation['checkIn'] ?? '',
+                        'checkOut' => $accommodation['checkOut'] ?? ''
+                    ]));
+                    
+                    if (in_array($uniqueKey, $seenHotels)) {
+                        \Log::info('Skipping duplicate hotel within request', ['unique_key' => $uniqueKey]);
+                        continue;
+                    }
+                    $seenHotels[] = $uniqueKey;
+                    
+                    // Add tour_id to the JSON data
+                    $accommodation['tour_id'] = $tour_id;
+                    
+                    // Create new order
+                    $bookingId = $this->generateBookingId();
+                    Order::create([
+                        'booking_id' => $bookingId,
+                        'agent_id' => $request->agent_id,
+                        'tour_id' => $tour_id,
+                        'data' => [$accommodation],
+                        'type' => 'hotel',
+                        'bookingType' => $bookingType,
+                        'discount' => $discountValue,
+                        'discount_type' => $discountType,
+                        'markup_percentage' => $markupValue,
+                        'markup_type' => $markupType,
+                        'status' => 1,
+                    ]);
+                    
+                    $createdOrders[] = ['type' => 'hotel', 'booking_id' => $bookingId];
+                }
+            }
+            
+            // 4. Tour/Attraction Orders
+            if ($request->has('tours') && !empty($request->tours)) {
+                // Delete ALL existing attraction orders
+                Order::where('tour_id', $tour_id)->where('type', 'attraction')->delete();
+                
+                $tours = json_decode($request->tours, true);
+                $seenTours = [];
+                
+                foreach ($tours as $tourItem) {
+                    $uniqueKey = md5(json_encode([
+                        'attraction_id' => $tourItem['attraction_id'] ?? '',
+                        'AttractionName' => $tourItem['AttractionName'] ?? '',
+                        'bookingDate' => $tourItem['bookingDate'] ?? ''
+                    ]));
+                    
+                    if (in_array($uniqueKey, $seenTours)) continue;
+                    $seenTours[] = $uniqueKey;
+                    
+                    $tourItem['tour_id'] = $tour_id;
+                    
+                    $bookingId = $this->generateBookingId();
+                    Order::create([
+                        'booking_id' => $bookingId,
+                        'agent_id' => $request->agent_id,
+                        'tour_id' => $tour_id,
+                        'data' => [$tourItem],
+                        'type' => 'attraction',
+                        'bookingType' => $bookingType,
+                        'discount' => $discountValue,
+                        'discount_type' => $discountType,
+                        'markup_percentage' => $markupValue,
+                        'markup_type' => $markupType,
+                        'status' => 1,
+                    ]);
+                    
+                    $createdOrders[] = ['type' => 'attraction', 'booking_id' => $bookingId];
+                }
+            }
+            
+            // 5. Meal/Restaurant Orders
+            if ($request->has('meals') && !empty($request->meals)) {
+                // Delete ALL existing restaurant orders
+                Order::where('tour_id', $tour_id)->where('type', 'restaurant')->delete();
+                
+                $meals = json_decode($request->meals, true);
+                $seenMeals = [];
+                
+                foreach ($meals as $meal) {
+                    $uniqueKey = md5(json_encode([
+                        'restaurant_id' => $meal['restaurant_id'] ?? '',
+                        'restaurantName' => $meal['restaurantName'] ?? '',
+                        'bookingDate' => $meal['bookingDate'] ?? ''
+                    ]));
+                    
+                    if (in_array($uniqueKey, $seenMeals)) continue;
+                    $seenMeals[] = $uniqueKey;
+                    
+                    $meal['tour_id'] = $tour_id;
+                    
+                    $bookingId = $this->generateBookingId();
+                    Order::create([
+                        'booking_id' => $bookingId,
+                        'agent_id' => $request->agent_id,
+                        'tour_id' => $tour_id,
+                        'data' => [$meal],
+                        'type' => 'restaurant',
+                        'bookingType' => $bookingType,
+                        'discount' => $discountValue,
+                        'discount_type' => $discountType,
+                        'markup_percentage' => $markupValue,
+                        'markup_type' => $markupType,
+                        'status' => 1,
+                    ]);
+                    
+                    $createdOrders[] = ['type' => 'restaurant', 'booking_id' => $bookingId];
+                }
+            }
+            
+            // 6. Transfer Orders (Local Transport)
+            if ($request->has('transfers') && !empty($request->transfers)) {
+                // Delete ALL existing local_transport orders
+                Order::where('tour_id', $tour_id)->where('type', 'local_transport')->delete();
+                
+                $transfers = json_decode($request->transfers, true);
+                $seenTransfers = [];
+                
+                foreach ($transfers as $transfer) {
+                    $uniqueKey = md5(json_encode([
+                        'vehicle_id' => $transfer['vehicle_id'] ?? '',
+                        'entrypickup' => $transfer['entrypickup'] ?? '',
+                        'entrydropoff' => $transfer['entrydropoff'] ?? '',
+                        'bookingDate' => $transfer['bookingDate'] ?? ''
+                    ]));
+                    
+                    if (in_array($uniqueKey, $seenTransfers)) continue;
+                    $seenTransfers[] = $uniqueKey;
+                    
+                    // Get vehicle details from database if vehicle_id exists
+                    if (!empty($transfer['vehicle_id'])) {
+                        $vehicleDetails = $this->getVehicleDetails($transfer['vehicle_id']);
+                        if ($vehicleDetails) {
+                            $transfer['vehicle_id'] = $vehicleDetails['vehicle_id'];
+                            $transfer['vehicles_name'] = $vehicleDetails['vehicles_name'];
+                            $transfer['vehicle_type'] = $vehicleDetails['vehicle_type'];
+                            $transfer['vehicle_model'] = $vehicleDetails['vehicle_model'];
+                            $transfer['model_year'] = $vehicleDetails['model_year'];
+                            $transfer['seating_capacity'] = $vehicleDetails['seating_capacity'];
+                            $transfer['image'] = $vehicleDetails['image'];
+                        }
+                    }
+                    
+                    // Normalize transfer type
+                    if (!empty($transfer['type'])) {
+                        $transfer['type'] = $this->normalizeTransferType($transfer['type']);
+                    }
+                    
+                    $transfer['tour_id'] = $tour_id;
+                    
+                    $bookingId = $this->generateBookingId();
+                    Order::create([
+                        'booking_id' => $bookingId,
+                        'agent_id' => $request->agent_id,
+                        'tour_id' => $tour_id,
+                        'data' => [$transfer],
+                        'type' => 'local_transport',
+                        'bookingType' => $bookingType,
+                        'discount' => $discountValue,
+                        'discount_type' => $discountType,
+                        'markup_percentage' => $markupValue,
+                        'markup_type' => $markupType,
+                        'status' => 1,
+                    ]);
+                    
+                    $createdOrders[] = ['type' => 'local_transport', 'booking_id' => $bookingId];
+                }
+            }
+            
+            // 7. Guide Orders
+            if ($request->has('guides') && !empty($request->guides)) {
+                // Delete ALL existing guide orders
+                Order::where('tour_id', $tour_id)->where('type', 'guide')->delete();
+                
+                $guides = json_decode($request->guides, true);
+                $seenGuides = [];
+                
+                foreach ($guides as $guide) {
+                    $uniqueKey = md5(json_encode([
+                        'guide_id' => $guide['guide_id'] ?? '',
+                        'guide_name' => $guide['guide_name'] ?? '',
+                        'bookingDate' => $guide['bookingDate'] ?? ''
+                    ]));
+                    
+                    if (in_array($uniqueKey, $seenGuides)) continue;
+                    $seenGuides[] = $uniqueKey;
+                    
+                    $guide['tour_id'] = $tour_id;
+                    
+                    $bookingId = $this->generateBookingId();
+                    Order::create([
+                        'booking_id' => $bookingId,
+                        'agent_id' => $request->agent_id,
+                        'tour_id' => $tour_id,
+                        'data' => [$guide],
+                        'type' => 'guide',
+                        'bookingType' => $bookingType,
+                        'discount' => $discountValue,
+                        'discount_type' => $discountType,
+                        'markup_percentage' => $markupValue,
+                        'markup_type' => $markupType,
+                        'status' => 1,
+                    ]);
+                    
+                    $createdOrders[] = ['type' => 'guide', 'booking_id' => $bookingId];
+                }
+            }
+            
+            // 8. Miscellaneous Orders
+            if ($request->has('miscellaneous') && !empty($request->miscellaneous)) {
+                // Delete ALL existing miscellaneous orders
+                Order::where('tour_id', $tour_id)->where('type', 'miscellaneous')->delete();
+                
+                $miscItems = json_decode($request->miscellaneous, true);
+                $seenMisc = [];
+                
+                foreach ($miscItems as $miscItem) {
+                    $uniqueKey = md5(json_encode([
+                        'item_id' => $miscItem['item_id'] ?? '',
+                        'item_name' => $miscItem['item_name'] ?? '',
+                        'bookingDate' => $miscItem['bookingDate'] ?? ''
+                    ]));
+                    
+                    if (in_array($uniqueKey, $seenMisc)) continue;
+                    $seenMisc[] = $uniqueKey;
+                    
+                    $miscItem['tour_id'] = $tour_id;
+                    
+                    $bookingId = $this->generateBookingId();
+                    Order::create([
+                        'booking_id' => $bookingId,
+                        'agent_id' => $request->agent_id,
+                        'tour_id' => $tour_id,
+                        'data' => [$miscItem],
+                        'type' => 'miscellaneous',
+                        'bookingType' => $bookingType,
+                        'discount' => $discountValue,
+                        'discount_type' => $discountType,
+                        'markup_percentage' => $markupValue,
+                        'markup_type' => $markupType,
+                        'status' => 1,
+                    ]);
+                    
+                    $createdOrders[] = ['type' => 'miscellaneous', 'booking_id' => $bookingId];
+                }
+            }
             
             DB::commit();
+            
+            \Log::info('Orders recreated using delete-and-create approach', [
+                'tour_id' => $tour_id,
+                'total_created' => count($createdOrders)
+            ]);
             
             return response()->json([
                 'success' => true,
@@ -2232,13 +2693,135 @@ class EnquiryFormPro extends Controller
             DB::rollBack();
             \Log::error('Error updating tour enquiry', [
                 'tour_id' => $tour_id,
-                'error' => $e->getMessage()
+                'error' => $e->getMessage(),
+                'line' => $e->getLine(),
+                'trace' => $e->getTraceAsString()
             ]);
             
             return response()->json([
                 'success' => false,
                 'message' => 'Failed to update tour enquiry: ' . $e->getMessage()
             ], 500);
+        }
+    }
+    
+    /**
+     * Clean up duplicate orders for a tour
+     * Keeps only the first unique order of each type based on key data fields
+     */
+    private function cleanupDuplicateOrders($tour_id)
+    {
+        try {
+            $orders = Order::where('tour_id', $tour_id)->get();
+            
+            $seenOrders = [];
+            $duplicateIds = [];
+            
+            foreach ($orders as $order) {
+                $orderData = is_array($order->data) ? $order->data : json_decode($order->data, true);
+                $firstItem = $orderData[0] ?? [];
+                
+                // Create unique key based on order type and key fields
+                $uniqueKey = '';
+                switch ($order->type) {
+                    case 'entry_port':
+                    case 'exit_port':
+                        $uniqueKey = md5(json_encode([
+                            'type' => $order->type,
+                            'port_id' => $firstItem['port_id'] ?? '',
+                            'port_name' => $firstItem['port_name'] ?? '',
+                            'bookingDate' => $firstItem['bookingDate'] ?? '',
+                            'transfer_type' => $firstItem['type'] ?? ''
+                        ]));
+                        break;
+                    case 'hotel':
+                        $uniqueKey = md5(json_encode([
+                            'type' => $order->type,
+                            'hotel_id' => $firstItem['hotel_unique_id'] ?? $firstItem['hotelDetails']['hotel_id'] ?? '',
+                            'checkIn' => $firstItem['checkIn'] ?? '',
+                            'checkOut' => $firstItem['checkOut'] ?? ''
+                        ]));
+                        break;
+                    case 'attraction':
+                        $uniqueKey = md5(json_encode([
+                            'type' => $order->type,
+                            'attraction_id' => $firstItem['attraction_id'] ?? '',
+                            'AttractionName' => $firstItem['AttractionName'] ?? '',
+                            'bookingDate' => $firstItem['bookingDate'] ?? ''
+                        ]));
+                        break;
+                    case 'restaurant':
+                        $uniqueKey = md5(json_encode([
+                            'type' => $order->type,
+                            'restaurant_id' => $firstItem['restaurant_id'] ?? '',
+                            'restaurantName' => $firstItem['restaurantName'] ?? '',
+                            'bookingDate' => $firstItem['bookingDate'] ?? ''
+                        ]));
+                        break;
+                    case 'local_transport':
+                        $uniqueKey = md5(json_encode([
+                            'type' => $order->type,
+                            'vehicle_id' => $firstItem['vehicle_id'] ?? '',
+                            'entrypickup' => $firstItem['entrypickup'] ?? '',
+                            'entrydropoff' => $firstItem['entrydropoff'] ?? '',
+                            'bookingDate' => $firstItem['bookingDate'] ?? ''
+                        ]));
+                        break;
+                    case 'guide':
+                        $uniqueKey = md5(json_encode([
+                            'type' => $order->type,
+                            'guide_id' => $firstItem['guide_id'] ?? '',
+                            'guide_name' => $firstItem['guide_name'] ?? '',
+                            'bookingDate' => $firstItem['bookingDate'] ?? ''
+                        ]));
+                        break;
+                    case 'miscellaneous':
+                        $uniqueKey = md5(json_encode([
+                            'type' => $order->type,
+                            'item_id' => $firstItem['item_id'] ?? '',
+                            'item_name' => $firstItem['item_name'] ?? '',
+                            'bookingDate' => $firstItem['bookingDate'] ?? ''
+                        ]));
+                        break;
+                    default:
+                        $uniqueKey = md5(json_encode([
+                            'type' => $order->type,
+                            'booking_id' => $order->booking_id
+                        ]));
+                        break;
+                }
+                
+                // Check if we've seen this order before
+                if (in_array($uniqueKey, $seenOrders)) {
+                    // This is a duplicate, mark for deletion
+                    $duplicateIds[] = $order->id;
+                    \Log::info('Found duplicate order', [
+                        'tour_id' => $tour_id,
+                        'order_id' => $order->id,
+                        'booking_id' => $order->booking_id,
+                        'type' => $order->type
+                    ]);
+                } else {
+                    // First occurrence, keep it
+                    $seenOrders[] = $uniqueKey;
+                }
+            }
+            
+            // Delete duplicates
+            if (count($duplicateIds) > 0) {
+                $deletedCount = Order::whereIn('id', $duplicateIds)->delete();
+                \Log::info('Cleaned up duplicate orders', [
+                    'tour_id' => $tour_id,
+                    'deleted_count' => $deletedCount
+                ]);
+            }
+            
+        } catch (\Exception $e) {
+            \Log::error('Error cleaning up duplicate orders', [
+                'tour_id' => $tour_id,
+                'error' => $e->getMessage()
+            ]);
+            // Don't fail the edit page load if cleanup fails
         }
     }
    
