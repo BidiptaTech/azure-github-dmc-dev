@@ -493,7 +493,7 @@ use Illuminate\Support\Facades\Crypt;
                                     <th>Room Category</th>
                                     <th>Check in</th>
                                     <th>Check out</th>
-                                    <th>No. of days</th>
+                                    <th>No. of Nights</th>
                                     <th>Total Pax</th>
                                     <th class="text-end">Unit Price</th>
                                     <th class="text-end">Total Price</th>
