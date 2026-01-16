@@ -3280,35 +3280,37 @@
                                         return `${displayHour}:${minutes} ${ampm}`;
                                     };
                                     
+                                    // Get selected hours if available (for hourly service)
+                                    const selectedHours = document.getElementById(`day${day}_${section}_${transportIndex}_selected_hours`)?.value || 
+                                                          document.getElementById(`day${day}_${section}_selected_hours`)?.value || 
+                                                          "1";
+                                    
+                                    // Get pickup and dropoff zone IDs
+                                    const pickupZoneId = pickupZone?.dataset?.zoneId || pickupZone?.value || "";
+                                    const dropoffZoneId = dropoffZone?.dataset?.zoneId || dropoffZone?.value || "";
+                                    
+                                    // Get tour_id if available
+                                    const tourId = document.getElementById('tour_id')?.value || 
+                                                   document.getElementById('hiddenTourId')?.value || 
+                                                   "";
+                                    
+                                    // Get night time settings if available
+                                    const nightStartTime = document.getElementById(`day${day}_${section}_${transportIndex}_night_start_time`)?.value || 
+                                                           document.getElementById(`day${day}_${section}_night_start_time`)?.value || 
+                                                           null;
+                                    const nightEndTime = document.getElementById(`day${day}_${section}_${transportIndex}_night_end_time`)?.value || 
+                                                         document.getElementById(`day${day}_${section}_night_end_time`)?.value || 
+                                                         null;
+                                    
                                     const transportData = {
-                                        id: `local-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
-                                        Mode: "dmc",
-                                        dmc_id: parseInt(document.getElementById('dmc_id')?.value || "4"),
-                                        fullName: customerData.fullName,
-                                        email: customerData.email,
-                                        phone: customerData.phone,
-                                        country: pickupZone.dataset.country || "Singapore",
-                                        countryCode: customerData.countryCode,
-                                        state: customerData.state || null,
-                                        city: pickupZone.dataset.city || "Singapore",
-                                        zip: customerData.zip,
-                                        address1: customerData.address1,
-                                        address2: customerData.address2 || null,
                                         bookingDate: dateInput?.value || getTourDateForDay(day),
-                                        pickupdate: dateInput?.value || getTourDateForDay(day),
-                                        entrytime: formatEntryTime(timeSelect?.value),
-                                        vehicles_id: parseInt(vehicleSelect.value) || 0,
+                                        vehicles_id: String(vehicleSelect.value || "0"),
                                         vehicles_name: vehicle.text,
-                                        type: serviceTypeSelect.value || "Private",
-                                        travel_type: "local_transfer",
-                                        adults: parseInt(adultCount) || 0,
-                                        children: parseInt(childCount) || 0,
-                                        specialRequests: customerData.specialRequests || null,
-                                        image: vehicle.dataset.image || null,
-                                        totalPrice: parseFloat(totalPrice) || 0,
-                                        componentDayIndex: parseInt(day) - 1,
+                                        image: vehicle.dataset.image || "",
+                                        dmc_id: parseInt(document.getElementById('dmc_id')?.value || "4"),
+                                        Mode: "dmc",
+                                        type: serviceTypeSelect.value || "Private", // Service type: Private/Shared
                                         entrypickup: pickupZone.text,
-                                        entrydropoff: dropoffZone.text,
                                         PickupPlaceid: {
                                             lat: transportIndex ? 
                                                 document.getElementById(`day${day}_${section}_${transportIndex}_pickup_lat`)?.value || "" :
@@ -3317,6 +3319,7 @@
                                                 document.getElementById(`day${day}_${section}_${transportIndex}_pickup_lng`)?.value || "" :
                                                 document.getElementById(`day${day}_${section}_pickup_lng`)?.value || ""
                                         },
+                                        dropoffLocation: dropoffZone.text,
                                         DropoffPlaceid: {
                                             lat: transportIndex ? 
                                                 document.getElementById(`day${day}_${section}_${transportIndex}_dropoff_lat`)?.value || "" :
@@ -3325,15 +3328,42 @@
                                                 document.getElementById(`day${day}_${section}_${transportIndex}_dropoff_lng`)?.value || "" :
                                                 document.getElementById(`day${day}_${section}_dropoff_lng`)?.value || ""
                                         },
-                                        distance: parseFloat(transportIndex ? 
-                                            document.getElementById(`day${day}_${section}_${transportIndex}_distance`)?.value || "0" :
-                                            document.getElementById(`day${day}_${section}_distance`)?.value || "0"),
-                                        Tax: parseFloat(transportIndex ? 
+                                        exitpickupdate: dateInput?.value || getTourDateForDay(day),
+                                        entrytime: formatEntryTime(timeSelect?.value),
+                                        adults: String(parseInt(adultCount) || 0),
+                                        children: String(parseInt(childCount) || 0),
+                                        selectedHours: selectedHours,
+                                        totalPrice: parseFloat(totalPrice || 0).toFixed(2),
+                                        Tax: String(parseFloat(transportIndex ? 
                                             document.getElementById(`day${day}_${section}_${transportIndex}_tax`)?.value || "0.00" :
-                                            document.getElementById(`day${day}_${section}_tax`)?.value || "0.00"),
-                                        Night_Start_Time: null,
-                                        Night_End_Time: null,
-                                        bookingType: "enquiry"
+                                            document.getElementById(`day${day}_${section}_tax`)?.value || "0.00")),
+                                        Night_Start_Time: nightStartTime || null,
+                                        Night_End_Time: nightEndTime || null,
+                                        country: pickupZone.dataset.country || "Singapore",
+                                        fullName: customerData.fullName,
+                                        email: customerData.email,
+                                        phone: customerData.phone,
+                                        countryCode: customerData.countryCode,
+                                        address1: customerData.address1,
+                                        address2: customerData.address2 || null,
+                                        state: customerData.state || null,
+                                        zip: customerData.zip,
+                                        specialRequests: customerData.specialRequests || null,
+                                        userInfo: {
+                                            fullName: customerData.fullName,
+                                            email: customerData.email,
+                                            phone: customerData.phone,
+                                            address1: customerData.address1,
+                                            address2: customerData.address2 || null,
+                                            state: customerData.state || null,
+                                            zip: customerData.zip
+                                        },
+                                        bookingType: "enquiry",
+                                        service_category: "local_transport",
+                                        travel_type: "local_transport", // This will be used by backend to set type field
+                                        tour_id: tourId,
+                                        pickup_zone_id: pickupZoneId,
+                                        dropoff_zone_id: dropoffZoneId
                                     };
                                     
                                     transportDataArray.push(transportData);

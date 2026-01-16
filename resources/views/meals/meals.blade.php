@@ -75,7 +75,7 @@
                                     @if($meal->type == 1)
                                         Buffet
                                     @elseif($meal->type == 2)
-                                        Set Buffet
+                                        Set Menu
                                     @elseif($meal->type == 3)
                                         A-La-carte
                                     @else
