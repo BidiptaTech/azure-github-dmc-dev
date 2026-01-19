@@ -589,7 +589,7 @@
                 <th>Room Category</th>
                 <th>Check in</th>
                 <th>Check out</th>
-                <th>No. of days</th>
+                <th>No. of Nights</th>
                 <th>Total Pax</th>
                 <th>Unit Price ({{ $invoice->base_currency ?? 'SGD' }})</th>
                 <th>Total Price ({{ $invoice->base_currency ?? 'SGD' }})</th>

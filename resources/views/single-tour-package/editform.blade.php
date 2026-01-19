@@ -2099,7 +2099,7 @@
                                             <div class="border rounded-3 p-3 bg-light mb-3">
                                             <div class="row g-2 align-items-center">
                                                 <div class="col-md-4">
-                                                    <label class="form-label fw-semibold d-block mb-2">Need transport for this restaurant?</label>
+                                                    <label class="form-label fw-semibold d-block mb-2">Need transport for this restaurants?</label>
                                                     <div class="d-flex align-items-center gap-2">
                                                         <span class="text-muted small toggle-label" id="restaurant_transport_no_{{ $order->booking_id }}">No</span>
                                                         <label class="toggle-switch" for="need_restaurant_transport_{{ $order->booking_id }}">
@@ -2110,140 +2110,145 @@
                                                     </div>
                                                 </div>
                                             </div>
-                                                <div id="restaurant_transport_details_{{ $order->booking_id }}" class="border rounded-3 p-3 bg-white mt-2 {{ $transferRequired ? '' : 'd-none' }}">
-                                                    @php
-                                                        $transportVehicles = $vehicles ?? collect();
-                                                        $tourCountry = $tour->destination ?? '';
-                                                        $filteredVehicles = $transportVehicles;
-                                                        if ($tourCountry) {
-                                                            $filteredVehicles = $transportVehicles->filter(function($vehicle) use ($tourCountry) {
-                                                                $vehicleCountry = strtolower(trim($vehicle->country ?? $vehicle->service_country ?? ''));
-                                                                return $vehicleCountry === strtolower(trim($tourCountry));
-                                                            });
-                                                            if ($filteredVehicles->isEmpty()) {
-                                                                $filteredVehicles = $transportVehicles;
-                                                            }
+                                            <div id="restaurant_transport_details_{{ $order->booking_id }}" class="border rounded-3 p-3 bg-white mt-2 {{ $transferRequired ? '' : 'd-none' }}">
+                                                @php
+                                                    $transportVehicles = $vehicles ?? collect();
+                                                    $tourCountry = $tour->destination ?? '';
+                                                    $filteredVehicles = $transportVehicles;
+                                                    if ($tourCountry) {
+                                                        $filteredVehicles = $transportVehicles->filter(function($vehicle) use ($tourCountry) {
+                                                            $vehicleCountry = strtolower(trim($vehicle->country ?? $vehicle->service_country ?? ''));
+                                                            return $vehicleCountry === strtolower(trim($tourCountry));
+                                                        });
+                                                        if ($filteredVehicles->isEmpty()) {
+                                                            $filteredVehicles = $transportVehicles;
                                                         }
-                                                    @endphp
-                                                    <div class="row g-3">
-                                                        <!-- First Row: Transport Type, Vehicle, Destination -->
-                                                        <div class="col-md-3">
-                                                            <label class="form-label fw-semibold">Transport Type</label>
-                                                            <select class="form-select" name="restaurant_transport_type_{{ $order->booking_id }}">
-                                                                <option value="">Select type</option>
-                                                                <option value="shared" {{ $transportType === 'shared' || $transportType === 'Shared' ? 'selected' : '' }}>Shared</option>
-                                                                <option value="private" {{ $transportType === 'private' || $transportType === 'Private' ? 'selected' : '' }}>Private</option>
-                                                            </select>
-                                                        </div>
-                                                        
-                                                        <div class="col-md-3">
-                                                            <label class="form-label fw-semibold">Destination</label>
-                                                            @php
-                                                                $destHotels = $hotels ?? collect();
-                                                                $destAttractions = $attractions ?? collect();
-                                                                $destRestaurants = $restaurants ?? collect();
-                                                            @endphp
-                                                            <select class="form-select restaurant-transport-destination-select" name="restaurant_transport_destination_{{ $order->booking_id }}" id="restaurant_transport_destination_{{ $order->booking_id }}" data-booking-id="{{ $order->booking_id }}">
-                                                                <option value="">Search & select destination</option>
-                                                                <optgroup label="Hotels">
-                                                                    @foreach($destHotels as $h)
-                                                                        <option value="{{ $h->name ?? '' }}" 
-                                                                                data-destination-id="{{ $h->hotel_unique_id ?? '' }}" 
-                                                                                data-destination-type="hotel" 
-                                                                                {{ ($transportDestination === ($h->name ?? '')) ? 'selected' : '' }}>
-                                                                            {{ $h->name ?? '' }}
-                                                                        </option>
-                                                                    @endforeach
-                                                                </optgroup>
-                                                                <optgroup label="Attractions">
-                                                                    @foreach($destAttractions as $a)
-                                                                        <option value="{{ $a->name ?? '' }}" 
-                                                                                data-destination-id="{{ $a->attraction_id ?? '' }}" 
-                                                                                data-destination-type="attraction" 
-                                                                                {{ ($transportDestination === ($a->name ?? '')) ? 'selected' : '' }}>
-                                                                            {{ $a->name ?? '' }}
-                                                                        </option>
-                                                                    @endforeach
-                                                                </optgroup>
-                                                                <optgroup label="Restaurants">
-                                                                    @foreach($destRestaurants as $r)
-                                                                        <option value="{{ $r->name ?? '' }}" 
-                                                                                data-destination-id="{{ $r->restaurant_id ?? '' }}" 
-                                                                                data-destination-type="restaurant" 
-                                                                                {{ ($transportDestination === ($r->name ?? '')) ? 'selected' : '' }}>
-                                                                            {{ $r->name ?? '' }}
-                                                                        </option>
-                                                                    @endforeach
-                                                                </optgroup>
-                                                            </select>
-                                                        </div>
-                                                        <div class="col-md-3">
-                                                            <label class="form-label fw-semibold">Vehicle (by country)</label>
-                                                            <select class="form-select restaurant-transport-vehicle-select" name="restaurant_transport_vehicle_{{ $order->booking_id }}" id="restaurant_transport_vehicle_{{ $order->booking_id }}" data-booking-id="{{ $order->booking_id }}">
-                                                                <option value="">{{ $transportDestination ? 'Select vehicle' : 'Select destination first' }}</option>
-                                                                @if($transportDestination)
-                                                                    {{-- Vehicles will be loaded via JavaScript when destination is selected --}}
-                                                                    @if($transportVehicle)
-                                                                        @foreach($filteredVehicles as $vehicle)
-                                                                            @php
-                                                                                $vehicleName = $vehicle->vehicle_name ?? $vehicle->vehicle_id ?? 'Vehicle';
-                                                                                $vehicleId = $vehicle->vehicle_id ?? '';
-                                                                                $vehicleType = $vehicle->vehicle_type ?? '';
-                                                                                $seatingCapacity = $vehicle->seating_capacity ?? '';
-                                                                                $isSelected = ($transportVehicle === $vehicleName || 
-                                                                                               $transportVehicle === $vehicleId || 
-                                                                                               $transportVehicleId === $vehicleId ||
-                                                                                               $transportVehicleId === (string)$vehicleId);
-                                                                            @endphp
+                                                    }
+                                                @endphp
+                                                <div class="row g-3">
+                                                    <!-- First Row: Transport Type, Vehicle, Destination -->
+                                                    <div class="col-md-3">
+                                                        <label class="form-label fw-semibold">Transport Type</label>
+                                                        <select class="form-select" name="restaurant_transport_type_{{ $order->booking_id }}">
+                                                            <option value="">Select type</option>
+                                                            <option value="shared" {{ $transportType === 'shared' || $transportType === 'Shared' ? 'selected' : '' }}>Shared</option>
+                                                            <option value="private" {{ $transportType === 'private' || $transportType === 'Private' ? 'selected' : '' }}>Private</option>
+                                                        </select>
+                                                    </div>
+                                                    
+                                                    <div class="col-md-3">
+                                                        <label class="form-label fw-semibold">Destination</label>
+                                                        @php
+                                                            $destHotels = $hotels ?? collect();
+                                                            $destAttractions = $attractions ?? collect();
+                                                            $destRestaurants = $restaurants ?? collect();
+                                                        @endphp
+                                                        <select class="form-select restaurant-transport-destination-select" name="restaurant_transport_destination_{{ $order->booking_id }}" id="restaurant_transport_destination_{{ $order->booking_id }}" data-booking-id="{{ $order->booking_id }}">
+                                                            <option value="">Search & select destination</option>
+                                                            <optgroup label="Hotels">
+                                                                @foreach($destHotels as $h)
+                                                                    <option value="{{ $h->name ?? '' }}" 
+                                                                            data-destination-id="{{ $h->hotel_unique_id ?? '' }}" 
+                                                                            data-destination-type="hotel" 
+                                                                            {{ ($transportDestination === ($h->name ?? '')) ? 'selected' : '' }}>
+                                                                        {{ $h->name ?? '' }}
+                                                                    </option>
+                                                                @endforeach
+                                                            </optgroup>
+                                                            <optgroup label="Attractions">
+                                                                @foreach($destAttractions as $a)
+                                                                    <option value="{{ $a->name ?? '' }}" 
+                                                                            data-destination-id="{{ $a->attraction_id ?? '' }}" 
+                                                                            data-destination-type="attraction" 
+                                                                            {{ ($transportDestination === ($a->name ?? '')) ? 'selected' : '' }}>
+                                                                        {{ $a->name ?? '' }}
+                                                                    </option>
+                                                                @endforeach
+                                                            </optgroup>
+                                                            <optgroup label="Restaurants">
+                                                                @foreach($destRestaurants as $r)
+                                                                    <option value="{{ $r->name ?? '' }}" 
+                                                                            data-destination-id="{{ $r->restaurant_id ?? '' }}" 
+                                                                            data-destination-type="restaurant" 
+                                                                            {{ ($transportDestination === ($r->name ?? '')) ? 'selected' : '' }}>
+                                                                        {{ $r->name ?? '' }}
+                                                                    </option>
+                                                                @endforeach
+                                                            </optgroup>
+                                                        </select>
+                                                    </div>
+                                                    <div class="col-md-3">
+                                                        <label class="form-label fw-semibold">Vehicle (by country)</label>
+                                                        <select class="form-select restaurant-transport-vehicle-select" name="restaurant_transport_vehicle_{{ $order->booking_id }}" id="restaurant_transport_vehicle_{{ $order->booking_id }}" data-booking-id="{{ $order->booking_id }}">
+                                                            <option value="">{{ $transportDestination ? 'Select vehicle' : 'Select destination first' }}</option>
+                                                            @if($transportDestination)
+                                                                @if($filteredVehicles && count($filteredVehicles) > 0)
+                                                                    @foreach($filteredVehicles as $vehicle)
+                                                                        @php
+                                                                            $vehicleName = $vehicle->vehicle_name ?? $vehicle->vehicle_id ?? 'Vehicle';
+                                                                            $vehicleId = $vehicle->vehicle_id ?? '';
+                                                                            $vehicleType = $vehicle->vehicle_type ?? '';
+                                                                            $seatingCapacity = $vehicle->seating_capacity ?? '';
+                                                                            // Match by vehicle_id for proper mapping
+                                                                            $isSelected = ($transportVehicleId == $vehicleId || 
+                                                                                           $transportVehicleId == (string)$vehicleId ||
+                                                                                           ($transportVehicle && ($transportVehicle == $vehicleId || $transportVehicle == (string)$vehicleId)));
+                                                                        @endphp
+                                                                        <option value="{{ $vehicleId }}" data-vehicle-id="{{ $vehicleId }}" data-vehicle-name="{{ $vehicleName }}" data-seating-capacity="{{ $seatingCapacity }}" {{ $isSelected ? 'selected' : '' }}>
+                                                                            {{ $vehicleName }}
                                                                             @if($isSelected)
-                                                                                <option value="{{ $vehicleName }}" data-vehicle-id="{{ $vehicleId }}" data-seating-capacity="{{ $seatingCapacity }}" selected>
-                                                                                    {{ $vehicleName }}
-                                                                                    @if($vehicleType)
-                                                                                        ({{ $vehicleType }})
-                                                                                    @endif
-                                                                                    @if($seatingCapacity)
-                                                                                        - {{ $seatingCapacity }} seats
-                                                                                    @endif
-                                                                                </option>
+                                                                                ({{ $vehicleName }})
                                                                             @endif
-                                                                        @endforeach
-                                                                    @endif
+                                                                            @if($seatingCapacity)
+                                                                                - {{ $seatingCapacity }} seats
+                                                                            @endif
+                                                                        </option>
+                                                                    @endforeach
                                                                 @endif
-                                                            </select>
+                                                            @endif
+                                                        </select>
+                                                        <script>
+                                                            // Ensure selected vehicle is displayed and Select2 is initialized
+                                                            $(document).ready(function() {
+                                                                const vehicleSelect = $('#restaurant_transport_vehicle_{{ $order->booking_id }}');
+                                                                
+                                                                // Set selected value if exists
+                                                                const selectedOption = vehicleSelect.find('option[selected]');
+                                                                if (selectedOption.length) {
+                                                                    const selectedValue = selectedOption.attr('value');
+                                                                    if (selectedValue) {
+                                                                        vehicleSelect.val(selectedValue);
+                                                                    }
+                                                                }
+                                                                
+                                                                // Initialize Select2 if not already initialized
+                                                                if (!vehicleSelect.data('select2') && !vehicleSelect.attr('data-no-select2')) {
+                                                                    if (window.initializeAllSelect2) {
+                                                                        setTimeout(function() {
+                                                                            window.initializeAllSelect2(vehicleSelect.parent());
+                                                                        }, 200);
+                                                                    }
+                                                                }
+                                                            });
+                                                        </script>
+                                                    </div>
+                                                
+                                                    <div class="col-md-3">
+                                                        <label class="form-label fw-semibold">Estimated Price</label>
+                                                        <div class="input-group">
+                                                            <span class="input-group-text">{{ $tour->currency ?? '$' }}</span>
+                                                            <input type="number" min="0" step="0.01" class="form-control" name="restaurant_transport_price_{{ $order->booking_id }}" id="restaurant_transport_price_{{ $order->booking_id }}" placeholder="0.00" value="{{ number_format((float)$transportPrice, 2, '.', '') }}" data-original-price="{{ $transportReturn ? number_format((float)$transportPrice / 2, 2, '.', '') : number_format((float)$transportPrice, 2, '.', '') }}">
                                                         </div>
-                                                    <!-- </div>
-                                                    <div class="row g-3 mt-2">
-                                                        <div class="col-md-2">
-                                                            <label class="form-label fw-semibold">Seats</label>
-                                                            <input type="number" min="1" class="form-control" name="restaurant_transport_seats_{{ $order->booking_id }}" id="restaurant_transport_seats_{{ $order->booking_id }}" placeholder="0" value="{{ $transportSeats }}" readonly>
-                                                        </div>
-                                                        <div class="col-md-4">
-                                                            <label class="form-label fw-semibold">Passengers</label>
-                                                            <input type="number" min="1" class="form-control" name="restaurant_transport_passengers_{{ $order->booking_id }}" id="restaurant_transport_passengers_{{ $order->booking_id }}" placeholder="0" value="{{ $transportPassengers }}" data-booking-id="{{ $order->booking_id }}" data-transport-type="restaurant">
-                                                            <div class="form-check mt-2">
-                                                                <input class="form-check-input restaurant-transport-return-checkbox" type="checkbox" name="restaurant_transport_return_{{ $order->booking_id }}" id="restaurant_transport_return_{{ $order->booking_id }}" data-booking-id="{{ $order->booking_id }}" {{ $transportReturn ? 'checked' : '' }}>
-                                                                <label class="form-check-label fw-semibold" for="restaurant_transport_return_{{ $order->booking_id }}">
-                                                                    Return
-                                                                </label>
-                                                            </div>
-                                                            <small class="text-danger d-none" id="restaurant_passenger_error_{{ $order->booking_id }}">Passengers cannot exceed total pax or vehicle capacity</small>
-                                                        </div> -->
-                                                        <div class="col-md-3">
-                                                            <label class="form-label fw-semibold">Estimated Price</label>
-                                                            <div class="input-group">
-                                                                <span class="input-group-text">{{ $tour->currency ?? '$' }}</span>
-                                                                <input type="number" min="0" step="0.01" class="form-control" name="restaurant_transport_price_{{ $order->booking_id }}" id="restaurant_transport_price_{{ $order->booking_id }}" placeholder="0.00" value="{{ number_format((float)$transportPrice, 2, '.', '') }}" data-original-price="{{ $transportReturn ? number_format((float)$transportPrice / 2, 2, '.', '') : number_format((float)$transportPrice, 2, '.', '') }}">
-                                                            </div>
-                                                            <small class="text-muted">Optional, can be adjusted later.</small>
-                                                            <div class="form-check mt-2">
-                                                                <input class="form-check-input restaurant-transport-return-checkbox" type="checkbox" name="restaurant_transport_return_{{ $order->booking_id }}" id="restaurant_transport_return_{{ $order->booking_id }}" data-booking-id="{{ $order->booking_id }}" {{ $transportReturn ? 'checked' : '' }}>
-                                                                <label class="form-check-label fw-semibold" for="restaurant_transport_return_{{ $order->booking_id }}">
-                                                                    Return
-                                                                </label>
-                                                            </div>
+                                                        <small class="text-muted">Optional, can be adjusted later.</small>
+                                                        <div class="form-check mt-2">
+                                                            <input class="form-check-input restaurant-transport-return-checkbox" type="checkbox" name="restaurant_transport_return_{{ $order->booking_id }}" id="restaurant_transport_return_{{ $order->booking_id }}" data-booking-id="{{ $order->booking_id }}" {{ $transportReturn ? 'checked' : '' }}>
+                                                            <label class="form-check-label fw-semibold" for="restaurant_transport_return_{{ $order->booking_id }}">
+                                                                Return
+                                                            </label>
                                                         </div>
                                                     </div>
                                                 </div>
+                                            </div>
                                                 
                                             </div>
                                             <div class="d-flex justify-content-end align-items-center gap-3 mt-3">
@@ -3187,36 +3192,47 @@
                                                     <div class="col-md-3">
                                                         <label class="form-label fw-semibold">Vehicle (by country)</label>
                                                         <select class="form-select attraction-transport-vehicle-select" name="attraction_transport_vehicle_{{ $order->booking_id }}" id="attraction_transport_vehicle_{{ $order->booking_id }}" data-booking-id="{{ $order->booking_id }}">
-                                                            <option value="">{{ $transportDestination ? 'Select vehicle' : 'Select destination first' }}</option>
+                                                            
+                                                        <option value="">{{ $transportDestination ? 'Select vehicle' : 'Select destination first' }}</option>
                                                             @if($transportDestination)
-                                                                {{-- Vehicles will be loaded via JavaScript when destination is selected --}}
-                                                                @if($transportVehicle)
-                                                                    @foreach($filteredVehicles as $vehicle)
-                                                                        @php
-                                                                            $vehicleName = $vehicle->vehicle_name ?? $vehicle->vehicle_id ?? 'Vehicle';
-                                                                            $vehicleId = $vehicle->vehicle_id ?? '';
-                                                                            $vehicleType = $vehicle->vehicle_type ?? '';
-                                                                            $seatingCapacity = $vehicle->seating_capacity ?? '';
-                                                                            $isSelected = ($transportVehicle === $vehicleName || 
-                                                                                           $transportVehicle === $vehicleId || 
-                                                                                           $transportVehicleId === $vehicleId ||
-                                                                                           $transportVehicleId === (string)$vehicleId);
-                                                                        @endphp
-                                                                        @if($isSelected)
-                                                                            <option value="{{ $vehicleName }}" data-vehicle-id="{{ $vehicleId }}" data-seating-capacity="{{ $seatingCapacity }}" selected>
-                                                                                {{ $vehicleName }}
-                                                                                @if($vehicleType)
-                                                                                    ({{ $vehicleType }})
-                                                                                @endif
-                                                                                @if($seatingCapacity)
-                                                                                    - {{ $seatingCapacity }} seats
-                                                                                @endif
-                                                                            </option>
-                                                                        @endif
+                                                                @if($filteredVehicles && count($filteredVehicles) > 0)
+                                                                @foreach($filteredVehicles as $vehicle)
+                                                                @php
+                                                                $vehicleName = $vehicle->vehicle_name ?? $vehicle->vehicle_id ?? 'Vehicle';
+                                                                $vehicleId = $vehicle->vehicle_id ?? '';
+                                                                $vehicleType = $vehicle->vehicle_type ?? '';
+                                                                $seatingCapacity = $vehicle->seating_capacity ?? '';
+                                                                // Match by vehicle_id for proper mapping
+                                                                $isSelected = ($transportVehicleId == $vehicleId || 
+                                                                $transportVehicleId == (string)$vehicleId ||
+                                                                ($transportVehicle && ($transportVehicle == $vehicleId || $transportVehicle == (string)$vehicleId)));
+                                                                @endphp
+                                                                <option value="{{ $vehicleId }}" data-vehicle-id="{{ $vehicleId }}" data-vehicle-name="{{ $vehicleName }}" data-seating-capacity="{{ $seatingCapacity }}" {{ $isSelected ? 'selected' : '' }}>
+                                                                    {{ $vehicleName }}
+                                                                    @if($isSelected)
+                                                                        ({{ $vehicleId }})
+                                                                    @endif
+                                                                    @if($seatingCapacity)
+                                                                        - {{ $seatingCapacity }} seats
+                                                                    @endif
+                                                                </option>
                                                                     @endforeach
                                                                 @endif
                                                             @endif
                                                         </select>
+                                                        <script>
+                                                            // Ensure selected vehicle is displayed in select box on page load
+                                                            $(document).ready(function() {
+                                                                const vehicleSelect = $('#attraction_transport_vehicle_{{ $order->booking_id }}');
+                                                                const selectedOption = vehicleSelect.find('option[selected]');
+                                                                if (selectedOption.length) {
+                                                                    const selectedValue = selectedOption.attr('value');
+                                                                    if (selectedValue) {
+                                                                        vehicleSelect.val(selectedValue);
+                                                                    }
+                                                                }
+                                                            });
+                                                        </script>
                                                     </div>
                                                 <!-- </div>
                                                 <div class="row g-3 mt-2"> -->
@@ -3625,24 +3641,45 @@
                                                         </div>
                                                         <div class="col-md-3">
                                                             <label class="form-label fw-semibold text-muted mb-1"><i class="ri-map-pin-line me-1 text-success"></i>Pick Up Location</label>
-                                                            <select class="form-select border-2" name="pickup_location">
+                                                            <select class="form-select border-2 departure-pickup-location" name="pickup_location" data-booking-id="{{ $order->booking_id }}" onchange="updateDepartureVehicles({{ $order->booking_id }})">
                                                                 <option value="">Select pickup location</option>
-                                                                @foreach($hotels as $hotel)
-                                                                    <option value="{{ $hotel->name }}" {{ $hotel->name == $pickupLocation ? 'selected' : '' }}>
-                                                                        {{ $hotel->name }}
-                                                                    </option>
-                                                                @endforeach
-                                                                @if($pickupLocation && !$hotels->contains('name', $pickupLocation))
+                                                                @if(isset($hotels))
+                                                                    @foreach($hotels as $hotel)
+                                                                        <option value="{{ $hotel->name }}" 
+                                                                                data-hotel-id="{{ $hotel->hotel_unique_id ?? $hotel->hotel_id ?? '' }}" 
+                                                                                data-zone-id="{{ $hotel->hotel_unique_id ?? $hotel->hotel_id ?? '' }}"
+                                                                                data-type="Hotel"
+                                                                                {{ $hotel->name == $pickupLocation ? 'selected' : '' }}>
+                                                                            {{ $hotel->name }}
+                                                                        </option>
+                                                                    @endforeach
+                                                                @endif
+                                                                @if(isset($restaurants))
+                                                                    @foreach($restaurants as $restaurant)
+                                                                        <option value="{{ $restaurant->name }}" 
+                                                                                data-restaurant-id="{{ $restaurant->restaurant_id ?? '' }}" 
+                                                                                data-zone-id="{{ $restaurant->restaurant_id ?? '' }}"
+                                                                                data-type="Restaurant"
+                                                                                {{ $restaurant->name == $pickupLocation ? 'selected' : '' }}>
+                                                                            {{ $restaurant->name }}
+                                                                        </option>
+                                                                    @endforeach
+                                                                @endif
+                                                                @if($pickupLocation && (!isset($hotels) || !$hotels->contains('name', $pickupLocation)) && (!isset($restaurants) || !$restaurants->contains('name', $pickupLocation)))
                                                                     <option value="{{ $pickupLocation }}" selected>{{ $pickupLocation }}</option>
                                                                 @endif
                                                             </select>
                                                         </div>
                                                         <div class="col-md-3">
                                                             <label class="form-label fw-semibold text-muted mb-1"><i class="ri-map-pin-line me-1 text-danger"></i>Drop Off Location</label>
-                                                            <select class="form-select border-2" name="dropoff_location">
+                                                            <select class="form-select border-2 departure-dropoff-location" name="dropoff_location" data-booking-id="{{ $order->booking_id }}" onchange="updateDepartureVehicles({{ $order->booking_id }})">
                                                                 <option value="">Select dropoff port</option>
                                                                 @foreach($ports as $port)
-                                                                    <option value="{{ $port->port_name }}" {{ $port->port_name == $dropoffLocation ? 'selected' : '' }}>
+                                                                    <option value="{{ $port->port_name }}" 
+                                                                            data-port-id="{{ $port->port_id }}" 
+                                                                            data-zone-id="{{ $port->port_id }}"
+                                                                            data-type="Port"
+                                                                            {{ $port->port_name == $dropoffLocation ? 'selected' : '' }}>
                                                                         {{ $port->port_name }}
                                                                     </option>
                                                                 @endforeach
@@ -3689,7 +3726,7 @@
                                                         <div class="col-md-3">
                                                             <label class="form-label fw-semibold text-muted mb-1"><i class="ri-car-line me-1 text-info"></i>Vehicle</label>
                                                             @php $vehicleMatched = false; @endphp
-                                                            <select class="form-select border-2" name="vehicle_name">
+                                                            <select class="form-select border-2 departure-vehicle-select" name="vehicle_name" id="departure_vehicle_{{ $order->booking_id }}" data-booking-id="{{ $order->booking_id }}" onchange="updateDepartureServiceType({{ $order->booking_id }})"> 
                                                                 <option value="">{{ $vehicleName ? 'Select vehicle' : 'Select vehicle' }}</option>
                                                                 @foreach($availableVehicles as $vehicleOption)
                                                                     @php
@@ -3697,7 +3734,12 @@
                                                                         $isSelected = $vehicleDisplayName && strcasecmp($vehicleDisplayName, $vehicleName ?? '') === 0;
                                                                         $vehicleMatched = $vehicleMatched || $isSelected;
                                                                     @endphp
-                                                                    <option value="{{ $vehicleDisplayName }}" {{ $isSelected ? 'selected' : '' }}>
+                                                                    <option value="{{ $vehicleDisplayName }}" 
+                                                                            data-vehicle-id="{{ $vehicleOption->vehicle_id ?? '' }}"
+                                                                            data-private-price="{{ $vehicleOption->base_price ?? $vehicleOption->private_price ?? 0 }}"
+                                                                            data-shared-price="{{ $vehicleOption->sharable_base_price ?? $vehicleOption->shared_price ?? 0 }}"
+                                                                            data-sharable="{{ $vehicleOption->sharable ?? 0 }}"
+                                                                            {{ $isSelected ? 'selected' : '' }}>
                                                                         {{ $vehicleDisplayName }}
                                                                         @if(!empty($vehicleOption->vehicle_type))
                                                                             ({{ $vehicleOption->vehicle_type }})
@@ -3711,7 +3753,7 @@
                                                         </div>
                                                         <div class="col-md-2">
                                                             <label class="form-label fw-semibold text-muted mb-1">Service Type</label>
-                                                            <select class="form-select border-2" name="vehicle_type">
+                                                            <select class="form-select border-2 departure-service-type" name="vehicle_type" id="departure_service_type_{{ $order->booking_id }}" data-booking-id="{{ $order->booking_id }}" onchange="updateDeparturePrice({{ $order->booking_id }})">
                                                                 <option value="">Select type</option>
                                                                 <option value="Private" {{ strtolower($vehicleType) === 'private' ? 'selected' : '' }}>Private</option>
                                                                 <option value="Shared" {{ strtolower($vehicleType) === 'shared' ? 'selected' : '' }}>Shared</option>
@@ -3719,8 +3761,7 @@
                                                         </div>
                                                         <div class="col-md-2">
                                                             <label class="form-label fw-semibold text-muted mb-1"><i class="ri-money-dollar-circle-line me-1 text-success"></i>Total Price</label>
-                                                            <input type="number" class="form-control border-2"
-                                                            style="height: 38px;" name="total_price" step="0.01" min="0" value="{{ number_format((float)$totalPrice, 2, '.', '') }}" placeholder="0.00" readonly>
+                                                            <input type="number" class="form-control border-2 departure-total-price" style="height: 38px;" name="total_price" id="departure_price_{{ $order->booking_id }}" step="0.01" min="0" value="{{ number_format((float)$totalPrice, 2, '.', '') }}" placeholder="0.00" readonly>
                                                         </div>
                                                         <!-- <div class="col-md-2">
                                                             <label class="form-label fw-semibold text-muted mb-1">Passengers</label>
@@ -3757,123 +3798,302 @@
                             <!-- Combined Guest Information Section (Lead Guest + Additional Guests in same grid) -->
                             <div class="row mb-4">
                                 <div class="col-12">
-                                    <div class="card shadow-sm border-0">
-                                        <div class="card-header bg-gradient-primary text-white">
-                                            <h6 class="mb-0 fw-bold">
-                                                <i class="ri-group-line me-2"></i>Guest Information
-                                            </h6>
-                                            <small class="d-block mt-1" style="font-size: 0.85rem;">
-                                                Manage lead guest and additional guest details
-                                            </small>
-                                        </div>
-                                        <div class="card-body mt-3">
-                                            @if(isset($customer_info) && !empty($customer_info))
-                                                <!-- Lead Guest Section -->
-                                                <div class="mb-4 pb-3 border-bottom">
-                                                    <h6 class="fw-semibold mb-3 text-primary">
-                                                        <i class="ri-user-star-line me-2"></i>Lead Guest
-                                                    </h6>
+                                    <div class="accordion" id="guestInformationAccordion">
+                                        <!-- Lead Guest Accordion Item -->
+                                        @if(isset($customer_info) && !empty($customer_info))
+                                        <div class="accordion-item border-0 shadow-sm mb-3">
+                                            <h2 class="accordion-header" id="leadGuestHeading">
+                                                <button class="accordion-button collapsed fw-bold text-white" type="button" data-bs-toggle="collapse" data-bs-target="#leadGuestCollapse" aria-expanded="false" aria-controls="leadGuestCollapse" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);">
+                                                    <i class="ri-user-star-line me-2"></i>Lead Guest
+                                                </button>
+                                            </h2>
+                                            <div id="leadGuestCollapse"  style="margin-top: 10px class="accordion-collapse collapse" aria-labelledby="leadGuestHeading" data-bs-parent="#guestInformationAccordion">
+                                                <div class="accordion-body" style="background: linear-gradient(to bottom, #f8f9ff 0%, #ffffff 100%);">
                                                     <div class="row g-3">
                                                         <div class="col-md-6">
-                                                            <label class="form-label">Full Name</label>
-                                                            <input type="text" class="form-control" id="customerFullName" name="customer_full_name" placeholder="Enter full name" value="{{ $customer_info['fullName'] ?? '' }}">
+                                                            <label class="form-label fw-semibold">Full Name</label>
+                                                            <input type="text" class="form-control" id="customerFullName" name="customer_full_name" placeholder="Enter full name" value="{{ $customer_info['fullName'] ?? '' }}" readonly>
                                                         </div>
                                                         <div class="col-md-6">
-                                                            <label class="form-label">Email</label>
-                                                            <input type="email" class="form-control" id="customerEmail" name="customer_email" placeholder="Enter email" value="{{ $customer_info['email'] ?? '' }}">
+                                                            <label class="form-label fw-semibold">Email</label>
+                                                            <input type="email" class="form-control" id="customerEmail" name="customer_email" placeholder="Enter email" value="{{ $customer_info['email'] ?? '' }}" readonly>
                                                         </div>
                                                         <div class="col-md-3">
-                                                            <label class="form-label">Country Code</label>
+                                                            <label class="form-label fw-semibold">Country Code</label>
                                                             <input type="text" class="form-control" id="customerCountryCode" name="customer_country_code" placeholder="e.g. +91" value="{{ $customer_info['countryCode'] ?? '' }}">
                                                         </div>
                                                         <div class="col-md-9">
-                                                            <label class="form-label">Phone Number</label>
+                                                            <label class="form-label fw-semibold">Phone Number</label>
                                                             <input type="tel" class="form-control" id="customerPhone" name="customer_phone" placeholder="Enter phone number" value="{{ $customer_info['phone'] ?? '' }}">
                                                         </div>
                                                         <div class="col-12">
-                                                            <label class="form-label">Address Line 1</label>
+                                                            <label class="form-label fw-semibold">Address Line 1</label>
                                                             <input type="text" class="form-control" id="customerAddress1" name="customer_address1" placeholder="Enter address line 1" value="{{ $customer_info['address1'] ?? '' }}">
                                                         </div>
                                                         <div class="col-12">
-                                                            <label class="form-label">Address Line 2</label>
+                                                            <label class="form-label fw-semibold">Address Line 2</label>
                                                             <input type="text" class="form-control" id="customerAddress2" name="customer_address2" placeholder="Enter address line 2" value="{{ $customer_info['address2'] ?? '' }}">
                                                         </div>
                                                         <div class="col-md-6">
-                                                            <label class="form-label">State</label>
+                                                            <label class="form-label fw-semibold">State</label>
                                                             <input type="text" class="form-control" id="customerState" name="customer_state" placeholder="Enter state" value="{{ $customer_info['state'] ?? '' }}">
                                                         </div>
                                                         <div class="col-md-6">
-                                                            <label class="form-label">ZIP Code</label>
+                                                            <label class="form-label fw-semibold">ZIP Code</label>
                                                             <input type="text" class="form-control" id="customerZip" name="customer_zip" placeholder="Enter ZIP code" value="{{ $customer_info['zip'] ?? '' }}">
                                                         </div>
                                                         <div class="col-12">
-                                                            <label class="form-label">Special Requests</label>
+                                                            <label class="form-label fw-semibold">Special Requests</label>
                                                             <textarea class="form-control" id="customerSpecialRequests" name="customer_special_requests" rows="3" placeholder="Enter any special requests or notes">{{ $customer_info['specialRequests'] ?? '' }}</textarea>
                                                         </div>  
                                                     </div>
                                                 </div>
-                                            @endif
+                                            </div>
+                                        </div>
+                                        @endif
 
-                                            <!-- Additional Guests Section -->
-                                            <div class="mb-3">
-                                                <h6 class="fw-semibold mb-3 text-info">
-                                                    <i class="ri-group-line me-2"></i>Additional Guest(s)
-                                                </h6>
-                                                <div id="additionalGuestsContainer">
-                                                    @if(!empty($additionalGuests))
-                                                        @foreach($additionalGuests as $index => $guest)
-                                                            <div class="card mb-3 border guest-card" data-guest-index="{{ $index }}">
-                                                                <div class="card-header bg-light d-flex justify-content-between align-items-center">
-                                                                    <h6 class="mb-0 fw-semibold">
-                                                                        <i class="ri-user-line me-2"></i>Guest {{ $index + 1 }}
-                                                                    </h6>
-                                                                </div>
-                                                                <div class="card-body">
-                                                                    <div class="row g-3">
-                                                                        <div class="col-md-3">
-                                                                            <label class="form-label">Salutation</label>
-                                                                            <input type="text" class="form-control guest-salutation" name="additional_guests[{{ $index }}][salutation]" value="{{ $guest['salutation'] ?? '' }}" placeholder="Mr/Mrs/Ms">
-                                                                        </div>
-                                                                        <div class="col-md-3">
-                                                                            <label class="form-label">Name</label>
-                                                                            <input type="text" class="form-control guest-name" name="additional_guests[{{ $index }}][name]" value="{{ $guest['name'] ?? '' }}" placeholder="Enter full name">
-                                                                        </div>
-                                                                        <div class="col-md-3">
-                                                                            <label class="form-label">Passport No.</label>
-                                                                            <input type="text" class="form-control guest-passport-no" name="additional_guests[{{ $index }}][passport_no]" value="{{ $guest['passport_no'] ?? '' }}" placeholder="Enter passport number">
-                                                                        </div>
-                                                                        <div class="col-md-3">
-                                                                            <label class="form-label">Passport Expiry</label>
-                                                                            <input type="date" class="form-control guest-passport-exp" name="additional_guests[{{ $index }}][passport_exp]" value="{{ $guest['passport_exp'] ?? '' }}">
-                                                                        </div>
-                                                                        <div class="col-md-4">
-                                                                            <label class="form-label">Contact No.</label>
-                                                                            <input type="text" class="form-control guest-contact-no" name="additional_guests[{{ $index }}][contact_no]" value="{{ $guest['contact_no'] ?? '' }}" placeholder="Enter contact number">
+                                        <!-- Additional Guests Accordion Item -->
+                                        <div class="accordion-item border-0 shadow-sm">
+                                            <h2 class="accordion-header" id="additionalGuestsHeading" style=margin-top:10px>
+                                                <button class="accordion-button collapsed fw-bold text-white" type="button" data-bs-toggle="collapse" data-bs-target="#additionalGuestsCollapse" aria-expanded="false" aria-controls="additionalGuestsCollapse" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);">
+                                                    <i class="ri-group-line me-2"></i>Additional Guest(s) 
+                                                    <span class="badge bg-light text-dark ms-2" id="additionalGuestsCount">{{ !empty($additionalGuests) ? count($additionalGuests) : 0 }}</span>
+                                                </button>
+                                            </h2>
+                                            <div id="additionalGuestsCollapse" class="accordion-collapse collapse" aria-labelledby="additionalGuestsHeading" data-bs-parent="#guestInformationAccordion">
+                                                <div class="accordion-body">
+                                                    <div id="additionalGuestsContainer">
+                                                        @if(!empty($additionalGuests))
+                                                            @foreach($additionalGuests as $index => $guest)
+                                                                <div class="card mb-3 border shadow-sm guest-card" data-guest-index="{{ $index }}">
+                                                                    <div class="card-header bg-light d-flex justify-content-between align-items-center">
+                                                                        <h6 class="mb-0 fw-semibold">
+                                                                            <i class="ri-user-line me-2"></i>Guest {{ $index + 1 }}
+                                                                        </h6>
+                                                                        <button type="button" class="btn btn-sm btn-danger remove-guest-btn" onclick="removeGuest(this)" data-guest-index="{{ $index }}" title="Remove Guest">
+                                                                            <i class="ri-delete-bin-line"></i> Remove
+                                                                        </button>
+                                                                    </div>
+                                                                    <div class="card-body" style="margin-top:10px">
+                                                                        <div class="row g-3">
+                                                                            <div class="col-md-3">
+                                                                                <label class="form-label fw-semibold">Salutation</label>
+                                                                                <input type="text" class="form-control guest-salutation" name="additional_guests[{{ $index }}][salutation]" value="{{ $guest['salutation'] ?? '' }}" placeholder="Mr/Mrs/Ms">
+                                                                            </div>
+                                                                            <div class="col-md-3">
+                                                                                <label class="form-label fw-semibold">Name</label>
+                                                                                <input type="text" class="form-control guest-name" name="additional_guests[{{ $index }}][name]" value="{{ $guest['name'] ?? '' }}" placeholder="Enter full name">
+                                                                            </div>
+                                                                            <div class="col-md-3">
+                                                                                <label class="form-label fw-semibold">Passport No.</label>
+                                                                                <input type="text" class="form-control guest-passport-no" name="additional_guests[{{ $index }}][passport_no]" value="{{ $guest['passport_no'] ?? '' }}" placeholder="Enter passport number">
+                                                                            </div>
+                                                                            <div class="col-md-3">
+                                                                                <label class="form-label fw-semibold">Passport Expiry</label>
+                                                                                <input type="date" class="form-control guest-passport-exp" name="additional_guests[{{ $index }}][passport_exp]" value="{{ $guest['passport_exp'] ?? '' }}">
+                                                                            </div>
+                                                                            <div class="col-md-4">
+                                                                                <label class="form-label fw-semibold">Contact No.</label>
+                                                                                <input type="text" class="form-control guest-contact-no" name="additional_guests[{{ $index }}][contact_no]" value="{{ $guest['contact_no'] ?? '' }}" placeholder="Enter contact number">
+                                                                            </div>
                                                                         </div>
                                                                     </div>
                                                                 </div>
+                                                            @endforeach
+                                                        @else
+                                                            <div class="text-muted small mb-3 p-3 bg-light rounded">
+                                                                <i class="ri-information-line me-2"></i>No additional guest information has been added for this tour.
                                                             </div>
-                                                        @endforeach
-                                                    @else
-                                                        <div class="text-muted small mb-3">
-                                                            No additional guest information has been added for this tour.
+                                                        @endif
+                                                    </div>
+                                                    
+                                                    <!-- Add More Guest Button -->
+                                                    <div class="mt-3 pt-3 border-top">
+                                                        <button type="button" class="btn btn-success d-flex align-items-center gap-2" onclick="addNewGuest()" id="addGuestBtn">
+                                                            <i class="ri-user-add-line"></i>
+                                                            <span>Add More Guest</span>
+                                                        </button>
+                                                        <small class="text-muted d-block mt-2">
+                                                            <span id="guestLimitInfo">Total guests (including lead guest): <strong id="currentGuestCount">{{ isset($customer_info) && !empty($customer_info) ? 1 : 0 }}{{ !empty($additionalGuests) ? ' + ' . count($additionalGuests) : '' }}</strong> / <strong id="maxPax">{{ ($tour->adult ?? 0) + ($tour->child ?? 0) }}</strong> (Total Pax)</span>
+                                                        </small>
+                                                        <div class="text-danger small d-none mt-2" id="guestLimitError">
+                                                            <i class="ri-error-warning-line me-1"></i>Cannot add more guests. Total guests cannot exceed total pax.
                                                         </div>
-                                                    @endif
+                                                    </div>
                                                 </div>
-                                            </div>
-
-                                            <!-- Save Changes Button -->
-                                            <div class="d-flex justify-content-end mt-4 pt-3 border-top">
-                                                <button type="button" class="btn btn-primary d-flex align-items-center gap-2" onclick="updateGuestInformation(event)">
-                                                    <span class="spinner-border spinner-border-sm d-none" id="guest_info_spinner"></span>
-                                                    <i class="ri-save-3-line"></i>
-                                                    <span>Save Guest Changes</span>
-                                                </button>
                                             </div>
                                         </div>
                                     </div>
+
+                                    <!-- Save Changes Button -->
+                                    <div class="d-flex justify-content-end mt-4 pt-3">
+                                        <button type="button" class="btn btn-primary d-flex align-items-center gap-2 shadow-sm" onclick="updateGuestInformation(event)" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); border: none;">
+                                            <span class="spinner-border spinner-border-sm d-none" id="guest_info_spinner"></span>
+                                            <i class="ri-save-3-line"></i>
+                                            <span>Save Guest Changes</span>
+                                        </button>
+                                    </div>
                                 </div>
                             </div>
+                            <script>
+                                // Get total pax from tour data
+                                const totalPax = {{ ($tour->adult ?? 0) + ($tour->child ?? 0) }};
+                                let guestIndexCounter = {{ !empty($additionalGuests) ? count($additionalGuests) : 0 }};
+                                
+                                // Function to get current guest count
+                                function getCurrentGuestCount() {
+                                    const hasLeadGuest = {{ isset($customer_info) && !empty($customer_info) ? 1 : 0 }};
+                                    const additionalGuests = document.querySelectorAll('.guest-card').length;
+                                    return hasLeadGuest + additionalGuests;
+                                }
+                                
+                                // Function to check if can add more guests
+                                function canAddMoreGuests() {
+                                    const currentCount = getCurrentGuestCount();
+                                    return currentCount < totalPax;
+                                }
+                                
+                                // Function to add new guest
+                                function addNewGuest() {
+                                    if (!canAddMoreGuests()) {
+                                        document.getElementById('guestLimitError').classList.remove('d-none');
+                                        document.getElementById('addGuestBtn').disabled = true;
+                                        return;
+                                    }
+                                    
+                                    document.getElementById('guestLimitError').classList.add('d-none');
+                                    document.getElementById('addGuestBtn').disabled = false;
+                                    
+                                    const container = document.getElementById('additionalGuestsContainer');
+                                    
+                                    // Remove "no guests" message if exists
+                                    const noGuestsMsg = container.querySelector('.text-muted');
+                                    if (noGuestsMsg) {
+                                        noGuestsMsg.remove();
+                                    }
+                                    
+                                    const newIndex = guestIndexCounter++;
+                                    const guestCard = document.createElement('div');
+                                    guestCard.className = 'card mb-3 border shadow-sm guest-card';
+                                    guestCard.setAttribute('data-guest-index', newIndex);
+                                    
+                                    guestCard.innerHTML = `
+                                        <div class="card-header bg-light d-flex justify-content-between align-items-center">
+                                            <h6 class="mb-0 fw-semibold">
+                                                <i class="ri-user-line me-2"></i>Guest ${newIndex + 1}
+                                            </h6>
+                                            <button type="button" class="btn btn-sm btn-danger remove-guest-btn" onclick="removeGuest(this)" data-guest-index="${newIndex}" title="Remove Guest">
+                                                <i class="ri-delete-bin-line"></i> Remove
+                                            </button>
+                                        </div>
+                                        <div class="card-body" style="margin-top:10px">
+                                            <div class="row g-3">
+                                                <div class="col-md-3">
+                                                    <label class="form-label fw-semibold">Salutation</label>
+                                                    <input type="text" class="form-control guest-salutation" name="additional_guests[${newIndex}][salutation]" placeholder="Mr/Mrs/Ms">
+                                                </div>
+                                                <div class="col-md-3">
+                                                    <label class="form-label fw-semibold">Name</label>
+                                                    <input type="text" class="form-control guest-name" name="additional_guests[${newIndex}][name]" placeholder="Enter full name">
+                                                </div>
+                                                <div class="col-md-3">
+                                                    <label class="form-label fw-semibold">Passport No.</label>
+                                                    <input type="text" class="form-control guest-passport-no" name="additional_guests[${newIndex}][passport_no]" placeholder="Enter passport number">
+                                                </div>
+                                                <div class="col-md-3">
+                                                    <label class="form-label fw-semibold">Passport Expiry</label>
+                                                    <input type="date" class="form-control guest-passport-exp" name="additional_guests[${newIndex}][passport_exp]">
+                                                </div>
+                                                <div class="col-md-4">
+                                                    <label class="form-label fw-semibold">Contact No.</label>
+                                                    <input type="text" class="form-control guest-contact-no" name="additional_guests[${newIndex}][contact_no]" placeholder="Enter contact number">
+                                                </div>
+                                            </div>
+                                        </div>
+                                    `;
+                                    
+                                    container.appendChild(guestCard);
+                                    updateGuestCount();
+                                    
+                                    // Scroll to new guest card
+                                    guestCard.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+                                }
+                                
+                                // Function to remove guest
+                                function removeGuest(button) {
+                                    if (confirm('Are you sure you want to remove this guest?')) {
+                                        const guestCard = button.closest('.guest-card');
+                                        guestCard.style.transition = 'all 0.3s ease';
+                                        guestCard.style.opacity = '0';
+                                        guestCard.style.transform = 'translateX(-100%)';
+                                        
+                                        setTimeout(() => {
+                                            guestCard.remove();
+                                            updateGuestCount();
+                                            
+                                            // Show "no guests" message if no guests left
+                                            const container = document.getElementById('additionalGuestsContainer');
+                                            if (container.querySelectorAll('.guest-card').length === 0) {
+                                                container.innerHTML = `
+                                                    <div class="text-muted small mb-3 p-3 bg-light rounded">
+                                                        <i class="ri-information-line me-2"></i>No additional guest information has been added for this tour.
+                                                    </div>
+                                                `;
+                                            }
+                                        }, 300);
+                                    }
+                                }
+                                
+                                // Update guest count badge and info
+                                function updateGuestCount() {
+                                    const guestCards = document.querySelectorAll('.guest-card');
+                                    const count = guestCards.length;
+                                    const currentTotal = getCurrentGuestCount();
+                                    
+                                    // Update badge
+                                    const badge = document.getElementById('additionalGuestsCount');
+                                    if (badge) {
+                                        badge.textContent = count;
+                                        if (count === 0) {
+                                            badge.classList.add('bg-secondary');
+                                            badge.classList.remove('bg-light', 'text-dark');
+                                        } else {
+                                            badge.classList.remove('bg-secondary');
+                                            badge.classList.add('bg-light', 'text-dark');
+                                        }
+                                    }
+                                    
+                                    // Update guest count info
+                                    const countInfo = document.getElementById('currentGuestCount');
+                                    const hasLeadGuest = {{ isset($customer_info) && !empty($customer_info) ? 1 : 0 }};
+                                    if (countInfo) {
+                                        if (hasLeadGuest && count > 0) {
+                                            countInfo.textContent = hasLeadGuest + ' + ' + count;
+                                        } else if (hasLeadGuest) {
+                                            countInfo.textContent = hasLeadGuest;
+                                        } else {
+                                            countInfo.textContent = count;
+                                        }
+                                    }
+                                    
+                                    // Update add button state
+                                    const addBtn = document.getElementById('addGuestBtn');
+                                    const errorMsg = document.getElementById('guestLimitError');
+                                    
+                                    if (currentTotal >= totalPax) {
+                                        if (addBtn) addBtn.disabled = true;
+                                        if (errorMsg) errorMsg.classList.remove('d-none');
+                                    } else {
+                                        if (addBtn) addBtn.disabled = false;
+                                        if (errorMsg) errorMsg.classList.add('d-none');
+                                    }
+                                }
+                                
+                                // Initialize on page load
+                                $(document).ready(function() {
+                                    updateGuestCount();
+                                });
+                            </script>
                         </div>
                     </div>
                 </div>
@@ -5236,12 +5456,12 @@
                         </div>
                     </div>
                 </form>
-            </div>
-            <div class="modal-footer py-2">
-                <button type="button" class="btn btn-sm btn-secondary" data-bs-dismiss="modal">Cancel</button>
-                <button type="button" class="btn btn-sm btn-danger" id="confirm_attraction_btn" disabled>
-                    <i class="ri-check-line me-1"></i>Confirm
-                </button>
+                <div class="modal-footer py-2">
+                    <button type="button" class="btn btn-sm btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                    <button type="button" class="btn btn-sm btn-danger" id="confirm_attraction_btn" disabled>
+                        <i class="ri-check-line me-1"></i>Confirm
+                    </button>
+                </div>
             </div>
         </div>
     </div>
@@ -5493,7 +5713,7 @@
                                             <select class="form-select vehicle-select" 
                                                     id="modal_transport_vehicle_id" 
                                                     name="vehicle_id" 
-                                                    onchange="updateVehicleDetails()">
+                                                    onchange="updateVehicleDetails(); updateServiceTypeOptionsForTransport();">
                                                 <option value="">Choose vehicle</option>
                                             </select>
                                         </div>
@@ -7379,39 +7599,78 @@
                     
                     if (data.success && data.vehicles && data.vehicles.length > 0) {
                         const vehicleSelect = $('#restaurant_transport_vehicle_' + bookingId);
+                        
+                        // Save the currently selected vehicle_id before replacing HTML
+                        const previouslySelectedValue = vehicleSelect.val();
+                        const previouslySelectedOption = vehicleSelect.find('option:selected');
+                        const previouslySelectedVehicleId = previouslySelectedOption.data('vehicle-id') || previouslySelectedOption.attr('value') || previouslySelectedValue;
+                        
                         vehicleSelect.html('<option value="">Select vehicle</option>');
                         
                         data.vehicles.forEach(vehicle => {
                             const option = $('<option></option>');
-                            option.val(vehicle.vehicle_name || vehicle.vehicle_id);
-                            option.text(`${vehicle.vehicle_name || vehicle.vehicle_id}${vehicle.vehicle_type ? ' (' + vehicle.vehicle_type + ')' : ''}${vehicle.seating_capacity ? ' - ' + vehicle.seating_capacity + ' seats' : ''}`);
+                            // Use vehicle_id as value to match Blade template
+                            const vehicleId = vehicle.vehicle_id || '';
+                            option.val(vehicleId);
+                            option.text(`${vehicle.vehicle_name || vehicle.vehicle_id || 'Vehicle'}${vehicle.vehicle_type ? ' (' + vehicle.vehicle_type + ')' : ''}${vehicle.seating_capacity ? ' - ' + vehicle.seating_capacity + ' seats' : ''}`);
                             option.attr('data-seating-capacity', vehicle.seating_capacity || '');
-                            option.attr('data-vehicle-id', vehicle.vehicle_id || '');
+                            option.attr('data-vehicle-id', vehicleId);
+                            option.attr('data-vehicle-name', vehicle.vehicle_name || '');
                             option.attr('data-private-price', vehicle.private_price || '0');
                             option.attr('data-shared-price', vehicle.shared_price || '0');
                             option.attr('data-vehicle', JSON.stringify(vehicle));
                             vehicleSelect.append(option);
                         });
 
-                        // Auto-select first vehicle and calculate price
-                        if (data.vehicles.length > 0) {
-                            const firstVehicle = data.vehicles[0];
-                            vehicleSelect.val(firstVehicle.vehicle_name || firstVehicle.vehicle_id);
+                        // Try to restore previously selected vehicle by ID, otherwise don't auto-select
+                        let selectedVehicle = null;
+                        if (previouslySelectedVehicleId && previouslySelectedVehicleId.toString().trim()) {
+                            // Try to find the previously selected vehicle by ID
+                            const matchingVehicle = data.vehicles.find(v => 
+                                String(v.vehicle_id) === String(previouslySelectedVehicleId) ||
+                                String(v.vehicle_id) === previouslySelectedVehicleId.toString()
+                            );
                             
-                            // Update seats field
-                            const seatsInput = $('#restaurant_transport_seats_' + bookingId);
-                            if (seatsInput.length && firstVehicle.seating_capacity) {
-                                seatsInput.val(firstVehicle.seating_capacity);
-                            }
+                            if (matchingVehicle) {
+                                selectedVehicle = matchingVehicle;
+                                vehicleSelect.val(String(matchingVehicle.vehicle_id));
+                                
+                                // Update seats field
+                                const seatsInput = $('#restaurant_transport_seats_' + bookingId);
+                                if (seatsInput.length && matchingVehicle.seating_capacity) {
+                                    seatsInput.val(matchingVehicle.seating_capacity);
+                                }
                             
                             // Trigger change event to ensure all handlers fire
                             vehicleSelect.trigger('change');
                             
-                            // Calculate price
-                            calculateRestaurantTransportPrice(bookingId);
+                                // Calculate price
+                                calculateRestaurantTransportPrice(bookingId);
+                            }
+                        }
+                        // If no previous selection, don't auto-select - let user choose
+                        
+                        // Destroy Select2 if it was initialized before updating options
+                        if (vehicleSelect.data('select2')) {
+                            vehicleSelect.select2('destroy');
+                            vehicleSelect.removeAttr('data-select2-initialized');
+                        }
+                        
+                        // Initialize Select2 after options are populated
+                        if (window.initializeAllSelect2) {
+                            setTimeout(function() {
+                                window.initializeAllSelect2(vehicleSelect.parent());
+                            }, 100);
                         }
                     } else {
                         const vehicleSelect = $('#restaurant_transport_vehicle_' + bookingId);
+                        
+                        // Destroy Select2 if it was initialized
+                        if (vehicleSelect.data('select2')) {
+                            vehicleSelect.select2('destroy');
+                            vehicleSelect.removeAttr('data-select2-initialized');
+                        }
+                        
                         vehicleSelect.html('<option value="">No vehicles available for this route</option>');
                         $('#restaurant_transport_price_' + bookingId).val('0.00');
                     }
@@ -7558,37 +7817,56 @@
                     
                     if (data.success && data.vehicles && data.vehicles.length > 0) {
                         const vehicleSelect = $('#attraction_transport_vehicle_' + bookingId);
+                        
+                        // Save the currently selected vehicle_id before replacing HTML
+                        const previouslySelectedValue = vehicleSelect.val();
+                        const previouslySelectedOption = vehicleSelect.find('option:selected');
+                        const previouslySelectedVehicleId = previouslySelectedOption.data('vehicle-id') || previouslySelectedOption.attr('value') || previouslySelectedValue;
+                        
                         vehicleSelect.html('<option value="">Select vehicle</option>');
                         
                         data.vehicles.forEach(vehicle => {
                             const option = $('<option></option>');
-                            option.val(vehicle.vehicle_name || vehicle.vehicle_id);
-                            option.text(`${vehicle.vehicle_name || vehicle.vehicle_id}${vehicle.vehicle_type ? ' (' + vehicle.vehicle_type + ')' : ''}${vehicle.seating_capacity ? ' - ' + vehicle.seating_capacity + ' seats' : ''}`);
+                            // Use vehicle_id as value to match Blade template
+                            const vehicleId = vehicle.vehicle_id || '';
+                            option.val(vehicleId);
+                            option.text(`${vehicle.vehicle_name || vehicle.vehicle_id || 'Vehicle'}${vehicle.vehicle_type ? ' (' + vehicle.vehicle_type + ')' : ''}${vehicle.seating_capacity ? ' - ' + vehicle.seating_capacity + ' seats' : ''}`);
                             option.attr('data-seating-capacity', vehicle.seating_capacity || '');
-                            option.attr('data-vehicle-id', vehicle.vehicle_id || '');
+                            option.attr('data-vehicle-id', vehicleId);
+                            option.attr('data-vehicle-name', vehicle.vehicle_name || '');
                             option.attr('data-private-price', vehicle.private_price || '0');
                             option.attr('data-shared-price', vehicle.shared_price || '0');
                             option.attr('data-vehicle', JSON.stringify(vehicle));
                             vehicleSelect.append(option);
                         });
 
-                        // Auto-select first vehicle and calculate price
-                        if (data.vehicles.length > 0) {
-                            const firstVehicle = data.vehicles[0];
-                            vehicleSelect.val(firstVehicle.vehicle_name || firstVehicle.vehicle_id);
+                        // Try to restore previously selected vehicle by ID, otherwise don't auto-select
+                        let selectedVehicle = null;
+                        if (previouslySelectedVehicleId && previouslySelectedVehicleId.toString().trim()) {
+                            // Try to find the previously selected vehicle by ID
+                            const matchingVehicle = data.vehicles.find(v => 
+                                String(v.vehicle_id) === String(previouslySelectedVehicleId) ||
+                                String(v.vehicle_id) === previouslySelectedVehicleId.toString()
+                            );
                             
-                            // Update seats field
-                            const seatsInput = $('#attraction_transport_seats_' + bookingId);
-                            if (seatsInput.length && firstVehicle.seating_capacity) {
-                                seatsInput.val(firstVehicle.seating_capacity);
+                            if (matchingVehicle) {
+                                selectedVehicle = matchingVehicle;
+                                vehicleSelect.val(String(matchingVehicle.vehicle_id));
+                                
+                                // Update seats field
+                                const seatsInput = $('#attraction_transport_seats_' + bookingId);
+                                if (seatsInput.length && matchingVehicle.seating_capacity) {
+                                    seatsInput.val(matchingVehicle.seating_capacity);
+                                }
+                                
+                                // Trigger change event to ensure all handlers fire
+                                vehicleSelect.trigger('change');
+                                
+                                // Calculate price
+                                calculateAttractionTransportPrice(bookingId);
                             }
-                            
-                            // Trigger change event to ensure all handlers fire
-                            vehicleSelect.trigger('change');
-                            
-                            // Calculate price
-                            calculateAttractionTransportPrice(bookingId);
                         }
+                        // If no previous selection, don't auto-select - let user choose
                     } else {
                         const vehicleSelect = $('#attraction_transport_vehicle_' + bookingId);
                         vehicleSelect.html('<option value="">No vehicles available for this route</option>');
@@ -7612,13 +7890,27 @@
                 const destinationSelect = $(this);
                 const bookingId = destinationSelect.data('booking-id');
                 const selectedOption = destinationSelect.find('option:selected');
+                const vehicleSelect = $('#attraction_transport_vehicle_' + bookingId);
                 
                 if (selectedOption.val() && selectedOption.val().trim()) {
-                    // Trigger the change event to load vehicles for pre-selected destination
-                    destinationSelect.trigger('change');
+                    // Check if vehicle select already has options from server-side rendering
+                    const hasVehicleOptions = vehicleSelect.find('option').length > 1; // More than just placeholder
+                    
+                    if (hasVehicleOptions) {
+                        // Vehicles are already loaded from server, ensure selected value is displayed
+                        const selectedOption = vehicleSelect.find('option[selected]');
+                        if (selectedOption.length) {
+                            const selectedValue = selectedOption.attr('value');
+                            if (selectedValue) {
+                                vehicleSelect.val(selectedValue);
+                            }
+                        }
+                    } else {
+                        // No vehicles loaded yet, trigger the change event to load vehicles via AJAX
+                        destinationSelect.trigger('change');
+                    }
                 } else {
                     // No destination selected, clear vehicle dropdown
-                    const vehicleSelect = $('#attraction_transport_vehicle_' + bookingId);
                     if (vehicleSelect.length) {
                         vehicleSelect.html('<option value="">Select destination first</option>');
                     }
@@ -7630,13 +7922,27 @@
                 const destinationSelect = $(this);
                 const bookingId = destinationSelect.data('booking-id');
                 const selectedOption = destinationSelect.find('option:selected');
+                const vehicleSelect = $('#restaurant_transport_vehicle_' + bookingId);
                 
                 if (selectedOption.val() && selectedOption.val().trim()) {
-                    // Trigger the change event to load vehicles for pre-selected destination
-                    destinationSelect.trigger('change');
+                    // Check if vehicle select already has options from server-side rendering
+                    const hasVehicleOptions = vehicleSelect.find('option').length > 1; // More than just placeholder
+                    
+                    if (hasVehicleOptions) {
+                        // Vehicles are already loaded from server, ensure selected value is displayed
+                        const selectedOption = vehicleSelect.find('option[selected]');
+                        if (selectedOption.length) {
+                            const selectedValue = selectedOption.attr('value');
+                            if (selectedValue) {
+                                vehicleSelect.val(selectedValue);
+                            }
+                        }
+                    } else {
+                        // No vehicles loaded yet, trigger the change event to load vehicles via AJAX
+                        destinationSelect.trigger('change');
+                    }
                 } else {
                     // No destination selected, clear vehicle dropdown
-                    const vehicleSelect = $('#restaurant_transport_vehicle_' + bookingId);
                     if (vehicleSelect.length) {
                         vehicleSelect.html('<option value="">Select destination first</option>');
                     }
@@ -8383,39 +8689,30 @@
         }
         
         // For local transfer (zone-based), use sharable property
-        // Based on sharable field: 1=Private only, 2=Shared only, 3=Both
-        if (vehicleData.sharable == 1) {
-            // Private only
-            console.log('Adding Private option only (sharable == 1)');
-            const privateOption = document.createElement('option');
-            privateOption.value = 'Private';
-            privateOption.textContent = 'Private';
-            serviceTypeSelect.appendChild(privateOption);
-        }
-        else if (vehicleData.sharable == 2) {
-            // Shared only
-            console.log('Adding Shared option only (sharable == 2)');
-            const sharedOption = document.createElement('option');
-            sharedOption.value = 'Shared';
-            sharedOption.textContent = 'Shared';
-            serviceTypeSelect.appendChild(sharedOption);
-        }
-        else if (vehicleData.sharable == 3) {
-            // Both Private and Shared
-            console.log('Adding both Private and Shared options (sharable == 3)');
-            const privateOption = document.createElement('option');
-            privateOption.value = 'Private';
-            privateOption.textContent = 'Private';
-            serviceTypeSelect.appendChild(privateOption);
+        // sharable: 1 = Private, 2 = Shared, 3 = Both
+        const sharableValue = parseInt(vehicleData.sharable ?? '0', 10);
 
+        // If sharable is 1 or 3 → show Private
+        if (sharableValue === 1 || sharableValue === 3) {
+            console.log('Adding Private option (sharable is 1 or 3)');
+            const privateOption = document.createElement('option');
+            privateOption.value = 'Private';
+            privateOption.textContent = 'Private';
+            serviceTypeSelect.appendChild(privateOption);
+        }
+
+        // If sharable is 2 or 3 → show Shared
+        if (sharableValue === 2 || sharableValue === 3) {
+            console.log('Adding Shared option (sharable is 2 or 3)');
             const sharedOption = document.createElement('option');
             sharedOption.value = 'Shared';
             sharedOption.textContent = 'Shared';
             serviceTypeSelect.appendChild(sharedOption);
         }
-        else {
-            // Default: show both options if sharable value is not set or invalid
-            console.log('Adding both options as default (sharable not 1, 2, or 3)');
+
+        // Fallback if sharable not set: keep both options
+        if (!serviceTypeSelect.options || serviceTypeSelect.options.length <= 1) {
+            console.log('Sharable not set, adding both Private and Shared options');
             const privateOption = document.createElement('option');
             privateOption.value = 'Private';
             privateOption.textContent = 'Private';
@@ -9764,6 +10061,8 @@
             enablePointToPointForTransportModal();
         } else {
             console.log('Point-to-Point functionality disabled - using zone-based selects');
+            // Configure pickup/dropoff options based on transport type (arrival vs departure)
+            configureTransportPickupAndDropoffForType();
             // Load zones for pickup
             loadZonesForPickup();
         }
@@ -9778,6 +10077,15 @@
         const pickupZoneSelect = document.getElementById('modal_transport_pickup_zone');
         if (pickupZoneSelect) {
             pickupZoneSelect.addEventListener('change', onPickupZoneChange);
+        }
+        
+        // Add event listener for dropoff zone change
+        const dropoffZoneSelect = document.getElementById('modal_transport_dropoff_zone');
+        if (dropoffZoneSelect) {
+            dropoffZoneSelect.addEventListener('change', function() {
+                // Hide vehicle results when dropoff zone changes
+                hideTransportVehicleResults();
+            });
         }
         
         const searchBtn = document.getElementById('transport_search_btn');
@@ -9971,6 +10279,122 @@
         }, 500);
         
         console.log('Point-to-Point functionality enabled successfully for dropoff transport modal');
+    }
+    
+    /**
+     * Configure pickup and dropoff options for the transport modal
+     * - Arrival (entry_port): Pickup = Ports, Dropoff = Hotels + Attractions + Restaurants
+     * - Departure (exit_port): Pickup = Hotels + Restaurants, Dropoff = Ports
+     */
+    function configureTransportPickupAndDropoffForType() {
+        const transportTypeInput = document.getElementById('modal_transport_type');
+        const transportType = transportTypeInput ? transportTypeInput.value : 'entry_port';
+
+        const pickupSelect = document.getElementById('modal_transport_pickup_zone');
+        const dropoffSelect = document.getElementById('modal_transport_dropoff_zone');
+
+        if (!pickupSelect || !dropoffSelect) {
+            console.warn('Pickup or dropoff select not found for transport modal');
+            return;
+        }
+
+        // Backend data
+        const ports = @json($ports ?? []);
+        const hotels = @json($hotels ?? []);
+        const restaurants = @json($restaurants ?? []);
+        const attractions = @json($attractions ?? []);
+
+        // Helper to build port options
+        const buildPortOptions = () => {
+            let html = '<option value="">Select location</option>';
+            ports.forEach(port => {
+                const portName = (port.port_name || '').replace(/"/g, '&quot;').replace(/'/g, '&#39;');
+                const portJson = JSON.stringify(port).replace(/'/g, '&#39;');
+                html += `<option data-type="Port" value="${port.port_id}" data-port='${portJson}'>${portName}</option>`;
+            });
+            return html;
+        };
+
+        // Helper to build hotel + restaurant options (for departure pickup)
+        const buildHotelRestaurantOptions = () => {
+            let html = '<option value="">Select pickup location</option>';
+
+            // Hotels
+            html += '<optgroup label="Hotels">';
+            hotels.forEach(hotel => {
+                const hotelName = (hotel.name || '').replace(/"/g, '&quot;').replace(/'/g, '&#39;');
+                const hotelJson = JSON.stringify(hotel).replace(/'/g, '&#39;');
+                html += `<option data-type="Hotel" value="${hotel.hotel_unique_id}" data-hotel='${hotelJson}'>${hotelName}</option>`;
+            });
+            html += '</optgroup>';
+
+            // Restaurants
+            html += '<optgroup label="Restaurants">';
+            restaurants.forEach(restaurant => {
+                const restaurantName = (restaurant.name || '').replace(/"/g, '&quot;').replace(/'/g, '&#39;');
+                const restaurantJson = JSON.stringify(restaurant).replace(/'/g, '&#39;');
+                html += `<option data-type="Restaurant" value="${restaurant.restaurant_id}" data-restaurant='${restaurantJson}'>${restaurantName}</option>`;
+            });
+            html += '</optgroup>';
+
+            return html;
+        };
+
+        // Helper to build arrival dropoff options (Hotels + Attractions + Restaurants)
+        const buildArrivalDropoffOptions = () => {
+            let html = '<option value="">Select dropoff location</option>';
+
+            // Hotels
+            html += '<optgroup label="Hotels">';
+            hotels.forEach(hotel => {
+                const hotelName = (hotel.name || '').replace(/"/g, '&quot;').replace(/'/g, '&#39;');
+                const hotelJson = JSON.stringify(hotel).replace(/'/g, '&#39;');
+                html += `<option data-type="Hotel" value="${hotel.hotel_unique_id}" data-hotel='${hotelJson}'>${hotelName}</option>`;
+            });
+            html += '</optgroup>';
+
+            // Attractions
+            html += '<optgroup label="Attractions">';
+            attractions.forEach(attraction => {
+                const attractionName = (attraction.name || '').replace(/"/g, '&quot;').replace(/'/g, '&#39;');
+                const attractionJson = JSON.stringify(attraction).replace(/'/g, '&#39;');
+                html += `<option data-type="Attraction" value="${attraction.attraction_id}" data-attraction='${attractionJson}'>${attractionName}</option>`;
+            });
+            html += '</optgroup>';
+
+            // Restaurants
+            html += '<optgroup label="Restaurants">';
+            restaurants.forEach(restaurant => {
+                const restaurantName = (restaurant.name || '').replace(/"/g, '&quot;').replace(/'/g, '&#39;');
+                const restaurantJson = JSON.stringify(restaurant).replace(/'/g, '&#39;');
+                html += `<option data-type="Restaurant" value="${restaurant.restaurant_id}" data-restaurant='${restaurantJson}'>${restaurantName}</option>`;
+            });
+            html += '</optgroup>';
+
+            return html;
+        };
+
+        if (transportType === 'exit_port') {
+            console.log('Configuring transport modal for DEPARTURE (exit_port): pickup = hotels/restaurants, dropoff = ports');
+
+            // Pickup: Hotels + Restaurants
+            pickupSelect.innerHTML = buildHotelRestaurantOptions();
+
+            // Dropoff: Ports
+            dropoffSelect.innerHTML = buildPortOptions();
+        } else {
+            console.log('Configuring transport modal for ARRIVAL (entry_port): pickup = ports, dropoff = hotels/attractions/restaurants');
+
+            // Pickup: Ports
+            pickupSelect.innerHTML = buildPortOptions();
+
+            // Dropoff: Hotels + Attractions + Restaurants (original behaviour)
+            dropoffSelect.innerHTML = buildArrivalDropoffOptions();
+        }
+
+        // Reset selects to default value
+        pickupSelect.value = '';
+        dropoffSelect.value = '';
     }
     
     function loadZonesForPickup() {
@@ -10379,6 +10803,43 @@
                 dropoffZoneSelect.disabled = true;
             }
         }
+        
+        // Hide vehicle results when pickup zone changes
+        hideTransportVehicleResults();
+    }
+    
+    function hideTransportVehicleResults() {
+        // Hide transport vehicle results section
+        const vehicleResultsSection = document.getElementById('transport_vehicle_results');
+        if (vehicleResultsSection) {
+            vehicleResultsSection.style.display = 'none';
+        }
+        
+        // Clear vehicle dropdown
+        const vehicleSelect = document.getElementById('modal_transport_vehicle_id');
+        if (vehicleSelect) {
+            vehicleSelect.innerHTML = '<option value="">Choose vehicle</option>';
+            vehicleSelect.disabled = true;
+        }
+        
+        // Clear service type dropdown
+        const serviceTypeSelect = document.getElementById('modal_transport_service_type');
+        if (serviceTypeSelect) {
+            serviceTypeSelect.value = '';
+            serviceTypeSelect.disabled = true;
+        }
+        
+        // Hide price display if exists
+        const priceDisplay = document.getElementById('transport_price_display');
+        if (priceDisplay) {
+            priceDisplay.style.display = 'none';
+        }
+        
+        // Reset hidden price fields
+        const basePriceField = document.getElementById('modal_transport_base_price');
+        const totalPriceField = document.getElementById('modal_transport_total_price');
+        if (basePriceField) basePriceField.value = '0';
+        if (totalPriceField) totalPriceField.value = '0';
     }
     
     function clearDropoffZone() {
@@ -10409,8 +10870,21 @@
         
         const pickupZoneId = pickupOption?.value;
         const dropoffZoneId = dropoffOption?.value;
-        const pickupZoneType = pickupOption?.dataset?.type;
-        const dropoffZoneType = dropoffOption?.dataset?.type;
+        
+        // Get zone types from selected options' data-type attribute
+        let pickupZoneType = null;
+        let dropoffZoneType = null;
+        
+        if (pickupOption && pickupOption.selectedIndex > 0) {
+            const selectedPickupOption = pickupOption.options[pickupOption.selectedIndex];
+            pickupZoneType = selectedPickupOption?.getAttribute('data-type');
+        }
+        
+        if (dropoffOption && dropoffOption.selectedIndex > 0) {
+            const selectedDropoffOption = dropoffOption.options[dropoffOption.selectedIndex];
+            dropoffZoneType = selectedDropoffOption?.getAttribute('data-type');
+        }
+        
         const pickupTime = document.getElementById('modal_transport_pickup_time').value;
         const pickupDate = document.getElementById('modal_transport_pickup_date').value;
         
@@ -10419,7 +10893,25 @@
             return;
         }
         
-        console.log('Searching vehicles for zone-based transport:', { pickupZoneId, dropoffZoneId, pickupTime, pickupDate, selectedCity });
+        // Determine transport type (exit_port or entry_port) based on zone types
+        // For exit_port: pickup should be Hotel/Restaurant, dropoff should be Port
+        // For entry_port: pickup should be Port, dropoff should be Hotel/Attraction/Restaurant
+        const isExitPort = pickupZoneType && (pickupZoneType === 'Hotel' || pickupZoneType === 'Restaurant') && 
+                          dropoffZoneType && dropoffZoneType === 'Port';
+        const isEntryPort = pickupZoneType && pickupZoneType === 'Port' && 
+                           dropoffZoneType && (dropoffZoneType === 'Hotel' || dropoffZoneType === 'Attraction' || dropoffZoneType === 'Restaurant');
+        
+        console.log('Searching vehicles for zone-based transport:', { 
+            pickupZoneId, 
+            dropoffZoneId, 
+            pickupZoneType,
+            dropoffZoneType,
+            isExitPort,
+            isEntryPort,
+            pickupTime, 
+            pickupDate, 
+            selectedCity 
+        });
         
         const searchBtn = document.getElementById('transport_search_btn');
         const vehicleResultsSection = document.getElementById('transport_vehicle_results');
@@ -10432,14 +10924,31 @@
         }
         const user_dmc = @json($UserDmc);
         const zone_status = user_dmc.zone_on;
+        
         if(zone_status == 1){
-            fromZoneType = pickupZoneType || 'Port';
-            toZoneType = dropoffZoneType || 'Hotel';
+            // Use actual zone types from selected options
+            // For exit_port: fromZoneType should be Hotel/Restaurant, toZoneType should be Port
+            // For entry_port: fromZoneType should be Port, toZoneType should be Hotel/Attraction/Restaurant
+            if (isExitPort) {
+                // Departure: pickup from hotel/restaurant, dropoff to port
+                fromZoneType = pickupZoneType || 'Hotel';
+                toZoneType = dropoffZoneType || 'Port';
+            } else if (isEntryPort) {
+                // Arrival: pickup from port, dropoff to hotel/attraction/restaurant
+                fromZoneType = pickupZoneType || 'Port';
+                toZoneType = dropoffZoneType || 'Hotel';
+            } else {
+                // Fallback: use detected types or defaults based on what we have
+                fromZoneType = pickupZoneType || 'Port';
+                toZoneType = dropoffZoneType || 'Hotel';
+            }
         }
         else{
             fromZoneType = '';
             toZoneType = '';
         }
+        
+        console.log('Zone types determined:', { fromZoneType, toZoneType, isExitPort, isEntryPort });
         // Make API call to fetch vehicles by zones
         const routeUrl = `{{ route('fetch-vehicles-by-zones') }}`;
         console.log('Fetching vehicles from route:', routeUrl);
@@ -10503,6 +11012,26 @@
                 
                 console.log(`Populated ${data.vehicles.length} vehicles in dropdown (zone-based transport)`);
             } else {
+                // Hide vehicle results section when no vehicles found
+                if (vehicleResultsSection) {
+                    vehicleResultsSection.style.display = 'none';
+                }
+                // Clear vehicle dropdown
+                if (vehicleSelect) {
+                    vehicleSelect.innerHTML = '<option value="">Choose vehicle</option>';
+                    vehicleSelect.disabled = true;
+                }
+                // Clear service type dropdown
+                const serviceTypeSelect = document.getElementById('modal_transport_service_type');
+                if (serviceTypeSelect) {
+                    serviceTypeSelect.value = '';
+                    serviceTypeSelect.disabled = true;
+                }
+                // Hide price display
+                const priceDisplay = document.getElementById('transport_price_display');
+                if (priceDisplay) {
+                    priceDisplay.style.display = 'none';
+                }
                 alert('No vehicles available for this route. Please try different locations.');
             }
             
@@ -10519,6 +11048,30 @@
                 errorMessage = 'Route not found. Please contact administrator to clear route cache.';
             }
             showNotification(errorMessage, 'error');
+            
+            // Hide vehicle results section on error
+            const vehicleResultsSection = document.getElementById('transport_vehicle_results');
+            if (vehicleResultsSection) {
+                vehicleResultsSection.style.display = 'none';
+            }
+            // Clear vehicle dropdown
+            const vehicleSelect = document.getElementById('modal_transport_vehicle_id');
+            if (vehicleSelect) {
+                vehicleSelect.innerHTML = '<option value="">Choose vehicle</option>';
+                vehicleSelect.disabled = true;
+            }
+            // Clear service type dropdown
+            const serviceTypeSelect = document.getElementById('modal_transport_service_type');
+            if (serviceTypeSelect) {
+                serviceTypeSelect.value = '';
+                serviceTypeSelect.disabled = true;
+            }
+            // Hide price display
+            const priceDisplay = document.getElementById('transport_price_display');
+            if (priceDisplay) {
+                priceDisplay.style.display = 'none';
+            }
+            
             if (searchBtn) {
                 searchBtn.innerHTML = 'Search';
                 searchBtn.disabled = false;
@@ -10609,6 +11162,25 @@
                         console.log(`Populated ${data.vehicles.length} vehicles for Point-to-Point transport modal`);
                     }
                 } else {
+                    // Hide vehicle results section when no vehicles found
+                    if (vehicleResultsSection) {
+                        vehicleResultsSection.style.display = 'none';
+                    }
+                    // Clear vehicle dropdown
+                    if (vehicleSelect) {
+                        vehicleSelect.innerHTML = '<option value="">Choose vehicle</option>';
+                        vehicleSelect.disabled = true;
+                    }
+                    // Clear service type dropdown
+                    if (serviceTypeSelect) {
+                        serviceTypeSelect.value = '';
+                        serviceTypeSelect.disabled = true;
+                    }
+                    // Hide price display
+                    const priceDisplay = document.getElementById('transport_price_display');
+                    if (priceDisplay) {
+                        priceDisplay.style.display = 'none';
+                    }
                     alert('No vehicles available. Please contact support.');
                 }
                 
@@ -10622,6 +11194,27 @@
                 console.error('Error searching Point-to-Point vehicles:', error);
                 console.error('Error details:', error.message);
                 showNotification('Error searching vehicles. Please try again.', 'error');
+                
+                // Hide vehicle results section on error
+                if (vehicleResultsSection) {
+                    vehicleResultsSection.style.display = 'none';
+                }
+                // Clear vehicle dropdown
+                if (vehicleSelect) {
+                    vehicleSelect.innerHTML = '<option value="">Choose vehicle</option>';
+                    vehicleSelect.disabled = true;
+                }
+                // Clear service type dropdown
+                if (serviceTypeSelect) {
+                    serviceTypeSelect.value = '';
+                    serviceTypeSelect.disabled = true;
+                }
+                // Hide price display
+                const priceDisplay = document.getElementById('transport_price_display');
+                if (priceDisplay) {
+                    priceDisplay.style.display = 'none';
+                }
+                
                 if (searchBtn) {
                     searchBtn.innerHTML = 'Search';
                     searchBtn.disabled = false;
@@ -10645,11 +11238,6 @@
         
         // Clear existing options
         serviceTypeSelect.innerHTML = '<option value="">Select service type</option>';
-        
-        // Always add Private option
-        
-        
-        // Add Shared option if vehicle supports it
         const vehicleData = {
             id: selectedOption.value,
             name: selectedOption.dataset.vehicleName,
@@ -10661,36 +11249,28 @@
             sharable: selectedOption.dataset.sharable,
         };        
         console.log('Vehicle data from updateServiceTypeOptionsForTransport:', vehicleData);
-        
-        // Based on sharable field: 1=Private only, 2=Shared only, 3=Both
-        if(vehicleData.sharable == 1){
-            // Private only
-            const privateOption = document.createElement('option');
-            privateOption.value = 'Private';
-            privateOption.textContent = 'Private';
-            serviceTypeSelect.appendChild(privateOption);
-        }
-        else if(vehicleData.sharable == 2){
-            // Shared only
-            const sharedOption = document.createElement('option');
-            sharedOption.value = 'Shared';
-            sharedOption.textContent = 'Shared';
-            serviceTypeSelect.appendChild(sharedOption);
-        }
-        else if(vehicleData.sharable == 3){
-            // Both Private and Shared
-            const privateOption = document.createElement('option');
-            privateOption.value = 'Private';
-            privateOption.textContent = 'Private';
-            serviceTypeSelect.appendChild(privateOption);
 
+        // Normalize sharable (dataset is string)
+        const sharableValue = parseInt(vehicleData.sharable ?? '0', 10);
+
+        // If sharable is 1 or 3 → show Private
+        if (sharableValue === 1 || sharableValue === 3) {
+            const privateOption = document.createElement('option');
+            privateOption.value = 'Private';
+            privateOption.textContent = 'Private';
+            serviceTypeSelect.appendChild(privateOption);
+        }
+
+        // If sharable is 2 or 3 → show Shared
+        if (sharableValue === 2 || sharableValue === 3) {
             const sharedOption = document.createElement('option');
             sharedOption.value = 'Shared';
             sharedOption.textContent = 'Shared';
             serviceTypeSelect.appendChild(sharedOption);
         }
-        else{
-            // Default: show both options if sharable value is not set or invalid
+
+        // Fallback: if no sharable info, keep both options
+        if (!serviceTypeSelect.options || serviceTypeSelect.options.length <= 1) {
             const privateOption = document.createElement('option');
             privateOption.value = 'Private';
             privateOption.textContent = 'Private';
@@ -18750,14 +19330,31 @@
                 
                 if (service.dates) {
                     if (Array.isArray(service.dates)) {
-                        datesStr = service.dates.filter(d => d).join(', ');
+                        const filteredDates = service.dates.filter(d => d);
+                        
+                        // For guides, show only the bookingDate (primary date)
+                        // Backend now sends only bookingDate (or pickupdate if bookingDate not available)
+                        // Skip entrytime as it's a time field, not a date
+                        if (serviceType === 'guide') {
+                            if (filteredDates.length > 0) {
+                                // Show the first date (which is bookingDate, or pickupdate if bookingDate not available)
+                                datesStr = filteredDates[0];
+                            } else {
+                                datesStr = 'N/A';
+                            }
+                        } else if (filteredDates.length > 0) {
+                            // For other services, show all dates or single date
+                            datesStr = filteredDates.join(', ');
+                        } else {
+                            datesStr = 'N/A';
+                        }
                     } else if (typeof service.dates === 'string') {
                         datesStr = service.dates;
                     }
                 }
                 
                 const serviceTypeName = getServiceTypeName(serviceType);
-                return `${i + 1}. ${serviceTypeName}: ${serviceName} (Dates: ${datesStr})`;
+                return `${i + 1}. ${serviceTypeName}: ${serviceName} (Date: ${datesStr})`;
             }).filter(item => item !== '').join('\n');
             
             // Use browser's confirm dialog
@@ -19188,6 +19785,210 @@
             submitButton.disabled = false;
             spinner?.classList.add('d-none');
         }
+    }
+    
+    // Function to update vehicles for departure transport based on pickup/dropoff zones
+    async function updateDepartureVehicles(bookingId) {
+        const form = document.querySelector(`form[data-update-url*="${bookingId}"]`);
+        if (!form) return;
+        
+        const pickupSelect = form.querySelector('.departure-pickup-location');
+        const dropoffSelect = form.querySelector('.departure-dropoff-location');
+        const vehicleSelect = form.querySelector('.departure-vehicle-select') || document.getElementById(`departure_vehicle_${bookingId}`);
+        const citySelect = form.querySelector('select[name="city"]');
+        
+        if (!pickupSelect || !dropoffSelect || !vehicleSelect) return;
+        
+        const pickupZoneId = pickupSelect.options[pickupSelect.selectedIndex]?.getAttribute('data-zone-id');
+        const dropoffZoneId = dropoffSelect.options[dropoffSelect.selectedIndex]?.getAttribute('data-zone-id');
+        const pickupZoneType = pickupSelect.options[pickupSelect.selectedIndex]?.getAttribute('data-type');
+        const dropoffZoneType = dropoffSelect.options[dropoffSelect.selectedIndex]?.getAttribute('data-type');
+        const city = citySelect?.value || '';
+        
+        if (!pickupZoneId || !dropoffZoneId || !city) {
+            // Clear vehicle select if zones not selected
+            if (vehicleSelect) {
+                vehicleSelect.innerHTML = '<option value="">Select pickup and dropoff locations first</option>';
+                vehicleSelect.disabled = true;
+            }
+            return;
+        }
+        
+        // Show loading state
+        if (vehicleSelect) {
+            vehicleSelect.disabled = true;
+            vehicleSelect.innerHTML = '<option value="">Loading vehicles...</option>';
+        }
+        
+        const user_dmc = @json($UserDmc);
+        const zone_status = user_dmc?.zone_on ?? 0;
+        
+        try {
+            const response = await fetch(`{{ route('fetch-vehicles-by-zones') }}`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRF-TOKEN': '{{ csrf_token() }}'
+                },
+                body: JSON.stringify({
+                    from_zone_id: pickupZoneId,
+                    to_zone_id: dropoffZoneId,
+                    from_zone_type: zone_status == 1 ? pickupZoneType : '',
+                    to_zone_type: zone_status == 1 ? dropoffZoneType : '',
+                    zone_status: zone_status,
+                    city: city
+                })
+            });
+            
+            const data = await response.json();
+            
+            if (data.success && data.vehicles && data.vehicles.length > 0) {
+                // Populate vehicle dropdown
+                vehicleSelect.innerHTML = '<option value="">Select vehicle</option>';
+                data.vehicles.forEach(vehicle => {
+                    const vehicleInfo = `${vehicle.vehicle_name} (${vehicle.vehicle_type || ''}) - ${vehicle.seating_capacity || ''} seats`;
+                    vehicleSelect.innerHTML += `<option value="${vehicle.vehicle_name || vehicle.vehicle_id}" 
+                        data-vehicle-id="${vehicle.vehicle_id || ''}"
+                        data-private-price="${vehicle.private_price || vehicle.base_price || 0}"
+                        data-shared-price="${vehicle.shared_price || vehicle.sharable_base_price || 0}"
+                        data-sharable="${vehicle.sharable || 0}">
+                        ${vehicleInfo}
+                    </option>`;
+                });
+                vehicleSelect.disabled = false;
+                
+                // Update service type based on vehicle sharability
+                updateDepartureServiceType(bookingId);
+            } else {
+                vehicleSelect.innerHTML = '<option value="">No vehicles available for this route</option>';
+                vehicleSelect.disabled = true;
+            }
+        } catch (error) {
+            console.error('Error fetching vehicles:', error);
+            if (vehicleSelect) {
+                vehicleSelect.innerHTML = '<option value="">Error loading vehicles</option>';
+                vehicleSelect.disabled = true;
+            }
+        }
+    }
+    
+    // Function to update service type based on selected vehicle for departure
+    function updateDepartureServiceType(bookingId) {
+        const form = document.querySelector(`form[data-update-url*="${bookingId}"]`);
+        if (!form) return;
+        
+        const vehicleSelect = form.querySelector('.departure-vehicle-select') || document.getElementById(`departure_vehicle_${bookingId}`);
+        const serviceTypeSelect = form.querySelector('.departure-service-type') || document.getElementById(`departure_service_type_${bookingId}`);
+        
+        if (!vehicleSelect || !serviceTypeSelect) return;
+        
+        const selectedOption = vehicleSelect.options[vehicleSelect.selectedIndex];
+        if (!selectedOption || !selectedOption.value) {
+            serviceTypeSelect.value = '';
+            serviceTypeSelect.disabled = true;
+            // Disable both options
+            const privateOption = serviceTypeSelect.querySelector('option[value="Private"]');
+            const sharedOption = serviceTypeSelect.querySelector('option[value="Shared"]');
+            if (privateOption) privateOption.disabled = true;
+            if (sharedOption) sharedOption.disabled = true;
+            return;
+        }
+        
+        const sharable = parseInt(selectedOption.getAttribute('data-sharable') || 0);
+        
+        // Enable service type select
+        serviceTypeSelect.disabled = false;
+        
+        // Get options
+        const privateOption = serviceTypeSelect.querySelector('option[value="Private"]');
+        const sharedOption = serviceTypeSelect.querySelector('option[value="Shared"]');
+        
+        // Service type logic based on sharable value:
+        // sharable = 1 or 3: show Private
+        // sharable = 2 or 3: show Shared
+        // sharable = 3: show both
+        // sharable = 0 or other: show only Private (default)
+        
+        if (sharable === 1 || sharable === 3) {
+            // Show Private option
+            if (privateOption) {
+                privateOption.disabled = false;
+                privateOption.style.display = '';
+            }
+        } else {
+            // Hide Private option
+            if (privateOption) {
+                privateOption.disabled = true;
+                privateOption.style.display = 'none';
+            }
+        }
+        
+        if (sharable === 2 || sharable === 3) {
+            // Show Shared option
+            if (sharedOption) {
+                sharedOption.disabled = false;
+                sharedOption.style.display = '';
+            }
+        } else {
+            // Hide Shared option
+            if (sharedOption) {
+                sharedOption.disabled = true;
+                sharedOption.style.display = 'none';
+            }
+        }
+        
+        // Set default value based on available options
+        if (sharable === 1 || sharable === 3) {
+            // Private is available, set as default if not already selected
+            if (!serviceTypeSelect.value || serviceTypeSelect.value === '') {
+                serviceTypeSelect.value = 'Private';
+            }
+        } else if (sharable === 2) {
+            // Only Shared is available
+            serviceTypeSelect.value = 'Shared';
+        } else {
+            // Default to Private if available, otherwise clear
+            if (privateOption && !privateOption.disabled) {
+                serviceTypeSelect.value = 'Private';
+            } else {
+                serviceTypeSelect.value = '';
+            }
+        }
+        
+        // Update price
+        updateDeparturePrice(bookingId);
+    }
+    
+    // Function to update price based on vehicle and service type for departure
+    function updateDeparturePrice(bookingId) {
+        const form = document.querySelector(`form[data-update-url*="${bookingId}"]`);
+        if (!form) return;
+        
+        const vehicleSelect = form.querySelector('.departure-vehicle-select') || document.getElementById(`departure_vehicle_${bookingId}`);
+        const serviceTypeSelect = form.querySelector('.departure-service-type') || document.getElementById(`departure_service_type_${bookingId}`);
+        const priceInput = form.querySelector('.departure-total-price') || document.getElementById(`departure_price_${bookingId}`);
+        
+        if (!vehicleSelect || !serviceTypeSelect || !priceInput) return;
+        
+        const selectedVehicle = vehicleSelect.options[vehicleSelect.selectedIndex];
+        const serviceType = serviceTypeSelect.value;
+        
+        if (!selectedVehicle || !selectedVehicle.value || !serviceType) {
+            priceInput.value = '0.00';
+            return;
+        }
+        
+        const privatePrice = parseFloat(selectedVehicle.getAttribute('data-private-price') || 0);
+        const sharedPrice = parseFloat(selectedVehicle.getAttribute('data-shared-price') || 0);
+        
+        let price = 0;
+        if (serviceType === 'Private') {
+            price = privatePrice;
+        } else if (serviceType === 'Shared') {
+            price = sharedPrice;
+        }
+        
+        priceInput.value = price.toFixed(2);
     }
 
     // Toastr notification helper function
