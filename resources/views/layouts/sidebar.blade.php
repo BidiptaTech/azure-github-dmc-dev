@@ -1081,7 +1081,7 @@
                     <span class="menu-header-text" data-i18n="All Products">All Products</span>
                 </li>
 
-            <li class="menu-item @if(Request::is('packages*') || Request::is('packaged-attractions*') || Request::is('hotels*') || Request::is('attraction*') || Request::is('restaurant*') || Request::is('guide*') || Request::is('vehicle*') || Request::is('driver*') || Request::is('category*') || Request::is('facility*') || Request::is('ports*') || Request::is('single-tour-package*') || Request::is('zones*')) open active @endif">
+            <li class="menu-item @if(Request::is('packages*') || Request::is('packaged-attractions*') || Request::is('hotels*') || Request::is('attraction*') || Request::is('restaurant*') || Request::is('guide*') || Request::is('vehicle*') || Request::is('driver*') || Request::is('category*') || Request::is('facility*') || Request::is('ports*') || Request::is('single-tour-package*') || Request::is('zones*') || Request::is('miscellaneous*'))  open active @endif">
                 <a href="#" class="menu-link menu-toggle">
                     <i class="menu-icon tf-icons ri-stack-line" style="color: #3565bd"></i>
                     <div data-i18n="All Products">All Products</div>
