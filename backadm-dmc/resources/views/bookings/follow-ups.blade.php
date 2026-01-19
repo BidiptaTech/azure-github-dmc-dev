@@ -37,16 +37,179 @@
     .select2-container--default .select2-selection--single .select2-selection__clear:hover {
         color: #dc3545;
     }
-/* Loading spinner animation for cancel button */
-/* Loading spinner animation for cancel button */
-.spin {
-    animation: spin 1s linear infinite;
-}
 
-@keyframes spin {
-    from { transform: rotate(0deg); }
-    to { transform: rotate(360deg); }
-}
+    /* Compact table styles (similar to new-enquiries) */
+    #toursTable {
+        font-size: 0.875rem;
+    }
+
+    #toursTable thead th {
+        padding: 0.5rem 0.75rem;
+        font-size: 0.8125rem;
+        font-weight: 600;
+        white-space: nowrap;
+    }
+
+    #toursTable tbody td {
+        padding: 0.5rem 0.75rem;
+        vertical-align: middle;
+    }
+
+    #toursTable tbody tr {
+        height: auto;
+        min-height: 50px;
+    }
+
+    /* Compact badges in Services / status columns */
+    #toursTable .badge {
+        font-size: 0.7rem;
+        padding: 0.25rem 0.5rem;
+        margin: 0.1rem 0.15rem;
+        font-weight: 500;
+    }
+
+    /* Compact icons */
+    #toursTable i {
+        font-size: 1rem;
+    }
+
+    /* Compact text in cells */
+    #toursTable .fw-medium,
+    #toursTable .fw-bold {
+        font-size: 0.875rem;
+    }
+
+    #toursTable small {
+        font-size: 0.75rem;
+    }
+
+    /* Compact buttons in table (keep labels visible) */
+    #toursTable .btn-sm {
+        padding: 0.25rem 0.55rem;
+        font-size: 0.78rem;
+        height: auto;
+        white-space: nowrap;
+    }
+
+    /* Compact guests icons section */
+    #toursTable .d-flex.gap-3 {
+        gap: 0.75rem !important;
+    }
+
+    /* Compact services badges container */
+    #toursTable .d-flex.gap-2.flex-wrap {
+        gap: 0.35rem !important;
+    }
+
+    /* Reduce spacing in tour details */
+    #toursTable .d-flex.flex-column {
+        gap: 0.15rem;
+    }
+
+    /* Compact muted text */
+    #toursTable .text-muted {
+        font-size: 0.7rem;
+    }
+
+    /* Compact check-in/check-out / last contact */
+    #toursTable .d-flex.flex-column small {
+        line-height: 1.3;
+    }
+
+    /* Compact Service Modals (same as new-enquiries) */
+    .service-modal-compact .modal-dialog {
+        max-width: 780px;
+        width: 90%;
+        margin: 1.25rem auto;
+    }
+
+    .service-modal-compact .modal-header {
+        height: auto;
+        min-height: 90px;
+        padding: 0.5rem 0.9rem !important;
+    }
+
+    .service-modal-compact .modal-body {
+        padding: 0.75rem 0.9rem !important;
+    }
+
+    .service-modal-compact .modal-footer {
+        padding: 0.5rem 0.9rem !important;
+    }
+
+    .service-modal-compact h3 {
+        font-size: 1.05rem;
+        margin-bottom: 0.25rem;
+    }
+
+    .service-modal-compact h4,
+    .service-modal-compact h5 {
+        font-size: 0.95rem;
+        margin-bottom: 0.2rem;
+    }
+
+    .service-modal-compact h6 {
+        font-size: 0.85rem;
+        margin-bottom: 0.15rem;
+    }
+
+    .service-modal-compact .card-header {
+        padding: 0.45rem 0.75rem !important;
+    }
+
+    .service-modal-compact .card-body {
+        padding: 0.6rem 0.75rem !important;
+    }
+
+    .service-modal-compact .row.mb-4 {
+        margin-bottom: 0.55rem !important;
+    }
+
+    .service-modal-compact .bg-white.rounded.p-3,
+    .service-modal-compact .bg-white.rounded-3.p-4,
+    .service-modal-compact .bg-white.rounded.p-3.shadow-sm {
+        padding: 0.6rem 0.75rem !important;
+    }
+
+    .service-modal-compact small {
+        font-size: 0.7rem;
+    }
+
+    .service-modal-compact .fs-3,
+    .service-modal-compact .fs-4 {
+        font-size: 1rem !important;
+    }
+
+    .service-modal-compact .fs-5 {
+        font-size: 0.9rem !important;
+    }
+
+    .service-modal-compact .fs-2 {
+        font-size: 1.1rem !important;
+    }
+
+    .service-modal-compact .badge {
+        padding: 0.2rem 0.45rem;
+        font-size: 0.7rem;
+    }
+
+    .service-modal-compact .d-flex.align-items-center.mb-3 {
+        margin-bottom: 0.4rem !important;
+    }
+
+    .service-modal-compact .mb-3 {
+        margin-bottom: 0.45rem !important;
+    }
+
+    /* Loading spinner animation for cancel button */
+    .spin {
+        animation: spin 1s linear infinite;
+    }
+
+    @keyframes spin {
+        from { transform: rotate(0deg); }
+        to { transform: rotate(360deg); }
+    }
 </style>
 
 @section('content')
@@ -950,8 +1113,8 @@
 
     <!-- Hotel Details Modal -->
     @if(isset($svc['hotel']) && $svc['hotel'] > 0)
-    <div class="modal fade" id="hotelDetailsModal{{ $tour->tour_id }}" tabindex="-1" aria-labelledby="hotelDetailsModalLabel{{ $tour->tour_id }}" aria-hidden="true" data-bs-backdrop="static" data-bs-keyboard="false">
-        <div class="modal-dialog modal-dialog-centered modal-xl modal-dialog-scrollable">
+    <div class="modal fade service-modal-compact" id="hotelDetailsModal{{ $tour->tour_id }}" tabindex="-1" aria-labelledby="hotelDetailsModalLabel{{ $tour->tour_id }}" aria-hidden="true" data-bs-backdrop="static" data-bs-keyboard="false">
+        <div class="modal-dialog modal-dialog-centered modal-dialog-scrollable">
             <div class="modal-content shadow-lg" style="border-radius: 15px; overflow: hidden;">
                 @if(isset($serviceData['hotel']) && count($serviceData['hotel']) > 0)
                     @php
@@ -1379,8 +1542,8 @@
 
     <!-- Attraction Details Modal -->
     @if(isset($svc['attraction']) && $svc['attraction'] > 0)
-    <div class="modal fade" id="attractionDetailsModal{{ $tour->tour_id }}" tabindex="-1" aria-labelledby="attractionDetailsModalLabel{{ $tour->tour_id }}" aria-hidden="true" data-bs-backdrop="static" data-bs-keyboard="false">
-        <div class="modal-dialog modal-dialog-centered modal-xl modal-dialog-scrollable">
+    <div class="modal fade service-modal-compact" id="attractionDetailsModal{{ $tour->tour_id }}" tabindex="-1" aria-labelledby="attractionDetailsModalLabel{{ $tour->tour_id }}" aria-hidden="true" data-bs-backdrop="static" data-bs-keyboard="false">
+        <div class="modal-dialog modal-dialog-centered modal-dialog-scrollable">
             <div class="modal-content shadow-lg" style="border-radius: 15px; overflow: hidden;">
                 <div class="modal-header p-0 border-0 position-relative" style="height: 180px; background: linear-gradient(135deg, #fd9853 0%, #fe7854 100%);">
                     <div class="position-absolute w-100 h-100 d-flex align-items-center justify-content-between p-4">
@@ -1790,8 +1953,8 @@
 
     <!-- Restaurant Details Modal -->
     @if(isset($svc['restaurant']) && $svc['restaurant'] > 0)
-    <div class="modal fade" id="restaurantDetailsModal{{ $tour->tour_id }}" tabindex="-1" aria-labelledby="restaurantDetailsModalLabel{{ $tour->tour_id }}" aria-hidden="true" data-bs-backdrop="static" data-bs-keyboard="false">
-        <div class="modal-dialog modal-dialog-centered modal-xl modal-dialog-scrollable">
+    <div class="modal fade service-modal-compact" id="restaurantDetailsModal{{ $tour->tour_id }}" tabindex="-1" aria-labelledby="restaurantDetailsModalLabel{{ $tour->tour_id }}" aria-hidden="true" data-bs-backdrop="static" data-bs-keyboard="false">
+        <div class="modal-dialog modal-dialog-centered modal-dialog-scrollable">
             <div class="modal-content shadow-lg" style="border-radius: 15px; overflow: hidden;">
                 <div class="modal-header p-0 border-0 position-relative" style="height: 180px; background: linear-gradient(135deg, #fd79a8 0%, #fdcb6e 100%);">
                     <div class="position-absolute w-100 h-100 d-flex align-items-center justify-content-between p-4">
@@ -2218,8 +2381,8 @@
 
     <!-- Guide Details Modal -->
     @if(isset($svc['guide']) && $svc['guide'] > 0)
-    <div class="modal fade" id="guideDetailsModal{{ $tour->tour_id }}" tabindex="-1" aria-labelledby="guideDetailsModalLabel{{ $tour->tour_id }}" aria-hidden="true" data-bs-backdrop="static" data-bs-keyboard="false">
-        <div class="modal-dialog modal-dialog-centered modal-xl modal-dialog-scrollable">
+    <div class="modal fade service-modal-compact" id="guideDetailsModal{{ $tour->tour_id }}" tabindex="-1" aria-labelledby="guideDetailsModalLabel{{ $tour->tour_id }}" aria-hidden="true" data-bs-backdrop="static" data-bs-keyboard="false">
+        <div class="modal-dialog modal-dialog-centered modal-dialog-scrollable">
             <div class="modal-content shadow-lg" style="border-radius: 15px; overflow: hidden;">
                 <div class="modal-header p-0 border-0 position-relative" style="height: 180px; background: linear-gradient(135deg, #00cec9 0%, #55a3ff 100%);">
                     <div class="position-absolute w-100 h-100 d-flex align-items-center justify-content-between p-4">
@@ -2431,8 +2594,8 @@
 
     <!-- Entry Port (Arrival) Details Modal -->
     @if(isset($svc['entry_port']) && $svc['entry_port'] > 0)
-    <div class="modal fade" id="entry_portDetailsModal{{ $tour->tour_id }}" tabindex="-1" aria-labelledby="entry_portDetailsModalLabel{{ $tour->tour_id }}" aria-hidden="true" data-bs-backdrop="static" data-bs-keyboard="false">
-        <div class="modal-dialog modal-dialog-centered modal-xl modal-dialog-scrollable">
+    <div class="modal fade service-modal-compact" id="entry_portDetailsModal{{ $tour->tour_id }}" tabindex="-1" aria-labelledby="entry_portDetailsModalLabel{{ $tour->tour_id }}" aria-hidden="true" data-bs-backdrop="static" data-bs-keyboard="false">
+        <div class="modal-dialog modal-dialog-centered modal-dialog-scrollable">
             <div class="modal-content shadow-lg" style="border-radius: 15px; overflow: hidden;">
                 <div class="modal-header p-0 border-0 position-relative" style="height: 180px; background: linear-gradient(135deg, #00b894 0%, #55a3ff 100%);">
                     <div class="position-absolute w-100 h-100 d-flex align-items-center justify-content-between p-4">
@@ -2642,8 +2805,8 @@
 
     <!-- Exit Port (Departure) Details Modal -->
     @if(isset($svc['exit_port']) && $svc['exit_port'] > 0)
-    <div class="modal fade" id="exit_portDetailsModal{{ $tour->tour_id }}" tabindex="-1" aria-labelledby="exit_portDetailsModalLabel{{ $tour->tour_id }}" aria-hidden="true" data-bs-backdrop="static" data-bs-keyboard="false">
-        <div class="modal-dialog modal-dialog-centered modal-xl modal-dialog-scrollable">
+    <div class="modal fade service-modal-compact" id="exit_portDetailsModal{{ $tour->tour_id }}" tabindex="-1" aria-labelledby="exit_portDetailsModalLabel{{ $tour->tour_id }}" aria-hidden="true" data-bs-backdrop="static" data-bs-keyboard="false">
+        <div class="modal-dialog modal-dialog-centered modal-dialog-scrollable">
             <div class="modal-content shadow-lg" style="border-radius: 15px; overflow: hidden;">
                 <div class="modal-header p-0 border-0 position-relative" style="height: 180px; background: linear-gradient(135deg, #fd7f6f 0%, #feb47b 100%);">
                     <div class="position-absolute w-100 h-100 d-flex align-items-center justify-content-between p-4">
@@ -2845,8 +3008,8 @@
 
     <!-- Travel Hourly Details Modal -->
     @if(isset($svc['travel_hourly']) && $svc['travel_hourly'] > 0)
-        <div class="modal fade" id="travel_hourlyDetailsModal{{ $tour->tour_id }}" tabindex="-1" aria-labelledby="travel_hourlyModalLabel{{ $tour->tour_id }}" aria-hidden="true">
-            <div class="modal-dialog modal-xl">
+        <div class="modal fade service-modal-compact" id="travel_hourlyDetailsModal{{ $tour->tour_id }}" tabindex="-1" aria-labelledby="travel_hourlyModalLabel{{ $tour->tour_id }}" aria-hidden="true">
+            <div class="modal-dialog">
                 <div class="modal-content border-0 shadow-lg">
                     @php
                         $firstOrder = $serviceData['travel_hourly'][0] ?? null;
@@ -3044,8 +3207,8 @@
 
     <!-- Travel Point Details Modal -->
     @if(isset($svc['travel_point']) && $svc['travel_point'] > 0)
-        <div class="modal fade" id="travel_pointDetailsModal{{ $tour->tour_id }}" tabindex="-1" aria-labelledby="travel_pointModalLabel{{ $tour->tour_id }}" aria-hidden="true">
-            <div class="modal-dialog modal-xl">
+        <div class="modal fade service-modal-compact" id="travel_pointDetailsModal{{ $tour->tour_id }}" tabindex="-1" aria-labelledby="travel_pointModalLabel{{ $tour->tour_id }}" aria-hidden="true">
+            <div class="modal-dialog">
                 <div class="modal-content border-0 shadow-lg">
                     @php
                         $firstOrder = $serviceData['travel_point'][0] ?? null;
@@ -3276,8 +3439,8 @@
 
     <!-- Local Transport Details Modal -->
     @if(isset($svc['local_transport']) && $svc['local_transport'] > 0)
-        <div class="modal fade" id="local_transportDetailsModal{{ $tour->tour_id }}" tabindex="-1" aria-labelledby="local_transportModalLabel{{ $tour->tour_id }}" aria-hidden="true">
-            <div class="modal-dialog modal-xl">
+        <div class="modal fade service-modal-compact" id="local_transportDetailsModal{{ $tour->tour_id }}" tabindex="-1" aria-labelledby="local_transportModalLabel{{ $tour->tour_id }}" aria-hidden="true">
+            <div class="modal-dialog">
                 <div class="modal-content border-0 shadow-lg">
                     @php
                         $firstOrder = $serviceData['local_transport'][0] ?? null;
@@ -3460,7 +3623,7 @@
                                                 </div>
                                                 <div>
                                                     <small class="text-muted">Drop-off Location</small>
-                                                    <div class="fw-medium">{{ $booking['entrydropoff'] ?? 'N/A' }}</div>
+                                                    <div class="fw-medium">{{ $booking['dropoffLocation'] ?? 'N/A' }}</div>
                                                     <small class="text-danger">Destination</small>
                                                 </div>
                                             </div>
@@ -3501,9 +3664,9 @@
                                     <div class="col-md-4">
                                         @if(isset($booking['image']))
                                             <img src="{{ $booking['image'] }}" 
-                                                alt="{{ $booking['vehicles_name'] ?? 'Vehicle' }}" 
-                                                class="img-fluid rounded shadow-sm" 
-                                                style="height: 150px; width: 100%; object-fit: cover;">
+                                                 alt="{{ $booking['vehicles_name'] ?? 'Vehicle' }}" 
+                                                 class="img-fluid rounded shadow-sm" 
+                                                 style="height: 150px; width: 100%; object-fit: cover;">
                                         @else
                                             <div class="bg-light rounded d-flex align-items-center justify-content-center" style="height: 150px;">
                                                 <i class="ri-car-line ri-48px text-muted"></i>
@@ -3512,15 +3675,15 @@
                                     </div>
                                 </div>
 
+                                @endforeach
+                                @endif
                             @endforeach
-                            @endif
-                        @endforeach
-                    @else
-                        <div class="text-center py-5">
-                            <i class="ri-car-line ri-48px text-muted mb-3"></i>
-                            <h5 class="text-muted">No local transport data available</h5>
-                        </div>
-                    @endif
+                        @else
+                            <div class="text-center py-5">
+                                <i class="ri-car-line ri-48px text-muted mb-3"></i>
+                                <h5 class="text-muted">No local transport data available</h5>
+                            </div>
+                        @endif
                     </div>
 
                     <!-- Modal Footer -->
