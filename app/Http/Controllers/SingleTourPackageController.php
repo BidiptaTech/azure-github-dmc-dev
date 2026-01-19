@@ -701,6 +701,7 @@ class SingleTourPackageController extends Controller
             $tour->child = $request->children ?? 0;
             $tour->infant = $request->infants ?? 0;
             $tour->agent_id = $request->agent_id;
+            $tour->tour_type = $request->tour_type ?? 'FIT';
             $tour->tour_id = $tourId;
             $tour->male_count = $request->male;
             $tour->female_count = $request->female;
@@ -713,7 +714,6 @@ class SingleTourPackageController extends Controller
             $tour->child_ages = $request->child_ages ?? null;
             $tour->auto_cancel_date = $auto_cancel_date;
             $tour->taxes = !empty($taxArray) ? json_encode($taxArray) : null;
-            $tour->tour_type = $request->tour_type ?? 'FIT';
             
             // Store main guest data as JSON
             if ($request->has('mainguest') && $request->mainguest) {
@@ -768,7 +768,6 @@ class SingleTourPackageController extends Controller
                     $tour->additionalguest = null;
                 }
             }
-            
             $tour->save();
 
             $thisTour = Tour::where('tour_id', $tour->tour_id)->first();
