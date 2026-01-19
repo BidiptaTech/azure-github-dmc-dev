@@ -4738,16 +4738,7 @@
                                         }
                                     @endphp
                                     <div class="row g-3">
-                                        <!-- First Row: Transport Type, Vehicle, Destination -->
-                                        <div class="col-md-3">
-                                            <label class="form-label fw-semibold">Transport Type</label>
-                                            <select class="form-select form-select-sm" name="modal_restaurant_transport_type" id="modal_restaurant_transport_type" data-no-select2="true">
-                                                <option value="">Select type</option>
-                                                <option value="shared">Shared</option>
-                                                <option value="private">Private</option>
-                                            </select>
-                                        </div>
-                                        
+                                        <!-- First Row: Destination, Transport Type, Vehicle -->
                                         <div class="col-md-3">
                                             <label class="form-label fw-semibold">Destination</label>
                                             @php
@@ -4786,11 +4777,19 @@
                                                 </optgroup>
                                             </select>
                                         </div>
+                                        
                                         <div class="col-md-3">
-                                            <label class="form-label fw-semibold">Vehicle (by country)</label>
+                                            <label class="form-label fw-semibold">Vehicle (by city)</label>
                                             <select class="form-select form-select-sm modal-restaurant-transport-vehicle-select" name="modal_restaurant_transport_vehicle" id="modal_restaurant_transport_vehicle" data-no-select2="true">
                                                 <option value="">Select destination first</option>
-                                                {{-- Vehicles will be loaded via JavaScript when destination is selected --}}
+                                                {{-- Vehicles will be loaded via JavaScript when destination is selected, filtered by city --}}
+                                            </select>
+                                        </div>
+                                        <div class="col-md-3">
+                                            <label class="form-label fw-semibold">Transport Type</label>
+                                            <select class="form-select form-select-sm" name="modal_restaurant_transport_type" id="modal_restaurant_transport_type" data-no-select2="true">
+                                                <option value="">Select vehicle first</option>
+                                                {{-- Options will be populated based on vehicle sharable value --}}
                                             </select>
                                         </div>
                                     <!-- <div class="row g-3 mt-2"> -->
@@ -4809,9 +4808,9 @@
                                             <label class="form-label fw-semibold">Transport Price</label>
                                             <div class="input-group input-group-sm">
                                                 <span class="input-group-text">{{ $tour->currency ?? '$' }}</span>
-                                                <input type="number" min="0" step="0.01" class="form-control form-control-sm" name="modal_restaurant_transport_price" id="modal_restaurant_transport_price" placeholder="0.00" data-original-price="" readonly>
+                                                <input type="number" min="0" step="0.01" class="form-control form-control-sm" name="modal_restaurant_transport_price" id="modal_restaurant_transport_price" placeholder="0.00" data-original-price="" data-zone-mapped="false">
                                             </div>
-                                            <small class="text-muted">Calculated from zone-based pricing.</small>
+                                            <small class="text-muted" id="modal_restaurant_transport_price_hint">Select vehicle to see price</small>
                                             <div class="form-check mt-2">
                                                 <input class="form-check-input modal-restaurant-transport-return-checkbox" type="checkbox" name="modal_restaurant_transport_return" id="modal_restaurant_transport_return">
                                                 <label class="form-check-label fw-semibold" for="modal_restaurant_transport_return">
@@ -5349,15 +5348,7 @@
                                         }
                                     @endphp
                                     <div class="row g-3">
-                                        <!-- First Row: Transport Type, Vehicle, Destination -->
-                                        <div class="col-md-3">
-                                            <label class="form-label fw-semibold">Transport Type</label>
-                                            <select class="form-select form-select-sm" name="modal_attraction_transport_type" id="modal_attraction_transport_type" data-no-select2="true">
-                                                <option value="">Select type</option>
-                                                <option value="shared">Shared</option>
-                                                <option value="private">Private</option>
-                                            </select>
-                                        </div>
+
                                         
                                         <div class="col-md-3">
                                             <label class="form-label fw-semibold">Destination</label>
@@ -5404,7 +5395,15 @@
                                                 {{-- Vehicles will be loaded via JavaScript when destination is selected --}}
                                             </select>
                                         </div>
-                                    </div>
+                                        <!-- First Row: Transport Type, Vehicle, Destination -->
+                                        <div class="col-md-3">
+                                            <label class="form-label fw-semibold">Transport Type</label>
+                                            <select class="form-select form-select-sm" name="modal_attraction_transport_type" id="modal_attraction_transport_type" data-no-select2="true">
+                                                <option value="">Select type</option>
+                                                <option value="shared">Shared</option>
+                                                <option value="private">Private</option>
+                                            </select>
+                                        </div>
                                     <!-- <div class="row g-3 mt-2">
                                         <div class="col-md-2">
                                             <label class="form-label fw-semibold">Seats</label>
@@ -5435,6 +5434,8 @@
                                                 </label>
                                             </div>
                                         </div>
+                                    </div>
+
                                     </div>
                                 </div>
                             </div>
@@ -6565,6 +6566,11 @@
         </div>
     </div>
 </div>
+<!-- Extra div close tag -->
+</div>
+</div>
+</div>
+</div>
 <!-- End of Dropoff Transport Selection Modal -->
 
 @endsection
@@ -6603,6 +6609,16 @@
                 wrapper.classList.remove('d-none');
             } else {
                 wrapper.classList.add('d-none');
+                // If guide toggle is set to "No", reset guide price
+                if (yesId === 'modal_need_attraction_guide_yes') {
+                    $('#modal_attraction_guide_price').val('0.00');
+                    $('#modal_attraction_guide_price_breakdown').hide();
+                    $('#modal_attraction_guide_price_note').text('Select guide and enter hours to see price').show();
+                    window.attractionModalGuideData = null;
+                    if (typeof updateAttractionModalPriceGrid === 'function') {
+                        updateAttractionModalPriceGrid();
+                    }
+                }
             }
         }
 
@@ -6640,6 +6656,13 @@
                 }
                 if (yesLabel) {
                     yesLabel.classList.remove('active');
+                }
+                // If transport toggle is set to "No", reset transport price
+                if (toggleId === 'modal_need_attraction_transport') {
+                    $('#modal_attraction_transport_price').val('0.00');
+                    if (typeof updateAttractionModalPriceGrid === 'function') {
+                        updateAttractionModalPriceGrid();
+                    }
                 }
             }
         }
@@ -8020,14 +8043,21 @@
         });
 
         // Handle restaurant modal transport destination change - fetch vehicles and calculate zone-based price
+        // Store all vehicles for filtering
+        let allRestaurantTransportVehicles = [];
+        
         $(document).on('change', '.modal-restaurant-transport-destination-select', async function() {
             const destinationSelect = $(this);
             const selectedOption = destinationSelect.find('option:selected');
+            const vehicleSelect = $('#modal_restaurant_transport_vehicle');
+            const transportTypeSelect = $('#modal_restaurant_transport_type');
+            const priceInput = $('#modal_restaurant_transport_price');
             
             if (!selectedOption.val() || !selectedOption.val().trim()) {
-                const vehicleSelect = $('#modal_restaurant_transport_vehicle');
                 vehicleSelect.html('<option value="">Select destination first</option>');
-                $('#modal_restaurant_transport_price').val('0.00');
+                transportTypeSelect.html('<option value="">Select vehicle first</option>');
+                priceInput.val('0.00').attr('readonly', false).data('zone-mapped', false);
+                $('#modal_restaurant_transport_price_hint').text('Select vehicle to see price');
                 updateRestaurantModalPriceGrid();
                 return;
             }
@@ -8039,7 +8069,6 @@
             const restaurantSelect = $('#modal_restaurant_select');
             const restaurantOption = restaurantSelect.find('option:selected');
             let restaurantId = restaurantSelect.val();
-            // Try to get restaurant ID from data attribute
             if (restaurantOption.length && restaurantOption.attr('data-restaurant')) {
                 try {
                     const restaurantData = JSON.parse(restaurantOption.attr('data-restaurant'));
@@ -8054,11 +8083,14 @@
                 return;
             }
 
-            // Get zone status
+            // Get zone status and city
             const zoneStatus = {{ $UserDmc->zone_on ?? 0 }};
             const city = '{{ $tour->city ?? "" }}';
 
-            // Fetch vehicles using zone mapping
+            // Fetch vehicles - try zone mapping first, then fallback to city-based
+            let vehicles = [];
+            let zoneMapped = false;
+            
             if (zoneStatus == 1 && fetchVehiclesByZonesUrl) {
                 try {
                     const csrfToken = $('meta[name="csrf-token"]').attr('content');
@@ -8081,80 +8113,245 @@
                     const data = await response.json();
                     
                     if (data.success && data.vehicles && data.vehicles.length > 0) {
-                        const vehicleSelect = $('#modal_restaurant_transport_vehicle');
-                        vehicleSelect.html('<option value="">Select vehicle</option>');
-                        
-                        data.vehicles.forEach(vehicle => {
-                            const option = $('<option></option>');
-                            option.val(vehicle.vehicle_name || vehicle.vehicle_id);
-                            option.text(`${vehicle.vehicle_name || vehicle.vehicle_id}${vehicle.vehicle_type ? ' (' + vehicle.vehicle_type + ')' : ''}${vehicle.seating_capacity ? ' - ' + vehicle.seating_capacity + ' seats' : ''}`);
-                            option.attr('data-seating-capacity', vehicle.seating_capacity || '');
-                            option.attr('data-vehicle-id', vehicle.vehicle_id || '');
-                            option.attr('data-private-price', vehicle.private_price || '0');
-                            option.attr('data-shared-price', vehicle.shared_price || '0');
-                            option.attr('data-vehicle', JSON.stringify(vehicle));
-                            vehicleSelect.append(option);
-                        });
-
-                        // Auto-select first vehicle and calculate price
-                        if (data.vehicles.length > 0) {
-                            const firstVehicle = data.vehicles[0];
-                            vehicleSelect.val(firstVehicle.vehicle_name || firstVehicle.vehicle_id);
-                            
-                            // Update seats field
-                            const seatsInput = $('#modal_restaurant_transport_seats');
-                            if (seatsInput.length && firstVehicle.seating_capacity) {
-                                seatsInput.val(firstVehicle.seating_capacity);
-                            }
-                            
-                            // Trigger change event to ensure all handlers fire
-                            vehicleSelect.trigger('change');
-                            
-                            // Calculate price
-                            calculateModalRestaurantTransportPrice();
-                        }
-                    } else {
-                        const vehicleSelect = $('#modal_restaurant_transport_vehicle');
-                        vehicleSelect.html('<option value="">No vehicles available for this route</option>');
-                        $('#modal_restaurant_transport_price').val('0.00');
-                        updateRestaurantModalPriceGrid();
+                        vehicles = data.vehicles;
+                        zoneMapped = true;
                     }
                 } catch (error) {
-                    console.error('Error fetching vehicles:', error);
+                    console.error('Error fetching vehicles by zones:', error);
                 }
+            }
+            
+            // If no zone-mapped vehicles, fetch by city
+            if (vehicles.length === 0 && city) {
+                try {
+                    const response = await fetch(`{{ route('fetch-vehicles-by-city-dmc') }}?city=${encodeURIComponent(city)}`);
+                    const data = await response.json();
+                    if (data.success && data.vehicles) {
+                        vehicles = data.vehicles;
+                        zoneMapped = false;
+                    } else if (data.vehicles) {
+                        // Some endpoints return vehicles directly
+                        vehicles = data.vehicles;
+                        zoneMapped = false;
+                    }
+                } catch (error) {
+                    console.error('Error fetching vehicles by city:', error);
+                }
+            }
+            
+            // Store all vehicles for filtering
+            allRestaurantTransportVehicles = vehicles;
+            
+            // Populate vehicle dropdown
+            vehicleSelect.html('<option value="">Select vehicle</option>');
+            vehicles.forEach(vehicle => {
+                const sharable = parseInt(vehicle.sharable || vehicle.sharable_option || '0', 10);
+                const option = $('<option></option>');
+                option.val(vehicle.vehicle_name || vehicle.vehicle_id);
+                option.text(`${vehicle.vehicle_name || vehicle.vehicle_id}${vehicle.vehicle_type ? ' (' + vehicle.vehicle_type + ')' : ''}${vehicle.seating_capacity ? ' - ' + vehicle.seating_capacity + ' seats' : ''}`);
+                option.attr('data-seating-capacity', vehicle.seating_capacity || '');
+                option.attr('data-vehicle-id', vehicle.vehicle_id || '');
+                option.attr('data-private-price', vehicle.private_price || vehicle.base_price || '0');
+                option.attr('data-shared-price', vehicle.shared_price || vehicle.sharable_base_price || '0');
+                option.attr('data-sharable', sharable);
+                option.attr('data-zone-mapped', zoneMapped ? '1' : '0');
+                option.attr('data-vehicle', JSON.stringify(vehicle));
+                vehicleSelect.append(option);
+            });
+
+            if (vehicles.length === 0) {
+                vehicleSelect.html('<option value="">No vehicles available for this city</option>');
+                transportTypeSelect.html('<option value="">Select vehicle first</option>');
+                priceInput.val('0.00').attr('readonly', false).data('zone-mapped', false);
+                $('#modal_restaurant_transport_price_hint').text('No vehicles available');
+                updateRestaurantModalPriceGrid();
+            } else {
+                // Reset transport type and price
+                transportTypeSelect.html('<option value="">Select vehicle first</option>');
+                priceInput.val('0.00').attr('readonly', false).data('zone-mapped', false);
+                $('#modal_restaurant_transport_price_hint').text('Select vehicle to see price');
             }
         });
 
+        // Handle vehicle change - update transport type options based on sharable (using same pattern as local transfer)
+        $(document).on('change', '#modal_restaurant_transport_vehicle', function() {
+            const vehicleSelect = document.getElementById('modal_restaurant_transport_vehicle');
+            const transportTypeSelect = document.getElementById('modal_restaurant_transport_type');
+            const priceInput = document.getElementById('modal_restaurant_transport_price');
+            const priceHint = document.getElementById('modal_restaurant_transport_price_hint');
+            
+            if (!vehicleSelect || !vehicleSelect.value) {
+                if (transportTypeSelect) {
+                    transportTypeSelect.innerHTML = '<option value="">Select vehicle first</option>';
+                }
+                if (priceInput) {
+                    priceInput.value = '0.00';
+                    priceInput.readOnly = false;
+                    priceInput.setAttribute('data-zone-mapped', 'false');
+                }
+                if (priceHint) {
+                    priceHint.textContent = 'Select vehicle to see price';
+                }
+                updateRestaurantModalPriceGrid();
+                return;
+            }
+            
+            const selectedOption = vehicleSelect.options[vehicleSelect.selectedIndex];
+            if (!selectedOption) {
+                return;
+            }
+            
+            // Get vehicle data from data-vehicle attribute or individual data attributes
+            let vehicleData = {};
+            try {
+                const dataVehicleAttr = selectedOption.getAttribute('data-vehicle');
+                if (dataVehicleAttr && dataVehicleAttr.trim() !== '') {
+                    vehicleData = JSON.parse(dataVehicleAttr);
+                } else {
+                    // Fallback: get from individual data attributes
+                    vehicleData = {
+                        sharable: selectedOption.getAttribute('data-sharable') || '0',
+                        private_price: selectedOption.getAttribute('data-private-price') || '0',
+                        shared_price: selectedOption.getAttribute('data-shared-price') || '0'
+                    };
+                }
+            } catch (error) {
+                console.error('Error parsing vehicle data:', error);
+                vehicleData = {
+                    sharable: selectedOption.getAttribute('data-sharable') || '0',
+                    private_price: selectedOption.getAttribute('data-private-price') || '0',
+                    shared_price: selectedOption.getAttribute('data-shared-price') || '0'
+                };
+            }
+            
+            // Ensure sharable is a number
+            if (vehicleData.sharable) {
+                vehicleData.sharable = parseInt(vehicleData.sharable) || 0;
+            }
+            
+            const zoneMapped = selectedOption.getAttribute('data-zone-mapped') === '1';
+            
+            // Update transport type options using the same function pattern
+            if (transportTypeSelect) {
+                transportTypeSelect.innerHTML = '<option value="">Select type</option>';
+                
+                const sharableValue = parseInt(vehicleData.sharable || '0', 10);
+                
+                // If sharable is 1 or 3 → show Private
+                if (sharableValue === 1 || sharableValue === 3) {
+                    const privateOption = document.createElement('option');
+                    privateOption.value = 'private';
+                    privateOption.textContent = 'Private';
+                    transportTypeSelect.appendChild(privateOption);
+                }
+                
+                // If sharable is 2 or 3 → show Shared
+                if (sharableValue === 2 || sharableValue === 3) {
+                    const sharedOption = document.createElement('option');
+                    sharedOption.value = 'shared';
+                    sharedOption.textContent = 'Shared';
+                    transportTypeSelect.appendChild(sharedOption);
+                }
+                
+                // Fallback: if no sharable info, show both
+                if (transportTypeSelect.options.length <= 1) {
+                    const privateOption = document.createElement('option');
+                    privateOption.value = 'private';
+                    privateOption.textContent = 'Private';
+                    transportTypeSelect.appendChild(privateOption);
+                    
+                    const sharedOption = document.createElement('option');
+                    sharedOption.value = 'shared';
+                    sharedOption.textContent = 'Shared';
+                    transportTypeSelect.appendChild(sharedOption);
+                }
+                
+                transportTypeSelect.disabled = false;
+            }
+            
+            // Update price input based on zone mapping
+            if (priceInput) {
+                if (zoneMapped) {
+                    priceInput.readOnly = true;
+                    priceInput.setAttribute('data-zone-mapped', 'true');
+                    if (priceHint) {
+                        priceHint.textContent = 'Calculated from zone-based pricing';
+                    }
+                    // Calculate price if transport type is selected
+                    if (transportTypeSelect && transportTypeSelect.value) {
+                        calculateModalRestaurantTransportPrice();
+                    }
+                } else {
+                    priceInput.readOnly = false;
+                    priceInput.setAttribute('data-zone-mapped', 'false');
+                    if (priceHint) {
+                        priceHint.textContent = 'Enter price manually (no zone mapping)';
+                    }
+                    priceInput.value = '0.00';
+                }
+            }
+            
+            updateRestaurantModalPriceGrid();
+        });
+        
+        // Handle transport type change - recalculate price if zone mapped
+        $(document).on('change', '#modal_restaurant_transport_type', function() {
+            const priceInput = document.getElementById('modal_restaurant_transport_price');
+            const priceHint = document.getElementById('modal_restaurant_transport_price_hint');
+            
+            if (!priceInput) return;
+            
+            const zoneMapped = priceInput.getAttribute('data-zone-mapped') === 'true';
+            
+            if (zoneMapped) {
+                calculateModalRestaurantTransportPrice();
+            } else {
+                // For manual pricing, just update hint
+                if (priceHint) {
+                    priceHint.textContent = 'Enter price manually (no zone mapping)';
+                }
+            }
+        });
+        
         // Calculate restaurant modal transport price based on zone mapping
         function calculateModalRestaurantTransportPrice() {
-            const vehicleSelect = $('#modal_restaurant_transport_vehicle');
-            const transportTypeSelect = $('#modal_restaurant_transport_type');
-            const passengersInput = $('#modal_restaurant_transport_passengers');
-            const priceInput = $('#modal_restaurant_transport_price');
-            const returnCheckbox = $('#modal_restaurant_transport_return');
+            const vehicleSelect = document.getElementById('modal_restaurant_transport_vehicle');
+            const transportTypeSelect = document.getElementById('modal_restaurant_transport_type');
+            const priceInput = document.getElementById('modal_restaurant_transport_price');
+            const returnCheckbox = document.getElementById('modal_restaurant_transport_return');
 
-            if (!vehicleSelect.length || !transportTypeSelect.length || !passengersInput.length || !priceInput.length) {
+            if (!vehicleSelect || !transportTypeSelect || !priceInput) {
                 return;
             }
 
-            const selectedOption = vehicleSelect.find('option:selected');
-            if (!selectedOption.val() || !selectedOption.val().trim()) {
-                priceInput.val('0.00');
+            const selectedOption = vehicleSelect.options[vehicleSelect.selectedIndex];
+            if (!selectedOption || !selectedOption.value) {
+                priceInput.value = '0.00';
+                updateRestaurantModalPriceGrid();
+                return;
+            }
+            
+            const zoneMapped = selectedOption.getAttribute('data-zone-mapped') === '1';
+            if (!zoneMapped) {
+                // Manual pricing, don't auto-calculate
+                return;
+            }
+
+            const transportType = transportTypeSelect.value;
+            if (!transportType) {
+                priceInput.value = '0.00';
                 updateRestaurantModalPriceGrid();
                 return;
             }
 
-            const transportType = transportTypeSelect.val() || 'private';
-            const passengers = parseInt(passengersInput.val()) || 1;
-            const isReturn = returnCheckbox.is(':checked');
+            const isReturn = returnCheckbox ? returnCheckbox.checked : false;
 
             // Get price from zone mapping (stored in data attributes)
             let basePrice = 0;
             if (transportType.toLowerCase() === 'shared') {
-                basePrice = parseFloat(selectedOption.data('shared-price')) || 0;
-                basePrice = basePrice * passengers; // Shared price is per passenger
+                basePrice = parseFloat(selectedOption.getAttribute('data-shared-price')) || 0;
             } else {
-                basePrice = parseFloat(selectedOption.data('private-price')) || 0;
+                basePrice = parseFloat(selectedOption.getAttribute('data-private-price')) || 0;
             }
 
             // Apply return multiplier
@@ -8164,10 +8361,9 @@
 
             // Update price input
             const totalPrice = basePrice.toFixed(2);
-            priceInput.val(totalPrice);
-            priceInput.attr('readonly', true);
+            priceInput.value = totalPrice;
             if (!isReturn) {
-                priceInput.data('original-price', totalPrice);
+                priceInput.setAttribute('data-original-price', totalPrice);
             }
             
             updateRestaurantModalPriceGrid();
@@ -8185,14 +8381,18 @@
             $('#modal_restaurant_total_price_display').text(currency + ' ' + totalPrice.toFixed(2));
         }
 
-        // Recalculate price when vehicle, transport type, passengers, or return checkbox changes for restaurant modal
-        $(document).on('change', '#modal_restaurant_transport_vehicle, #modal_restaurant_transport_type, #modal_restaurant_transport_return', function() {
-            calculateModalRestaurantTransportPrice();
+        // Recalculate price when return checkbox changes for restaurant modal (only if zone mapped)
+        $(document).on('change', '#modal_restaurant_transport_return', function() {
+            const priceInput = $('#modal_restaurant_transport_price');
+            const zoneMapped = priceInput.data('zone-mapped');
+            if (zoneMapped) {
+                calculateModalRestaurantTransportPrice();
+            }
         });
-
-        // Recalculate price when passengers change for restaurant modal
-        $(document).on('input change', '#modal_restaurant_transport_passengers', function() {
-            calculateModalRestaurantTransportPrice();
+        
+        // Update price grid when manual price is entered
+        $(document).on('input change', '#modal_restaurant_transport_price', function() {
+            updateRestaurantModalPriceGrid();
         });
 
         // Handle attraction modal transport destination change - fetch vehicles and calculate zone-based price
@@ -8262,12 +8462,15 @@
                         
                         data.vehicles.forEach(vehicle => {
                             const option = $('<option></option>');
-                            option.val(vehicle.vehicle_name || vehicle.vehicle_id);
-                            option.text(`${vehicle.vehicle_name || vehicle.vehicle_id}${vehicle.vehicle_type ? ' (' + vehicle.vehicle_type + ')' : ''}${vehicle.seating_capacity ? ' - ' + vehicle.seating_capacity + ' seats' : ''}`);
+                            const vehicleName = vehicle.vehicle_name || vehicle.vehicle_id;
+                            option.val(vehicleName);
+                            option.text(`${vehicleName}${vehicle.vehicle_type ? ' (' + vehicle.vehicle_type + ')' : ''}${vehicle.seating_capacity ? ' - ' + vehicle.seating_capacity + ' seats' : ''}`);
                             option.attr('data-seating-capacity', vehicle.seating_capacity || '');
                             option.attr('data-vehicle-id', vehicle.vehicle_id || '');
                             option.attr('data-private-price', vehicle.private_price || '0');
                             option.attr('data-shared-price', vehicle.shared_price || '0');
+                            // sharable: 1 = Private, 2 = Shared, 3 = Both
+                            option.attr('data-sharable', vehicle.sharable || vehicle.sharable_option || 0);
                             option.attr('data-vehicle', JSON.stringify(vehicle));
                             vehicleSelect.append(option);
                         });
@@ -8309,7 +8512,7 @@
             const priceInput = $('#modal_attraction_transport_price');
             const returnCheckbox = $('#modal_attraction_transport_return');
 
-            if (!vehicleSelect.length || !transportTypeSelect.length || !passengersInput.length || !priceInput.length) {
+            if (!vehicleSelect.length || !transportTypeSelect.length || !priceInput.length) {
                 return;
             }
 
@@ -8321,7 +8524,8 @@
             }
 
             const transportType = transportTypeSelect.val() || 'private';
-            const passengers = parseInt(passengersInput.val()) || 1;
+            // Passengers field is optional in modal → default to 1 if missing
+            const passengers = passengersInput.length ? (parseInt(passengersInput.val()) || 1) : 1;
             const isReturn = returnCheckbox.is(':checked');
 
             // Get price from zone mapping (stored in data attributes)
@@ -8363,8 +8567,48 @@
             $('#modal_attraction_total_price_display').text(currency + ' ' + totalPrice.toFixed(2));
         }
 
-        // Recalculate price when vehicle, transport type, passengers, or return checkbox changes for attraction modal
-        $(document).on('change', '#modal_attraction_transport_vehicle, #modal_attraction_transport_type, #modal_attraction_transport_return', function() {
+        // When modal attraction vehicle changes → adjust available transport types based on sharable
+        $(document).on('change', '#modal_attraction_transport_vehicle', function() {
+            const vehicleSelect = $(this);
+            const typeSelect = $('#modal_attraction_transport_type');
+            if (!typeSelect.length) return;
+
+            const selectedOption = vehicleSelect.find('option:selected');
+
+            // Default options when no vehicle selected
+            if (!selectedOption.val() || !selectedOption.val().trim()) {
+                typeSelect.html(`
+                    <option value="">Select type</option>
+                    <option value="private">Private</option>
+                    <option value="shared">Shared</option>
+                `);
+                calculateModalAttractionTransportPrice();
+                return;
+            }
+
+            const sharable = parseInt(selectedOption.data('sharable')) || 0; // 1=Private, 2=Shared, 3=Both
+            typeSelect.empty();
+            typeSelect.append('<option value="">Select type</option>');
+
+            // sharable 1 or 3 → Private
+            if (sharable === 1 || sharable === 3 || sharable === 0) {
+                typeSelect.append('<option value="private">Private</option>');
+            }
+            // sharable 2 or 3 → Shared
+            if (sharable === 2 || sharable === 3) {
+                typeSelect.append('<option value="shared">Shared</option>');
+            }
+
+            // If only one concrete type option, auto-select it
+            if (typeSelect.find('option').length === 2) {
+                typeSelect.val(typeSelect.find('option').last().val());
+            }
+
+            calculateModalAttractionTransportPrice();
+        });
+
+        // Recalculate price when transport type or return checkbox changes for attraction modal
+        $(document).on('change', '#modal_attraction_transport_type, #modal_attraction_transport_return', function() {
             calculateModalAttractionTransportPrice();
         });
 
@@ -9291,10 +9535,14 @@
             ticketSelect.innerHTML = '<option value="">Select Ticket</option>';
         }
         
-        // Clear ticket price display
+        // Clear ticket price display and reset ticket price
         const ticketPriceDisplay = document.getElementById('modal_attraction_ticket_prices');
         if (ticketPriceDisplay) {
             ticketPriceDisplay.textContent = '';
+        }
+        const totalPriceInput = document.getElementById('modal_attraction_total_price');
+        if (totalPriceInput) {
+            totalPriceInput.value = '0';
         }
         
         if (selectedValue && selectedOption && selectedOption.getAttribute('data-attraction')) {
@@ -9420,6 +9668,28 @@
             if (attractionDetailsContainer) {
                 attractionDetailsContainer.style.display = 'none';
             }
+        }
+        
+        // Check if guide/transport are set to "No" and reset prices accordingly
+        const needGuideRadio = document.querySelector('input[name="modal_need_attraction_guide"]:checked');
+        const needTransportToggle = document.getElementById('modal_need_attraction_transport');
+        
+        // If guide is set to "No", reset guide price
+        if (needGuideRadio && needGuideRadio.id === 'modal_need_attraction_guide_no') {
+            $('#modal_attraction_guide_price').val('0.00');
+            $('#modal_attraction_guide_price_breakdown').hide();
+            $('#modal_attraction_guide_price_note').text('Select guide and enter hours to see price').show();
+            window.attractionModalGuideData = null;
+        }
+        
+        // If transport is set to "No" (unchecked), reset transport price
+        if (needTransportToggle && !needTransportToggle.checked) {
+            $('#modal_attraction_transport_price').val('0.00');
+        }
+        
+        // Update price grid after resetting prices
+        if (typeof updateAttractionModalPriceGrid === 'function') {
+            updateAttractionModalPriceGrid();
         }
         
         validateAttractionForm();
