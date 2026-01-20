@@ -1300,55 +1300,7 @@
                                     </div>
                                     
                                     <div class="card-body p-4" style="background-color: #f8f9fa;">
-                                        <!-- Guest Information -->
-                                        <div class="row mb-4">
-                                            <div class="col-md-6">
-                                                <div class="bg-white rounded p-3 shadow-sm h-100">
-                                                    <div class="d-flex align-items-center mb-3">
-                                                        <div class="bg-primary rounded-circle p-2 me-3">
-                                                            <i class="ri-user-line text-white"></i>
-                                                        </div>
-                                                        <h6 class="fw-bold mb-0 text-dark">Customer Details</h6>
-                                                    </div>
-                                                    <div class="mb-2">
-                                                        <small class="text-muted">Full Name</small>
-                                                        <div class="fw-medium">{{ $booking['fullName'] ?? 'N/A' }}</div>
-                                                    </div>
-                                                    <div class="mb-2">
-                                                        <small class="text-muted">Email Address</small>
-                                                        <div class="fw-medium text-primary">{{ $booking['email'] ?? 'N/A' }}</div>
-                                                    </div>
-                                                    <div class="mb-0">
-                                                        <small class="text-muted">Phone Number</small>
-                                                        <div class="fw-medium">{{ $booking['countryCode'] ?? '' }} {{ $booking['phone'] ?? 'N/A' }}</div>
-                                                    </div>
-                                                </div>
-                                            </div>
-                                            <div class="col-md-6">
-                                                <div class="bg-white rounded p-3 shadow-sm h-100">
-                                                    <div class="d-flex align-items-center mb-3">
-                                                        <div class="bg-info rounded-circle p-2 me-3">
-                                                            <i class="ri-map-pin-line text-white"></i>
-                                                        </div>
-                                                        <h6 class="fw-bold mb-0 text-dark">Address</h6>
-                                                    </div>
-                                                    <div class="text-muted">
-                                                        @if($booking['address1'] ?? false)
-                                                            <div>{{ $booking['address1'] }}</div>
-                                                        @endif
-                                                        @if($booking['address2'] ?? false)
-                                                            <div>{{ $booking['address2'] }}</div>
-                                                        @endif
-                                                        @if($booking['state'] ?? false)
-                                                            <div>{{ $booking['state'] }} {{ $booking['zip'] ?? '' }}</div>
-                                                        @endif
-                                                        @if(!($booking['address1'] ?? false) && !($booking['address2'] ?? false) && !($booking['state'] ?? false))
-                                                            <div class="text-muted">Address not provided</div>
-                                                        @endif
-                                                    </div>
-                                                </div>
-                                            </div>
-                                        </div>
+                                     
 
                                         <!-- Stay Information -->
                                         <div class="row mb-4">
@@ -1885,55 +1837,8 @@
                                     </div>
                                     
                                     <div class="card-body p-4" style="background-color: #f8f9fa;">
-                                        <!-- Guest Information -->
-                                        <div class="row mb-4">
-                                            <div class="col-md-6">
-                                                <div class="bg-white rounded p-3 shadow-sm h-100">
-                                                    <div class="d-flex align-items-center mb-3">
-                                                        <div class="bg-primary rounded-circle p-2 me-3">
-                                                            <i class="ri-user-line text-white"></i>
-                                                        </div>
-                                                        <h6 class="fw-bold mb-0 text-dark">Customer Details</h6>
-                                                    </div>
-                                                    <div class="mb-2">
-                                                        <small class="text-muted">Full Name</small>
-                                                        <div class="fw-medium">{{ $booking['fullName'] ?? 'N/A' }}</div>
-                                                    </div>
-                                                    <div class="mb-2">
-                                                        <small class="text-muted">Email Address</small>
-                                                        <div class="fw-medium text-primary">{{ $booking['email'] ?? 'N/A' }}</div>
-                                                    </div>
-                                                    <div class="mb-0">
-                                                        <small class="text-muted">Phone Number</small>
-                                                        <div class="fw-medium">{{ $booking['countryCode'] ?? '' }} {{ $booking['phone'] ?? 'N/A' }}</div>
-                                                    </div>
-                                                </div>
-                                            </div>
-                                            <div class="col-md-6">
-                                                <div class="bg-white rounded p-3 shadow-sm h-100">
-                                                    <div class="d-flex align-items-center mb-3">
-                                                        <div class="bg-info rounded-circle p-2 me-3">
-                                                            <i class="ri-map-pin-line text-white"></i>
-                                                        </div>
-                                                        <h6 class="fw-bold mb-0 text-dark">Address</h6>
-                                                    </div>
-                                                    <div class="text-muted">
-                                                        @if($booking['address1'] ?? false)
-                                                            <div>{{ $booking['address1'] }}</div>
-                                                        @endif
-                                                        @if($booking['address2'] ?? false)
-                                                            <div>{{ $booking['address2'] }}</div>
-                                                        @endif
-                                                        @if($booking['state'] ?? false)
-                                                            <div>{{ $booking['state'] }} {{ $booking['zip'] ?? '' }}</div>
-                                                        @endif
-                                                        @if(!($booking['address1'] ?? false) && !($booking['address2'] ?? false) && !($booking['state'] ?? false))
-                                                            <div class="text-muted">Address not provided</div>
-                                                        @endif
-                                                    </div>
-                                                </div>
-                                            </div>
-                                        </div>
+                                  
+                                       
 
                                         <!-- Visit & Booking Information -->
                                         <div class="row mb-4">
@@ -2241,67 +2146,7 @@
                                     
                                     <div class="card-body p-4" style="background-color: #f8f9fa;">
                                         <!-- Guest Information -->
-                                        <div class="row mb-4">
-                                            <div class="col-md-6">
-                                                <div class="bg-white rounded p-3 shadow-sm h-100">
-                                                    <div class="d-flex align-items-center mb-3">
-                                                        <div class="bg-primary rounded-circle p-2 me-3">
-                                                            <i class="ri-user-line text-white"></i>
-                                                        </div>
-                                                        <h6 class="fw-bold mb-0 text-dark">Customer Details</h6>
-                                                    </div>
-                                                    <div class="mb-2">
-                                                        <small class="text-muted">Full Name</small>
-                                                        <div class="fw-medium">{{ $booking['fullName'] ?? 'N/A' }}</div>
-                                                    </div>
-                                                    <div class="mb-2">
-                                                        <small class="text-muted">Email Address</small>
-                                                        <div class="fw-medium text-primary">{{ $booking['email'] ?? 'N/A' }}</div>
-                                                    </div>
-                                                    <div class="mb-0">
-                                                        <small class="text-muted">Phone Number</small>
-                                                        <div class="fw-medium">{{ $booking['countryCode'] ?? '' }} {{ $booking['phone'] ?? 'N/A' }}</div>
-                                                    </div>
-                                                </div>
-                                            </div>
-                                            <div class="col-md-6">
-                                                <div class="bg-white rounded p-3 shadow-sm h-100">
-                                                    <div class="d-flex align-items-center mb-3">
-                                                        <div class="bg-warning rounded-circle p-2 me-3">
-                                                            <i class="ri-calendar-line text-white"></i>
-                                                        </div>
-                                                        <h6 class="fw-bold mb-0 text-dark">Reservation Details</h6>
-                                                    </div>
-                                                    <div class="mb-3">
-                                                        <small class="text-muted">Dining Date</small>
-                                                        <div class="fw-bold text-success fs-5">{{ \Carbon\Carbon::parse($booking['bookingDate'])->format('D, M d, Y') }}</div>
-                                                    </div>
-                                                    <div class="mb-3">
-                                                        <small class="text-muted">Dining Time</small>
-                                                        <div class="fw-medium text-primary">{{ $booking['visitTime'] ?? 'Time to be confirmed' }}</div>
-                                                    </div>
-                                                    <div class="row">
-                                                        <div class="col-6 text-center">
-                                                            <div class="bg-light rounded p-2">
-                                                                <div class="fs-4 fw-bold text-success">{{ $booking['adultCount'] ?? 0 }}</div>
-                                                                <small class="text-muted">Adults</small>
-                                                            </div>
-                                                        </div>
-                                                        <div class="col-6 text-center">
-                                                            <div class="bg-light rounded p-2">
-                                                                <div class="fs-4 fw-bold text-warning">{{ $booking['childCount'] ?? 0 }}</div>
-                                                                <small class="text-muted">Children</small>
-                                                            </div>
-                                                        </div>
-                                                    </div>
-                                                    <div class="text-center mt-2">
-                                                        <span class="badge bg-primary px-3 py-2">
-                                                            Party of {{ ($booking['adultCount'] ?? 0) + ($booking['childCount'] ?? 0) }}
-                                                        </span>
-                                                    </div>
-                                                </div>
-                                            </div>
-                                        </div>
+                                        
 
                                         <!-- Restaurant Overview -->
                                         <div class="bg-white rounded p-3 shadow-sm mb-4">
@@ -2620,20 +2465,21 @@
     <!-- Guide Details Modal -->
     @if(isset($svc['guide']) && $svc['guide'] > 0)
     <div class="modal fade" id="guideDetailsModal{{ $tour->tour_id }}" tabindex="-1" aria-labelledby="guideDetailsModalLabel{{ $tour->tour_id }}" aria-hidden="true" data-bs-backdrop="static" data-bs-keyboard="false">
-        <div class="modal-dialog modal-dialog-centered modal-xl modal-dialog-scrollable">
-            <div class="modal-content shadow-lg" style="border-radius: 15px; overflow: hidden;">
-                <div class="modal-header p-0 border-0 position-relative" style="height: 180px; background: linear-gradient(135deg, #00cec9 0%, #55a3ff 100%);">
-                    <div class="position-absolute w-100 h-100 d-flex align-items-center justify-content-between p-4">
+        <div class="modal-dialog modal-dialog-centered modal-lg modal-dialog-scrollable">
+            <div class="modal-content shadow-lg border-0" style="border-radius: 12px; overflow: hidden;">
+                <!-- Compact Header -->
+                <div class="modal-header border-0 py-2 px-2" style="background: linear-gradient(135deg, #00cec9 0%, #55a3ff 100%);">
+                    <div class="d-flex align-items-center justify-content-between w-100">
                         <div class="text-white">
-                            <h3 class="mb-1 fw-bold">
-                                <i class="ri-user-voice-line me-2"></i>Guide Bookings
-                            </h3>
-                            <p class="mb-0 opacity-75">Tour #{{ $tour->tour_id }} Guide Details</p>
+                            <h6 class="mb-0 fw-bold" style="font-size: 0.95rem;">
+                                <i class="ri-user-voice-line me-1" style="font-size: 0.9rem;"></i>Guide Bookings - Tour #{{ $tour->tour_id }}
+                            </h6>
                         </div>
-                        <button type="button" class="btn-close btn-close-white" onclick="closeServiceModal('guide', {{ $tour->tour_id }})" aria-label="Close" style="filter: brightness(0) invert(1); font-size: 1.2rem;"></button>
+                        <button type="button" class="btn-close btn-close-white" onclick="closeServiceModal('guide', {{ $tour->tour_id }})" aria-label="Close" style="font-size: 0.8rem;"></button>
                     </div>
                 </div>
-                <div class="modal-body p-4" style="background-color: #f8f9fa;">
+                
+                <div class="modal-body p-2" style="background-color: #f8f9fa;">
                     @if(isset($serviceData['guide']) && count($serviceData['guide']) > 0)
                         @foreach($serviceData['guide'] as $index => $guideOrder)
                         @php
@@ -2641,7 +2487,9 @@
                         @endphp
                         
                         @if(is_array($guideData))
+                            @php $actualBookingIndex = 0; @endphp
                             @foreach($guideData as $booking)
+                                @php $bookingIndex = $actualBookingIndex; $actualBookingIndex++; @endphp
                                 <div class="card mb-4 shadow-sm border-0" style="border-radius: 12px; overflow: hidden;">
                                     <div class="card-header border-0" style="background: linear-gradient(90deg, #00cec9 0%, #55a3ff 100%); padding: 20px;">
                                         <div class="row align-items-center">
@@ -2814,122 +2662,53 @@
                                             </div>
                                         </div>
 
-                                        <!-- Customer Information -->
-                                        <div class="row mb-4">
-                                            <div class="col-md-6">
-                                                <div class="bg-white rounded p-3 shadow-sm h-100">
-                                                    <div class="d-flex align-items-center mb-3">
-                                                        <div class="bg-primary rounded-circle p-2 me-3">
-                                                            <i class="ri-user-line text-white"></i>
-                                                        </div>
-                                                        <h6 class="fw-bold mb-0 text-dark">Customer Details</h6>
-                                                    </div>
-                                                    <div class="mb-2">
-                                                        <small class="text-muted">Full Name</small>
-                                                        <div class="fw-medium">{{ $booking['fullName'] ?? 'N/A' }}</div>
-                                                    </div>
-                                                    <div class="mb-2">
-                                                        <small class="text-muted">Email</small>
-                                                        <div class="fw-medium text-primary">{{ $booking['email'] ?? 'N/A' }}</div>
-                                                    </div>
-                                                    <div class="mb-0">
-                                                        <small class="text-muted">Phone</small>
-                                                        <div class="fw-medium">{{ $booking['countryCode'] ?? '' }} {{ $booking['phone'] ?? 'N/A' }}</div>
-                                                    </div>
-                                                </div>
-                                            </div>
-                                            <div class="col-md-6">
-                                                <div class="bg-white rounded p-3 shadow-sm h-100">
-                                                    <div class="d-flex align-items-center mb-3">
-                                                        <div class="bg-info rounded-circle p-2 me-3">
-                                                            <i class="ri-map-pin-line text-white"></i>
-                                                        </div>
-                                                        <h6 class="fw-bold mb-0 text-dark">Address & Location</h6>
-                                                    </div>
-                                                    <div class="mb-2">
-                                                        <small class="text-muted">Pickup Location</small>
-                                                        <div class="fw-medium">{{ $booking['entrypickup'] ?? 'N/A' }}</div>
-                                                    </div>
-                                                    <div class="text-muted">
-                                                        @if($booking['address1'] ?? false)
-                                                            <div>{{ $booking['address1'] }}</div>
-                                                        @endif
-                                                        @if($booking['address2'] ?? false)
-                                                            <div>{{ $booking['address2'] }}</div>
-                                                        @endif
-                                                        @if($booking['state'] ?? false)
-                                                            <div>{{ $booking['state'] }} {{ $booking['zip'] ?? '' }}</div>
-                                                        @endif
-                                                        @if(!($booking['address1'] ?? false) && !($booking['address2'] ?? false) && !($booking['state'] ?? false))
-                                                            <div class="text-muted">Address not provided</div>
-                                                        @endif
-                                                    </div>
-                                                </div>
-                                            </div>
-                                        </div>
+                                    
 
-                                        <!-- Special Requests -->
-                                        @if(isset($booking['specialRequests']) && !empty($booking['specialRequests']))
-                                            <div class="bg-white rounded p-3 shadow-sm">
-                                                <div class="d-flex align-items-center mb-3">
-                                                    <div class="bg-purple rounded-circle p-2 me-3" style="background-color: #6f42c1;">
-                                                        <i class="ri-message-line text-white"></i>
-                                                    </div>
-                                                    <h6 class="fw-bold mb-0 text-dark">Special Requests</h6>
-                                                </div>
-                                                <div class="bg-light rounded p-3">
-                                                    <p class="mb-0 text-dark">{{ $booking['specialRequests'] }}</p>
-                                                </div>
-                                            </div>
-                                        @endif
+                                      
 
-                                        <!-- Booking Actions -->
-                                        <div class="bg-white rounded p-3 shadow-sm">
-                                            <div class="d-flex align-items-center mb-3">
-                                                <div class="bg-secondary rounded-circle p-2 me-3">
-                                                    <i class="ri-settings-line text-white"></i>
+                                        <!-- Booking Status -->
+                                        <div class="bg-light rounded p-1">
+                                            <div class="d-flex align-items-center mb-1">
+                                                <div class="rounded-circle p-1 me-1" style="background: linear-gradient(135deg, #00cec9 0%, #55a3ff 100%); width: 20px; height: 20px; display: flex; align-items: center; justify-content: center;">
+                                                    <i class="ri-settings-line text-white" style="font-size: 0.7rem;"></i>
                                                 </div>
-                                                <h6 class="fw-bold mb-0 text-dark">Booking Actions</h6>
+                                                <h6 class="fw-bold mb-0 text-dark" style="font-size: 0.8rem;">Booking Status</h6>
                                             </div>
                                             @if($guideOrder->is_approve == 1)
-                                                 <div class="alert alert-success mb-0 py-1 px-3" style="border-radius: 25px;">
-                                                     <i class="ri-check-circle-fill me-1"></i>
-                                                     <small><strong>Approved Booking</strong></small>
-                                                     @if($guideOrder->reference_id)
-                                                         <br><small class="text-muted">Ref: {{ $guideOrder->reference_id }}</small>
-                                                     @endif
-                                                     @if($guideOrder->display_due_date)
-                                                         <br><small class="text-muted">Due: {{ $guideOrder->display_due_date }}</small>
-                                                     @endif
-                                                 </div>
-                                             @else
-                                                 @if(auth()->user()->role_id == 11 || auth()->user()->role_id == 34 || auth()->user()->role_id == 33 || auth()->user()->role_id == 37 || auth()->user()->role_id == 38 || auth()->user()->role_id == 124 || auth()->user()->role_id == 125 || auth()->user()->role_id == 128 || auth()->user()->role_id == 129 || auth()->user()->role_id == 130 || auth()->user()->role_id == 131 || auth()->user()->role_id == 132 || auth()->user()->role_id == 134 || auth()->user()->role_id == 135 || auth()->user()->role_id == 136 || auth()->user()->role_id == 137 || auth()->user()->role_id == 138)
-                                                 <div class="d-flex gap-2">
-                                                     @if(auth()->user()->role_id == 11 || auth()->user()->role_id == 34 || auth()->user()->role_id == 124 || auth()->user()->role_id == 125 || auth()->user()->role_id == 128 || auth()->user()->role_id == 131 || auth()->user()->role_id == 132 || auth()->user()->role_id == 134 || auth()->user()->role_id == 135 || auth()->user()->role_id == 137 || auth()->user()->role_id == 138)
-                                                     <button type="button" 
-                                                             class="btn btn-outline-primary btn-sm px-3 py-2" 
-                                                             onclick="editIndividualGuide({{ $tour->tour_id }}, {{ $index }}, {{ $bookingIndex }})"
-                                                             style="border-radius: 25px;">
-                                                         <i class="ri-edit-line me-1"></i>Edit
-                                                     </button>
-                                                     {{-- <button type="button" 
-                                                             class="btn btn-outline-success btn-sm px-3 py-2" 
-                                                             onclick="approveIndividualGuide({{ $tour->tour_id }}, {{ $index }}, {{ $bookingIndex }})"
-                                                             style="border-radius: 25px;">
-                                                         <i class="ri-check-line me-1"></i>Approve
-                                                     </button> --}}
-                                                     @endif
-                                                     @if(auth()->user()->role_id == 11 || auth()->user()->role_id == 34 || auth()->user()->role_id == 33 || auth()->user()->role_id == 37 || auth()->user()->role_id == 38 || auth()->user()->role_id == 124 || auth()->user()->role_id == 125 || auth()->user()->role_id == 128 || auth()->user()->role_id == 129 || auth()->user()->role_id == 130 || auth()->user()->role_id == 131 || auth()->user()->role_id == 132 || auth()->user()->role_id == 134 || auth()->user()->role_id == 135 || auth()->user()->role_id == 136 || auth()->user()->role_id == 137 || auth()->user()->role_id == 138)
-                                                     <button type="button" 
-                                                             class="btn btn-outline-danger btn-sm px-3 py-2" 
-                                                             onclick="rejectIndividualGuide({{ $tour->tour_id }}, {{ $index }}, {{ $bookingIndex }})"
-                                                             style="border-radius: 25px;">
-                                                         <i class="ri-close-line me-1"></i>Reject
-                                                     </button>
-                                                     @endif
-                                                 </div>
-                                                 @endif
-                                             @endif
+                                                <div class="alert alert-success mb-0 py-1 px-2" style="border-radius: 6px; font-size: 0.75rem;">
+                                                    <i class="ri-check-circle-fill me-1" style="font-size: 0.7rem;"></i>
+                                                    <strong>Approved</strong>
+                                                    @if($guideOrder->reference_id)
+                                                        <span class="ms-1">• Ref: {{ $guideOrder->reference_id }}</span>
+                                                    @endif
+                                                    @if($guideOrder->display_due_date)
+                                                        <span class="ms-1">• Due: {{ \Carbon\Carbon::parse($guideOrder->display_due_date)->format('d-m-Y') }}</span>
+                                                    @endif
+                                                </div>
+                                            @else
+                                                @if(auth()->user()->role_id == 11 || auth()->user()->role_id == 34 || auth()->user()->role_id == 33 || auth()->user()->role_id == 37 || auth()->user()->role_id == 38 || auth()->user()->role_id == 124 || auth()->user()->role_id == 125 || auth()->user()->role_id == 128 || auth()->user()->role_id == 129 || auth()->user()->role_id == 130 || auth()->user()->role_id == 131 || auth()->user()->role_id == 132 || auth()->user()->role_id == 134 || auth()->user()->role_id == 135 || auth()->user()->role_id == 136 || auth()->user()->role_id == 137 || auth()->user()->role_id == 138)
+                                                <div class="d-flex gap-1 flex-wrap">
+                                                    @if(auth()->user()->role_id == 11 || auth()->user()->role_id == 34 || auth()->user()->role_id == 124 || auth()->user()->role_id == 125 || auth()->user()->role_id == 128 || auth()->user()->role_id == 131 || auth()->user()->role_id == 132 || auth()->user()->role_id == 134 || auth()->user()->role_id == 135 || auth()->user()->role_id == 137 || auth()->user()->role_id == 138)
+                                                    <button type="button" 
+                                                            class="btn btn-sm px-2 py-1" 
+                                                            onclick="editIndividualGuide({{ $tour->tour_id }}, {{ $index }}, {{ $bookingIndex }})"
+                                                            style="border-radius: 6px; background: linear-gradient(135deg, #00cec9 0%, #55a3ff 100%); border: none; color: white; font-size: 0.75rem;">
+                                                        <i class="ri-edit-line me-1" style="font-size: 0.7rem;"></i>Edit
+                                                    </button>
+                                                    @endif
+                                                    @if(auth()->user()->role_id == 11 || auth()->user()->role_id == 34 || auth()->user()->role_id == 33 || auth()->user()->role_id == 37 || auth()->user()->role_id == 38 || auth()->user()->role_id == 124 || auth()->user()->role_id == 125 || auth()->user()->role_id == 128 || auth()->user()->role_id == 129 || auth()->user()->role_id == 130 || auth()->user()->role_id == 131 || auth()->user()->role_id == 132 || auth()->user()->role_id == 134 || auth()->user()->role_id == 135 || auth()->user()->role_id == 136 || auth()->user()->role_id == 137 || auth()->user()->role_id == 138)
+                                                    <button type="button" 
+                                                            class="btn btn-outline-danger btn-sm px-2 py-1" 
+                                                            onclick="rejectIndividualGuide({{ $tour->tour_id }}, {{ $index }}, {{ $bookingIndex }})"
+                                                            style="border-radius: 6px; font-size: 0.75rem;">
+                                                        <i class="ri-close-line me-1" style="font-size: 0.7rem;"></i>Reject
+                                                    </button>
+                                                    @endif
+                                                </div>
+                                                @else
+                                                <div class="text-muted small" style="font-size: 0.75rem;"><i class="ri-information-line me-1" style="font-size: 0.7rem;"></i>Pending approval</div>
+                                                @endif
+                                            @endif
                                         </div>
                                     </div>
                                 </div>
@@ -2937,22 +2716,23 @@
                         @endif
                         @endforeach
                     @else
-                        <div class="text-center py-5">
-                            <div class="bg-light rounded-circle mx-auto mb-4 d-flex align-items-center justify-content-center" style="width: 100px; height: 100px;">
-                                <i class="ri-user-voice-line ri-48px text-muted"></i>
+                        <div class="text-center py-4">
+                            <div class="bg-light rounded-circle mx-auto mb-3 d-flex align-items-center justify-content-center" style="width: 80px; height: 80px;">
+                                <i class="ri-user-voice-line text-muted" style="font-size: 2rem;"></i>
                             </div>
-                            <h4 class="text-dark mb-3">No Guide Data Available</h4>
-                            <p class="text-muted mb-4">Guide services are booked but detailed information is not available.</p>
+                            <h5 class="text-dark mb-2" style="font-size: 1.1rem;">No Guide Data Available</h5>
+                            <p class="text-muted mb-0" style="font-size: 0.9rem;">Guide services are booked but detailed information is not available.</p>
                         </div>
                     @endif
                 </div>
-                <div class="modal-footer border-0 p-4" style="background: linear-gradient(90deg, #f8f9fa 0%, #e9ecef 100%);">
-                    <button type="button" class="btn btn-outline-secondary px-4 py-2" onclick="closeServiceModal('guide', {{ $tour->tour_id }})" style="border-radius: 25px;">
-                        <i class="ri-close-line me-2"></i>Close
-                    </button>
-                    {{-- <button type="button" class="btn btn-primary px-4 py-2 ms-2" style="border-radius: 25px;">
-                        <i class="ri-download-line me-2"></i>Download Details
-                    </button> --}}
+                
+                <!-- Compact Footer with Buttons in One Row -->
+                <div class="modal-footer border-0 p-1" style="background: #f8f9fa;">
+                    <div class="d-flex gap-1 w-100 justify-content-end">
+                        <button type="button" class="btn btn-outline-secondary btn-sm px-2 py-1" onclick="closeServiceModal('guide', {{ $tour->tour_id }})" style="border-radius: 6px; font-size: 0.75rem;">
+                            <i class="ri-close-line me-1" style="font-size: 0.7rem;"></i>Close
+                        </button>
+                    </div>
                 </div>
             </div>
         </div>
@@ -2962,20 +2742,19 @@
     <!-- Entry Port (Arrival) Details Modal -->
     @if(isset($svc['entry_port']) && $svc['entry_port'] > 0)
     <div class="modal fade" id="entry_portDetailsModal{{ $tour->tour_id }}" tabindex="-1" aria-labelledby="entry_portDetailsModalLabel{{ $tour->tour_id }}" aria-hidden="true" data-bs-backdrop="static" data-bs-keyboard="false">
-        <div class="modal-dialog modal-dialog-centered modal-xl modal-dialog-scrollable">
+        <div class="modal-dialog modal-dialog-centered modal-lg modal-dialog-scrollable">
             <div class="modal-content shadow-lg" style="border-radius: 15px; overflow: hidden;">
-                <div class="modal-header p-0 border-0 position-relative" style="height: 180px; background: linear-gradient(135deg, #00b894 0%, #55a3ff 100%);">
-                    <div class="position-absolute w-100 h-100 d-flex align-items-center justify-content-between p-4">
+                <div class="modal-header p-2 border-0" style="background: linear-gradient(135deg, #00b894 0%, #55a3ff 100%);">
+                    <div class="d-flex align-items-center justify-content-between w-100">
                         <div class="text-white">
-                            <h3 class="mb-1 fw-bold">
-                                <i class="ri-flight-land-line me-2"></i>Arrival Transfer
-                            </h3>
-                            <p class="mb-0 opacity-75">Tour #{{ $tour->tour_id }} Entry Port Details</p>
+                            <h6 class="mb-0 fw-bold" style="font-size: 0.95rem;">
+                                <i class="ri-flight-land-line me-1" style="font-size: 0.9rem;"></i>Arrival Transfer - Tour #{{ $tour->tour_id }}
+                            </h6>
                         </div>
-                        <button type="button" class="btn-close btn-close-white" onclick="closeServiceModal('entry_port', {{ $tour->tour_id }})" aria-label="Close" style="filter: brightness(0) invert(1); font-size: 1.2rem;"></button>
+                        <button type="button" class="btn-close btn-close-white" onclick="closeServiceModal('entry_port', {{ $tour->tour_id }})" aria-label="Close" style="font-size: 0.8rem;"></button>
                     </div>
                 </div>
-                <div class="modal-body p-4" style="background-color: #f8f9fa;">
+                <div class="modal-body p-2" style="background-color: #f8f9fa;">
                     @if(isset($serviceData['entry_port']) && count($serviceData['entry_port']) > 0)
                         @foreach($serviceData['entry_port'] as $index => $entryOrder)
                         @php
@@ -3147,70 +2926,8 @@
                                             </div>
                                         </div>
 
-                                        <!-- Customer Information -->
-                                        <div class="row mb-4">
-                                            <div class="col-md-6">
-                                                <div class="bg-white rounded p-3 shadow-sm h-100">
-                                                    <div class="d-flex align-items-center mb-3">
-                                                        <div class="bg-primary rounded-circle p-2 me-3">
-                                                            <i class="ri-user-line text-white"></i>
-                                                        </div>
-                                                        <h6 class="fw-bold mb-0 text-dark">Customer Details</h6>
-                                                    </div>
-                                                    <div class="mb-2">
-                                                        <small class="text-muted">Full Name</small>
-                                                        <div class="fw-medium">{{ $booking['fullName'] ?? 'N/A' }}</div>
-                                                    </div>
-                                                    <div class="mb-2">
-                                                        <small class="text-muted">Email Address</small>
-                                                        <div class="fw-medium text-primary">{{ $booking['email'] ?? 'N/A' }}</div>
-                                                    </div>
-                                                    <div class="mb-0">
-                                                        <small class="text-muted">Phone Number</small>
-                                                        <div class="fw-medium">{{ $booking['countryCode'] ?? '' }} {{ $booking['phone'] ?? 'N/A' }}</div>
-                                                    </div>
-                                                </div>
-                                            </div>
-                                            <div class="col-md-6">
-                                                <div class="bg-white rounded p-3 shadow-sm h-100">
-                                                    <div class="d-flex align-items-center mb-3">
-                                                        <div class="bg-info rounded-circle p-2 me-3">
-                                                            <i class="ri-map-pin-line text-white"></i>
-                                                        </div>
-                                                        <h6 class="fw-bold mb-0 text-dark">Address Information</h6>
-                                                    </div>
-                                                    <div class="text-muted">
-                                                        @if($booking['address1'] ?? false)
-                                                            <div>{{ $booking['address1'] }}</div>
-                                                        @endif
-                                                        @if($booking['address2'] ?? false)
-                                                            <div>{{ $booking['address2'] }}</div>
-                                                        @endif
-                                                        @if($booking['state'] ?? false)
-                                                            <div>{{ $booking['state'] }} {{ $booking['zip'] ?? '' }}</div>
-                                                        @endif
-                                                        @if(!($booking['address1'] ?? false) && !($booking['address2'] ?? false) && !($booking['state'] ?? false))
-                                                            <div class="text-muted">Address not provided</div>
-                                                        @endif
-                                                    </div>
-                                                </div>
-                                            </div>
-                                        </div>
-
-                                        <!-- Special Requests -->
-                                        @if(isset($booking['specialRequests']) && !empty($booking['specialRequests']))
-                                            <div class="bg-white rounded p-3 shadow-sm">
-                                                <div class="d-flex align-items-center mb-3">
-                                                    <div class="bg-purple rounded-circle p-2 me-3" style="background-color: #6f42c1;">
-                                                        <i class="ri-message-line text-white"></i>
-                                                    </div>
-                                                    <h6 class="fw-bold mb-0 text-dark">Special Requests</h6>
-                                                </div>
-                                                <div class="bg-light rounded p-3">
-                                                    <p class="mb-0 text-dark">{{ $booking['specialRequests'] }}</p>
-                                                </div>
-                                            </div>
-                                        @endif
+                                      
+                                        
 
                                         <!-- Action Buttons / Approval Status -->
                                         <div class="bg-white rounded p-3 shadow-sm mt-4">
@@ -3269,18 +2986,18 @@
                         @endif
                         @endforeach
                     @else
-                        <div class="text-center py-5">
-                            <div class="bg-light rounded-circle mx-auto mb-4 d-flex align-items-center justify-content-center" style="width: 100px; height: 100px;">
-                                <i class="ri-flight-land-line ri-48px text-muted"></i>
+                        <div class="text-center py-3">
+                            <div class="bg-light rounded-circle mx-auto mb-2 d-flex align-items-center justify-content-center" style="width: 60px; height: 60px;">
+                                <i class="ri-flight-land-line text-muted" style="font-size: 1.5rem;"></i>
                             </div>
-                            <h4 class="text-dark mb-3">No Arrival Transfer Data Available</h4>
-                            <p class="text-muted mb-4">Entry port services are booked but detailed information is not available.</p>
+                            <h6 class="text-dark mb-1">No Arrival Transfer Data Available</h6>
+                            <p class="text-muted mb-0" style="font-size: 0.85rem;">Entry port services are booked but detailed information is not available.</p>
                         </div>
                     @endif
                 </div>
-                <div class="modal-footer border-0 p-4" style="background: linear-gradient(90deg, #f8f9fa 0%, #e9ecef 100%);">
-                    <button type="button" class="btn btn-outline-secondary px-4 py-2" onclick="closeServiceModal('entry_port', {{ $tour->tour_id }})" style="border-radius: 25px;">
-                        <i class="ri-close-line me-2"></i>Close
+                <div class="modal-footer border-0 p-1" style="background: linear-gradient(90deg, #f8f9fa 0%, #e9ecef 100%);">
+                    <button type="button" class="btn btn-outline-secondary btn-sm px-2 py-1" onclick="closeServiceModal('entry_port', {{ $tour->tour_id }})" style="border-radius: 6px; font-size: 0.75rem;">
+                        <i class="ri-close-line me-1" style="font-size: 0.7rem;"></i>Close
                     </button>
                 </div>
             </div>
@@ -3291,20 +3008,19 @@
     <!-- Exit Port (Departure) Details Modal -->
     @if(isset($svc['exit_port']) && $svc['exit_port'] > 0)
     <div class="modal fade" id="exit_portDetailsModal{{ $tour->tour_id }}" tabindex="-1" aria-labelledby="exit_portDetailsModalLabel{{ $tour->tour_id }}" aria-hidden="true" data-bs-backdrop="static" data-bs-keyboard="false">
-        <div class="modal-dialog modal-dialog-centered modal-xl modal-dialog-scrollable">
+        <div class="modal-dialog modal-dialog-centered modal-lg modal-dialog-scrollable">
             <div class="modal-content shadow-lg" style="border-radius: 15px; overflow: hidden;">
-                <div class="modal-header p-0 border-0 position-relative" style="height: 180px; background: linear-gradient(135deg, #fd7f6f 0%, #feb47b 100%);">
-                    <div class="position-absolute w-100 h-100 d-flex align-items-center justify-content-between p-4">
+                <div class="modal-header p-2 border-0" style="background: linear-gradient(135deg, #fd7f6f 0%, #feb47b 100%);">
+                    <div class="d-flex align-items-center justify-content-between w-100">
                         <div class="text-white">
-                            <h3 class="mb-1 fw-bold">
-                                <i class="ri-flight-takeoff-line me-2"></i>Departure Transfer
-                            </h3>
-                            <p class="mb-0 opacity-75">Tour #{{ $tour->tour_id }} Exit Port Details</p>
+                            <h6 class="mb-0 fw-bold" style="font-size: 0.95rem;">
+                                <i class="ri-flight-takeoff-line me-1" style="font-size: 0.9rem;"></i>Departure Transfer - Tour #{{ $tour->tour_id }}
+                            </h6>
                         </div>
-                        <button type="button" class="btn-close btn-close-white" onclick="closeServiceModal('exit_port', {{ $tour->tour_id }})" aria-label="Close" style="filter: brightness(0) invert(1); font-size: 1.2rem;"></button>
+                        <button type="button" class="btn-close btn-close-white" onclick="closeServiceModal('exit_port', {{ $tour->tour_id }})" aria-label="Close" style="font-size: 0.8rem;"></button>
                     </div>
                 </div>
-                <div class="modal-body p-4" style="background-color: #f8f9fa;">
+                <div class="modal-body p-2" style="background-color: #f8f9fa;">
                     @if(isset($serviceData['exit_port']) && count($serviceData['exit_port']) > 0)
                         @foreach($serviceData['exit_port'] as $index => $exitOrder)
                         @php
@@ -3467,70 +3183,10 @@
                                             </div>
                                         </div>
 
-                                        <!-- Customer Information -->
-                                        <div class="row mb-4">
-                                            <div class="col-md-6">
-                                                <div class="bg-white rounded p-3 shadow-sm h-100">
-                                                    <div class="d-flex align-items-center mb-3">
-                                                        <div class="bg-primary rounded-circle p-2 me-3">
-                                                            <i class="ri-user-line text-white"></i>
-                                                        </div>
-                                                        <h6 class="fw-bold mb-0 text-dark">Customer Details</h6>
-                                                    </div>
-                                                    <div class="mb-2">
-                                                        <small class="text-muted">Full Name</small>
-                                                        <div class="fw-medium">{{ $booking['fullName'] ?? 'N/A' }}</div>
-                                                    </div>
-                                                    <div class="mb-2">
-                                                        <small class="text-muted">Email Address</small>
-                                                        <div class="fw-medium text-primary">{{ $booking['email'] ?? 'N/A' }}</div>
-                                                    </div>
-                                                    <div class="mb-0">
-                                                        <small class="text-muted">Phone Number</small>
-                                                        <div class="fw-medium">{{ $booking['countryCode'] ?? '' }} {{ $booking['phone'] ?? 'N/A' }}</div>
-                                                    </div>
-                                                </div>
-                                            </div>
-                                            <div class="col-md-6">
-                                                <div class="bg-white rounded p-3 shadow-sm h-100">
-                                                    <div class="d-flex align-items-center mb-3">
-                                                        <div class="bg-info rounded-circle p-2 me-3">
-                                                            <i class="ri-map-pin-line text-white"></i>
-                                                        </div>
-                                                        <h6 class="fw-bold mb-0 text-dark">Address Information</h6>
-                                                    </div>
-                                                    <div class="text-muted">
-                                                        @if($booking['address1'] ?? false)
-                                                            <div>{{ $booking['address1'] }}</div>
-                                                        @endif
-                                                        @if($booking['address2'] ?? false)
-                                                            <div>{{ $booking['address2'] }}</div>
-                                                        @endif
-                                                        @if($booking['state'] ?? false)
-                                                            <div>{{ $booking['state'] }} {{ $booking['zip'] ?? '' }}</div>
-                                                        @endif
-                                                        @if(!($booking['address1'] ?? false) && !($booking['address2'] ?? false) && !($booking['state'] ?? false))
-                                                            <div class="text-muted">Address not provided</div>
-                                                        @endif
-                                                    </div>
-                                                </div>
-                                            </div>
-                                        </div>
+                                        
 
                                         <!-- Special Requests -->
-                                        @if(isset($booking['specialRequests']) && !empty($booking['specialRequests']))
-                                            <div class="bg-white rounded p-3 shadow-sm">
-                                                <div class="d-flex align-items-center mb-3">
-                                                    <div class="bg-purple rounded-circle p-2 me-3" style="background-color: #6f42c1;">
-                                                        <i class="ri-message-line text-white"></i>
-                                                    </div>
-                                                    <h6 class="fw-bold mb-0 text-dark">Special Requests</h6>
-                                                </div>
-                                                <div class="bg-light rounded p-3">
-                                                    <p class="mb-0 text-dark">{{ $booking['specialRequests'] }}</p>
-                                                </div>
-                                            </div>
-                                        @endif
+                                      
 
                                         <!-- Action Buttons / Approval Status -->
                                         <div class="bg-white rounded p-3 shadow-sm mt-4">
@@ -3589,18 +3245,18 @@
                         @endif
                         @endforeach
                     @else
-                        <div class="text-center py-5">
-                            <div class="bg-light rounded-circle mx-auto mb-4 d-flex align-items-center justify-content-center" style="width: 100px; height: 100px;">
-                                <i class="ri-flight-takeoff-line ri-48px text-muted"></i>
+                        <div class="text-center py-3">
+                            <div class="bg-light rounded-circle mx-auto mb-2 d-flex align-items-center justify-content-center" style="width: 60px; height: 60px;">
+                                <i class="ri-flight-takeoff-line text-muted" style="font-size: 1.5rem;"></i>
                             </div>
-                            <h4 class="text-dark mb-3">No Departure Transfer Data Available</h4>
-                            <p class="text-muted mb-4">Exit port services are booked but detailed information is not available.</p>
+                            <h6 class="text-dark mb-1">No Departure Transfer Data Available</h6>
+                            <p class="text-muted mb-0" style="font-size: 0.85rem;">Exit port services are booked but detailed information is not available.</p>
                         </div>
                     @endif
                 </div>
-                <div class="modal-footer border-0 p-4" style="background: linear-gradient(90deg, #f8f9fa 0%, #e9ecef 100%);">
-                    <button type="button" class="btn btn-outline-secondary px-4 py-2" onclick="closeServiceModal('exit_port', {{ $tour->tour_id }})" style="border-radius: 25px;">
-                        <i class="ri-close-line me-2"></i>Close
+                <div class="modal-footer border-0 p-1" style="background: linear-gradient(90deg, #f8f9fa 0%, #e9ecef 100%);">
+                    <button type="button" class="btn btn-outline-secondary btn-sm px-2 py-1" onclick="closeServiceModal('exit_port', {{ $tour->tour_id }})" style="border-radius: 6px; font-size: 0.75rem;">
+                        <i class="ri-close-line me-1" style="font-size: 0.7rem;"></i>Close
                     </button>
                 </div>
             </div>
@@ -4310,44 +3966,10 @@
                                             </div>
                                         </div>
                                     </div>
-                                    <div class="col-md-6">
-                                        <div class="bg-white rounded p-3 shadow-sm h-100">
-                                            <div class="d-flex align-items-center mb-3">
-                                                <div class="bg-info rounded-circle p-2 me-3">
-                                                    <i class="ri-user-line text-white"></i>
-                                                </div>
-                                                <h6 class="fw-bold mb-0 text-dark">Customer Information</h6>
-                                            </div>
-                                            <div class="row">
-                                                <div class="col-12 mb-2">
-                                                    <small class="text-muted">Name</small>
-                                                    <div class="fw-medium">{{ $booking['fullName'] ?? 'N/A' }}</div>
-                                                </div>
-                                                <div class="col-12 mb-2">
-                                                    <small class="text-muted">Email</small>
-                                                    <div class="fw-medium">{{ $booking['email'] ?? 'N/A' }}</div>
-                                                </div>
-                                                <div class="col-12 mb-2">
-                                                    <small class="text-muted">Phone</small>
-                                                    <div class="fw-medium">{{ $booking['phone'] ?? 'N/A' }}</div>
-                                                </div>
-                                            </div>
-                                        </div>
-                                    </div>
+                                  
                                 </div>
 
-                                <!-- Special Requests -->
-                                @if(isset($booking['specialRequests']) && !empty($booking['specialRequests']))
-                                <div class="bg-white rounded p-3 shadow-sm mb-4">
-                                    <div class="d-flex align-items-center mb-3">
-                                        <div class="bg-secondary rounded-circle p-2 me-3">
-                                            <i class="ri-message-2-line text-white"></i>
-                                        </div>
-                                        <h6 class="fw-bold mb-0 text-dark">Special Requests</h6>
-                                    </div>
-                                    <p class="text-muted mb-0">{{ $booking['specialRequests'] }}</p>
-                                </div>
-                                @endif
+                              
 
                                         <!-- Action Buttons / Approval Status -->
                                         <div class="bg-white rounded p-3 shadow-sm mt-4">
@@ -4707,44 +4329,11 @@
                                             </div>
                                         </div>
                                     </div>
-                                    <div class="col-md-6">
-                                        <div class="bg-white rounded p-3 shadow-sm h-100">
-                                            <div class="d-flex align-items-center mb-3">
-                                                <div class="bg-info rounded-circle p-2 me-3">
-                                                    <i class="ri-user-line text-white"></i>
-                                                </div>
-                                                <h6 class="fw-bold mb-0 text-dark">Customer Information</h6>
-                                            </div>
-                                            <div class="row">
-                                                <div class="col-12 mb-2">
-                                                    <small class="text-muted">Name</small>
-                                                    <div class="fw-medium">{{ $booking['fullName'] ?? 'N/A' }}</div>
-                                                </div>
-                                                <div class="col-12 mb-2">
-                                                    <small class="text-muted">Email</small>
-                                                    <div class="fw-medium">{{ $booking['email'] ?? 'N/A' }}</div>
-                                                </div>
-                                                <div class="col-12 mb-2">
-                                                    <small class="text-muted">Phone</small>
-                                                    <div class="fw-medium">{{ $booking['phone'] ?? 'N/A' }}</div>
-                                                </div>
-                                            </div>
-                                        </div>
-                                    </div>
+                                    
                                 </div>
 
                                 <!-- Special Requests -->
-                                @if(isset($booking['specialRequests']) && !empty($booking['specialRequests']))
-                                <div class="bg-white rounded p-3 shadow-sm mb-4">
-                                    <div class="d-flex align-items-center mb-3">
-                                        <div class="bg-secondary rounded-circle p-2 me-3">
-                                            <i class="ri-message-2-line text-white"></i>
-                                        </div>
-                                        <h6 class="fw-bold mb-0 text-dark">Special Requests</h6>
-                                    </div>
-                                    <p class="text-muted mb-0">{{ $booking['specialRequests'] }}</p>
-                                </div>
-                                @endif
+                               
 
                                         <!-- Action Buttons -->
                                         <div class="bg-white rounded p-3 shadow-sm mt-4">
@@ -5091,44 +4680,10 @@
                                             </div>
                                         </div>
                                     </div>
-                                    <div class="col-md-6">
-                                        <div class="bg-white rounded p-3 shadow-sm h-100">
-                                            <div class="d-flex align-items-center mb-3">
-                                                <div class="bg-info rounded-circle p-2 me-3">
-                                                    <i class="ri-user-line text-white"></i>
-                                                </div>
-                                                <h6 class="fw-bold mb-0 text-dark">Customer Information</h6>
-                                            </div>
-                                            <div class="row">
-                                                <div class="col-12 mb-2">
-                                                    <small class="text-muted">Name</small>
-                                                    <div class="fw-medium">{{ $booking['fullName'] ?? 'N/A' }}</div>
-                                                </div>
-                                                <div class="col-12 mb-2">
-                                                    <small class="text-muted">Email</small>
-                                                    <div class="fw-medium">{{ $booking['email'] ?? 'N/A' }}</div>
-                                                </div>
-                                                <div class="col-12 mb-2">
-                                                    <small class="text-muted">Phone</small>
-                                                    <div class="fw-medium">{{ $booking['phone'] ?? 'N/A' }}</div>
-                                                </div>
-                                            </div>
-                                        </div>
-                                    </div>
+                                   
                                 </div>
 
-                                <!-- Special Requests -->
-                                @if(isset($booking['specialRequests']) && !empty($booking['specialRequests']))
-                                <div class="bg-white rounded p-3 shadow-sm mb-4">
-                                    <div class="d-flex align-items-center mb-3">
-                                        <div class="bg-secondary rounded-circle p-2 me-3">
-                                            <i class="ri-message-2-line text-white"></i>
-                                        </div>
-                                        <h6 class="fw-bold mb-0 text-dark">Special Requests</h6>
-                                    </div>
-                                    <p class="text-muted mb-0">{{ $booking['specialRequests'] }}</p>
-                                </div>
-                                @endif
+                               
 
                                         <!-- Action Buttons -->
                                         <div class="bg-white rounded p-3 shadow-sm mt-4">
@@ -5638,30 +5193,7 @@ function generateIndividualGuideContent(guideBooking, modalId, tourId, guideOrde
                     </div>
                 </div>
             </div>
-            <div class="col-md-6">
-                <div class="bg-white rounded p-3 shadow-sm h-100">
-                    <div class="d-flex align-items-center mb-3">
-                        <div class="bg-info rounded-circle p-2 me-3">
-                            <i class="ri-user-line text-white"></i>
-                        </div>
-                        <h6 class="fw-bold mb-0 text-dark">Customer Information</h6>
-                    </div>
-                    <div class="row">
-                        <div class="col-12 mb-2">
-                            <small class="text-muted">Name</small>
-                            <div class="fw-medium">${guideBooking.fullName || 'N/A'}</div>
-                        </div>
-                        <div class="col-12 mb-2">
-                            <small class="text-muted">Email</small>
-                            <div class="fw-medium">${guideBooking.email || 'N/A'}</div>
-                        </div>
-                        <div class="col-12 mb-2">
-                            <small class="text-muted">Phone</small>
-                            <div class="fw-medium">${guideBooking.phone || 'N/A'}</div>
-                        </div>
-                    </div>
-                </div>
-            </div>
+            
         </div>
 
         <!-- Special Requests -->
@@ -8340,71 +7872,45 @@ function createIndividualHotelViewModal(tourId, hotelOrderIndex, bookingIndex, a
     
     const modalHTML = `
         <div class="modal fade" id="${modalId}" tabindex="-1" aria-hidden="true" data-bs-backdrop="static" data-bs-keyboard="false">
-            <div class="modal-dialog modal-xl">
-                <div class="modal-content border-0 shadow-lg">
+            <div class="modal-dialog modal-dialog-centered modal-lg modal-dialog-scrollable">
+                <div class="modal-content shadow-lg border-0" style="border-radius: 12px; overflow: hidden;">
                     <!-- Modal Header -->
-                    <div class="modal-header p-0 border-0 position-relative" style="height: 200px; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);">
-                        <div class="position-absolute w-100 h-100 d-flex align-items-center justify-content-between p-4">
+                    <div class="modal-header border-0 py-3 px-4" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);">
+                        <div class="d-flex align-items-center justify-content-between w-100">
                             <div class="text-white">
-                                <h3 class="mb-1 fw-bold">
+                                <h5 class="mb-0 fw-bold">
                                     <i class="ri-hotel-line me-2"></i>Hotel Details
-                                </h3>
-                                <p class="mb-0 opacity-75">Tour #${tourId} Hotel Booking Details</p>
+                                </h5>
+                             
                             </div>
-                            <button type="button" class="btn-close btn-close-white" onclick="closeIndividualHotelViewModal('${modalId}')" aria-label="Close" style="filter: brightness(0) invert(1); font-size: 1.2rem;"></button>
+                            <button type="button" class="btn-close btn-close-white" onclick="closeIndividualHotelViewModal('${modalId}')" aria-label="Close"></button>
                         </div>
                     </div>
                     
                     <!-- Modal Body -->
-                    <div class="modal-body p-4" style="background: #f8fafc;">
+                    <div class="modal-body p-3" style="background: #f8f9fa;">
                         <div id="individualHotelContent_${modalId}">
-                            <div class="text-center py-5">
-                                <div class="spinner-border text-primary" role="status">
+                            <div class="text-center py-4">
+                                <div class="spinner-border" role="status" style="color: #667eea;">
                                     <span class="visually-hidden">Loading...</span>
                                 </div>
-                                <p class="text-muted mt-3">Loading hotel details...</p>
+                                <p class="text-muted mt-2 mb-0" style="font-size: 0.9rem;">Loading hotel details...</p>
                             </div>
                         </div>
                     </div>
                     
                     <!-- Modal Footer -->
-                    <div class="modal-footer bg-light border-0" style="border-radius: 0 0 8px 8px;">
-                        <div class="d-flex justify-content-between w-100">
-                            <button type="button" class="btn btn-outline-secondary" onclick="closeIndividualHotelViewModal('${modalId}')">
-                                <i class="ri-close-line me-1"></i>Close
-                            </button>
+                    <div class="modal-footer border-0 py-2 px-3" style="background: #f8f9fa;">
+                        <div class="d-flex gap-2 w-100 justify-content-end" id="hotelModalFooter_${modalId}">
                             <button type="button" 
-                                    class="btn btn-outline-info btn-sm px-3 py-2" 
+                                    class="btn btn-outline-info btn-sm px-3 py-1" 
                                     onclick="openHotelMailPreview(${tourId}, ${hotelOrderIndex}, ${bookingIndex})"
-                                    style="border-radius: 25px;">
+                                    style="border-radius: 8px; font-size: 0.85rem;">
                                 <i class="ri-mail-line me-1"></i>Mail Preview
                             </button>
-                            @if(auth()->user()->role_id == 11 || auth()->user()->role_id == 34 || auth()->user()->role_id == 33 || auth()->user()->role_id == 37 || auth()->user()->role_id == 38 || auth()->user()->role_id == 124 || auth()->user()->role_id == 125 || auth()->user()->role_id == 128 || auth()->user()->role_id == 129 || auth()->user()->role_id == 130 || auth()->user()->role_id == 131 || auth()->user()->role_id == 132 || auth()->user()->role_id == 134 || auth()->user()->role_id == 135 || auth()->user()->role_id == 136 || auth()->user()->role_id == 137 || auth()->user()->role_id == 138)
-                            <div class="d-flex gap-2">
-                                                 @if(auth()->user()->role_id == 11 || auth()->user()->role_id == 34 || auth()->user()->role_id == 124 || auth()->user()->role_id == 125 || auth()->user()->role_id == 128 || auth()->user()->role_id == 131 || auth()->user()->role_id == 132 || auth()->user()->role_id == 134 || auth()->user()->role_id == 135 || auth()->user()->role_id == 137 || auth()->user()->role_id == 138)
-                                <button type="button" 
-                                        class="btn btn-outline-primary btn-sm px-3 py-2" 
-                                        onclick="editIndividualHotel(${tourId}, ${hotelOrderIndex}, ${bookingIndex})"
-                                        style="border-radius: 25px;">
-                                    <i class="ri-edit-line me-1"></i>Edit
-                                </button>
-                                <button type="button" 
-                                        class="btn btn-outline-success btn-sm px-3 py-2" 
-                                        onclick="approveIndividualHotel(${tourId}, ${hotelOrderIndex}, ${bookingIndex})"
-                                        style="border-radius: 25px;">
-                                    <i class="ri-check-line me-1"></i>Approve
-                                </button>
-                                @endif
-                                @if(auth()->user()->role_id == 11 || auth()->user()->role_id == 34 || auth()->user()->role_id == 33 || auth()->user()->role_id == 37 || auth()->user()->role_id == 38 || auth()->user()->role_id == 124 || auth()->user()->role_id == 125 || auth()->user()->role_id == 128 || auth()->user()->role_id == 129 || auth()->user()->role_id == 130 || auth()->user()->role_id == 131 || auth()->user()->role_id == 132 || auth()->user()->role_id == 134 || auth()->user()->role_id == 135 || auth()->user()->role_id == 136 || auth()->user()->role_id == 137 || auth()->user()->role_id == 138)
-                                <button type="button" 
-                                        class="btn btn-outline-danger btn-sm px-3 py-2" 
-                                        onclick="rejectIndividualHotel(${tourId}, ${hotelOrderIndex}, ${bookingIndex})"
-                                        style="border-radius: 25px;">
-                                    <i class="ri-close-line me-1"></i>Reject
-                                </button>
-                                @endif
-                            </div>
-                            @endif
+                            <button type="button" class="btn btn-outline-secondary btn-sm px-3 py-1" onclick="closeIndividualHotelViewModal('${modalId}')" style="border-radius: 8px; font-size: 0.85rem;">
+                                <i class="ri-close-line me-1"></i>Close
+                            </button>
                         </div>
                     </div>
                 </div>
@@ -9464,27 +8970,37 @@ function openIndividualAttractionModal(tourId, attractionOrderIndex, bookingInde
 function createIndividualAttractionViewModal(modalId, tourId, attractionOrderIndex, bookingIndex) {
     const modalHtml = `
         <div class="modal fade" id="${modalId}" tabindex="-1" aria-hidden="true" data-bs-backdrop="static" data-bs-keyboard="false">
-            <div class="modal-dialog modal-dialog-centered modal-xl modal-dialog-scrollable">
-                <div class="modal-content shadow-lg" style="border-radius: 15px; overflow: hidden;">
-                    <div class="modal-header p-0 border-0 position-relative" style="height: 180px; background: linear-gradient(135deg, #fd9853 0%, #fe7854 100%);">
-                        <div class="position-absolute w-100 h-100 d-flex align-items-center justify-content-between p-4">
+            <div class="modal-dialog modal-dialog-centered modal-lg modal-dialog-scrollable">
+                <div class="modal-content shadow-lg border-0" style="border-radius: 12px; overflow: hidden;">
+                    <!-- Modal Header -->
+                    <div class="modal-header border-0 py-3 px-4" style="background: linear-gradient(135deg, #fd9853 0%, #fe7854 100%);">
+                        <div class="d-flex align-items-center justify-content-between w-100">
                             <div class="text-white">
-                                <h3 class="mb-1 fw-bold">
+                                <h5 class="mb-0 fw-bold">
                                     <i class="ri-building-2-line me-2"></i>Attraction Details
-                                </h3>
-                                <p class="mb-0 opacity-75">Tour #${tourId} Attraction Booking Details</p>
+                                </h5>
+                              
                             </div>
-                            <button type="button" class="btn-close btn-close-white" onclick="closeIndividualAttractionViewModal('${modalId}')" aria-label="Close" style="filter: brightness(0) invert(1); font-size: 1.2rem;"></button>
+                            <button type="button" class="btn-close btn-close-white" onclick="closeIndividualAttractionViewModal('${modalId}')" aria-label="Close"></button>
                         </div>
                     </div>
-                    <div class="modal-body p-4" style="background-color: #f8f9fa;">
+                    <!-- Modal Body -->
+                    <div class="modal-body p-3" style="background: #f8f9fa;">
                         <div id="${modalId}_content">
-                            <div class="d-flex justify-content-center align-items-center py-5">
-                                <div class="spinner-border text-primary" role="status">
+                            <div class="text-center py-4">
+                                <div class="spinner-border" role="status" style="color: #fd9853;">
                                     <span class="visually-hidden">Loading...</span>
                                 </div>
-                                <span class="ms-3 text-muted">Loading attraction details...</span>
+                                <p class="text-muted mt-2 mb-0" style="font-size: 0.9rem;">Loading attraction details...</p>
                             </div>
+                        </div>
+                    </div>
+                    <!-- Modal Footer -->
+                    <div class="modal-footer border-0 py-2 px-3" style="background: #f8f9fa;">
+                        <div class="d-flex gap-2 w-100 justify-content-end" id="attractionModalFooter_${modalId}">
+                            <button type="button" class="btn btn-outline-secondary btn-sm px-3 py-1" onclick="closeIndividualAttractionViewModal('${modalId}')" style="border-radius: 8px; font-size: 0.85rem;">
+                                <i class="ri-close-line me-1"></i>Close
+                            </button>
                         </div>
                     </div>
                 </div>
@@ -9613,44 +9129,7 @@ function generateIndividualAttractionContent(attractionBooking, modalId, tourId,
             </div>
             
             <div class="card-body p-4" style="background-color: #f8f9fa;">
-                <!-- Guest Information -->
-                <div class="row mb-4">
-                    <div class="col-md-6">
-                        <div class="bg-white rounded p-3 shadow-sm h-100">
-                            <div class="d-flex align-items-center mb-3">
-                                <div class="bg-primary rounded-circle p-2 me-3">
-                                    <i class="ri-user-line text-white"></i>
-                                </div>
-                                <h6 class="fw-bold mb-0 text-dark">Customer Details</h6>
-                            </div>
-                            <div class="mb-2">
-                                <small class="text-muted">Full Name</small>
-                                <div class="fw-medium">${attractionBooking.fullName || 'N/A'}</div>
-                            </div>
-                            <div class="mb-2">
-                                <small class="text-muted">Email Address</small>
-                                <div class="fw-medium text-primary">${attractionBooking.email || 'N/A'}</div>
-                            </div>
-                            <div class="mb-0">
-                                <small class="text-muted">Phone Number</small>
-                                <div class="fw-medium">${attractionBooking.phone || 'N/A'}</div>
-                            </div>
-                        </div>
-                    </div>
-                    <div class="col-md-6">
-                        <div class="bg-white rounded p-3 shadow-sm h-100">
-                            <div class="d-flex align-items-center mb-3">
-                                <div class="bg-info rounded-circle p-2 me-3">
-                                    <i class="ri-map-pin-line text-white"></i>
-                                </div>
-                                <h6 class="fw-bold mb-0 text-dark">Address</h6>
-                            </div>
-                            <div class="text-muted">
-                                ${attractionBooking.address && attractionBooking.address !== 'N/A' ? `<div>${attractionBooking.address}</div>` : '<div class="text-muted">Address not provided</div>'}
-                            </div>
-                        </div>
-                    </div>
-                </div>
+          
 
                 <!-- Visit & Booking Information -->
                 <div class="row mb-4">
@@ -10254,38 +9733,40 @@ function createIndividualRestaurantViewModal(tourId, restaurantOrderIndex, booki
         
         const modalHTML = `
             <div class="modal fade" id="${modalId}" tabindex="-1" aria-hidden="true" data-bs-backdrop="static" data-bs-keyboard="false">
-                <div class="modal-dialog modal-dialog-centered modal-xl modal-dialog-scrollable">
-                    <div class="modal-content shadow-lg" style="border-radius: 15px; overflow: hidden;">
+                <div class="modal-dialog modal-dialog-centered modal-lg modal-dialog-scrollable">
+                    <div class="modal-content shadow-lg border-0" style="border-radius: 12px; overflow: hidden;">
                         <!-- Modal Header -->
-                        <div class="modal-header p-0 border-0 position-relative" style="height: 180px; background: linear-gradient(135deg, #fd79a8 0%, #fdcb6e 100%);">
-                            <div class="position-absolute w-100 h-100 d-flex align-items-center justify-content-between p-4">
+                        <div class="modal-header border-0 py-3 px-4" style="background: linear-gradient(135deg, #fd79a8 0%, #fdcb6e 100%);">
+                            <div class="d-flex align-items-center justify-content-between w-100">
                                 <div class="text-white">
-                                    <h3 class="mb-1 fw-bold">
-                                        <i class="ri-restaurant-2-line me-2"></i>${restaurantName}
-                                    </h3>
-                                    <p class="mb-0 opacity-75">Tour #${tourId} Restaurant Details</p>
+                                    <h5 class="mb-0 fw-bold">
+                                        <i class="ri-restaurant-2-line me-2"></i>Restaurant Details
+                                    </h5>
+                                  
                                 </div>
-                                <button type="button" class="btn-close btn-close-white" onclick="closeIndividualRestaurantViewModal('${modalId}')" aria-label="Close" style="filter: brightness(0) invert(1); font-size: 1.2rem;"></button>
+                                <button type="button" class="btn-close btn-close-white" onclick="closeIndividualRestaurantViewModal('${modalId}')" aria-label="Close"></button>
                             </div>
                         </div>
 
                         <!-- Modal Body -->
-                        <div class="modal-body p-4" style="background-color: #f8f9fa;">
+                        <div class="modal-body p-3" style="background: #f8f9fa;">
                             <div id="restaurantContent_${modalId}">
-                                <div class="text-center py-5">
-                                    <div class="spinner-border text-primary" role="status">
+                                <div class="text-center py-4">
+                                    <div class="spinner-border" role="status" style="color: #fd79a8;">
                                         <span class="visually-hidden">Loading...</span>
                                     </div>
-                                    <p class="mt-3 text-muted">Loading restaurant details...</p>
+                                    <p class="text-muted mt-2 mb-0" style="font-size: 0.9rem;">Loading restaurant details...</p>
                                 </div>
                             </div>
                         </div>
 
                         <!-- Modal Footer -->
-                        <div class="modal-footer border-0 p-4" style="background: linear-gradient(90deg, #f8f9fa 0%, #e9ecef 100%);">
-                            <button type="button" class="btn btn-secondary px-4 py-2" onclick="closeIndividualRestaurantViewModal('${modalId}')" style="border-radius: 25px;">
-                                <i class="ri-close-line me-2"></i>Close
-                            </button>
+                        <div class="modal-footer border-0 py-2 px-3" style="background: #f8f9fa;">
+                            <div class="d-flex gap-2 w-100 justify-content-end" id="restaurantModalFooter_${modalId}">
+                                <button type="button" class="btn btn-outline-secondary btn-sm px-3 py-1" onclick="closeIndividualRestaurantViewModal('${modalId}')" style="border-radius: 8px; font-size: 0.85rem;">
+                                    <i class="ri-close-line me-1"></i>Close
+                                </button>
+                            </div>
                         </div>
                     </div>
                 </div>
@@ -10343,6 +9824,82 @@ function loadIndividualRestaurantContent(tourId, restaurantOrderIndex, bookingIn
         if (contentContainer) {
             contentContainer.innerHTML = contentHTML;
         }
+        
+        // Add action buttons based on user role and approval status
+        const isApproved = restaurantData.restaurant_details?.is_approve == 1 || restaurantData.restaurant_details?.is_approve === '1' || restaurantData.restaurant_details?.is_approve === true || restaurantData.restaurantDetails?.is_approve == 1 || restaurantData.restaurantDetails?.is_approve === '1' || restaurantData.restaurantDetails?.is_approve === true || false;
+        
+        if (!isApproved) {
+            const userRoleId = {{ auth()->user()->role_id ?? 0 }};
+            const buttonsContainer = document.getElementById(`restaurant_buttons_${tourId}_${restaurantOrderIndex}_${bookingIndex}`);
+            
+            if (buttonsContainer) {
+                let buttonsHTML = '';
+                
+                // Check permissions
+                const canEdit = [11, 34, 124, 125, 128, 131, 132, 134, 135, 137, 138].includes(userRoleId);
+                const canApprove = [11, 34, 124, 125, 128, 131, 132, 134, 135, 137, 138].includes(userRoleId);
+                const canReject = [11, 34, 33, 37, 38, 124, 125, 128, 129, 130, 131, 132, 134, 135, 136, 137, 138].includes(userRoleId);
+                const hasAnyPermission = canEdit || canApprove || canReject;
+                
+                if (hasAnyPermission) {
+                    // Edit button (DMC and Operational Head only)
+                    if (canEdit) {
+                        buttonsHTML += `
+                            <button type="button" 
+                                    class="btn btn-sm px-2 py-1" 
+                                    onclick="editIndividualRestaurant(${tourId}, ${restaurantOrderIndex}, ${bookingIndex}, '${actualCancelDateStr || ''}')"
+                                    style="border-radius: 6px; background: linear-gradient(135deg, #fd79a8 0%, #fdcb6e 100%); border: none; color: white; font-size: 0.75rem;">
+                                <i class="ri-edit-line me-1" style="font-size: 0.7rem;"></i>Edit
+                            </button>
+                        `;
+                    }
+                    
+                    // Approve button (DMC and Operational Head only)
+                    if (canApprove) {
+                        buttonsHTML += `
+                            <button type="button" 
+                                    class="btn btn-outline-success btn-sm px-2 py-1" 
+                                    onclick="approveIndividualRestaurant(${tourId}, ${restaurantOrderIndex}, ${bookingIndex}, '${actualCancelDateStr || ''}')"
+                                    style="border-radius: 6px; font-size: 0.75rem;">
+                                <i class="ri-check-line me-1" style="font-size: 0.7rem;"></i>Approve
+                            </button>
+                        `;
+                    }
+                    
+                    // Reject button (for users with reject permission)
+                    if (canReject) {
+                        buttonsHTML += `
+                            <button type="button" 
+                                    class="btn btn-outline-danger btn-sm px-2 py-1" 
+                                    onclick="rejectIndividualRestaurant(${tourId}, ${restaurantOrderIndex}, ${bookingIndex}, '${actualCancelDateStr || ''}')"
+                                    style="border-radius: 6px; font-size: 0.75rem;">
+                                <i class="ri-close-line me-1" style="font-size: 0.7rem;"></i>Reject
+                            </button>
+                        `;
+                    }
+                } else {
+                    // Show pending approval only if user has no permissions
+                    buttonsHTML += '<div class="text-muted small" style="font-size: 0.75rem;"><i class="ri-information-line me-1" style="font-size: 0.7rem;"></i>Pending approval</div>';
+                }
+                
+                buttonsContainer.innerHTML = buttonsHTML;
+            }
+        } else {
+            // Show approved status
+            const buttonsContainer = document.getElementById(`restaurant_buttons_${tourId}_${restaurantOrderIndex}_${bookingIndex}`);
+            if (buttonsContainer) {
+                const referenceId = restaurantData.restaurant_details?.reference_id || restaurantData.restaurantDetails?.reference_id || '';
+                const displayDueDate = restaurantData.restaurant_details?.display_due_date || restaurantData.restaurantDetails?.display_due_date || '';
+                buttonsContainer.innerHTML = `
+                    <div class="alert alert-success mb-0 py-1 px-2" style="border-radius: 6px; font-size: 0.75rem;">
+                        <i class="ri-check-circle-fill me-1" style="font-size: 0.7rem;"></i>
+                        <strong>Approved</strong>
+                        ${referenceId ? `<span class="ms-1">• Ref: ${referenceId}</span>` : ''}
+                        ${displayDueDate ? `<span class="ms-1">• Due: ${displayDueDate}</span>` : ''}
+                    </div>
+                `;
+            }
+        }
     })
     .catch(error => {
         console.error('Error loading restaurant content:', error);
@@ -10369,272 +9926,207 @@ function generateIndividualRestaurantContent(booking, tourId, restaurantOrderInd
     const canAccessRestaurantQR = allowedRestaurantQrRoles.includes(userRole);
     
     return `
-        <div class="card mb-4 shadow-sm border-0" style="border-radius: 12px; overflow: hidden;">
-            <div class="card-header border-0" style="background: linear-gradient(90deg, #fd79a8 0%, #fdcb6e 100%); padding: 20px;">
-                <div class="row align-items-center">
+        <div class="card mb-3 shadow-sm border-0" style="border-radius: 10px; overflow: hidden; border-left: 4px solid #fd79a8 !important;">
+            <!-- Compact Card Header -->
+            <div class="card-header border-0 py-2 px-3" style="background: linear-gradient(90deg, #fd79a8 0%, #fdcb6e 100%);">
+                <div class="row align-items-center g-2">
                     <div class="col-md-8">
-                        <h5 class="mb-1 fw-bold text-white">
-                            <i class="ri-restaurant-2-line me-2"></i>${fullBooking.restaurantName || booking.restaurant_name || 'Restaurant Booking'}
-                        </h5>
-                        <p class="mb-0 text-white opacity-75">${fullBooking.mealType || booking.meal_type || 'Meal'} • ${fullBooking.mealSpecificType || booking.meal_specific_type || 'Standard'}</p>
+                        <h6 class="mb-0 fw-bold text-white">
+                            <i class="ri-restaurant-2-line me-1"></i>${fullBooking.restaurantName || booking.restaurant_name || 'Restaurant Booking'}
+                        </h6>
+                        <small class="text-white opacity-90">${fullBooking.mealType || booking.meal_type || 'Meal'} • ${fullBooking.mealSpecificType || booking.meal_specific_type || 'Standard'}</small>
                     </div>
                     <div class="col-md-4 text-end">
-                        <div class="bg-white rounded-pill px-3 py-2 d-inline-block">
-                            <span class="text-success fw-bold fs-5">SGD ${(fullBooking.totalPrice || booking.total_price || 0).toFixed(2)}</span>
-                        </div>
+                        <span class="badge bg-white text-success px-3 py-2" style="font-size: 0.95rem;">
+                            SGD ${(fullBooking.totalPrice || booking.total_price || 0).toFixed(2)}
+                        </span>
                     </div>
                 </div>
             </div>
             
-            <div class="card-body p-4" style="background-color: #f8f9fa;">
-                <!-- Guest Information -->
-                <div class="row mb-4">
-                    <div class="col-md-6">
-                        <div class="bg-white rounded p-3 shadow-sm h-100">
-                            <div class="d-flex align-items-center mb-3">
-                                <div class="bg-primary rounded-circle p-2 me-3">
-                                    <i class="ri-user-line text-white"></i>
+            <div class="card-body p-3" style="background-color: #ffffff;">
+                <!-- Customer & Reservation Details -->
+                <div class="row mb-3 g-3">
+                 
+                    <div class="col-md-12">
+                        <div class="bg-light rounded p-2 h-100">
+                            <div class="d-flex align-items-center mb-2">
+                                <div class="rounded-circle p-1 me-2" style="background: linear-gradient(135deg, #fd79a8 0%, #fdcb6e 100%); width: 28px; height: 28px; display: flex; align-items: center; justify-content: center;">
+                                    <i class="ri-calendar-line text-white" style="font-size: 0.9rem;"></i>
                                 </div>
-                                <h6 class="fw-bold mb-0 text-dark">Customer Details</h6>
+                                <h6 class="fw-bold mb-0 text-dark" style="font-size: 0.95rem;">Reservation Details</h6>
                             </div>
-                            <div class="mb-2">
-                                <small class="text-muted">Full Name</small>
-                                <div class="fw-medium">${fullBooking.fullName || 'N/A'}</div>
+                            <div class="mb-1">
+                                <small class="text-muted d-block" style="font-size: 0.75rem;">Dining Date</small>
+                                <div class="fw-bold text-success" style="font-size: 0.9rem;">${fullBooking.bookingDate ? new Date(fullBooking.bookingDate).toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric', year: 'numeric' }) : 'Date TBD'}</div>
                             </div>
-                            <div class="mb-2">
-                                <small class="text-muted">Email Address</small>
-                                <div class="fw-medium text-primary">${fullBooking.email || 'N/A'}</div>
+                            <div class="mb-1">
+                                <small class="text-muted d-block" style="font-size: 0.75rem;">Dining Time</small>
+                                <div class="fw-medium text-primary" style="font-size: 0.85rem;">${fullBooking.visitTime || 'TBC'}</div>
                             </div>
-                            <div class="mb-0">
-                                <small class="text-muted">Phone Number</small>
-                                <div class="fw-medium">${fullBooking.countryCode || ''} ${fullBooking.phone || 'N/A'}</div>
-                            </div>
-                        </div>
-                    </div>
-                    <div class="col-md-6">
-                        <div class="bg-white rounded p-3 shadow-sm h-100">
-                            <div class="d-flex align-items-center mb-3">
-                                <div class="bg-warning rounded-circle p-2 me-3">
-                                    <i class="ri-calendar-line text-white"></i>
-                                </div>
-                                <h6 class="fw-bold mb-0 text-dark">Reservation Details</h6>
-                            </div>
-                            <div class="mb-3">
-                                <small class="text-muted">Dining Date</small>
-                                <div class="fw-bold text-success fs-5">${fullBooking.bookingDate ? new Date(fullBooking.bookingDate).toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric', year: 'numeric' }) : 'Date TBD'}</div>
-                            </div>
-                            <div class="mb-3">
-                                <small class="text-muted">Dining Time</small>
-                                <div class="fw-medium text-primary">${fullBooking.visitTime || 'Time to be confirmed'}</div>
-                            </div>
-                            <div class="row">
+                            <div class="row g-1 mb-1">
                                 <div class="col-6 text-center">
-                                    <div class="bg-light rounded p-2">
-                                        <div class="fs-4 fw-bold text-success">${fullBooking.adultCount || 0}</div>
-                                        <small class="text-muted">Adults</small>
+                                    <div class="bg-white rounded p-1 border" style="border-color: #fd79a8 !important;">
+                                        <div class="fw-bold text-success" style="font-size: 1rem;">${fullBooking.adultCount || 0}</div>
+                                        <small class="text-muted" style="font-size: 0.6rem;">Adults</small>
                                     </div>
                                 </div>
                                 <div class="col-6 text-center">
-                                    <div class="bg-light rounded p-2">
-                                        <div class="fs-4 fw-bold text-warning">${fullBooking.childCount || 0}</div>
-                                        <small class="text-muted">Children</small>
+                                    <div class="bg-white rounded p-1 border" style="border-color: #fd79a8 !important;">
+                                        <div class="fw-bold text-warning" style="font-size: 1rem;">${fullBooking.childCount || 0}</div>
+                                        <small class="text-muted" style="font-size: 0.6rem;">Children</small>
                                     </div>
                                 </div>
                             </div>
-                            <div class="text-center mt-2">
-                                <span class="badge bg-primary px-3 py-2">
-                                    Party of ${(fullBooking.adultCount || 0) + (fullBooking.childCount || 0)}
+                            <div class="text-center">
+                                <span class="badge" style="background: linear-gradient(135deg, #fd79a8 0%, #fdcb6e 100%); color: white; font-size: 0.8rem; padding: 2px 6px;">
+                                    Party: ${(fullBooking.adultCount || 0) + (fullBooking.childCount || 0)}
                                 </span>
                             </div>
                         </div>
                     </div>
                 </div>
 
-                <!-- Restaurant Overview -->
-                <div class="bg-white rounded p-3 shadow-sm mb-4">
-                    <div class="d-flex align-items-center mb-3">
-                        <div class="bg-info rounded-circle p-2 me-3">
-                            <i class="ri-information-line text-white"></i>
+              
+
+                <!-- Transfer Options -->
+                ${(booking.transferOptions || fullBooking.transfer_options) && (booking.transferOptions?.transfer_required || fullBooking.transfer_options?.transfer_required) && (booking.transferOptions?.transfer_required === true || booking.transferOptions?.transfer_required === 'true' || booking.transferOptions?.transfer_required === 'Yes' || booking.transferOptions?.transfer_required === 1 || fullBooking.transfer_options?.transfer_required === true || fullBooking.transfer_options?.transfer_required === 'true' || fullBooking.transfer_options?.transfer_required === 'Yes' || fullBooking.transfer_options?.transfer_required === 1) ? `
+                <div class="bg-light rounded p-2 mb-3">
+                    <div class="d-flex align-items-center mb-2">
+                        <div class="rounded-circle p-1 me-2" style="background: linear-gradient(135deg, #fd79a8 0%, #fdcb6e 100%); width: 28px; height: 28px; display: flex; align-items: center; justify-content: center;">
+                            <i class="ri-car-line text-white" style="font-size: 0.9rem;"></i>
                         </div>
-                        <h6 class="fw-bold mb-0 text-dark">Restaurant Overview</h6>
+                        <h6 class="fw-bold mb-0 text-dark" style="font-size: 0.95rem;">Transfer Details</h6>
                     </div>
-                    <div class="row">
-                        <div class="col-md-4 mb-3">
-                            <small class="text-muted">Meal Price</small>
-                            <div class="fw-medium text-success">SGD ${(fullBooking.mealPrice || 0).toFixed(2)}</div>
+                    <div class="row g-2">
+                        <div class="col-md-6">
+                            <div class="bg-white rounded p-2">
+                                <small class="text-muted d-block" style="font-size: 0.7rem;">Transfer Type</small>
+                                <div class="fw-medium" style="font-size: 0.8rem;">
+                                    <span class="badge bg-primary" style="font-size: 0.7rem;">${(booking.transferOptions?.type || fullBooking.transfer_options?.type) || 'N/A'}</span>
+                                </div>
+                                ${(booking.transferOptions?.pickup_location_name || fullBooking.transfer_options?.pickup_location_name) ? `
+                                <div class="mt-1">
+                                    <small class="text-muted d-block" style="font-size: 0.7rem;">Pickup</small>
+                                    <div class="fw-medium text-primary" style="font-size: 0.8rem;">${booking.transferOptions?.pickup_location_name || fullBooking.transfer_options?.pickup_location_name}</div>
+                                </div>
+                                ` : ''}
+                            </div>
                         </div>
-                        <div class="col-md-4 mb-3">
-                            <small class="text-muted">Transport Price</small>
-                            <div class="fw-medium text-info">SGD ${(fullBooking.transportPrice || 0).toFixed(2)}</div>
+                        <div class="col-md-6">
+                            <div class="bg-white rounded p-2">
+                                ${(booking.transferOptions?.vehicle_details || fullBooking.transfer_options?.vehicle_details) ? `
+                                    <small class="text-muted d-block" style="font-size: 0.7rem;">Vehicle</small>
+                                    <div class="fw-medium" style="font-size: 0.8rem;">${(booking.transferOptions?.vehicle_details?.vehicle_name || fullBooking.transfer_options?.vehicle_details?.vehicle_name) || 'N/A'}</div>
+                                    ${(booking.transferOptions?.vehicle_details?.seating_capacity || fullBooking.transfer_options?.vehicle_details?.seating_capacity) ? `
+                                    <small class="text-muted" style="font-size: 0.65rem;">Capacity: ${booking.transferOptions?.vehicle_details?.seating_capacity || fullBooking.transfer_options?.vehicle_details?.seating_capacity}</small>
+                                    ` : ''}
+                                ` : (booking.transferOptions?.vehicle_id || fullBooking.transfer_options?.vehicle_id) ? `
+                                    <small class="text-muted d-block" style="font-size: 0.7rem;">Vehicle ID</small>
+                                    <div class="fw-medium" style="font-size: 0.8rem;">${booking.transferOptions?.vehicle_id || fullBooking.transfer_options?.vehicle_id}</div>
+                                ` : ''}
+                                ${(booking.transferOptions?.cost || fullBooking.transfer_options?.cost) ? `
+                                <div class="mt-1">
+                                    <small class="text-muted d-block" style="font-size: 0.7rem;">Cost</small>
+                                    <div class="fw-bold text-success" style="font-size: 0.9rem;">SGD ${((booking.transferOptions?.cost || fullBooking.transfer_options?.cost) || 0).toFixed(2)}</div>
+                                </div>
+                                ` : ''}
+                            </div>
                         </div>
                     </div>
                 </div>
+                ` : ''}
 
                 ${fullBooking.MealDescription && fullBooking.MealDescription.length > 0 ? `
-                <!-- Menu Items -->
-                <div class="bg-white rounded p-3 shadow-sm mb-4">
-                    <div class="d-flex align-items-center mb-3">
-                        <div class="bg-success rounded-circle p-2 me-3">
-                            <i class="ri-restaurant-line text-white"></i>
-                        </div>
-                        <h6 class="fw-bold mb-0 text-dark">Menu Items</h6>
-                    </div>
-                    
-                    ${fullBooking.MealDescription.map(meal => `
-                        <div class="card border-0 bg-gradient-light mb-3" style="border-radius: 10px;">
-                            <div class="card-body p-3">
-                                <div class="row align-items-center">
-                                    <div class="col-md-8">
-                                        <div class="d-flex align-items-center mb-2">
-                                            <span class="badge ${meal.item_type === 'Veg' ? 'bg-success' : 'bg-danger'} me-2">
-                                                <i class="${meal.item_type === 'Veg' ? 'ri-leaf-line' : 'ri-restaurant-line'} me-1"></i>
-                                                ${meal.item_type || 'N/A'}
-                                            </span>
-                                            <span class="badge bg-info">
-                                                <i class="ri-price-tag-3-line me-1"></i>
-                                                ${meal.category || 'N/A'}
-                                            </span>
-                                        </div>
-                                        <h6 class="fw-bold text-dark mb-1">${meal.name || meal.item_name || 'Menu Item'}</h6>
-                                        <div class="text-muted small">
-                                            <i class="ri-restaurant-2-line me-1"></i>
-                                            Quantity: ${meal.quantity || 1}
-                                        </div>
-                                    </div>
-                                    <div class="col-md-4 text-end">
-                                        <div class="bg-white rounded-3 p-2 shadow-sm">
-                                            <small class="text-muted d-block">Unit Price</small>
-                                            <div class="fs-5 fw-bold text-success">SGD ${(meal.price || 0).toFixed(2)}</div>
-                                        </div>
-                                    </div>
-                                </div>
-
-                                <!-- Price Calculation -->
-                                <div class="bg-gradient-light rounded-3 p-4 border border-primary border-opacity-25 mt-3">
-                                    <div class="row align-items-center">
-                                        <div class="col-md-7">
-                                            <div class="d-flex align-items-center mb-3">
-                                                <div class="bg-primary rounded-circle p-2 me-3">
-                                                    <i class="ri-calculator-line text-white"></i>
-                                                </div>
-                                                <h6 class="fw-bold mb-0 text-dark">Price Calculation</h6>
-                                            </div>
-                                            <div class="d-flex align-items-center gap-3">
-                                                <div class="text-center">
-                                                    <div class="fs-5 fw-bold text-success">SGD ${(meal.price || 0).toFixed(2)}</div>
-                                                    <small class="text-muted">per item</small>
-                                                </div>
-                                                <div class="text-primary fs-3">×</div>
-                                                <div class="text-center">
-                                                    <div class="fs-5 fw-bold text-primary">${meal.quantity || 1}</div>
-                                                    <small class="text-muted">${(meal.quantity || 1) == 1 ? 'item' : 'items'}</small>
-                                                </div>
-                                                <div class="text-primary fs-3">=</div>
-                                            </div>
-                                        </div>
-                                        <div class="col-md-5 text-end">
-                                            <div class="bg-white rounded-3 p-4 shadow border border-success border-opacity-50">
-                                                <small class="text-muted d-block mb-2">Item Subtotal</small>
-                                                <div class="fs-2 fw-bold text-success">
-                                                    SGD ${((meal.price || 0) * (meal.quantity || 1)).toFixed(2)}
-                                                </div>
-                                            </div>
-                                        </div>
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
-                    `).join('')}
-                    
-                    <!-- Total Summary -->
-                    <div class="card shadow-lg mt-4" style="border: none; border-radius: 15px; overflow: hidden;">
-                        <div class="card-header border-0" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); padding: 20px;">
-                            <div class="row align-items-center">
-                                <div class="col-md-8">
-                                    <h5 class="mb-1 fw-bold text-white">
-                                        <i class="ri-receipt-line me-2"></i>Order Summary
-                                    </h5>
-                                    <p class="mb-0 text-white opacity-75">
-                                        ${fullBooking.MealDescription.length} item(s) • ${fullBooking.mealType || 'Meal'} • ${fullBooking.mealSpecificType || 'Menu'}
-                                    </p>
-                                </div>
-                                <div class="col-md-4 text-end">
-                                    <div class="bg-white bg-opacity-95 rounded-3 px-4 py-3 shadow">
-                                        <small class="text-muted d-block mb-1">Grand Total</small>
-                                        <div class="fs-2 fw-bold text-success">SGD ${(fullBooking.totalPrice || 0).toFixed(2)}</div>
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-                </div>
+             
                 ` : ''}
 
-                ${fullBooking.specialRequests ? `
-                <!-- Special Requests -->
-                <div class="bg-white rounded p-3 shadow-sm mb-4">
-                    <div class="d-flex align-items-center mb-3">
-                        <div class="bg-purple rounded-circle p-2 me-3" style="background-color: #6f42c1;">
-                            <i class="ri-message-line text-white"></i>
+  <!-- Pricing Overview -->
+                <div class="bg-light rounded p-2 mb-3">
+                    <div class="d-flex align-items-center mb-2">
+                        <div class="rounded-circle p-1 me-2" style="background: linear-gradient(135deg, #fd79a8 0%, #fdcb6e 100%); width: 28px; height: 28px; display: flex; align-items: center; justify-content: center;">
+                            <i class="ri-money-dollar-circle-line text-white" style="font-size: 0.9rem;"></i>
                         </div>
-                        <h6 class="fw-bold mb-0 text-dark">Special Requests</h6>
+                        <h6 class="fw-bold mb-0 text-dark" style="font-size: 0.95rem;">Pricing Overview</h6>
                     </div>
-                    <div class="bg-light rounded p-3">
-                        <p class="mb-0 text-dark">${fullBooking.specialRequests}</p>
+                    <div class="row g-2">
+                        <div class="col-md-4">
+                            <div class="text-center p-2 border rounded bg-white" style="border-color: #28a745 !important;">
+                                <small class="text-muted d-block" style="font-size: 0.7rem;">Meal Price</small>
+                                <div class="fw-bold text-success" style="font-size: 0.8rem;">SGD ${((fullBooking.totalPrice || booking.total_price || 0) + ((booking.transferOptions?.cost || fullBooking.transfer_options?.cost) || 0)).toFixed(2)}</div>
+                            </div>
+                        </div>
+                        <div class="col-md-4">
+                            <div class="text-center p-2 border rounded bg-white" style="border-color: #17a2b8 !important;">
+                                <small class="text-muted d-block" style="font-size: 0.7rem;">Vehicle Price</small>
+                                <div class="fw-bold text-info" style="font-size: 0.8rem;">SGD ${((booking.transferOptions?.cost || fullBooking.transfer_options?.cost) || 0).toFixed(2)}</div>
+                            </div>
+                        </div>
+                        <div class="col-md-4">
+                            <div class="text-center p-2 border rounded bg-white" style="border-color: #fd79a8 !important; background: linear-gradient(135deg, rgba(253,121,168,0.1) 0%, rgba(253,203,110,0.1) 100%) !important;">
+                                <small class="text-muted d-block" style="font-size: 0.7rem;">Grand Total</small>
+                                <div class="fw-bold" style="font-size: 1.1rem; color: #fd79a8;">SGD ${((fullBooking.totalPrice || booking.total_price || 0) + ((booking.transferOptions?.cost || fullBooking.transfer_options?.cost) || 0)).toFixed(2)}</div>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="mt-2 text-center">
+                        <small class="text-muted" style="font-size: 0.75rem;">
+                            <i class="ri-information-line me-1"></i>
+                            Total Price includes Restaurant Price + Vehicle Price
+                        </small>
                     </div>
                 </div>
-                ` : ''}
-
-                <!-- Individual Action Buttons -->
-                <div class="bg-white rounded p-3 shadow-sm border-top">
-                    <div class="d-flex align-items-center justify-content-between flex-wrap gap-3">
-                        <div class="d-flex align-items-center">
-                            <div class="bg-secondary rounded-circle p-2 me-3">
-                                <i class="ri-settings-line text-white"></i>
-                            </div>
-                            <h6 class="fw-bold mb-0 text-dark">Booking Actions</h6>
+                
+                <!-- Booking Status -->
+                <div class="bg-light rounded p-1">
+                    <div class="d-flex align-items-center mb-1">
+                        <div class="rounded-circle p-1 me-1" style="background: linear-gradient(135deg, #fd79a8 0%, #fdcb6e 100%); width: 20px; height: 20px; display: flex; align-items: center; justify-content: center;">
+                            <i class="ri-settings-line text-white" style="font-size: 0.7rem;"></i>
                         </div>
-                        ${generateRestaurantActionButtons(booking, tourId, restaurantOrderIndex, bookingIndex, actualCancelDateStr)}
+                        <h6 class="fw-bold mb-0 text-dark" style="font-size: 0.8rem;">Booking Status</h6>
+                    </div>
+                    <div class="d-flex gap-1 flex-wrap" id="restaurant_buttons_${tourId}_${restaurantOrderIndex}_${bookingIndex}">
+                        <!-- Buttons will be dynamically added based on user role -->
                     </div>
                 </div>
 
                 ${canAccessRestaurantQR ? `
                 <!-- Restaurant QR Code -->
-                <div class="bg-white rounded p-3 shadow-sm mt-3" id="restaurantQRSection_${tourId}_${restaurantOrderIndex}_${bookingIndex}">
-                    <div class="d-flex align-items-center justify-content-between flex-wrap gap-3">
+                <div class="bg-light rounded p-2 mt-2" id="restaurantQRSection_${tourId}_${restaurantOrderIndex}_${bookingIndex}">
+                    <div class="d-flex align-items-center justify-content-between flex-wrap gap-2 mb-2">
                         <div class="d-flex align-items-center">
-                            <div class="bg-dark rounded-circle p-2 me-3">
-                                <i class="ri-qr-code-line text-white"></i>
+                            <div class="rounded-circle p-1 me-2" style="background: linear-gradient(135deg, #fd79a8 0%, #fdcb6e 100%); width: 28px; height: 28px; display: flex; align-items: center; justify-content: center;">
+                                <i class="ri-qr-code-line text-white" style="font-size: 0.9rem;"></i>
                             </div>
                             <div>
-                                <h6 class="fw-bold mb-1 text-dark">Restaurant Check-in QR</h6>
-                                <small class="text-muted">Generate a QR code with key restaurant booking details.</small>
+                                <h6 class="fw-bold mb-0 text-dark" style="font-size: 0.9rem;">Restaurant Check-in QR</h6>
+                                <small class="text-muted" style="font-size: 0.7rem;">Generate QR code for booking details</small>
                             </div>
                         </div>
-                        <div class="d-flex align-items-center gap-2 flex-wrap">
+                        <div class="d-flex align-items-center gap-1 flex-wrap">
                             <button type="button"
-                                    class="btn btn-outline-secondary btn-sm px-3 py-2"
+                                    class="btn btn-outline-secondary btn-sm px-2 py-1"
                                     id="restaurantQRGenerateBtn_${tourId}_${restaurantOrderIndex}_${bookingIndex}"
                                     onclick="generateRestaurantQRCode(${tourId}, ${restaurantOrderIndex}, ${bookingIndex})"
-                                    style="border-radius: 25px;">
-                                <i class="ri-qr-code-line me-1"></i>Generate QR
+                                    style="border-radius: 8px; font-size: 0.8rem;">
+                                <i class="ri-qr-code-line me-1"></i>Generate
                             </button>
                             <button type="button"
-                                    class="btn btn-outline-dark btn-sm px-3 py-2"
+                                    class="btn btn-outline-dark btn-sm px-2 py-1"
                                     id="restaurantQRDownloadBtn_${tourId}_${restaurantOrderIndex}_${bookingIndex}"
                                     onclick="downloadRestaurantQRCode(${tourId}, ${restaurantOrderIndex}, ${bookingIndex})"
-                                    style="border-radius: 25px;"
+                                    style="border-radius: 8px; font-size: 0.8rem;"
                                     disabled>
                                 <i class="ri-download-2-line me-1"></i>Download
                             </button>
                         </div>
                     </div>
-                    <div class="mt-4 d-none text-center" id="restaurantQRWrapper_${tourId}_${restaurantOrderIndex}_${bookingIndex}">
-                        <div class="d-inline-block position-relative rounded-4 p-4" 
-                             style="background: #ffffff; border: 6px solid #ffffff; box-shadow: 0 12px 30px rgba(0, 0, 0, 0.08);">
+                    <div class="mt-3 d-none text-center" id="restaurantQRWrapper_${tourId}_${restaurantOrderIndex}_${bookingIndex}">
+                        <div class="d-inline-block position-relative rounded-3 p-3" 
+                             style="background: #ffffff; border: 4px solid #ffffff; box-shadow: 0 8px 20px rgba(0, 0, 0, 0.08);">
                             <div id="restaurantQRCode_${tourId}_${restaurantOrderIndex}_${bookingIndex}"></div>
                         </div>
-                        <div class="mt-3 text-muted small fw-medium" id="restaurantQRDetails_${tourId}_${restaurantOrderIndex}_${bookingIndex}">
+                        <div class="mt-2 text-muted small" style="font-size: 0.7rem;" id="restaurantQRDetails_${tourId}_${restaurantOrderIndex}_${bookingIndex}">
                             Scan this code at the restaurant to view the booking details.
                         </div>
                     </div>
@@ -10647,69 +10139,69 @@ function generateIndividualRestaurantContent(booking, tourId, restaurantOrderInd
 
 // Generate restaurant action buttons based on approval status
 function generateRestaurantActionButtons(booking, tourId, restaurantOrderIndex, bookingIndex, actualCancelDateStr=null) {
-    const isApproved = booking.restaurant_details?.is_approve || booking.is_approve || false;
+    const isApproved = booking.restaurant_details?.is_approve == 1 || booking.restaurant_details?.is_approve === '1' || booking.restaurant_details?.is_approve === true || booking.is_approve == 1 || booking.is_approve === '1' || booking.is_approve === true || false;
     
     // Get user role from meta tag or global variable (assuming it's available)
     const userRole = parseInt(document.querySelector('meta[name="user-role"]')?.getAttribute('content')) || {{ auth()->user()->role_id ?? 0 }};
     
-    console.log('🍽️ Generating restaurant action buttons:', {
-        isApproved,
-        userRole,
-        canEdit: [11, 34, 124, 125, 128, 131, 132, 134, 135, 137, 138].includes(userRole),
-        canApprove: [11, 34, 124, 125, 128, 131, 132, 134, 135, 137, 138].includes(userRole),
-        canReject: [11, 34, 33, 37, 38, 124, 125, 128, 129, 130, 131, 132, 134, 135, 136, 137, 138].includes(userRole)
-    });
-    
     if (isApproved) {
+        const referenceId = booking.restaurant_details?.reference_id || booking.reference_id || '';
+        const displayDueDate = booking.restaurant_details?.display_due_date || booking.display_due_date || '';
         return `
-            <div class="d-flex align-items-center gap-3">
-                <div class="alert alert-success mb-0 py-2 px-3" style="border-radius: 25px;">
-                    <i class="ri-check-circle-fill me-1"></i>
-                    <small><strong>Approved Booking</strong></small>
-                    ${booking.reference_id ? `<br><small class="text-muted">Ref: ${booking.reference_id}</small>` : ''}
-                    ${booking.display_due_date ? `<br><small class="text-muted">Due: ${booking.display_due_date}</small>` : ''}
-                </div>
-                ${[11, 34, 124, 125, 128, 131, 132, 134, 135, 137, 138].includes(userRole) ? `
-                    <button type="button" class="btn btn-outline-primary btn-sm" 
-                            onclick="openRestaurantFilesModal('${tourId}', '${restaurantOrderIndex}', '${bookingIndex}')"
-                            title="View and manage uploaded files">
-                        <i class="ri-file-list-3-line me-1"></i>View Files
-                    </button>
-                ` : ''}
+            <div class="alert alert-success mb-0 py-1 px-2" style="border-radius: 6px; font-size: 0.75rem;">
+                <i class="ri-check-circle-fill me-1" style="font-size: 0.7rem;"></i>
+                <strong>Approved</strong>
+                ${referenceId ? `<span class="ms-1">• Ref: ${referenceId}</span>` : ''}
+                ${displayDueDate ? `<span class="ms-1">• Due: ${displayDueDate}</span>` : ''}
             </div>
         `;
     }
     
-    if (![11, 34, 33, 37, 38, 124, 125, 128, 129, 130, 131, 132, 134, 135, 136, 137, 138].includes(userRole)) {
-        return '<div class="text-muted small"><i class="ri-information-line me-1"></i>No actions available for your role</div>';
+    const canEdit = [11, 34, 124, 125, 128, 131, 132, 134, 135, 137, 138].includes(userRole);
+    const canApprove = [11, 34, 124, 125, 128, 131, 132, 134, 135, 137, 138].includes(userRole);
+    const canReject = [11, 34, 33, 37, 38, 124, 125, 128, 129, 130, 131, 132, 134, 135, 136, 137, 138].includes(userRole);
+    const hasAnyPermission = canEdit || canApprove || canReject;
+    
+    if (!hasAnyPermission) {
+        return '<div class="text-muted small" style="font-size: 0.75rem;"><i class="ri-information-line me-1" style="font-size: 0.7rem;"></i>Pending approval</div>';
     }
     
-    return `
-        <div class="d-flex gap-2">
-            ${[11, 34, 124, 125, 128, 131, 132, 134, 135, 137, 138].includes(userRole) ? `
-                <button type="button" 
-                        class="btn btn-outline-primary btn-sm px-3 py-2" 
-                        onclick="editIndividualRestaurant(${tourId}, ${restaurantOrderIndex}, ${bookingIndex})"
-                        style="border-radius: 25px;">
-                    <i class="ri-edit-line me-1"></i>Edit
-                </button>
-                <button type="button" 
-                        class="btn btn-outline-success btn-sm px-3 py-2" 
-                        onclick="approveIndividualRestaurant(${tourId}, ${restaurantOrderIndex}, ${bookingIndex}, '${actualCancelDateStr}')"
-                        style="border-radius: 25px;">
-                    <i class="ri-check-line me-1"></i>Approve
-                </button>
-            ` : ''}
-            ${[11, 34, 33, 37, 38, 124, 125, 128, 129, 130, 131, 132, 134, 135, 136, 137, 138].includes(userRole) ? `
-                <button type="button" 
-                        class="btn btn-outline-danger btn-sm px-3 py-2" 
-                        onclick="rejectIndividualRestaurant(${tourId}, ${restaurantOrderIndex}, ${bookingIndex})"
-                        style="border-radius: 25px;">
-                    <i class="ri-close-line me-1"></i>Reject
-                </button>
-            ` : ''}
-        </div>
-    `;
+    let buttonsHTML = '';
+    
+    if (canEdit) {
+        buttonsHTML += `
+            <button type="button" 
+                    class="btn btn-sm px-2 py-1" 
+                    onclick="editIndividualRestaurant(${tourId}, ${restaurantOrderIndex}, ${bookingIndex}, '${actualCancelDateStr || ''}')"
+                    style="border-radius: 6px; background: linear-gradient(135deg, #fd79a8 0%, #fdcb6e 100%); border: none; color: white; font-size: 0.75rem;">
+                <i class="ri-edit-line me-1" style="font-size: 0.7rem;"></i>Edit
+            </button>
+        `;
+    }
+    
+    if (canApprove) {
+        buttonsHTML += `
+            <button type="button" 
+                    class="btn btn-outline-success btn-sm px-2 py-1" 
+                    onclick="approveIndividualRestaurant(${tourId}, ${restaurantOrderIndex}, ${bookingIndex}, '${actualCancelDateStr || ''}')"
+                    style="border-radius: 6px; font-size: 0.75rem;">
+                <i class="ri-check-line me-1" style="font-size: 0.7rem;"></i>Approve
+            </button>
+        `;
+    }
+    
+    if (canReject) {
+        buttonsHTML += `
+            <button type="button" 
+                    class="btn btn-outline-danger btn-sm px-2 py-1" 
+                    onclick="rejectIndividualRestaurant(${tourId}, ${restaurantOrderIndex}, ${bookingIndex}, '${actualCancelDateStr || ''}')"
+                    style="border-radius: 6px; font-size: 0.75rem;">
+                <i class="ri-close-line me-1" style="font-size: 0.7rem;"></i>Reject
+            </button>
+        `;
+    }
+    
+    return `<div class="d-flex gap-1 flex-wrap">${buttonsHTML}</div>`;
 }
 
 let qrCodeLibraryPromise = null;
@@ -14013,27 +13505,36 @@ function openIndividualTravelHourlyModal(tourId, travelHourlyOrderIndex, booking
 function createIndividualTravelHourlyViewModal(modalId, tourId, travelHourlyOrderIndex, bookingIndex) {
     const modalHtml = `
         <div class="modal fade" id="${modalId}" tabindex="-1" aria-hidden="true" data-bs-backdrop="static" data-bs-keyboard="false">
-            <div class="modal-dialog modal-dialog-centered modal-xl modal-dialog-scrollable">
-                <div class="modal-content shadow-lg" style="border-radius: 15px; overflow: hidden;">
-                    <div class="modal-header p-0 border-0 position-relative" style="height: 180px; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);">
-                        <div class="position-absolute w-100 h-100 d-flex align-items-center justify-content-between p-4">
+            <div class="modal-dialog modal-dialog-centered modal-lg modal-dialog-scrollable">
+                <div class="modal-content shadow-lg border-0" style="border-radius: 12px; overflow: hidden;">
+                    <!-- Modal Header -->
+                    <div class="modal-header border-0 py-2 px-2" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);">
+                        <div class="d-flex align-items-center justify-content-between w-100">
                             <div class="text-white">
-                                <h3 class="mb-1 fw-bold">
-                                    <i class="ri-time-line me-2"></i>Local-Tour Hourly ${parseInt(travelHourlyOrderIndex) + 1}
-                                </h3>
-                                <p class="mb-0 opacity-75">Tour #${tourId} Hourly Tour Service Details</p>
+                                <h6 class="mb-0 fw-bold" style="font-size: 0.95rem;">
+                                    <i class="ri-time-line me-1" style="font-size: 0.9rem;"></i>Hourly Tour Details
+                                </h6>
                             </div>
-                            <button type="button" class="btn-close btn-close-white" onclick="closeIndividualTravelHourlyViewModal('${modalId}')" aria-label="Close" style="filter: brightness(0) invert(1); font-size: 1.2rem;"></button>
+                            <button type="button" class="btn-close btn-close-white" onclick="closeIndividualTravelHourlyViewModal('${modalId}')" aria-label="Close" style="font-size: 0.8rem;"></button>
                         </div>
                     </div>
-                    <div class="modal-body p-4" style="background-color: #f8f9fa;">
+                    <!-- Modal Body -->
+                    <div class="modal-body p-2" style="background: #f8f9fa;">
                         <div id="${modalId}_content">
-                            <div class="d-flex justify-content-center align-items-center py-5">
-                                <div class="spinner-border text-primary" role="status">
+                            <div class="text-center py-4">
+                                <div class="spinner-border" role="status" style="color: #667eea;">
                                     <span class="visually-hidden">Loading...</span>
                                 </div>
-                                <span class="ms-3 text-muted">Loading travel hourly details...</span>
+                                <p class="text-muted mt-2 mb-0" style="font-size: 0.9rem;">Loading travel hourly details...</p>
                             </div>
+                        </div>
+                    </div>
+                    <!-- Modal Footer -->
+                    <div class="modal-footer border-0 p-1" style="background: #f8f9fa;">
+                        <div class="d-flex gap-1 w-100 justify-content-end" id="travelHourlyModalFooter_${modalId}">
+                            <button type="button" class="btn btn-outline-secondary btn-sm px-2 py-1" onclick="closeIndividualTravelHourlyViewModal('${modalId}')" style="border-radius: 6px; font-size: 0.75rem;">
+                                <i class="ri-close-line me-1" style="font-size: 0.7rem;"></i>Close
+                            </button>
                         </div>
                     </div>
                 </div>
@@ -16825,27 +16326,37 @@ function openIndividualTravelPointModal(tourId, travelPointOrderIndex, bookingIn
 function createIndividualTravelPointViewModal(modalId, tourId, travelPointOrderIndex, bookingIndex) {
     const modalHtml = `
         <div class="modal fade" id="${modalId}" tabindex="-1" aria-hidden="true" data-bs-backdrop="static" data-bs-keyboard="false">
-            <div class="modal-dialog modal-dialog-centered modal-xl modal-dialog-scrollable">
-                <div class="modal-content shadow-lg" style="border-radius: 15px; overflow: hidden;">
-                    <div class="modal-header p-0 border-0 position-relative" style="height: 180px; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);">
-                        <div class="position-absolute w-100 h-100 d-flex align-items-center justify-content-between p-4">
+            <div class="modal-dialog modal-dialog-centered modal-lg modal-dialog-scrollable">
+                <div class="modal-content shadow-lg border-0" style="border-radius: 12px; overflow: hidden;">
+                    <!-- Modal Header -->
+                    <div class="modal-header border-0 py-3 px-4" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);">
+                        <div class="d-flex align-items-center justify-content-between w-100">
                             <div class="text-white">
-                                <h3 class="mb-1 fw-bold">
-                                    <i class="ri-route-line me-2"></i>Local-Tour Point to Point ${parseInt(travelPointOrderIndex) + 1}
-                                </h3>
-                                <p class="mb-0 opacity-75">Tour #${tourId} Point to Point Transfer Details</p>
+                                <h5 class="mb-0 fw-bold">
+                                    <i class="ri-route-line me-2"></i>Point to Point Details
+                                </h5>
+                                <small class="opacity-90">Tour #${tourId} • Transfer ${parseInt(travelPointOrderIndex) + 1}</small>
                             </div>
-                            <button type="button" class="btn-close btn-close-white" onclick="closeIndividualTravelPointViewModal('${modalId}')" aria-label="Close" style="filter: brightness(0) invert(1); font-size: 1.2rem;"></button>
+                            <button type="button" class="btn-close btn-close-white" onclick="closeIndividualTravelPointViewModal('${modalId}')" aria-label="Close"></button>
                         </div>
                     </div>
-                    <div class="modal-body p-4" style="background-color: #f8f9fa;">
+                    <!-- Modal Body -->
+                    <div class="modal-body p-3" style="background: #f8f9fa;">
                         <div id="${modalId}_content">
-                            <div class="d-flex justify-content-center align-items-center py-5">
-                                <div class="spinner-border text-primary" role="status">
+                            <div class="text-center py-4">
+                                <div class="spinner-border" role="status" style="color: #667eea;">
                                     <span class="visually-hidden">Loading...</span>
                                 </div>
-                                <span class="ms-3 text-muted">Loading travel point details...</span>
+                                <p class="text-muted mt-2 mb-0" style="font-size: 0.9rem;">Loading travel point details...</p>
                             </div>
+                        </div>
+                    </div>
+                    <!-- Modal Footer -->
+                    <div class="modal-footer border-0 py-2 px-3" style="background: #f8f9fa;">
+                        <div class="d-flex gap-2 w-100 justify-content-end" id="travelPointModalFooter_${modalId}">
+                            <button type="button" class="btn btn-outline-secondary btn-sm px-3 py-1" onclick="closeIndividualTravelPointViewModal('${modalId}')" style="border-radius: 8px; font-size: 0.85rem;">
+                                <i class="ri-close-line me-1"></i>Close
+                            </button>
                         </div>
                     </div>
                 </div>
@@ -17971,27 +17482,36 @@ function openIndividualLocalTransportModal(tourId, localTransportOrderIndex, boo
 function createIndividualLocalTransportViewModal(modalId, tourId, localTransportOrderIndex, bookingIndex) {
     const modalHtml = `
         <div class="modal fade" id="${modalId}" tabindex="-1" aria-hidden="true" data-bs-backdrop="static" data-bs-keyboard="false">
-            <div class="modal-dialog modal-dialog-centered modal-xl modal-dialog-scrollable">
-                <div class="modal-content shadow-lg" style="border-radius: 15px; overflow: hidden;">
-                    <div class="modal-header p-0 border-0 position-relative" style="height: 180px; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);">
-                        <div class="position-absolute w-100 h-100 d-flex align-items-center justify-content-between p-4">
+            <div class="modal-dialog modal-dialog-centered modal-lg modal-dialog-scrollable">
+                <div class="modal-content shadow-lg border-0" style="border-radius: 12px; overflow: hidden;">
+                    <!-- Modal Header -->
+                    <div class="modal-header border-0 py-2 px-2" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);">
+                        <div class="d-flex align-items-center justify-content-between w-100">
                             <div class="text-white">
-                                <h3 class="mb-1 fw-bold">
-                                    <i class="ri-car-line me-2"></i>Local Transport ${parseInt(localTransportOrderIndex) + 1}
-                                </h3>
-                                <p class="mb-0 opacity-75">Tour #${tourId} Local Transport Service Details</p>
+                                <h6 class="mb-0 fw-bold" style="font-size: 0.95rem;">
+                                    <i class="ri-car-line me-1" style="font-size: 0.9rem;"></i>Local Transport Details
+                                </h6>
                             </div>
-                            <button type="button" class="btn-close btn-close-white" onclick="closeIndividualLocalTransportViewModal('${modalId}')" aria-label="Close" style="filter: brightness(0) invert(1); font-size: 1.2rem;"></button>
+                            <button type="button" class="btn-close btn-close-white" onclick="closeIndividualLocalTransportViewModal('${modalId}')" aria-label="Close" style="font-size: 0.8rem;"></button>
                         </div>
                     </div>
-                    <div class="modal-body p-4" style="background-color: #f8f9fa;">
+                    <!-- Modal Body -->
+                    <div class="modal-body p-2" style="background: #f8f9fa;">
                         <div id="${modalId}_content">
-                            <div class="d-flex justify-content-center align-items-center py-5">
-                                <div class="spinner-border text-primary" role="status">
+                            <div class="text-center py-4">
+                                <div class="spinner-border" role="status" style="color: #667eea;">
                                     <span class="visually-hidden">Loading...</span>
                                 </div>
-                                <span class="ms-3 text-muted">Loading local transport details...</span>
+                                <p class="text-muted mt-2 mb-0" style="font-size: 0.9rem;">Loading local transport details...</p>
                             </div>
+                        </div>
+                    </div>
+                    <!-- Modal Footer -->
+                    <div class="modal-footer border-0 p-1" style="background: #f8f9fa;">
+                        <div class="d-flex gap-1 w-100 justify-content-end" id="localTransportModalFooter_${modalId}">
+                            <button type="button" class="btn btn-outline-secondary btn-sm px-2 py-1" onclick="closeIndividualLocalTransportViewModal('${modalId}')" style="border-radius: 6px; font-size: 0.75rem;">
+                                <i class="ri-close-line me-1" style="font-size: 0.7rem;"></i>Close
+                            </button>
                         </div>
                     </div>
                 </div>
