@@ -573,7 +573,7 @@
                                     <label class="form-label fw-semibold mb-1" style="color: #495057; font-size: 0.8rem;">
                                         <i class="ri-hotel-bed-2-line me-1"></i>Number of Rooms
                                     </label>
-                                    <input type="number" class="form-control" id="numberOfRooms" value="1" min="1" max="999" oninput="if(this.value.length > 3) this.value = this.value.slice(0,3);" style="height: 36px; border-radius: 6px; border: 1px solid #dee2e6; font-size: 0.85rem; text-align: center; max-width: 100px;"> 
+                                    <input type="number" class="form-control" id="numberOfRooms" value="1" min="1" max="999" oninput="if(this.value.length > 3) this.value = this.value.slice(0,3);" onwheel="event.preventDefault(); return false;" style="height: 36px; border-radius: 6px; border: 1px solid #dee2e6; font-size: 0.85rem; text-align: center; max-width: 100px;"> 
                                 </div>
                                 <div class="col-md-2">
                                     <label class="form-label fw-semibold mb-1" style="color: #495057; font-size: 0.8rem;">
@@ -3258,8 +3258,8 @@
                                     const pickupZone = field.options[field.selectedIndex];
                                     const dropoffZone = dropoffField.options[dropoffField.selectedIndex];
                                     const vehicle = vehicleSelect.options[vehicleSelect.selectedIndex];
-                                    const adultCount = parseInt(document.getElementById('adult_count')?.value || 0);
-                                    const childCount = parseInt(document.getElementById('child_count')?.value || 0);
+                                    const adultCount = parseInt(document.getElementById('adults')?.value || 0);
+                                    const childCount = parseInt(document.getElementById('children')?.value || 0);
                                     
                                     // Handle total price field for both static and dynamic
                                     let totalPriceField;
@@ -3459,8 +3459,8 @@
                                     const vehicle = vehicleSelect.options[vehicleSelect.selectedIndex];
                                     // For main entry/exit vehicles, get passenger count from the correct field
                                     const passengerField = document.getElementById(`day${day}_${section}_0_passengers`);
-                                    const passengerCount = parseInt(passengerField?.value || document.getElementById('adult_count')?.value || 0);
-                                    const childCount = parseInt(document.getElementById('child_count')?.value || 0);
+                                    const passengerCount = parseInt(passengerField?.value || document.getElementById('adults')?.value || 0);
+                                    const childCount = parseInt(document.getElementById('children')?.value || 0);
                                     // For main entry/exit vehicles, use the correct naming pattern with _0_ index
                                     const totalPrice = parseFloat(document.getElementById(`day${day}_${section}_0_total_price`)?.value || document.getElementById(`day${day}_${section}${fieldSuffix}_total_price`)?.value || 0);
                                     
@@ -4694,6 +4694,37 @@
                         tourFormData.append('enquiry_id', enquiry?enquiry.enquiry_id:0);
                         tourFormData.append('mainguest', JSON.stringify(mainGuestData));
                         tourFormData.append('additionalguest', JSON.stringify(additionalGuests));
+                        
+                        // Get tour_type - use global variable first, then fallback to radio buttons
+                        let tourType = window.selectedTourType || 'FIT';
+                        
+                        // Double-check by reading radio buttons directly
+                        const tourTypeRadio = document.querySelector('input[name="tour_type"]:checked');
+                        if (tourTypeRadio && tourTypeRadio.value) {
+                            tourType = tourTypeRadio.value;
+                            // Update global variable to keep it in sync
+                            window.selectedTourType = tourType;
+                        }
+                        
+                        // Final fallback: check all radio buttons
+                        if (!tourType || tourType === 'FIT') {
+                            const tourTypeRadios = document.querySelectorAll('input[name="tour_type"]');
+                            for (let radio of tourTypeRadios) {
+                                if (radio.checked) {
+                                    tourType = radio.value;
+                                    window.selectedTourType = tourType;
+                                    break;
+                                }
+                            }
+                        }
+                        
+                        console.log('=== TOUR TYPE DEBUG ===');
+                        console.log('Window.selectedTourType:', window.selectedTourType);
+                        console.log('Radio checked value:', tourTypeRadio?.value);
+                        console.log('Final tourType being sent:', tourType);
+                        console.log('All radio buttons:', Array.from(document.querySelectorAll('input[name="tour_type"]')).map(r => ({id: r.id, value: r.value, checked: r.checked})));
+                        
+                        tourFormData.append('tour_type', tourType);
                         
                         // Send AJAX request to create tour
                         try {
@@ -6789,6 +6820,45 @@ function getTourDateForDay(day) {
 }
 
 document.addEventListener('DOMContentLoaded', function() {
+
+    // Store tour_type globally and update it when changed
+    // Initialize with the checked radio button value (FIT by default)
+    const initialTourTypeRadio = document.querySelector('input[name="tour_type"]:checked');
+    window.selectedTourType = initialTourTypeRadio ? initialTourTypeRadio.value : 'FIT';
+    console.log('Initial tour type:', window.selectedTourType);
+    
+    // Ensure tour_type radio buttons are properly checked when labels are clicked
+    const tourTypeLabels = document.querySelectorAll('.tour-toggle label');
+    const tourTypeRadios = document.querySelectorAll('input[name="tour_type"]');
+    
+    // Add click handlers to labels
+    tourTypeLabels.forEach(label => {
+        label.addEventListener('click', function(e) {
+            const radioId = this.getAttribute('for');
+            const radio = document.getElementById(radioId);
+            if (radio) {
+                // Uncheck all radios first
+                tourTypeRadios.forEach(r => r.checked = false);
+                // Check the selected one
+                radio.checked = true;
+                // Update global variable
+                window.selectedTourType = radio.value;
+                // Trigger change event
+                radio.dispatchEvent(new Event('change', { bubbles: true }));
+                console.log('Tour type changed to:', radio.value, 'Stored in window.selectedTourType:', window.selectedTourType);
+            }
+        });
+    });
+    
+    // Also listen to radio button change events directly
+    tourTypeRadios.forEach(radio => {
+        radio.addEventListener('change', function() {
+            if (this.checked) {
+                window.selectedTourType = this.value;
+                console.log('Tour type radio changed to:', this.value, 'Stored in window.selectedTourType:', window.selectedTourType);
+            }
+        });
+    });
 
     // Initialize tour dates and daily services if dates are pre-filled (enquiry scenario)
     const startDateField = document.getElementById('start_date');
@@ -12943,12 +13013,12 @@ document.addEventListener('DOMContentLoaded', function() {
                                                         <i class="ri-group-line me-1 text-primary"></i>Number of Passengers
                                                     </label>
                                                     <div class="input-group shadow-sm">
-                                                        <span class="input-group-text" style="background: linear-gradient(135deg, #3b82f6 0%, #2563eb 100%); color: white; border: 1px solid #3b82f6;">
+                                                        <span class="input-group-text" style="background: linear-gradient(135deg, #3b82f6 0%, #2563eb 100%); color: white; border: 1px solid #3b82f6; height: 42px; font-size: 0.735rem;">
                                                             <i class="ri-user-line"></i>
                                                         </span>
                                                         <input type="number" class="form-control" id="day${day}_entry_0_passengers" name="day${day}_entry_0_passengers" min="1" max="50" value="" 
                                                         oninput="validatePassengerCapacity(${day}, 'entry_0'); updatePricing(${day}, 'entry_0')"
-                                                        onchange="validatePassengerCapacity(${day}, 'entry_0'); updatePricing(${day}, 'entry_0')"
+                                                        onchange="validatePassengerCapacity(${day}, 'entry_0'); updatePricing(${day}, 'entry_0')" onwheel="event.preventDefault(); return false;"
                                                         style="border: 1px solid #e5e7eb; height: 42px; font-size: 0.735rem;">
                                                     </div>
                                                     <small class="form-text text-muted mt-1">
@@ -13218,7 +13288,7 @@ document.addEventListener('DOMContentLoaded', function() {
                                                         <span class="input-group-text" style="height: 42px; font-size: 0.735rem;" style="background: linear-gradient(135deg, #3b82f6 0%, #2563eb 100%); color: white; border: 1px solid #3b82f6;">
                                                             <i class="ri-user-line"></i>
                                                         </span>
-                                                        <input type="number" style="height: 42px; font-size: 0.735rem;" class="form-control" id="day${day}_exit_0_passengers" name="day${day}_exit_0_passengers" min="1" max="50" value="" 
+                                                        <input type="number" onwheel="event.preventDefault(); return false;" style="height: 42px; font-size: 0.735rem;" class="form-control" id="day${day}_exit_0_passengers" name="day${day}_exit_0_passengers" min="1" max="50" value="" 
                                                         oninput="validatePassengerCapacity(${day}, 'exit_0'); updatePricing(${day}, 'exit_0')"
                                                         onchange="validatePassengerCapacity(${day}, 'exit_0'); updatePricing(${day}, 'exit_0')"
                                                         style="border: 1px solid #e5e7eb;">
@@ -13301,7 +13371,7 @@ document.addEventListener('DOMContentLoaded', function() {
                                                         </label>
                                                         <div class="input-group">
                                                             <span class="input-group-text">SGD</span>
-                                                            <input type="number" class="form-control" id="day${day}_exit_0_custom_price" name="day${day}_exit_0_custom_price" min="0" step="0.01" placeholder="Enter custom price" oninput="updateExitPortCustomPricing(${day}, 'exit_0')" onchange="updateExitPortCustomPricing(${day}, 'exit_0')">
+                                                            <input type="number" class="form-control" onwheel="event.preventDefault(); return false;" id="day${day}_exit_0_custom_price" name="day${day}_exit_0_custom_price" min="0" step="0.01" placeholder="Enter custom price" oninput="updateExitPortCustomPricing(${day}, 'exit_0')" onchange="updateExitPortCustomPricing(${day}, 'exit_0')">
                                                             <span class="input-group-text">.00</span>
                                                         </div>
                                                         <small class="form-text text-muted mt-1">
@@ -13500,7 +13570,7 @@ document.addEventListener('DOMContentLoaded', function() {
                                                  <label class="form-label fw-semibold mb-1" style="color: #495057; font-size: 0.8rem;">
                                                      <i class="ri-money-dollar-circle-line me-1"></i>Cost
                                                  </label>
-                                                 <input type="number" class="form-control" style="height: 36px; border-radius: 6px; border: 1px solid #dee2e6; font-size: 0.85rem;" name="day${day}_attraction_1_transfer_cost" id="day${day}_attraction_1_transfer_cost" min="0" step="0.01" placeholder="0.00" onchange="updateAttractionTransportPricing(${day}, 1)" oninput="updateAttractionTransportPricing(${day}, 1)">
+                                                 <input type="number" class="form-control" onwheel="event.preventDefault(); return false;" style="height: 36px; border-radius: 6px; border: 1px solid #dee2e6; font-size: 0.85rem;" name="day${day}_attraction_1_transfer_cost" id="day${day}_attraction_1_transfer_cost" min="0" step="1" placeholder="0.00" onchange="updateAttractionTransportPricing(${day}, 1)" oninput="updateAttractionTransportPricing(${day}, 1)">
                                              </div>
                                          </div>
                                      </div>
@@ -14032,7 +14102,7 @@ document.addEventListener('DOMContentLoaded', function() {
                                                                  <label class="form-label fw-semibold mb-1" style="color: #495057; font-size: 0.8rem;">
                                                                      <i class="ri-money-dollar-circle-line me-1"></i>Transfer Cost
                                                                  </label>
-                                                                 <input type="number" class="form-control" style="height: 36px; border-radius: 6px; border: 1px solid #dee2e6; font-size: 0.8rem; padding: 0.375rem 0.75rem;" name="day${day}_restaurant_1_transfer_cost" id="day${day}_restaurant_1_transfer_cost" min="0" step="0.01" placeholder="0.00" onchange="updateRestaurantTransportPricing(${day}, 1)" oninput="updateRestaurantTransportPricing(${day}, 1)">
+                                                                 <input type="number" class="form-control" onwheel="event.preventDefault(); return false;" style="height: 36px; border-radius: 6px; border: 1px solid #dee2e6; font-size: 0.8rem; padding: 0.375rem 0.75rem;" name="day${day}_restaurant_1_transfer_cost" id="day${day}_restaurant_1_transfer_cost" min="0" step="1" placeholder="0.00" onchange="updateRestaurantTransportPricing(${day}, 1)" oninput="updateRestaurantTransportPricing(${day}, 1)">
                                                              </div>
                                                          </div>
                                                      </div>
@@ -14460,7 +14530,7 @@ document.addEventListener('DOMContentLoaded', function() {
                                                     <label class="form-label fw-semibold">Price <span class="text-danger">*</span></label>
                                                     <div class="input-group">
                                                         <span class="input-group-text" style="height: 42px; font-size: 0.735rem;"><i class="ri-money-dollar-circle-line"></i></span>
-                                                        <input type="number" style="height: 42px; font-size: 0.735rem;" class="form-control" id="day${day}_transport_custom_price" name="day${day}_transport_custom_price" min="0" step="0.01" placeholder="Enter custom price" oninput="updatePricing(${day}, 'transport')" onchange="updatePricing(${day}, 'transport')">
+                                                        <input type="number" onwheel="event.preventDefault(); return false;" style="height: 42px; font-size: 0.735rem;" class="form-control" id="day${day}_transport_custom_price" name="day${day}_transport_custom_price" min="0" step="1" placeholder="Enter custom price" oninput="updatePricing(${day}, 'transport')" onchange="updatePricing(${day}, 'transport')">
                                                     </div>
                                                     <small class="form-text text-muted">
                                                         Enter the custom price for this point-to-point service
@@ -18130,7 +18200,7 @@ document.addEventListener('DOMContentLoaded', function() {
                                     </label>
                                     <div class="input-group">
                                         <span class="input-group-text">SGD</span>
-                                        <input type="number" class="form-control" id="day${day}_transport_${newIndex}_custom_price" name="day${day}_transport_${newIndex}_custom_price" min="0" step="0.01" placeholder="Enter custom price" oninput="updateCustomPricing(${day}, 'transport_${newIndex}')" onchange="updateCustomPricing(${day}, 'transport_${newIndex}')">
+                                        <input type="number" onwheel="event.preventDefault(); return false;" class="form-control" id="day${day}_transport_${newIndex}_custom_price" name="day${day}_transport_${newIndex}_custom_price" min="0" step="1" placeholder="Enter custom price" oninput="updateCustomPricing(${day}, 'transport_${newIndex}')" onchange="updateCustomPricing(${day}, 'transport_${newIndex}')">
                                         <span class="input-group-text">.00</span>
                                     </div>
                                     <small class="form-text text-muted">
@@ -18804,7 +18874,7 @@ document.addEventListener('DOMContentLoaded', function() {
                             </label>
                             <div class="input-group" >
     
-                                <input type="number" class="form-control" id="day${day}_entry_${newIndex}_passengers" name="day${day}_entry_${newIndex}_passengers" min="1" max="999" oninput="if(this.value.length > 3) this.value = this.value.slice(0,3);" value="" onchange="validatePassengerCapacity(${day}, 'entry_${newIndex}'); updatePricing(${day}, 'entry_${newIndex}')" style="height: 36px; border-radius: 0 6px 6px 0; border: 1px solid #dee2e6; font-size: 0.85rem; text-align: start; max-width: 200px ">
+                                <input type="number" class="form-control" id="day${day}_entry_${newIndex}_passengers" name="day${day}_entry_${newIndex}_passengers" min="1" max="999" oninput="if(this.value.length > 3) this.value = this.value.slice(0,3);" value="" onchange="validatePassengerCapacity(${day}, 'entry_${newIndex}'); updatePricing(${day}, 'entry_${newIndex}')" onwheel="event.preventDefault(); return false;" style="height: 36px; border-radius: 0 6px 6px 0; border: 1px solid #dee2e6; font-size: 0.85rem; text-align: start; max-width: 200px ">
                             </div>
                             <small class="form-text text-muted" style="font-size: 0.75rem; margin-top: 0.25rem;">
                                 Max 3 digits
@@ -19129,7 +19199,7 @@ document.addEventListener('DOMContentLoaded', function() {
                                 <label class="form-label fw-semibold">Number of Passengers</label>
                                 <div class="input-group">
                                     <span class="input-group-text"><i class="ri-user-line"></i></span>
-                                    <input type="number" class="form-control" id="day${day}_exit_${newIndex}_passengers" name="day${day}_exit_${newIndex}_passengers" min="1" max="50" value="" onchange="validatePassengerCapacity(${day}, 'exit_${newIndex}'); updatePricing(${day}, 'exit_${newIndex}')">
+                                    <input type="number" class="form-control" onwheel="event.preventDefault(); return false;" id="day${day}_exit_${newIndex}_passengers" name="day${day}_exit_${newIndex}_passengers" min="1" max="50" value="" onchange="validatePassengerCapacity(${day}, 'exit_${newIndex}'); updatePricing(${day}, 'exit_${newIndex}')">
                                 </div>
                                 <small class="form-text text-muted">
                                     Enter number of passengers for this service
@@ -19207,7 +19277,7 @@ document.addEventListener('DOMContentLoaded', function() {
                                         </label>
                                         <div class="input-group">
                                             <span class="input-group-text">SGD</span>
-                                            <input type="number" class="form-control" id="day${day}_exit_${newIndex}_custom_price" name="day${day}_exit_${newIndex}_custom_price" min="0" step="0.01" placeholder="Enter custom price" oninput="updateExitPortCustomPricing(${day}, 'exit_${newIndex}')" onchange="updateExitPortCustomPricing(${day}, 'exit_${newIndex}')">
+                                            <input type="number" class="form-control" onwheel="event.preventDefault(); return false;" id="day${day}_exit_${newIndex}_custom_price" name="day${day}_exit_${newIndex}_custom_price" min="0" step="0.01" placeholder="Enter custom price" oninput="updateExitPortCustomPricing(${day}, 'exit_${newIndex}')" onchange="updateExitPortCustomPricing(${day}, 'exit_${newIndex}')">
                                             <span class="input-group-text">.00</span>
                                         </div>
                                         <small class="form-text text-muted mt-1">
