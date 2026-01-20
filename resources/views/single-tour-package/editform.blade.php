@@ -8147,10 +8147,11 @@
             vehicles.forEach(vehicle => {
                 const sharable = parseInt(vehicle.sharable || vehicle.sharable_option || '0', 10);
                 const option = $('<option></option>');
-                option.val(vehicle.vehicle_name || vehicle.vehicle_id);
+                option.val(vehicle.vehicle_id || '');
                 option.text(`${vehicle.vehicle_name || vehicle.vehicle_id}${vehicle.vehicle_type ? ' (' + vehicle.vehicle_type + ')' : ''}${vehicle.seating_capacity ? ' - ' + vehicle.seating_capacity + ' seats' : ''}`);
                 option.attr('data-seating-capacity', vehicle.seating_capacity || '');
                 option.attr('data-vehicle-id', vehicle.vehicle_id || '');
+                option.attr('data-vehicle-name', vehicle.vehicle_name || '');
                 option.attr('data-private-price', vehicle.private_price || vehicle.base_price || '0');
                 option.attr('data-shared-price', vehicle.shared_price || vehicle.sharable_base_price || '0');
                 option.attr('data-sharable', sharable);
@@ -17293,15 +17294,17 @@
             // Get vehicle details from selected option
             const vehicleSelect = document.getElementById('modal_restaurant_transport_vehicle');
             let vehicleId = '';
+            let vehicleName = '';
             let vehicleDetails = {};
             if (vehicleSelect && vehicleSelect.selectedIndex > 0) {
                 const selectedOption = vehicleSelect.options[vehicleSelect.selectedIndex];
-                vehicleId = selectedOption.value || '';
+                vehicleId = selectedOption.dataset.vehicleId || selectedOption.value || '';
+                vehicleName = selectedOption.dataset.vehicleName || selectedOption.text || '';
                 const seatingCapacity = selectedOption.dataset.seatingCapacity || '';
                 
                 vehicleDetails = {
                     vehicle_id: vehicleId,
-                    vehicle_name: vehicleId,
+                    vehicle_name: vehicleName,
                     vehicle_type: '',
                     seating_capacity: seatingCapacity || '',
                     private_price: '0.00',

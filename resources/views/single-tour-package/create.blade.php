@@ -4695,6 +4695,37 @@
                         tourFormData.append('mainguest', JSON.stringify(mainGuestData));
                         tourFormData.append('additionalguest', JSON.stringify(additionalGuests));
                         
+                        // Get tour_type - use global variable first, then fallback to radio buttons
+                        let tourType = window.selectedTourType || 'FIT';
+                        
+                        // Double-check by reading radio buttons directly
+                        const tourTypeRadio = document.querySelector('input[name="tour_type"]:checked');
+                        if (tourTypeRadio && tourTypeRadio.value) {
+                            tourType = tourTypeRadio.value;
+                            // Update global variable to keep it in sync
+                            window.selectedTourType = tourType;
+                        }
+                        
+                        // Final fallback: check all radio buttons
+                        if (!tourType || tourType === 'FIT') {
+                            const tourTypeRadios = document.querySelectorAll('input[name="tour_type"]');
+                            for (let radio of tourTypeRadios) {
+                                if (radio.checked) {
+                                    tourType = radio.value;
+                                    window.selectedTourType = tourType;
+                                    break;
+                                }
+                            }
+                        }
+                        
+                        console.log('=== TOUR TYPE DEBUG ===');
+                        console.log('Window.selectedTourType:', window.selectedTourType);
+                        console.log('Radio checked value:', tourTypeRadio?.value);
+                        console.log('Final tourType being sent:', tourType);
+                        console.log('All radio buttons:', Array.from(document.querySelectorAll('input[name="tour_type"]')).map(r => ({id: r.id, value: r.value, checked: r.checked})));
+                        
+                        tourFormData.append('tour_type', tourType);
+                        
                         // Send AJAX request to create tour
                         try {
                             const tourResponse = await fetch('{{ route('single-tour-package.store') }}', {
@@ -6789,6 +6820,45 @@ function getTourDateForDay(day) {
 }
 
 document.addEventListener('DOMContentLoaded', function() {
+
+    // Store tour_type globally and update it when changed
+    // Initialize with the checked radio button value (FIT by default)
+    const initialTourTypeRadio = document.querySelector('input[name="tour_type"]:checked');
+    window.selectedTourType = initialTourTypeRadio ? initialTourTypeRadio.value : 'FIT';
+    console.log('Initial tour type:', window.selectedTourType);
+    
+    // Ensure tour_type radio buttons are properly checked when labels are clicked
+    const tourTypeLabels = document.querySelectorAll('.tour-toggle label');
+    const tourTypeRadios = document.querySelectorAll('input[name="tour_type"]');
+    
+    // Add click handlers to labels
+    tourTypeLabels.forEach(label => {
+        label.addEventListener('click', function(e) {
+            const radioId = this.getAttribute('for');
+            const radio = document.getElementById(radioId);
+            if (radio) {
+                // Uncheck all radios first
+                tourTypeRadios.forEach(r => r.checked = false);
+                // Check the selected one
+                radio.checked = true;
+                // Update global variable
+                window.selectedTourType = radio.value;
+                // Trigger change event
+                radio.dispatchEvent(new Event('change', { bubbles: true }));
+                console.log('Tour type changed to:', radio.value, 'Stored in window.selectedTourType:', window.selectedTourType);
+            }
+        });
+    });
+    
+    // Also listen to radio button change events directly
+    tourTypeRadios.forEach(radio => {
+        radio.addEventListener('change', function() {
+            if (this.checked) {
+                window.selectedTourType = this.value;
+                console.log('Tour type radio changed to:', this.value, 'Stored in window.selectedTourType:', window.selectedTourType);
+            }
+        });
+    });
 
     // Initialize tour dates and daily services if dates are pre-filled (enquiry scenario)
     const startDateField = document.getElementById('start_date');
