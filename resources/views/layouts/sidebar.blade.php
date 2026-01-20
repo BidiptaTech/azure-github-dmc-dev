@@ -853,7 +853,7 @@
 
         @if(in_array(auth()->user()->role_id, [33, 37, 38, 128, 129, 130, 134, 135, 136, 138]))
             <li class="menu-item @if(Request::is('enquiry-form-pro/create')) active @endif" style="position: relative;">
-                <a href="{{ route('enquiry-form-pro.create') }}" class="menu-link">
+                <a href="{{ route('enquiry-form-pro.create') }}" class="menu-link" id="createSingleTourProBtn">
                     <i class="menu-icon tf-icons ri-file-list-3-line"></i>
                     <div data-i18n="Create Tour">Create Tour</div>
                     <span class="badge-pro">Pro</span>
@@ -1081,7 +1081,7 @@
                     <span class="menu-header-text" data-i18n="All Products">All Products</span>
                 </li>
 
-            <li class="menu-item @if(Request::is('packages*') || Request::is('packaged-attractions*') || Request::is('hotels*') || Request::is('attraction*') || Request::is('restaurant*') || Request::is('guide*') || Request::is('vehicle*') || Request::is('driver*') || Request::is('category*') || Request::is('facility*') || Request::is('ports*') || Request::is('single-tour-package*') || Request::is('zones*')) open active @endif">
+            <li class="menu-item @if(Request::is('packages*') || Request::is('packaged-attractions*') || Request::is('hotels*') || Request::is('attraction*') || Request::is('restaurant*') || Request::is('guide*') || Request::is('vehicle*') || Request::is('driver*') || Request::is('category*') || Request::is('facility*') || Request::is('ports*') || Request::is('single-tour-package*') || Request::is('zones*') || Request::is('default-values*')) open active @endif">
                 <a href="#" class="menu-link menu-toggle">
                     <i class="menu-icon tf-icons ri-stack-line" style="color: #3565bd"></i>
                     <div data-i18n="All Products">All Products</div>
@@ -1339,7 +1339,7 @@
                 <!-- Product Configuration -->
             
                 @if(hasPermission('view facility') || hasPermission('view category') || Auth::user()->role_id == 11 || Auth::user()->role_id == 35 || Auth::user()->role_id == 76 || Auth::user()->role_id == 111 || Auth::user()->role_id == 139 || Auth::user()->role_id == 140 || Auth::user()->role_id == 130 || Auth::user()->role_id == 132 || Auth::user()->role_id == 133 || Auth::user()->role_id == 135 || Auth::user()->role_id == 136 || Auth::user()->role_id == 137 || Auth::user()->role_id == 138)
-                <li class="menu-item @if(Request::is('category*') || Request::is('facility*') || Request::is('zones*') || Request::is('ports*') || Request::is('miscellaneous*')) open @endif">
+                <li class="menu-item @if(Request::is('category*') || Request::is('facility*') || Request::is('zones*') || Request::is('default-values*') || Request::is('ports*') || Request::is('miscellaneous*')) open @endif">
                     <a href="#" class="menu-link menu-toggle" title="Product Configuration">
                         {{-- <i class="menu-icon tf-icons ri-function-line"></i> --}}
                         <div data-i18n="Product Configuration">Product Configuration</div>
@@ -1397,6 +1397,16 @@
                                 <div data-i18n="Zones" class="menu-tooltip">
                                     <span class="menu-text-with-tooltip">Zones</span>
                                     <span class="tooltip-text">Zones</span>
+                                </div>
+                            </a>
+                        </li>
+
+                    <!-- Default Value (same permissions as Zones) -->
+                    <li class="menu-item @if(Request::is('default-values') || Request::is('default-values/*')) active @endif">
+                        <a href="{{ route('default-values.index') }}" class="menu-link" title="Default Value">
+                                <div data-i18n="Default Value" class="menu-tooltip">
+                                    <span class="menu-text-with-tooltip">Default Value</span>
+                                    <span class="tooltip-text">Default Value</span>
                                 </div>
                             </a>
                         </li>

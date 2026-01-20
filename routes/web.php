@@ -48,6 +48,7 @@ use App\Http\Controllers\SpecialDiscountController;
 use App\Http\Controllers\TicketController;
 use App\Http\Controllers\PortController;
 use App\Http\Controllers\ZoneController;
+use App\Http\Controllers\DefaultValueController;
 use App\Http\Controllers\JobSheetController;
 use App\Http\Controllers\MailController;
 use App\Http\Controllers\DashboardController;
@@ -370,6 +371,10 @@ Route::get('/clear', function () {
         Route::post('/package-booking/{booking_id}/process-refund', [PackageController::class, 'processRefund'])->name('package.process-refund');
 
         Route::resource('zones', ZoneController::class);
+        
+        // Default Value Routes (DMC Product Configuration)
+        Route::resource('default-values', DefaultValueController::class);
+        Route::get('/default-values/get-services', [DefaultValueController::class, 'getServices'])->name('default-values.get-services');
         
         // Tax Management Routes (DMC Only)
         Route::get('/tax', [TaxController::class, 'index'])->name('tax.index');
