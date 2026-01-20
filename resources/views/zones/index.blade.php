@@ -85,7 +85,7 @@
                                     @endif
                                 </button>
                                 <!-- Checkbox Modal -->
-                                <div class="modal fade" id="checkboxModal-{{ $zone->zone_id }}" tabindex="-1" aria-labelledby="checkboxModalLabel-{{ $zone->zone_id }}" aria-hidden="true">
+                                <div class="modal fade" id="checkboxModal-{{ $zone->zone_id }}" tabindex="-1" aria-labelledby="checkboxModalLabel-{{ $zone->zone_id }}" aria-hidden="true" data-bs-backdrop="true">
                                     <div class="modal-dialog modal-dialog-centered" style="max-width: 600px; width: 95%;">
                                         <div class="modal-content border-0 shadow-lg" style="border-radius: 10px; overflow: hidden;">
                                             <div class="modal-header bg-primary p-4 position-relative" style="background: linear-gradient(135deg, #6f42c1, #007bff) !important;">
@@ -112,7 +112,7 @@
                                                     </div>
                                                 </div>
                                                 <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close" 
-                                                        style="position: absolute; top: 15px; right: 15px;"></button>
+                                                        style="position: absolute; top: 15px; right: 15px; z-index: 1;"></button>
                                             </div>
                                             <form action="{{ route('zones.settings', $zone->zone_id) }}" method="POST">
                                                 @csrf
@@ -360,21 +360,89 @@
 @push('scripts')
 <script>
 document.addEventListener('DOMContentLoaded', function() {
-    // Initialize all modals
-    const modalTriggers = document.querySelectorAll('[data-bs-toggle="modal"]');
+    // Handle all modals properly to fix aria-hidden and display issues
+    const modalElements = document.querySelectorAll('.modal');
     
-    modalTriggers.forEach(trigger => {
-        trigger.addEventListener('click', function(e) {
-            e.preventDefault();
-            const targetId = this.getAttribute('data-bs-target');
-            const targetModal = document.querySelector(targetId);
+    modalElements.forEach(function(modalElement) {
+        // Fix aria-hidden issue on show
+        modalElement.addEventListener('show.bs.modal', function() {
+            // Remove aria-hidden before showing
+            this.removeAttribute('aria-hidden');
+            this.setAttribute('aria-modal', 'true');
+        });
+        
+        // Proper cleanup on hide
+        modalElement.addEventListener('hidden.bs.modal', function() {
+            const modalId = this.id;
             
-            if (targetModal) {
-                const modal = new bootstrap.Modal(targetModal);
-                modal.show();
-            } else {
-                console.error('Modal not found:', targetId);
+            // Ensure modal is properly hidden
+            this.setAttribute('aria-hidden', 'true');
+            this.removeAttribute('aria-modal');
+            this.style.display = 'none';
+            this.classList.remove('show');
+            
+            // Clean up backdrop - remove all backdrops
+            const backdrops = document.querySelectorAll('.modal-backdrop');
+            backdrops.forEach(function(backdrop) {
+                backdrop.remove();
+            });
+            
+            // Remove modal-open class from body if no other modals are open
+            if (!document.querySelector('.modal.show')) {
+                document.body.classList.remove('modal-open');
+                document.body.style.overflow = '';
+                document.body.style.paddingRight = '';
             }
+            
+            // Move focus back to trigger button if it exists
+            const triggerButton = document.querySelector('[data-bs-target="#' + modalId + '"]');
+            if (triggerButton) {
+                setTimeout(function() {
+                    triggerButton.focus();
+                }, 100);
+            }
+        });
+        
+        // Handle close button focus issue - move focus before modal closes
+        const closeButtons = modalElement.querySelectorAll('[data-bs-dismiss="modal"]');
+        closeButtons.forEach(function(closeBtn) {
+            closeBtn.addEventListener('click', function(e) {
+                // Move focus away immediately to prevent aria-hidden warning
+                const modalId = modalElement.id;
+                const triggerButton = document.querySelector('[data-bs-target="#' + modalId + '"]');
+                
+                // Blur the close button first
+                this.blur();
+                
+                // Then move focus to trigger button
+                if (triggerButton) {
+                    setTimeout(function() {
+                        triggerButton.focus();
+                    }, 0);
+                } else {
+                    // Fallback: focus on body to remove focus from close button
+                    document.body.focus();
+                }
+            });
+        });
+        
+        // Handle ESC key to prevent focus issues
+        modalElement.addEventListener('keydown', function(e) {
+            if (e.key === 'Escape') {
+                const modalId = this.id;
+                const triggerButton = document.querySelector('[data-bs-target="#' + modalId + '"]');
+                if (triggerButton) {
+                    setTimeout(function() {
+                        triggerButton.focus();
+                    }, 100);
+                }
+            }
+        });
+        
+        // Additional cleanup on hidePrevented
+        modalElement.addEventListener('hidePrevented.bs.modal', function() {
+            // If hide is prevented, ensure aria-hidden is not set
+            this.removeAttribute('aria-hidden');
         });
     });
 });

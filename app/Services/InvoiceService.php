@@ -544,7 +544,11 @@ class InvoiceService
                     continue;
                 }
 
-                $totalPrice = $booking['totalPrice'] ?? 0;
+                // Calculate total price based on service type
+                $totalPrice = $booking['totalPrice'] ?? $booking['price'] ?? 0;
+                
+                // For attractions and restaurants, the create methods will calculate the grand total
+                // So we pass the base price, but the method will add transfer/guide costs
                 
                 switch ($order->type) {
                     case 'hotel':
@@ -703,6 +707,12 @@ class InvoiceService
         $guideRequired = $guideOptions['guide_required'] ?? false;
         $guideName = $guideOptions['guide_name'] ?? '';
         
+        // Calculate prices
+        $attractionBasePrice = $booking['price'] ?? $booking['totalPrice'] ?? 0;
+        $transferCost = isset($transferOptions['cost']) && $transferOptions['cost'] > 0 ? (float) $transferOptions['cost'] : 0;
+        $guideTotalPrice = isset($guideOptions['total_price']) && $guideOptions['total_price'] > 0 ? (float) $guideOptions['total_price'] : 0;
+        $grandTotal = $attractionBasePrice + $transferCost + $guideTotalPrice;
+        
         // Calculate total pax
         $totalPax = ($booking['adultCount'] ?? 0) + ($booking['childCount'] ?? 0) + ($booking['seniorCount'] ?? 0) + ($booking['infantCount'] ?? 0);
         
@@ -720,6 +730,7 @@ class InvoiceService
                 'transfer_required' => $transferRequired ? 'Yes' : 'No',
                 'transfer_way' => $transferWay,
                 'transfer_type' => $transferType,
+                'transfer_cost' => $transferCost,
                 'vehicle_name' => $vehicleName,
                 'vehicle_type' => $vehicleType,
                 'vehicle_seating_capacity' => $vehicleSeatingCapacity,
@@ -727,14 +738,16 @@ class InvoiceService
                 'vehicle_details' => $vehicleDetailsStr,
                 'guide_required' => $guideRequired,
                 'guide_name' => $guideName,
+                'guide_total_price' => $guideTotalPrice,
+                'attraction_base_price' => $attractionBasePrice,
                 'total_pax' => $totalPax,
             ],
             'quantity_adults' => $booking['adultCount'] ?? 0,
             'quantity_children' => $booking['childCount'] ?? 0,
             'quantity_infants' => $booking['infantCount'] ?? 0,
             'quantity_seniors' => $booking['seniorCount'] ?? 0,
-            'unit_price' => $totalPrice,
-            'total_price' => $totalPrice,
+            'unit_price' => $grandTotal,
+            'total_price' => $grandTotal,
             'display_order' => $displayOrder,
         ];
     }
@@ -771,6 +784,11 @@ class InvoiceService
             $vehicleDetailsStr = $vehicleName;
         }
         
+        // Calculate prices
+        $restaurantBasePrice = $booking['mealPrice'] ?? $booking['totalPrice'] ?? 0;
+        $transferCost = isset($transferOptions['cost']) && $transferOptions['cost'] > 0 ? (float) $transferOptions['cost'] : 0;
+        $grandTotal = $restaurantBasePrice + $transferCost;
+        
         $description = $restaurantName . ($mealType ? ' - ' . $mealType : '') . ($mealSpecificType ? ' (' . $mealSpecificType . ')' : '');
 
         return [
@@ -785,19 +803,21 @@ class InvoiceService
                 'transfer_required' => $transferRequired ? 'Yes' : 'No',
                 'transfer_way' => $transferWay,
                 'transfer_type' => $transferType,
+                'transfer_cost' => $transferCost,
                 'vehicle_name' => $vehicleName,
                 'vehicle_type' => $vehicleType,
                 'vehicle_seating_capacity' => $vehicleSeatingCapacity,
                 'vehicle_private_price' => $vehiclePrivatePrice,
                 'vehicle_details' => $vehicleDetailsStr,
+                'restaurant_base_price' => $restaurantBasePrice,
                 'adult_count' => $booking['adultCount'] ?? 0,
                 'child_count' => $booking['childCount'] ?? 0,
             ],
             'quantity_adults' => $booking['adultCount'] ?? 0,
             'quantity_children' => $booking['childCount'] ?? 0,
             'quantity_infants' => $booking['infantCount'] ?? 0,
-            'unit_price' => $totalPrice,
-            'total_price' => $totalPrice,
+            'unit_price' => $grandTotal,
+            'total_price' => $grandTotal,
             'display_order' => $displayOrder,
         ];
     }
@@ -1198,6 +1218,7 @@ class InvoiceService
 
     /**
      * Sum total price from Orders JSON for a tour (covers all service types)
+     * Includes transfer and guide prices for attractions, transfer prices for restaurants
      */
     private function getOrdersTotalForTour($tourId): float
     {
@@ -1210,7 +1231,35 @@ class InvoiceService
             }
             $bookings = (isset($orderData[0]) && is_array($orderData[0])) ? $orderData : [$orderData];
             foreach ($bookings as $booking) {
-                $sum += (float)($booking['totalPrice'] ?? 0);
+                $basePrice = (float)($booking['totalPrice'] ?? $booking['price'] ?? 0);
+                
+                // For attractions: add transfer and guide prices
+                if ($order->type === 'attraction') {
+                    $transferCost = 0;
+                    if (isset($booking['transfer_options']['cost']) && $booking['transfer_options']['cost'] > 0) {
+                        $transferCost = (float) $booking['transfer_options']['cost'];
+                    }
+                    
+                    $guideTotalPrice = 0;
+                    if (isset($booking['guide_options']['total_price']) && $booking['guide_options']['total_price'] > 0) {
+                        $guideTotalPrice = (float) $booking['guide_options']['total_price'];
+                    }
+                    
+                    $sum += $basePrice + $transferCost + $guideTotalPrice;
+                }
+                // For restaurants: add transfer price
+                elseif ($order->type === 'restaurant') {
+                    $transferCost = 0;
+                    if (isset($booking['transfer_options']['cost']) && $booking['transfer_options']['cost'] > 0) {
+                        $transferCost = (float) $booking['transfer_options']['cost'];
+                    }
+                    
+                    $sum += $basePrice + $transferCost;
+                }
+                // For other services: use base price
+                else {
+                    $sum += $basePrice;
+                }
             }
         }
         return $sum;

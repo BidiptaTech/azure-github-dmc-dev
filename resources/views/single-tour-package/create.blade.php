@@ -308,7 +308,7 @@
         - Pricing is calculated based on DMC-specific room prices
         - All services include DMC tracking information
     --}}
-<div class="content-wrapper">
+    <div class="content-wrapper">
     <div class="container-xxl flex-grow-1 container-p-y">
         
         <!-- Header Section -->
@@ -327,22 +327,6 @@
                                 </div>
                             </div>
 
-                            <div class="tour-type-wrapper mt-3 mt-md-0" style="min-width: 200px;">
-                                <label class="form-label fw-semibold text-white mb-2 d-block" style="font-size: 0.875rem; opacity: 0.9;">
-                                    <i class="ri-group-line me-1"></i> Tour Type
-                                </label>
-                            
-                                <div class="tour-toggle">
-                                    <input type="radio" name="tour_type" id="fit" value="FIT" checked>
-                                    <label for="fit">FIT</label>
-                            
-                                    <input type="radio" name="tour_type" id="group" value="GROUP">
-                                    <label for="group">GROUP</label>
-                            
-                                    <span class="slider"></span>
-                                </div>
-                            </div>
-                            
                         </div>
                         
                     </div>
@@ -362,10 +346,24 @@
                 <div class="col-12">
                     <div class="card shadow-sm border-0" style="background: #ffffff; border-radius: 12px; overflow: hidden;">
                         <div class="card-header text-white" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); border: none; padding: 1.25rem 1.75rem;">
-                            <h6 class="mb-0 fw-bold d-flex align-items-center text-white" style="font-size: 1.1rem; letter-spacing: -0.01em; color: #ffffff !important;">
-                                <i class="ri-settings-3-line me-2 fs-5 text-white" style="color: #ffffff !important;"></i>
-                                <span style="color: #ffffff !important;">Tour Package Configuration</span>
-                            </h6>
+                            <div class="d-flex align-items-center justify-content-between flex-wrap">
+                                <h6 class="mb-0 fw-bold d-flex align-items-center text-white" style="font-size: 1.1rem; letter-spacing: -0.01em; color: #ffffff !important;">
+                                    <i class="ri-settings-3-line me-2 fs-5 text-white" style="color: #ffffff !important;"></i>
+                                    <span style="color: #ffffff !important;">Tour Package Configuration</span>
+                                </h6>
+                                
+                                <div class="tour-type-wrapper mt-2 mt-md-0" style="min-width: 200px;">
+                                    <div class="tour-toggle">
+                                        <input type="radio" name="tour_type" id="fit" value="FIT" checked>
+                                        <label for="fit">FIT</label>
+                                
+                                        <input type="radio" name="tour_type" id="group" value="GROUP">
+                                        <label for="group">GROUP</label>
+                                
+                                        <span class="slider"></span>
+                                    </div>
+                                </div>
+                            </div>
                         </div>
                         <div class="card-body" style="background: #ffffff; padding: 1.75rem;">
                             <div class="row g-3">
@@ -546,7 +544,7 @@
                                     <select class="form-select" id="bedTypeSelect" style="height: 36px; border-radius: 6px; border: 1px solid #dee2e6; font-size: 0.85rem;">
                                         <option value="">Bed Type</option>
                                     </select>
-                                    <div id="bedPriceDisplay" class="text-success small mt-1" style="display: none; font-size: 0.75rem;">
+                                    <div id="bedPriceDisplay" class="text-success small mt-1" style="display: none; font-size: 0.75rem;flex-wrap: nowrap;">
                                         Price: <span class="fw-bold">$0.00</span>
                                     </div>
                                 </div>
@@ -575,15 +573,15 @@
                                     <label class="form-label fw-semibold mb-1" style="color: #495057; font-size: 0.8rem;">
                                         <i class="ri-hotel-bed-2-line me-1"></i>Number of Rooms
                                     </label>
-                                    <input type="number" class="form-control" id="numberOfRooms" value="1" min="1" max="999" oninput="if(this.value.length > 3) this.value = this.value.slice(0,3);" style="height: 36px; border-radius: 6px; border: 1px solid #dee2e6; font-size: 0.85rem; text-align: center; max-width: 100px;"> 
+                                    <input type="number" class="form-control" id="numberOfRooms" value="1" min="1" max="999" oninput="if(this.value.length > 3) this.value = this.value.slice(0,3);" onwheel="event.preventDefault(); return false;" style="height: 36px; border-radius: 6px; border: 1px solid #dee2e6; font-size: 0.85rem; text-align: center; max-width: 100px;"> 
                                 </div>
                                 <div class="col-md-2">
                                     <label class="form-label fw-semibold mb-1" style="color: #495057; font-size: 0.8rem;">
                                         <i class="ri-money-dollar-circle-line me-1"></i>Price
                                     </label>
-                                    <div class="input-group" style="max-width: 180px;">
-                                        <span class="input-group-text" style="background-color: #f8f9fa; font-size: 0.75rem; height: 36px; border: 1px solid #dee2e6; border-right: none; border-radius: 6px 0 0 6px; padding: 0.375rem 0.5rem; width: 45px;">SGD</span>
-                                        <input type="text" class="form-control" id="roomPriceDisplay" value="0.00" style="height: 36px; border-radius: 0 6px 6px 0; border: 1px solid #dee2e6; border-left: none; background-color: #f8f9fa; color: #198754; font-size: 0.8rem; font-weight: 500; text-align: right; padding: 0.375rem 0.5rem; width: 135px;"> 
+                                    <div class="input-group" style="max-width: 180px; flex-wrap: nowrap;">
+                                        <span class="input-group-text" style="background-color: #f8f9fa; font-size: 0.75rem; height: 36px; border: 1px solid #dee2e6; border-right: none; border-radius: 6px 0 0 6px; padding: 0.375rem 0.5rem;">SGD</span>
+                                        <input type="text" class="form-control" id="roomPriceDisplay" value="0.00" style="height: 36px; border-radius: 0 6px 6px 0; border: 1px solid #dee2e6; border-left: none; background-color: #f8f9fa; color: #198754; font-size: 0.8rem; font-weight: 500; text-align: right; padding: 0.375rem 0.5rem;"> 
                                     </div>
                                 </div>
                             </div>
@@ -832,51 +830,98 @@
             <input type="hidden" id="exit_port_data" name="exit_port_data" value="">
 
             <!-- Customer Information Section -->
-            <div class="row mb-4">
-                <div class="col-12">
+            <div class="accordion mb-4" id="customerAccordion">
+                <div class="accordion-item border-0">
                     <div class="card shadow-sm border-0">
-                        <div class="card-header bg-gradient-primary text-white">
-                            <h6 class="mb-0 fw-bold">
-                                <i class="ri-user-line me-2"></i>Customer Information
-                            </h6>
+                        <div class="card-header text-white d-flex justify-content-between align-items-center" role="button" data-bs-toggle="collapse" data-bs-target="#customerInformationSection" aria-expanded="false" aria-controls="customerInformationSection" style="cursor: pointer; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); border: none; padding: 1.25rem 1.75rem;">
+                            <div class="d-flex align-items-center">
+                                <div style="width: 40px; height: 40px; background: rgba(255, 255, 255, 0.2); border-radius: 10px; display: flex; align-items: center; justify-content: center; margin-right: 12px;">
+                                    <i class="ri-user-line fs-5 text-white" style="color: #ffffff !important;"></i>
+                                </div>
+                                <div>
+                                    <h6 class="mb-0 fw-bold text-white" style="color: #ffffff !important; font-size: 1.1rem;">Lead Guest information</h6>
+                                    <small class="text-white-75" style="color: rgba(255, 255, 255, 0.85) !important; font-size: 0.85rem;">Manage customer details and contact information</small>
+                                </div>
+                            </div>
+                            <i class="ri-arrow-down-s-line ms-2 fs-5 text-white" style="color: #ffffff !important;"></i>
                         </div>
-                        <div class="card-body">
-                            <div class="row g-3">
-                                <div class="col-md-6">
-                                    <label class="form-label">Full Name</label>
-                                    <input type="text" class="form-control" id="customerFullName" name="customer_full_name" placeholder="Enter full name" >
+                        <div id="customerInformationSection" class="collapse">
+                            <div class="card-body" style="background: #ffffff; padding: 0.75rem 1rem;">
+                                <div class="row g-2">
+                                    <div class="col-md-3">
+                                        <label class="form-label mb-1" style="font-size: 0.8rem;">Full Name</label>
+                                        <input type="text" class="form-control form-control-sm" id="customerFullName" name="customer_full_name" placeholder="Enter full name" style="font-size: 0.85rem;">
+                                    </div>
+                                    <div class="col-md-3">
+                                        <label class="form-label mb-1" style="font-size: 0.8rem;">Email</label>
+                                        <input type="email" class="form-control form-control-sm" id="customerEmail" name="customer_email" placeholder="Enter email" style="font-size: 0.85rem;">
+                                    </div>
+                                    <div class="col-md-2">
+                                        <label class="form-label mb-1" style="font-size: 0.8rem;">Country Code</label>
+                                        <input type="number" class="form-control form-control-sm" id="customerCountryCode" name="customer_country_code" placeholder="e.g. +91" style="font-size: 0.85rem;">
+                                    </div>
+                                    <div class="col-md-4">
+                                        <label class="form-label mb-1" style="font-size: 0.8rem;">Phone Number</label>
+                                        <input type="number" class="form-control form-control-sm" id="customerPhone" name="customer_phone" placeholder="Enter phone number" style="font-size: 0.85rem;">
+                                    </div>
+                                    <div class="col-md-3">
+                                        <label class="form-label mb-1" style="font-size: 0.8rem;">Address Line 1</label>
+                                        <input type="text" class="form-control form-control-sm" id="customerAddress1" name="customer_address1" placeholder="Enter address line 1" style="font-size: 0.85rem;">
+                                    </div>
+                                    <div class="col-md-3">
+                                        <label class="form-label mb-1" style="font-size: 0.8rem;">Address Line 2</label>
+                                        <input type="text" class="form-control form-control-sm" id="customerAddress2" name="customer_address2" placeholder="Enter address line 2" style="font-size: 0.85rem;">
+                                    </div>
+                                    <div class="col-md-3">
+                                        <label class="form-label mb-1" style="font-size: 0.8rem;">State</label>
+                                        <input type="text" class="form-control form-control-sm" id="customerState" name="customer_state" placeholder="Enter state" style="font-size: 0.85rem;">
+                                    </div>
+                                    <div class="col-md-3">
+                                        <label class="form-label mb-1" style="font-size: 0.8rem;">ZIP Code</label>
+                                        <input type="number" class="form-control form-control-sm" id="customerZip" name="customer_zip" placeholder="Enter ZIP code" style="font-size: 0.85rem;">
+                                    </div>
+                                    <div class="col-md-6">
+                                        <label class="form-label mb-1" style="font-size: 0.8rem;">Special Requests</label>
+                                        <textarea class="form-control form-control-sm" id="customerSpecialRequests" name="customer_special_requests" rows="2" placeholder="Enter any special requests or notes" style="font-size: 0.85rem;"></textarea>
+                                    </div>
                                 </div>
-                                <div class="col-md-6">
-                                    <label class="form-label">Email</label>
-                                    <input type="email" class="form-control" id="customerEmail" name="customer_email" placeholder="Enter email" >
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Additional Guests Section -->
+            <div class="accordion mb-4" id="additionalGuestsAccordion">
+                <div class="accordion-item border-0">
+                    <div class="card shadow-sm border-0">
+                        <div class="card-header text-white d-flex justify-content-between align-items-center" role="button" data-bs-toggle="collapse" data-bs-target="#additionalGuestsSection" aria-expanded="true" aria-controls="additionalGuestsSection" style="cursor: pointer; background: linear-gradient(135deg, #0dcaf0 0%, #0d6efd 100%); border: none; padding: 1.25rem 1.75rem;">
+                            <div class="d-flex align-items-center">
+                                <div style="width: 40px; height: 40px; background: rgba(255, 255, 255, 0.2); border-radius: 10px; display: flex; align-items: center; justify-content: center; margin-right: 12px;">
+                                    <i class="ri-group-line fs-5 text-white" style="color: #ffffff !important;"></i>
                                 </div>
-                                <div class="col-md-3">
-                                    <label class="form-label">Country Code</label>
-                                    <input type="number" class="form-control" id="customerCountryCode" name="customer_country_code" placeholder="e.g. +91" >
+                                <div>
+                                    <h6 class="mb-0 fw-bold text-white" style="color: #ffffff !important; font-size: 1.1rem;">Additional Guest(s)</h6>
+                                    <small class="text-white-75" style="color: rgba(255, 255, 255, 0.85) !important; font-size: 0.85rem;">
+                                        Add guest details up to the tour pax (Adults + Children)
+                                    </small>
                                 </div>
-                                <div class="col-md-9">
-                                    <label class="form-label">Phone Number</label>
-                                    <input type="number" class="form-control" id="customerPhone" name="customer_phone" placeholder="Enter phone number" >
+                            </div>
+                            <i class="ri-arrow-up-s-line ms-2 fs-5 text-white" style="color: #ffffff !important;"></i>
+                        </div>
+                        <div id="additionalGuestsSection" class="collapse show">
+                            <div class="card-body" style="background: #ffffff; padding: 1.25rem;">
+                                <div class="mb-3 text-end">
+                                    <button type="button" class="btn btn-sm btn-light" id="addGuestBtn" onclick="addAdditionalGuest()" style="font-size: 0.8rem; font-weight: 600; box-shadow: 0 2px 4px rgba(0,0,0,0.1);">
+                                        <i class="ri-add-line me-1"></i>Add Guest
+                                    </button>
                                 </div>
-                                <div class="col-12">
-                                    <label class="form-label">Address Line 1</label>
-                                    <input type="text" class="form-control" id="customerAddress1" name="customer_address1" placeholder="Enter address line 1" >
+                                <div id="additionalGuestsContainer">
+                                    <!-- Additional guests will be rendered here -->
                                 </div>
-                                <div class="col-12">
-                                    <label class="form-label">Address Line 2</label>
-                                    <input type="text" class="form-control" id="customerAddress2" name="customer_address2" placeholder="Enter address line 2">
-                                </div>
-                                <div class="col-md-6">
-                                    <label class="form-label">State</label>
-                                    <input type="text" class="form-control" id="customerState" name="customer_state" placeholder="Enter state">
-                                </div>
-                                <div class="col-md-6">
-                                    <label class="form-label">ZIP Code</label>
-                                    <input type="number" class="form-control" id="customerZip" name="customer_zip" placeholder="Enter ZIP code">
-                                </div>
-                                <div class="col-12">
-                                    <label class="form-label">Special Requests</label>
-                                    <textarea class="form-control" id="customerSpecialRequests" name="customer_special_requests" rows="3" placeholder="Enter any special requests or notes"></textarea>
+                                <div class="mt-3 small" id="guestLimitInfo" style="padding: 10px; background: #e7f3ff; border-radius: 6px; border: 1px solid #b3d9ff;">
+                                    <i class="ri-information-line me-1"></i>
+                                    Maximum <span id="maxAdditionalGuests">0</span> additional guest(s) can be added based on total pax (Adults + Children): <span id="totalPaxCount">0</span>
                                 </div>
                             </div>
                         </div>
@@ -885,7 +930,7 @@
             </div>
 
             <!-- Final Submit Section -->
-            <div class="row mb-5" id="submitSection">
+            <div class="row mb-5" id="submitSection">   
                 <div class="col-12">
                     <div class="card shadow-sm border-0">
                         <div class="card-body">
@@ -895,7 +940,7 @@
                                     <p class="text-muted mb-0" id="bookingsSummary">No bookings added yet</p>
                                 </div>
                                 <div>
-                                    <button type="button" class="btn btn-success btn-lg px-5 me-3" id="savePackageBtn" onclick="handleSavePackage(this)">
+                                    <button type="button" class="btn btn-lg px-5 me-3" id="savePackageBtn" onclick="handleSavePackage(this)" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: #ffffff; border: none;">
                                         <i class="ri-save-line me-2"></i>Save Tour Package
                                     </button>
                                     <a href="{{ route('single-tour-package.index') }}" class="btn btn-outline-secondary btn-lg px-5">
@@ -914,6 +959,166 @@
                 
                 // DMC User data for zone handling
                 const UserDmc = @json($dmcUser);
+
+                // ==============================
+                // Additional Guests Management
+                // ==============================
+
+                let additionalGuestCount = 0;
+
+                // Get total pax (Adults + Children)
+                function getTotalPax() {
+                    const adults = parseInt(document.getElementById('adults')?.value || 1);
+                    const children = parseInt(document.getElementById('children')?.value || 0);
+                    return adults + children;
+                }
+
+                // Max additional guests = total pax (Adults + Children)
+                function getMaxAdditionalGuests() {
+                    const totalPax = getTotalPax();
+                    return Math.max(0, totalPax);
+                }
+
+                function updateGuestLimitInfo() {
+                    const totalPax = getTotalPax();
+                    const maxGuests = getMaxAdditionalGuests();
+
+                    const totalPaxSpan = document.getElementById('totalPaxCount');
+                    const maxGuestsSpan = document.getElementById('maxAdditionalGuests');
+                    const addBtn = document.getElementById('addGuestBtn');
+
+                    if (totalPaxSpan) totalPaxSpan.textContent = totalPax;
+                    if (maxGuestsSpan) maxGuestsSpan.textContent = maxGuests;
+
+                    if (addBtn) {
+                        if (additionalGuestCount >= maxGuests || maxGuests === 0) {
+                            addBtn.disabled = true;
+                            addBtn.classList.add('disabled');
+                        } else {
+                            addBtn.disabled = false;
+                            addBtn.classList.remove('disabled');
+                        }
+                    }
+                }
+
+                function addAdditionalGuest() {
+                    const maxGuests = getMaxAdditionalGuests();
+
+                    if (maxGuests === 0) {
+                        alert('Total pax (Adults + Children) is 0. Please set pax before adding additional guests.');
+                        return;
+                    }
+
+                    if (additionalGuestCount >= maxGuests) {
+                        alert('Maximum number of additional guests reached. Maximum allowed: ' + maxGuests);
+                        return;
+                    }
+
+                    const guestIndex = additionalGuestCount + 1;
+
+                    const guestHtml = `
+                        <div class="card mb-2 border guest-card" data-guest-index="${guestIndex}" style="border-radius: 8px;">
+                            <div class="card-header bg-light d-flex justify-content-between align-items-center" style="padding: 0.5rem 1rem;">
+                                <h6 class="mb-0 fw-semibold" style="font-size: 0.9rem;">
+                                    <i class="ri-user-line me-2"></i>Guest ${guestIndex}
+                                </h6>
+                                <button type="button" class="btn btn-sm btn-outline-danger" onclick="removeAdditionalGuest(${guestIndex})" style="font-size: 0.75rem; padding: 0.25rem 0.5rem;">
+                                    <i class="ri-delete-bin-line me-1"></i>Remove
+                                </button>
+                            </div>
+                            <div class="card-body" style="padding: 0.75rem 1rem;">
+                                <div class="row g-2">
+                                    <div class="col-md-2">
+                                        <label class="form-label mb-1" style="font-size: 0.8rem;">Salutation <span class="text-danger">*</span></label>
+                                        <select class="form-select form-select-sm" name="additional_guests[${guestIndex}][salutation]" required style="font-size: 0.85rem;">
+                                            <option value="">Select</option>
+                                            <option value="Mr">Mr</option>
+                                            <option value="Mrs">Mrs</option>
+                                            <option value="Ms">Ms</option>
+                                            <option value="Miss">Miss</option>
+                                            <option value="Dr">Dr</option>
+                                        </select>
+                                    </div>
+                                    <div class="col-md-3">
+                                        <label class="form-label mb-1" style="font-size: 0.8rem;">Name <span class="text-danger">*</span></label>
+                                        <input type="text" class="form-control form-control-sm" name="additional_guests[${guestIndex}][name]" placeholder="Enter full name" required style="font-size: 0.85rem;">
+                                    </div>
+                                    <div class="col-md-3">
+                                        <label class="form-label mb-1" style="font-size: 0.8rem;">Passport No.</label>
+                                        <input type="text" class="form-control form-control-sm" name="additional_guests[${guestIndex}][passport_no]" placeholder="Enter passport number" style="font-size: 0.85rem;">
+                                    </div>
+                                    <div class="col-md-2">
+                                        <label class="form-label mb-1" style="font-size: 0.8rem;">Passport Expiry</label>
+                                        <input type="date" class="form-control form-control-sm" name="additional_guests[${guestIndex}][passport_exp]" style="font-size: 0.85rem;">
+                                    </div>
+                                    <div class="col-md-2">
+                                        <label class="form-label mb-1" style="font-size: 0.8rem;">Contact No.</label>
+                                        <input type="text" class="form-control form-control-sm" name="additional_guests[${guestIndex}][contact_no]" placeholder="Enter contact number" style="font-size: 0.85rem;">
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    `;
+
+                    const container = document.getElementById('additionalGuestsContainer');
+                    if (container) {
+                        container.insertAdjacentHTML('beforeend', guestHtml);
+                        additionalGuestCount++;
+                        updateGuestLimitInfo();
+                    }
+                }
+
+                function removeAdditionalGuest(guestIndex) {
+                    const guestCard = document.querySelector('.guest-card[data-guest-index="' + guestIndex + '"]');
+                    if (guestCard) {
+                        guestCard.remove();
+                        additionalGuestCount--;
+                        renumberAdditionalGuests();
+                        updateGuestLimitInfo();
+                    }
+                }
+
+                function renumberAdditionalGuests() {
+                    const cards = document.querySelectorAll('.guest-card');
+                    additionalGuestCount = cards.length;
+
+                    cards.forEach((card, index) => {
+                        const newIndex = index + 1;
+                        card.setAttribute('data-guest-index', newIndex);
+
+                        const header = card.querySelector('.card-header h6');
+                        if (header) {
+                            header.innerHTML = '<i class="ri-user-line me-2"></i>Guest ' + newIndex;
+                        }
+
+                        const inputs = card.querySelectorAll('input, select');
+                        inputs.forEach(input => {
+                            const name = input.getAttribute('name');
+                            if (name) {
+                                input.setAttribute('name', name.replace(/additional_guests\[\d+\]/, 'additional_guests[' + newIndex + ']'));
+                            }
+                        });
+
+                        const removeBtn = card.querySelector('button[onclick*="removeAdditionalGuest"]');
+                        if (removeBtn) {
+                            removeBtn.setAttribute('onclick', 'removeAdditionalGuest(' + newIndex + ')');
+                        }
+                    });
+                }
+
+                document.addEventListener('DOMContentLoaded', function () {
+                    updateGuestLimitInfo();
+
+                    const adultsInput = document.getElementById('adults');
+                    const childrenInput = document.getElementById('children');
+
+                    if (adultsInput) {
+                        adultsInput.addEventListener('change', updateGuestLimitInfo);
+                    }
+                    if (childrenInput) {
+                        childrenInput.addEventListener('change', updateGuestLimitInfo);
+                    }
+                });
                 
                 // Define calculateCorrectMealCosts early to ensure it's available
                 window.calculateCorrectMealCosts = function(mealPlan, numNights, adults, children, mealPrices, numRooms) {
@@ -2081,6 +2286,10 @@
                                             const guideSelect = document.getElementById(`day${day}_attraction_${index}_guide`);
                                             const guideName = guideSelect ? guideSelect.options[guideSelect.selectedIndex]?.text || '' : '';
                                             
+                                            // Get selected language
+                                            const languageSelect = document.getElementById(`day${day}_attraction_${index}_guide_language`);
+                                            const language = languageSelect ? languageSelect.value || '' : '';
+                                            
                                             // Get pickup time - try hidden input first, then fallback to Select2 element
                                             let pickupTime = document.getElementById(`day${day}_attraction_${index}_guide_pickup_time`)?.value || '';
                                             if (!pickupTime) {
@@ -2105,6 +2314,7 @@
                                                 guide_required: true,
                                                 guide_id: guideId,
                                                 guide_name: guideName,
+                                                language: language,
                                                 pickup_time: pickupTime,
                                                 package_hours: packageHours,
                                                 base_price: basePrice,
@@ -3048,8 +3258,8 @@
                                     const pickupZone = field.options[field.selectedIndex];
                                     const dropoffZone = dropoffField.options[dropoffField.selectedIndex];
                                     const vehicle = vehicleSelect.options[vehicleSelect.selectedIndex];
-                                    const adultCount = parseInt(document.getElementById('adult_count')?.value || 0);
-                                    const childCount = parseInt(document.getElementById('child_count')?.value || 0);
+                                    const adultCount = parseInt(document.getElementById('adults')?.value || 0);
+                                    const childCount = parseInt(document.getElementById('children')?.value || 0);
                                     
                                     // Handle total price field for both static and dynamic
                                     let totalPriceField;
@@ -3070,35 +3280,37 @@
                                         return `${displayHour}:${minutes} ${ampm}`;
                                     };
                                     
+                                    // Get selected hours if available (for hourly service)
+                                    const selectedHours = document.getElementById(`day${day}_${section}_${transportIndex}_selected_hours`)?.value || 
+                                                          document.getElementById(`day${day}_${section}_selected_hours`)?.value || 
+                                                          "1";
+                                    
+                                    // Get pickup and dropoff zone IDs
+                                    const pickupZoneId = pickupZone?.dataset?.zoneId || pickupZone?.value || "";
+                                    const dropoffZoneId = dropoffZone?.dataset?.zoneId || dropoffZone?.value || "";
+                                    
+                                    // Get tour_id if available
+                                    const tourId = document.getElementById('tour_id')?.value || 
+                                                   document.getElementById('hiddenTourId')?.value || 
+                                                   "";
+                                    
+                                    // Get night time settings if available
+                                    const nightStartTime = document.getElementById(`day${day}_${section}_${transportIndex}_night_start_time`)?.value || 
+                                                           document.getElementById(`day${day}_${section}_night_start_time`)?.value || 
+                                                           null;
+                                    const nightEndTime = document.getElementById(`day${day}_${section}_${transportIndex}_night_end_time`)?.value || 
+                                                         document.getElementById(`day${day}_${section}_night_end_time`)?.value || 
+                                                         null;
+                                    
                                     const transportData = {
-                                        id: `local-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
-                                        Mode: "dmc",
-                                        dmc_id: parseInt(document.getElementById('dmc_id')?.value || "4"),
-                                        fullName: customerData.fullName,
-                                        email: customerData.email,
-                                        phone: customerData.phone,
-                                        country: pickupZone.dataset.country || "Singapore",
-                                        countryCode: customerData.countryCode,
-                                        state: customerData.state || null,
-                                        city: pickupZone.dataset.city || "Singapore",
-                                        zip: customerData.zip,
-                                        address1: customerData.address1,
-                                        address2: customerData.address2 || null,
                                         bookingDate: dateInput?.value || getTourDateForDay(day),
-                                        pickupdate: dateInput?.value || getTourDateForDay(day),
-                                        entrytime: formatEntryTime(timeSelect?.value),
-                                        vehicles_id: parseInt(vehicleSelect.value) || 0,
+                                        vehicles_id: String(vehicleSelect.value || "0"),
                                         vehicles_name: vehicle.text,
-                                        type: serviceTypeSelect.value || "Private",
-                                        travel_type: "local_transfer",
-                                        adults: parseInt(adultCount) || 0,
-                                        children: parseInt(childCount) || 0,
-                                        specialRequests: customerData.specialRequests || null,
-                                        image: vehicle.dataset.image || null,
-                                        totalPrice: parseFloat(totalPrice) || 0,
-                                        componentDayIndex: parseInt(day) - 1,
+                                        image: vehicle.dataset.image || "",
+                                        dmc_id: parseInt(document.getElementById('dmc_id')?.value || "4"),
+                                        Mode: "dmc",
+                                        type: serviceTypeSelect.value || "Private", // Service type: Private/Shared
                                         entrypickup: pickupZone.text,
-                                        entrydropoff: dropoffZone.text,
                                         PickupPlaceid: {
                                             lat: transportIndex ? 
                                                 document.getElementById(`day${day}_${section}_${transportIndex}_pickup_lat`)?.value || "" :
@@ -3107,6 +3319,7 @@
                                                 document.getElementById(`day${day}_${section}_${transportIndex}_pickup_lng`)?.value || "" :
                                                 document.getElementById(`day${day}_${section}_pickup_lng`)?.value || ""
                                         },
+                                        dropoffLocation: dropoffZone.text,
                                         DropoffPlaceid: {
                                             lat: transportIndex ? 
                                                 document.getElementById(`day${day}_${section}_${transportIndex}_dropoff_lat`)?.value || "" :
@@ -3115,15 +3328,42 @@
                                                 document.getElementById(`day${day}_${section}_${transportIndex}_dropoff_lng`)?.value || "" :
                                                 document.getElementById(`day${day}_${section}_dropoff_lng`)?.value || ""
                                         },
-                                        distance: parseFloat(transportIndex ? 
-                                            document.getElementById(`day${day}_${section}_${transportIndex}_distance`)?.value || "0" :
-                                            document.getElementById(`day${day}_${section}_distance`)?.value || "0"),
-                                        Tax: parseFloat(transportIndex ? 
+                                        exitpickupdate: dateInput?.value || getTourDateForDay(day),
+                                        entrytime: formatEntryTime(timeSelect?.value),
+                                        adults: String(parseInt(adultCount) || 0),
+                                        children: String(parseInt(childCount) || 0),
+                                        selectedHours: selectedHours,
+                                        totalPrice: parseFloat(totalPrice || 0).toFixed(2),
+                                        Tax: String(parseFloat(transportIndex ? 
                                             document.getElementById(`day${day}_${section}_${transportIndex}_tax`)?.value || "0.00" :
-                                            document.getElementById(`day${day}_${section}_tax`)?.value || "0.00"),
-                                        Night_Start_Time: null,
-                                        Night_End_Time: null,
-                                        bookingType: "enquiry"
+                                            document.getElementById(`day${day}_${section}_tax`)?.value || "0.00")),
+                                        Night_Start_Time: nightStartTime || null,
+                                        Night_End_Time: nightEndTime || null,
+                                        country: pickupZone.dataset.country || "Singapore",
+                                        fullName: customerData.fullName,
+                                        email: customerData.email,
+                                        phone: customerData.phone,
+                                        countryCode: customerData.countryCode,
+                                        address1: customerData.address1,
+                                        address2: customerData.address2 || null,
+                                        state: customerData.state || null,
+                                        zip: customerData.zip,
+                                        specialRequests: customerData.specialRequests || null,
+                                        userInfo: {
+                                            fullName: customerData.fullName,
+                                            email: customerData.email,
+                                            phone: customerData.phone,
+                                            address1: customerData.address1,
+                                            address2: customerData.address2 || null,
+                                            state: customerData.state || null,
+                                            zip: customerData.zip
+                                        },
+                                        bookingType: "enquiry",
+                                        service_category: "local_transport",
+                                        travel_type: "local_transport", // This will be used by backend to set type field
+                                        tour_id: tourId,
+                                        pickup_zone_id: pickupZoneId,
+                                        dropoff_zone_id: dropoffZoneId
                                     };
                                     
                                     transportDataArray.push(transportData);
@@ -3219,8 +3459,8 @@
                                     const vehicle = vehicleSelect.options[vehicleSelect.selectedIndex];
                                     // For main entry/exit vehicles, get passenger count from the correct field
                                     const passengerField = document.getElementById(`day${day}_${section}_0_passengers`);
-                                    const passengerCount = parseInt(passengerField?.value || document.getElementById('adult_count')?.value || 0);
-                                    const childCount = parseInt(document.getElementById('child_count')?.value || 0);
+                                    const passengerCount = parseInt(passengerField?.value || document.getElementById('adults')?.value || 0);
+                                    const childCount = parseInt(document.getElementById('children')?.value || 0);
                                     // For main entry/exit vehicles, use the correct naming pattern with _0_ index
                                     const totalPrice = parseFloat(document.getElementById(`day${day}_${section}_0_total_price`)?.value || document.getElementById(`day${day}_${section}${fieldSuffix}_total_price`)?.value || 0);
                                     
@@ -4404,6 +4644,40 @@
                             return false;
                         }
                         
+                        // Collect main guest data
+                        const mainGuestData = {
+                            full_name: document.getElementById('customerFullName')?.value || '',
+                            email: document.getElementById('customerEmail')?.value || '',
+                            country_code: document.getElementById('customerCountryCode')?.value || '',
+                            phone: document.getElementById('customerPhone')?.value || '',
+                            address1: document.getElementById('customerAddress1')?.value || '',
+                            address2: document.getElementById('customerAddress2')?.value || '',
+                            state: document.getElementById('customerState')?.value || '',
+                            zip: document.getElementById('customerZip')?.value || '',
+                            special_requests: document.getElementById('customerSpecialRequests')?.value || ''
+                        };
+
+                        // Collect additional guests data
+                        const additionalGuests = [];
+                        const guestCards = document.querySelectorAll('.guest-card');
+                        guestCards.forEach((card) => {
+                            const inputs = card.querySelectorAll('input, select');
+                            const guestData = {};
+                            inputs.forEach(input => {
+                                const name = input.getAttribute('name');
+                                if (name && name.includes('additional_guests')) {
+                                    const fieldName = name.match(/\[(\d+)\]\[(\w+)\]/);
+                                    if (fieldName) {
+                                        const fieldKey = fieldName[2];
+                                        guestData[fieldKey] = input.value || '';
+                                    }
+                                }
+                            });
+                            if (Object.keys(guestData).length > 0) {
+                                additionalGuests.push(guestData);
+                            }
+                        });
+
                         // Prepare form data for tour creation
                         const tourFormData = new FormData();
                         tourFormData.append('_token', document.querySelector('input[name="_token"]').value);
@@ -4418,6 +4692,39 @@
                         tourFormData.append('child_ages', childAgesData);
                         tourFormData.append('agent_id', agent);
                         tourFormData.append('enquiry_id', enquiry?enquiry.enquiry_id:0);
+                        tourFormData.append('mainguest', JSON.stringify(mainGuestData));
+                        tourFormData.append('additionalguest', JSON.stringify(additionalGuests));
+                        
+                        // Get tour_type - use global variable first, then fallback to radio buttons
+                        let tourType = window.selectedTourType || 'FIT';
+                        
+                        // Double-check by reading radio buttons directly
+                        const tourTypeRadio = document.querySelector('input[name="tour_type"]:checked');
+                        if (tourTypeRadio && tourTypeRadio.value) {
+                            tourType = tourTypeRadio.value;
+                            // Update global variable to keep it in sync
+                            window.selectedTourType = tourType;
+                        }
+                        
+                        // Final fallback: check all radio buttons
+                        if (!tourType || tourType === 'FIT') {
+                            const tourTypeRadios = document.querySelectorAll('input[name="tour_type"]');
+                            for (let radio of tourTypeRadios) {
+                                if (radio.checked) {
+                                    tourType = radio.value;
+                                    window.selectedTourType = tourType;
+                                    break;
+                                }
+                            }
+                        }
+                        
+                        console.log('=== TOUR TYPE DEBUG ===');
+                        console.log('Window.selectedTourType:', window.selectedTourType);
+                        console.log('Radio checked value:', tourTypeRadio?.value);
+                        console.log('Final tourType being sent:', tourType);
+                        console.log('All radio buttons:', Array.from(document.querySelectorAll('input[name="tour_type"]')).map(r => ({id: r.id, value: r.value, checked: r.checked})));
+                        
+                        tourFormData.append('tour_type', tourType);
                         
                         // Send AJAX request to create tour
                         try {
@@ -6514,6 +6821,45 @@ function getTourDateForDay(day) {
 
 document.addEventListener('DOMContentLoaded', function() {
 
+    // Store tour_type globally and update it when changed
+    // Initialize with the checked radio button value (FIT by default)
+    const initialTourTypeRadio = document.querySelector('input[name="tour_type"]:checked');
+    window.selectedTourType = initialTourTypeRadio ? initialTourTypeRadio.value : 'FIT';
+    console.log('Initial tour type:', window.selectedTourType);
+    
+    // Ensure tour_type radio buttons are properly checked when labels are clicked
+    const tourTypeLabels = document.querySelectorAll('.tour-toggle label');
+    const tourTypeRadios = document.querySelectorAll('input[name="tour_type"]');
+    
+    // Add click handlers to labels
+    tourTypeLabels.forEach(label => {
+        label.addEventListener('click', function(e) {
+            const radioId = this.getAttribute('for');
+            const radio = document.getElementById(radioId);
+            if (radio) {
+                // Uncheck all radios first
+                tourTypeRadios.forEach(r => r.checked = false);
+                // Check the selected one
+                radio.checked = true;
+                // Update global variable
+                window.selectedTourType = radio.value;
+                // Trigger change event
+                radio.dispatchEvent(new Event('change', { bubbles: true }));
+                console.log('Tour type changed to:', radio.value, 'Stored in window.selectedTourType:', window.selectedTourType);
+            }
+        });
+    });
+    
+    // Also listen to radio button change events directly
+    tourTypeRadios.forEach(radio => {
+        radio.addEventListener('change', function() {
+            if (this.checked) {
+                window.selectedTourType = this.value;
+                console.log('Tour type radio changed to:', this.value, 'Stored in window.selectedTourType:', window.selectedTourType);
+            }
+        });
+    });
+
     // Initialize tour dates and daily services if dates are pre-filled (enquiry scenario)
     const startDateField = document.getElementById('start_date');
     const endDateField = document.getElementById('end_date');
@@ -7024,6 +7370,11 @@ document.addEventListener('DOMContentLoaded', function() {
                     loadAttractionTransferVehicles(day, citySelect.value, index);
                     loadAttractionTransferPickupLocations(day, citySelect.value, index);
                 }
+
+                // Ensure pricing grid reflects that transport is now active
+                if (typeof window.updateAttractionTransportPricing === 'function') {
+                    window.updateAttractionTransportPricing(day, index);
+                }
             } else {
                 // Hide transfer card
                 if (transferCard) transferCard.style.display = 'none';
@@ -7045,8 +7396,17 @@ document.addEventListener('DOMContentLoaded', function() {
                 if (typeSelect) typeSelect.value = '';
                 if (waySelect) waySelect.value = '';
                 if (vehicleSelect) vehicleSelect.innerHTML = '<option value="">Select Vehicle</option>';
-                if (costInput) costInput.value = '';
-                if (pickupSelect) pickupSelect.innerHTML = '<option value="">Select Pickup Location</option>';
+                if (costInput) {
+                    costInput.value = '';
+                    costInput.removeAttribute('data-ajax-base-price');
+                    costInput.removeAttribute('data-ajax-final-price');
+                }
+                if (pickupSelect) pickupSelect.innerHTML = '<option value=\"\">Select Pickup Location</option>';
+
+                // Refresh pricing so any previous transport price is cleared
+                if (typeof window.updateAttractionTransportPricing === 'function') {
+                    window.updateAttractionTransportPricing(day, index);
+                }
             }
         }
     }
@@ -7084,6 +7444,7 @@ document.addEventListener('DOMContentLoaded', function() {
                 if (guidePackageField) guidePackageField.style.display = 'none';
                 
                 // Reset guide fields
+                const languageSelect = document.getElementById(`day${day}_attraction_${index}_guide_language`);
                 const guideSelect = document.getElementById(`day${day}_attraction_${index}_guide`);
                 const packageSelect = document.getElementById(`day${day}_attraction_${index}_guide_package`);
                 const pickupTimeContainer = document.getElementById(`day${day}_attraction_${index}_guide_pickup_time_options`);
@@ -7094,10 +7455,16 @@ document.addEventListener('DOMContentLoaded', function() {
                     guidePricingContent.innerHTML = '<div class="text-muted small">No guide selected</div>';
                 }
                 
+                if (languageSelect) {
+                    languageSelect.value = '';
+                    languageSelect.disabled = true;
+                    languageSelect.innerHTML = '<option value="">Select city first</option>';
+                }
+                
                 if (guideSelect) {
                     guideSelect.value = '';
                     guideSelect.disabled = true;
-                    guideSelect.innerHTML = '<option value="">Select city first</option>';
+                    guideSelect.innerHTML = '<option value="">Select language first</option>';
                 }
                 if (packageSelect) {
                     packageSelect.value = '';
@@ -7127,36 +7494,23 @@ document.addEventListener('DOMContentLoaded', function() {
         }
     };
     
+    // Store guides data for each attraction (day_index combination)
+    window.attractionGuidesData = window.attractionGuidesData || {};
+    
     // Function to load guides for attraction based on city
     window.loadAttractionGuidesForCity = function(day, cityName, index) {
         const guideSelect = document.getElementById(`day${day}_attraction_${index}_guide`);
+        const languageSelect = document.getElementById(`day${day}_attraction_${index}_guide_language`);
         const guideRequired = document.getElementById(`day${day}_attraction_${index}_guide_required`);
         
-        if (!guideSelect || !guideRequired || guideRequired.value !== 'Yes') {
+        if (!guideSelect || !languageSelect || !guideRequired || guideRequired.value !== 'Yes') {
             return;
         }
         
-        // Check if Select2 is initialized
-        const isSelect2Initialized = $(guideSelect).hasClass('select2-hidden-accessible');
-        
         if (cityName) {
-            guideSelect.disabled = false;
-            
-            // Destroy Select2 if initialized before updating options
-            if (isSelect2Initialized) {
-                $(guideSelect).select2('destroy');
-            }
-            
-            guideSelect.innerHTML = '<option value="">Loading guides...</option>';
-            
-            // Reinitialize Select2 with loading state
-            if (isSelect2Initialized) {
-                $(guideSelect).select2({
-                    placeholder: "Loading guides...",
-                    allowClear: true,
-                    width: '100%'
-                });
-            }
+            // Enable language select
+            languageSelect.disabled = false;
+            languageSelect.innerHTML = '<option value="">Loading languages...</option>';
             
             // Load guides for the specific city
             const currentDmcId = '{{ $finalDmcId }}';
@@ -7164,64 +7518,168 @@ document.addEventListener('DOMContentLoaded', function() {
             fetch(`{{ route('fetch-guides-by-dmc') }}?city=${encodeURIComponent(cityName)}&dmc_id=${currentDmcId}`)
                 .then(response => response.json())
                 .then(data => {
-                    // Destroy Select2 before updating options
-                    if (isSelect2Initialized) {
-                        $(guideSelect).select2('destroy');
-                    }
+                    // Store guides data for this attraction
+                    const storageKey = `day${day}_attraction_${index}`;
+                    window.attractionGuidesData[storageKey] = data.success && data.guides ? data.guides : [];
                     
-                    guideSelect.innerHTML = '<option value="">Search Guide</option>';
-                    
+                    // Collect all unique languages from guides
+                    const allLanguages = new Set();
                     if (data.success && data.guides) {
                         data.guides.forEach(guide => {
-                            const option = document.createElement('option');
-                            option.value = guide.guide_id;
-                            // Extract language names from the languages relationship
-                            const languageNames = guide.languages ? guide.languages.map(lang => lang.language).join(', ') : 'Languages not specified';
-                            option.textContent = `${guide.name} - ${languageNames}`;
-                            option.dataset.city = guide.city;
-                            option.dataset.image = guide.image || '';
-                            option.dataset.languages = guide.languages ? JSON.stringify(guide.languages.map(lang => lang.language)) : JSON.stringify([]);
-                            option.dataset.experience = guide.experience || 0;
-                            
-                            // Add pricing data attributes
-                            option.dataset.nightStartTime = guide.night_start_time;
-                            option.dataset.nightEndTime = guide.night_end_time;
-                            option.dataset.dayRate = 0;
-                            option.dataset.nightSurcharge = guide.night_surcharge;
-                            option.dataset.hourlyPrice = guide.hourly_price;
-                            option.dataset.twoHourPrice = guide.two_hour_price;
-                            option.dataset.fourHourPrice = guide.four_hour_price;
-                            option.dataset.sixHourPrice = guide.six_hour_price;
-                            option.dataset.eightHourPrice = guide.eight_hour_price;
-                            option.dataset.tenHourPrice = guide.ten_hour_price;
-                            option.dataset.twelveHourPrice = guide.twelve_hour_price;
-                            
-                            guideSelect.appendChild(option);
-                        });
-                        console.log(`Loaded ${data.guides.length} guides for attraction in ${cityName}`);
-                    } else {
-                        guideSelect.innerHTML += '<option disabled>No guides found in this city</option>';
-                    }
-                    
-                    guideSelect.disabled = false;
-                    
-                    // Reinitialize Select2 after populating options
-                    if (isSelect2Initialized || typeof jQuery !== 'undefined' && typeof jQuery.fn.select2 !== 'undefined') {
-                        $(guideSelect).select2({
-                            placeholder: "Search Guide",
-                            allowClear: true,
-                            width: '100%'
+                            if (guide.languages && Array.isArray(guide.languages)) {
+                                guide.languages.forEach(lang => {
+                                    const langName = lang.language || (typeof lang === 'string' ? lang : '');
+                                    if (langName) {
+                                        allLanguages.add(langName);
+                                    }
+                                });
+                            }
                         });
                     }
+                    
+                    // Populate language select
+                    languageSelect.innerHTML = '<option value="">Select Language</option>';
+                    const sortedLanguages = Array.from(allLanguages).sort();
+                    sortedLanguages.forEach(language => {
+                        const option = document.createElement('option');
+                        option.value = language;
+                        option.textContent = language;
+                        languageSelect.appendChild(option);
+                    });
+                    
+                    // Reset guide select
+                    guideSelect.innerHTML = '<option value="">Select language first</option>';
+                    guideSelect.disabled = true;
+                    
+                    console.log(`Loaded ${data.guides ? data.guides.length : 0} guides with ${sortedLanguages.length} languages for attraction in ${cityName}`);
                 })
                 .catch(error => {
                     console.error('Error loading guides for attraction:', error);
-                    guideSelect.innerHTML = '<option disabled>Error loading guides</option>';
-                    guideSelect.disabled = false;
+                    languageSelect.innerHTML = '<option value="">Error loading</option>';
+                    guideSelect.innerHTML = '<option value="">Error loading guides</option>';
                 });
         } else {
+            languageSelect.disabled = true;
+            languageSelect.innerHTML = '<option value="">Select city first</option>';
             guideSelect.disabled = true;
             guideSelect.innerHTML = '<option value="">Select city first</option>';
+        }
+    };
+    
+    // Function to handle language change and filter guides
+    window.handleAttractionGuideLanguageChange = function(day, index) {
+        const languageSelect = document.getElementById(`day${day}_attraction_${index}_guide_language`);
+        const guideSelect = document.getElementById(`day${day}_attraction_${index}_guide`);
+        const selectedLanguage = languageSelect ? languageSelect.value : '';
+        
+        if (!guideSelect) {
+            return;
+        }
+        
+        // Check if Select2 is initialized
+        const isSelect2Initialized = $(guideSelect).hasClass('select2-hidden-accessible');
+        
+        // Destroy Select2 if initialized
+        if (isSelect2Initialized) {
+            $(guideSelect).select2('destroy');
+        }
+        
+        // Reset guide select
+        guideSelect.innerHTML = '<option value="">Select Guide</option>';
+        
+        if (!selectedLanguage) {
+            guideSelect.disabled = true;
+            return;
+        }
+        
+        // Get stored guides data
+        const storageKey = `day${day}_attraction_${index}`;
+        const guides = window.attractionGuidesData[storageKey] || [];
+        
+        // Filter guides by selected language
+        const filteredGuides = guides.filter(guide => {
+            if (guide.languages && Array.isArray(guide.languages)) {
+                return guide.languages.some(lang => {
+                    const langName = lang.language || (typeof lang === 'string' ? lang : '');
+                    return langName === selectedLanguage;
+                });
+            }
+            return false;
+        });
+        
+        // Populate guide select with filtered guides
+        if (filteredGuides.length > 0) {
+            filteredGuides.forEach(guide => {
+                const option = document.createElement('option');
+                option.value = guide.guide_id;
+                option.textContent = guide.name;
+                option.dataset.city = guide.city;
+                option.dataset.image = guide.image || '';
+                option.dataset.languages = guide.languages ? JSON.stringify(guide.languages.map(lang => lang.language)) : JSON.stringify([]);
+                option.dataset.experience = guide.experience || 0;
+                
+                // Add pricing data attributes
+                option.dataset.nightStartTime = guide.night_start_time;
+                option.dataset.nightEndTime = guide.night_end_time;
+                option.dataset.dayRate = 0;
+                option.dataset.nightSurcharge = guide.night_surcharge;
+                option.dataset.hourlyPrice = guide.hourly_price;
+                option.dataset.twoHourPrice = guide.two_hour_price;
+                option.dataset.fourHourPrice = guide.four_hour_price;
+                option.dataset.sixHourPrice = guide.six_hour_price;
+                option.dataset.eightHourPrice = guide.eight_hour_price;
+                option.dataset.tenHourPrice = guide.ten_hour_price;
+                option.dataset.twelveHourPrice = guide.twelve_hour_price;
+                
+                guideSelect.appendChild(option);
+            });
+            
+            guideSelect.disabled = false;
+            
+            // Reinitialize Select2 after populating options
+            if (isSelect2Initialized || (typeof jQuery !== 'undefined' && typeof jQuery.fn.select2 !== 'undefined')) {
+                $(guideSelect).select2({
+                    placeholder: "Search Guide",
+                    allowClear: true,
+                    width: '100%'
+                });
+            }
+            
+            console.log(`Filtered ${filteredGuides.length} guides for language: ${selectedLanguage}`);
+        } else {
+            guideSelect.innerHTML = '<option value="">No guides found for this language</option>';
+            guideSelect.disabled = true;
+        }
+        
+        // Reset guide-related fields when language changes
+        const pickupTimeField = document.getElementById(`day${day}_attraction_${index}_guide_pickup_time`);
+        const packageSelect = document.getElementById(`day${day}_attraction_${index}_guide_package`);
+        const pickupTimeOptions = document.getElementById(`day${day}_attraction_${index}_guide_pickup_time_options`);
+        
+        if (pickupTimeField) pickupTimeField.value = '';
+        if (packageSelect) {
+            packageSelect.value = '';
+            packageSelect.innerHTML = '<option value="">Select Duration</option>';
+        }
+        if (pickupTimeOptions) {
+            pickupTimeOptions.innerHTML = '<select class="form-select" disabled><option value="">Select guide first</option></select>';
+        }
+        
+        // Reset pricing fields
+        document.getElementById(`day${day}_attraction_${index}_guide_base_price`).value = '0';
+        document.getElementById(`day${day}_attraction_${index}_guide_hours`).value = '0';
+        document.getElementById(`day${day}_attraction_${index}_guide_surcharge`).value = '0';
+        document.getElementById(`day${day}_attraction_${index}_guide_total_price`).value = '0';
+        
+        // Clear guide pricing content
+        const guidePricingContent = document.getElementById(`day${day}_attraction_${index}_guide_pricing_content`);
+        if (guidePricingContent) {
+            guidePricingContent.innerHTML = '<div class="text-muted small">No guide selected</div>';
+        }
+        
+        // Update total price
+        if (typeof updateAttractionTotalPrice === 'function') {
+            updateAttractionTotalPrice(day, index);
         }
     };
     
@@ -7685,6 +8143,8 @@ document.addEventListener('DOMContentLoaded', function() {
                         option.setAttribute('data-seating-capacity', vehicle.seating_capacity || '');
                         option.setAttribute('data-private-price', vehicle.private_price || '');
                         option.setAttribute('data-shared-price', vehicle.shared_price || '');
+                        // sharable: 1 = Private, 2 = Shared, 3 = Both
+                        option.setAttribute('data-sharable', vehicle.sharable || '');
                         vehicleSelect.appendChild(option);
                     });
                     console.log(`Loaded ${data.vehicles.length} vehicles for attraction transfer in ${cityName}`);
@@ -7700,6 +8160,55 @@ document.addEventListener('DOMContentLoaded', function() {
                 vehicleSelect.disabled = false;
             });
     }
+    
+    // Helper: filter attraction transfer vehicles based on selected type (Private/Shared)
+    window.filterAttractionTransferVehiclesByType = function(day, index) {
+        const vehicleSelect = document.getElementById(`day${day}_attraction_${index}_transfer_vehicle`);
+        const transferTypeSelect = document.getElementById(`day${day}_attraction_${index}_transfer_type`);
+        
+        if (!vehicleSelect || !transferTypeSelect) return;
+
+        const selectedType = transferTypeSelect.value;
+        let allowedSharables = null;
+
+        // sharable: 1 = Private, 2 = Shared, 3 = Both
+        if (selectedType === 'Private') {
+            allowedSharables = ['1', '3'];
+        } else if (selectedType === 'Shared') {
+            allowedSharables = ['2', '3'];
+        }
+
+        Array.from(vehicleSelect.options).forEach(option => {
+            if (!option.value) {
+                // Always keep placeholder visible
+                option.disabled = false;
+                option.hidden = false;
+                return;
+            }
+
+            const sharableAttr = option.getAttribute('data-sharable');
+
+            // If no type selected or sharable missing, show all options
+            if (!allowedSharables || !sharableAttr) {
+                option.disabled = false;
+                option.hidden = false;
+                return;
+            }
+
+            const isAllowed = allowedSharables.includes(String(sharableAttr));
+            option.disabled = !isAllowed;
+            option.hidden = !isAllowed;
+        });
+
+        // If current selection is no longer allowed, clear it so user re-chooses
+        if (
+            vehicleSelect.value &&
+            vehicleSelect.selectedOptions.length &&
+            vehicleSelect.selectedOptions[0].disabled
+        ) {
+            vehicleSelect.value = '';
+        }
+    };
     
     // Function to handle vehicle selection change and prepopulate cost
     window.handleAttractionVehicleChange = function(day, index) {
@@ -7884,6 +8393,9 @@ document.addEventListener('DOMContentLoaded', function() {
         const transferWay = document.getElementById(`day${day}_attraction_${index}_transfer_way`);
         const attractionSelect = document.getElementById(`day${day}_attraction_${index}`);
         const costField = document.getElementById(`day${day}_attraction_${index}_transfer_cost`);
+        
+        // Keep vehicle dropdown in sync with selected type (Private/Shared)
+        window.filterAttractionTransferVehiclesByType(day, index);
         
         // If pickup location is already selected, ALWAYS use AJAX pricing
         if (pickupLocationSelect && pickupLocationSelect.value) {
@@ -8229,6 +8741,55 @@ document.addEventListener('DOMContentLoaded', function() {
     }
     
     // Function to handle restaurant transfer type or way change - prioritize AJAX pricing if pickup location is selected
+    // Function to filter restaurant transfer vehicles by type (Private/Shared)
+    window.filterRestaurantTransferVehiclesByType = function(day, index) {
+        const vehicleSelect = document.getElementById(`day${day}_restaurant_${index}_transfer_vehicle`);
+        const transferTypeSelect = document.getElementById(`day${day}_restaurant_${index}_transfer_type`);
+        
+        if (!vehicleSelect || !transferTypeSelect) return;
+
+        const selectedType = transferTypeSelect.value;
+        let allowedSharables = null;
+
+        // sharable: 1 = Private, 2 = Shared, 3 = Both
+        if (selectedType === 'Private') {
+            allowedSharables = ['1', '3'];
+        } else if (selectedType === 'Shared') {
+            allowedSharables = ['2', '3'];
+        }
+
+        Array.from(vehicleSelect.options).forEach(option => {
+            if (!option.value) {
+                // Always keep placeholder visible
+                option.disabled = false;
+                option.hidden = false;
+                return;
+            }
+
+            const sharableAttr = option.getAttribute('data-sharable');
+
+            // If no type selected or sharable missing, show all options
+            if (!allowedSharables || !sharableAttr) {
+                option.disabled = false;
+                option.hidden = false;
+                return;
+            }
+
+            const isAllowed = allowedSharables.includes(String(sharableAttr));
+            option.disabled = !isAllowed;
+            option.hidden = !isAllowed;
+        });
+
+        // If current selection is no longer allowed, clear it so user re-chooses
+        if (
+            vehicleSelect.value &&
+            vehicleSelect.selectedOptions.length &&
+            vehicleSelect.selectedOptions[0].disabled
+        ) {
+            vehicleSelect.value = '';
+        }
+    };
+    
     window.handleRestaurantTransferTypeOrWayChange = function(day, index) {
         const pickupLocationSelect = document.getElementById(`day${day}_restaurant_${index}_transfer_pickup_location`);
         const vehicleSelect = document.getElementById(`day${day}_restaurant_${index}_transfer_vehicle`);
@@ -8236,6 +8797,9 @@ document.addEventListener('DOMContentLoaded', function() {
         const transferWay = document.getElementById(`day${day}_restaurant_${index}_transfer_way`);
         const restaurantSelect = document.getElementById(`day${day}_restaurant_${index}`);
         const costField = document.getElementById(`day${day}_restaurant_${index}_transfer_cost`);
+        
+        // Keep vehicle dropdown in sync with selected type (Private/Shared)
+        window.filterRestaurantTransferVehiclesByType(day, index);
         
         // If pickup location is already selected, ALWAYS use AJAX pricing
         if (pickupLocationSelect && pickupLocationSelect.value) {
@@ -8810,6 +9374,9 @@ document.addEventListener('DOMContentLoaded', function() {
                 if (citySelect && citySelect.value) {
                     loadRestaurantTransferVehicles(day, citySelect.value, index);
                     loadRestaurantTransferPickupLocations(day, citySelect.value, index);
+                } else {
+                    // If vehicles are already loaded, apply filter based on current transfer type
+                    window.filterRestaurantTransferVehiclesByType(day, index);
                 }
             } else {
                 // Hide transfer card
@@ -8865,9 +9432,13 @@ document.addEventListener('DOMContentLoaded', function() {
                         option.setAttribute('data-seating-capacity', vehicle.seating_capacity || '');
                         option.setAttribute('data-private-price', vehicle.private_price || '');
                         option.setAttribute('data-shared-price', vehicle.shared_price || '');
+                        option.setAttribute('data-sharable', vehicle.sharable || '0');
                         vehicleSelect.appendChild(option);
                     });
                     console.log(`Loaded ${data.vehicles.length} vehicles for restaurant transfer in ${cityName}`);
+                    
+                    // Apply filter based on selected transfer type
+                    window.filterRestaurantTransferVehiclesByType(day, index);
                 } else {
                     vehicleSelect.innerHTML += '<option disabled>No vehicles available</option>';
                 }
@@ -9817,12 +10388,12 @@ document.addEventListener('DOMContentLoaded', function() {
          }
     }
 
-     // Handle night selection with automatic consecutive filling
+     // Handle night selection - treat each night individually (no auto-filling)
     function handleNightSelection(selectedNight) {
          const allNightButtons = document.querySelectorAll('.night-btn');
          let manuallySelectedNights = [];
          
-         // Get currently manually selected nights (not auto-filled)
+         // Get currently manually selected nights
          allNightButtons.forEach(btn => {
              if (btn.classList.contains('manually-selected')) {
                  manuallySelectedNights.push(parseInt(btn.dataset.night));
@@ -9838,9 +10409,8 @@ document.addEventListener('DOMContentLoaded', function() {
              manuallySelectedNights.push(selectedNight);
          }
          
-        // Fill gaps and update selection
-        const allConsecutiveNights = fillConsecutiveNights(manuallySelectedNights);
-        updateConsecutiveSelectionWithColors(manuallySelectedNights, allConsecutiveNights);
+        // Update selection - use only manually selected nights (no auto-filling)
+        updateConsecutiveSelectionWithColors(manuallySelectedNights, manuallySelectedNights);
         updateNightDisplay();
         
         // Update room price display based on selected nights (weekday/weekend calculation)
@@ -9879,17 +10449,10 @@ document.addEventListener('DOMContentLoaded', function() {
              btn.classList.remove('active', 'manually-selected', 'auto-selected', 'btn-success', 'btn-warning');
              btn.classList.add('btn-outline-primary');
              
-             if (allConsecutive.includes(nightNumber)) {
-                 btn.classList.add('active');
-                 btn.classList.remove('btn-outline-primary');
-                 
+             // Only show manually selected nights (no auto-filling)
                  if (manuallySelected.includes(nightNumber)) {
-                     // Manually selected nights - Green
-                     btn.classList.add('manually-selected', 'btn-success');
-                 } else {
-                     // Auto-filled nights - Orange/Warning
-                     btn.classList.add('auto-selected', 'btn-warning');
-                 }
+                 btn.classList.add('active', 'manually-selected', 'btn-success');
+                 btn.classList.remove('btn-outline-primary');
              }
          });
     }
@@ -9921,6 +10484,18 @@ document.addEventListener('DOMContentLoaded', function() {
          autoNights.sort((a, b) => a - b);
          
          if (selectedNights.length > 0) {
+            // Format dates for each selected night
+            const nightDates = selectedNights.map(night => {
+                const nightDate = moment(tourStartDate).add(night-1, 'days');
+                return nightDate.format('MMM DD');
+            });
+            
+            // Check if nights are consecutive
+            const isConsecutive = selectedNights.length > 1 && 
+                selectedNights.every((night, index) => 
+                    index === 0 || night === selectedNights[index - 1] + 1
+                );
+            
              const startNight = Math.min(...selectedNights);
              const endNight = Math.max(...selectedNights);
              const startDate = moment(tourStartDate).add(startNight-1, 'days');
@@ -9929,24 +10504,26 @@ document.addEventListener('DOMContentLoaded', function() {
             let summaryHTML = `
                 <div class="alert" style="background: #d1f2eb; border: 1px solid #7dd3c0; border-radius: 6px; padding: 0.75rem 1rem; margin: 0;">
                     <i class="ri-calendar-check-line me-2" style="color: #667eea;"></i>
-                    <strong style="color: #212529; font-size: 0.9rem;">Hotel booked for ${selectedNights.length} nights</strong><br>
-                    <small style="color: #495057; font-size: 0.8rem;">${startDate.format('MMM DD')} - ${endDate.format('MMM DD, YYYY')}</small><br>
-                    <small style="color: #6c757d; font-size: 0.75rem;">Consecutive hotel nights selected - applies to all rooms in this hotel</small>
+                    <strong style="color: #212529; font-size: 0.9rem;">Hotel booked for ${selectedNights.length} night${selectedNights.length > 1 ? 's' : ''}</strong><br>
             `;
             
-            // Add legend if there are auto-selected nights
-            if (autoNights.length > 0) {
+            // Show date range if consecutive, otherwise show individual nights
+            if (isConsecutive && selectedNights.length > 1) {
+                summaryHTML += `<small style="color: #495057; font-size: 0.8rem;">${startDate.format('MMM DD')} - ${endDate.format('MMM DD, YYYY')}</small><br>`;
+            } else {
+                summaryHTML += `<small style="color: #495057; font-size: 0.8rem;">Selected nights: ${selectedNights.join(', ')} (${nightDates.join(', ')})</small><br>`;
+            }
+            
+            summaryHTML += `<small style="color: #6c757d; font-size: 0.75rem;">Selected nights apply to all rooms in this hotel</small>`;
+            
+           // Show selected nights list
+            if (selectedNights.length > 0) {
                 summaryHTML += `
                     <hr class="my-2" style="border-color: #b3d9ff;">
-                    <div class="d-flex justify-content-between align-items-center flex-wrap gap-2">
                         <div>
-                            <span class="badge me-2" style="background: #667eea; color: #ffffff; border-radius: 4px; font-size: 0.75rem; padding: 0.25rem 0.5rem;">${manualNights.length}</span>
-                            <small style="color: #495057; font-size: 0.8rem;">Manually Selected: ${manualNights.join(', ')}</small>
-                        </div>
-                        <div>
-                            <span class="badge me-2" style="background: #b3d9ff; color: #667eea; border-radius: 4px; font-size: 0.75rem; padding: 0.25rem 0.5rem;">${autoNights.length}</span>
-                            <small style="color: #495057; font-size: 0.8rem;">Auto-Required: ${autoNights.join(', ')}</small>
-                        </div>
+                        <small style="color: #495057; font-size: 0.8rem;">
+                            <strong>Nights:</strong> ${selectedNights.join(', ')}
+                        </small>
                     </div>
                 `;
             }
@@ -12313,7 +12890,7 @@ document.addEventListener('DOMContentLoaded', function() {
                                          <i class="ri-information-line me-2"></i>Location & Time Information
                                      </h6>
                                      <div class="row g-3">
-                                         <div class="col-md-3">
+                                         <div class="col-md-2">
                                              <label class="form-label fw-semibold text-dark">
                                                  <i class="ri-building-line me-1 text-primary"></i>City
                                              </label>
@@ -12375,7 +12952,7 @@ document.addEventListener('DOMContentLoaded', function() {
                                                  <i class="ri-time-fill position-absolute text-primary" style="left: 12px; top: 50%; transform: translateY(-50%); z-index: 5; pointer-events: none;"></i>
                                              </div>
                                          </div>
-                                        <div class="col-md-1 d-flex align-items-end">
+                                        <div class="col-md-2 d-flex align-items-end">
                                             <button type="button" class="btn w-100" onclick="searchVehicles(${day}, 'entry', 0)" id="day${day}_entry_search_btn" disabled style="height: 40px; border-radius: 6px; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); border: none; color: #ffffff; font-weight: 500; font-size: 0.9rem; display: flex; align-items: center; justify-content: center; box-shadow: 0 2px 6px rgba(102, 126, 234, 0.3); transition: all 0.2s; cursor: pointer; padding: 1.5rem 3rem;">
                                                 <i class="ri-search-line me-1"></i> Search
                                             </button>
@@ -12406,7 +12983,7 @@ document.addEventListener('DOMContentLoaded', function() {
                                                 <i class="ri-car-line me-2"></i>Vehicle Configuration
                                             </h6>
                                             <div class="row g-3">
-                                                <div class="col-md-6">
+                                                <div class="col-md-4">
                                                     <label class="form-label fw-semibold text-dark">
                                                         <i class="ri-car-line me-1 text-primary"></i>Vehicle
                                                     </label>
@@ -12417,7 +12994,7 @@ document.addEventListener('DOMContentLoaded', function() {
                                                         <option value="">Choose vehicle</option>
                                                     </select>
                                                 </div>
-                                                <div class="col-md-6">
+                                                <div class="col-md-4">
                                                     <label class="form-label fw-semibold text-dark">
                                                         <i class="ri-service-line me-1 text-primary"></i>Service Type
                                                     </label>
@@ -12431,17 +13008,17 @@ document.addEventListener('DOMContentLoaded', function() {
                                                         <option value="Private">Private</option>
                                                     </select>
                                                 </div>
-                                                <div class="col-md-12">
+                                                <div class="col-md-4">
                                                     <label class="form-label fw-semibold text-dark">
                                                         <i class="ri-group-line me-1 text-primary"></i>Number of Passengers
                                                     </label>
                                                     <div class="input-group shadow-sm">
-                                                        <span class="input-group-text" style="background: linear-gradient(135deg, #3b82f6 0%, #2563eb 100%); color: white; border: 1px solid #3b82f6;">
+                                                        <span class="input-group-text" style="background: linear-gradient(135deg, #3b82f6 0%, #2563eb 100%); color: white; border: 1px solid #3b82f6; height: 42px; font-size: 0.735rem;">
                                                             <i class="ri-user-line"></i>
                                                         </span>
                                                         <input type="number" class="form-control" id="day${day}_entry_0_passengers" name="day${day}_entry_0_passengers" min="1" max="50" value="" 
                                                         oninput="validatePassengerCapacity(${day}, 'entry_0'); updatePricing(${day}, 'entry_0')"
-                                                        onchange="validatePassengerCapacity(${day}, 'entry_0'); updatePricing(${day}, 'entry_0')"
+                                                        onchange="validatePassengerCapacity(${day}, 'entry_0'); updatePricing(${day}, 'entry_0')" onwheel="event.preventDefault(); return false;"
                                                         style="border: 1px solid #e5e7eb; height: 42px; font-size: 0.735rem;">
                                                     </div>
                                                     <small class="form-text text-muted mt-1">
@@ -12453,14 +13030,62 @@ document.addEventListener('DOMContentLoaded', function() {
                                         
                                         <!-- Price Display for Entry Port -->
                                         <div class="col-12">
-                                            <div id="day${day}_entry_0_price_display" class="rounded" style="display: none; background: linear-gradient(135deg, #f8f9ff 0%, #e7f3ff 100%); border: 1px solid #b3d9ff; border-radius: 8px; padding: 1rem;">
-                                                <div class="d-flex align-items-start">
-                                                    <div style="width: 40px; height: 40px; background: rgba(102, 126, 234, 0.15); border-radius: 8px; display: flex; align-items: center; justify-content: center; margin-right: 12px; flex-shrink: 0;">
-                                                        <i class="ri-money-dollar-circle-line" style="color: #667eea; font-size: 1.25rem;"></i>
+                                            <div id="day${day}_entry_0_price_display" class="card shadow-sm border-0" style="background: #ffffff; border-radius: 12px; overflow: hidden; display: none;">
+                                                <div class="card-header text-white" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); border: none; padding: 1rem 1.25rem;">
+                                                    <div class="d-flex align-items-center justify-content-between">
+                                                        <div class="d-flex align-items-center">
+                                                            <div style="width: 40px; height: 40px; background: rgba(255, 255, 255, 0.2); border-radius: 10px; display: flex; align-items: center; justify-content: center; margin-right: 12px;">
+                                                                <i class="ri-ship-line text-white" style="color: #ffffff !important; font-size: 1.25rem;"></i>
+                                                            </div>
+                                                            <div>
+                                                                <h6 class="mb-0 fw-bold text-white" style="color: #ffffff !important; font-size: 1.1rem;">Entry Port Pricing</h6>
+                                                                <small class="text-white-75" style="color: rgba(255, 255, 255, 0.85) !important; font-size: 0.8rem;">Vehicle pricing details for entry port service</small>
+                                                            </div>
+                                                        </div>
+                                                        <button type="button" class="btn btn-sm text-white" onclick="forceUpdateEntryPortPricing(${day}, 0)" title="Refresh Pricing" style="background: rgba(255, 255, 255, 0.2); border: 1px solid rgba(255, 255, 255, 0.3); border-radius: 6px; padding: 0.375rem 0.75rem; transition: all 0.2s;">
+                                                            <i class="ri-refresh-line"></i>
+                                                        </button>
                                                     </div>
-                                                    <div style="flex: 1;">
-                                                        <strong style="color: #212529; font-size: 0.95rem; display: block; margin-bottom: 0.5rem;">Price Information</strong>
-                                                        <div style="color: #6c757d; font-size: 0.85rem;">Vehicle pricing details</div>
+                                                </div>
+                                                <div class="card-body" style="background: #ffffff; padding: 1.25rem;">
+                                                    <!-- Entry Port Pricing Details -->
+                                                    <div class="row g-3">
+                                                        <div class="col-12">
+                                                            <div class="card shadow-sm border-0" style="background: linear-gradient(135deg, #f8f9ff 0%, #e7f3ff 100%); border: 1px solid #b3d9ff !important; border-radius: 8px;">
+                                                                <div class="card-header" style="background: rgba(102, 126, 234, 0.1); border: none; border-bottom: 1px solid #b3d9ff; padding: 0.75rem 1rem; border-radius: 8px 8px 0 0;">
+                                                                    <h6 class="mb-0 fw-semibold d-flex align-items-center" style="color: #495057; font-size: 0.9rem;">
+                                                                        <div style="width: 28px; height: 28px; background: rgba(102, 126, 234, 0.15); border-radius: 6px; display: flex; align-items: center; justify-content: center; margin-right: 8px;">
+                                                                            <i class="ri-car-line" style="color: #667eea; font-size: 0.9rem;"></i>
+                                                                        </div>
+                                                                        Vehicle Pricing Details
+                                                                    </h6>
+                                                                </div>
+                                                                <div class="card-body" style="padding: 1rem;">
+                                                                    <div id="day${day}_entry_0_pricing_content" style="font-size: 0.85rem; color: #495057;">
+                                                                        <div class="text-muted" style="font-size: 0.8rem; color: #6c757d;">Select entry port options to see pricing</div>
+                                                                    </div>
+                                                                </div>
+                                                            </div>
+                                                        </div>
+                                                    </div>
+                                                    
+                                                    <!-- Total Price Row -->
+                                                    <div class="row mt-3">
+                                                        <div class="col-12">
+                                                            <div class="card shadow-sm border-0" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); border-radius: 8px; box-shadow: 0 4px 12px rgba(102, 126, 234, 0.3);">
+                                                                <div class="card-body" style="padding: 1rem 1.25rem;">
+                                                                    <div class="d-flex justify-content-between align-items-center">
+                                                                        <h6 class="mb-0 fw-bold text-white d-flex align-items-center" style="color: #ffffff !important; font-size: 1rem;">
+                                                                            <div style="width: 32px; height: 32px; background: rgba(255, 255, 255, 0.2); border-radius: 8px; display: flex; align-items: center; justify-content: center; margin-right: 10px;">
+                                                                                <i class="ri-calculator-line" style="color: #ffffff !important; font-size: 1rem;"></i>
+                                                                            </div>
+                                                                            Total Price
+                                                                        </h6>
+                                                                        <span class="fw-bold text-white" style="font-size: 1.5rem; color: #ffffff !important;" id="day${day}_entry_0_total_price_display">$0.00</span>
+                                                                    </div>
+                                                                </div>
+                                                            </div>
+                                                        </div>
                                                     </div>
                                                 </div>
                                             </div>
@@ -12537,7 +13162,7 @@ document.addEventListener('DOMContentLoaded', function() {
                                          <i class="ri-information-line me-2"></i>Location & Time Information
                                      </h6>
                                      <div class="row g-3">
-                                         <div class="col-md-3">
+                                         <div class="col-md-2">
                                              <label class="form-label fw-semibold text-dark">
                                                  <i class="ri-building-line me-1 text-primary"></i>City
                                              </label>
@@ -12598,7 +13223,7 @@ document.addEventListener('DOMContentLoaded', function() {
                                                  </select>
                                              </div>
                                          </div>
-                                         <div class="col-md-1 d-flex align-items-end">
+                                         <div class="col-md-2 d-flex align-items-end">
                                              <button type="button" class="btn w-100" onclick="searchVehicles(${day}, 'exit', 0)" id="day${day}_exit_search_btn" disabled style="height: 42px; border-radius: 6px; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); border: none; color: #ffffff; font-weight: 500; font-size: 0.9rem; display: flex; align-items: center; justify-content: center; box-shadow: 0 2px 6px rgba(102, 126, 234, 0.3); transition: all 0.2s; cursor: pointer; padding: 0.5rem 1rem;">
                                                  <i class="ri-search-line me-1"></i> Search
                                              </button>
@@ -12629,7 +13254,7 @@ document.addEventListener('DOMContentLoaded', function() {
                                                 <i class="ri-car-line me-2"></i>Vehicle Configuration
                                             </h6>
                                             <div class="row g-3">
-                                                <div class="col-md-6">
+                                                <div class="col-md-4">
                                                     <label class="form-label fw-semibold text-dark">
                                                         <i class="ri-car-line me-1 text-primary"></i>Vehicle
                                                     </label>
@@ -12641,7 +13266,7 @@ document.addEventListener('DOMContentLoaded', function() {
                                                         <option value="">Choose vehicle</option>
                                                     </select>
                                                 </div>
-                                                <div class="col-md-6">
+                                                <div class="col-md-4">
                                                     <label class="form-label fw-semibold text-dark">
                                                         <i class="ri-service-line me-1 text-primary"></i>Service Type
                                                     </label>
@@ -12655,7 +13280,7 @@ document.addEventListener('DOMContentLoaded', function() {
                                                         <option value="Private">Private</option>
                                                     </select>
                                                 </div>
-                                                <div class="col-md-12">
+                                                <div class="col-md-4">
                                                     <label class="form-label fw-semibold text-dark">
                                                         <i class="ri-group-line me-1 text-primary"></i>Number of Passengers
                                                     </label>
@@ -12663,7 +13288,7 @@ document.addEventListener('DOMContentLoaded', function() {
                                                         <span class="input-group-text" style="height: 42px; font-size: 0.735rem;" style="background: linear-gradient(135deg, #3b82f6 0%, #2563eb 100%); color: white; border: 1px solid #3b82f6;">
                                                             <i class="ri-user-line"></i>
                                                         </span>
-                                                        <input type="number" style="height: 42px; font-size: 0.735rem;" class="form-control" id="day${day}_exit_0_passengers" name="day${day}_exit_0_passengers" min="1" max="50" value="" 
+                                                        <input type="number" onwheel="event.preventDefault(); return false;" style="height: 42px; font-size: 0.735rem;" class="form-control" id="day${day}_exit_0_passengers" name="day${day}_exit_0_passengers" min="1" max="50" value="" 
                                                         oninput="validatePassengerCapacity(${day}, 'exit_0'); updatePricing(${day}, 'exit_0')"
                                                         onchange="validatePassengerCapacity(${day}, 'exit_0'); updatePricing(${day}, 'exit_0')"
                                                         style="border: 1px solid #e5e7eb;">
@@ -12677,14 +13302,62 @@ document.addEventListener('DOMContentLoaded', function() {
                                         
                                         <!-- Price Display for Exit Port -->
                                         <div class="col-12">
-                                            <div id="day${day}_exit_0_price_display" class="rounded" style="display: none; background: linear-gradient(135deg, #f8f9ff 0%, #e7f3ff 100%); border: 1px solid #b3d9ff; border-radius: 8px; padding: 1rem;">
-                                                <div class="d-flex align-items-start">
-                                                    <div style="width: 40px; height: 40px; background: rgba(102, 126, 234, 0.15); border-radius: 8px; display: flex; align-items: center; justify-content: center; margin-right: 12px; flex-shrink: 0;">
-                                                        <i class="ri-money-dollar-circle-line" style="color: #667eea; font-size: 1.25rem;"></i>
+                                            <div id="day${day}_exit_0_price_display" class="card shadow-sm border-0" style="background: #ffffff; border-radius: 12px; overflow: hidden; display: none;">
+                                                <div class="card-header text-white" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); border: none; padding: 1rem 1.25rem;">
+                                                    <div class="d-flex align-items-center justify-content-between">
+                                                        <div class="d-flex align-items-center">
+                                                            <div style="width: 40px; height: 40px; background: rgba(255, 255, 255, 0.2); border-radius: 10px; display: flex; align-items-center; justify-content: center; margin-right: 12px;">
+                                                                <i class="ri-ship-line text-white" style="color: #ffffff !important; font-size: 1.25rem;"></i>
+                                                            </div>
+                                                            <div>
+                                                                <h6 class="mb-0 fw-bold text-white" style="color: #ffffff !important; font-size: 1.1rem;">Exit Port Pricing</h6>
+                                                                <small class="text-white-75" style="color: rgba(255, 255, 255, 0.85) !important; font-size: 0.8rem;">Vehicle pricing details for exit port service</small>
+                                                            </div>
+                                                        </div>
+                                                        <button type="button" class="btn btn-sm text-white" onclick="forceUpdateExitPortPricing(${day}, 0)" title="Refresh Pricing" style="background: rgba(255, 255, 255, 0.2); border: 1px solid rgba(255, 255, 255, 0.3); border-radius: 6px; padding: 0.375rem 0.75rem; transition: all 0.2s;">
+                                                            <i class="ri-refresh-line"></i>
+                                                        </button>
                                                     </div>
-                                                    <div style="flex: 1;">
-                                                        <strong style="color: #212529; font-size: 0.95rem; display: block; margin-bottom: 0.5rem;">Price Information</strong>
-                                                        <div style="color: #6c757d; font-size: 0.85rem;">Vehicle pricing details</div>
+                                                </div>
+                                                <div class="card-body" style="background: #ffffff; padding: 1.25rem;">
+                                                    <!-- Exit Port Pricing Details -->
+                                                    <div class="row g-3">
+                                                        <div class="col-12">
+                                                            <div class="card shadow-sm border-0" style="background: linear-gradient(135deg, #f8f9ff 0%, #e7f3ff 100%); border: 1px solid #b3d9ff !important; border-radius: 8px;">
+                                                                <div class="card-header" style="background: rgba(102, 126, 234, 0.1); border: none; border-bottom: 1px solid #b3d9ff; padding: 0.75rem 1rem; border-radius: 8px 8px 0 0;">
+                                                                    <h6 class="mb-0 fw-semibold d-flex align-items-center" style="color: #495057; font-size: 0.9rem;">
+                                                                        <div style="width: 28px; height: 28px; background: rgba(102, 126, 234, 0.15); border-radius: 6px; display: flex; align-items: center; justify-content: center; margin-right: 8px;">
+                                                                            <i class="ri-car-line" style="color: #667eea; font-size: 0.9rem;"></i>
+                                                                        </div>
+                                                                        Vehicle Pricing Details
+                                                                    </h6>
+                                                                </div>
+                                                                <div class="card-body" style="padding: 1rem;">
+                                                                    <div id="day${day}_exit_0_pricing_content" style="font-size: 0.85rem; color: #495057;">
+                                                                        <div class="text-muted" style="font-size: 0.8rem; color: #6c757d;">Select exit port options to see pricing</div>
+                                                                    </div>
+                                                                </div>
+                                                            </div>
+                                                        </div>
+                                                    </div>
+                                                    
+                                                    <!-- Total Price Row -->
+                                                    <div class="row mt-3">
+                                                        <div class="col-12">
+                                                            <div class="card shadow-sm border-0" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); border-radius: 8px; box-shadow: 0 4px 12px rgba(102, 126, 234, 0.3);">
+                                                                <div class="card-body" style="padding: 1rem 1.25rem;">
+                                                                    <div class="d-flex justify-content-between align-items-center">
+                                                                        <h6 class="mb-0 fw-bold text-white d-flex align-items-center" style="color: #ffffff !important; font-size: 1rem;">
+                                                                            <div style="width: 32px; height: 32px; background: rgba(255, 255, 255, 0.2); border-radius: 8px; display: flex; align-items: center; justify-content: center; margin-right: 10px;">
+                                                                                <i class="ri-calculator-line" style="color: #ffffff !important; font-size: 1rem;"></i>
+                                                                            </div>
+                                                                            Total Price
+                                                                        </h6>
+                                                                        <span class="fw-bold text-white" style="font-size: 1.5rem; color: #ffffff !important;" id="day${day}_exit_0_total_price_display">$0.00</span>
+                                                                    </div>
+                                                                </div>
+                                                            </div>
+                                                        </div>
                                                     </div>
                                                 </div>
                                             </div>
@@ -12698,7 +13371,7 @@ document.addEventListener('DOMContentLoaded', function() {
                                                         </label>
                                                         <div class="input-group">
                                                             <span class="input-group-text">SGD</span>
-                                                            <input type="number" class="form-control" id="day${day}_exit_0_custom_price" name="day${day}_exit_0_custom_price" min="0" step="0.01" placeholder="Enter custom price" oninput="updateExitPortCustomPricing(${day}, 'exit_0')" onchange="updateExitPortCustomPricing(${day}, 'exit_0')">
+                                                            <input type="number" class="form-control" onwheel="event.preventDefault(); return false;" id="day${day}_exit_0_custom_price" name="day${day}_exit_0_custom_price" min="0" step="0.01" placeholder="Enter custom price" oninput="updateExitPortCustomPricing(${day}, 'exit_0')" onchange="updateExitPortCustomPricing(${day}, 'exit_0')">
                                                             <span class="input-group-text">.00</span>
                                                         </div>
                                                         <small class="form-text text-muted mt-1">
@@ -12897,7 +13570,7 @@ document.addEventListener('DOMContentLoaded', function() {
                                                  <label class="form-label fw-semibold mb-1" style="color: #495057; font-size: 0.8rem;">
                                                      <i class="ri-money-dollar-circle-line me-1"></i>Cost
                                                  </label>
-                                                 <input type="number" class="form-control" style="height: 36px; border-radius: 6px; border: 1px solid #dee2e6; font-size: 0.85rem;" name="day${day}_attraction_1_transfer_cost" id="day${day}_attraction_1_transfer_cost" min="0" step="0.01" placeholder="0.00" onchange="updateAttractionTransportPricing(${day}, 1)" oninput="updateAttractionTransportPricing(${day}, 1)">
+                                                 <input type="number" class="form-control" onwheel="event.preventDefault(); return false;" style="height: 36px; border-radius: 6px; border: 1px solid #dee2e6; font-size: 0.85rem;" name="day${day}_attraction_1_transfer_cost" id="day${day}_attraction_1_transfer_cost" min="0" step="1" placeholder="0.00" onchange="updateAttractionTransportPricing(${day}, 1)" oninput="updateAttractionTransportPricing(${day}, 1)">
                                              </div>
                                          </div>
                                      </div>
@@ -12920,10 +13593,18 @@ document.addEventListener('DOMContentLoaded', function() {
                                          <div class="row g-2">
                                              <div class="col-md-4">
                                                  <label class="form-label fw-semibold mb-1" style="color: #495057; font-size: 0.8rem;">
+                                                     <i class="ri-global-line me-1"></i>Select Language
+                                                 </label>
+                                                 <select class="form-select" style="height: 36px; border-radius: 6px; border: 1px solid #dee2e6; font-size: 0.8rem; padding: 0.375rem 0.75rem; line-height: 1.4; overflow: hidden; text-overflow: ellipsis;" name="day${day}_attraction_1_guide_language" id="day${day}_attraction_1_guide_language" onchange="handleAttractionGuideLanguageChange(${day}, 1)" disabled>
+                                                     <option value="">Select city first</option>
+                                                 </select>
+                                             </div>
+                                             <div class="col-md-4">
+                                                 <label class="form-label fw-semibold mb-1" style="color: #495057; font-size: 0.8rem;">
                                                      <i class="ri-user-star-line me-1"></i>Select Guide
                                                  </label>
                                                  <select class="form-select attraction-guide-select" style="height: 36px; border-radius: 6px; border: 1px solid #dee2e6; font-size: 0.8rem; padding: 0.375rem 0.75rem; line-height: 1.4; overflow: hidden; text-overflow: ellipsis;" name="day${day}_attraction_1_guide" id="day${day}_attraction_1_guide" onchange="loadAttractionGuideDetails(${day}, this.value, 1)" disabled>
-                                                     <option value="">Select city first</option>
+                                                     <option value="">Select language first</option>
                                                  </select>
                                              </div>
                                              <div class="col-md-4">
@@ -13148,42 +13829,80 @@ document.addEventListener('DOMContentLoaded', function() {
                                      <div class="col-md-12">
                                          
                                          
-                                         <!-- Guide Price Display Section -->
-                                         <div id="day${day}_guide_1_price_display" class="mt-3" style="display: none;">
-                                             <div class="card shadow-sm border-0" style="background: linear-gradient(135deg, #f8f9ff 0%, #e7f3ff 100%); border: 1px solid #b3d9ff !important; border-radius: 8px; overflow: hidden;">
-                                                 <div class="card-header" style="background: rgba(102, 126, 234, 0.1); border: none; border-bottom: 1px solid #b3d9ff; padding: 0.75rem 1rem;">
-                                                     <h6 class="mb-0 fw-semibold d-flex align-items-center" style="color: #495057; font-size: 0.9rem;">
-                                                         <div style="width: 28px; height: 28px; background: rgba(102, 126, 234, 0.15); border-radius: 6px; display: flex; align-items: center; justify-content: center; margin-right: 8px;">
-                                                             <i class="ri-user-star-line" style="color: #667eea; font-size: 0.9rem;"></i>
-                                                         </div>
-                                                         Guide Pricing: <span id="day${day}_guide_1_guide_name" style="color: #667eea; font-weight: 600;">Guide Name</span>
-                                                     </h6>
-                                                 </div>
-                                                 <div class="card-body" style="padding: 1rem; background: #ffffff;">
-                                                     <div class="d-flex align-items-center justify-content-between mb-2" style="font-size: 0.85rem;">
-                                                         <span style="color: #6c757d;">Package Price:</span>
-                                                         <span class="fw-semibold" style="color: #495057;" id="day${day}_guide_1_package_price_display">$0.00</span>
-                                                     </div>
-                                                     
-                                                     <div class="d-flex align-items-center justify-content-between mb-2" style="font-size: 0.85rem;">
-                                                         <span style="color: #6c757d;">Duration:</span>
-                                                         <span class="fw-semibold" style="color: #495057;" id="day${day}_guide_1_hours_display">0 hours</span>
-                                                     </div>
-                                                     
-                                                     <div class="d-flex align-items-center justify-content-between mb-2" id="day${day}_guide_1_surcharge_row" style="display: none; font-size: 0.85rem;">
-                                                         <span style="color: #6c757d;">Night Surcharge:</span>
-                                                         <span class="fw-semibold" style="color: #ff9800;" id="day${day}_guide_1_surcharge_display">$0.00</span>
-                                                     </div>
-                                                     
-                                                     <hr class="my-2" style="border-color: #b3d9ff; border-width: 1px; opacity: 0.5;">
-                                                     
-                                                     <div class="d-flex align-items-center justify-content-between">
-                                                         <span class="fw-bold" style="color: #495057; font-size: 0.95rem;">Total Price:</span>
-                                                         <span class="fw-bold" style="color: #667eea; font-size: 1.25rem;" id="day${day}_guide_1_total_price_display">$0.00</span>
-                                                     </div>
-                                                 </div>
-                                             </div>
-                                         </div>
+                                        <!-- Guide Price Display Section -->
+                                        <div id="day${day}_guide_1_price_display" class="mt-3" style="display: none;">
+                                            <div class="card shadow-sm border-0" style="background: #ffffff; border-radius: 12px; overflow: hidden;">
+                                                <div class="card-header text-white" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); border: none; padding: 1rem 1.25rem;">
+                                                    <div class="d-flex align-items-center justify-content-between">
+                                                        <div class="d-flex align-items-center">
+                                                            <div style="width: 40px; height: 40px; background: rgba(255, 255, 255, 0.2); border-radius: 10px; display: flex; align-items: center; justify-content: center; margin-right: 12px;">
+                                                                <i class="ri-user-star-line text-white" style="color: #ffffff !important; font-size: 1.25rem;"></i>
+                                                            </div>
+                                                            <div>
+                                                                <h6 class="mb-0 fw-bold text-white" style="color: #ffffff !important; font-size: 1.1rem;">Guide Pricing</h6>
+                                                                <small class="text-white-75" style="color: rgba(255, 255, 255, 0.85) !important; font-size: 0.8rem;">Selected Guide: <span id="day${day}_guide_1_guide_name" style="font-weight: 600;">Guide Name</span></small>
+                                                            </div>
+                                                        </div>
+                                                        <button type="button" class="btn btn-sm text-white" onclick="forceUpdateGuidePricing(${day}, 1)" title="Refresh Pricing" style="background: rgba(255, 255, 255, 0.2); border: 1px solid rgba(255, 255, 255, 0.3); border-radius: 6px; padding: 0.375rem 0.75rem; transition: all 0.2s;">
+                                                            <i class="ri-refresh-line"></i>
+                                                        </button>
+                                                    </div>
+                                                </div>
+                                                <div class="card-body" style="background: #ffffff; padding: 1.25rem;">
+                                                    <!-- Guide Pricing Details -->
+                                                    <div class="row g-3">
+                                                        <div class="col-12">
+                                                            <div class="card shadow-sm border-0" style="background: linear-gradient(135deg, #f8f9ff 0%, #e7f3ff 100%); border: 1px solid #b3d9ff !important; border-radius: 8px;">
+                                                                <div class="card-body" style="padding: 1rem;">
+                                                                    <div class="d-flex align-items-center justify-content-between mb-3" style="font-size: 0.85rem;">
+                                                                        <span style="color: #6c757d;">
+                                                                            <i class="ri-price-tag-3-line" style="color: #667eea; margin-right: 5px;"></i>
+                                                                            Package Price:
+                                                                        </span>
+                                                                        <span class="fw-semibold" style="color: #495057;" id="day${day}_guide_1_package_price_display">$0.00</span>
+                                                                    </div>
+                                                                    
+                                                                    <div class="d-flex align-items-center justify-content-between mb-3" style="font-size: 0.85rem;">
+                                                                        <span style="color: #6c757d;">
+                                                                            <i class="ri-time-line" style="color: #667eea; margin-right: 5px;"></i>
+                                                                            Duration:
+                                                                        </span>
+                                                                        <span class="fw-semibold" style="color: #495057;" id="day${day}_guide_1_hours_display">0 hours</span>
+                                                                    </div>
+                                                                    
+                                                                    <div class="d-flex align-items-center justify-content-between" id="day${day}_guide_1_surcharge_row" style="display: none; font-size: 0.85rem;">
+                                                                        <span style="color: #6c757d;">
+                                                                            <i class="ri-moon-line" style="color: #ff9800; margin-right: 5px;"></i>
+                                                                            Night Surcharge:
+                                                                        </span>
+                                                                        <span class="fw-semibold" style="color: #ff9800;" id="day${day}_guide_1_surcharge_display">$0.00</span>
+                                                                    </div>
+                                                                </div>
+                                                            </div>
+                                                        </div>
+                                                    </div>
+                                                    
+                                                    <!-- Total Price Row -->
+                                                    <div class="row mt-3">
+                                                        <div class="col-12">
+                                                            <div class="card shadow-sm border-0" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); border-radius: 8px; box-shadow: 0 4px 12px rgba(102, 126, 234, 0.3);">
+                                                                <div class="card-body" style="padding: 1rem 1.25rem;">
+                                                                    <div class="d-flex justify-content-between align-items-center">
+                                                                        <h6 class="mb-0 fw-bold text-white d-flex align-items-center" style="color: #ffffff !important; font-size: 1rem;">
+                                                                            <div style="width: 32px; height: 32px; background: rgba(255, 255, 255, 0.2); border-radius: 8px; display: flex; align-items: center; justify-content: center; margin-right: 10px;">
+                                                                                <i class="ri-calculator-line" style="color: #ffffff !important; font-size: 1rem;"></i>
+                                                                            </div>
+                                                                            Total Price
+                                                                        </h6>
+                                                                        <span class="fw-bold text-white" style="font-size: 1.5rem; color: #ffffff !important;" id="day${day}_guide_1_total_price_display">$0.00</span>
+                                                                    </div>
+                                                                </div>
+                                                            </div>
+                                                        </div>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        </div>
                                          
                                          <!-- Hidden fields for pricing -->
                                          <input type="hidden" id="day${day}_guide_1_base_price" name="day${day}_guide_1_base_price" value="0">
@@ -13383,93 +14102,94 @@ document.addEventListener('DOMContentLoaded', function() {
                                                                  <label class="form-label fw-semibold mb-1" style="color: #495057; font-size: 0.8rem;">
                                                                      <i class="ri-money-dollar-circle-line me-1"></i>Transfer Cost
                                                                  </label>
-                                                                 <input type="number" class="form-control" style="height: 36px; border-radius: 6px; border: 1px solid #dee2e6; font-size: 0.8rem; padding: 0.375rem 0.75rem;" name="day${day}_restaurant_1_transfer_cost" id="day${day}_restaurant_1_transfer_cost" min="0" step="0.01" placeholder="0.00" onchange="updateRestaurantTransportPricing(${day}, 1)" oninput="updateRestaurantTransportPricing(${day}, 1)">
+                                                                 <input type="number" class="form-control" onwheel="event.preventDefault(); return false;" style="height: 36px; border-radius: 6px; border: 1px solid #dee2e6; font-size: 0.8rem; padding: 0.375rem 0.75rem;" name="day${day}_restaurant_1_transfer_cost" id="day${day}_restaurant_1_transfer_cost" min="0" step="1" placeholder="0.00" onchange="updateRestaurantTransportPricing(${day}, 1)" oninput="updateRestaurantTransportPricing(${day}, 1)">
                                                              </div>
                                                          </div>
                                                      </div>
                                                  </div>
 
-                                                 <!-- Restaurant Pricing Section -->
-                                                 <div id="day${day}_restaurant_1_price_display" class="mt-2" style="display: none;">
-                                                     <div class="card shadow-sm border-0" style="background: #ffffff; border-radius: 8px; overflow: hidden;">
-                                                         <div class="card-header text-white" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); border: none; padding: 0.625rem 0.875rem;">
-                                                             <div class="d-flex align-items-center justify-content-between">
-                                                                 <div class="d-flex align-items-center">
-                                                                     <div style="width: 32px; height: 32px; background: rgba(255, 255, 255, 0.2); border-radius: 8px; display: flex; align-items: center; justify-content: center; margin-right: 10px;">
-                                                                         <i class="ri-restaurant-line text-white" style="color: #ffffff !important; font-size: 1rem;"></i>
-                                                                     </div>
-                                                                     <div>
-                                                                         <h6 class="mb-0 fw-bold text-white" style="color: #ffffff !important; font-size: 0.95rem; line-height: 1.2;">Restaurant Pricing</h6>
-                                                                         <small class="text-white-75" style="color: rgba(255, 255, 255, 0.85) !important; font-size: 0.75rem; line-height: 1.2;">Restaurant: <span id="day${day}_restaurant_1_restaurant_name" style="color: rgba(255, 255, 255, 0.95) !important; font-weight: 600;">Restaurant Name</span></small>
-                                                                     </div>
-                                                                 </div>
-                                                             </div>
-                                                         </div>
-                                                         <div class="card-body" style="background: #ffffff; padding: 0.875rem;">
-                                                             <!-- Two Column Pricing Layout -->
-                                                             <div class="row g-2">
-                                                                 <!-- Column 1: Restaurant Pricing -->
-                                                                 <div class="col-md-8">
-                                                                     <div class="card shadow-sm border-0" style="background: linear-gradient(135deg, #f8f9ff 0%, #e7f3ff 100%); border: 1px solid #b3d9ff !important; border-radius: 6px; height: 100%;">
-                                                                         <div class="card-header" style="background: rgba(102, 126, 234, 0.1); border: none; border-bottom: 1px solid #b3d9ff; padding: 0.5rem 0.75rem; border-radius: 6px 6px 0 0;">
-                                                                             <h6 class="mb-0 fw-semibold d-flex align-items-center" style="color: #495057; font-size: 0.85rem;">
-                                                                                 <div style="width: 24px; height: 24px; background: rgba(102, 126, 234, 0.15); border-radius: 5px; display: flex; align-items: center; justify-content: center; margin-right: 6px;">
-                                                                                     <i class="ri-restaurant-2-line" style="color: #667eea; font-size: 0.8rem;"></i>
-                                                                                 </div>
-                                                                                 Restaurant Pricing Details
-                                                                             </h6>
-                                                                         </div>
-                                                                         <div class="card-body" style="padding: 0.75rem;">
-                                                                             <div id="day${day}_restaurant_1_pricing_details" style="font-size: 0.8rem; color: #495057; line-height: 1.4;">
-                                                                                 <div class="text-muted" style="font-size: 0.75rem; color: #6c757d;">Select a restaurant and configure guests to see pricing</div>
-                                                                             </div>
-                                                                         </div>
-                                                                     </div>
-                                                                 </div>
-                                                                 
-                                                                 <!-- Column 2: Transfer Pricing -->
-                                                                 <div class="col-md-4">
-                                                                     <div class="card shadow-sm border-0" style="background: linear-gradient(135deg, #f8f9ff 0%, #e7f3ff 100%); border: 1px solid #b3d9ff !important; border-radius: 6px; height: 100%;">
-                                                                         <div class="card-header" style="background: rgba(102, 126, 234, 0.1); border: none; border-bottom: 1px solid #b3d9ff; padding: 0.5rem 0.75rem; border-radius: 6px 6px 0 0;">
-                                                                             <h6 class="mb-0 fw-semibold d-flex align-items-center" style="color: #495057; font-size: 0.85rem;">
-                                                                                 <div style="width: 24px; height: 24px; background: rgba(102, 126, 234, 0.15); border-radius: 5px; display: flex; align-items: center; justify-content: center; margin-right: 6px;">
-                                                                                     <i class="ri-car-line" style="color: #667eea; font-size: 0.8rem;"></i>
-                                                                                 </div>
-                                                                                 Transfer Pricing
-                                                                             </h6>
-                                                                         </div>
-                                                                         <div class="card-body" style="padding: 0.75rem;">
-                                                                             <div id="day${day}_restaurant_1_transport_pricing_content" style="font-size: 0.8rem; color: #495057; line-height: 1.4;">
-                                                                                 <div class="text-muted" style="font-size: 0.75rem; color: #6c757d;">No transport selected</div>
-                                                                             </div>
-                                                                         </div>
-                                                                     </div>
-                                                                 </div>
-                                                             </div>
-                                                             
-                                                             <!-- Total Price Row -->
-                                                             <div class="row mt-2">
-                                                                 <div class="col-12">
-                                                                     <div class="card shadow-sm border-0" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); border: none; border-radius: 6px; overflow: hidden;">
-                                                                         <div class="card-body" style="padding: 0.75rem 0.875rem;">
-                                                                             <div class="d-flex align-items-center justify-content-between">
-                                                                                 <div class="d-flex align-items-center text-white">
-                                                                                     <div style="width: 28px; height: 28px; background: rgba(255, 255, 255, 0.2); border-radius: 6px; display: flex; align-items: center; justify-content: center; margin-right: 10px;">
-                                                                                         <i class="ri-calculator-line text-white" style="color: #ffffff !important; font-size: 0.95rem;"></i>
-                                                                                     </div>
-                                                                                     <span class="fw-bold" style="font-size: 0.9rem; color: #ffffff !important;">Total Amount:</span>
-                                                                                 </div>
-                                                                                 <div class="text-white">
-                                                                                     <span class="fw-bold" style="font-size: 1.25rem; color: #ffffff !important;">$<span id="day${day}_restaurant_1_total_display">0.00</span></span>
-                                                                                 </div>
-                                                                             </div>
-                                                                         </div>
-                                                                     </div>
-                                                                 </div>
-                                                             </div>
-                                                         </div>
-                                                     </div>
-                                                 </div>
+                                                <!-- Restaurant Pricing Section -->
+                                                <div id="day${day}_restaurant_1_price_display" class="mt-2" style="display: none;">
+                                                    <div class="card shadow-sm border-0" style="background: #ffffff; border-radius: 12px; overflow: hidden;">
+                                                        <div class="card-header text-white" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); border: none; padding: 1rem 1.25rem;">
+                                                            <div class="d-flex align-items-center justify-content-between">
+                                                                <div class="d-flex align-items-center">
+                                                                    <div style="width: 40px; height: 40px; background: rgba(255, 255, 255, 0.2); border-radius: 10px; display: flex; align-items: center; justify-content: center; margin-right: 12px;">
+                                                                        <i class="ri-restaurant-line text-white" style="color: #ffffff !important; font-size: 1.25rem;"></i>
+                                                                    </div>
+                                                                    <div>
+                                                                        <h6 class="mb-0 fw-bold text-white" style="color: #ffffff !important; font-size: 1.1rem;">Restaurant Pricing</h6>
+                                                                        <small class="text-white-75" style="color: rgba(255, 255, 255, 0.85) !important; font-size: 0.8rem;">Selected Restaurant: <span id="day${day}_restaurant_1_restaurant_name" style="font-weight: 600;">Restaurant Name</span></small>
+                                                                    </div>
+                                                                </div>
+                                                                <button type="button" class="btn btn-sm text-white" onclick="forceUpdateRestaurantPricing(${day}, 1)" title="Refresh Pricing" style="background: rgba(255, 255, 255, 0.2); border: 1px solid rgba(255, 255, 255, 0.3); border-radius: 6px; padding: 0.375rem 0.75rem; transition: all 0.2s;">
+                                                                    <i class="ri-refresh-line"></i>
+                                                                </button>
+                                                            </div>
+                                                        </div>
+                                                        <div class="card-body" style="background: #ffffff; padding: 1.25rem;">
+                                                            <!-- Two Column Pricing Layout -->
+                                                            <div class="row g-3">
+                                                                <!-- Column 1: Restaurant Pricing -->
+                                                                <div class="col-md-8">
+                                                                    <div class="card shadow-sm border-0" style="background: linear-gradient(135deg, #f8f9ff 0%, #e7f3ff 100%); border: 1px solid #b3d9ff !important; border-radius: 8px; height: 100%;">
+                                                                        <div class="card-header" style="background: rgba(102, 126, 234, 0.1); border: none; border-bottom: 1px solid #b3d9ff; padding: 0.75rem 1rem; border-radius: 8px 8px 0 0;">
+                                                                            <h6 class="mb-0 fw-semibold d-flex align-items-center" style="color: #495057; font-size: 0.9rem;">
+                                                                                <div style="width: 28px; height: 28px; background: rgba(102, 126, 234, 0.15); border-radius: 6px; display: flex; align-items-center; justify-content: center; margin-right: 8px;">
+                                                                                    <i class="ri-restaurant-2-line" style="color: #667eea; font-size: 0.9rem;"></i>
+                                                                                </div>
+                                                                                Restaurant Pricing Details
+                                                                            </h6>
+                                                                        </div>
+                                                                        <div class="card-body" style="padding: 1rem;">
+                                                                            <div id="day${day}_restaurant_1_pricing_details" style="font-size: 0.85rem; color: #495057;">
+                                                                                <div class="text-muted" style="font-size: 0.8rem; color: #6c757d;">Select a restaurant and configure guests to see pricing</div>
+                                                                            </div>
+                                                                        </div>
+                                                                    </div>
+                                                                </div>
+                                                                
+                                                                <!-- Column 2: Transfer Pricing -->
+                                                                <div class="col-md-4">
+                                                                    <div class="card shadow-sm border-0" style="background: linear-gradient(135deg, #f8f9ff 0%, #e7f3ff 100%); border: 1px solid #b3d9ff !important; border-radius: 8px; height: 100%;">
+                                                                        <div class="card-header" style="background: rgba(102, 126, 234, 0.1); border: none; border-bottom: 1px solid #b3d9ff; padding: 0.75rem 1rem; border-radius: 8px 8px 0 0;">
+                                                                            <h6 class="mb-0 fw-semibold d-flex align-items-center" style="color: #495057; font-size: 0.9rem;">
+                                                                                <div style="width: 28px; height: 28px; background: rgba(102, 126, 234, 0.15); border-radius: 6px; display: flex; align-items-center; justify-content: center; margin-right: 8px;">
+                                                                                    <i class="ri-car-line" style="color: #667eea; font-size: 0.9rem;"></i>
+                                                                                </div>
+                                                                                Transfer Pricing
+                                                                            </h6>
+                                                                        </div>
+                                                                        <div class="card-body" style="padding: 1rem;">
+                                                                            <div id="day${day}_restaurant_1_transport_pricing_content" style="font-size: 0.85rem; color: #495057;">
+                                                                                <div class="text-muted" style="font-size: 0.8rem; color: #6c757d;">No transport selected</div>
+                                                                            </div>
+                                                                        </div>
+                                                                    </div>
+                                                                </div>
+                                                            </div>
+                                                            
+                                                            <!-- Total Price Row -->
+                                                            <div class="row mt-3">
+                                                                <div class="col-12">
+                                                                    <div class="card shadow-sm border-0" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); border-radius: 8px; box-shadow: 0 4px 12px rgba(102, 126, 234, 0.3);">
+                                                                        <div class="card-body" style="padding: 1rem 1.25rem;">
+                                                                            <div class="d-flex justify-content-between align-items-center">
+                                                                                <h6 class="mb-0 fw-bold text-white d-flex align-items-center" style="color: #ffffff !important; font-size: 1rem;">
+                                                                                    <div style="width: 32px; height: 32px; background: rgba(255, 255, 255, 0.2); border-radius: 8px; display: flex; align-items: center; justify-content: center; margin-right: 10px;">
+                                                                                        <i class="ri-calculator-line" style="color: #ffffff !important; font-size: 1rem;"></i>
+                                                                                    </div>
+                                                                                    Total Price
+                                                                                </h6>
+                                                                                <span class="fw-bold text-white" style="font-size: 1.5rem; color: #ffffff !important;">$<span id="day${day}_restaurant_1_total_display">0.00</span></span>
+                                                                            </div>
+                                                                        </div>
+                                                                    </div>
+                                                                </div>
+                                                            </div>
+                                                        </div>
+                                                    </div>
+                                                </div>
                                              </div>
                                          </div>
                                      </div>
@@ -13607,12 +14327,12 @@ document.addEventListener('DOMContentLoaded', function() {
                                      </div>
                                      <div class="col-md-2 local-transfer-field" style="display: none;">
                                          <button type="button" class="btn btn-primary w-100 py-2 px-3" style="height: 42px; font-size: 0.735rem;" onclick="searchVehicles(${day}, 'transport',0)" id="day${day}_transport_search_btn" disabled>
-                                             <i class="ri-search-line me-2"></i>Search Vehicles
+                                             <i class="ri-search-line me-2"></i>Search
                                          </button>
                                      </div>
                                      
                                      <!-- Point To Point Fields (Hidden Initially) -->
-                                     <div class="col-md-4 point-to-point-field" id="day${day}_transport_pickup_location_field" style="display: none;">
+                                     <div class="col-md-3 point-to-point-field" id="day${day}_transport_pickup_location_field" style="display: none;">
                                          <div class="form-group">
                                              <label class="form-label fw-semibold text-muted mb-2">
                                                  <i class="ri-map-pin-line text-success me-2"></i>Pick Up Location
@@ -13625,7 +14345,7 @@ document.addEventListener('DOMContentLoaded', function() {
                                              </div>
                                          </div>
                                      </div>
-                                     <div class="col-md-4 point-to-point-field" id="day${day}_transport_dropoff_location_field" style="display: none;">
+                                     <div class="col-md-3 point-to-point-field" id="day${day}_transport_dropoff_location_field" style="display: none;">
                                          <div class="form-group">
                                              <label class="form-label fw-semibold text-muted mb-2">
                                                  <i class="ri-map-pin-line text-danger me-2"></i>Drop Off Location
@@ -13675,7 +14395,7 @@ document.addEventListener('DOMContentLoaded', function() {
                                          </div>
                                      </div>
                                      
-                                     <div class="col-md-2 point-to-point-field" id="day${day}_transport_additional_search_field" style="display: none;">
+                                     <div class="col-md-3 point-to-point-field" id="day${day}_transport_additional_search_field" style="display: none;">
                                          <button type="button" class="btn btn-danger w-100 py-2" onclick="searchVehicles(${day}, 'transport_additional', 0)" id="day${day}_transport_additional_search_btn" disabled>
                                              <i class="ri-search-line me-2"></i>Search
                                          </button>
@@ -13782,7 +14502,7 @@ document.addEventListener('DOMContentLoaded', function() {
                                     <!-- Vehicle + Service Type in one row -->
                                     <div class="col-12">
                                         <div class="row g-3">
-                                            <div class="col-md-8">
+                                            <div class="col-md-4">
                                                 <label class="form-label fw-semibold">Vehicle</label>
                                                 <select class="form-select vehicle-select" style="height: 42px; font-size: 0.735rem;" 
                                                         id="day${day}_transport_vehicle_id"
@@ -13803,33 +14523,84 @@ document.addEventListener('DOMContentLoaded', function() {
                                                     <option value="Private">Private</option>
                                                 </select>
                                             </div>
-                                        </div>
-                                        
-                                        <!-- Price Field for Point to Point -->
-                                        <div class="row mt-3 point-to-point-price-field" id="day${day}_transport_price_field" style="display: none;">
-                                            <div class="col-md-12">
+                                              <!-- Price Field for Point to Point -->
+                                        <div class="col-md-4 point-to-point-price-field" id="day${day}_transport_price_field" style="display: none;">
+                                          
                                                 <div class="form-group">
                                                     <label class="form-label fw-semibold">Price <span class="text-danger">*</span></label>
                                                     <div class="input-group">
                                                         <span class="input-group-text" style="height: 42px; font-size: 0.735rem;"><i class="ri-money-dollar-circle-line"></i></span>
-                                                        <input type="number" style="height: 42px; font-size: 0.735rem;" class="form-control" id="day${day}_transport_custom_price" name="day${day}_transport_custom_price" min="0" step="0.01" placeholder="Enter custom price" oninput="updatePricing(${day}, 'transport')" onchange="updatePricing(${day}, 'transport')">
+                                                        <input type="number" onwheel="event.preventDefault(); return false;" style="height: 42px; font-size: 0.735rem;" class="form-control" id="day${day}_transport_custom_price" name="day${day}_transport_custom_price" min="0" step="1" placeholder="Enter custom price" oninput="updatePricing(${day}, 'transport')" onchange="updatePricing(${day}, 'transport')">
                                                     </div>
                                                     <small class="form-text text-muted">
                                                         Enter the custom price for this point-to-point service
                                                     </small>
                                                 </div>
-                                            </div>
+                                           
                                         </div>
+                                        </div>
+                                        
+                                      
                                         
                                         
                                         <!-- Price Display for Transport -->
                                         <div class="col-12 mt-3">
-                                            <div id="day${day}_transport_price_display" class="alert alert-success" style="display: none;">
-                                                <div class="d-flex align-items-center">
-                                                    <i class="ri-money-dollar-circle-line me-2 fs-4"></i>
-                                                    <div>
-                                                        <strong>Price Information</strong>
-                                                        <div class="small">Select a vehicle and service type to see pricing</div>
+                                            <div id="day${day}_transport_price_display" class="card shadow-sm border-0" style="background: #ffffff; border-radius: 12px; overflow: hidden; display: none;">
+                                                <div class="card-header text-white" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); border: none; padding: 1rem 1.25rem;">
+                                                    <div class="d-flex align-items-center justify-content-between">
+                                                        <div class="d-flex align-items-center">
+                                                            <div style="width: 40px; height: 40px; background: rgba(255, 255, 255, 0.2); border-radius: 10px; display: flex; align-items: center; justify-content: center; margin-right: 12px;">
+                                                                <i class="ri-car-line text-white" style="color: #ffffff !important; font-size: 1.25rem;"></i>
+                                                            </div>
+                                                            <div>
+                                                                <h6 class="mb-0 fw-bold text-white" style="color: #ffffff !important; font-size: 1.1rem;">Transport Pricing</h6>
+                                                                <small class="text-white-75" style="color: rgba(255, 255, 255, 0.85) !important; font-size: 0.8rem;">Select a vehicle and service type to see pricing</small>
+                                                            </div>
+                                                        </div>
+                                                        <button type="button" class="btn btn-sm text-white" onclick="forceUpdateTransportPricing(${day})" title="Refresh Pricing" style="background: rgba(255, 255, 255, 0.2); border: 1px solid rgba(255, 255, 255, 0.3); border-radius: 6px; padding: 0.375rem 0.75rem; transition: all 0.2s;">
+                                                            <i class="ri-refresh-line"></i>
+                                                        </button>
+                                                    </div>
+                                                </div>
+                                                <div class="card-body" style="background: #ffffff; padding: 1.25rem;">
+                                                    <!-- Transport Pricing Details -->
+                                                    <div class="row g-3">
+                                                        <div class="col-12">
+                                                            <div class="card shadow-sm border-0" style="background: linear-gradient(135deg, #f8f9ff 0%, #e7f3ff 100%); border: 1px solid #b3d9ff !important; border-radius: 8px;">
+                                                                <div class="card-header" style="background: rgba(102, 126, 234, 0.1); border: none; border-bottom: 1px solid #b3d9ff; padding: 0.75rem 1rem; border-radius: 8px 8px 0 0;">
+                                                                    <h6 class="mb-0 fw-semibold d-flex align-items-center" style="color: #495057; font-size: 0.9rem;">
+                                                                        <div style="width: 28px; height: 28px; background: rgba(102, 126, 234, 0.15); border-radius: 6px; display: flex; align-items: center; justify-content: center; margin-right: 8px;">
+                                                                            <i class="ri-taxi-line" style="color: #667eea; font-size: 0.9rem;"></i>
+                                                                        </div>
+                                                                        Transport Pricing Details
+                                                                    </h6>
+                                                                </div>
+                                                                <div class="card-body" style="padding: 1rem;">
+                                                                    <div id="day${day}_transport_pricing_content" style="font-size: 0.85rem; color: #495057;">
+                                                                        <div class="text-muted" style="font-size: 0.8rem; color: #6c757d;">Select transport options to see pricing</div>
+                                                                    </div>
+                                                                </div>
+                                                            </div>
+                                                        </div>
+                                                    </div>
+                                                    
+                                                    <!-- Total Price Row -->
+                                                    <div class="row mt-3">
+                                                        <div class="col-12">
+                                                            <div class="card shadow-sm border-0" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); border-radius: 8px; box-shadow: 0 4px 12px rgba(102, 126, 234, 0.3);">
+                                                                <div class="card-body" style="padding: 1rem 1.25rem;">
+                                                                    <div class="d-flex justify-content-between align-items-center">
+                                                                        <h6 class="mb-0 fw-bold text-white d-flex align-items-center" style="color: #ffffff !important; font-size: 1rem;">
+                                                                            <div style="width: 32px; height: 32px; background: rgba(255, 255, 255, 0.2); border-radius: 8px; display: flex; align-items: center; justify-content: center; margin-right: 10px;">
+                                                                                <i class="ri-calculator-line" style="color: #ffffff !important; font-size: 1rem;"></i>
+                                                                            </div>
+                                                                            Total Price
+                                                                        </h6>
+                                                                        <span class="fw-bold text-white" style="font-size: 1.5rem; color: #ffffff !important;" id="day${day}_transport_total_price_display">$0.00</span>
+                                                                    </div>
+                                                                </div>
+                                                            </div>
+                                                        </div>
                                                     </div>
                                                 </div>
                                             </div>
@@ -14387,13 +15158,14 @@ document.addEventListener('DOMContentLoaded', function() {
         // Always show the price display when we have data
         priceDisplay.style.display = 'block';
         
-        // Update ticket pricing column
+        // Update ticket pricing column (show only calculation, not base ticket prices)
         const ticketPricingContent = document.getElementById(`day${day}_attraction_${index}_ticket_pricing_content`);
         if (ticketPricingContent) {
             if (totalPrice > 0) {
                 ticketPricingContent.innerHTML = `
                     <div class="small">
                         <div class="mb-2"><strong>${selectedTicket.text}</strong></div>
+                        <div class="mb-1"><strong>Calculation:</strong></div>
                         <div class="mb-1">Adult: $${adultPrice.toFixed(2)} × ${guestInfo.adults} = $${(adultPrice * guestInfo.adults).toFixed(2)}</div>
                         <div class="mb-1">Child: $${childPrice.toFixed(2)} × ${guestInfo.children} = $${(childPrice * guestInfo.children).toFixed(2)}</div>
                         <div class="mb-2">Senior: $${seniorPrice.toFixed(2)} × ${guestInfo.seniors} = $${(seniorPrice * guestInfo.seniors).toFixed(2)}</div>
@@ -14686,7 +15458,7 @@ document.addEventListener('DOMContentLoaded', function() {
                                 <small class="opacity-75">Select your preferred attractions</small>
                             </div>
                         </div>
-                        <button type="button" class="btn btn-sm btn-outline-light" onclick="removeAttraction(this, ${day}, ${newIndex})">
+                        <button type="button" class="btn btn-sm btn-outline-danger" onclick="removeAttraction(this, ${day}, ${newIndex})">
                             <i class="ri-close-line"></i>
                         </button>
                     </div>
@@ -14845,10 +15617,18 @@ document.addEventListener('DOMContentLoaded', function() {
                             <div class="row g-2">
                                 <div class="col-md-4">
                                     <label class="form-label fw-semibold mb-1" style="color: #495057; font-size: 0.8rem;">
+                                        <i class="ri-global-line me-1"></i>Select Language
+                                    </label>
+                                    <select class="form-select" style="height: 36px; border-radius: 6px; border: 1px solid #dee2e6; font-size: 0.8rem; padding: 0.375rem 0.75rem; line-height: 1.4; overflow: hidden; text-overflow: ellipsis;" name="day${day}_attraction_${newIndex}_guide_language" id="day${day}_attraction_${newIndex}_guide_language" onchange="handleAttractionGuideLanguageChange(${day}, ${newIndex})" disabled>
+                                        <option value="">Select city first</option>
+                                    </select>
+                                </div>
+                                <div class="col-md-4">
+                                    <label class="form-label fw-semibold mb-1" style="color: #495057; font-size: 0.8rem;">
                                         <i class="ri-user-star-line me-1"></i>Select Guide
                                     </label>
                                     <select class="form-select attraction-guide-select" style="height: 36px; border-radius: 6px; border: 1px solid #dee2e6; font-size: 0.8rem; padding: 0.375rem 0.75rem; line-height: 1.4; overflow: hidden; text-overflow: ellipsis;" name="day${day}_attraction_${newIndex}_guide" id="day${day}_attraction_${newIndex}_guide" onchange="loadAttractionGuideDetails(${day}, this.value, ${newIndex})" disabled>
-                                        <option value="">Select city first</option>
+                                        <option value="">Select language first</option>
                                     </select>
                                 </div>
                                 <div class="col-md-4">
@@ -15209,23 +15989,24 @@ document.addEventListener('DOMContentLoaded', function() {
             
             console.log('Meal type selected:', mealType, 'day:', day, 'index:', index);
             
-            // Show/hide dish dropdown based on meal type selection
-            if (mealType && mealType !== '') {
-                if (dishContainer) {
-                    dishContainer.style.display = 'block';
-                }
-                // Also ensure the dish select element is visible
-                if (dishSelect) {
-                    dishSelect.style.display = 'block';
-                }
-            } else {
-                if (dishContainer) {
-                    dishContainer.style.display = 'none';
-                }
-                // Also hide the dish select element (reuse the dishSelect variable from above)
-                if (dishSelect) {
-                    dishSelect.style.display = 'none';
-                }
+            // Clear dish selection when meal type changes
+            if (dishSelect) {
+                dishSelect.value = '';
+                dishSelect.innerHTML = '<option value="">Select Dish</option>';
+            }
+            
+            // Hide dish container initially - will show only if dishes are available
+            if (dishContainer) {
+                dishContainer.style.display = 'none';
+            }
+            if (dishSelect) {
+                dishSelect.style.display = 'none';
+            }
+            
+            // Update pricing immediately to reset/clear pricing when meal type changes
+            updateRestaurantPricing(day, index);
+            
+            if (!mealType || mealType === '') {
                 return; // Exit early if no meal type selected
             }
             
@@ -15258,6 +16039,9 @@ document.addEventListener('DOMContentLoaded', function() {
                 if (dishContainer) {
                     dishContainer.style.display = 'none';
                 }
+                
+                // Update pricing when no valid restaurant
+                updateRestaurantPricing(day, index);
             }
         }
         
@@ -15935,7 +16719,11 @@ document.addEventListener('DOMContentLoaded', function() {
                 dishSelect.innerHTML = '<option value="">Select Dish</option>';
                 
                 if (data.success && data.meals && data.meals.length > 0) {
-                    // If we have meal data, show the dropdown
+                    // If we have meal data, show the dropdown and container
+                    const dishContainer = document.getElementById('day' + day + '_dish_container_' + index);
+                    if (dishContainer) {
+                        dishContainer.style.display = 'block';
+                    }
                     dishSelect.style.display = 'block';
                     console.log('Dishes loaded successfully, showing dropdown with', data.meals.length, 'options');
                     
@@ -15965,34 +16753,23 @@ document.addEventListener('DOMContentLoaded', function() {
                         
                         dishSelect.appendChild(option);
                     });
-                } else {
-                    // If API returns no dishes, create default options based on meal types
-                    dishSelect.style.display = 'block';
-                    console.log('No dishes from API, showing default options');
                     
-                    const mealTypeSelect = document.getElementById('day' + day + '_meal_type_' + index);
-                    if (mealTypeSelect && mealTypeSelect.selectedIndex > 0) {
-                        const selectedMealType = mealTypeSelect.options[mealTypeSelect.selectedIndex].value;
-                        
-                        // Create default dish options based on meal type
-                        const defaultDishes = [
-                            { id: 'default_buffet', name: `${selectedMealType} Buffet`, type: 1 },
-                            { id: 'default_set', name: `${selectedMealType} Set Menu`, type: 2 }
-                        ];
-                        
-                        defaultDishes.forEach(dish => {
-                            const option = document.createElement('option');
-                            option.value = dish.id;
-                            option.textContent = dish.name;
-                            dishSelect.appendChild(option);
-                        });
-                    } else {
-                        const option = document.createElement('option');
-                        option.value = '';
-                        option.textContent = data.message || 'No dishes available for this restaurant';
-                        option.disabled = true;
-                        dishSelect.appendChild(option);
+                    // Update pricing after dishes are loaded
+                    updateRestaurantPricing(day, index);
+                } else {
+                    // If API returns no dishes, show container with "No dish available" message
+                    const dishContainer = document.getElementById('day' + day + '_dish_container_' + index);
+                    if (dishContainer) {
+                        dishContainer.style.display = 'block';
                     }
+                    dishSelect.style.display = 'block';
+                    console.log('No dishes from API, showing "No dish available" message');
+                    
+                    // Show "No dish available" message in the select dropdown
+                    dishSelect.innerHTML = '<option value="" disabled>No dish available</option>';
+                    
+                    // Update pricing when no dishes available
+                    updateRestaurantPricing(day, index);
                 }
             })
             .catch(error => {
@@ -16159,7 +16936,7 @@ document.addEventListener('DOMContentLoaded', function() {
                                 <small class="opacity-75">Select your dining experience</small>
                             </div>
                         </div>
-                        <button type="button" class="btn btn-sm btn-outline-light" onclick="removeRestaurant(this, ${day}, ${newIndex})">
+                        <button type="button" class="btn btn-sm btn-outline-danger" onclick="removeRestaurant(this, ${day}, ${newIndex})">
                             <i class="ri-close-line"></i>
                         </button>
                     </div>
@@ -16307,37 +17084,40 @@ document.addEventListener('DOMContentLoaded', function() {
                     
                     <!-- Restaurant Pricing Section -->
                     <div id="day${day}_restaurant_${newIndex}_price_display" class="mt-2" style="display: none;">
-                        <div class="card shadow-sm border-0" style="background: #ffffff; border-radius: 8px; overflow: hidden;">
-                            <div class="card-header text-white" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); border: none; padding: 0.625rem 0.875rem;">
+                        <div class="card shadow-sm border-0" style="background: #ffffff; border-radius: 12px; overflow: hidden;">
+                            <div class="card-header text-white" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); border: none; padding: 1rem 1.25rem;">
                                 <div class="d-flex align-items-center justify-content-between">
                                     <div class="d-flex align-items-center">
-                                        <div style="width: 32px; height: 32px; background: rgba(255, 255, 255, 0.2); border-radius: 8px; display: flex; align-items: center; justify-content: center; margin-right: 10px;">
-                                            <i class="ri-restaurant-line text-white" style="color: #ffffff !important; font-size: 1rem;"></i>
+                                        <div style="width: 40px; height: 40px; background: rgba(255, 255, 255, 0.2); border-radius: 10px; display: flex; align-items: center; justify-content: center; margin-right: 12px;">
+                                            <i class="ri-restaurant-line text-white" style="color: #ffffff !important; font-size: 1.25rem;"></i>
                                         </div>
                                         <div>
-                                            <h6 class="mb-0 fw-bold text-white" style="color: #ffffff !important; font-size: 0.95rem; line-height: 1.2;">Restaurant Pricing</h6>
-                                            <small class="text-white-75" style="color: rgba(255, 255, 255, 0.85) !important; font-size: 0.75rem; line-height: 1.2;">Restaurant: <span id="day${day}_restaurant_${newIndex}_restaurant_name" style="color: rgba(255, 255, 255, 0.95) !important; font-weight: 600;">Restaurant Name</span></small>
+                                            <h6 class="mb-0 fw-bold text-white" style="color: #ffffff !important; font-size: 1.1rem;">Restaurant Pricing</h6>
+                                            <small class="text-white-75" style="color: rgba(255, 255, 255, 0.85) !important; font-size: 0.8rem;">Selected Restaurant: <span id="day${day}_restaurant_${newIndex}_restaurant_name" style="font-weight: 600;">Restaurant Name</span></small>
                                         </div>
                                     </div>
+                                    <button type="button" class="btn btn-sm text-white" onclick="forceUpdateRestaurantPricing(${day}, ${newIndex})" title="Refresh Pricing" style="background: rgba(255, 255, 255, 0.2); border: 1px solid rgba(255, 255, 255, 0.3); border-radius: 6px; padding: 0.375rem 0.75rem; transition: all 0.2s;">
+                                        <i class="ri-refresh-line"></i>
+                                    </button>
                                 </div>
                             </div>
-                            <div class="card-body" style="background: #ffffff; padding: 0.875rem;">
+                            <div class="card-body" style="background: #ffffff; padding: 1.25rem;">
                                 <!-- Two Column Pricing Layout -->
-                                <div class="row g-2">
+                                <div class="row g-3">
                                     <!-- Column 1: Restaurant Pricing -->
                                     <div class="col-md-8">
-                                        <div class="card shadow-sm border-0" style="background: linear-gradient(135deg, #f8f9ff 0%, #e7f3ff 100%); border: 1px solid #b3d9ff !important; border-radius: 6px; height: 100%;">
-                                            <div class="card-header" style="background: rgba(102, 126, 234, 0.1); border: none; border-bottom: 1px solid #b3d9ff; padding: 0.5rem 0.75rem; border-radius: 6px 6px 0 0;">
-                                                <h6 class="mb-0 fw-semibold d-flex align-items-center" style="color: #495057; font-size: 0.85rem;">
-                                                    <div style="width: 24px; height: 24px; background: rgba(102, 126, 234, 0.15); border-radius: 5px; display: flex; align-items: center; justify-content: center; margin-right: 6px;">
-                                                        <i class="ri-restaurant-2-line" style="color: #667eea; font-size: 0.8rem;"></i>
+                                        <div class="card shadow-sm border-0" style="background: linear-gradient(135deg, #f8f9ff 0%, #e7f3ff 100%); border: 1px solid #b3d9ff !important; border-radius: 8px; height: 100%;">
+                                            <div class="card-header" style="background: rgba(102, 126, 234, 0.1); border: none; border-bottom: 1px solid #b3d9ff; padding: 0.75rem 1rem; border-radius: 8px 8px 0 0;">
+                                                <h6 class="mb-0 fw-semibold d-flex align-items-center" style="color: #495057; font-size: 0.9rem;">
+                                                    <div style="width: 28px; height: 28px; background: rgba(102, 126, 234, 0.15); border-radius: 6px; display: flex; align-items: center; justify-content: center; margin-right: 8px;">
+                                                        <i class="ri-restaurant-2-line" style="color: #667eea; font-size: 0.9rem;"></i>
                                                     </div>
                                                     Restaurant Pricing Details
                                                 </h6>
                                             </div>
-                                            <div class="card-body" style="padding: 0.75rem;">
-                                                <div id="day${day}_restaurant_${newIndex}_pricing_details" style="font-size: 0.8rem; color: #495057; line-height: 1.4;">
-                                                    <div class="text-muted" style="font-size: 0.75rem; color: #6c757d;">Select a restaurant and configure guests to see pricing</div>
+                                            <div class="card-body" style="padding: 1rem;">
+                                                <div id="day${day}_restaurant_${newIndex}_pricing_details" style="font-size: 0.85rem; color: #495057;">
+                                                    <div class="text-muted" style="font-size: 0.8rem; color: #6c757d;">Select a restaurant and configure guests to see pricing</div>
                                                 </div>
                                             </div>
                                         </div>
@@ -16345,18 +17125,18 @@ document.addEventListener('DOMContentLoaded', function() {
                                     
                                     <!-- Column 2: Transfer Pricing -->
                                     <div class="col-md-4">
-                                        <div class="card shadow-sm border-0" style="background: linear-gradient(135deg, #f8f9ff 0%, #e7f3ff 100%); border: 1px solid #b3d9ff !important; border-radius: 6px; height: 100%;">
-                                            <div class="card-header" style="background: rgba(102, 126, 234, 0.1); border: none; border-bottom: 1px solid #b3d9ff; padding: 0.5rem 0.75rem; border-radius: 6px 6px 0 0;">
-                                                <h6 class="mb-0 fw-semibold d-flex align-items-center" style="color: #495057; font-size: 0.85rem;">
-                                                    <div style="width: 24px; height: 24px; background: rgba(102, 126, 234, 0.15); border-radius: 5px; display: flex; align-items: center; justify-content: center; margin-right: 6px;">
-                                                        <i class="ri-car-line" style="color: #667eea; font-size: 0.8rem;"></i>
+                                        <div class="card shadow-sm border-0" style="background: linear-gradient(135deg, #f8f9ff 0%, #e7f3ff 100%); border: 1px solid #b3d9ff !important; border-radius: 8px; height: 100%;">
+                                            <div class="card-header" style="background: rgba(102, 126, 234, 0.1); border: none; border-bottom: 1px solid #b3d9ff; padding: 0.75rem 1rem; border-radius: 8px 8px 0 0;">
+                                                <h6 class="mb-0 fw-semibold d-flex align-items-center" style="color: #495057; font-size: 0.9rem;">
+                                                    <div style="width: 28px; height: 28px; background: rgba(102, 126, 234, 0.15); border-radius: 6px; display: flex; align-items: center; justify-content: center; margin-right: 8px;">
+                                                        <i class="ri-car-line" style="color: #667eea; font-size: 0.9rem;"></i>
                                                     </div>
                                                     Transfer Pricing
                                                 </h6>
                                             </div>
-                                            <div class="card-body" style="padding: 0.75rem;">
-                                                <div id="day${day}_restaurant_${newIndex}_transport_pricing_content" style="font-size: 0.8rem; color: #495057; line-height: 1.4;">
-                                                    <div class="text-muted" style="font-size: 0.75rem; color: #6c757d;">No transport selected</div>
+                                            <div class="card-body" style="padding: 1rem;">
+                                                <div id="day${day}_restaurant_${newIndex}_transport_pricing_content" style="font-size: 0.85rem; color: #495057;">
+                                                    <div class="text-muted" style="font-size: 0.8rem; color: #6c757d;">No transport selected</div>
                                                 </div>
                                             </div>
                                         </div>
@@ -16364,20 +17144,18 @@ document.addEventListener('DOMContentLoaded', function() {
                                 </div>
                                 
                                 <!-- Total Price Row -->
-                                <div class="row mt-2">
+                                <div class="row mt-3">
                                     <div class="col-12">
-                                        <div class="card shadow-sm border-0" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); border: none; border-radius: 6px; overflow: hidden;">
-                                            <div class="card-body" style="padding: 0.75rem 0.875rem;">
-                                                <div class="d-flex align-items-center justify-content-between">
-                                                    <div class="d-flex align-items-center text-white">
-                                                        <div style="width: 28px; height: 28px; background: rgba(255, 255, 255, 0.2); border-radius: 6px; display: flex; align-items: center; justify-content: center; margin-right: 10px;">
-                                                            <i class="ri-calculator-line text-white" style="color: #ffffff !important; font-size: 0.95rem;"></i>
+                                        <div class="card shadow-sm border-0" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); border-radius: 8px; box-shadow: 0 4px 12px rgba(102, 126, 234, 0.3);">
+                                            <div class="card-body" style="padding: 1rem 1.25rem;">
+                                                <div class="d-flex justify-content-between align-items-center">
+                                                    <h6 class="mb-0 fw-bold text-white d-flex align-items-center" style="color: #ffffff !important; font-size: 1rem;">
+                                                        <div style="width: 32px; height: 32px; background: rgba(255, 255, 255, 0.2); border-radius: 8px; display: flex; align-items-center; justify-content: center; margin-right: 10px;">
+                                                            <i class="ri-calculator-line" style="color: #ffffff !important; font-size: 1rem;"></i>
                                                         </div>
-                                                        <span class="fw-bold" style="font-size: 0.9rem; color: #ffffff !important;">Total Amount:</span>
-                                                    </div>
-                                                    <div class="text-white">
-                                                        <span class="fw-bold" style="font-size: 1.25rem; color: #ffffff !important;">$<span id="day${day}_restaurant_${newIndex}_total_display">0.00</span></span>
-                                                    </div>
+                                                        Total Price
+                                                    </h6>
+                                                    <span class="fw-bold text-white" style="font-size: 1.5rem; color: #ffffff !important;">$<span id="day${day}_restaurant_${newIndex}_total_display">0.00</span></span>
                                                 </div>
                                             </div>
                                         </div>
@@ -16932,7 +17710,7 @@ document.addEventListener('DOMContentLoaded', function() {
                                 <small class="opacity-75">Professional guide services</small>
                             </div>
                         </div>
-                        <button type="button" class="btn btn-sm btn-outline-light" onclick="removeGuide(this, ${day}, ${newIndex})">
+                        <button type="button" class="btn btn-sm btn-outline-danger" onclick="removeGuide(this, ${day}, ${newIndex})">
                             <i class="ri-close-line"></i>
                         </button>
                     </div>
@@ -16948,7 +17726,7 @@ document.addEventListener('DOMContentLoaded', function() {
                             </select>
                             <small class="text-danger" style="display: none;" id="day${day}_guide_city_message_${newIndex}">Please select a city first.</small>
                         </div>
-                        <div class="col-md-3">
+                        <div class="col-md-2">
                             <label class="form-label fw-semibold">Select Guide</label>
                             <select class="form-select guide-select" name="day${day}_guide_${newIndex}" id="day${day}_guide_${newIndex}" onchange="loadGuideDetails(${day}, this.value, ${newIndex})" disabled>
                                 <option value="">Select city first</option>
@@ -16976,55 +17754,96 @@ document.addEventListener('DOMContentLoaded', function() {
                                 </div>
                             </div>
                         </div>
-                                                 <div class="col-md-3">
-                             <label class="form-label fw-semibold">Pickup Time</label>
-                             <div id="day${day}_guide_${newIndex}_pickup_time_options">
-                                 <select class="form-select" disabled>
-                                     <option value="">Select guide first</option>
-                                 </select>
-                             </div>
-                             <input type="hidden" name="day${day}_guide_${newIndex}_pickup_time" id="day${day}_guide_${newIndex}_pickup_time">
-                         </div>
-                         <div class="col-md-3">
-                             <label class="form-label fw-semibold">Select Package</label>
-                             <select class="form-select" name="day${day}_guide_${newIndex}_package" id="day${day}_guide_${newIndex}_package" onchange="updateGuidePricing(${day}, ${newIndex})">
-                                 <option value="">Select Duration</option>
-                             </select>
-                         </div>
+                        <div class="col-md-2">
+                            <label class="form-label fw-semibold">Pickup Time</label>
+                            <div id="day${day}_guide_${newIndex}_pickup_time_options">
+                                <select class="form-select" disabled>
+                                    <option value="">Select guide first</option>
+                                </select>
+                            </div>
+                            <input type="hidden" name="day${day}_guide_${newIndex}_pickup_time" id="day${day}_guide_${newIndex}_pickup_time">
+                        </div>
+                        <div class="col-md-3">
+                            <label class="form-label fw-semibold">Select Package</label>
+                            <select class="form-select" name="day${day}_guide_${newIndex}_package" id="day${day}_guide_${newIndex}_package" onchange="updateGuidePricing(${day}, ${newIndex})">
+                                <option value="">Select Duration</option>
+                            </select>
+                        </div>
+                    </div>
+                    
+                    <div class="row g-3 mt-2">
                         <div class="col-md-12">
                             
                             <!-- Guide Price Display Section -->
                             <div id="day${day}_guide_${newIndex}_price_display" class="mt-3" style="display: none;">
-                                <div class="card shadow-sm border-0" style="background: linear-gradient(135deg, #f8f9ff 0%, #e7f3ff 100%); border: 1px solid #b3d9ff !important; border-radius: 8px; overflow: hidden;">
-                                    <div class="card-header" style="background: rgba(102, 126, 234, 0.1); border: none; border-bottom: 1px solid #b3d9ff; padding: 0.75rem 1rem;">
-                                        <h6 class="mb-0 fw-semibold d-flex align-items-center" style="color: #495057; font-size: 0.9rem;">
-                                            <div style="width: 28px; height: 28px; background: rgba(102, 126, 234, 0.15); border-radius: 6px; display: flex; align-items: center; justify-content: center; margin-right: 8px;">
-                                                <i class="ri-user-star-line" style="color: #667eea; font-size: 0.9rem;"></i>
-                                            </div>
-                                            Guide Pricing: <span id="day${day}_guide_${newIndex}_guide_name" style="color: #667eea; font-weight: 600;">Guide Name</span>
-                                        </h6>
-                                    </div>
-                                    <div class="card-body" style="padding: 1rem; background: #ffffff;">
-                                        <div class="d-flex align-items-center justify-content-between mb-2" style="font-size: 0.85rem;">
-                                            <span style="color: #6c757d;">Package Price:</span>
-                                            <span class="fw-semibold" style="color: #495057;" id="day${day}_guide_${newIndex}_package_price_display">$0.00</span>
-                                        </div>
-                                        
-                                        <div class="d-flex align-items-center justify-content-between mb-2" style="font-size: 0.85rem;">
-                                            <span style="color: #6c757d;">Duration:</span>
-                                            <span class="fw-semibold" style="color: #495057;" id="day${day}_guide_${newIndex}_hours_display">0 hours</span>
-                                        </div>
-                                        
-                                        <div class="d-flex align-items-center justify-content-between mb-2" id="day${day}_guide_${newIndex}_surcharge_row" style="display: none; font-size: 0.85rem;">
-                                            <span style="color: #6c757d;">Night Surcharge:</span>
-                                            <span class="fw-semibold" style="color: #ff9800;" id="day${day}_guide_${newIndex}_surcharge_display">$0.00</span>
-                                        </div>
-                                        
-                                        <hr class="my-2" style="border-color: #b3d9ff; border-width: 1px; opacity: 0.5;">
-                                        
+                                <div class="card shadow-sm border-0" style="background: #ffffff; border-radius: 12px; overflow: hidden;">
+                                    <div class="card-header text-white" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); border: none; padding: 1rem 1.25rem;">
                                         <div class="d-flex align-items-center justify-content-between">
-                                            <span class="fw-bold" style="color: #495057; font-size: 0.95rem;">Total Price:</span>
-                                            <span class="fw-bold" style="color: #667eea; font-size: 1.25rem;" id="day${day}_guide_${newIndex}_total_price_display">$0.00</span>
+                                            <div class="d-flex align-items-center">
+                                                <div style="width: 40px; height: 40px; background: rgba(255, 255, 255, 0.2); border-radius: 10px; display: flex; align-items: center; justify-content: center; margin-right: 12px;">
+                                                    <i class="ri-user-star-line text-white" style="color: #ffffff !important; font-size: 1.25rem;"></i>
+                                                </div>
+                                                <div>
+                                                    <h6 class="mb-0 fw-bold text-white" style="color: #ffffff !important; font-size: 1.1rem;">Guide Pricing</h6>
+                                                    <small class="text-white-75" style="color: rgba(255, 255, 255, 0.85) !important; font-size: 0.8rem;">Selected Guide: <span id="day${day}_guide_${newIndex}_guide_name" style="font-weight: 600;">Guide Name</span></small>
+                                                </div>
+                                            </div>
+                                            <button type="button" class="btn btn-sm text-white" onclick="forceUpdateGuidePricing(${day}, ${newIndex})" title="Refresh Pricing" style="background: rgba(255, 255, 255, 0.2); border: 1px solid rgba(255, 255, 255, 0.3); border-radius: 6px; padding: 0.375rem 0.75rem; transition: all 0.2s;">
+                                                <i class="ri-refresh-line"></i>
+                                            </button>
+                                        </div>
+                                    </div>
+                                    <div class="card-body" style="background: #ffffff; padding: 1.25rem;">
+                                        <!-- Guide Pricing Details -->
+                                        <div class="row g-3">
+                                            <div class="col-12">
+                                                <div class="card shadow-sm border-0" style="background: linear-gradient(135deg, #f8f9ff 0%, #e7f3ff 100%); border: 1px solid #b3d9ff !important; border-radius: 8px;">
+                                                    <div class="card-body" style="padding: 1rem;">
+                                                        <div class="d-flex align-items-center justify-content-between mb-3" style="font-size: 0.85rem;">
+                                                            <span style="color: #6c757d;">
+                                                                <i class="ri-price-tag-3-line" style="color: #667eea; margin-right: 5px;"></i>
+                                                                Package Price:
+                                                            </span>
+                                                            <span class="fw-semibold" style="color: #495057;" id="day${day}_guide_${newIndex}_package_price_display">$0.00</span>
+                                                        </div>
+                                                        
+                                                        <div class="d-flex align-items-center justify-content-between mb-3" style="font-size: 0.85rem;">
+                                                            <span style="color: #6c757d;">
+                                                                <i class="ri-time-line" style="color: #667eea; margin-right: 5px;"></i>
+                                                                Duration:
+                                                            </span>
+                                                            <span class="fw-semibold" style="color: #495057;" id="day${day}_guide_${newIndex}_hours_display">0 hours</span>
+                                                        </div>
+                                                        
+                                                        <div class="d-flex align-items-center justify-content-between" id="day${day}_guide_${newIndex}_surcharge_row" style="display: none; font-size: 0.85rem;">
+                                                            <span style="color: #6c757d;">
+                                                                <i class="ri-moon-line" style="color: #ff9800; margin-right: 5px;"></i>
+                                                                Night Surcharge:
+                                                            </span>
+                                                            <span class="fw-semibold" style="color: #ff9800;" id="day${day}_guide_${newIndex}_surcharge_display">$0.00</span>
+                                                        </div>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        </div>
+                                        
+                                        <!-- Total Price Row -->
+                                        <div class="row mt-3">
+                                            <div class="col-12">
+                                                <div class="card shadow-sm border-0" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); border-radius: 8px; box-shadow: 0 4px 12px rgba(102, 126, 234, 0.3);">
+                                                    <div class="card-body" style="padding: 1rem 1.25rem;">
+                                                        <div class="d-flex justify-content-between align-items-center">
+                                                            <h6 class="mb-0 fw-bold text-white d-flex align-items-center" style="color: #ffffff !important; font-size: 1rem;">
+                                                                <div style="width: 32px; height: 32px; background: rgba(255, 255, 255, 0.2); border-radius: 8px; display: flex; align-items: center; justify-content: center; margin-right: 10px;">
+                                                                    <i class="ri-calculator-line" style="color: #ffffff !important; font-size: 1rem;"></i>
+                                                                </div>
+                                                                Total Price
+                                                            </h6>
+                                                            <span class="fw-bold text-white" style="font-size: 1.5rem; color: #ffffff !important;" id="day${day}_guide_${newIndex}_total_price_display">$0.00</span>
+                                                        </div>
+                                                    </div>
+                                                </div>
+                                            </div>
                                         </div>
                                     </div>
                                 </div>
@@ -17135,9 +17954,9 @@ document.addEventListener('DOMContentLoaded', function() {
                                  <small class="opacity-75">Configure transport service</small>
                              </div>
                          </div>
-                         <button type="button" class="btn btn-sm btn-outline-light" onclick="removeTransport(this, ${day}, ${newIndex})">
-                             <i class="ri-close-line"></i>
-                         </button>
+                        <button type="button" class="btn btn-sm btn-outline-danger" onclick="removeTransport(this, ${day}, ${newIndex})">
+                            <i class="ri-close-line"></i>
+                        </button>
                      </div>
                  </div>
                  <div class="card-body">
@@ -17206,7 +18025,7 @@ document.addEventListener('DOMContentLoaded', function() {
                                 </div>
                              </div>
                          </div>
-                         <div class="col-md-3 local-transfer-field" style="display: none;">
+                         <div class="col-md-4 local-transfer-field" style="display: none;">
                              <div class="form-group">
                                  <label class="form-label fw-semibold text-muted mb-2">
                                      <i class="ri-time-line text-warning me-2"></i>Pick Up Time
@@ -17222,59 +18041,64 @@ document.addEventListener('DOMContentLoaded', function() {
                          </div>
                          <div class="col-md-2 local-transfer-field" style="display: none;">
                              <button type="button" class="btn btn-primary w-100 py-2" onclick="searchVehicles(${day}, 'transport_${newIndex}',${newIndex})" id="day${day}_transport_${newIndex}_search_btn" disabled>
-                                 <i class="ri-search-line me-2"></i>Search Vehicles
-                             </button>
-                         </div>
-                         
-                         <!-- Point To Point Fields (Hidden Initially) -->
-                                                              <div class="col-md-4 point-to-point-field" id="day${day}_transport_${newIndex}_pickup_location_field" style="display: none;">
-                                         <div class="form-group">
-                                             <label class="form-label fw-semibold text-muted mb-2">
-                                                 <i class="ri-map-pin-line text-success me-2"></i>Pick Up Location
-                                             </label>
-                                             <div class="position-relative location-input">
-                                                 <input type="text" class="form-control border-2 google-maps-autocomplete" name="day${day}_transport_${newIndex}_pickup_location" id="day${day}_transport_${newIndex}_pickup_location" placeholder="Search for pickup location..." style="padding-left: 45px;">
-                                                 <i class="ri-search-line position-absolute text-success location-icon"></i>
-                                                 <input type="hidden" name="day${day}_transport_${newIndex}_pickup_lat" id="day${day}_transport_${newIndex}_pickup_lat">
-                                                 <input type="hidden" name="day${day}_transport_${newIndex}_pickup_lng" id="day${day}_transport_${newIndex}_pickup_lng">
-                                                 <input type="hidden" name="day${day}_transport_${newIndex}_pickup_place_id" id="day${day}_transport_${newIndex}_pickup_place_id">
-                                             </div>
-                                         </div>
-                                     </div>
-                                                              <div class="col-md-4 point-to-point-field" id="day${day}_transport_${newIndex}_dropoff_location_field" style="display: none;">
-                                         <div class="form-group">
-                                             <label class="form-label fw-semibold text-muted mb-2">
-                                                 <i class="ri-map-pin-line text-danger me-2"></i>Drop Off Location
-                                             </label>
-                                             <div class="position-relative location-input">
-                                                 <input type="text" class="form-control border-2 google-maps-autocomplete" name="day${day}_transport_${newIndex}_dropoff_location" id="day${day}_transport_${newIndex}_dropoff_location" placeholder="Search for dropoff location..." style="padding-left: 45px;">
-                                                 <i class="ri-map-pin-fill position-absolute text-danger location-icon"></i>
-                                                 <input type="hidden" name="day${day}_transport_${newIndex}_dropoff_lat" id="day${day}_transport_${newIndex}_dropoff_lat">
-                                                 <input type="hidden" name="day${day}_transport_${newIndex}_dropoff_lng" id="day${day}_transport_${newIndex}_dropoff_lng">
-                                                 <input type="hidden" name="day${day}_transport_${newIndex}_dropoff_place_id" id="day${day}_transport_${newIndex}_dropoff_place_id">
-                                             </div>
-                                         </div>
-                                     </div>
-                         <div class="col-md-3 point-to-point-field" id="day${day}_transport_${newIndex}_additional_time_field" style="display: none;">
-                             <div class="form-group">
-                                 <label class="form-label fw-semibold text-muted mb-2">
-                                     <i class="ri-time-line text-warning me-2"></i>Pick Up Time
-                                 </label>
-                                 <div class="position-relative">
-                                     <select class="form-select border-1" name="day${day}_transport_${newIndex}_additional_pickup_time" style="padding-left: 35px;" >
-                                         <option value="">Select time</option>
-                                         ${generateTimeOptions()}
-                                     </select>
-                                     <i class="ri-time-fill position-absolute text-warning" style="left: 15px; top: 50%; transform: translateY(-50%); z-index: 5;"></i>
-                                 </div>
-                             </div>
-                         </div>
-                        
-                         <div class="col-md-2 point-to-point-field" id="day${day}_transport_${newIndex}_additional_search_field" style="display: none;">
-                             <button type="button" class="btn btn-danger w-100 py-2" onclick="searchVehicles(${day}, 'transport_${newIndex}_additional',${newIndex})" id="day${day}_transport_${newIndex}_additional_search_btn" disabled>
                                  <i class="ri-search-line me-2"></i>Search
                              </button>
                          </div>
+                         
+    <!-- Point To Point Fields (Hidden Initially) -->
+                                                             <div class="col-md-3 point-to-point-field" id="day${day}_transport_${newIndex}_pickup_location_field" style="display: none;">
+                                        <div class="form-group">
+                                            <label class="form-label fw-semibold text-muted mb-2">
+                                                <i class="ri-map-pin-line text-success me-2"></i>Pick Up Location
+                                            </label>
+                                            <div class="position-relative location-input">
+                                                <input type="text" class="form-control border-2 google-maps-autocomplete" name="day${day}_transport_${newIndex}_pickup_location" id="day${day}_transport_${newIndex}_pickup_location" placeholder="Search for pickup location..." style="padding-left: 45px;">
+                                                <i class="ri-search-line position-absolute text-success location-icon"></i>
+                                                <input type="hidden" name="day${day}_transport_${newIndex}_pickup_lat" id="day${day}_transport_${newIndex}_pickup_lat">
+                                                <input type="hidden" name="day${day}_transport_${newIndex}_pickup_lng" id="day${day}_transport_${newIndex}_pickup_lng">
+                                                <input type="hidden" name="day${day}_transport_${newIndex}_pickup_place_id" id="day${day}_transport_${newIndex}_pickup_place_id">
+                                            </div>
+                                        </div>
+                                    </div>
+                                    
+                                    <div class="col-md-3 point-to-point-field" id="day${day}_transport_${newIndex}_dropoff_location_field" style="display: none;">
+                                        <div class="form-group">
+                                            <label class="form-label fw-semibold text-muted mb-2">
+                                                <i class="ri-map-pin-line text-danger me-2"></i>Drop Off Location
+                                            </label>
+                                            <div class="position-relative location-input">
+                                                <input type="text" class="form-control border-2 google-maps-autocomplete" name="day${day}_transport_${newIndex}_dropoff_location" id="day${day}_transport_${newIndex}_dropoff_location" placeholder="Search for dropoff location..." style="padding-left: 45px;">
+                                                <i class="ri-map-pin-fill position-absolute text-danger location-icon"></i>
+                                                <input type="hidden" name="day${day}_transport_${newIndex}_dropoff_lat" id="day${day}_transport_${newIndex}_dropoff_lat">
+                                                <input type="hidden" name="day${day}_transport_${newIndex}_dropoff_lng" id="day${day}_transport_${newIndex}_dropoff_lng">
+                                                <input type="hidden" name="day${day}_transport_${newIndex}_dropoff_place_id" id="day${day}_transport_${newIndex}_dropoff_place_id">
+                                            </div>
+                                        </div>
+                                    </div>
+                                    
+                                    <div class="col-md-4 point-to-point-field" id="day${day}_transport_${newIndex}_additional_time_field" style="display: none;">
+                                        <div class="form-group">
+                                            <label class="form-label fw-semibold text-muted mb-2">
+                                                <i class="ri-time-line text-warning me-2"></i>Pick Up Time
+                                            </label>
+                                            <div class="position-relative">
+                                                <select class="form-select border-1" name="day${day}_transport_${newIndex}_additional_pickup_time" style="padding-left: 35px;" >
+                                                    <option value="">Select time</option>
+                                                    ${generateTimeOptions()}
+                                                </select>
+                                                <i class="ri-time-fill position-absolute text-warning" style="left: 15px; top: 50%; transform: translateY(-50%); z-index: 5;"></i>
+                                            </div>
+                                        </div>
+                                    </div>
+                                    
+                                    <div class="col-md-2 point-to-point-field" id="day${day}_transport_${newIndex}_additional_search_field" style="display: none;">
+                                        <div class="form-group">
+                                            <label class="form-label fw-semibold text-muted mb-2" style="visibility: hidden;">Search</label>
+                                            <button type="button" class="btn btn-danger w-100" onclick="searchVehicles(${day}, 'transport_${newIndex}_additional',${newIndex})" id="day${day}_transport_${newIndex}_additional_search_btn" disabled>
+                                                <i class="ri-search-line me-2"></i>Search
+                                            </button>
+                                        </div>
+                                    </div>
                          
                          <!-- Hourly Fields (Hidden Initially) -->
                                                               <div class="col-md-4 hourly-field" id="day${day}_transport_${newIndex}_hourly_pickup_location_field" style="display: none;">
@@ -17351,54 +18175,103 @@ document.addEventListener('DOMContentLoaded', function() {
                                  </div>
                              </div>
                          </div>   
-                         <div class="col-12">
-                             <div class="row g-3">
-                                <div class="col-md-8 vehicle-field">
-                             <label class="form-label fw-semibold">Vehicle</label>
-                             <select class="form-select vehicle-select" name="day${day}_transport_${newIndex}_vehicle_id" onchange="updateVehicleDetails(${day}, 'transport_${newIndex}'); validatePassengerCapacity(${day}, 'transport_${newIndex}'); updateTypeSelect(event, ${day}, 'transport_${newIndex}');">
-                                 <option value="">Choose vehicle</option>
-                             </select>
-                         </div>
-                               <div class="col-md-4 service-type-field" id="day${day}_transport_${newIndex}_service_type_field">
-                             <label class="form-label fw-semibold">Service Type</label>
-                            <select class="form-select" name="day${day}_transport_${newIndex}_service_type" id="day${day}_transport_${newIndex}_service_type_select" onchange="updatePricing(${day}, 'transport_${newIndex}')">
-                                 <option value="">Select service type</option>
-                                 <option value="Shared">Shared</option>
-                                 <option value="Private">Private</option>
-                             </select>
-                         </div>
-                             </div>
-                         </div>
-                         <div class="col-12 mt-3">
-                             <div id="day${day}_transport_${newIndex}_price_display" class="alert alert-success" style="display: none;">
-                                 <div class="d-flex align-items-center">
-                                     <i class="ri-money-dollar-circle-line me-2 fs-4"></i>
-                                     <div>
-                                         <strong>Price Information</strong>
-                                         <div class="small">Select a vehicle and service type to see pricing</div>
-                                     </div>
-                                 </div>
-                             </div>
-                         </div>
-                        
-                        <!-- Custom Price Field for Point to Point (Below Vehicle Selection) -->
-                        <div class="col-12 mt-3 point-to-point-price-field" id="day${day}_transport_${newIndex}_price_field" style="display: none;">
-                            <div class="alert alert-warning">
-                                <div class="form-group mb-0">
-                                    <label class="form-label fw-semibold mb-2">
+                        <div class="col-12">
+                            <div class="row g-3">
+                                <div class="col-md-5 vehicle-field">
+                                    <label class="form-label fw-semibold">Vehicle</label>
+                                    <select class="form-select vehicle-select" name="day${day}_transport_${newIndex}_vehicle_id" onchange="updateVehicleDetails(${day}, 'transport_${newIndex}'); validatePassengerCapacity(${day}, 'transport_${newIndex}'); updateTypeSelect(event, ${day}, 'transport_${newIndex}');">
+                                        <option value="">Choose vehicle</option>
+                                    </select>
+                                </div>
+                                
+                                <div class="col-md-3 service-type-field" id="day${day}_transport_${newIndex}_service_type_field">
+                                    <label class="form-label fw-semibold">Service Type</label>
+                                    <select class="form-select" name="day${day}_transport_${newIndex}_service_type" id="day${day}_transport_${newIndex}_service_type_select" onchange="updatePricing(${day}, 'transport_${newIndex}')">
+                                        <option value="">Select service type</option>
+                                        <option value="Shared">Shared</option>
+                                        <option value="Private">Private</option>
+                                    </select>
+                                </div>
+                                
+                                <!-- Custom Price Field for Point to Point (In Same Row) -->
+                                <div class="col-md-4 point-to-point-price-field" id="day${day}_transport_${newIndex}_price_field" style="display: none;">
+                                    <label class="form-label fw-semibold">
                                         <i class="ri-money-dollar-circle-line me-2"></i>Custom Price <span class="text-danger">*</span>
                                     </label>
                                     <div class="input-group">
                                         <span class="input-group-text">SGD</span>
-                                        <input type="number" class="form-control" id="day${day}_transport_${newIndex}_custom_price" name="day${day}_transport_${newIndex}_custom_price" min="0" step="0.01" placeholder="Enter custom price" oninput="updateCustomPricing(${day}, 'transport_${newIndex}')" onchange="updateCustomPricing(${day}, 'transport_${newIndex}')">
+                                        <input type="number" onwheel="event.preventDefault(); return false;" class="form-control" id="day${day}_transport_${newIndex}_custom_price" name="day${day}_transport_${newIndex}_custom_price" min="0" step="1" placeholder="Enter custom price" oninput="updateCustomPricing(${day}, 'transport_${newIndex}')" onchange="updateCustomPricing(${day}, 'transport_${newIndex}')">
                                         <span class="input-group-text">.00</span>
                                     </div>
-                                    <small class="form-text text-muted mt-1">
+                                    <small class="form-text text-muted">
                                         <i class="ri-information-line me-1"></i>Enter the custom price for this point-to-point service
                                     </small>
                                 </div>
                             </div>
                         </div>
+                         <div class="col-12 mt-3">
+                             <div id="day${day}_transport_${newIndex}_price_display" class="card shadow-sm border-0" style="background: #ffffff; border-radius: 12px; overflow: hidden; display: none;">
+                                 <div class="card-header text-white" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); border: none; padding: 1rem 1.25rem;">
+                                     <div class="d-flex align-items-center justify-content-between">
+                                         <div class="d-flex align-items-center">
+                                             <div style="width: 40px; height: 40px; background: rgba(255, 255, 255, 0.2); border-radius: 10px; display: flex; align-items: center; justify-content: center; margin-right: 12px;">
+                                                 <i class="ri-car-line text-white" style="color: #ffffff !important; font-size: 1.25rem;"></i>
+                                             </div>
+                                             <div>
+                                                 <h6 class="mb-0 fw-bold text-white" style="color: #ffffff !important; font-size: 1.1rem;">Transport Pricing</h6>
+                                                 <small class="text-white-75" style="color: rgba(255, 255, 255, 0.85) !important; font-size: 0.8rem;">Select a vehicle and service type to see pricing</small>
+                                             </div>
+                                         </div>
+                                         <button type="button" class="btn btn-sm text-white" onclick="forceUpdateTransportPricing(${day}, ${newIndex})" title="Refresh Pricing" style="background: rgba(255, 255, 255, 0.2); border: 1px solid rgba(255, 255, 255, 0.3); border-radius: 6px; padding: 0.375rem 0.75rem; transition: all 0.2s;">
+                                             <i class="ri-refresh-line"></i>
+                                         </button>
+                                     </div>
+                                 </div>
+                                 <div class="card-body" style="background: #ffffff; padding: 1.25rem;">
+                                     <!-- Transport Pricing Details -->
+                                     <div class="row g-3">
+                                         <div class="col-12">
+                                             <div class="card shadow-sm border-0" style="background: linear-gradient(135deg, #f8f9ff 0%, #e7f3ff 100%); border: 1px solid #b3d9ff !important; border-radius: 8px;">
+                                                 <div class="card-header" style="background: rgba(102, 126, 234, 0.1); border: none; border-bottom: 1px solid #b3d9ff; padding: 0.75rem 1rem; border-radius: 8px 8px 0 0;">
+                                                     <h6 class="mb-0 fw-semibold d-flex align-items-center" style="color: #495057; font-size: 0.9rem;">
+                                                         <div style="width: 28px; height: 28px; background: rgba(102, 126, 234, 0.15); border-radius: 6px; display: flex; align-items: center; justify-content: center; margin-right: 8px;">
+                                                             <i class="ri-taxi-line" style="color: #667eea; font-size: 0.9rem;"></i>
+                                                         </div>
+                                                         Transport Pricing Details
+                                                     </h6>
+                                                 </div>
+                                                 <div class="card-body" style="padding: 1rem;">
+                                                     <div id="day${day}_transport_${newIndex}_pricing_content" style="font-size: 0.85rem; color: #495057;">
+                                                         <div class="text-muted" style="font-size: 0.8rem; color: #6c757d;">Select transport options to see pricing</div>
+                                                     </div>
+                                                 </div>
+                                             </div>
+                                         </div>
+                                     </div>
+                                     
+                                     <!-- Total Price Row -->
+                                     <div class="row mt-3">
+                                         <div class="col-12">
+                                             <div class="card shadow-sm border-0" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); border-radius: 8px; box-shadow: 0 4px 12px rgba(102, 126, 234, 0.3);">
+                                                 <div class="card-body" style="padding: 1rem 1.25rem;">
+                                                     <div class="d-flex justify-content-between align-items-center">
+                                                         <h6 class="mb-0 fw-bold text-white d-flex align-items-center" style="color: #ffffff !important; font-size: 1rem;">
+                                                             <div style="width: 32px; height: 32px; background: rgba(255, 255, 255, 0.2); border-radius: 8px; display: flex; align-items: center; justify-content: center; margin-right: 10px;">
+                                                                 <i class="ri-calculator-line" style="color: #ffffff !important; font-size: 1rem;"></i>
+                                                             </div>
+                                                             Total Price
+                                                         </h6>
+                                                         <span class="fw-bold text-white" style="font-size: 1.5rem; color: #ffffff !important;" id="day${day}_transport_${newIndex}_total_price_display">$0.00</span>
+                                                     </div>
+                                                 </div>
+                                             </div>
+                                         </div>
+                                     </div>
+                                 </div>
+                             </div>
+                         </div>
+                        
+                      
                         
                      </div>
                      
@@ -18001,7 +18874,7 @@ document.addEventListener('DOMContentLoaded', function() {
                             </label>
                             <div class="input-group" >
     
-                                <input type="number" class="form-control" id="day${day}_entry_${newIndex}_passengers" name="day${day}_entry_${newIndex}_passengers" min="1" max="999" oninput="if(this.value.length > 3) this.value = this.value.slice(0,3);" value="" onchange="validatePassengerCapacity(${day}, 'entry_${newIndex}'); updatePricing(${day}, 'entry_${newIndex}')" style="height: 36px; border-radius: 0 6px 6px 0; border: 1px solid #dee2e6; font-size: 0.85rem; text-align: start; max-width: 200px ">
+                                <input type="number" class="form-control" id="day${day}_entry_${newIndex}_passengers" name="day${day}_entry_${newIndex}_passengers" min="1" max="999" oninput="if(this.value.length > 3) this.value = this.value.slice(0,3);" value="" onchange="validatePassengerCapacity(${day}, 'entry_${newIndex}'); updatePricing(${day}, 'entry_${newIndex}')" onwheel="event.preventDefault(); return false;" style="height: 36px; border-radius: 0 6px 6px 0; border: 1px solid #dee2e6; font-size: 0.85rem; text-align: start; max-width: 200px ">
                             </div>
                             <small class="form-text text-muted" style="font-size: 0.75rem; margin-top: 0.25rem;">
                                 Max 3 digits
@@ -18009,14 +18882,62 @@ document.addEventListener('DOMContentLoaded', function() {
                         </div>
                         
                         <div class="col-12 mt-2">
-                            <div id="day${day}_entry_${newIndex}_price_display" class="rounded" style="display: none; background: linear-gradient(135deg, #f8f9ff 0%, #e7f3ff 100%); border: 1px solid #b3d9ff; border-radius: 8px; padding: 1rem; margin: 0;">
-                                <div class="d-flex align-items-start">
-                                    <div style="width: 40px; height: 40px; background: rgba(102, 126, 234, 0.15); border-radius: 8px; display: flex; align-items: center; justify-content: center; margin-right: 12px; flex-shrink: 0;">
-                                        <i class="ri-money-dollar-circle-line" style="color: #667eea; font-size: 1.25rem;"></i>
+                            <div id="day${day}_entry_${newIndex}_price_display" class="card shadow-sm border-0" style="background: #ffffff; border-radius: 12px; overflow: hidden; display: none;">
+                                <div class="card-header text-white" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); border: none; padding: 1rem 1.25rem;">
+                                    <div class="d-flex align-items-center justify-content-between">
+                                        <div class="d-flex align-items-center">
+                                            <div style="width: 40px; height: 40px; background: rgba(255, 255, 255, 0.2); border-radius: 10px; display: flex; align-items: center; justify-content: center; margin-right: 12px;">
+                                                <i class="ri-ship-line text-white" style="color: #ffffff !important; font-size: 1.25rem;"></i>
+                                            </div>
+                                            <div>
+                                                <h6 class="mb-0 fw-bold text-white" style="color: #ffffff !important; font-size: 1.1rem;">Entry Port Pricing</h6>
+                                                <small class="text-white-75" style="color: rgba(255, 255, 255, 0.85) !important; font-size: 0.8rem;">Vehicle pricing details for entry port service</small>
+                                            </div>
+                                        </div>
+                                        <button type="button" class="btn btn-sm text-white" onclick="forceUpdateEntryPortPricing(${day}, ${newIndex})" title="Refresh Pricing" style="background: rgba(255, 255, 255, 0.2); border: 1px solid rgba(255, 255, 255, 0.3); border-radius: 6px; padding: 0.375rem 0.75rem; transition: all 0.2s;">
+                                            <i class="ri-refresh-line"></i>
+                                        </button>
                                     </div>
-                                    <div style="flex: 1;">
-                                        <strong style="color: #212529; font-size: 0.95rem; display: block; margin-bottom: 0.5rem;">Price Information</strong>
-                                        <div style="color: #6c757d; font-size: 0.85rem;">Select a vehicle and service type to see pricing</div>
+                                </div>
+                                <div class="card-body" style="background: #ffffff; padding: 1.25rem;">
+                                    <!-- Entry Port Pricing Details -->
+                                    <div class="row g-3">
+                                        <div class="col-12">
+                                            <div class="card shadow-sm border-0" style="background: linear-gradient(135deg, #f8f9ff 0%, #e7f3ff 100%); border: 1px solid #b3d9ff !important; border-radius: 8px;">
+                                                <div class="card-header" style="background: rgba(102, 126, 234, 0.1); border: none; border-bottom: 1px solid #b3d9ff; padding: 0.75rem 1rem; border-radius: 8px 8px 0 0;">
+                                                    <h6 class="mb-0 fw-semibold d-flex align-items-center" style="color: #495057; font-size: 0.9rem;">
+                                                        <div style="width: 28px; height: 28px; background: rgba(102, 126, 234, 0.15); border-radius: 6px; display: flex; align-items: center; justify-content: center; margin-right: 8px;">
+                                                            <i class="ri-car-line" style="color: #667eea; font-size: 0.9rem;"></i>
+                                                        </div>
+                                                        Vehicle Pricing Details
+                                                    </h6>
+                                                </div>
+                                                <div class="card-body" style="padding: 1rem;">
+                                                    <div id="day${day}_entry_${newIndex}_pricing_content" style="font-size: 0.85rem; color: #495057;">
+                                                        <div class="text-muted" style="font-size: 0.8rem; color: #6c757d;">Select entry port options to see pricing</div>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                    
+                                    <!-- Total Price Row -->
+                                    <div class="row mt-3">
+                                        <div class="col-12">
+                                            <div class="card shadow-sm border-0" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); border-radius: 8px; box-shadow: 0 4px 12px rgba(102, 126, 234, 0.3);">
+                                                <div class="card-body" style="padding: 1rem 1.25rem;">
+                                                    <div class="d-flex justify-content-between align-items-center">
+                                                        <h6 class="mb-0 fw-bold text-white d-flex align-items-center" style="color: #ffffff !important; font-size: 1rem;">
+                                                            <div style="width: 32px; height: 32px; background: rgba(255, 255, 255, 0.2); border-radius: 8px; display: flex; align-items: center; justify-content: center; margin-right: 10px;">
+                                                                <i class="ri-calculator-line" style="color: #ffffff !important; font-size: 1rem;"></i>
+                                                            </div>
+                                                            Total Price
+                                                        </h6>
+                                                        <span class="fw-bold text-white" style="font-size: 1.5rem; color: #ffffff !important;" id="day${day}_entry_${newIndex}_total_price_display">$0.00</span>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        </div>
                                     </div>
                                 </div>
                             </div>
@@ -18201,55 +19122,28 @@ document.addEventListener('DOMContentLoaded', function() {
             return;
         }
         
-        // Find the service card that contains the danger border card (exit port)
-        const serviceCards = dayContainer.querySelectorAll('.service-card');
-        let exitPortServiceCard = null;
-        
-        serviceCards.forEach(card => {
-            if (card.querySelector('.card.border-danger.shadow-sm')) {
-                exitPortServiceCard = card;
-            }
-        });
-        
-        if (!exitPortServiceCard) {
-            showNotification(`Exit port services are only available on the last day of the tour. This is Day ${day}.`, 'warning');
-            console.error('Exit port service card not found for day', day);
+        // Find the departure transport section (exit ports are in this section)
+        const departureSection = dayContainer.querySelector('#departureTransportSection');
+        if (!departureSection) {
+            showNotification(`Exit port section not found for Day ${day}. Exit ports are only available on the last day of the tour.`, 'warning');
+            console.error('Departure transport section not found for day', day);
             return;
         }
-         
-                 // Find existing exit port items container (it's outside the service card)
-        console.log('Looking for exit ports container for day', day);
-        console.log('Exit port service card:', exitPortServiceCard);
-        console.log('Service card parent:', exitPortServiceCard.parentElement);
-        
-        // Try multiple approaches to find the container
-        let container = exitPortServiceCard.parentElement.querySelector('.exit-ports-container');
-        
-        if (!container) {
-            // Try looking in the day container directly
-            container = dayContainer.querySelector('.exit-ports-container');
-            console.log('Trying day container approach:', container);
-        }
-        
-        if (!container) {
-            // Try looking in all service cards' parents
-            const allServiceCards = dayContainer.querySelectorAll('.service-card');
-            allServiceCards.forEach(card => {
-                if (!container) {
-                    const potentialContainer = card.parentElement.querySelector('.exit-ports-container');
-                    if (potentialContainer) {
-                        container = potentialContainer;
-                        console.log('Found container via service card parent search:', container);
-                    }
-                }
-            });
-        }
-        
+               
+        // Find existing exit port items container
+        let container = departureSection.querySelector('.exit-ports-container');
         if (!container) {
             console.error('Exit ports container not found for day', day);
-            console.log('Available elements in day container:', dayContainer.innerHTML);
-            showNotification(`Exit ports container not found for Day ${day}. Please refresh the page and try again.`, 'error');
-            return;
+            // Try to find it in the card-body
+            const cardBody = departureSection.querySelector('.card-body');
+            if (cardBody) {
+                container = cardBody.querySelector('.exit-ports-container');
+            }
+            if (!container) {
+                console.error('Exit ports container not found in card-body for day', day);
+                showNotification(`Exit ports container not found for Day ${day}. Please refresh the page and try again.`, 'error');
+                return;
+            }
         }
         
         console.log('Successfully found exit ports container:', container);
@@ -18305,7 +19199,7 @@ document.addEventListener('DOMContentLoaded', function() {
                                 <label class="form-label fw-semibold">Number of Passengers</label>
                                 <div class="input-group">
                                     <span class="input-group-text"><i class="ri-user-line"></i></span>
-                                    <input type="number" class="form-control" id="day${day}_exit_${newIndex}_passengers" name="day${day}_exit_${newIndex}_passengers" min="1" max="50" value="" onchange="validatePassengerCapacity(${day}, 'exit_${newIndex}'); updatePricing(${day}, 'exit_${newIndex}')">
+                                    <input type="number" class="form-control" onwheel="event.preventDefault(); return false;" id="day${day}_exit_${newIndex}_passengers" name="day${day}_exit_${newIndex}_passengers" min="1" max="50" value="" onchange="validatePassengerCapacity(${day}, 'exit_${newIndex}'); updatePricing(${day}, 'exit_${newIndex}')">
                                 </div>
                                 <small class="form-text text-muted">
                                     Enter number of passengers for this service
@@ -18314,12 +19208,62 @@ document.addEventListener('DOMContentLoaded', function() {
                         </div>
                         
                         <div class="col-12 mt-3">
-                            <div id="day${day}_exit_${newIndex}_price_display" class="alert alert-success" style="display: none;">
-                                <div class="d-flex align-items-center">
-                                    <i class="ri-money-dollar-circle-line me-2 fs-4"></i>
-                                    <div>
-                                        <strong>Price Information</strong>
-                                        <div class="small">Select a vehicle and service type to see pricing</div>
+                            <div id="day${day}_exit_${newIndex}_price_display" class="card shadow-sm border-0" style="background: #ffffff; border-radius: 12px; overflow: hidden; display: none;">
+                                <div class="card-header text-white" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); border: none; padding: 1rem 1.25rem;">
+                                    <div class="d-flex align-items-center justify-content-between">
+                                        <div class="d-flex align-items-center">
+                                            <div style="width: 40px; height: 40px; background: rgba(255, 255, 255, 0.2); border-radius: 10px; display: flex; align-items: center; justify-content: center; margin-right: 12px;">
+                                                <i class="ri-ship-line text-white" style="color: #ffffff !important; font-size: 1.25rem;"></i>
+                                            </div>
+                                            <div>
+                                                <h6 class="mb-0 fw-bold text-white" style="color: #ffffff !important; font-size: 1.1rem;">Exit Port Pricing</h6>
+                                                <small class="text-white-75" style="color: rgba(255, 255, 255, 0.85) !important; font-size: 0.8rem;">Vehicle pricing details for exit port service</small>
+                                            </div>
+                                        </div>
+                                        <button type="button" class="btn btn-sm text-white" onclick="forceUpdateExitPortPricing(${day}, ${newIndex})" title="Refresh Pricing" style="background: rgba(255, 255, 255, 0.2); border: 1px solid rgba(255, 255, 255, 0.3); border-radius: 6px; padding: 0.375rem 0.75rem; transition: all 0.2s;">
+                                            <i class="ri-refresh-line"></i>
+                                        </button>
+                                    </div>
+                                </div>
+                                <div class="card-body" style="background: #ffffff; padding: 1.25rem;">
+                                    <!-- Exit Port Pricing Details -->
+                                    <div class="row g-3">
+                                        <div class="col-12">
+                                            <div class="card shadow-sm border-0" style="background: linear-gradient(135deg, #f8f9ff 0%, #e7f3ff 100%); border: 1px solid #b3d9ff !important; border-radius: 8px;">
+                                                <div class="card-header" style="background: rgba(102, 126, 234, 0.1); border: none; border-bottom: 1px solid #b3d9ff; padding: 0.75rem 1rem; border-radius: 8px 8px 0 0;">
+                                                    <h6 class="mb-0 fw-semibold d-flex align-items-center" style="color: #495057; font-size: 0.9rem;">
+                                                        <div style="width: 28px; height: 28px; background: rgba(102, 126, 234, 0.15); border-radius: 6px; display: flex; align-items: center; justify-content: center; margin-right: 8px;">
+                                                            <i class="ri-car-line" style="color: #667eea; font-size: 0.9rem;"></i>
+                                                        </div>
+                                                        Vehicle Pricing Details
+                                                    </h6>
+                                                </div>
+                                                <div class="card-body" style="padding: 1rem;">
+                                                    <div id="day${day}_exit_${newIndex}_pricing_content" style="font-size: 0.85rem; color: #495057;">
+                                                        <div class="text-muted" style="font-size: 0.8rem; color: #6c757d;">Select exit port options to see pricing</div>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                    
+                                    <!-- Total Price Row -->
+                                    <div class="row mt-3">
+                                        <div class="col-12">
+                                            <div class="card shadow-sm border-0" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); border-radius: 8px; box-shadow: 0 4px 12px rgba(102, 126, 234, 0.3);">
+                                                <div class="card-body" style="padding: 1rem 1.25rem;">
+                                                    <div class="d-flex justify-content-between align-items-center">
+                                                        <h6 class="mb-0 fw-bold text-white d-flex align-items-center" style="color: #ffffff !important; font-size: 1rem;">
+                                                            <div style="width: 32px; height: 32px; background: rgba(255, 255, 255, 0.2); border-radius: 8px; display: flex; align-items: center; justify-content: center; margin-right: 10px;">
+                                                                <i class="ri-calculator-line" style="color: #ffffff !important; font-size: 1rem;"></i>
+                                                            </div>
+                                                            Total Price
+                                                        </h6>
+                                                        <span class="fw-bold text-white" style="font-size: 1.5rem; color: #ffffff !important;" id="day${day}_exit_${newIndex}_total_price_display">$0.00</span>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        </div>
                                     </div>
                                 </div>
                             </div>
@@ -18333,7 +19277,7 @@ document.addEventListener('DOMContentLoaded', function() {
                                         </label>
                                         <div class="input-group">
                                             <span class="input-group-text">SGD</span>
-                                            <input type="number" class="form-control" id="day${day}_exit_${newIndex}_custom_price" name="day${day}_exit_${newIndex}_custom_price" min="0" step="0.01" placeholder="Enter custom price" oninput="updateExitPortCustomPricing(${day}, 'exit_${newIndex}')" onchange="updateExitPortCustomPricing(${day}, 'exit_${newIndex}')">
+                                            <input type="number" class="form-control" onwheel="event.preventDefault(); return false;" id="day${day}_exit_${newIndex}_custom_price" name="day${day}_exit_${newIndex}_custom_price" min="0" step="0.01" placeholder="Enter custom price" oninput="updateExitPortCustomPricing(${day}, 'exit_${newIndex}')" onchange="updateExitPortCustomPricing(${day}, 'exit_${newIndex}')">
                                             <span class="input-group-text">.00</span>
                                         </div>
                                         <small class="form-text text-muted mt-1">
@@ -21820,21 +22764,32 @@ function loadDropoffZones(day, section) {
             serviceTypeSelect.style.backgroundColor = '#f8f9fa';
             serviceTypeSelect.style.cursor = 'not-allowed';
         } else {
-            // For local transfer, show options based on vehicle sharable property
-            console.log('Local transfer radio button is selected');
-            if(selectedOption && selectedOption.dataset.sharable == 1){
+            // For local transfer, entry, and exit ports, show options based on vehicle sharable property
+            // sharable: 1 = Private only, 2 = Shared only, 3 = Both Private and Shared
+            const sharable = selectedOption ? parseInt(selectedOption.dataset.sharable) : null;
+            console.log('Vehicle sharable value:', sharable, 'for section:', section);
+            
+            if (sharable === 1 || sharable === 3) {
+                // Show Private option (for sharable = 1 or 3)
                 const privateOption = document.createElement('option');
                 privateOption.value = 'Private';
                 privateOption.textContent = 'Private';
                 serviceTypeSelect.appendChild(privateOption);
+                console.log('Added Private option (sharable =', sharable, ')');
             }
-            else if(selectedOption && selectedOption.dataset.sharable == 2){
+            
+            if (sharable === 2 || sharable === 3) {
+                // Show Shared option (for sharable = 2 or 3)
                 const sharedOption = document.createElement('option');
                 sharedOption.value = 'Shared';
                 sharedOption.textContent = 'Shared';
                 serviceTypeSelect.appendChild(sharedOption);
+                console.log('Added Shared option (sharable =', sharable, ')');
             }
-            else{
+            
+            // If sharable is not 1, 2, or 3, show both options as fallback
+            if (sharable !== 1 && sharable !== 2 && sharable !== 3) {
+                console.log('Sharable value not recognized (', sharable, '), showing both options as fallback');
                 const privateOption = document.createElement('option');
                 privateOption.value = 'Private';
                 privateOption.textContent = 'Private';
@@ -21915,10 +22870,28 @@ function loadDropoffZones(day, section) {
     
     const selectedServiceType = serviceTypeSelect.value;
         console.log('Selected service type:', selectedServiceType);
-    const selectedVehicleOption = vehicleSelect.options[vehicleSelect.selectedIndex];
     
-    if (!selectedServiceType || !selectedVehicleOption.value) {
+    // Get the selected vehicle option - handle both native select and Select2
+    let selectedVehicleOption = null;
+    const selectedVehicleValue = vehicleSelect.value;
+    
+    if (selectedVehicleValue) {
+        // Try to find the option by value (works with both native and Select2)
+        selectedVehicleOption = vehicleSelect.querySelector(`option[value="${selectedVehicleValue}"]`);
+        
+        // Fallback to selectedIndex if querySelector doesn't work
+        if (!selectedVehicleOption && vehicleSelect.selectedIndex >= 0 && vehicleSelect.options[vehicleSelect.selectedIndex]) {
+            selectedVehicleOption = vehicleSelect.options[vehicleSelect.selectedIndex];
+        }
+    }
+    
+    if (!selectedServiceType || !selectedVehicleOption || !selectedVehicleOption.value) {
         priceDisplay.style.display = 'none';
+        console.log('Missing required data for pricing:', {
+            selectedServiceType: selectedServiceType,
+            selectedVehicleOption: selectedVehicleOption ? selectedVehicleOption.value : 'NOT FOUND',
+            vehicleSelectValue: selectedVehicleValue
+        });
         return;
     }
     
@@ -21976,17 +22949,69 @@ function loadDropoffZones(day, section) {
             const isZoneZero = dmcUser && dmcUser.zone_on == 0;
             
             let pricingHTML = `
-                <div class="d-flex align-items-center">
-                    <i class="ri-money-dollar-circle-line me-2 fs-4"></i>
-                    <div>
-                        <strong>Point-to-Point Service Pricing</strong>
-                        <div class="small">
-                            <strong>Custom Price:</strong> $${customPrice.toFixed(2)} (fixed price)<br>`;
-            
-            // Total Passengers line removed as requested
-            
-            pricingHTML += `<strong>Total Price:</strong> <span class="text-success fw-bold">$${customPrice.toFixed(2)}</span><br>
-                            <small class="text-info">Point-to-point service with custom pricing</small>
+                <div class="card shadow-sm border-0" style="background: #ffffff; border-radius: 12px; overflow: hidden;">
+                    <div class="card-header text-white" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); border: none; padding: 1rem 1.25rem;">
+                        <div class="d-flex align-items-center justify-content-between">
+                            <div class="d-flex align-items-center">
+                                <div style="width: 40px; height: 40px; background: rgba(255, 255, 255, 0.2); border-radius: 10px; display: flex; align-items: center; justify-content: center; margin-right: 12px;">
+                                    <i class="ri-car-line text-white" style="color: #ffffff !important; font-size: 1.25rem;"></i>
+                                </div>
+                                <div>
+                                    <h6 class="mb-0 fw-bold text-white" style="color: #ffffff !important; font-size: 1.1rem;">Transport Pricing</h6>
+                                    <small class="text-white-75" style="color: rgba(255, 255, 255, 0.85) !important; font-size: 0.8rem;">Point-to-Point Service with custom pricing</small>
+                                </div>
+                            </div>
+                            <button type="button" class="btn btn-sm text-white" onclick="updatePricing(${day}, '${section}')" title="Refresh Pricing" style="background: rgba(255, 255, 255, 0.2); border: 1px solid rgba(255, 255, 255, 0.3); border-radius: 6px; padding: 0.375rem 0.75rem; transition: all 0.2s;">
+                                <i class="ri-refresh-line"></i>
+                            </button>
+                        </div>
+                    </div>
+                    <div class="card-body" style="background: #ffffff; padding: 1.25rem;">
+                        <!-- Transport Pricing Details -->
+                        <div class="row g-3">
+                            <div class="col-12">
+                                <div class="card shadow-sm border-0" style="background: linear-gradient(135deg, #f8f9ff 0%, #e7f3ff 100%); border: 1px solid #b3d9ff !important; border-radius: 8px;">
+                                    <div class="card-header" style="background: rgba(102, 126, 234, 0.1); border: none; border-bottom: 1px solid #b3d9ff; padding: 0.75rem 1rem; border-radius: 8px 8px 0 0;">
+                                        <h6 class="mb-0 fw-semibold d-flex align-items-center" style="color: #495057; font-size: 0.9rem;">
+                                            <div style="width: 28px; height: 28px; background: rgba(102, 126, 234, 0.15); border-radius: 6px; display: flex; align-items-center; justify-content: center; margin-right: 8px;">
+                                                <i class="ri-taxi-line" style="color: #667eea; font-size: 0.9rem;"></i>
+                                            </div>
+                                            Point-to-Point Service Pricing Details
+                                        </h6>
+                                    </div>
+                                    <div class="card-body" style="padding: 1rem;">
+                                        <div class="d-flex align-items-center justify-content-between mb-2" style="font-size: 0.85rem;">
+                                            <span style="color: #6c757d;">
+                                                <i class="ri-price-tag-3-line" style="color: #667eea; margin-right: 5px;"></i>
+                                                Custom Price:
+                                            </span>
+                                            <span class="fw-semibold" style="color: #495057;">$${customPrice.toFixed(2)} <small style="color: #6c757d; font-weight: normal;">(fixed price)</small></span>
+                                        </div>
+                                        <small style="color: #6c757d; font-size: 0.8rem; display: block; margin-top: 0.5rem;">
+                                            <i class="ri-information-line me-1" style="color: #667eea;"></i>Point-to-point service with custom pricing
+                                        </small>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <!-- Total Price Row -->
+                        <div class="row mt-3">
+                            <div class="col-12">
+                                <div class="card shadow-sm border-0" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); border-radius: 8px; box-shadow: 0 4px 12px rgba(102, 126, 234, 0.3);">
+                                    <div class="card-body" style="padding: 1rem 1.25rem;">
+                                        <div class="d-flex justify-content-between align-items-center">
+                                            <h6 class="mb-0 fw-bold text-white d-flex align-items-center" style="color: #ffffff !important; font-size: 1rem;">
+                                                <div style="width: 32px; height: 32px; background: rgba(255, 255, 255, 0.2); border-radius: 8px; display: flex; align-items-center; justify-content: center; margin-right: 10px;">
+                                                    <i class="ri-calculator-line" style="color: #ffffff !important; font-size: 1rem;"></i>
+                                                </div>
+                                                Total Price
+                                            </h6>
+                                            <span class="fw-bold text-white" style="font-size: 1.5rem; color: #ffffff !important;">$${customPrice.toFixed(2)}</span>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
                         </div>
                     </div>
                 </div>
@@ -22024,12 +23049,41 @@ function loadDropoffZones(day, section) {
             // Custom price not entered yet
             priceDisplay.style.display = 'block';
             priceDisplay.innerHTML = `
-                <div class="d-flex align-items-center">
-                    <i class="ri-money-dollar-circle-line me-2 fs-4"></i>
-                    <div>
-                        <strong>Point-to-Point Service Pricing</strong>
-                        <div class="small text-warning">
-                            Please enter a custom price for this point-to-point service
+                <div class="card shadow-sm border-0" style="background: #ffffff; border-radius: 12px; overflow: hidden;">
+                    <div class="card-header text-white" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); border: none; padding: 1rem 1.25rem;">
+                        <div class="d-flex align-items-center justify-content-between">
+                            <div class="d-flex align-items-center">
+                                <div style="width: 40px; height: 40px; background: rgba(255, 255, 255, 0.2); border-radius: 10px; display: flex; align-items: center; justify-content: center; margin-right: 12px;">
+                                    <i class="ri-car-line text-white" style="color: #ffffff !important; font-size: 1.25rem;"></i>
+                                </div>
+                                <div>
+                                    <h6 class="mb-0 fw-bold text-white" style="color: #ffffff !important; font-size: 1.1rem;">Transport Pricing</h6>
+                                    <small class="text-white-75" style="color: rgba(255, 255, 255, 0.85) !important; font-size: 0.8rem;">Point-to-Point Service</small>
+                                </div>
+                            </div>
+                            <button type="button" class="btn btn-sm text-white" onclick="updatePricing(${day}, '${section}')" title="Refresh Pricing" style="background: rgba(255, 255, 255, 0.2); border: 1px solid rgba(255, 255, 255, 0.3); border-radius: 6px; padding: 0.375rem 0.75rem; transition: all 0.2s;">
+                                <i class="ri-refresh-line"></i>
+                            </button>
+                        </div>
+                    </div>
+                    <div class="card-body" style="background: #ffffff; padding: 1.25rem;">
+                        <!-- Warning Message -->
+                        <div class="row g-3">
+                            <div class="col-12">
+                                <div class="alert alert-warning mb-0" style="background: #fff3cd; border: 1px solid #ffc107; border-radius: 8px;">
+                                    <div class="d-flex align-items-start">
+                                        <div style="width: 40px; height: 40px; background: rgba(255, 193, 7, 0.2); border-radius: 8px; display: flex; align-items-center; justify-content: center; margin-right: 12px; flex-shrink: 0;">
+                                            <i class="ri-alert-line" style="color: #856404; font-size: 1.25rem;"></i>
+                                        </div>
+                                        <div style="flex: 1;">
+                                            <h6 class="mb-1 fw-semibold" style="color: #856404; font-size: 0.95rem;">Point-to-Point Service Pricing</h6>
+                                            <div style="font-size: 0.85rem; color: #856404;">
+                                                <i class="ri-information-line me-1"></i>Please enter a custom price for this point-to-point service
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
                         </div>
                     </div>
                 </div>
@@ -22039,17 +23093,27 @@ function loadDropoffZones(day, section) {
     }
     
     // Get pricing data from the selected vehicle option
-    const privatePrice = parseFloat(selectedVehicleOption.dataset.privatePrice) || 0;
-        const sharedPrice = parseFloat(selectedVehicleOption.dataset.sharedPrice) || parseFloat(selectedVehicleOption.dataset.sharableCostPerHour) || 0;
-    const costPerHour = parseFloat(selectedVehicleOption.dataset.costPerHour) || 0;
-    const sharableCostPerHour = parseFloat(selectedVehicleOption.dataset.sharableCostPerHour) || 0;
+    // Use getAttribute for reliable data attribute access (works better than dataset)
+    const privatePriceAttr = selectedVehicleOption.getAttribute('data-private-price') || '';
+    const sharedPriceAttr = selectedVehicleOption.getAttribute('data-shared-price') || '';
+    const sharableCostPerHourAttr = selectedVehicleOption.getAttribute('data-sharable-cost-per-hour') || '';
+    const costPerHourAttr = selectedVehicleOption.getAttribute('data-cost-per-hour') || '';
+    
+    const privatePrice = parseFloat(privatePriceAttr) || 0;
+    const sharedPrice = parseFloat(sharedPriceAttr) || parseFloat(sharableCostPerHourAttr) || 0;
+    const costPerHour = parseFloat(costPerHourAttr) || 0;
+    const sharableCostPerHour = parseFloat(sharableCostPerHourAttr) || 0;
     
     // Debug logging to verify prices
     console.log('=== PRICING DEBUG ===');
     console.log('Selected vehicle option:', selectedVehicleOption);
-    console.log('Vehicle dataset:', selectedVehicleOption.dataset);
-    console.log('Raw private_price:', selectedVehicleOption.dataset.privatePrice);
-    console.log('Raw shared_price:', selectedVehicleOption.dataset.sharedPrice);
+    console.log('Vehicle option value:', selectedVehicleOption.value);
+    console.log('Raw attributes:', {
+        'data-private-price': privatePriceAttr,
+        'data-shared-price': sharedPriceAttr,
+        'data-sharable-cost-per-hour': sharableCostPerHourAttr,
+        'data-cost-per-hour': costPerHourAttr
+    });
     console.log('Parsed privatePrice:', privatePrice);
     console.log('Parsed sharedPrice:', sharedPrice);
     console.log('Selected service type:', selectedServiceType);
@@ -22170,6 +23234,7 @@ function loadDropoffZones(day, section) {
         
         if (selectedServiceType === 'Private') {
             // For private service: price is per vehicle (not per person)
+            const isPrivate = true; // Set flag for private service
             if (isHourlyTransport && isHourlyService) {
                 // For hourly transport: base_price + (hourly_rate * selected_hours)
                 totalPrice = displayPrice + (costPerHour * selectedHours);
@@ -22185,49 +23250,41 @@ function loadDropoffZones(day, section) {
                     
                 if (isHourlyTransport) {
                     pricingDescription = `
-                        <div class="d-flex justify-content-between align-items-center mb-2" style="padding: 0.5rem; background: rgba(255, 255, 255, 0.6); border-radius: 6px;">
-                            <span style="color: #495057;"><strong>Vehicle Price:</strong></span>
-                            <span style="color: #667eea; font-weight: 600;">$${displayPrice.toFixed(2)} <small style="color: #6c757d; font-weight: normal;">(base)</small></span>
+                        <div class="d-flex justify-content-between align-items-center mb-3">
+                            <span style="color: #6c757d;"><i class="ri-car-line" style="color: #667eea; margin-right: 5px;"></i>Vehicle Price:</span>
+                            <span class="fw-semibold" style="color: #495057;">$${displayPrice.toFixed(2)} <small style="color: #6c757d;">(base)</small></span>
                         </div>
-                        <div class="d-flex justify-content-between align-items-center mb-2" style="padding: 0.5rem; background: rgba(255, 255, 255, 0.6); border-radius: 6px;">
-                            <span style="color: #495057;"><strong>Hourly Rate:</strong></span>
-                            <span style="color: #667eea; font-weight: 600;">$${costPerHour.toFixed(2)} <small style="color: #6c757d; font-weight: normal;">per hour</small></span>
+                        <div class="d-flex justify-content-between align-items-center mb-3">
+                            <span style="color: #6c757d;"><i class="ri-time-line" style="color: #667eea; margin-right: 5px;"></i>Hourly Rate:</span>
+                            <span class="fw-semibold" style="color: #495057;">$${costPerHour.toFixed(2)} <small style="color: #6c757d;">per hour</small></span>
                         </div>
-                        <div class="d-flex justify-content-between align-items-center mb-2" style="padding: 0.5rem; background: rgba(255, 255, 255, 0.6); border-radius: 6px;">
-                            <span style="color: #495057;"><strong>Selected Hours:</strong></span>
-                            <span style="color: #495057;">${selectedHours} hour${selectedHours > 1 ? 's' : ''}</span>
+                        <div class="d-flex justify-content-between align-items-center mb-3">
+                            <span style="color: #6c757d;"><i class="ri-calendar-check-line" style="color: #667eea; margin-right: 5px;"></i>Selected Hours:</span>
+                            <span class="fw-semibold" style="color: #495057;">${selectedHours} hour${selectedHours > 1 ? 's' : ''}</span>
                         </div>
-                        <div class="d-flex justify-content-between align-items-center mb-2" style="padding: 0.5rem; background: rgba(255, 255, 255, 0.6); border-radius: 6px;">
-                            <span style="color: #495057;"><strong>Hourly Cost:</strong></span>
-                            <span style="color: #667eea; font-weight: 600;">$${(costPerHour * selectedHours).toFixed(2)} <small style="color: #6c757d; font-weight: normal;">($${costPerHour.toFixed(2)} × ${selectedHours})</small></span>
+                        <div class="d-flex justify-content-between align-items-center mb-2">
+                            <span style="color: #6c757d;"><i class="ri-money-dollar-circle-line" style="color: #667eea; margin-right: 5px;"></i>Hourly Cost:</span>
+                            <span class="fw-semibold" style="color: #495057;">$${(costPerHour * selectedHours).toFixed(2)} <small style="color: #6c757d;">($${costPerHour.toFixed(2)} × ${selectedHours})</small></span>
                         </div>
-                        <div class="d-flex justify-content-between align-items-center mt-2 pt-2" style="border-top: 2px solid #b3d9ff; padding-top: 0.75rem;">
-                            <span style="color: #212529; font-size: 0.9rem; font-weight: 600;"><strong>Total Price:</strong></span>
-                            <span style="color: #667eea; font-size: 1.1rem; font-weight: 700;">$${totalPrice.toFixed(2)}</span>
-                        </div>
-                        <small style="color: #6c757d; font-size: 0.75rem; display: block; margin-top: 0.5rem;">
+                        <small style="color: #6c757d; font-size: 0.8rem; display: block; margin-top: 1rem;">
                             <i class="ri-information-line me-1" style="color: #667eea;"></i>Private vehicle price is fixed. Hourly rate applies for extended services.
                         </small>
                     `;
                 } else {
                     pricingDescription = `
-                        <div class="d-flex justify-content-between align-items-center mb-2" style="padding: 0.5rem; background: rgba(255, 255, 255, 0.6); border-radius: 6px;">
-                            <span style="color: #495057;"><strong>Vehicle Price:</strong></span>
-                            <span style="color: #667eea; font-weight: 600;">$${displayPrice.toFixed(2)} <small style="color: #6c757d; font-weight: normal;">(base)</small></span>
+                        <div class="d-flex justify-content-between align-items-center mb-3">
+                            <span style="color: #6c757d;"><i class="ri-car-line" style="color: #667eea; margin-right: 5px;"></i>Vehicle Price:</span>
+                            <span class="fw-semibold" style="color: #495057;">$${displayPrice.toFixed(2)} <small style="color: #6c757d;">(base)</small></span>
                         </div>
-                        <div class="d-flex justify-content-between align-items-center mb-2" style="padding: 0.5rem; background: rgba(255, 255, 255, 0.6); border-radius: 6px;">
-                            <span style="color: #495057;"><strong>Hourly Rate:</strong></span>
-                            <span style="color: #667eea; font-weight: 600;">$${costPerHour.toFixed(2)} <small style="color: #6c757d; font-weight: normal;">per hour</small></span>
+                        <div class="d-flex justify-content-between align-items-center mb-3">
+                            <span style="color: #6c757d;"><i class="ri-time-line" style="color: #667eea; margin-right: 5px;"></i>Hourly Rate:</span>
+                            <span class="fw-semibold" style="color: #495057;">$${costPerHour.toFixed(2)} <small style="color: #6c757d;">per hour</small></span>
                         </div>
-                        <div class="d-flex justify-content-between align-items-center mb-2" style="padding: 0.5rem; background: rgba(255, 255, 255, 0.6); border-radius: 6px;">
-                            <span style="color: #495057;"><strong>Total Guests:</strong></span>
-                            <span style="color: #495057;">${totalGuests} <small style="color: #6c757d;">(${adults} adults, ${children} children)</small></span>
+                        <div class="d-flex justify-content-between align-items-center mb-2">
+                            <span style="color: #6c757d;"><i class="ri-group-line" style="color: #667eea; margin-right: 5px;"></i>Total Guests:</span>
+                            <span class="fw-semibold" style="color: #495057;">${totalGuests} <small style="color: #6c757d;">(${adults} adults, ${children} children)</small></span>
                         </div>
-                        <div class="d-flex justify-content-between align-items-center mt-2 pt-2" style="border-top: 2px solid #b3d9ff; padding-top: 0.75rem;">
-                            <span style="color: #212529; font-size: 0.9rem; font-weight: 600;"><strong>Base Price:</strong></span>
-                            <span style="color: #667eea; font-size: 1.1rem; font-weight: 700;">$${totalPrice.toFixed(2)}</span>
-                        </div>
-                        <small style="color: #6c757d; font-size: 0.75rem; display: block; margin-top: 0.5rem;">
+                        <small style="color: #6c757d; font-size: 0.8rem; display: block; margin-top: 1rem;">
                             <i class="ri-information-line me-1" style="color: #667eea;"></i>Private vehicle price is fixed. Hourly rate applies for extended services.
                         </small>
                     `;
@@ -22238,25 +23295,22 @@ function loadDropoffZones(day, section) {
                     const children = parseInt(document.getElementById('children')?.value) || 0;
                     
             pricingDescription = `
-                <div class="d-flex justify-content-between align-items-center mb-2" style="padding: 0.5rem; background: rgba(255, 255, 255, 0.6); border-radius: 6px;">
-                    <span style="color: #495057;"><strong>Vehicle Price:</strong></span>
-                    <span style="color: #667eea; font-weight: 600;">$${displayPrice.toFixed(2)} <small style="color: #6c757d; font-weight: normal;">(per vehicle)</small></span>
+                <div class="d-flex justify-content-between align-items-center mb-3">
+                    <span style="color: #6c757d;"><i class="ri-car-line" style="color: #667eea; margin-right: 5px;"></i>Vehicle Price:</span>
+                    <span class="fw-semibold" style="color: #495057;">$${displayPrice.toFixed(2)} <small style="color: #6c757d;">(per vehicle)</small></span>
                 </div>
-                <div class="d-flex justify-content-between align-items-center mb-2" style="padding: 0.5rem; background: rgba(255, 255, 255, 0.6); border-radius: 6px;">
-                    <span style="color: #495057;"><strong>Total Guests:</strong></span>
-                    <span style="color: #495057;">${totalGuests} <small style="color: #6c757d;">(${adults} adults, ${children} children)</small></span>
+                <div class="d-flex justify-content-between align-items-center mb-2">
+                    <span style="color: #6c757d;"><i class="ri-group-line" style="color: #667eea; margin-right: 5px;"></i>Total Guests:</span>
+                    <span class="fw-semibold" style="color: #495057;">${totalGuests} <small style="color: #6c757d;">(${adults} adults, ${children} children)</small></span>
                 </div>
-                <div class="d-flex justify-content-between align-items-center mt-2 pt-2" style="border-top: 2px solid ${isPrivate ? '#b3d9ff' : '#7dd3c0'}; padding-top: 0.75rem;">
-                    <span style="color: #212529; font-size: 0.9rem; font-weight: 600;"><strong>Total Price:</strong></span>
-                    <span style="color: ${isPrivate ? '#667eea' : '#28a745'}; font-size: 1.1rem; font-weight: 700;">$${totalPrice.toFixed(2)}</span>
-                </div>
-                <small style="color: #6c757d; font-size: 0.75rem; display: block; margin-top: 0.5rem;">
-                    <i class="ri-information-line me-1" style="color: ${isPrivate ? '#667eea' : '#28a745'};"></i>Private vehicle price is fixed regardless of guest count
+                <small style="color: #6c757d; font-size: 0.8rem; display: block; margin-top: 1rem;">
+                    <i class="ri-information-line me-1" style="color: #667eea;"></i>Private vehicle price is fixed regardless of guest count
                 </small>
             `;
             }
         } else if (selectedServiceType === 'Shared') {
             // For shared service: price is per person (only for non-hourly transport)
+            const isPrivate = false; // Set flag for shared service
             totalPrice = displayPrice * totalGuests;
             
             if (isHourlyService) {
@@ -22265,11 +23319,21 @@ function loadDropoffZones(day, section) {
                     const children = parseInt(document.getElementById('children')?.value) || 0;
                     
                 pricingDescription = `
-                    <strong>Base Price:</strong> $${displayPrice.toFixed(2)} per person<br>
-                    <strong>Hourly Rate:</strong> $${sharableCostPerHour.toFixed(2)} per person per hour<br>
-                    <strong>Total Guests:</strong> ${totalGuests} (${adults} adults, ${children} children)<br>
-                    <strong>Base Total:</strong> <span class="text-success fw-bold">$${totalPrice.toFixed(2)}</span><br>
-                    <small class="text-info">Shared service pricing per person. Hourly rate applies for extended services.</small>
+                    <div class="d-flex justify-content-between align-items-center mb-3">
+                        <span style="color: #6c757d;"><i class="ri-price-tag-3-line" style="color: #28a745; margin-right: 5px;"></i>Base Price:</span>
+                        <span class="fw-semibold" style="color: #495057;">$${displayPrice.toFixed(2)} <small style="color: #6c757d;">per person</small></span>
+                    </div>
+                    <div class="d-flex justify-content-between align-items-center mb-3">
+                        <span style="color: #6c757d;"><i class="ri-time-line" style="color: #28a745; margin-right: 5px;"></i>Hourly Rate:</span>
+                        <span class="fw-semibold" style="color: #495057;">$${sharableCostPerHour.toFixed(2)} <small style="color: #6c757d;">per person per hour</small></span>
+                    </div>
+                    <div class="d-flex justify-content-between align-items-center mb-2">
+                        <span style="color: #6c757d;"><i class="ri-group-line" style="color: #28a745; margin-right: 5px;"></i>Total Guests:</span>
+                        <span class="fw-semibold" style="color: #495057;">${totalGuests} <small style="color: #6c757d;">(${adults} adults, ${children} children)</small></span>
+                    </div>
+                    <small style="color: #6c757d; font-size: 0.8rem; display: block; margin-top: 1rem;">
+                        <i class="ri-information-line me-1" style="color: #28a745;"></i>Shared service pricing per person. Hourly rate applies for extended services.
+                    </small>
                 `;
             } else {
                     // Get adults and children values for display
@@ -22277,25 +23341,84 @@ function loadDropoffZones(day, section) {
                     const children = parseInt(document.getElementById('children')?.value) || 0;
                     
             pricingDescription = `
-                <strong>Base Price:</strong> $${displayPrice.toFixed(2)} per person<br>
-                <strong>Total Guests:</strong> ${totalGuests} (${adults} adults, ${children} children)<br>
-                <strong>Total Price:</strong> <span class="text-success fw-bold">$${totalPrice.toFixed(2)}</span>
+                <div class="d-flex justify-content-between align-items-center mb-3">
+                    <span style="color: #6c757d;"><i class="ri-price-tag-3-line" style="color: #28a745; margin-right: 5px;"></i>Base Price:</span>
+                    <span class="fw-semibold" style="color: #495057;">$${displayPrice.toFixed(2)} <small style="color: #6c757d;">per person</small></span>
+                </div>
+                <div class="d-flex justify-content-between align-items-center mb-2">
+                    <span style="color: #6c757d;"><i class="ri-group-line" style="color: #28a745; margin-right: 5px;"></i>Total Guests:</span>
+                    <span class="fw-semibold" style="color: #495057;">${totalGuests} <small style="color: #6c757d;">(${adults} adults, ${children} children)</small></span>
+                </div>
             `;
         }
         }
         
         priceDisplay.style.display = 'block';
         const isPrivate = priceType === 'Private';
+        
+        // Additional debug to ensure price is set
+        console.log('=== FINAL PRICE DISPLAY ===');
+        console.log('Price Type:', priceType);
+        console.log('Display Price:', displayPrice);
+        console.log('Total Price:', totalPrice);
+        console.log('Is Private:', isPrivate);
+        
         priceDisplay.innerHTML = `
-            <div class="p-3 rounded" style="background: ${isPrivate ? 'linear-gradient(135deg, #f8f9ff 0%, #e7f3ff 100%)' : '#d1f2eb'}; border: 1px solid ${isPrivate ? '#b3d9ff' : '#7dd3c0'}; border-radius: 8px;">
-                <div class="d-flex align-items-start">
-                    <div style="width: 40px; height: 40px; background: ${isPrivate ? 'rgba(102, 126, 234, 0.15)' : 'rgba(40, 167, 69, 0.15)'}; border-radius: 8px; display: flex; align-items: center; justify-content: center; margin-right: 12px; flex-shrink: 0;">
-                        <i class="ri-money-dollar-circle-line" style="color: ${isPrivate ? '#667eea' : '#28a745'}; font-size: 1.25rem;"></i>
+            <div class="card shadow-sm border-0" style="background: #ffffff; border-radius: 12px; overflow: hidden;">
+                <div class="card-header text-white" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); border: none; padding: 1rem 1.25rem;">
+                    <div class="d-flex align-items-center justify-content-between">
+                        <div class="d-flex align-items-center">
+                            <div style="width: 40px; height: 40px; background: rgba(255, 255, 255, 0.2); border-radius: 10px; display: flex; align-items: center; justify-content: center; margin-right: 12px;">
+                                <i class="ri-car-line text-white" style="color: #ffffff !important; font-size: 1.25rem;"></i>
+                            </div>
+                            <div>
+                                <h6 class="mb-0 fw-bold text-white" style="color: #ffffff !important; font-size: 1.1rem;">Transport Pricing</h6>
+                                <small class="text-white-75" style="color: rgba(255, 255, 255, 0.85) !important; font-size: 0.8rem;">${priceType} Service</small>
+                            </div>
+                        </div>
+                        <button type="button" class="btn btn-sm text-white" onclick="updatePricing(${day}, '${section}')" title="Refresh Pricing" style="background: rgba(255, 255, 255, 0.2); border: 1px solid rgba(255, 255, 255, 0.3); border-radius: 6px; padding: 0.375rem 0.75rem; transition: all 0.2s;">
+                            <i class="ri-refresh-line"></i>
+                        </button>
                     </div>
-                    <div style="flex: 1;">
-                        <strong style="color: #212529; font-size: 0.95rem; display: block; margin-bottom: 0.5rem;">${priceType} Service Pricing</strong>
-                        <div style="font-size: 0.85rem; color: #495057; line-height: 1.6;">
-                            ${pricingDescription}
+                </div>
+                <div class="card-body" style="background: #ffffff; padding: 1.25rem;">
+                    <!-- Transport Pricing Details -->
+                    <div class="row g-3">
+                        <div class="col-12">
+                            <div class="card shadow-sm border-0" style="background: linear-gradient(135deg, #f8f9ff 0%, #e7f3ff 100%); border: 1px solid #b3d9ff !important; border-radius: 8px;">
+                                <div class="card-header" style="background: rgba(102, 126, 234, 0.1); border: none; border-bottom: 1px solid #b3d9ff; padding: 0.75rem 1rem; border-radius: 8px 8px 0 0;">
+                                    <h6 class="mb-0 fw-semibold d-flex align-items-center" style="color: #495057; font-size: 0.9rem;">
+                                        <div style="width: 28px; height: 28px; background: ${isPrivate ? 'rgba(102, 126, 234, 0.15)' : 'rgba(40, 167, 69, 0.15)'}; border-radius: 6px; display: flex; align-items: center; justify-content: center; margin-right: 8px;">
+                                            <i class="ri-taxi-line" style="color: ${isPrivate ? '#667eea' : '#28a745'}; font-size: 0.9rem;"></i>
+                                        </div>
+                                        ${priceType} Service Pricing Details
+                                    </h6>
+                                </div>
+                                <div class="card-body" style="padding: 1rem;">
+                                    <div style="font-size: 0.85rem; color: #495057;">
+                                        ${pricingDescription}
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- Total Price Row -->
+                    <div class="row mt-3">
+                        <div class="col-12">
+                            <div class="card shadow-sm border-0" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); border-radius: 8px; box-shadow: 0 4px 12px rgba(102, 126, 234, 0.3);">
+                                <div class="card-body" style="padding: 1rem 1.25rem;">
+                                    <div class="d-flex justify-content-between align-items-center">
+                                        <h6 class="mb-0 fw-bold text-white d-flex align-items-center" style="color: #ffffff !important; font-size: 1rem;">
+                                            <div style="width: 32px; height: 32px; background: rgba(255, 255, 255, 0.2); border-radius: 8px; display: flex; align-items-center; justify-content: center; margin-right: 10px;">
+                                                <i class="ri-calculator-line" style="color: #ffffff !important; font-size: 1rem;"></i>
+                                            </div>
+                                            Total Price
+                                        </h6>
+                                        <span class="fw-bold text-white" style="font-size: 1.5rem; color: #ffffff !important;">$${totalPrice.toFixed(2)}</span>
+                                    </div>
+                                </div>
+                            </div>
                         </div>
                     </div>
                 </div>
@@ -22412,15 +23535,56 @@ window.updateCustomPricing = function(day, section) {
         // Update price display with custom price
         priceDisplay.style.display = 'block';
         priceDisplay.innerHTML = `
-            <div class="d-flex align-items-center">
-                <i class="ri-money-dollar-circle-line me-2 fs-4"></i>
-                <div>
-                    <strong>Point-to-Point Custom Pricing</strong>
-                    <div class="small">
-                        <strong>Custom Price:</strong> <span class="text-success fw-bold">SGD ${customPrice.toFixed(2)}</span><br>
-                        <strong>Service Type:</strong> Point-to-Point<br>
-                        <strong>Total Guests:</strong> ${totalGuests} (${adults} adults, ${children} children)<br>
-                        <small class="text-info">Fixed price for point-to-point service regardless of guest count.</small>
+            <div class="card-body" style="background: #ffffff; padding: 1.25rem;">
+                <!-- Transport Pricing Details -->
+                <div class="row g-3">
+                    <div class="col-12">
+                        <div class="card shadow-sm border-0" style="background: linear-gradient(135deg, #f8f9ff 0%, #e7f3ff 100%); border: 1px solid #b3d9ff !important; border-radius: 8px;">
+                            <div class="card-header" style="background: rgba(102, 126, 234, 0.1); border: none; border-bottom: 1px solid #b3d9ff; padding: 0.75rem 1rem; border-radius: 8px 8px 0 0;">
+                                <h6 class="mb-0 fw-semibold d-flex align-items-center" style="color: #495057; font-size: 0.9rem;">
+                                    <div style="width: 28px; height: 28px; background: rgba(102, 126, 234, 0.15); border-radius: 6px; display: flex; align-items-center; justify-content: center; margin-right: 8px;">
+                                        <i class="ri-taxi-line" style="color: #667eea; font-size: 0.9rem;"></i>
+                                    </div>
+                                    Point-to-Point Custom Pricing
+                                </h6>
+                            </div>
+                            <div class="card-body" style="padding: 1rem;">
+                                <div class="d-flex justify-content-between align-items-center mb-3">
+                                    <span style="color: #6c757d;"><i class="ri-price-tag-3-line" style="color: #667eea; margin-right: 5px;"></i>Custom Price:</span>
+                                    <span class="fw-semibold" style="color: #495057;">SGD ${customPrice.toFixed(2)}</span>
+                                </div>
+                                <div class="d-flex justify-content-between align-items-center mb-3">
+                                    <span style="color: #6c757d;"><i class="ri-map-pin-line" style="color: #667eea; margin-right: 5px;"></i>Service Type:</span>
+                                    <span class="fw-semibold" style="color: #495057;">Point-to-Point</span>
+                                </div>
+                                <div class="d-flex justify-content-between align-items-center mb-2">
+                                    <span style="color: #6c757d;"><i class="ri-group-line" style="color: #667eea; margin-right: 5px;"></i>Total Guests:</span>
+                                    <span class="fw-semibold" style="color: #495057;">${totalGuests} <small style="color: #6c757d;">(${adults} adults, ${children} children)</small></span>
+                                </div>
+                                <small style="color: #6c757d; font-size: 0.8rem; display: block; margin-top: 1rem;">
+                                    <i class="ri-information-line me-1" style="color: #667eea;"></i>Fixed price for point-to-point service regardless of guest count.
+                                </small>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- Total Price Row -->
+                <div class="row mt-3">
+                    <div class="col-12">
+                        <div class="card shadow-sm border-0" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); border-radius: 8px; box-shadow: 0 4px 12px rgba(102, 126, 234, 0.3);">
+                            <div class="card-body" style="padding: 1rem 1.25rem;">
+                                <div class="d-flex justify-content-between align-items-center">
+                                    <h6 class="mb-0 fw-bold text-white d-flex align-items-center" style="color: #ffffff !important; font-size: 1rem;">
+                                        <div style="width: 32px; height: 32px; background: rgba(255, 255, 255, 0.2); border-radius: 8px; display: flex; align-items: center; justify-content: center; margin-right: 10px;">
+                                            <i class="ri-calculator-line" style="color: #ffffff !important; font-size: 1rem;"></i>
+                                        </div>
+                                        Total Price
+                                    </h6>
+                                    <span class="fw-bold text-white" style="font-size: 1.5rem; color: #ffffff !important;">SGD ${customPrice.toFixed(2)}</span>
+                                </div>
+                            </div>
+                        </div>
                     </div>
                 </div>
             </div>
@@ -23490,7 +24654,7 @@ window.saveService = function(day, type) {
                         }
                         console.log(`No vehicles found matching criteria for ${transportType} (sharable=1 or sharable=3)`);
                         alert(`No vehicles available for ${transportType} service. Please try a different city or contact support.`);
-                        searchBtn.innerHTML = '<i class="ri-search-line me-2"></i>Search Vehicles';
+                        searchBtn.innerHTML = '<i class="ri-search-line me-2"></i>Search';
                         searchBtn.disabled = false;
                         return;
                     }
@@ -23592,20 +24756,20 @@ window.saveService = function(day, type) {
                     }, 100);
 
                      // Reset search button
-                     searchBtn.innerHTML = '<i class="ri-search-line me-2"></i>Search Vehicles';
+                     searchBtn.innerHTML = '<i class="ri-search-line me-2"></i>Search';
                      searchBtn.disabled = false;
                      
                      console.log(`Populated ${filteredVehicles.length} vehicles in dropdown (city-based) for ${transportType}`);
                  } else {
                      alert('No vehicles available for this city. Please try a different city.');
-                     searchBtn.innerHTML = '<i class="ri-search-line me-2"></i>Search Vehicles';
+                     searchBtn.innerHTML = '<i class="ri-search-line me-2"></i>Search';
                      searchBtn.disabled = false;
                  }
              })
              .catch(error => {
                  console.error('Error searching vehicles (city-based):', error);
                  alert('Error searching vehicles. Please try again.');
-                 searchBtn.innerHTML = '<i class="ri-search-line me-2"></i>Search Vehicles';
+                 searchBtn.innerHTML = '<i class="ri-search-line me-2"></i>Search';
                  searchBtn.disabled = false;
              });
      } else {
@@ -23626,11 +24790,42 @@ window.saveService = function(day, type) {
        const user_dmc = UserDmc;
        const zone_status = user_dmc ? user_dmc.zone_on : 1; // Default to 1 if no DMC data
        
+       // Check if this is a local_transfer transport type
+       const localTransferRadio = document.querySelector(`input[name="day${day}_transport_service_type"][value="local_transfer"]`);
+       const isLocalTransfer = localTransferRadio && localTransferRadio.checked;
+       
        if (zone_status == 1) {
         if (section === 'exit') {
             // For exit port, pickup is typically attraction/restaurant, dropoff is port
             fromZoneType = pickupZoneSelect.options[pickupZoneSelect.selectedIndex]?.dataset?.type || 'attraction';
             toZoneType = dropoffZoneSelect.options[dropoffZoneSelect.selectedIndex]?.dataset?.type || 'port';
+        } else if (isLocalTransfer && section === 'transport') {
+            // For local_transfer, read the actual data-type from the selected options
+            // Don't default to 'port' or 'attraction' - use the actual type (hotel, attraction, restaurant, etc.)
+            fromZoneType = pickupZoneSelect.options[pickupZoneSelect.selectedIndex]?.dataset?.type || '';
+            toZoneType = dropoffZoneSelect.options[dropoffZoneSelect.selectedIndex]?.dataset?.type || '';
+            
+            // If data-type is missing, try to infer from option text
+            if (!fromZoneType && pickupZoneSelect.options[pickupZoneSelect.selectedIndex]?.text) {
+                const pickupText = pickupZoneSelect.options[pickupZoneSelect.selectedIndex].text.toLowerCase();
+                if (pickupText.includes('hotel')) fromZoneType = 'hotel';
+                else if (pickupText.includes('attraction')) fromZoneType = 'attraction';
+                else if (pickupText.includes('restaurant')) fromZoneType = 'restaurant';
+            }
+            
+            if (!toZoneType && dropoffZoneSelect.options[dropoffZoneSelect.selectedIndex]?.text) {
+                const dropoffText = dropoffZoneSelect.options[dropoffZoneSelect.selectedIndex].text.toLowerCase();
+                if (dropoffText.includes('hotel')) toZoneType = 'hotel';
+                else if (dropoffText.includes('attraction')) toZoneType = 'attraction';
+                else if (dropoffText.includes('restaurant')) toZoneType = 'restaurant';
+            }
+            
+            console.log('Local transfer zone types detected:', {
+                fromZoneType: fromZoneType,
+                toZoneType: toZoneType,
+                pickupText: pickupZoneSelect.options[pickupZoneSelect.selectedIndex]?.text,
+                dropoffText: dropoffZoneSelect.options[dropoffZoneSelect.selectedIndex]?.text
+            });
         } else {
             // For entry port and other sections, use original logic
             fromZoneType = pickupZoneSelect.options[pickupZoneSelect.selectedIndex]?.dataset?.type || 'port';
@@ -23647,12 +24842,26 @@ window.saveService = function(day, type) {
          let actualToZoneId = toZoneId;
          
          // For ports, use port_id from data attribute
-         if (fromZoneType === 'port') {
+         // Only do this if the zone type is actually 'port' or 'Port'
+         if (fromZoneType === 'port' || fromZoneType === 'Port') {
              actualFromZoneId = pickupZoneSelect.options[pickupZoneSelect.selectedIndex]?.dataset?.portId || fromZoneId;
          }
          
-         if (toZoneType === 'port') {
+         if (toZoneType === 'port' || toZoneType === 'Port') {
              actualToZoneId = dropoffZoneSelect.options[dropoffZoneSelect.selectedIndex]?.dataset?.portId || toZoneId;
+         }
+         
+         // For local_transfer with hotels/attractions/restaurants, keep the original IDs
+         // The backend will convert them to zone_ids using getActualZoneId
+         if (isLocalTransfer && section === 'transport') {
+             // Don't modify the IDs - pass them as-is to the backend
+             // The backend's getActualZoneId will handle the conversion based on the zone type
+             console.log('Local transfer: keeping original IDs for backend conversion:', {
+                 fromZoneId: fromZoneId,
+                 toZoneId: toZoneId,
+                 fromZoneType: fromZoneType,
+                 toZoneType: toZoneType
+             });
          }
 
          // Enhanced debugging for zone ID mapping
@@ -23705,17 +24914,37 @@ window.saveService = function(day, type) {
          .then(data => {
                 console.log('Vehicle search response (zone-based):', data);
              if (data.success && data.vehicles && data.vehicles.length > 0) {
+                 // Remove duplicate vehicles by vehicle_id (backend should handle this, but add safety check)
+                 const uniqueVehicles = [];
+                 const seenVehicleIds = new Set();
+                 
+                 data.vehicles.forEach(vehicle => {
+                     if (!seenVehicleIds.has(vehicle.vehicle_id)) {
+                         seenVehicleIds.add(vehicle.vehicle_id);
+                         uniqueVehicles.push(vehicle);
+                     } else {
+                         console.log(`Duplicate vehicle removed in frontend: ${vehicle.vehicle_name} (ID: ${vehicle.vehicle_id})`);
+                     }
+                 });
+                 
                  // Populate vehicle dropdown
                  if (vehicleSelect) {
                      vehicleSelect.innerHTML = '<option value="">Choose your vehicle</option>';
-                     data.vehicles.forEach(vehicle => {
-                         const vehicleInfo = `${vehicle.vehicle_name} (${vehicle.vehicle_type}) - ${vehicle.seating_capacity} seats`;
-                         
-                         // Debug logging for vehicle data
+                     
+                     if (uniqueVehicles.length === 0) {
+                         vehicleSelect.innerHTML = '<option value="">No vehicles with prices available</option>';
+                         vehicleSelect.disabled = true;
+                         console.log('No vehicles with prices found');
+                     } else {
+                         uniqueVehicles.forEach(vehicle => {
+                             const vehicleInfo = `${vehicle.vehicle_name} (${vehicle.vehicle_type}) - ${vehicle.seating_capacity} seats`;
+                             
+                             // Debug logging for vehicle data
                             console.log('=== VEHICLE DATA DEBUG (zone-based) ===');
                          console.log('Vehicle:', vehicle);
                          console.log('Private price:', vehicle.private_price);
                          console.log('Shared price:', vehicle.shared_price);
+                         console.log('Mapping ID:', vehicle.mapping_id);
                          
                         vehicleSelect.innerHTML += `<option value="${vehicle.vehicle_id}" 
                              data-private-price="${vehicle.private_price || ''}" 
@@ -23727,7 +24956,8 @@ window.saveService = function(day, type) {
                             data-image="${vehicle.image || ''}">
                              ${vehicleInfo}
                          </option>`;
-                     });
+                         });
+                     }
                      
                      // Enable the vehicle select
                      vehicleSelect.disabled = false;
@@ -23757,10 +24987,10 @@ window.saveService = function(day, type) {
                  }, 100);
 
                  // Reset search button
-                 searchBtn.innerHTML = '<i class="ri-search-line me-2"></i>Search Vehicles';
+                 searchBtn.innerHTML = '<i class="ri-search-line me-2"></i>Search';
                  searchBtn.disabled = false;
                  
-                    console.log(`Populated ${data.vehicles.length} vehicles in dropdown (zone-based)`);
+                    console.log(`Populated ${uniqueVehicles.length} unique vehicles in dropdown (zone-based)`);
                     
                     // Add info message for exit port to indicate bidirectional search
                     if (section === 'exit') {
@@ -23779,14 +25009,14 @@ window.saveService = function(day, type) {
                     }
              } else {
                  alert('No vehicles available for this route. Please try different zones.');
-                 searchBtn.innerHTML = '<i class="ri-search-line me-2"></i>Search Vehicles';
+                 searchBtn.innerHTML = '<i class="ri-search-line me-2"></i>Search';
                  searchBtn.disabled = false;
              }
          })
          .catch(error => {
                  console.error('Error searching vehicles (zone-based):', error);
              alert('Error searching vehicles. Please try again.');
-             searchBtn.innerHTML = '<i class="ri-search-line me-2"></i>Search Vehicles';
+             searchBtn.innerHTML = '<i class="ri-search-line me-2"></i>Search';
              searchBtn.disabled = false;
          });
  }
@@ -25714,20 +26944,20 @@ window.saveService = function(day, type) {
                                 }
 
                                 // Reset search button
-                                searchBtn.innerHTML = '<i class="ri-search-line me-2"></i>Search Vehicles';
+                                searchBtn.innerHTML = '<i class="ri-search-line me-2"></i>Search';
                                 searchBtn.disabled = false;
                                 
                                 console.log(`Populated ${data.vehicles.length} vehicles in dropdown (Point-to-Point ${section} port)`);
                             } else {
                                 alert('No vehicles available for this city. Please try a different city.');
-                                searchBtn.innerHTML = '<i class="ri-search-line me-2"></i>Search Vehicles';
+                                searchBtn.innerHTML = '<i class="ri-search-line me-2"></i>Search';
                                 searchBtn.disabled = false;
                             }
                         })
                         .catch(error => {
                             console.error('Error searching Point-to-Point vehicles:', error);
                             alert('Error searching vehicles. Please try again.');
-                            searchBtn.innerHTML = '<i class="ri-search-line me-2"></i>Search Vehicles';
+                            searchBtn.innerHTML = '<i class="ri-search-line me-2"></i>Search';
                             searchBtn.disabled = false;
                         });
                 };
@@ -26066,7 +27296,7 @@ function handleTransportServiceTypeChange(day, serviceType, index = 0) {
             pickupTimeSelect.value = '';
         }
         if (searchButton) {
-            searchButton.innerHTML = '<i class="ri-search-line me-2"></i>Search Vehicles';
+            searchButton.innerHTML = '<i class="ri-search-line me-2"></i>Search';
         }
     }
     
@@ -26385,7 +27615,7 @@ function searchLocalTransferVehicles(day, section) {
             
             // Reset search button
             if (searchBtn) {
-                searchBtn.innerHTML = '<i class="ri-search-line me-2"></i>Search Vehicles';
+                searchBtn.innerHTML = '<i class="ri-search-line me-2"></i>Search';
                 searchBtn.disabled = false;
             }
         })
@@ -26394,7 +27624,7 @@ function searchLocalTransferVehicles(day, section) {
             showNotification('Error searching vehicles. Please try again.', 'error');
             
             if (searchBtn) {
-                searchBtn.innerHTML = '<i class="ri-search-line me-2"></i>Search Vehicles';
+                searchBtn.innerHTML = '<i class="ri-search-line me-2"></i>Search';
                 searchBtn.disabled = false;
             }
         });

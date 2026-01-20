@@ -296,16 +296,33 @@
                             }
                             
                             // Calculate payment status - following confirmed/definite pattern
+                            // Includes: base price + transfer price + guide price (for attractions)
                             $tourTotalPrice = 0;
                             $orders = \App\Models\Order::where('tour_id', $tour->tour_id)->whereNull('deleted_at')->get();
                             foreach($orders as $order) {
                                 if($order->data) {
                                     $orderData = is_string($order->data) ? json_decode($order->data, true) : $order->data;
                                     if(is_array($orderData)) {
-                                        foreach($orderData as $item) {
-                                            if(isset($item['totalPrice'])) {
-                                                $tourTotalPrice += (float)$item['totalPrice'];
+                                        // Handle both single item and array of items
+                                        $items = isset($orderData[0]) && is_array($orderData[0]) ? $orderData : [$orderData];
+                                        foreach($items as $item) {
+                                            if(!is_array($item)) continue;
+                                            
+                                            $itemPrice = (float) ($item['totalPrice'] ?? $item['price'] ?? 0);
+                                            
+                                            // Add transfer price if exists
+                                            $transferPrice = 0;
+                                            if (isset($item['transfer_options']['cost']) && $item['transfer_options']['cost'] > 0) {
+                                                $transferPrice = (float) $item['transfer_options']['cost'];
                                             }
+                                            
+                                            // Add guide price if exists (for attractions)
+                                            $guidePrice = 0;
+                                            if (isset($item['guide_options']['total_price']) && $item['guide_options']['total_price'] > 0) {
+                                                $guidePrice = (float) $item['guide_options']['total_price'];
+                                            }
+                                            
+                                            $tourTotalPrice += $itemPrice + $transferPrice + $guidePrice;
                                         }
                                     }
                                 }
@@ -362,6 +379,11 @@
                                     <small class="text-muted">Tour ID: #{{ $tour->tour_id }}</small>
                                     @if($tour->multi_enq_id)
                                         <small class="text-info">Multi: {{ $tour->multi_enq_id }}</small>
+                                    @endif
+                                    @if($tour->tour_type)
+                                        <small class="text-white" style="display: inline-block; padding: 2px 8px; background: #3b82f6; border-radius: 4px; font-weight: 500;">
+                                            {{ $tour->tour_type }}
+                                        </small>
                                     @endif
                                 </div>
                             </td>
@@ -820,56 +842,21 @@
     <!-- Hotel Details Modal -->
     @if(isset($svc['hotel']) && $svc['hotel'] > 0)
      <div class="modal fade" id="hotelDetailsModal{{ $tour->tour_id }}" tabindex="-1" aria-labelledby="hotelDetailsModalLabel{{ $tour->tour_id }}" aria-hidden="true" data-bs-backdrop="static" data-bs-keyboard="false">
-        <div class="modal-dialog modal-dialog-centered modal-xl modal-dialog-scrollable">
-            <div class="modal-content shadow-lg" style="border-radius: 15px; overflow: hidden;">
-                @if(isset($serviceData['hotel']) && count($serviceData['hotel']) > 0)
-                    @php
-                        $firstHotelOrder = $serviceData['hotel'][0];
-                        $firstHotelData = is_string($firstHotelOrder->data) ? json_decode($firstHotelOrder->data, true) : $firstHotelOrder->data;
-                        $firstBooking = is_array($firstHotelData) ? $firstHotelData[0] : null;
-                    @endphp
-                    @if($firstBooking)
-                        <!-- Hero Header -->
-                        <div class="modal-header p-0 border-0 position-relative" style="height: 200px; background: linear-gradient(135deg, #74b9ff 0%, #0984e3 100%);">
-                            <div class="position-absolute w-100 h-100 d-flex align-items-center justify-content-between p-4">
-                                <div class="text-white">
-                                    <h3 class="mb-1 fw-bold">
-                                        <i class="ri-hotel-line me-2"></i>Hotel Bookings
-                                    </h3>
-                                    <p class="mb-0 opacity-75">Tour #{{ $tour->tour_id }} Hotel Details</p>
-                                    <div class="mt-2">
-                                        <span class="badge bg-white bg-opacity-90 text-primary px-3 py-2">
-                                            <i class="ri-calendar-line me-1"></i>
-                                            @if(isset($firstBooking['bookingDate']) && is_array($firstBooking['bookingDate']) && count($firstBooking['bookingDate']) > 0)
-                                                {{ \Carbon\Carbon::parse($firstBooking['bookingDate'][0])->format('M d') }} - 
-                                                {{ \Carbon\Carbon::parse(end($firstBooking['bookingDate']))->format('M d, Y') }}
-                                            @endif
-                                        </span>
-                                    </div>
-                                </div>
-                                <button type="button" class="btn-close btn-close-white" onclick="closeServiceModal('hotel', {{ $tour->tour_id }})" aria-label="Close" style="filter: brightness(0) invert(1); font-size: 1.2rem;"></button>
-                            </div>
-                        </div>
-                    @else
-                        <div class="modal-header p-4 border-0" style="background: linear-gradient(135deg, #74b9ff 0%, #0984e3 100%);">
-                            <h5 class="modal-title fw-bold text-white">
-                                <i class="ri-hotel-line me-2"></i>
-                                Hotel Booking Details - Tour #{{ $tour->tour_id }}
+        <div class="modal-dialog modal-dialog-centered modal-lg modal-dialog-scrollable">
+            <div class="modal-content shadow-lg border-0" style="border-radius: 12px; overflow: hidden;">
+                <!-- Compact Header -->
+                <div class="modal-header border-0 py-3 px-4" style="background: linear-gradient(135deg, #74b9ff 0%, #0984e3 100%);">
+                    <div class="d-flex align-items-center justify-content-between w-100">
+                        <div class="text-white">
+                            <h5 class="mb-0 fw-bold" style="font-size: 0.95rem;">
+                                <i class="ri-hotel-line me-1" style="font-size: 0.9rem;"></i>Hotel Bookings - Tour #{{ $tour->tour_id }}
                             </h5>
-                            <button type="button" class="btn-close btn-close-white" onclick="closeServiceModal('hotel', {{ $tour->tour_id }})" aria-label="Close"></button>
                         </div>
-                    @endif
-                @else
-                    <div class="modal-header p-4 border-0" style="background: linear-gradient(135deg, #74b9ff 0%, #0984e3 100%);">
-                        <h5 class="modal-title fw-bold text-white">
-                            <i class="ri-hotel-line me-2"></i>
-                            Hotel Booking Details - Tour #{{ $tour->tour_id }}
-                        </h5>
-                        <button type="button" class="btn-close btn-close-white" onclick="closeServiceModal('hotel', {{ $tour->tour_id }})" aria-label="Close"></button>
+                        <button type="button" class="btn-close btn-close-white" onclick="closeServiceModal('hotel', {{ $tour->tour_id }})" aria-label="Close" style="font-size: 0.8rem;"></button>
                     </div>
-                    
-                @endif
-                <div class="modal-body p-4">
+                </div>
+                
+                <div class="modal-body p-3" style="background-color: #f8f9fa;">
                     @if(isset($serviceData['hotel']) && count($serviceData['hotel']) > 0)
                         @foreach($serviceData['hotel'] as $index => $hotelOrder)
                         @php
@@ -897,55 +884,7 @@
                                     </div>
                                     
                                     <div class="card-body p-4" style="background-color: #f8f9fa;">
-                                        <!-- Guest Information -->
-                                        <div class="row mb-4">
-                                            <div class="col-md-6">
-                                                <div class="bg-white rounded p-3 shadow-sm h-100">
-                                                    <div class="d-flex align-items-center mb-3">
-                                                        <div class="bg-primary rounded-circle p-2 me-3">
-                                                            <i class="ri-user-line text-white"></i>
-                                                        </div>
-                                                        <h6 class="fw-bold mb-0 text-dark">Customer Details</h6>
-                                                    </div>
-                                                    <div class="mb-2">
-                                                        <small class="text-muted">Full Name</small>
-                                                        <div class="fw-medium">{{ $booking['fullName'] ?? 'N/A' }}</div>
-                                                    </div>
-                                                    <div class="mb-2">
-                                                        <small class="text-muted">Email Address</small>
-                                                        <div class="fw-medium text-primary">{{ $booking['email'] ?? 'N/A' }}</div>
-                                                    </div>
-                                                    <div class="mb-0">
-                                                        <small class="text-muted">Phone Number</small>
-                                                        <div class="fw-medium">{{ $booking['countryCode'] ?? '' }} {{ $booking['phone'] ?? 'N/A' }}</div>
-                                                    </div>
-                                                </div>
-                                            </div>
-                                            <div class="col-md-6">
-                                                <div class="bg-white rounded p-3 shadow-sm h-100">
-                                                    <div class="d-flex align-items-center mb-3">
-                                                        <div class="bg-info rounded-circle p-2 me-3">
-                                                            <i class="ri-map-pin-line text-white"></i>
-                                                        </div>
-                                                        <h6 class="fw-bold mb-0 text-dark">Address</h6>
-                                                    </div>
-                                                    <div class="text-muted">
-                                                        @if($booking['address1'] ?? false)
-                                                            <div>{{ $booking['address1'] }}</div>
-                                                        @endif
-                                                        @if($booking['address2'] ?? false)
-                                                            <div>{{ $booking['address2'] }}</div>
-                                                        @endif
-                                                        @if($booking['state'] ?? false)
-                                                            <div>{{ $booking['state'] }} {{ $booking['zip'] ?? '' }}</div>
-                                                        @endif
-                                                        @if(!($booking['address1'] ?? false) && !($booking['address2'] ?? false) && !($booking['state'] ?? false))
-                                                            <div class="text-muted">Address not provided</div>
-                                                        @endif
-                                                    </div>
-                                                </div>
-                                            </div>
-                                        </div>
+                                   
 
                                         <!-- Stay Information -->
                                         <div class="row mb-4">
@@ -1174,30 +1113,21 @@
                         @endif
                         @endforeach
                     @else
-                        <div class="text-center py-5">
-                            <div class="bg-light rounded-circle mx-auto mb-4 d-flex align-items-center justify-content-center" style="width: 100px; height: 100px;">
-                                <i class="ri-hotel-line ri-48px text-muted"></i>
+                        <div class="text-center py-4">
+                            <div class="bg-light rounded-circle mx-auto mb-3 d-flex align-items-center justify-content-center" style="width: 80px; height: 80px;">
+                                <i class="ri-hotel-line text-muted" style="font-size: 2rem;"></i>
                             </div>
-                            <h4 class="text-dark mb-3">No Hotel Data Available</h4>
-                            <p class="text-muted mb-4">Hotel services are booked but detailed information is not available at this moment.</p>
-                            <div class="alert alert-primary border-0 shadow-sm" style="max-width: 400px; margin: 0 auto;">
-                                <div class="d-flex align-items-center">
-                                    <i class="ri-information-line text-primary me-2"></i>
-                                    <div>
-                                        <strong>Note:</strong> {{ $svc['hotel'] }} hotel service(s) are associated with this tour.
-                                    </div>
-                                </div>
-                            </div>
+                            <h5 class="text-dark mb-2" style="font-size: 1.1rem;">No Hotel Data Available</h5>
+                            <p class="text-muted mb-0" style="font-size: 0.9rem;">Hotel services are booked but detailed information is not available at this moment.</p>
                         </div>
                     @endif
                 </div>
-                <div class="modal-footer border-0 p-4" style="background: linear-gradient(90deg, #f8f9fa 0%, #e9ecef 100%);">
-                    <button type="button" class="btn btn-outline-secondary px-4 py-2" onclick="closeServiceModal('hotel', {{ $tour->tour_id }})" style="border-radius: 25px;">
-                        <i class="ri-close-line me-2"></i>Close
+                
+                <!-- Compact Footer -->
+                <div class="modal-footer border-0 py-2 px-3" style="background: #f8f9fa;">
+                    <button type="button" class="btn btn-outline-secondary btn-sm px-3 py-1" onclick="closeServiceModal('hotel', {{ $tour->tour_id }})" style="border-radius: 8px; font-size: 0.85rem;">
+                        <i class="ri-close-line me-1" style="font-size: 0.7rem;"></i>Close
                     </button>
-                    {{-- <button type="button" class="btn btn-primary px-4 py-2 ms-2" style="border-radius: 25px;">
-                        <i class="ri-download-line me-2"></i>Download Details
-                    </button> --}}
                 </div>
             </div>
         </div>
@@ -1207,20 +1137,21 @@
      <!-- Attraction Details Modal -->
      @if(isset($svc['attraction']) && $svc['attraction'] > 0)
       <div class="modal fade" id="attractionDetailsModal{{ $tour->tour_id }}" tabindex="-1" aria-labelledby="attractionDetailsModalLabel{{ $tour->tour_id }}" aria-hidden="true" data-bs-backdrop="static" data-bs-keyboard="false">
-         <div class="modal-dialog modal-dialog-centered modal-xl modal-dialog-scrollable">
-             <div class="modal-content shadow-lg" style="border-radius: 15px; overflow: hidden;">
-                 <div class="modal-header p-0 border-0 position-relative" style="height: 180px; background: linear-gradient(135deg, #fd9853 0%, #fe7854 100%);">
-                     <div class="position-absolute w-100 h-100 d-flex align-items-center justify-content-between p-4">
+         <div class="modal-dialog modal-dialog-centered modal-lg modal-dialog-scrollable">
+             <div class="modal-content shadow-lg border-0" style="border-radius: 12px; overflow: hidden;">
+                 <!-- Compact Header -->
+                 <div class="modal-header border-0 py-3 px-4" style="background: linear-gradient(135deg, #fd9853 0%, #fe7854 100%);">
+                     <div class="d-flex align-items-center justify-content-between w-100">
                          <div class="text-white">
-                             <h3 class="mb-1 fw-bold">
-                                 <i class="ri-building-2-line me-2"></i>Attraction Bookings
-                             </h3>
-                             <p class="mb-0 opacity-75">Tour #{{ $tour->tour_id }} Attraction Details</p>
+                             <h5 class="mb-0 fw-bold" style="font-size: 0.95rem;">
+                                 <i class="ri-building-2-line me-1" style="font-size: 0.9rem;"></i>Attraction Bookings - Tour #{{ $tour->tour_id }}
+                             </h5>
                          </div>
-                         <button type="button" class="btn-close btn-close-white" onclick="closeServiceModal('attraction', {{ $tour->tour_id }})" aria-label="Close" style="filter: brightness(0) invert(1); font-size: 1.2rem;"></button>
+                         <button type="button" class="btn-close btn-close-white" onclick="closeServiceModal('attraction', {{ $tour->tour_id }})" aria-label="Close" style="font-size: 0.8rem;"></button>
                      </div>
                  </div>
-                 <div class="modal-body p-4" style="background-color: #f8f9fa;">
+                 
+                 <div class="modal-body p-3" style="background-color: #f8f9fa;">
                      @if(isset($serviceData['attraction']) && count($serviceData['attraction']) > 0)
                          @foreach($serviceData['attraction'] as $index => $attractionOrder)
                          @php
@@ -1247,55 +1178,7 @@
                                      </div>
                                      
                                      <div class="card-body p-4" style="background-color: #f8f9fa;">
-                                         <!-- Guest Information -->
-                                         <div class="row mb-4">
-                                             <div class="col-md-6">
-                                                 <div class="bg-white rounded p-3 shadow-sm h-100">
-                                                     <div class="d-flex align-items-center mb-3">
-                                                         <div class="bg-primary rounded-circle p-2 me-3">
-                                                             <i class="ri-user-line text-white"></i>
-                                                         </div>
-                                                         <h6 class="fw-bold mb-0 text-dark">Customer Details</h6>
-                                                     </div>
-                                                     <div class="mb-2">
-                                                         <small class="text-muted">Full Name</small>
-                                                         <div class="fw-medium">{{ $booking['fullName'] ?? 'N/A' }}</div>
-                                                     </div>
-                                                     <div class="mb-2">
-                                                         <small class="text-muted">Email Address</small>
-                                                         <div class="fw-medium text-primary">{{ $booking['email'] ?? 'N/A' }}</div>
-                                                     </div>
-                                                     <div class="mb-0">
-                                                         <small class="text-muted">Phone Number</small>
-                                                         <div class="fw-medium">{{ $booking['countryCode'] ?? '' }} {{ $booking['phone'] ?? 'N/A' }}</div>
-                                                     </div>
-                                                 </div>
-                                             </div>
-                                             <div class="col-md-6">
-                                                 <div class="bg-white rounded p-3 shadow-sm h-100">
-                                                     <div class="d-flex align-items-center mb-3">
-                                                         <div class="bg-info rounded-circle p-2 me-3">
-                                                             <i class="ri-map-pin-line text-white"></i>
-                                                         </div>
-                                                         <h6 class="fw-bold mb-0 text-dark">Address</h6>
-                                                     </div>
-                                                     <div class="text-muted">
-                                                         @if($booking['address1'] ?? false)
-                                                             <div>{{ $booking['address1'] }}</div>
-                                                         @endif
-                                                         @if($booking['address2'] ?? false)
-                                                             <div>{{ $booking['address2'] }}</div>
-                                                         @endif
-                                                         @if($booking['state'] ?? false)
-                                                             <div>{{ $booking['state'] }} {{ $booking['zip'] ?? '' }}</div>
-                                                         @endif
-                                                         @if(!($booking['address1'] ?? false) && !($booking['address2'] ?? false) && !($booking['state'] ?? false))
-                                                             <div class="text-muted">Address not provided</div>
-                                                         @endif
-                                                     </div>
-                                                 </div>
-                                             </div>
-                                         </div>
+                                      
  
                                          <!-- Visit & Booking Information -->
                                          <div class="row mb-4">
@@ -1480,22 +1363,21 @@
                          @endif
                          @endforeach
                      @else
-                         <div class="text-center py-5">
-                             <div class="bg-light rounded-circle mx-auto mb-4 d-flex align-items-center justify-content-center" style="width: 100px; height: 100px;">
-                                 <i class="ri-building-2-line ri-48px text-muted"></i>
+                         <div class="text-center py-4">
+                             <div class="bg-light rounded-circle mx-auto mb-3 d-flex align-items-center justify-content-center" style="width: 80px; height: 80px;">
+                                 <i class="ri-building-2-line text-muted" style="font-size: 2rem;"></i>
                              </div>
-                             <h4 class="text-dark mb-3">No Attraction Data Available</h4>
-                             <p class="text-muted mb-4">Attraction services are booked but detailed information is not available.</p>
+                             <h5 class="text-dark mb-2" style="font-size: 1.1rem;">No Attraction Data Available</h5>
+                             <p class="text-muted mb-0" style="font-size: 0.9rem;">Attraction services are booked but detailed information is not available.</p>
                          </div>
                      @endif
                  </div>
-                 <div class="modal-footer border-0 p-4" style="background: linear-gradient(90deg, #f8f9fa 0%, #e9ecef 100%);">
-                     <button type="button" class="btn btn-outline-secondary px-4 py-2" onclick="closeServiceModal('attraction', {{ $tour->tour_id }})" style="border-radius: 25px;">
-                         <i class="ri-close-line me-2"></i>Close
+                 
+                 <!-- Compact Footer -->
+                 <div class="modal-footer border-0 py-2 px-3" style="background: #f8f9fa;">
+                     <button type="button" class="btn btn-outline-secondary btn-sm px-3 py-1" onclick="closeServiceModal('attraction', {{ $tour->tour_id }})" style="border-radius: 8px; font-size: 0.85rem;">
+                         <i class="ri-close-line me-1" style="font-size: 0.7rem;"></i>Close
                      </button>
-                     {{-- <button type="button" class="btn btn-primary px-4 py-2 ms-2" style="border-radius: 25px;">
-                         <i class="ri-download-line me-2"></i>Download Details
-                     </button> --}}
                  </div>
              </div>
          </div>
@@ -1505,20 +1387,21 @@
      <!-- Restaurant Details Modal -->
      @if(isset($svc['restaurant']) && $svc['restaurant'] > 0)
       <div class="modal fade" id="restaurantDetailsModal{{ $tour->tour_id }}" tabindex="-1" aria-labelledby="restaurantDetailsModalLabel{{ $tour->tour_id }}" aria-hidden="true" data-bs-backdrop="static" data-bs-keyboard="false">
-         <div class="modal-dialog modal-dialog-centered modal-xl modal-dialog-scrollable">
-             <div class="modal-content shadow-lg" style="border-radius: 15px; overflow: hidden;">
-                 <div class="modal-header p-0 border-0 position-relative" style="height: 180px; background: linear-gradient(135deg, #fd79a8 0%, #fdcb6e 100%);">
-                     <div class="position-absolute w-100 h-100 d-flex align-items-center justify-content-between p-4">
+         <div class="modal-dialog modal-dialog-centered modal-lg modal-dialog-scrollable">
+             <div class="modal-content shadow-lg border-0" style="border-radius: 12px; overflow: hidden;">
+                 <!-- Compact Header -->
+                 <div class="modal-header border-0 py-3 px-4" style="background: linear-gradient(135deg, #fd79a8 0%, #fdcb6e 100%);">
+                     <div class="d-flex align-items-center justify-content-between w-100">
                          <div class="text-white">
-                             <h3 class="mb-1 fw-bold">
-                                 <i class="ri-restaurant-2-line me-2"></i>Restaurant Bookings
-                             </h3>
-                             <p class="mb-0 opacity-75">Tour #{{ $tour->tour_id }} Restaurant Details</p>
+                             <h5 class="mb-0 fw-bold" style="font-size: 0.95rem;">
+                                 <i class="ri-restaurant-2-line me-1" style="font-size: 0.9rem;"></i>Restaurant Bookings - Tour #{{ $tour->tour_id }}
+                             </h5>
                          </div>
-                         <button type="button" class="btn-close btn-close-white" onclick="closeServiceModal('restaurant', {{ $tour->tour_id }})" aria-label="Close" style="filter: brightness(0) invert(1); font-size: 1.2rem;"></button>
+                         <button type="button" class="btn-close btn-close-white" onclick="closeServiceModal('restaurant', {{ $tour->tour_id }})" aria-label="Close" style="font-size: 0.8rem;"></button>
                      </div>
                  </div>
-                 <div class="modal-body p-4" style="background-color: #f8f9fa;">
+                 
+                 <div class="modal-body p-3" style="background-color: #f8f9fa;">
                      @if(isset($serviceData['restaurant']) && count($serviceData['restaurant']) > 0)
                          @foreach($serviceData['restaurant'] as $index => $restaurantOrder)
                          @php
@@ -1547,28 +1430,7 @@
                                      <div class="card-body p-4" style="background-color: #f8f9fa;">
                                          <!-- Guest Information -->
                                          <div class="row mb-4">
-                                             <div class="col-md-6">
-                                                 <div class="bg-white rounded p-3 shadow-sm h-100">
-                                                     <div class="d-flex align-items-center mb-3">
-                                                         <div class="bg-primary rounded-circle p-2 me-3">
-                                                             <i class="ri-user-line text-white"></i>
-                                                         </div>
-                                                         <h6 class="fw-bold mb-0 text-dark">Customer Details</h6>
-                                                     </div>
-                                                     <div class="mb-2">
-                                                         <small class="text-muted">Full Name</small>
-                                                         <div class="fw-medium">{{ $booking['fullName'] ?? 'N/A' }}</div>
-                                                     </div>
-                                                     <div class="mb-2">
-                                                         <small class="text-muted">Email Address</small>
-                                                         <div class="fw-medium text-primary">{{ $booking['email'] ?? 'N/A' }}</div>
-                                                     </div>
-                                                     <div class="mb-0">
-                                                         <small class="text-muted">Phone Number</small>
-                                                         <div class="fw-medium">{{ $booking['countryCode'] ?? '' }} {{ $booking['phone'] ?? 'N/A' }}</div>
-                                                     </div>
-                                                 </div>
-                                             </div>
+                                            
                                              <div class="col-md-6">
                                                  <div class="bg-white rounded p-3 shadow-sm h-100">
                                                      <div class="d-flex align-items-center mb-3">
@@ -1861,22 +1723,21 @@
                          @endif
                          @endforeach
                      @else
-                         <div class="text-center py-5">
-                             <div class="bg-light rounded-circle mx-auto mb-4 d-flex align-items-center justify-content-center" style="width: 100px; height: 100px;">
-                                 <i class="ri-restaurant-2-line ri-48px text-muted"></i>
+                         <div class="text-center py-4">
+                             <div class="bg-light rounded-circle mx-auto mb-3 d-flex align-items-center justify-content-center" style="width: 80px; height: 80px;">
+                                 <i class="ri-restaurant-2-line text-muted" style="font-size: 2rem;"></i>
                              </div>
-                             <h4 class="text-dark mb-3">No Restaurant Data Available</h4>
-                             <p class="text-muted mb-4">Restaurant services are booked but detailed information is not available.</p>
+                             <h5 class="text-dark mb-2" style="font-size: 1.1rem;">No Restaurant Data Available</h5>
+                             <p class="text-muted mb-0" style="font-size: 0.9rem;">Restaurant services are booked but detailed information is not available.</p>
                          </div>
                      @endif
                  </div>
-                 <div class="modal-footer border-0 p-4" style="background: linear-gradient(90deg, #f8f9fa 0%, #e9ecef 100%);">
-                     <button type="button" class="btn btn-outline-secondary px-4 py-2" onclick="closeServiceModal('restaurant', {{ $tour->tour_id }})" style="border-radius: 25px;">
-                         <i class="ri-close-line me-2"></i>Close
+                 
+                 <!-- Compact Footer -->
+                 <div class="modal-footer border-0 py-2 px-3" style="background: #f8f9fa;">
+                     <button type="button" class="btn btn-outline-secondary btn-sm px-3 py-1" onclick="closeServiceModal('restaurant', {{ $tour->tour_id }})" style="border-radius: 8px; font-size: 0.85rem;">
+                         <i class="ri-close-line me-1" style="font-size: 0.7rem;"></i>Close
                      </button>
-                     {{-- <button type="button" class="btn btn-primary px-4 py-2 ms-2" style="border-radius: 25px;">
-                         <i class="ri-download-line me-2"></i>Download Details
-                     </button> --}}
                  </div>
              </div>
          </div>
@@ -1887,20 +1748,21 @@
     <!-- Guide Details Modal -->
     @if(isset($svc['guide']) && $svc['guide'] > 0)
      <div class="modal fade" id="guideDetailsModal{{ $tour->tour_id }}" tabindex="-1" aria-labelledby="guideDetailsModalLabel{{ $tour->tour_id }}" aria-hidden="true" data-bs-backdrop="static" data-bs-keyboard="false">
-        <div class="modal-dialog modal-dialog-centered modal-xl modal-dialog-scrollable">
-            <div class="modal-content shadow-lg" style="border-radius: 15px; overflow: hidden;">
-                <div class="modal-header p-0 border-0 position-relative" style="height: 180px; background: linear-gradient(135deg, #00cec9 0%, #55a3ff 100%);">
-                    <div class="position-absolute w-100 h-100 d-flex align-items-center justify-content-between p-4">
+        <div class="modal-dialog modal-dialog-centered modal-lg modal-dialog-scrollable">
+            <div class="modal-content shadow-lg border-0" style="border-radius: 12px; overflow: hidden;">
+                <!-- Compact Header -->
+                <div class="modal-header border-0 py-2 px-2" style="background: linear-gradient(135deg, #00cec9 0%, #55a3ff 100%);">
+                    <div class="d-flex align-items-center justify-content-between w-100">
                         <div class="text-white">
-                            <h3 class="mb-1 fw-bold">
-                                <i class="ri-user-voice-line me-2"></i>Guide Bookings
-                            </h3>
-                            <p class="mb-0 opacity-75">Tour #{{ $tour->tour_id }} Guide Details</p>
+                            <h6 class="mb-0 fw-bold" style="font-size: 0.95rem;">
+                                <i class="ri-user-voice-line me-1" style="font-size: 0.9rem;"></i>Guide Bookings - Tour #{{ $tour->tour_id }}
+                            </h6>
                         </div>
-                        <button type="button" class="btn-close btn-close-white" onclick="closeServiceModal('guide', {{ $tour->tour_id }})" aria-label="Close" style="filter: brightness(0) invert(1); font-size: 1.2rem;"></button>
+                        <button type="button" class="btn-close btn-close-white" onclick="closeServiceModal('guide', {{ $tour->tour_id }})" aria-label="Close" style="font-size: 0.8rem;"></button>
                     </div>
                 </div>
-                <div class="modal-body p-4" style="background-color: #f8f9fa;">
+                
+                <div class="modal-body p-2" style="background-color: #f8f9fa;">
                     @if(isset($serviceData['guide']) && count($serviceData['guide']) > 0)
                         @foreach($serviceData['guide'] as $index => $guideOrder)
                         @php
@@ -2072,28 +1934,7 @@
 
                                         <!-- Customer Information -->
                                         <div class="row mb-4">
-                                            <div class="col-md-6">
-                                                <div class="bg-white rounded p-3 shadow-sm h-100">
-                                                    <div class="d-flex align-items-center mb-3">
-                                                        <div class="bg-primary rounded-circle p-2 me-3">
-                                                            <i class="ri-user-line text-white"></i>
-                                                        </div>
-                                                        <h6 class="fw-bold mb-0 text-dark">Customer Details</h6>
-                                                    </div>
-                                                    <div class="mb-2">
-                                                        <small class="text-muted">Full Name</small>
-                                                        <div class="fw-medium">{{ $booking['fullName'] ?? 'N/A' }}</div>
-                                                    </div>
-                                                    <div class="mb-2">
-                                                        <small class="text-muted">Email</small>
-                                                        <div class="fw-medium text-primary">{{ $booking['email'] ?? 'N/A' }}</div>
-                                                    </div>
-                                                    <div class="mb-0">
-                                                        <small class="text-muted">Phone</small>
-                                                        <div class="fw-medium">{{ $booking['countryCode'] ?? '' }} {{ $booking['phone'] ?? 'N/A' }}</div>
-                                                    </div>
-                                                </div>
-                                            </div>
+                                          
                                             <div class="col-md-6">
                                                 <div class="bg-white rounded p-3 shadow-sm h-100">
                                                     <div class="d-flex align-items-center mb-3">
@@ -2144,22 +1985,23 @@
                         @endif
                         @endforeach
                     @else
-                        <div class="text-center py-5">
-                            <div class="bg-light rounded-circle mx-auto mb-4 d-flex align-items-center justify-content-center" style="width: 100px; height: 100px;">
-                                <i class="ri-user-voice-line ri-48px text-muted"></i>
+                        <div class="text-center py-4">
+                            <div class="bg-light rounded-circle mx-auto mb-3 d-flex align-items-center justify-content-center" style="width: 80px; height: 80px;">
+                                <i class="ri-user-voice-line text-muted" style="font-size: 2rem;"></i>
                             </div>
-                            <h4 class="text-dark mb-3">No Guide Data Available</h4>
-                            <p class="text-muted mb-4">Guide services are booked but detailed information is not available.</p>
+                            <h5 class="text-dark mb-2" style="font-size: 1.1rem;">No Guide Data Available</h5>
+                            <p class="text-muted mb-0" style="font-size: 0.9rem;">Guide services are booked but detailed information is not available.</p>
                         </div>
                     @endif
                 </div>
-                <div class="modal-footer border-0 p-4" style="background: linear-gradient(90deg, #f8f9fa 0%, #e9ecef 100%);">
-                    <button type="button" class="btn btn-outline-secondary px-4 py-2" onclick="closeServiceModal('guide', {{ $tour->tour_id }})" style="border-radius: 25px;">
-                        <i class="ri-close-line me-2"></i>Close
-                    </button>
-                    {{-- <button type="button" class="btn btn-primary px-4 py-2 ms-2" style="border-radius: 25px;">
-                        <i class="ri-download-line me-2"></i>Download Details
-                    </button> --}}
+                
+                <!-- Compact Footer -->
+                <div class="modal-footer border-0 p-1" style="background: #f8f9fa;">
+                    <div class="d-flex gap-1 w-100 justify-content-end">
+                        <button type="button" class="btn btn-outline-secondary btn-sm px-2 py-1" onclick="closeServiceModal('guide', {{ $tour->tour_id }})" style="border-radius: 6px; font-size: 0.75rem;">
+                            <i class="ri-close-line me-1" style="font-size: 0.7rem;"></i>Close
+                        </button>
+                    </div>
                 </div>
             </div>
         </div>
@@ -2169,20 +2011,21 @@
     <!-- Entry Port (Arrival) Details Modal -->
     @if(isset($svc['entry_port']) && $svc['entry_port'] > 0)
      <div class="modal fade" id="entry_portDetailsModal{{ $tour->tour_id }}" tabindex="-1" aria-labelledby="entry_portDetailsModalLabel{{ $tour->tour_id }}" aria-hidden="true" data-bs-backdrop="static" data-bs-keyboard="false">
-        <div class="modal-dialog modal-dialog-centered modal-xl modal-dialog-scrollable">
-            <div class="modal-content shadow-lg" style="border-radius: 15px; overflow: hidden;">
-                <div class="modal-header p-0 border-0 position-relative" style="height: 180px; background: linear-gradient(135deg, #00b894 0%, #55a3ff 100%);">
-                    <div class="position-absolute w-100 h-100 d-flex align-items-center justify-content-between p-4">
+        <div class="modal-dialog modal-dialog-centered modal-lg modal-dialog-scrollable">
+            <div class="modal-content shadow-lg border-0" style="border-radius: 12px; overflow: hidden;">
+                <!-- Compact Header -->
+                <div class="modal-header border-0 p-2" style="background: linear-gradient(135deg, #00b894 0%, #55a3ff 100%);">
+                    <div class="d-flex align-items-center justify-content-between w-100">
                         <div class="text-white">
-                            <h3 class="mb-1 fw-bold">
-                                <i class="ri-flight-land-line me-2"></i>Arrival Transfer
-                            </h3>
-                            <p class="mb-0 opacity-75">Tour #{{ $tour->tour_id }} Entry Port Details</p>
+                            <h6 class="mb-0 fw-bold" style="font-size: 0.95rem;">
+                                <i class="ri-flight-land-line me-1" style="font-size: 0.9rem;"></i>Arrival Transfer - Tour #{{ $tour->tour_id }}
+                            </h6>
                         </div>
-                        <button type="button" class="btn-close btn-close-white" onclick="closeServiceModal('entry_port', {{ $tour->tour_id }})" aria-label="Close" style="filter: brightness(0) invert(1); font-size: 1.2rem;"></button>
+                        <button type="button" class="btn-close btn-close-white" onclick="closeServiceModal('entry_port', {{ $tour->tour_id }})" aria-label="Close" style="font-size: 0.8rem;"></button>
                     </div>
                 </div>
-                <div class="modal-body p-4" style="background-color: #f8f9fa;">
+                
+                <div class="modal-body p-2" style="background-color: #f8f9fa;">
                     @if(isset($serviceData['entry_port']) && count($serviceData['entry_port']) > 0)
                         @foreach($serviceData['entry_port'] as $index => $entryOrder)
                         @php
@@ -2352,55 +2195,7 @@
                                             </div>
                                         </div>
 
-                                        <!-- Customer Information -->
-                                        <div class="row mb-4">
-                                            <div class="col-md-6">
-                                                <div class="bg-white rounded p-3 shadow-sm h-100">
-                                                    <div class="d-flex align-items-center mb-3">
-                                                        <div class="bg-primary rounded-circle p-2 me-3">
-                                                            <i class="ri-user-line text-white"></i>
-                                                        </div>
-                                                        <h6 class="fw-bold mb-0 text-dark">Customer Details</h6>
-                                                    </div>
-                                                    <div class="mb-2">
-                                                        <small class="text-muted">Full Name</small>
-                                                        <div class="fw-medium">{{ $booking['fullName'] ?? 'N/A' }}</div>
-                                                    </div>
-                                                    <div class="mb-2">
-                                                        <small class="text-muted">Email Address</small>
-                                                        <div class="fw-medium text-primary">{{ $booking['email'] ?? 'N/A' }}</div>
-                                                    </div>
-                                                    <div class="mb-0">
-                                                        <small class="text-muted">Phone Number</small>
-                                                        <div class="fw-medium">{{ $booking['countryCode'] ?? '' }} {{ $booking['phone'] ?? 'N/A' }}</div>
-                                                    </div>
-                                                </div>
-                                            </div>
-                                            <div class="col-md-6">
-                                                <div class="bg-white rounded p-3 shadow-sm h-100">
-                                                    <div class="d-flex align-items-center mb-3">
-                                                        <div class="bg-info rounded-circle p-2 me-3">
-                                                            <i class="ri-map-pin-line text-white"></i>
-                                                        </div>
-                                                        <h6 class="fw-bold mb-0 text-dark">Address Information</h6>
-                                                    </div>
-                                                    <div class="text-muted">
-                                                        @if($booking['address1'] ?? false)
-                                                            <div>{{ $booking['address1'] }}</div>
-                                                        @endif
-                                                        @if($booking['address2'] ?? false)
-                                                            <div>{{ $booking['address2'] }}</div>
-                                                        @endif
-                                                        @if($booking['state'] ?? false)
-                                                            <div>{{ $booking['state'] }} {{ $booking['zip'] ?? '' }}</div>
-                                                        @endif
-                                                        @if(!($booking['address1'] ?? false) && !($booking['address2'] ?? false) && !($booking['state'] ?? false))
-                                                            <div class="text-muted">Address not provided</div>
-                                                        @endif
-                                                    </div>
-                                                </div>
-                                            </div>
-                                        </div>
+                                     
 
                                         <!-- Special Requests -->
                                         @if(isset($booking['specialRequests']) && !empty($booking['specialRequests']))
@@ -2422,18 +2217,20 @@
                         @endif
                         @endforeach
                     @else
-                        <div class="text-center py-5">
-                            <div class="bg-light rounded-circle mx-auto mb-4 d-flex align-items-center justify-content-center" style="width: 100px; height: 100px;">
-                                <i class="ri-flight-land-line ri-48px text-muted"></i>
+                        <div class="text-center py-3">
+                            <div class="bg-light rounded-circle mx-auto mb-2 d-flex align-items-center justify-content-center" style="width: 60px; height: 60px;">
+                                <i class="ri-flight-land-line text-muted" style="font-size: 1.5rem;"></i>
                             </div>
-                            <h4 class="text-dark mb-3">No Arrival Transfer Data Available</h4>
-                            <p class="text-muted mb-4">Entry port services are booked but detailed information is not available.</p>
+                            <h6 class="text-dark mb-1">No Arrival Transfer Data Available</h6>
+                            <p class="text-muted mb-0" style="font-size: 0.85rem;">Entry port services are booked but detailed information is not available.</p>
                         </div>
                     @endif
                 </div>
-                <div class="modal-footer border-0 p-4" style="background: linear-gradient(90deg, #f8f9fa 0%, #e9ecef 100%);">
-                    <button type="button" class="btn btn-outline-secondary px-4 py-2" onclick="closeServiceModal('entry_port', {{ $tour->tour_id }})" style="border-radius: 25px;">
-                        <i class="ri-close-line me-2"></i>Close
+                
+                <!-- Compact Footer -->
+                <div class="modal-footer border-0 p-1" style="background: #f8f9fa;">
+                    <button type="button" class="btn btn-outline-secondary btn-sm px-2 py-1" onclick="closeServiceModal('entry_port', {{ $tour->tour_id }})" style="border-radius: 6px; font-size: 0.75rem;">
+                        <i class="ri-close-line me-1" style="font-size: 0.7rem;"></i>Close
                     </button>
                 </div>
             </div>
@@ -2444,20 +2241,21 @@
     <!-- Exit Port (Departure) Details Modal -->
     @if(isset($svc['exit_port']) && $svc['exit_port'] > 0)
      <div class="modal fade" id="exit_portDetailsModal{{ $tour->tour_id }}" tabindex="-1" aria-labelledby="exit_portDetailsModalLabel{{ $tour->tour_id }}" aria-hidden="true" data-bs-backdrop="static" data-bs-keyboard="false">
-        <div class="modal-dialog modal-dialog-centered modal-xl modal-dialog-scrollable">
-            <div class="modal-content shadow-lg" style="border-radius: 15px; overflow: hidden;">
-                <div class="modal-header p-0 border-0 position-relative" style="height: 180px; background: linear-gradient(135deg, #fd7f6f 0%, #feb47b 100%);">
-                    <div class="position-absolute w-100 h-100 d-flex align-items-center justify-content-between p-4">
+        <div class="modal-dialog modal-dialog-centered modal-lg modal-dialog-scrollable">
+            <div class="modal-content shadow-lg border-0" style="border-radius: 12px; overflow: hidden;">
+                <!-- Compact Header -->
+                <div class="modal-header border-0 p-2" style="background: linear-gradient(135deg, #fd7f6f 0%, #feb47b 100%);">
+                    <div class="d-flex align-items-center justify-content-between w-100">
                         <div class="text-white">
-                            <h3 class="mb-1 fw-bold">
-                                <i class="ri-flight-takeoff-line me-2"></i>Departure Transfer
-                            </h3>
-                            <p class="mb-0 opacity-75">Tour #{{ $tour->tour_id }} Exit Port Details</p>
+                            <h6 class="mb-0 fw-bold" style="font-size: 0.95rem;">
+                                <i class="ri-flight-takeoff-line me-1" style="font-size: 0.9rem;"></i>Departure Transfer - Tour #{{ $tour->tour_id }}
+                            </h6>
                         </div>
-                        <button type="button" class="btn-close btn-close-white" onclick="closeServiceModal('exit_port', {{ $tour->tour_id }})" aria-label="Close" style="filter: brightness(0) invert(1); font-size: 1.2rem;"></button>
+                        <button type="button" class="btn-close btn-close-white" onclick="closeServiceModal('exit_port', {{ $tour->tour_id }})" aria-label="Close" style="font-size: 0.8rem;"></button>
                     </div>
                 </div>
-                <div class="modal-body p-4" style="background-color: #f8f9fa;">
+                
+                <div class="modal-body p-2" style="background-color: #f8f9fa;">
                     @if(isset($serviceData['exit_port']) && count($serviceData['exit_port']) > 0)
                         @foreach($serviceData['exit_port'] as $index => $exitOrder)
                         @php
@@ -2619,55 +2417,7 @@
                                             </div>
                                         </div>
 
-                                        <!-- Customer Information -->
-                                        <div class="row mb-4">
-                                            <div class="col-md-6">
-                                                <div class="bg-white rounded p-3 shadow-sm h-100">
-                                                    <div class="d-flex align-items-center mb-3">
-                                                        <div class="bg-primary rounded-circle p-2 me-3">
-                                                            <i class="ri-user-line text-white"></i>
-                                                        </div>
-                                                        <h6 class="fw-bold mb-0 text-dark">Customer Details</h6>
-                                                    </div>
-                                                    <div class="mb-2">
-                                                        <small class="text-muted">Full Name</small>
-                                                        <div class="fw-medium">{{ $booking['fullName'] ?? 'N/A' }}</div>
-                                                    </div>
-                                                    <div class="mb-2">
-                                                        <small class="text-muted">Email Address</small>
-                                                        <div class="fw-medium text-primary">{{ $booking['email'] ?? 'N/A' }}</div>
-                                                    </div>
-                                                    <div class="mb-0">
-                                                        <small class="text-muted">Phone Number</small>
-                                                        <div class="fw-medium">{{ $booking['countryCode'] ?? '' }} {{ $booking['phone'] ?? 'N/A' }}</div>
-                                                    </div>
-                                                </div>
-                                            </div>
-                                            <div class="col-md-6">
-                                                <div class="bg-white rounded p-3 shadow-sm h-100">
-                                                    <div class="d-flex align-items-center mb-3">
-                                                        <div class="bg-info rounded-circle p-2 me-3">
-                                                            <i class="ri-map-pin-line text-white"></i>
-                                                        </div>
-                                                        <h6 class="fw-bold mb-0 text-dark">Address Information</h6>
-                                                    </div>
-                                                    <div class="text-muted">
-                                                        @if($booking['address1'] ?? false)
-                                                            <div>{{ $booking['address1'] }}</div>
-                                                        @endif
-                                                        @if($booking['address2'] ?? false)
-                                                            <div>{{ $booking['address2'] }}</div>
-                                                        @endif
-                                                        @if($booking['state'] ?? false)
-                                                            <div>{{ $booking['state'] }} {{ $booking['zip'] ?? '' }}</div>
-                                                        @endif
-                                                        @if(!($booking['address1'] ?? false) && !($booking['address2'] ?? false) && !($booking['state'] ?? false))
-                                                            <div class="text-muted">Address not provided</div>
-                                                        @endif
-                                                    </div>
-                                                </div>
-                                            </div>
-                                        </div>
+                                     
 
                                         <!-- Special Requests -->
                                         @if(isset($booking['specialRequests']) && !empty($booking['specialRequests']))
@@ -2689,18 +2439,20 @@
                         @endif
                         @endforeach
                     @else
-                        <div class="text-center py-5">
-                            <div class="bg-light rounded-circle mx-auto mb-4 d-flex align-items-center justify-content-center" style="width: 100px; height: 100px;">
-                                <i class="ri-flight-takeoff-line ri-48px text-muted"></i>
+                        <div class="text-center py-3">
+                            <div class="bg-light rounded-circle mx-auto mb-2 d-flex align-items-center justify-content-center" style="width: 60px; height: 60px;">
+                                <i class="ri-flight-takeoff-line text-muted" style="font-size: 1.5rem;"></i>
                             </div>
-                            <h4 class="text-dark mb-3">No Departure Transfer Data Available</h4>
-                            <p class="text-muted mb-4">Exit port services are booked but detailed information is not available.</p>
+                            <h6 class="text-dark mb-1">No Departure Transfer Data Available</h6>
+                            <p class="text-muted mb-0" style="font-size: 0.85rem;">Exit port services are booked but detailed information is not available.</p>
                         </div>
                     @endif
                 </div>
-                <div class="modal-footer border-0 p-4" style="background: linear-gradient(90deg, #f8f9fa 0%, #e9ecef 100%);">
-                    <button type="button" class="btn btn-outline-secondary px-4 py-2" onclick="closeServiceModal('exit_port', {{ $tour->tour_id }})" style="border-radius: 25px;">
-                        <i class="ri-close-line me-2"></i>Close
+                
+                <!-- Compact Footer -->
+                <div class="modal-footer border-0 p-1" style="background: #f8f9fa;">
+                    <button type="button" class="btn btn-outline-secondary btn-sm px-2 py-1" onclick="closeServiceModal('exit_port', {{ $tour->tour_id }})" style="border-radius: 6px; font-size: 0.75rem;">
+                        <i class="ri-close-line me-1" style="font-size: 0.7rem;"></i>Close
                     </button>
                 </div>
             </div>
@@ -2711,38 +2463,22 @@
     <!-- Travel Hourly Details Modal -->
     @if(isset($svc['travel_hourly']) && $svc['travel_hourly'] > 0)
         <div class="modal fade" id="travel_hourlyDetailsModal{{ $tour->tour_id }}" tabindex="-1" aria-labelledby="travel_hourlyModalLabel{{ $tour->tour_id }}" aria-hidden="true">
-            <div class="modal-dialog modal-xl">
-                <div class="modal-content border-0 shadow-lg">
-                    @php
-                        $firstOrder = $serviceData['travel_hourly'][0] ?? null;
-                        $firstBookingData = null;
-                        if ($firstOrder) {
-                            $firstBookingData = is_string($firstOrder->data) ? json_decode($firstOrder->data, true) : $firstOrder->data;
-                            $firstBookingData = is_array($firstBookingData) && isset($firstBookingData[0]) ? $firstBookingData[0] : $firstBookingData;
-                        }
-                    @endphp
-                    
-                    <!-- Modal Header -->
-                    <div class="modal-header p-0 border-0 position-relative" style="height: 200px; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);">
-                        <div class="position-absolute w-100 h-100 d-flex align-items-center justify-content-between p-4">
+            <div class="modal-dialog modal-lg modal-dialog-scrollable">
+                <div class="modal-content border-0 shadow-lg" style="border-radius: 12px; overflow: hidden;">
+                    <!-- Compact Header -->
+                    <div class="modal-header border-0 py-3 px-4" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);">
+                        <div class="d-flex align-items-center justify-content-between w-100">
                             <div class="text-white">
-                                <h3 class="mb-1 fw-bold">
-                                    <i class="ri-time-line me-2"></i>Local-Tour Hourly
-                                </h3>
-                                <p class="mb-0 opacity-75">Tour #{{ $tour->tour_id }} Hourly Tour Details • {{ $firstBookingData['city'] ?? 'Location not specified' }}</p>
-                                <div class="mt-2">
-                                    <span class="badge bg-white bg-opacity-90 text-primary px-3 py-2">
-                                        <i class="ri-calendar-line me-1"></i>
-                                        {{ isset($firstBookingData['bookingDate']) ? \Carbon\Carbon::parse($firstBookingData['bookingDate'])->format('D, M d, Y') : 'Date not specified' }}
-                                    </span>
-                                </div>
+                                <h5 class="mb-0 fw-bold" style="font-size: 0.95rem;">
+                                    <i class="ri-time-line me-1" style="font-size: 0.9rem;"></i>Local-Tour Hourly - Tour #{{ $tour->tour_id }}
+                                </h5>
                             </div>
-                            <button type="button" class="btn-close btn-close-white" onclick="closeServiceModal('travel_hourly', {{ $tour->tour_id }})" aria-label="Close" style="filter: brightness(0) invert(1); font-size: 1.2rem;"></button>
+                            <button type="button" class="btn-close btn-close-white" onclick="closeServiceModal('travel_hourly', {{ $tour->tour_id }})" aria-label="Close" style="font-size: 0.8rem;"></button>
                         </div>
                     </div>
 
                     <!-- Modal Body -->
-                    <div class="modal-body p-4" style="background: #f8fafc;">
+                    <div class="modal-body p-3" style="background: #f8fafc;">
                         @if(isset($serviceData['travel_hourly']) && count($serviceData['travel_hourly']) > 0)
                             @foreach($serviceData['travel_hourly'] as $index => $hourlyOrder)
                                 @php
@@ -2914,30 +2650,7 @@
                                             </div>
                                         </div>
                                     </div>
-                                    <div class="col-md-6">
-                                        <div class="bg-white rounded p-3 shadow-sm h-100">
-                                            <div class="d-flex align-items-center mb-3">
-                                                <div class="bg-info rounded-circle p-2 me-3">
-                                                    <i class="ri-user-line text-white"></i>
-                                                </div>
-                                                <h6 class="fw-bold mb-0 text-dark">Customer Information</h6>
-                                            </div>
-                                            <div class="row">
-                                                <div class="col-12 mb-2">
-                                                    <small class="text-muted">Name</small>
-                                                    <div class="fw-medium">{{ $booking['fullName'] ?? 'N/A' }}</div>
-                                                </div>
-                                                <div class="col-12 mb-2">
-                                                    <small class="text-muted">Email</small>
-                                                    <div class="fw-medium">{{ $booking['email'] ?? 'N/A' }}</div>
-                                                </div>
-                                                <div class="col-12 mb-2">
-                                                    <small class="text-muted">Phone</small>
-                                                    <div class="fw-medium">{{ $booking['phone'] ?? 'N/A' }}</div>
-                                                </div>
-                                            </div>
-                                        </div>
-                                    </div>
+                                  
                                 </div>
 
                                 <!-- Special Requests -->
@@ -2956,21 +2669,20 @@
                                 @endif
                             @endforeach
                         @else
-                            <div class="text-center py-5">
-                                <i class="ri-time-line ri-48px text-muted mb-3"></i>
-                                <h5 class="text-muted">No hourly tour data available</h5>
+                            <div class="text-center py-4">
+                                <div class="bg-light rounded-circle mx-auto mb-3 d-flex align-items-center justify-content-center" style="width: 80px; height: 80px;">
+                                    <i class="ri-time-line text-muted" style="font-size: 2rem;"></i>
+                                </div>
+                                <h5 class="text-muted mb-0" style="font-size: 1.1rem;">No hourly tour data available</h5>
                             </div>
                         @endif
                     </div>
 
-                    <!-- Modal Footer -->
-                    <div class="modal-footer bg-light border-0" style="border-radius: 0 0 8px 8px;">
-                        <button type="button" class="btn btn-outline-secondary" onclick="closeServiceModal('travel_hourly', {{ $tour->tour_id }})">
-                            <i class="ri-close-line me-1"></i>Close
+                    <!-- Compact Footer -->
+                    <div class="modal-footer border-0 py-2 px-3" style="background: #f8f9fa;">
+                        <button type="button" class="btn btn-outline-secondary btn-sm px-3 py-1" onclick="closeServiceModal('travel_hourly', {{ $tour->tour_id }})" style="border-radius: 8px; font-size: 0.85rem;">
+                            <i class="ri-close-line me-1" style="font-size: 0.7rem;"></i>Close
                         </button>
-                        {{-- <button type="button" class="btn btn-primary">
-                            <i class="ri-download-line me-1"></i>Download Details
-                        </button> --}}
                     </div>
                 </div>
             </div>
@@ -2980,52 +2692,22 @@
     <!-- Travel Point Details Modal -->
     @if(isset($svc['travel_point']) && $svc['travel_point'] > 0)
         <div class="modal fade" id="travel_pointDetailsModal{{ $tour->tour_id }}" tabindex="-1" aria-labelledby="travel_pointModalLabel{{ $tour->tour_id }}" aria-hidden="true">
-            <div class="modal-dialog modal-xl">
-                <div class="modal-content border-0 shadow-lg">
-                    @php
-                        $firstOrder = $serviceData['travel_point'][0] ?? null;
-                        $firstBookingData = null;
-                        $headerFromZone = 'N/A';
-                        $headerToZone = 'N/A';
-                        
-                        if ($firstOrder) {
-                            $firstBookingData = is_string($firstOrder->data) ? json_decode($firstOrder->data, true) : $firstOrder->data;
-                            $firstBookingData = is_array($firstBookingData) && isset($firstBookingData[0]) ? $firstBookingData[0] : $firstBookingData;
-                            
-                            // Get zone names for header
-                            if(isset($firstBookingData['from_zone_id']) && $firstBookingData['from_zone_id']) {
-                                $fromZone = \DB::table('zones')->where('zone_id', $firstBookingData['from_zone_id'])->first();
-                                $headerFromZone = $fromZone ? $fromZone->zone_type : 'Zone ' . $firstBookingData['from_zone_id'];
-                            }
-                            
-                            if(isset($firstBookingData['to_zone_id']) && $firstBookingData['to_zone_id']) {
-                                $toZone = \DB::table('zones')->where('zone_id', $firstBookingData['to_zone_id'])->first();
-                                $headerToZone = $toZone ? $toZone->zone_type : 'Zone ' . $firstBookingData['to_zone_id'];
-                            }
-                        }
-                    @endphp
-                    
-                    <!-- Modal Header -->
-                    <div class="modal-header p-0 border-0 position-relative" style="height: 200px; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);">
-                        <div class="position-absolute w-100 h-100 d-flex align-items-center justify-content-between p-4">
+            <div class="modal-dialog modal-lg modal-dialog-scrollable">
+                <div class="modal-content border-0 shadow-lg" style="border-radius: 12px; overflow: hidden;">
+                    <!-- Compact Header -->
+                    <div class="modal-header border-0 py-3 px-4" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);">
+                        <div class="d-flex align-items-center justify-content-between w-100">
                             <div class="text-white">
-                                <h3 class="mb-1 fw-bold">
-                                    <i class="ri-route-line me-2"></i>Local-Tour Point to Point
-                                </h3>
-                                <p class="mb-0 opacity-75">Tour #{{ $tour->tour_id }} Point to Point Transfer • {{ $headerFromZone }} → {{ $headerToZone }}</p>
-                                <div class="mt-2">
-                                    <span class="badge bg-white bg-opacity-90 text-primary px-3 py-2">
-                                        <i class="ri-calendar-line me-1"></i>
-                                        {{ isset($firstBookingData['bookingDate']) ? \Carbon\Carbon::parse($firstBookingData['bookingDate'])->format('D, M d, Y') : 'Date not specified' }}
-                                    </span>
-                                </div>
+                                <h5 class="mb-0 fw-bold" style="font-size: 0.95rem;">
+                                    <i class="ri-route-line me-1" style="font-size: 0.9rem;"></i>Local-Tour Point to Point - Tour #{{ $tour->tour_id }}
+                                </h5>
                             </div>
-                            <button type="button" class="btn-close btn-close-white" onclick="closeServiceModal('travel_point', {{ $tour->tour_id }})" aria-label="Close" style="filter: brightness(0) invert(1); font-size: 1.2rem;"></button>
+                            <button type="button" class="btn-close btn-close-white" onclick="closeServiceModal('travel_point', {{ $tour->tour_id }})" aria-label="Close" style="font-size: 0.8rem;"></button>
                         </div>
                     </div>
 
                     <!-- Modal Body -->
-                    <div class="modal-body p-4" style="background: #f8fafc;">
+                    <div class="modal-body p-3" style="background: #f8fafc;">
                         @if(isset($serviceData['travel_point']) && count($serviceData['travel_point']) > 0)
                             @foreach($serviceData['travel_point'] as $index => $pointOrder)
                                 @php
@@ -3232,30 +2914,7 @@
                                             </div>
                                         </div>
                                     </div>
-                                    <div class="col-md-6">
-                                        <div class="bg-white rounded p-3 shadow-sm h-100">
-                                            <div class="d-flex align-items-center mb-3">
-                                                <div class="bg-info rounded-circle p-2 me-3">
-                                                    <i class="ri-user-line text-white"></i>
-                                                </div>
-                                                <h6 class="fw-bold mb-0 text-dark">Customer Information</h6>
-                                            </div>
-                                            <div class="row">
-                                                <div class="col-12 mb-2">
-                                                    <small class="text-muted">Name</small>
-                                                    <div class="fw-medium">{{ $booking['fullName'] ?? 'N/A' }}</div>
-                                                </div>
-                                                <div class="col-12 mb-2">
-                                                    <small class="text-muted">Email</small>
-                                                    <div class="fw-medium">{{ $booking['email'] ?? 'N/A' }}</div>
-                                                </div>
-                                                <div class="col-12 mb-2">
-                                                    <small class="text-muted">Phone</small>
-                                                    <div class="fw-medium">{{ $booking['phone'] ?? 'N/A' }}</div>
-                                                </div>
-                                            </div>
-                                        </div>
-                                    </div>
+                                   
                                 </div>
 
                                 <!-- Special Requests -->
@@ -3274,17 +2933,19 @@
                                 @endif
                             @endforeach
                         @else
-                            <div class="text-center py-5">
-                                <i class="ri-route-line ri-48px text-muted mb-3"></i>
-                                <h5 class="text-muted">No point to point transfer data available</h5>
+                            <div class="text-center py-4">
+                                <div class="bg-light rounded-circle mx-auto mb-3 d-flex align-items-center justify-content-center" style="width: 80px; height: 80px;">
+                                    <i class="ri-route-line text-muted" style="font-size: 2rem;"></i>
+                                </div>
+                                <h5 class="text-muted mb-0" style="font-size: 1.1rem;">No point to point transfer data available</h5>
                             </div>
                         @endif
                     </div>
 
-                    <!-- Modal Footer -->
-                    <div class="modal-footer bg-light border-0" style="border-radius: 0 0 8px 8px;">
-                        <button type="button" class="btn btn-outline-secondary" onclick="closeServiceModal('travel_point', {{ $tour->tour_id }})">
-                            <i class="ri-close-line me-1"></i>Close
+                    <!-- Compact Footer -->
+                    <div class="modal-footer border-0 py-2 px-3" style="background: #f8f9fa;">
+                        <button type="button" class="btn btn-outline-secondary btn-sm px-3 py-1" onclick="closeServiceModal('travel_point', {{ $tour->tour_id }})" style="border-radius: 8px; font-size: 0.85rem;">
+                            <i class="ri-close-line me-1" style="font-size: 0.7rem;"></i>Close
                         </button>
                     </div>
                 </div>
@@ -3295,52 +2956,22 @@
     <!-- Local Transport Details Modal -->
     @if(isset($svc['local_transport']) && $svc['local_transport'] > 0)
         <div class="modal fade" id="local_transportDetailsModal{{ $tour->tour_id }}" tabindex="-1" aria-labelledby="local_transportModalLabel{{ $tour->tour_id }}" aria-hidden="true">
-            <div class="modal-dialog modal-xl">
-                <div class="modal-content border-0 shadow-lg">
-                    @php
-                        $firstOrder = $serviceData['local_transport'][0] ?? null;
-                        $firstBookingData = null;
-                        $headerFromZone = 'N/A';
-                        $headerToZone = 'N/A';
-                        
-                        if ($firstOrder) {
-                            $firstBookingData = is_string($firstOrder->data) ? json_decode($firstOrder->data, true) : $firstOrder->data;
-                            $firstBookingData = is_array($firstBookingData) && isset($firstBookingData[0]) ? $firstBookingData[0] : $firstBookingData;
-                            
-                            // Get zone names for header
-                            if(isset($firstBookingData['from_zone_id']) && $firstBookingData['from_zone_id']) {
-                                $fromZone = \DB::table('zones')->where('zone_id', $firstBookingData['from_zone_id'])->first();
-                                $headerFromZone = $fromZone ? $fromZone->zone_type : 'Zone ' . $firstBookingData['from_zone_id'];
-                            }
-                            
-                            if(isset($firstBookingData['to_zone_id']) && $firstBookingData['to_zone_id']) {
-                                $toZone = \DB::table('zones')->where('zone_id', $firstBookingData['to_zone_id'])->first();
-                                $headerToZone = $toZone ? $toZone->zone_type : 'Zone ' . $firstBookingData['to_zone_id'];
-                            }
-                        }
-                    @endphp
-                    
-                    <!-- Modal Header -->
-                    <div class="modal-header p-0 border-0 position-relative" style="height: 200px; background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%);">
-                        <div class="position-absolute w-100 h-100 d-flex align-items-center justify-content-between p-4">
+            <div class="modal-dialog modal-lg modal-dialog-scrollable">
+                <div class="modal-content border-0 shadow-lg" style="border-radius: 12px; overflow: hidden;">
+                    <!-- Compact Header -->
+                    <div class="modal-header border-0 py-2 px-2" style="background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%);">
+                        <div class="d-flex align-items-center justify-content-between w-100">
                             <div class="text-white">
-                                <h3 class="mb-1 fw-bold">
-                                    <i class="ri-car-line me-2"></i>Local Transport
-                                </h3>
-                                <p class="mb-0 opacity-75">Tour #{{ $tour->tour_id }} Local Transport Service • {{ $headerFromZone }} → {{ $headerToZone }}</p>
-                                <div class="mt-2">
-                                    <span class="badge bg-white bg-opacity-90 text-primary px-3 py-2">
-                                        <i class="ri-calendar-line me-1"></i>
-                                        {{ isset($firstBookingData['bookingDate']) ? \Carbon\Carbon::parse($firstBookingData['bookingDate'])->format('M d, Y') : 'Date not specified' }}
-                                    </span>
-                                </div>
+                                <h6 class="mb-0 fw-bold" style="font-size: 0.95rem;">
+                                    <i class="ri-car-line me-1" style="font-size: 0.9rem;"></i>Local Transport - Tour #{{ $tour->tour_id }}
+                                </h6>
                             </div>
-                            <button type="button" class="btn-close btn-close-white" onclick="closeServiceModal('local_transport', {{ $tour->tour_id }})" aria-label="Close" style="filter: brightness(0) invert(1); font-size: 1.2rem;"></button>
+                            <button type="button" class="btn-close btn-close-white" onclick="closeServiceModal('local_transport', {{ $tour->tour_id }})" aria-label="Close" style="font-size: 0.8rem;"></button>
                         </div>
                     </div>
 
                     <!-- Modal Body -->
-                    <div class="modal-body p-4" style="background: #f8fafc;">
+                    <div class="modal-body p-2" style="background: #f8fafc;">
                         @if(isset($serviceData['local_transport']) && count($serviceData['local_transport']) > 0)
                             @foreach($serviceData['local_transport'] as $index => $transportOrder)
                                 @php
@@ -3547,30 +3178,7 @@
                                             </div>
                                         </div>
                                     </div>
-                                    <div class="col-md-6">
-                                        <div class="bg-white rounded p-3 shadow-sm h-100">
-                                            <div class="d-flex align-items-center mb-3">
-                                                <div class="bg-info rounded-circle p-2 me-3">
-                                                    <i class="ri-user-line text-white"></i>
-                                                </div>
-                                                <h6 class="fw-bold mb-0 text-dark">Customer Information</h6>
-                                            </div>
-                                            <div class="row">
-                                                <div class="col-12 mb-2">
-                                                    <small class="text-muted">Name</small>
-                                                    <div class="fw-medium">{{ $booking['fullName'] ?? 'N/A' }}</div>
-                                                </div>
-                                                <div class="col-12 mb-2">
-                                                    <small class="text-muted">Email</small>
-                                                    <div class="fw-medium">{{ $booking['email'] ?? 'N/A' }}</div>
-                                                </div>
-                                                <div class="col-12 mb-2">
-                                                    <small class="text-muted">Phone</small>
-                                                    <div class="fw-medium">{{ $booking['phone'] ?? 'N/A' }}</div>
-                                                </div>
-                                            </div>
-                                        </div>
-                                    </div>
+                                  
                                 </div>
 
                                 <!-- Special Requests -->
@@ -3589,17 +3197,19 @@
                                 @endif
                             @endforeach
                         @else
-                            <div class="text-center py-5">
-                                <i class="ri-car-line ri-48px text-muted mb-3"></i>
-                                <h5 class="text-muted">No local transport data available</h5>
+                            <div class="text-center py-4">
+                                <div class="bg-light rounded-circle mx-auto mb-3 d-flex align-items-center justify-content-center" style="width: 80px; height: 80px;">
+                                    <i class="ri-car-line text-muted" style="font-size: 2rem;"></i>
+                                </div>
+                                <h5 class="text-muted mb-0" style="font-size: 1.1rem;">No local transport data available</h5>
                             </div>
                         @endif
                     </div>
 
-                    <!-- Modal Footer -->
-                    <div class="modal-footer bg-light border-0" style="border-radius: 0 0 8px 8px;">
-                        <button type="button" class="btn btn-outline-secondary" onclick="closeServiceModal('local_transport', {{ $tour->tour_id }})">
-                            <i class="ri-close-line me-1"></i>Close
+                    <!-- Compact Footer -->
+                    <div class="modal-footer border-0 p-1" style="background: #f8f9fa;">
+                        <button type="button" class="btn btn-outline-secondary btn-sm px-2 py-1" onclick="closeServiceModal('local_transport', {{ $tour->tour_id }})" style="border-radius: 6px; font-size: 0.75rem;">
+                            <i class="ri-close-line me-1" style="font-size: 0.7rem;"></i>Close
                         </button>
                     </div>
                 </div>
@@ -3612,16 +3222,33 @@
 @foreach($tours as $tour)
     @php
         // Calculate payment details - following confirmed/definite pattern
+        // Includes: base price + transfer price + guide price (for attractions)
         $tourTotalPrice = 0;
         $orders = \App\Models\Order::where('tour_id', $tour->tour_id)->whereNull('deleted_at')->get();
         foreach($orders as $order) {
             if($order->data) {
                 $orderData = is_string($order->data) ? json_decode($order->data, true) : $order->data;
                 if(is_array($orderData)) {
-                    foreach($orderData as $item) {
-                        if(isset($item['totalPrice'])) {
-                            $tourTotalPrice += (float)$item['totalPrice'];
+                    // Handle both single item and array of items
+                    $items = isset($orderData[0]) && is_array($orderData[0]) ? $orderData : [$orderData];
+                    foreach($items as $item) {
+                        if(!is_array($item)) continue;
+                        
+                        $itemPrice = (float) ($item['totalPrice'] ?? $item['price'] ?? 0);
+                        
+                        // Add transfer price if exists
+                        $transferPrice = 0;
+                        if (isset($item['transfer_options']['cost']) && $item['transfer_options']['cost'] > 0) {
+                            $transferPrice = (float) $item['transfer_options']['cost'];
                         }
+                        
+                        // Add guide price if exists (for attractions)
+                        $guidePrice = 0;
+                        if (isset($item['guide_options']['total_price']) && $item['guide_options']['total_price'] > 0) {
+                            $guidePrice = (float) $item['guide_options']['total_price'];
+                        }
+                        
+                        $tourTotalPrice += $itemPrice + $transferPrice + $guidePrice;
                     }
                 }
             }

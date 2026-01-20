@@ -54,7 +54,6 @@ class SingleTourPackageController extends Controller
      */
     public function create(Request $request, $enquiry_id = null)
     {
-
         $user = Auth::user();
         $allowedRoleIds = [11, 33, 34, 128, 129, 130, 131, 132, 134, 135, 136, 137, 138, 37, 64, 65, 66, 67, 68, 38, 81, 90, 108, 117, 124, 125, 126, 127];
 
@@ -78,7 +77,20 @@ class SingleTourPackageController extends Controller
             $dmc_id = $sales_head->created_by;
         }
 
-        $countries = Country::where('is_active', 1)->orderBy('name')->get();
+        $mdmc_user = User::where('userId', $dmc_id)->first();
+        $mdmc_id = User::where('userId', $mdmc_user->created_by)->first();
+        $mdmc_country = $mdmc_id->country;
+        
+        // Extract and map countries from comma-separated string
+        $countriesQuery = Country::where('is_active', 1);
+        if ($mdmc_country) {
+            $countryNames = array_map('trim', explode(',', $mdmc_country));
+            $countryNames = array_filter($countryNames); // Remove empty values
+            if (!empty($countryNames)) {
+                $countriesQuery->whereIn('name', $countryNames);
+            }
+        }
+        $countries = $countriesQuery->orderBy('name')->get();
         $portsQuery = Port::query();
         if ($request->has('country') && $request->country) {
             $country = Country::find($request->country);
@@ -689,6 +701,7 @@ class SingleTourPackageController extends Controller
             $tour->child = $request->children ?? 0;
             $tour->infant = $request->infants ?? 0;
             $tour->agent_id = $request->agent_id;
+            $tour->tour_type = $request->tour_type ?? 'FIT';
             $tour->tour_id = $tourId;
             $tour->male_count = $request->male;
             $tour->female_count = $request->female;
@@ -701,6 +714,60 @@ class SingleTourPackageController extends Controller
             $tour->child_ages = $request->child_ages ?? null;
             $tour->auto_cancel_date = $auto_cancel_date;
             $tour->taxes = !empty($taxArray) ? json_encode($taxArray) : null;
+            
+            // Store main guest data as JSON
+            if ($request->has('mainguest') && $request->mainguest) {
+                try {
+                    $mainGuestData = $request->mainguest;
+                    if (is_string($mainGuestData)) {
+                        $mainGuestData = json_decode($mainGuestData, true);
+                        if (json_last_error() !== JSON_ERROR_NONE) {
+                            \Log::warning('Invalid JSON in mainguest data', [
+                                'error' => json_last_error_msg(),
+                                'data' => $request->mainguest
+                            ]);
+                            $mainGuestData = null;
+                        }
+                    }
+                    $tour->mainguest = !empty($mainGuestData) ? json_encode($mainGuestData) : null;
+                } catch (\Exception $e) {
+                    \Log::error('Error processing main guest data', [
+                        'error' => $e->getMessage(),
+                        'tour_id' => $tourId
+                    ]);
+                    // Continue without failing the tour creation
+                    $tour->mainguest = null;
+                }
+            }
+            
+            // Store additional guests data as JSON
+            if ($request->has('additionalguest') && $request->additionalguest) {
+                try {
+                    $additionalGuestData = $request->additionalguest;
+                    if (is_string($additionalGuestData)) {
+                        $additionalGuestData = json_decode($additionalGuestData, true);
+                        if (json_last_error() !== JSON_ERROR_NONE) {
+                            \Log::warning('Invalid JSON in additionalguest data', [
+                                'error' => json_last_error_msg(),
+                                'data' => $request->additionalguest
+                            ]);
+                            $additionalGuestData = null;
+                        }
+                    }
+                    // Ensure it's an array
+                    if (!is_array($additionalGuestData)) {
+                        $additionalGuestData = [];
+                    }
+                    $tour->additionalguest = !empty($additionalGuestData) ? json_encode($additionalGuestData) : null;
+                } catch (\Exception $e) {
+                    \Log::error('Error processing additional guest data', [
+                        'error' => $e->getMessage(),
+                        'tour_id' => $tourId
+                    ]);
+                    // Continue without failing the tour creation
+                    $tour->additionalguest = null;
+                }
+            }
             $tour->save();
 
             $thisTour = Tour::where('tour_id', $tour->tour_id)->first();
@@ -2601,44 +2668,135 @@ class SingleTourPackageController extends Controller
 
             if($zone_status == 1){
                 
-                $actualFromZoneId = intval($this->getActualZoneId($fromZoneId, $fromZoneType, $dmcId));
-                $actualToZoneId = intval($this->getActualZoneId($toZoneId, $toZoneType, $dmcId));
+                $actualFromZoneId = $this->getActualZoneId($fromZoneId, $fromZoneType, $dmcId);
+                $actualToZoneId = $this->getActualZoneId($toZoneId, $toZoneType, $dmcId);
+                
+                // Convert to integers for database query (zone_id and port_id are integers)
+                // If conversion fails (e.g., hotel_unique_id), log and skip query
+                $actualFromZoneIdInt = is_numeric($actualFromZoneId) ? intval($actualFromZoneId) : null;
+                $actualToZoneIdInt = is_numeric($actualToZoneId) ? intval($actualToZoneId) : null;
+                
+                if (!$actualFromZoneIdInt || !$actualToZoneIdInt) {
+                    \Log::warning('Invalid zone IDs for vehicle mapping query', [
+                        'from_zone_id' => $actualFromZoneId,
+                        'to_zone_id' => $actualToZoneId,
+                        'from_zone_type' => $fromZoneType,
+                        'to_zone_type' => $toZoneType
+                    ]);
+                    return response()->json([
+                        'success' => false,
+                        'message' => 'Unable to determine valid zone IDs for the selected locations',
+                        'vehicles' => []
+                    ]);
+                }
+                
+                // Use integer zone IDs for query
+                $actualFromZoneId = $actualFromZoneIdInt;
+                $actualToZoneId = $actualToZoneIdInt;
 
-                $vehicleMappings = VehicleZoneMapping::whereIn('from_zone_id', [$actualFromZoneId, $actualToZoneId])
-                ->whereIn('to_zone_id', [$actualToZoneId, $actualFromZoneId])
+                // Normalize zone types to match database format
+                // Database stores: "Port", "Hotel", "Attraction", "Restaurant"
+                $normalizedFromZoneType = $fromZoneType ? ucfirst(strtolower($fromZoneType)) : null;
+                $normalizedToZoneType = $toZoneType ? ucfirst(strtolower($toZoneType)) : null;
+                
+                // Handle "Port" vs "port" - ensure it's "Port" in database
+                if ($normalizedFromZoneType === 'Port') {
+                    $normalizedFromZoneType = 'Port';
+                }
+                if ($normalizedToZoneType === 'Port') {
+                    $normalizedToZoneType = 'Port';
+                }
+
+                // Get vehicle mappings for both directions (bidirectional) with zone type matching
+                $vehicleMappings = VehicleZoneMapping::where(function($query) use ($actualFromZoneId, $actualToZoneId, $normalizedFromZoneType, $normalizedToZoneType) {
+                    // Original direction: from -> to
+                    $query->where(function($q) use ($actualFromZoneId, $actualToZoneId, $normalizedFromZoneType, $normalizedToZoneType) {
+                        $q->where('from_zone_id', $actualFromZoneId)
+                          ->where('to_zone_id', $actualToZoneId);
+                        // Add zone type filters if provided
+                        if ($normalizedFromZoneType) {
+                            $q->where('from_zone_type', $normalizedFromZoneType);
+                        }
+                        if ($normalizedToZoneType) {
+                            $q->where('to_zone_type', $normalizedToZoneType);
+                        }
+                    })
+                    // Reverse direction: to -> from (swapped)
+                    ->orWhere(function($q) use ($actualFromZoneId, $actualToZoneId, $normalizedFromZoneType, $normalizedToZoneType) {
+                        $q->where('from_zone_id', $actualToZoneId)
+                          ->where('to_zone_id', $actualFromZoneId);
+                        // Add zone type filters (swapped for reverse direction)
+                        if ($normalizedToZoneType) {
+                            $q->where('from_zone_type', $normalizedToZoneType);
+                        }
+                        if ($normalizedFromZoneType) {
+                            $q->where('to_zone_type', $normalizedFromZoneType);
+                        }
+                    });
+                })
                 ->get();
-                $vehicles = $vehicleMappings->load(['vehicle', 'fromZone', 'toZone'])
-                    ->map(function ($mapping) {
+                
+                // Map vehicles with zone mapping prices and deduplicate by vehicle_id
+                $vehiclesMap = [];
+                $vehicleMappings->load(['vehicle', 'fromZone', 'toZone'])
+                    ->each(function ($mapping) use (&$vehiclesMap) {
                         $vehicle = $mapping->vehicle;
                         if (!$vehicle) {
-                            return null;
+                            return;
                         }
-                        return [
-                            'vehicle_id' => $vehicle->vehicle_id,
-                            'vehicle_name' => $vehicle->vehicle_name,
-                            'vehicle_type' => $vehicle->vehicle_type,
-                            'seating_capacity' => $vehicle->seating_capacity,
-                            'vehicle_model' => $vehicle->vehicle_model,
-                            'image' => $vehicle->image,
-                            'base_price' => $vehicle->base_price,
-                            'sharable_base_price' => $vehicle->sharable_base_price,
-                            'service_type' => $vehicle->service_type,
-                            'sharable' => $vehicle->sharable,
-                            'from_zone' => $mapping->fromZone->zone_name ?? '',
-                            'to_zone' => $mapping->toZone->zone_name ?? '',
-                            'mapping_id' => $mapping->mapping_id,
-                            // ✅ Zone mapping prices
-                            'private_price' => $mapping->private_price,
-                            'shared_price' => $mapping->shared_price,
-                            // Additional fields for consistency
-                            'dmc_id' => $vehicle->dmc_id,
-                            'city' => $vehicle->city,
-                            'country' => $vehicle->country,
-                            'model_year' => $vehicle->model_year,
-                        ];
+                        
+                        $vehicleId = $vehicle->vehicle_id;
+                        
+                        // Only add vehicle if not already added, or if this mapping has better prices
+                        if (!isset($vehiclesMap[$vehicleId])) {
+                            $vehiclesMap[$vehicleId] = [
+                                'vehicle_id' => $vehicle->vehicle_id,
+                                'vehicle_name' => $vehicle->vehicle_name,
+                                'vehicle_type' => $vehicle->vehicle_type,
+                                'seating_capacity' => $vehicle->seating_capacity,
+                                'vehicle_model' => $vehicle->vehicle_model,
+                                'image' => $vehicle->image,
+                                'base_price' => $vehicle->base_price,
+                                'sharable_base_price' => $vehicle->sharable_base_price,
+                                'service_type' => $vehicle->service_type,
+                                'sharable' => $vehicle->sharable,
+                                'from_zone' => $mapping->fromZone->zone_name ?? '',
+                                'to_zone' => $mapping->toZone->zone_name ?? '',
+                                'mapping_id' => $mapping->mapping_id,
+                                // ✅ Zone mapping prices - use mapping prices
+                                'private_price' => $mapping->private_price ?? 0,
+                                'shared_price' => $mapping->shared_price ?? 0,
+                                // Additional fields for consistency
+                                'dmc_id' => $vehicle->dmc_id,
+                                'city' => $vehicle->city,
+                                'country' => $vehicle->country,
+                                'model_year' => $vehicle->model_year,
+                            ];
+                        } else {
+                            // If vehicle already exists, update prices if current mapping has better prices
+                            // Prefer mapping with non-zero prices
+                            $currentPrivatePrice = $vehiclesMap[$vehicleId]['private_price'] ?? 0;
+                            $currentSharedPrice = $vehiclesMap[$vehicleId]['shared_price'] ?? 0;
+                            $newPrivatePrice = $mapping->private_price ?? 0;
+                            $newSharedPrice = $mapping->shared_price ?? 0;
+                            
+                            // Update if new mapping has prices and current doesn't, or if both have prices, keep the first one
+                            if (($newPrivatePrice > 0 && $currentPrivatePrice == 0) || 
+                                ($newSharedPrice > 0 && $currentSharedPrice == 0)) {
+                                $vehiclesMap[$vehicleId]['private_price'] = $newPrivatePrice;
+                                $vehiclesMap[$vehicleId]['shared_price'] = $newSharedPrice;
+                                $vehiclesMap[$vehicleId]['mapping_id'] = $mapping->mapping_id;
+                            }
+                        }
+                    });
+                
+                // Convert map to array and filter out vehicles without prices
+                $vehicles = collect($vehiclesMap)
+                    ->filter(function($vehicle) {
+                        // Only include vehicles that have at least one price (private or shared)
+                        return ($vehicle['private_price'] > 0 || $vehicle['shared_price'] > 0);
                     })
-                ->filter()
-                ->values();
+                    ->values();
             }
             else{
                 $vehicles = Vehicle::select('vehicle_id', 'vehicle_name', 'vehicle_type', 'seating_capacity', 'vehicle_model', 'image', 'base_price', 'sharable_base_price', 'service_type', 'sharable', 'dmc_id', 'city', 'country', 'model_year')
@@ -2749,7 +2907,7 @@ class SingleTourPackageController extends Controller
             case 'port':
                 case 'Port':
                 // For ports, get the port_id
-                $port = Port::where('id', $locationId)->first();
+                $port = Port::where('port_id', $locationId)->first();
                 return $port ? $port->port_id : $locationId;
                 
             case 'attraction':
@@ -2763,9 +2921,13 @@ class SingleTourPackageController extends Controller
                 
             case 'hotel':
                 case 'Hotel':
-                // For hotels, use hotel_unique_id directly
+                // For hotels, get the zone_id for the specific DMC
                 $hotel = Hotel::where('hotel_unique_id', $locationId)->first();
-                return $hotel->getZoneForDmc($dmcId);
+                if ($hotel && $dmcId) {
+                    $zoneId = $hotel->getZoneForDmc($dmcId);
+                    return $zoneId ? $zoneId : $locationId;
+                }
+                return $locationId;
                 
             case 'restaurant':
                 case 'Restaurant':
@@ -3232,6 +3394,50 @@ class SingleTourPackageController extends Controller
                                 // Ensure attraction has proper price field (use totalPrice from frontend calculation)
                                 $attraction['price'] = $attraction['totalPrice'] ?? $attraction['price'] ?? 0;
                                 
+                                // Process transfer_options if it exists
+                                if (isset($attraction['transfer_options']) && is_array($attraction['transfer_options']) && !empty($attraction['transfer_options'])) {
+                                    $transferOptions = &$attraction['transfer_options'];
+                                    
+                                    // Process vehicle_id and fetch vehicle name from DB
+                                    if (isset($transferOptions['vehicle_id']) && !empty($transferOptions['vehicle_id'])) {
+                                        $vehicleId = $transferOptions['vehicle_id'];
+                                        
+                                        // Fetch vehicle from DB using vehicle_id
+                                        $vehicle = Vehicle::where('vehicle_id', $vehicleId)->first();
+                                        
+                                        if ($vehicle && $vehicle->vehicle_name) {
+                                            // Overwrite vehicle_name with value from DB
+                                            $transferOptions['vehicle_name'] = $vehicle->vehicle_name;
+                                            
+                                            // Also update vehicle_details if it exists
+                                            if (isset($transferOptions['vehicle_details']) && is_array($transferOptions['vehicle_details'])) {
+                                                $transferOptions['vehicle_details']['vehicle_name'] = $vehicle->vehicle_name;
+                                            }
+                                        }
+                                    }
+                                    
+                                    // Ensure type (Private/Shared) is normalized
+                                    if (isset($transferOptions['type']) && !empty($transferOptions['type'])) {
+                                        $typeValue = trim($transferOptions['type']);
+                                        $typeLower = strtolower($typeValue);
+                                        
+                                        if (in_array($typeLower, ['private', 'shared', 'sic'])) {
+                                            $transferOptions['type'] = ucfirst($typeLower);
+                                        } else {
+                                            // Map common variations
+                                            $typeMap = [
+                                                'sharable' => 'Shared',
+                                                'shareable' => 'Shared',
+                                                'share' => 'Shared',
+                                            ];
+                                            $transferOptions['type'] = $typeMap[$typeLower] ?? 'Private';
+                                        }
+                                    } else {
+                                        // Default to Private if type is missing
+                                        $transferOptions['type'] = 'Private';
+                                    }
+                                }
+                                
                                 // Generate new booking ID for each attraction
                                 $newAttractionBookingId = $this->getNextBookingId();
                                 
@@ -3262,6 +3468,50 @@ class SingleTourPackageController extends Controller
                         } elseif ($type === 'restaurant') {
                             // For restaurants, store each restaurant as a separate order
                             foreach ($decodedData as $restaurant) {
+                                // Process transfer_options if it exists
+                                if (isset($restaurant['transfer_options']) && is_array($restaurant['transfer_options']) && !empty($restaurant['transfer_options'])) {
+                                    $transferOptions = &$restaurant['transfer_options'];
+                                    
+                                    // Process vehicle_id and fetch vehicle name from DB
+                                    if (isset($transferOptions['vehicle_id']) && !empty($transferOptions['vehicle_id'])) {
+                                        $vehicleId = $transferOptions['vehicle_id'];
+                                        
+                                        // Fetch vehicle from DB using vehicle_id
+                                        $vehicle = Vehicle::where('vehicle_id', $vehicleId)->first();
+                                        
+                                        if ($vehicle && $vehicle->vehicle_name) {
+                                            // Overwrite vehicle_name with value from DB
+                                            $transferOptions['vehicle_name'] = $vehicle->vehicle_name;
+                                            
+                                            // Also update vehicle_details if it exists
+                                            if (isset($transferOptions['vehicle_details']) && is_array($transferOptions['vehicle_details'])) {
+                                                $transferOptions['vehicle_details']['vehicle_name'] = $vehicle->vehicle_name;
+                                            }
+                                        }
+                                    }
+                                    
+                                    // Ensure type (Private/Shared) is normalized
+                                    if (isset($transferOptions['type']) && !empty($transferOptions['type'])) {
+                                        $typeValue = trim($transferOptions['type']);
+                                        $typeLower = strtolower($typeValue);
+                                        
+                                        if (in_array($typeLower, ['private', 'shared', 'sic'])) {
+                                            $transferOptions['type'] = ucfirst($typeLower);
+                                        } else {
+                                            // Map common variations
+                                            $typeMap = [
+                                                'sharable' => 'Shared',
+                                                'shareable' => 'Shared',
+                                                'share' => 'Shared',
+                                            ];
+                                            $transferOptions['type'] = $typeMap[$typeLower] ?? 'Private';
+                                        }
+                                    } else {
+                                        // Default to Private if type is missing
+                                        $transferOptions['type'] = 'Private';
+                                    }
+                                }
+                                
                                 // Generate new booking ID for each restaurant
                                 $newRestaurantBookingId = $this->getNextBookingId();
                                 

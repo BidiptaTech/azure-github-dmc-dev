@@ -1097,7 +1097,11 @@ class BookingListController extends Controller
                     'address' => ($agency && $agency->address) ? $agency->address : '',
                     'contact_person' => ($agency && $agency->contact_person) ? $agency->contact_person : ($agent->name ?? ''),
                     'phone' => ($agency && $agency->phone) ? $agency->phone : ($agent->phone ?? ''),
-                    'email' => ($agency && $agency->email) ? $agency->email : ($agent->email ?? '')
+                    'email' => ($agency && $agency->email) ? $agency->email : ($agent->email ?? ''),
+                    'agent_name' => ($agent->name ?? ''),
+                    'agent_phone' => ($agent->phone ?? ''),
+                    'agent_email' => ($agent->email ?? ''),
+                    'agent_address' => ($agent->address ?? ''),
                 ];
             }
         }
@@ -1373,6 +1377,7 @@ class BookingListController extends Controller
     {
         // Initialize return values
         $vehicleNumber = 'N/A';
+        $vehicleName = 'N/A';
         $maxPassengerCapacity = 'N/A';
         $driverName = 'N/A';
         $driverPhone = 'N/A';
@@ -1401,6 +1406,7 @@ class BookingListController extends Controller
             $vehicle = \App\Models\Vehicle::where('vehicle_id', $vehicleId)->first();
             if ($vehicle) {
                 $vehicleNumber = $vehicle->vehicle_plate_no ?? 'N/A';
+                $vehicleName = $vehicle->vehicle_name ?? 'N/A';
                 $maxPassengerCapacity = $vehicle->seating_capacity ?? $vehicle->max_passenger_capacity ?? 'N/A';
                 
                 // If driver_id not from jobsheet, get from vehicle
@@ -1422,6 +1428,7 @@ class BookingListController extends Controller
         
         return [
             'vehicleNumber' => $vehicleNumber,
+            'vehicleName' => $vehicleName,
             'maxPassengerCapacity' => $maxPassengerCapacity,
             'driverName' => $driverName,
             'driverPhone' => $driverPhone
@@ -1436,6 +1443,7 @@ class BookingListController extends Controller
     {
         // Initialize return values
         $vehicleNumber = 'N/A';
+        $vehicleName = 'N/A';
         $maxPassengerCapacity = 'N/A';
         $driverName = 'N/A';
         $driverPhone = 'N/A';
@@ -1446,6 +1454,7 @@ class BookingListController extends Controller
         if (!$firstItem) {
             return [
                 'vehicleNumber' => $vehicleNumber,
+                'vehicleName' => $vehicleName,
                 'maxPassengerCapacity' => $maxPassengerCapacity,
                 'driverName' => $driverName,
                 'driverPhone' => $driverPhone
@@ -1457,6 +1466,7 @@ class BookingListController extends Controller
         if (!$transferRequired) {
             return [
                 'vehicleNumber' => $vehicleNumber,
+                'vehicleName' => $vehicleName,
                 'maxPassengerCapacity' => $maxPassengerCapacity,
                 'driverName' => $driverName,
                 'driverPhone' => $driverPhone
@@ -1483,6 +1493,7 @@ class BookingListController extends Controller
             $vehicle = \App\Models\Vehicle::where('vehicle_id', $vehicleId)->first();
             if ($vehicle) {
                 $vehicleNumber = $vehicle->vehicle_plate_no ?? 'N/A';
+                $vehicleName = $vehicle->vehicle_name ?? 'N/A';
                 $maxPassengerCapacity = $vehicle->seating_capacity ?? $vehicle->max_passenger_capacity ?? 'N/A';
                 
                 // If driver_id not from jobsheet, get from vehicle
@@ -1503,6 +1514,7 @@ class BookingListController extends Controller
         
         return [
             'vehicleNumber' => $vehicleNumber,
+            'vehicleName' => $vehicleName,
             'maxPassengerCapacity' => $maxPassengerCapacity,
             'driverName' => $driverName,
             'driverPhone' => $driverPhone
@@ -1517,6 +1529,7 @@ class BookingListController extends Controller
     {
         // Initialize return values
         $vehicleNumber = 'N/A';
+        $vehicleName = 'N/A';
         $maxPassengerCapacity = 'N/A';
         $driverName = 'N/A';
         $driverPhone = 'N/A';
@@ -1527,6 +1540,7 @@ class BookingListController extends Controller
         if (!$firstItem) {
             return [
                 'vehicleNumber' => $vehicleNumber,
+                'vehicleName' => $vehicleName,
                 'maxPassengerCapacity' => $maxPassengerCapacity,
                 'driverName' => $driverName,
                 'driverPhone' => $driverPhone
@@ -1538,6 +1552,7 @@ class BookingListController extends Controller
         if (!$transferRequired) {
             return [
                 'vehicleNumber' => $vehicleNumber,
+                'vehicleName' => $vehicleName,
                 'maxPassengerCapacity' => $maxPassengerCapacity,
                 'driverName' => $driverName,
                 'driverPhone' => $driverPhone
@@ -1564,6 +1579,7 @@ class BookingListController extends Controller
             $vehicle = \App\Models\Vehicle::where('vehicle_id', $vehicleId)->first();
             if ($vehicle) {
                 $vehicleNumber = $vehicle->vehicle_plate_no ?? 'N/A';
+                $vehicleName = $vehicle->vehicle_name ?? 'N/A';
                 $maxPassengerCapacity = $vehicle->seating_capacity ?? $vehicle->max_passenger_capacity ?? 'N/A';
                 
                 // If driver_id not from jobsheet, get from vehicle
@@ -1584,6 +1600,7 @@ class BookingListController extends Controller
         
         return [
             'vehicleNumber' => $vehicleNumber,
+            'vehicleName' => $vehicleName,
             'maxPassengerCapacity' => $maxPassengerCapacity,
             'driverName' => $driverName,
             'driverPhone' => $driverPhone
