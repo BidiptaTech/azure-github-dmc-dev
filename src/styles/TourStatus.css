@@ -1,0 +1,226 @@
+.tour-status-container {
+  font-family: Arial, sans-serif;
+  width: 100%; 
+  max-width: 100%; 
+  margin: 20px auto;
+  padding: 20px;
+  margin-top: -20px;
+ 
+}
+
+
+.range-box {
+  margin-top: 20px;
+  padding: 15px;
+  /* background-color: #e7f5ff;
+  border: 1px solid #b3d9ff;
+  border-radius: 4px; */
+  text-align: center;
+  
+}
+
+.boxes-container {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  justify-content: center; 
+}
+
+.number-box {
+  width: calc(100% / 10 - 10px); /* 15 boxes per row with gaps */
+  height: 50px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 12px;
+  font-weight: bold;
+  color: rgb(25, 24, 24);
+  background-color: white;
+  border: 1px solid #007bff;
+  border-radius: 4px;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+  text-align: center;
+  line-height: 1.4;
+}
+
+/* Media Queries for Responsiveness */
+
+/* Small Screens (Mobile Phones) */
+@media (max-width: 576px) {
+  .tour-status-container {
+    padding: 15px;
+  }
+
+  .number-box {
+    width: calc(100% / 4 - 10px); /* 4 boxes per row for mobile */
+    font-size: 10px;
+    height: 45px;
+  }
+}
+
+/* Medium Screens (Tablets) */
+@media (min-width: 577px) and (max-width: 768px) {
+  .tour-status-container {
+    padding: 20px;
+  }
+
+  .number-box {
+    width: calc(100% / 6 - 10px); /* 6 boxes per row for tablets */
+    font-size: 11px;
+    height: 50px;
+  }
+}
+
+/* Large Screens (Desktops) */
+@media (min-width: 769px) {
+  .tour-status-container {
+    padding: 20px;
+  }
+
+  .number-box {
+    width: calc(100% / 10 - 10px); /* 10 boxes per row for larger screens */
+    font-size: 12px;
+    height: 50px;
+  }
+}
+
+/* Extra Large Screens (Wide Desktops) */
+@media (min-width: 1200px) {
+  .number-box {
+    width: calc(100% / 12 - 10px); /* 12 boxes per row for very large screens */
+    font-size: 14px;
+    height: 60px;
+  }
+}
+
+
+
+
+
+.tour-status-container {
+  font-family: Arial, sans-serif;
+  width: 100%;
+  max-width: 100%;
+  margin: 20px auto;
+  padding: 20px;
+  margin-top: -20px;
+}
+
+.range-box {
+  margin-top: 20px;
+  padding: 15px;
+  text-align: center;
+}
+
+.boxes-container {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  justify-content: center;
+}
+
+.number-box {
+  width: calc(100% / 10 - 10px);
+  height: 50px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  font-size: 12px;
+  font-weight: bold;
+  color: rgb(25, 24, 24);
+  background-color: white;
+  border: 1px solid #007bff;
+  border-radius: 4px;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+  text-align: center;
+  line-height: 1.4;
+}
+
+.sub-box-container {
+  display: flex;
+  flex-direction: row; /* Change to row to display in one horizontal line */
+  gap: 10px; /* Space between sub-boxes */
+  justify-content: center;
+  margin-top: 10px; /* Space between the main box and the sub-boxes */
+}
+
+.sub-box {
+  width: 50px;
+  height: 50px;
+  background-color: rgb(255, 255, 255);
+  border: 1px solid #007bff;
+  border-radius: 4px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 10px;
+}
+
+/* Media Queries for Responsiveness */
+
+/* Small Screens (Mobile Phones) */
+@media (max-width: 576px) {
+  .tour-status-container {
+    padding: 15px;
+  }
+
+  .number-box {
+    width: calc(100% / 4 - 10px);
+    font-size: 10px;
+    height: 45px;
+  }
+
+  .sub-box {
+    font-size: 8px;
+    width: 40px; /* Adjust sub-box width for mobile */
+    height: 40px; /* Adjust sub-box height for mobile */
+  }
+}
+
+/* Medium Screens (Tablets) */
+@media (min-width: 577px) and (max-width: 768px) {
+  .tour-status-container {
+    padding: 20px;
+  }
+
+  .number-box {
+    width: calc(100% / 6 - 10px);
+    font-size: 11px;
+    height: 50px;
+  }
+
+  .sub-box {
+    font-size: 9px;
+    width: 45px; /* Adjust sub-box width for tablets */
+    height: 45px; /* Adjust sub-box height for tablets */
+  }
+}
+
+/* Large Screens (Desktops) */
+@media (min-width: 769px) {
+  .tour-status-container {
+    padding: 20px;
+  }
+
+  .number-box {
+    width: calc(100% / 10 - 10px);
+    font-size: 12px;
+    height: 50px;
+  }
+
+  .sub-box {
+    font-size: 10px;
+    width: 50px; /* Keep sub-box width consistent */
+    height: 50px; /* Keep sub-box height consistent */
+  }
+}
+
+.react-tooltip {
+  background-color: rgba(0, 0, 0, 0.8); /* Dark background */
+  color: white;
+  padding: 5px;
+  border-radius: 4px;
+  font-size: 12px;
+  text-align: center;
+}
