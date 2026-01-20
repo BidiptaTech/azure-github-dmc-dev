@@ -3445,7 +3445,7 @@
                                 </div>
                             </div>
 
-                            <!-- Service Schedule & Group Information -->
+                            <!-- Service Schedule & Passenger Information -->
                             <div class="row mb-4">
                                 <div class="col-md-6">
                                     <div class="bg-white rounded p-3 shadow-sm h-100">
@@ -3475,13 +3475,13 @@
                                         </div>
                                     </div>
                                 </div>
-                                <!-- <div class="col-md-6">
+                                <div class="col-md-6">
                                     <div class="bg-white rounded p-3 shadow-sm h-100">
                                         <div class="d-flex align-items-center mb-3">
                                             <div class="bg-success rounded-circle p-2 me-3">
                                                 <i class="ri-group-line text-white"></i>
                                             </div>
-                                            <h6 class="fw-bold mb-0 text-dark">Group Information</h6>
+                                            <h6 class="fw-bold mb-0 text-dark">Passenger Information</h6>
                                         </div>
                                         <div class="row">
                                             <div class="col-md-6 mb-3">
@@ -3492,17 +3492,17 @@
                                                 <small class="text-muted">Children</small>
                                                 <div class="fw-medium">{{ $booking['children'] ?? 0 }}</div>
                                             </div>
-                                            <div class="col-md-6 mb-3">
+                                            <div class="col-md-12 mb-0">
                                                 <small class="text-muted">Total Guests</small>
-                                                <span class="badge bg-primary">{{ ($booking['adults'] ?? 0) + ($booking['children'] ?? 0) }}</span>
-                                            </div>
-                                            <div class="col-md-6 mb-3">
-                                                <small class="text-muted">Service Hours</small>
-                                                <div class="fw-medium text-muted small">{{ $booking['Night_Start_Time'] ?? 'N/A' }} - {{ $booking['Night_End_Time'] ?? 'N/A' }}</div>
+                                                <div class="fw-medium">
+                                                    <span class="badge bg-primary">
+                                                        {{ ($booking['adults'] ?? 0) + ($booking['children'] ?? 0) }} Passenger{{ (($booking['adults'] ?? 0) + ($booking['children'] ?? 0)) == 1 ? '' : 's' }}
+                                                    </span>
+                                                </div>
                                             </div>
                                         </div>
                                     </div>
-                                </div> -->
+                                </div>
                             </div>
 
                             <!-- Route Details -->
