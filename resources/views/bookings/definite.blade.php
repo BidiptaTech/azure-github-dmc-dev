@@ -2678,37 +2678,37 @@
                                                 <div class="alert alert-success mb-0 py-1 px-2" style="border-radius: 6px; font-size: 0.75rem;">
                                                     <i class="ri-check-circle-fill me-1" style="font-size: 0.7rem;"></i>
                                                     <strong>Approved</strong>
-                                                    @if($guideOrder->reference_id)
+                                                     @if($guideOrder->reference_id)
                                                         <span class="ms-1">• Ref: {{ $guideOrder->reference_id }}</span>
-                                                    @endif
-                                                    @if($guideOrder->display_due_date)
+                                                     @endif
+                                                     @if($guideOrder->display_due_date)
                                                         <span class="ms-1">• Due: {{ \Carbon\Carbon::parse($guideOrder->display_due_date)->format('d-m-Y') }}</span>
-                                                    @endif
-                                                </div>
-                                            @else
-                                                @if(auth()->user()->role_id == 11 || auth()->user()->role_id == 34 || auth()->user()->role_id == 33 || auth()->user()->role_id == 37 || auth()->user()->role_id == 38 || auth()->user()->role_id == 124 || auth()->user()->role_id == 125 || auth()->user()->role_id == 128 || auth()->user()->role_id == 129 || auth()->user()->role_id == 130 || auth()->user()->role_id == 131 || auth()->user()->role_id == 132 || auth()->user()->role_id == 134 || auth()->user()->role_id == 135 || auth()->user()->role_id == 136 || auth()->user()->role_id == 137 || auth()->user()->role_id == 138)
+                                                     @endif
+                                                 </div>
+                                             @else
+                                                 @if(auth()->user()->role_id == 11 || auth()->user()->role_id == 34 || auth()->user()->role_id == 33 || auth()->user()->role_id == 37 || auth()->user()->role_id == 38 || auth()->user()->role_id == 124 || auth()->user()->role_id == 125 || auth()->user()->role_id == 128 || auth()->user()->role_id == 129 || auth()->user()->role_id == 130 || auth()->user()->role_id == 131 || auth()->user()->role_id == 132 || auth()->user()->role_id == 134 || auth()->user()->role_id == 135 || auth()->user()->role_id == 136 || auth()->user()->role_id == 137 || auth()->user()->role_id == 138)
                                                 <div class="d-flex gap-1 flex-wrap">
-                                                    @if(auth()->user()->role_id == 11 || auth()->user()->role_id == 34 || auth()->user()->role_id == 124 || auth()->user()->role_id == 125 || auth()->user()->role_id == 128 || auth()->user()->role_id == 131 || auth()->user()->role_id == 132 || auth()->user()->role_id == 134 || auth()->user()->role_id == 135 || auth()->user()->role_id == 137 || auth()->user()->role_id == 138)
-                                                    <button type="button" 
+                                                     @if(auth()->user()->role_id == 11 || auth()->user()->role_id == 34 || auth()->user()->role_id == 124 || auth()->user()->role_id == 125 || auth()->user()->role_id == 128 || auth()->user()->role_id == 131 || auth()->user()->role_id == 132 || auth()->user()->role_id == 134 || auth()->user()->role_id == 135 || auth()->user()->role_id == 137 || auth()->user()->role_id == 138)
+                                                     <button type="button" 
                                                             class="btn btn-sm px-2 py-1" 
-                                                            onclick="editIndividualGuide({{ $tour->tour_id }}, {{ $index }}, {{ $bookingIndex }})"
+                                                             onclick="editIndividualGuide({{ $tour->tour_id }}, {{ $index }}, {{ $bookingIndex }})"
                                                             style="border-radius: 6px; background: linear-gradient(135deg, #00cec9 0%, #55a3ff 100%); border: none; color: white; font-size: 0.75rem;">
                                                         <i class="ri-edit-line me-1" style="font-size: 0.7rem;"></i>Edit
-                                                    </button>
-                                                    @endif
-                                                    @if(auth()->user()->role_id == 11 || auth()->user()->role_id == 34 || auth()->user()->role_id == 33 || auth()->user()->role_id == 37 || auth()->user()->role_id == 38 || auth()->user()->role_id == 124 || auth()->user()->role_id == 125 || auth()->user()->role_id == 128 || auth()->user()->role_id == 129 || auth()->user()->role_id == 130 || auth()->user()->role_id == 131 || auth()->user()->role_id == 132 || auth()->user()->role_id == 134 || auth()->user()->role_id == 135 || auth()->user()->role_id == 136 || auth()->user()->role_id == 137 || auth()->user()->role_id == 138)
-                                                    <button type="button" 
+                                                     </button>
+                                                     @endif
+                                                     @if(auth()->user()->role_id == 11 || auth()->user()->role_id == 34 || auth()->user()->role_id == 33 || auth()->user()->role_id == 37 || auth()->user()->role_id == 38 || auth()->user()->role_id == 124 || auth()->user()->role_id == 125 || auth()->user()->role_id == 128 || auth()->user()->role_id == 129 || auth()->user()->role_id == 130 || auth()->user()->role_id == 131 || auth()->user()->role_id == 132 || auth()->user()->role_id == 134 || auth()->user()->role_id == 135 || auth()->user()->role_id == 136 || auth()->user()->role_id == 137 || auth()->user()->role_id == 138)
+                                                     <button type="button" 
                                                             class="btn btn-outline-danger btn-sm px-2 py-1" 
-                                                            onclick="rejectIndividualGuide({{ $tour->tour_id }}, {{ $index }}, {{ $bookingIndex }})"
+                                                             onclick="rejectIndividualGuide({{ $tour->tour_id }}, {{ $index }}, {{ $bookingIndex }})"
                                                             style="border-radius: 6px; font-size: 0.75rem;">
                                                         <i class="ri-close-line me-1" style="font-size: 0.7rem;"></i>Reject
-                                                    </button>
-                                                    @endif
-                                                </div>
+                                                     </button>
+                                                     @endif
+                                                 </div>
                                                 @else
                                                 <div class="text-muted small" style="font-size: 0.75rem;"><i class="ri-information-line me-1" style="font-size: 0.7rem;"></i>Pending approval</div>
-                                                @endif
-                                            @endif
+                                                 @endif
+                                             @endif
                                         </div>
                                     </div>
                                 </div>
@@ -2731,7 +2731,7 @@
                     <div class="d-flex gap-1 w-100 justify-content-end">
                         <button type="button" class="btn btn-outline-secondary btn-sm px-2 py-1" onclick="closeServiceModal('guide', {{ $tour->tour_id }})" style="border-radius: 6px; font-size: 0.75rem;">
                             <i class="ri-close-line me-1" style="font-size: 0.7rem;"></i>Close
-                        </button>
+                    </button>
                     </div>
                 </div>
             </div>
@@ -3963,11 +3963,11 @@
                                                     <small class="text-muted">Booking Type</small>
                                                     <span class="badge bg-primary">{{ ucfirst($booking['bookingType'] ?? 'Standard') }}</span>
                                                 </div> --}}
-                                            </div>
                                         </div>
                                     </div>
-                                  
                                 </div>
+
+                                        </div>
 
                               
 
@@ -4676,12 +4676,12 @@
                                                 <div class="col-12 mb-3">
                                                     <small class="text-muted">Booking Type</small>
                                                     <span class="badge bg-primary">{{ ucfirst($booking['bookingType'] ?? 'Standard') }}</span>
-                                                </div>
                                             </div>
                                         </div>
                                     </div>
-                                   
                                 </div>
+
+                                        </div>
 
                                
 
@@ -7910,7 +7910,7 @@ function createIndividualHotelViewModal(tourId, hotelOrderIndex, bookingIndex, a
                             </button>
                             <button type="button" class="btn btn-outline-secondary btn-sm px-3 py-1" onclick="closeIndividualHotelViewModal('${modalId}')" style="border-radius: 8px; font-size: 0.85rem;">
                                 <i class="ri-close-line me-1"></i>Close
-                            </button>
+                                </button>
                         </div>
                     </div>
                 </div>
@@ -9742,7 +9742,7 @@ function createIndividualRestaurantViewModal(tourId, restaurantOrderIndex, booki
                                     <h5 class="mb-0 fw-bold">
                                         <i class="ri-restaurant-2-line me-2"></i>Restaurant Details
                                     </h5>
-                                  
+                                    
                                 </div>
                                 <button type="button" class="btn-close btn-close-white" onclick="closeIndividualRestaurantViewModal('${modalId}')" aria-label="Close"></button>
                             </div>
@@ -9765,7 +9765,7 @@ function createIndividualRestaurantViewModal(tourId, restaurantOrderIndex, booki
                             <div class="d-flex gap-2 w-100 justify-content-end" id="restaurantModalFooter_${modalId}">
                                 <button type="button" class="btn btn-outline-secondary btn-sm px-3 py-1" onclick="closeIndividualRestaurantViewModal('${modalId}')" style="border-radius: 8px; font-size: 0.85rem;">
                                     <i class="ri-close-line me-1"></i>Close
-                                </button>
+                            </button>
                             </div>
                         </div>
                     </div>
@@ -9992,27 +9992,27 @@ function generateIndividualRestaurantContent(booking, tourId, restaurantOrderInd
                 <!-- Transfer Options -->
                 ${(booking.transferOptions || fullBooking.transfer_options) && (booking.transferOptions?.transfer_required || fullBooking.transfer_options?.transfer_required) && (booking.transferOptions?.transfer_required === true || booking.transferOptions?.transfer_required === 'true' || booking.transferOptions?.transfer_required === 'Yes' || booking.transferOptions?.transfer_required === 1 || fullBooking.transfer_options?.transfer_required === true || fullBooking.transfer_options?.transfer_required === 'true' || fullBooking.transfer_options?.transfer_required === 'Yes' || fullBooking.transfer_options?.transfer_required === 1) ? `
                 <div class="bg-light rounded p-2 mb-3">
-                    <div class="d-flex align-items-center mb-2">
+                                        <div class="d-flex align-items-center mb-2">
                         <div class="rounded-circle p-1 me-2" style="background: linear-gradient(135deg, #fd79a8 0%, #fdcb6e 100%); width: 28px; height: 28px; display: flex; align-items: center; justify-content: center;">
                             <i class="ri-car-line text-white" style="font-size: 0.9rem;"></i>
-                        </div>
+                                        </div>
                         <h6 class="fw-bold mb-0 text-dark" style="font-size: 0.95rem;">Transfer Details</h6>
-                    </div>
+                                        </div>
                     <div class="row g-2">
                         <div class="col-md-6">
                             <div class="bg-white rounded p-2">
                                 <small class="text-muted d-block" style="font-size: 0.7rem;">Transfer Type</small>
                                 <div class="fw-medium" style="font-size: 0.8rem;">
                                     <span class="badge bg-primary" style="font-size: 0.7rem;">${(booking.transferOptions?.type || fullBooking.transfer_options?.type) || 'N/A'}</span>
-                                </div>
+                                    </div>
                                 ${(booking.transferOptions?.pickup_location_name || fullBooking.transfer_options?.pickup_location_name) ? `
                                 <div class="mt-1">
                                     <small class="text-muted d-block" style="font-size: 0.7rem;">Pickup</small>
                                     <div class="fw-medium text-primary" style="font-size: 0.8rem;">${booking.transferOptions?.pickup_location_name || fullBooking.transfer_options?.pickup_location_name}</div>
-                                </div>
+                                        </div>
                                 ` : ''}
-                            </div>
-                        </div>
+                                    </div>
+                                </div>
                         <div class="col-md-6">
                             <div class="bg-white rounded p-2">
                                 ${(booking.transferOptions?.vehicle_details || fullBooking.transfer_options?.vehicle_details) ? `
@@ -10029,44 +10029,44 @@ function generateIndividualRestaurantContent(booking, tourId, restaurantOrderInd
                                 <div class="mt-1">
                                     <small class="text-muted d-block" style="font-size: 0.7rem;">Cost</small>
                                     <div class="fw-bold text-success" style="font-size: 0.9rem;">SGD ${((booking.transferOptions?.cost || fullBooking.transfer_options?.cost) || 0).toFixed(2)}</div>
-                                </div>
+                                                </div>
                                 ` : ''}
-                            </div>
-                        </div>
-                    </div>
-                </div>
+                                            </div>
+                                                </div>
+                                                </div>
+                                            </div>
                 ` : ''}
 
                 ${fullBooking.MealDescription && fullBooking.MealDescription.length > 0 ? `
              
                 ` : ''}
-
+                    
   <!-- Pricing Overview -->
                 <div class="bg-light rounded p-2 mb-3">
                     <div class="d-flex align-items-center mb-2">
                         <div class="rounded-circle p-1 me-2" style="background: linear-gradient(135deg, #fd79a8 0%, #fdcb6e 100%); width: 28px; height: 28px; display: flex; align-items: center; justify-content: center;">
                             <i class="ri-money-dollar-circle-line text-white" style="font-size: 0.9rem;"></i>
-                        </div>
+                                </div>
                         <h6 class="fw-bold mb-0 text-dark" style="font-size: 0.95rem;">Pricing Overview</h6>
-                    </div>
+                                    </div>
                     <div class="row g-2">
                         <div class="col-md-4">
                             <div class="text-center p-2 border rounded bg-white" style="border-color: #28a745 !important;">
                                 <small class="text-muted d-block" style="font-size: 0.7rem;">Meal Price</small>
                                 <div class="fw-bold text-success" style="font-size: 0.8rem;">SGD ${((fullBooking.totalPrice || booking.total_price || 0) + ((booking.transferOptions?.cost || fullBooking.transfer_options?.cost) || 0)).toFixed(2)}</div>
+                                </div>
                             </div>
-                        </div>
                         <div class="col-md-4">
                             <div class="text-center p-2 border rounded bg-white" style="border-color: #17a2b8 !important;">
                                 <small class="text-muted d-block" style="font-size: 0.7rem;">Vehicle Price</small>
                                 <div class="fw-bold text-info" style="font-size: 0.8rem;">SGD ${((booking.transferOptions?.cost || fullBooking.transfer_options?.cost) || 0).toFixed(2)}</div>
-                            </div>
                         </div>
+                    </div>
                         <div class="col-md-4">
                             <div class="text-center p-2 border rounded bg-white" style="border-color: #fd79a8 !important; background: linear-gradient(135deg, rgba(253,121,168,0.1) 0%, rgba(253,203,110,0.1) 100%) !important;">
                                 <small class="text-muted d-block" style="font-size: 0.7rem;">Grand Total</small>
                                 <div class="fw-bold" style="font-size: 1.1rem; color: #fd79a8;">SGD ${((fullBooking.totalPrice || booking.total_price || 0) + ((booking.transferOptions?.cost || fullBooking.transfer_options?.cost) || 0)).toFixed(2)}</div>
-                            </div>
+                </div>
                         </div>
                     </div>
                     <div class="mt-2 text-center">
@@ -10076,17 +10076,17 @@ function generateIndividualRestaurantContent(booking, tourId, restaurantOrderInd
                         </small>
                     </div>
                 </div>
-                
-                <!-- Booking Status -->
-                <div class="bg-light rounded p-1">
-                    <div class="d-flex align-items-center mb-1">
-                        <div class="rounded-circle p-1 me-1" style="background: linear-gradient(135deg, #fd79a8 0%, #fdcb6e 100%); width: 20px; height: 20px; display: flex; align-items: center; justify-content: center;">
-                            <i class="ri-settings-line text-white" style="font-size: 0.7rem;"></i>
+
+                 <!-- Individual Action Buttons -->
+                <div class="bg-white rounded p-3 shadow-sm border-top">
+                    <div class="d-flex align-items-center justify-content-between flex-wrap gap-3">
+                        <div class="d-flex align-items-center">
+                            <div class="bg-secondary rounded-circle p-2 me-3">
+                                <i class="ri-settings-line text-white"></i>
+                            </div>
+                            <h6 class="fw-bold mb-0 text-dark">Booking Actions</h6>
                         </div>
-                        <h6 class="fw-bold mb-0 text-dark" style="font-size: 0.8rem;">Booking Status</h6>
-                    </div>
-                    <div class="d-flex gap-1 flex-wrap" id="restaurant_buttons_${tourId}_${restaurantOrderIndex}_${bookingIndex}">
-                        <!-- Buttons will be dynamically added based on user role -->
+                        ${generateRestaurantActionButtons(booking, tourId, restaurantOrderIndex, bookingIndex, actualCancelDateStr)}
                     </div>
                 </div>
 
@@ -10139,69 +10139,69 @@ function generateIndividualRestaurantContent(booking, tourId, restaurantOrderInd
 
 // Generate restaurant action buttons based on approval status
 function generateRestaurantActionButtons(booking, tourId, restaurantOrderIndex, bookingIndex, actualCancelDateStr=null) {
-    const isApproved = booking.restaurant_details?.is_approve == 1 || booking.restaurant_details?.is_approve === '1' || booking.restaurant_details?.is_approve === true || booking.is_approve == 1 || booking.is_approve === '1' || booking.is_approve === true || false;
+    const isApproved = booking.restaurant_details?.is_approve || booking.is_approve || false;
     
     // Get user role from meta tag or global variable (assuming it's available)
     const userRole = parseInt(document.querySelector('meta[name="user-role"]')?.getAttribute('content')) || {{ auth()->user()->role_id ?? 0 }};
     
+    console.log('🍽️ Generating restaurant action buttons:', {
+        isApproved,
+        userRole,
+        canEdit: [11, 34, 124, 125, 128, 131, 132, 134, 135, 137, 138].includes(userRole),
+        canApprove: [11, 34, 124, 125, 128, 131, 132, 134, 135, 137, 138].includes(userRole),
+        canReject: [11, 34, 33, 37, 38, 124, 125, 128, 129, 130, 131, 132, 134, 135, 136, 137, 138].includes(userRole)
+    });
+    
     if (isApproved) {
-        const referenceId = booking.restaurant_details?.reference_id || booking.reference_id || '';
-        const displayDueDate = booking.restaurant_details?.display_due_date || booking.display_due_date || '';
         return `
-            <div class="alert alert-success mb-0 py-1 px-2" style="border-radius: 6px; font-size: 0.75rem;">
-                <i class="ri-check-circle-fill me-1" style="font-size: 0.7rem;"></i>
-                <strong>Approved</strong>
-                ${referenceId ? `<span class="ms-1">• Ref: ${referenceId}</span>` : ''}
-                ${displayDueDate ? `<span class="ms-1">• Due: ${displayDueDate}</span>` : ''}
+            <div class="d-flex align-items-center gap-3">
+                <div class="alert alert-success mb-0 py-2 px-3" style="border-radius: 25px;">
+                    <i class="ri-check-circle-fill me-1"></i>
+                    <small><strong>Approved Booking</strong></small>
+                    ${booking.reference_id ? `<br><small class="text-muted">Ref: ${booking.reference_id}</small>` : ''}
+                    ${booking.display_due_date ? `<br><small class="text-muted">Due: ${booking.display_due_date}</small>` : ''}
+                </div>
+                ${[11, 34, 124, 125, 128, 131, 132, 134, 135, 137, 138].includes(userRole) ? `
+                    <button type="button" class="btn btn-outline-primary btn-sm" 
+                            onclick="openRestaurantFilesModal('${tourId}', '${restaurantOrderIndex}', '${bookingIndex}')"
+                            title="View and manage uploaded files">
+                        <i class="ri-file-list-3-line me-1"></i>View Files
+                    </button>
+                ` : ''}
             </div>
         `;
     }
     
-    const canEdit = [11, 34, 124, 125, 128, 131, 132, 134, 135, 137, 138].includes(userRole);
-    const canApprove = [11, 34, 124, 125, 128, 131, 132, 134, 135, 137, 138].includes(userRole);
-    const canReject = [11, 34, 33, 37, 38, 124, 125, 128, 129, 130, 131, 132, 134, 135, 136, 137, 138].includes(userRole);
-    const hasAnyPermission = canEdit || canApprove || canReject;
-    
-    if (!hasAnyPermission) {
-        return '<div class="text-muted small" style="font-size: 0.75rem;"><i class="ri-information-line me-1" style="font-size: 0.7rem;"></i>Pending approval</div>';
+    if (![11, 34, 33, 37, 38, 124, 125, 128, 129, 130, 131, 132, 134, 135, 136, 137, 138].includes(userRole)) {
+        return '<div class="text-muted small"><i class="ri-information-line me-1"></i>No actions available for your role</div>';
     }
     
-    let buttonsHTML = '';
-    
-    if (canEdit) {
-        buttonsHTML += `
-            <button type="button" 
-                    class="btn btn-sm px-2 py-1" 
-                    onclick="editIndividualRestaurant(${tourId}, ${restaurantOrderIndex}, ${bookingIndex}, '${actualCancelDateStr || ''}')"
-                    style="border-radius: 6px; background: linear-gradient(135deg, #fd79a8 0%, #fdcb6e 100%); border: none; color: white; font-size: 0.75rem;">
-                <i class="ri-edit-line me-1" style="font-size: 0.7rem;"></i>Edit
-            </button>
-        `;
-    }
-    
-    if (canApprove) {
-        buttonsHTML += `
-            <button type="button" 
-                    class="btn btn-outline-success btn-sm px-2 py-1" 
-                    onclick="approveIndividualRestaurant(${tourId}, ${restaurantOrderIndex}, ${bookingIndex}, '${actualCancelDateStr || ''}')"
-                    style="border-radius: 6px; font-size: 0.75rem;">
-                <i class="ri-check-line me-1" style="font-size: 0.7rem;"></i>Approve
-            </button>
-        `;
-    }
-    
-    if (canReject) {
-        buttonsHTML += `
-            <button type="button" 
-                    class="btn btn-outline-danger btn-sm px-2 py-1" 
-                    onclick="rejectIndividualRestaurant(${tourId}, ${restaurantOrderIndex}, ${bookingIndex}, '${actualCancelDateStr || ''}')"
-                    style="border-radius: 6px; font-size: 0.75rem;">
-                <i class="ri-close-line me-1" style="font-size: 0.7rem;"></i>Reject
-            </button>
-        `;
-    }
-    
-    return `<div class="d-flex gap-1 flex-wrap">${buttonsHTML}</div>`;
+    return `
+        <div class="d-flex gap-2">
+            ${[11, 34, 124, 125, 128, 131, 132, 134, 135, 137, 138].includes(userRole) ? `
+                <button type="button" 
+                        class="btn btn-outline-primary btn-sm px-3 py-2" 
+                        onclick="editIndividualRestaurant(${tourId}, ${restaurantOrderIndex}, ${bookingIndex})"
+                        style="border-radius: 25px;">
+                    <i class="ri-edit-line me-1"></i>Edit
+                </button>
+                <button type="button" 
+                        class="btn btn-outline-success btn-sm px-3 py-2" 
+                        onclick="approveIndividualRestaurant(${tourId}, ${restaurantOrderIndex}, ${bookingIndex}, '${actualCancelDateStr}')"
+                        style="border-radius: 25px;">
+                    <i class="ri-check-line me-1"></i>Approve
+                </button>
+            ` : ''}
+            ${[11, 34, 33, 37, 38, 124, 125, 128, 129, 130, 131, 132, 134, 135, 136, 137, 138].includes(userRole) ? `
+                <button type="button" 
+                        class="btn btn-outline-danger btn-sm px-3 py-2" 
+                        onclick="rejectIndividualRestaurant(${tourId}, ${restaurantOrderIndex}, ${bookingIndex})"
+                        style="border-radius: 25px;">
+                    <i class="ri-close-line me-1"></i>Reject
+                </button>
+            ` : ''}
+        </div>
+    `;
 }
 
 let qrCodeLibraryPromise = null;
@@ -26816,30 +26816,30 @@ function confirmIndividualGuideRejection(tourId, guideOrderIndex, bookingIndex) 
 
 <!-- Attraction Files Management Modal -->
 <div class="modal fade" id="attractionFilesModal" tabindex="-1" aria-labelledby="attractionFilesModalLabel" aria-hidden="true" style="z-index: 1060;">
-    <div class="modal-dialog modal-xl">
-        <div class="modal-content" style="border-radius: 16px; border: none; box-shadow: 0 20px 60px rgba(0,0,0,0.15);">
-            <div class="modal-header" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); border-radius: 16px 16px 0 0; padding: 24px 32px; border: none;">
-                <h5 class="modal-title text-white fw-bold" id="attractionFilesModalLabel" style="font-size: 1.25rem;">
-                    <i class="ri-file-list-3-line me-2"></i>Manage Attraction Files
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content" style="border-radius: 8px; border: none; box-shadow: 0 20px 60px rgba(0,0,0,0.15);">
+            <div class="modal-header" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); border-radius: 8px 8px 0 0; padding: 8px 16px; border: none;">
+                <h5 class="modal-title text-white fw-bold" id="attractionFilesModalLabel" style="font-size: 0.9rem;">
+                    <i class="ri-file-list-3-line me-1"></i>Manage Attraction Files
                 </h5>
-                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close" style="filter: brightness(0) invert(1);"></button>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close" style="filter: brightness(0) invert(1); font-size: 0.75rem;"></button>
             </div>
-            <div class="modal-body" style="padding: 32px; background-color: #f8f9fa;">
+            <div class="modal-body" style="padding: 12px; background-color: #f8f9fa;">
                 <div id="attractionFilesContent">
-                    <div class="text-center py-5">
-                        <div class="spinner-border text-primary" role="status" style="width: 3rem; height: 3rem;">
+                    <div class="text-center py-2">
+                        <div class="spinner-border text-primary" role="status" style="width: 1.5rem; height: 1.5rem;">
                             <span class="visually-hidden">Loading...</span>
                         </div>
-                        <p class="mt-3 text-muted fw-medium">Loading files...</p>
+                        <p class="mt-2 text-muted fw-medium" style="font-size: 0.85rem;">Loading files...</p>
                     </div>
                 </div>
             </div>
-            <div class="modal-footer" style="padding: 24px 32px; background-color: #ffffff; border-radius: 0 0 16px 16px; border: none;">
-                <button type="button" class="btn btn-light px-4 py-2" data-bs-dismiss="modal" style="border-radius: 8px; font-weight: 500;">
+            <div class="modal-footer" style="padding: 8px 16px; background-color: #ffffff; border-radius: 0 0 8px 8px; border: none;">
+                <button type="button" class="btn btn-light px-2 py-1" data-bs-dismiss="modal" style="border-radius: 4px; font-weight: 500; font-size: 0.85rem;">
                     Close
                 </button>
-                <button type="button" class="btn btn-success px-4 py-2" id="saveAttractionFiles" onclick="saveAttractionChanges()" 
-                        style="display: none; border-radius: 8px; font-weight: 500;">
+                <button type="button" class="btn btn-success px-2 py-1" id="saveAttractionFiles" onclick="saveAttractionChanges()" 
+                        style="display: none; border-radius: 4px; font-weight: 500; font-size: 0.85rem;">
                     <i class="ri-save-line me-1"></i>Save Changes
                 </button>
             </div>
@@ -26849,30 +26849,30 @@ function confirmIndividualGuideRejection(tourId, guideOrderIndex, bookingIndex) 
 
 <!-- Restaurant Files Management Modal -->
 <div class="modal fade" id="restaurantFilesModal" tabindex="-1" aria-labelledby="restaurantFilesModalLabel" aria-hidden="true" style="z-index: 1060;">
-    <div class="modal-dialog modal-xl">
-        <div class="modal-content" style="border-radius: 16px; border: none; box-shadow: 0 20px 60px rgba(0,0,0,0.15);">
-            <div class="modal-header" style="background: linear-gradient(135deg, #fd9853 0%, #fe7854 100%); border-radius: 16px 16px 0 0; padding: 24px 32px; border: none;">
-                <h5 class="modal-title text-white fw-bold" id="restaurantFilesModalLabel" style="font-size: 1.25rem;">
-                    <i class="ri-restaurant-line me-2"></i>Manage Restaurant Files
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content" style="border-radius: 8px; border: none; box-shadow: 0 20px 60px rgba(0,0,0,0.15);">
+            <div class="modal-header" style="background: linear-gradient(135deg, #fd9853 0%, #fe7854 100%); border-radius: 8px 8px 0 0; padding: 8px 16px; border: none;">
+                <h5 class="modal-title text-white fw-bold" id="restaurantFilesModalLabel" style="font-size: 0.9rem;">
+                    <i class="ri-restaurant-line me-1"></i>Manage Restaurant Files
                 </h5>
-                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close" style="filter: brightness(0) invert(1);"></button>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close" style="filter: brightness(0) invert(1); font-size: 0.75rem;"></button>
             </div>
-            <div class="modal-body" style="padding: 32px; background-color: #f8f9fa;">
+            <div class="modal-body" style="padding: 12px; background-color: #f8f9fa;">
                 <div id="restaurantFilesContent">
-                    <div class="text-center py-5">
-                        <div class="spinner-border text-primary" role="status" style="width: 3rem; height: 3rem;">
+                    <div class="text-center py-2">
+                        <div class="spinner-border text-primary" role="status" style="width: 1.5rem; height: 1.5rem;">
                             <span class="visually-hidden">Loading...</span>
                         </div>
-                        <p class="mt-3 text-muted fw-medium">Loading files...</p>
+                        <p class="mt-2 text-muted fw-medium" style="font-size: 0.85rem;">Loading files...</p>
                     </div>
                 </div>
             </div>
-            <div class="modal-footer" style="padding: 24px 32px; background-color: #ffffff; border-radius: 0 0 16px 16px; border: none;">
-                <button type="button" class="btn btn-light px-4 py-2" data-bs-dismiss="modal" style="border-radius: 8px; font-weight: 500;">
+            <div class="modal-footer" style="padding: 8px 16px; background-color: #ffffff; border-radius: 0 0 8px 8px; border: none;">
+                <button type="button" class="btn btn-light px-2 py-1" data-bs-dismiss="modal" style="border-radius: 4px; font-weight: 500; font-size: 0.85rem;">
                     Close
                 </button>
-                <button type="button" class="btn btn-success px-4 py-2" id="saveRestaurantFiles" onclick="saveRestaurantChanges()" 
-                        style="display: none; border-radius: 8px; font-weight: 500;">
+                <button type="button" class="btn btn-success px-2 py-1" id="saveRestaurantFiles" onclick="saveRestaurantChanges()" 
+                        style="display: none; border-radius: 4px; font-weight: 500; font-size: 0.85rem;">
                     <i class="ri-save-line me-1"></i>Save Changes
                 </button>
             </div>
@@ -27000,7 +27000,7 @@ function displayAttractionFiles(data, tourId, attractionOrderIndex, bookingIndex
         ` : ''}
         
         <div class="row g-4">
-            <div class="col-md-6">
+            <div class="col-md-8">
                 <div class="bg-white rounded-3 shadow-sm p-4">
                     <div class="d-flex align-items-center mb-3">
                         <div class="bg-secondary bg-opacity-10 rounded-circle p-2 me-3">
@@ -27076,7 +27076,7 @@ function displayAttractionFiles(data, tourId, attractionOrderIndex, bookingIndex
                     </div>
                 </div>
             </div>
-            <div class="col-md-6">
+            <div class="col-md-4">
                 <div class="bg-white rounded-3 shadow-sm p-4">
                     <div class="d-flex align-items-center mb-3">
                         <div class="bg-success bg-opacity-10 rounded-circle p-2 me-3">
@@ -27546,7 +27546,7 @@ function displayRestaurantFiles(data, tourId, restaurantOrderIndex, bookingIndex
         ` : ''}
         
         <div class="row g-4">
-            <div class="col-md-6">
+            <div class="col-md-8">
                 <div class="bg-white rounded-3 shadow-sm p-4">
                     <div class="d-flex align-items-center mb-3">
                         <div class="bg-secondary bg-opacity-10 rounded-circle p-2 me-3">
@@ -27622,7 +27622,7 @@ function displayRestaurantFiles(data, tourId, restaurantOrderIndex, bookingIndex
                     </div>
                 </div>
             </div>
-            <div class="col-md-6">
+            <div class="col-md-4">
                 <div class="bg-white rounded-3 shadow-sm p-4">
                     <div class="d-flex align-items-center mb-3">
                         <div class="bg-success bg-opacity-10 rounded-circle p-2 me-3">
