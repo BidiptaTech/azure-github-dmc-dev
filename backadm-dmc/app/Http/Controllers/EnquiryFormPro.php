@@ -171,6 +171,15 @@ class EnquiryFormPro extends Controller
         
         $agencies = $agencyQuery->orderBy('agency_name', 'asc')->get();
         
+        // Log agency filtering results for debugging
+        \Log::info('EnquiryFormPro create() - Agencies loaded', [
+            'dmc_id' => $dmc_id,
+            'destination' => $initialData['destination_display'] ?? $destination,
+            'total_agencies' => $agencies->count(),
+            'agency_names' => $agencies->pluck('agency_name')->toArray(),
+            'agency_ids' => $agencies->pluck('agency_id')->toArray()
+        ]);
+        
         // Get country names for port filtering
         $countryNames = $countries->pluck('name')->toArray();
         
@@ -179,7 +188,7 @@ class EnquiryFormPro extends Controller
         if (!empty($countryNames)) {
             $portsQuery->whereIn('country', $countryNames);
         }
-        $ports = $portsQuery->get();
+        $ports = $portsQuery->select('port_id', 'port_name', 'type', 'country', 'city_id')->get();
         
         \Log::info('EnquiryFormPro create() - Ports loaded', [
             'filtered_by_countries' => $countryNames,
@@ -310,13 +319,25 @@ class EnquiryFormPro extends Controller
                 'restaurant_count' => count($restaurantIds)
             ]);
             
-            // Get guides for this DMC (include pricing for linked guides)
-            $guides = Guide::where('dmc_id', $dmc_id)
-                ->where('status', 1)
-                ->with('languages')
-                ->select('guide_id', 'name', 'city', 'twelve_hour_price', 'day_rate')
-                ->orderBy('name')
-                ->get();
+            // Get guides for this DMC only (include pricing for linked guides)
+            // Status 1 and 3 are both considered active guides
+            if ($dmc_id) {
+                $guides = Guide::where('dmc_id', $dmc_id)
+                    ->whereIn('status', [1, 3])
+                    ->with('languages')
+                    ->select('guide_id', 'name', 'city', 'twelve_hour_price', 'day_rate')
+                    ->orderBy('name')
+                    ->get();
+                
+                \Log::info('EnquiryFormPro create() - Guides loaded for arrival/departure', [
+                    'dmc_id' => $dmc_id,
+                    'guide_count' => $guides->count(),
+                    'guide_ids' => $guides->pluck('guide_id')->toArray(),
+                    'guide_names' => $guides->pluck('name')->toArray()
+                ]);
+            } else {
+                $guides = collect([]); // Empty collection if no DMC ID
+            }
             
             // Get hotels for this DMC
             $hotelsQuery = Hotel::where('status', 1)
@@ -353,7 +374,7 @@ class EnquiryFormPro extends Controller
             // Get vehicles for this DMC
             $vehicles = Vehicle::where('dmc_id', $dmc_id)
                 ->where('is_available', 1)
-                ->select('vehicle_id', 'vehicle_type', 'vehicle_name', 'seating_capacity', 'base_price', 'sharable_base_price')
+                ->select('vehicle_id', 'vehicle_type', 'vehicle_name', 'seating_capacity', 'base_price', 'sharable_base_price', 'sharable')
                 ->orderBy('vehicle_type')
                 ->get();
             
@@ -404,11 +425,18 @@ class EnquiryFormPro extends Controller
                 ->select('meal_id', 'restaurant_id', 'name', 'type', 'price', 'adult_price', 'child_price', 'meal_period')
                 ->get();
             
-            $guides = Guide::where('status', 1)
-                ->with('languages')
-                ->select('guide_id', 'name', 'city')
-                ->orderBy('name')
-                ->get();
+            // Get guides for this DMC only
+            // Status 1 and 3 are both considered active guides
+            if ($dmc_id) {
+                $guides = Guide::where('dmc_id', $dmc_id)
+                    ->whereIn('status', [1, 3])
+                    ->with('languages')
+                    ->select('guide_id', 'name', 'city')
+                    ->orderBy('name')
+                    ->get();
+            } else {
+                $guides = collect([]); // Empty collection if no DMC ID
+            }
             
             // Get all hotels (fallback)
             $hotels = Hotel::where('status', 1)
@@ -423,7 +451,7 @@ class EnquiryFormPro extends Controller
             
             // Get all vehicles (fallback)
             $vehicles = Vehicle::where('is_available', 1)
-                ->select('vehicle_id', 'vehicle_type', 'vehicle_name', 'seating_capacity', 'base_price', 'sharable_base_price')
+                ->select('vehicle_id', 'vehicle_type', 'vehicle_name', 'seating_capacity', 'base_price', 'sharable_base_price', 'sharable')
                 ->orderBy('vehicle_type')
                 ->get();
         }
@@ -434,7 +462,19 @@ class EnquiryFormPro extends Controller
             ->pluck('country.name', 'name')
             ->toArray();
         
-        return view('enquiryform_pro.create', compact('destination', 'agents', 'agencies', 'user', 'countries', 'ports', 'destinations', 'attractions', 'restaurants', 'initialData', 'meals', 'guides', 'dmc_id', 'hotels', 'vehicles', 'master_dmc_destinations', 'cityCountryMap'));
+        // Fetch default values for this DMC (6 types: hotel, restaurant, attraction, car_private, car_shared, port)
+        $defaultValues = [];
+        if ($dmc_id) {
+            $defaults = \App\Models\DefaultValue::where('dmc_id', $dmc_id)
+                ->where('status', 1)
+                ->get();
+            
+            foreach ($defaults as $default) {
+                $defaultValues[$default->name] = $default->service_id;
+            }
+        }
+        
+        return view('enquiryform_pro.create', compact('destination', 'agents', 'agencies', 'user', 'countries', 'ports', 'destinations', 'attractions', 'restaurants', 'initialData', 'meals', 'guides', 'dmc_id', 'hotels', 'vehicles', 'master_dmc_destinations', 'cityCountryMap', 'defaultValues'));
     }
     
     /**
@@ -551,6 +591,16 @@ class EnquiryFormPro extends Controller
         
         $agencies = $agencies->orderBy('agency_name', 'asc')
                            ->get(['agency_id', 'agency_name', 'country', 'dmc_id']);
+        
+        // Log agency filtering results for debugging
+        \Log::info('EnquiryFormPro getAgencies() - AJAX request', [
+            'dmc_id' => $dmc_id,
+            'user_id' => $user->userId,
+            'role_id' => $user->role_id,
+            'destinations' => $countryArray,
+            'total_agencies' => $agencies->count(),
+            'agency_names' => $agencies->pluck('agency_name')->toArray()
+        ]);
         
         return response()->json([
             'success' => true,
@@ -908,15 +958,21 @@ class EnquiryFormPro extends Controller
                 'created_by' => $user->created_by ?? null
             ]);
             
-            // Get guides for this DMC and destination
-            $guidesQuery = Guide::where('status', 1)
-                ->where('city', $destination);
-            
-            if ($dmc_id) {
-                $guidesQuery->where('dmc_id', $dmc_id);
+            // Get guides for this DMC and destination only
+            if (!$dmc_id) {
+                // If no DMC ID, return empty collection
+                return response()->json([
+                    'success' => true,
+                    'guides' => [],
+                    'count' => 0,
+                    'message' => 'No DMC ID found for this user'
+                ]);
             }
             
-            $guides = $guidesQuery
+            // Status 1 and 3 are both considered active guides
+            $guides = Guide::where('dmc_id', $dmc_id)
+                ->whereIn('status', [1, 3])
+                ->where('city', $destination)
                 ->with('languages')
                 ->select('guide_id', 'name', 'city', 'country', 'day_rate', 
                          'hourly_price', 'two_hour_price', 'four_hour_price', 
@@ -1995,6 +2051,7 @@ class EnquiryFormPro extends Controller
     /**
      * Get zone prices from vehicle_zone_mappings
      * Query: vehicle_id, (from_zone_id = pickupid AND to_zone_id = dropid) OR (from_zone_id = dropid AND to_zone_id = pickupid)
+     * Also checks from_zone_type and to_zone_type to match SingleTourPackageController logic
      */
     public function getZonePrices(Request $request)
     {
@@ -2002,6 +2059,8 @@ class EnquiryFormPro extends Controller
             $vehicleId = $request->input('vehicle_id');
             $pickupId = $request->input('pickup_id');
             $dropId = $request->input('drop_id');
+            $pickupType = $request->input('pickup_type'); // hotel, attraction, restaurant, port
+            $dropType = $request->input('drop_type'); // hotel, attraction, restaurant, port
             
             if (!$vehicleId || !$pickupId || !$dropId) {
                 return response()->json([
@@ -2010,15 +2069,65 @@ class EnquiryFormPro extends Controller
                 ], 400);
             }
             
+            // Map pickup and drop types to zone types (Hotel, Attraction, Restaurant, Port)
+            $fromZoneType = null;
+            if ($pickupType) {
+                $pickupTypeLower = strtolower($pickupType);
+                if ($pickupTypeLower === 'hotel') {
+                    $fromZoneType = 'Hotel';
+                } elseif ($pickupTypeLower === 'attraction') {
+                    $fromZoneType = 'Attraction';
+                } elseif ($pickupTypeLower === 'restaurant') {
+                    $fromZoneType = 'Restaurant';
+                } elseif ($pickupTypeLower === 'port') {
+                    $fromZoneType = 'Port';
+                }
+            }
+            
+            $toZoneType = null;
+            if ($dropType) {
+                $dropTypeLower = strtolower($dropType);
+                if ($dropTypeLower === 'hotel') {
+                    $toZoneType = 'Hotel';
+                } elseif ($dropTypeLower === 'attraction') {
+                    $toZoneType = 'Attraction';
+                } elseif ($dropTypeLower === 'restaurant') {
+                    $toZoneType = 'Restaurant';
+                } elseif ($dropTypeLower === 'port') {
+                    $toZoneType = 'Port';
+                }
+            }
+            
             // Query vehicle_zone_mappings with bidirectional check
+            // Match SingleTourPackageController logic: check zone_id AND zone_type, also check deleted_at
             $mapping = VehicleZoneMapping::where('vehicle_id', $vehicleId)
-                ->where(function($query) use ($pickupId, $dropId) {
-                    $query->where(function($q) use ($pickupId, $dropId) {
+                ->whereNull('deleted_at')
+                ->where(function($query) use ($pickupId, $dropId, $fromZoneType, $toZoneType) {
+                    // Case 1: from = pickup, to = drop
+                    $query->where(function($q) use ($pickupId, $dropId, $fromZoneType, $toZoneType) {
                         $q->where('from_zone_id', $pickupId)
                           ->where('to_zone_id', $dropId);
-                    })->orWhere(function($q) use ($pickupId, $dropId) {
+                        // Add zone type checks if provided
+                        if ($fromZoneType) {
+                            $q->where('from_zone_type', $fromZoneType);
+                        }
+                        if ($toZoneType) {
+                            $q->where('to_zone_type', $toZoneType);
+                        }
+                    })
+                    // Case 2: from = drop, to = pickup (bidirectional)
+                    ->orWhere(function($q) use ($pickupId, $dropId, $fromZoneType, $toZoneType) {
                         $q->where('from_zone_id', $dropId)
                           ->where('to_zone_id', $pickupId);
+                        // Swap zone types for bidirectional check
+                        if ($fromZoneType && $toZoneType) {
+                            $q->where('from_zone_type', $toZoneType)
+                              ->where('to_zone_type', $fromZoneType);
+                        } elseif ($toZoneType) {
+                            $q->where('from_zone_type', $toZoneType);
+                        } elseif ($fromZoneType) {
+                            $q->where('to_zone_type', $fromZoneType);
+                        }
                     });
                 })
                 ->first();
@@ -2077,8 +2186,8 @@ class EnquiryFormPro extends Controller
         // Clean up any duplicate orders for this tour before loading edit page
         $this->cleanupDuplicateOrders($tour_id);
         
-        // Get the tour
-        $tour = Tour::where('tour_id', $tour_id)->firstOrFail();
+        // Get the tour with agent relationship
+        $tour = Tour::with('agent')->where('tour_id', $tour_id)->firstOrFail();
         
         // Get all orders for this tour
         $orders = Order::where('tour_id', $tour_id)->get();
@@ -2092,64 +2201,192 @@ class EnquiryFormPro extends Controller
         
         // Get DMC ID
         $user = Auth::user();
-        $dmcId = null;
+        $dmc_id = null;
         if ($user->role_id == 11) {
-            $dmcId = $user->userId;
+            $dmc_id = $user->userId;
         } elseif (in_array($user->role_id, [33, 34, 35, 77, 78, 84, 120, 128, 129, 130, 131, 132, 133, 134, 135, 136, 137, 138, 139, 140])) {
-            $dmcId = $user->created_by;
+            $dmc_id = $user->created_by;
         } elseif (in_array($user->role_id, [37, 64, 65, 66, 67, 68])) {
             $sales_head = User::where('userId', $user->created_by)->first();
-            $dmcId = $sales_head ? $sales_head->created_by : null;
+            $dmc_id = $sales_head ? $sales_head->created_by : null;
         } elseif (in_array($user->role_id, [38, 81, 90, 108, 117, 124, 125, 126, 127])) {
             $sales_manager = User::where('userId', $user->created_by)->first();
             if ($sales_manager) {
                 $sales_head = User::where('userId', $sales_manager->created_by)->first();
-                $dmcId = $sales_head ? $sales_head->created_by : null;
+                $dmc_id = $sales_head ? $sales_head->created_by : null;
             }
         }
         
-        if (!$dmcId) {
-            $dmcId = $user->created_by;
+        if (!$dmc_id) {
+            $dmc_id = $user->created_by;
         }
         
         // Get all required data (same as create method)
-        $hotels = Hotel::where('dmc_id', $dmcId)
+        // Note: dmc_id is a JSON array column, so we use whereJsonContains
+        $hotels = Hotel::whereJsonContains('dmc_id', (int) $dmc_id)
+            ->where('status', 1)
             ->where('is_active', 1)
-            ->select('hotel_id', 'hotel_name', 'hotel_unique_id', 'destination', 'image', 'zone_assignments')
+            ->where('hotel_unique_id', '!=', '0')
+            ->select('id', 'hotel_unique_id', 'name', 'city', 'country', 'address', 'zone_assignments')
+            ->orderBy('name')
             ->get();
         
-        $attractions = Attraction::where('dmc_id', $dmcId)
+        // Add zone_id to each hotel
+        $hotels->each(function($hotel) use ($dmc_id) {
+            $hotel->zone_id = $dmc_id ? $hotel->getZoneForDmc($dmc_id) : null;
+        });
+        
+        $attractions = Attraction::whereJsonContains('dmc_id', (int) $dmc_id)
             ->where('is_active', 1)
-            ->select('attraction_id', 'name', 'destination', 'address', 'image', 'zone_assignments')
+            ->select('attraction_id', 'name', 'location', 'country', 'open_time', 'close_time', 
+                     'adult_price', 'child_price', 'senior_adult_price', 'zone_assignments')
+            ->orderBy('name')
             ->get();
         
-        $restaurants = Restaurant::where('dmc_id', $dmcId)
+        // Add zone_id to each attraction
+        $attractions->each(function($attraction) use ($dmc_id) {
+            $attraction->zone_id = $dmc_id ? $attraction->getZoneForDmc($dmc_id) : null;
+        });
+        
+        $restaurants = Restaurant::whereJsonContains('dmc_id', (int) $dmc_id)
             ->where('is_active', 1)
-            ->select('restaurant_id', 'name', 'destination', 'address', 'image', 'zone_assignments')
+            ->select('restaurant_id', 'name', 'city', 'country', 'breakfast_available', 'lunch_available', 
+                     'dinner_available', 'opening_time_bf', 'closing_time_bf', 'opening_time_lunch', 
+                     'closing_time_lunch', 'opening_time_dinner', 'closing_time_dinner', 'zone_assignments')
+            ->orderBy('name')
             ->get();
         
-        $guides = Guide::where('dmc_id', $dmcId)
-            ->where('is_active', 1)
-            ->select('guide_id', 'name', 'languages', 'image', 'destination')
+        // Add zone_id to each restaurant
+        $restaurants->each(function($restaurant) use ($dmc_id) {
+            $restaurant->zone_id = $dmc_id ? $restaurant->getZoneForDmc($dmc_id) : null;
+        });
+        
+        // Get guides for this DMC only
+        // Status 1 and 3 are both considered active guides
+        if ($dmc_id) {
+            $guides = Guide::where('dmc_id', $dmc_id)
+                ->whereIn('status', [1, 3])
+                ->with('languages')
+                ->select('guide_id', 'name', 'city', 'twelve_hour_price', 'day_rate')
+                ->orderBy('name')
+                ->get();
+        } else {
+            $guides = collect([]); // Empty collection if no DMC ID
+        }
+        
+        $vehicles = Vehicle::where('dmc_id', $dmc_id)
+            ->where('is_available', 1)
+            ->select('vehicle_id', 'vehicle_type', 'vehicle_name', 'seating_capacity', 'base_price', 'sharable_base_price', 'sharable')
+            ->orderBy('vehicle_type')
             ->get();
         
-        $vehicles = Vehicle::where('dmc_id', $dmcId)
-            ->where('is_active', 1)
-            ->select('vehicle_id', 'vehicle_name', 'vehicle_type', 'seating_capacity', 'image')
+        $ports = Port::where('status', 1)
+            ->with('country')
+            ->select('port_id', 'port_name', 'type', 'country', 'city_id')
+            ->orderBy('port_name')
             ->get();
         
-        $ports = Port::where('dmc_id', $dmcId)
-            ->where('is_active', 1)
-            ->select('port_id', 'port_name', 'port_type', 'city')
-            ->get();
-        
-        $destinations = Country::where('dmc_id', $dmcId)
-            ->where('is_active', 1)
-            ->pluck('name');
+        $destinations = Country::where('is_active', 1)
+            ->orderBy('name', 'asc')
+            ->get(['id', 'name']);
         
         // Get agency and agent
         $agency = Agency::find($tour->agent->agency_id ?? null);
         $agent = Agent::find($tour->agent_id);
+        
+        // Prepare initialData from tour data
+        $initialData = [
+            'tour_type' => $tour->tour_type ?? 'FIT',
+            'salutation' => $tour->salutation ?? 'Mr',
+            'customer_name' => $tour->customer_name ?? 'To Be Advised',
+            'contact_number' => $tour->contact_number ?? '',
+            'agency_id' => $tour->agent->agency_id ?? null,
+            'agent_id' => $tour->agent_id ?? null,
+            'agent_name' => $agent->name ?? '',
+            'destination' => $tour->destination ?? '',
+            'destination_display' => $tour->destination ?? '',
+            'tour_start_date' => $tour->check_in_time ? $tour->check_in_time->format('Y-m-d') : '',
+            'tour_end_date' => $tour->check_out_time ? $tour->check_out_time->format('Y-m-d') : '',
+            'adult_count' => $tour->adult ?? 1,
+            'child_count' => $tour->child ?? 0,
+            'infant_count' => $tour->infant ?? 0,
+        ];
+        
+        // Load agencies filtered by DMC ID
+        $agencyQuery = Agency::where('status', 1);
+        if ($dmc_id) {
+            $agencyQuery->whereJsonContains('dmc_id', (int) $dmc_id);
+        }
+        // Filter by tour destination
+        if ($tour->destination) {
+            $agencyQuery->where('country', $tour->destination);
+        }
+        $agencies = $agencyQuery->orderBy('agency_name', 'asc')->get();
+        
+        // Get agents for the selected agency (if any)
+        $agents = [];
+        if ($tour->agent && $tour->agent->agency_id) {
+            $agents = Agent::where('status', 1)
+                ->where('agency_id', $tour->agent->agency_id)
+                ->orderBy('name', 'asc')
+                ->get(['agent_id', 'name', 'email']);
+        }
+        
+        // Get master_dmc_id from logged-in user
+        $master_dmc_id = $user->master_dmc_id;
+        
+        // Get countries based on master_dmc_id
+        $countries = collect();
+        if ($master_dmc_id) {
+            // Find all users with this master_dmc_id
+            $usersWithMasterDmc = User::where('master_dmc_id', $master_dmc_id)
+                ->whereNotNull('country')
+                ->get();
+            
+            // Extract and merge all countries (comma-separated)
+            $countryNames = [];
+            foreach ($usersWithMasterDmc as $userItem) {
+                if ($userItem->country) {
+                    $userCountries = array_map('trim', explode(',', $userItem->country));
+                    $countryNames = array_merge($countryNames, $userCountries);
+                }
+            }
+            
+            // Remove duplicates and get unique country names
+            $countryNames = array_unique($countryNames);
+            
+            // Get Country objects matching these names
+            if (!empty($countryNames)) {
+                $countries = Country::whereIn('name', $countryNames)
+                    ->where('is_active', 1)
+                    ->orderBy('name')
+                    ->get();
+            }
+        } else {
+            // Fallback: Get all active countries if no master_dmc_id
+            $countries = Country::where('is_active', 1)->orderBy('name')->get();
+        }
+        
+        // Get destinations for master DMC (use the same filtered countries)
+        $master_dmc_destinations = $countries;
+        
+        // Create city to country mapping for filtering
+        $cityCountryMap = \App\Models\City::with('country')
+            ->get()
+            ->pluck('country.name', 'name')
+            ->toArray();
+        
+        // Fetch default values for this DMC (6 types: hotel, restaurant, attraction, car_private, car_shared, port)
+        $defaultValues = [];
+        if ($dmc_id) {
+            $defaults = \App\Models\DefaultValue::where('dmc_id', $dmc_id)
+                ->where('status', 1)
+                ->get();
+            
+            foreach ($defaults as $default) {
+                $defaultValues[$default->name] = $default->service_id;
+            }
+        }
         
         return view('enquiryform_pro.edit', compact(
             'tour',
@@ -2163,7 +2400,15 @@ class EnquiryFormPro extends Controller
             'destinations',
             'agency',
             'agent',
-            'dmc_id'
+            'agencies',
+            'agents',
+            'initialData',
+            'countries',
+            'master_dmc_destinations',
+            'cityCountryMap',
+            'dmc_id',
+            'user',
+            'defaultValues'
         ))->with([
             'markupValue' => $markupValue,
             'markupType' => $markupType,
