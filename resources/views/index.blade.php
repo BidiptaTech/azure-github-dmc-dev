@@ -468,7 +468,7 @@
     <div class="dashboard-header">
         <div class="row align-items-center">
             <div class="col-lg-8">
-                    <h1 class="welcome-text mb-2">Welcome back, {{ Auth::user()->name }}! 👋</h1>
+                    <h1 class="welcome-text mb-2" style="color: wheat; font-weight: 600; font-size: 1.8rem;">Welcome back, {{ Auth::user()->name }}! 👋</h1>
                     <p class="subtitle mb-0">Here's what's happening with your travel management system today.</p>
             </div>
             <div class="col-lg-4 text-end">
