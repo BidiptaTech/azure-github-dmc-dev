@@ -331,7 +331,23 @@ class JobSheetController extends Controller
                                 $dataItem['vehicles_name'] = $vehicleFromOrder ? $vehicleFromOrder->vehicle_name : $transferOptions['vehicle_details']['vehicle_name'] ?? null;
                                 $dataItem['pickupdate'] = $dataItem['bookingDate'] ?? null;
                                 $dataItem['type'] = $transferOptions['type'] ?? null;
-                                
+
+                                // --- Passenger counts (adults/children/infants) ---
+                                // Attraction: use counts provided in data JSON; infant from tours
+                                $adultCount = (int) ($dataItem['adultCount'] ?? $dataItem['adults'] ?? 0);
+                                $childCount = (int) ($dataItem['childCount'] ?? $dataItem['children'] ?? 0);
+                                $infantFromTour = \DB::table('tours')
+                                    ->where('tour_id', $order->tour_id)
+                                    ->value('infant');
+                                $infantCount = (int) ($infantFromTour ?? 0);
+
+                                $dataItem['adultCount'] = $adultCount;
+                                $dataItem['adults'] = $adultCount;
+                                $dataItem['childCount'] = $childCount;
+                                $dataItem['children'] = $childCount;
+                                $dataItem['infantCount'] = $infantCount;
+                                $dataItem['infants'] = $infantCount;
+
                                 // Prefer jobsheet assignment (by order_id) over order defaults
                                 $jobsheet = Jobsheet::where('order_id', $order->booking_id)
                                     ->where('type', $order->type)
@@ -417,7 +433,23 @@ class JobSheetController extends Controller
                                 $dataItem['vehicles_name'] = $transferOptions['vehicle_details']['vehicle_name'] ?? null;
                                 $dataItem['pickupdate'] = $dataItem['bookingDate'] ?? null;
                                 $dataItem['type'] = $transferOptions['type'] ?? null;
-                                
+
+                                // --- Passenger counts (adults/children/infants) ---
+                                // Attraction: use counts provided in data JSON; infant from tours
+                                $adultCount = (int) ($dataItem['adultCount'] ?? $dataItem['adults'] ?? 0);
+                                $childCount = (int) ($dataItem['childCount'] ?? $dataItem['children'] ?? 0);
+                                $infantFromTour = \DB::table('tours')
+                                    ->where('tour_id', $order->tour_id)
+                                    ->value('infant');
+                                $infantCount = (int) ($infantFromTour ?? 0);
+
+                                $dataItem['adultCount'] = $adultCount;
+                                $dataItem['adults'] = $adultCount;
+                                $dataItem['childCount'] = $childCount;
+                                $dataItem['children'] = $childCount;
+                                $dataItem['infantCount'] = $infantCount;
+                                $dataItem['infants'] = $infantCount;
+
                                 // Prefer jobsheet assignment (by order_id) over order defaults
                                 $jobsheet = Jobsheet::where('order_id', $order->booking_id)
                                     ->where('type', $order->type)
@@ -2566,6 +2598,48 @@ class JobSheetController extends Controller
                         $dataItem['vehicles_name'] = $vehicleFromOrder ? $vehicleFromOrder->vehicle_name : $transferOptions['vehicle_details']['vehicle_name'] ?? null;
                         $dataItem['pickupdate'] = $dataItem['bookingDate'] ?? null;
                         $dataItem['type'] = $transferOptions['type'] ?? null;
+
+                        // --- Passenger counts (adults/children/infants) ---
+                        $adultCount = 0;
+                        $childCount = 0;
+                        // Infant from tours table using tour_id
+                        $infantFromTour = \DB::table('tours')
+                            ->where('tour_id', $order->tour_id)
+                            ->value('infant');
+                        $infantCount = (int) ($infantFromTour ?? 0);
+
+                        // For local_transfer/local_transport/travel_point/travel_hourly, derive adults from vehicle seats
+                        $isSeatBasedType =
+                            in_array($order->type, ['local_transfer', 'local_transport', 'travel_point', 'travel_hourly']) ||
+                            in_array($dataItem['travel_type'] ?? '', ['local_transfer', 'local_transport', 'travel_point', 'travel_hourly']) ||
+                            in_array($dataItem['service_category'] ?? '', ['local_transfer', 'local_transport', 'travel_point', 'travel_hourly']);
+
+                        if ($isSeatBasedType) {
+                            // Use number of seats from vehicles_name, e.g. \"... - 7 seats\"
+                            $vehiclesName = $dataItem['vehicles_name'] ?? $order->vehicles_name ?? null;
+                            if ($vehiclesName && preg_match('/-\\s*(\\d+)\\s*seats?/i', $vehiclesName, $m)) {
+                                $adultCount = (int) $m[1];
+                            }
+                            $childCount = 0;
+                            $infantCount = 0; // explicitly 0 for these types
+                        } elseif (in_array($order->type, ['entry_port', 'exit_port'])) {
+                            // Use adults/children from order data
+                            $adultCount = (int) ($dataItem['adults'] ?? 0);
+                            $childCount = (int) ($dataItem['children'] ?? 0);
+                            // infantCount stays from tours
+                        } else {
+                            // Fallback to counts from data JSON
+                            $adultCount = (int) ($dataItem['adultCount'] ?? $dataItem['adults'] ?? 0);
+                            $childCount = (int) ($dataItem['childCount'] ?? $dataItem['children'] ?? 0);
+                            // infantCount stays from tours
+                        }
+
+                        $dataItem['adultCount'] = $adultCount;
+                        $dataItem['adults'] = $adultCount;
+                        $dataItem['childCount'] = $childCount;
+                        $dataItem['children'] = $childCount;
+                        $dataItem['infantCount'] = $infantCount;
+                        $dataItem['infants'] = $infantCount;
                         
                         // Prefer jobsheet assignment (by order_id) over order defaults
                         $jobsheet = Jobsheet::where('order_id', $order->booking_id)
