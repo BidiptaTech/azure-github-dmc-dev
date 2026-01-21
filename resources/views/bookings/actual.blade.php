@@ -42,6 +42,84 @@
     .select2-container--default .select2-selection--single .select2-selection__clear:hover {
         color: #dc3545;
     }
+
+    /* Compact table styles (shared with new-enquiries / follow-ups) */
+    #toursTable {
+        font-size: 0.875rem;
+    }
+
+    #toursTable thead th {
+        padding: 0.5rem 0.75rem;
+        font-size: 0.8125rem;
+        font-weight: 600;
+        white-space: nowrap;
+    }
+
+    #toursTable tbody td {
+        padding: 0.5rem 0.75rem;
+        vertical-align: middle;
+    }
+
+    #toursTable tbody tr {
+        height: auto;
+        min-height: 50px;
+    }
+
+    /* Compact badges in table */
+    #toursTable .badge {
+        font-size: 0.7rem;
+        padding: 0.25rem 0.5rem;
+        margin: 0.1rem 0.15rem;
+        font-weight: 500;
+    }
+
+    /* Compact icons */
+    #toursTable i {
+        font-size: 1rem;
+    }
+
+    /* Compact text in cells */
+    #toursTable .fw-medium,
+    #toursTable .fw-bold {
+        font-size: 0.875rem;
+    }
+
+    #toursTable small {
+        font-size: 0.75rem;
+    }
+
+    /* Compact buttons in table */
+    #toursTable .btn-sm {
+        padding: 0.25rem 0.55rem;
+        font-size: 0.78rem;
+        height: auto;
+        white-space: nowrap;
+    }
+
+    /* Compact guests icons section */
+    #toursTable .d-flex.gap-3 {
+        gap: 0.75rem !important;
+    }
+
+    /* Compact services badges container */
+    #toursTable .d-flex.gap-2.flex-wrap {
+        gap: 0.35rem !important;
+    }
+
+    /* Reduce spacing in tour details */
+    #toursTable .d-flex.flex-column {
+        gap: 0.15rem;
+    }
+
+    /* Compact muted text */
+    #toursTable .text-muted {
+        font-size: 0.7rem;
+    }
+
+    /* Compact date / status text */
+    #toursTable .d-flex.flex-column small {
+        line-height: 1.3;
+    }
 </style>
 
 @section('content')
@@ -741,6 +819,14 @@
                                         <button type="button" class="btn btn-sm btn-info" data-bs-toggle="modal" data-bs-target="#showPaymentModal{{ $tour->tour_id }}">
                                             <i class="fas fa-history me-1"></i> Payment Details
                                         </button>
+
+                                        @if(hasPermission('add payment'))
+                                            @if($remainingAmount > 0 && !$hasPendingPayments)
+                                                <button type="button" class="btn btn-sm btn-primary" data-bs-toggle="modal" data-bs-target="#addPaymentModal{{ $tour->tour_id }}" onclick="checkPendingPayments({{ $tour->tour_id }})">
+                                                    <i class="fas fa-plus-circle me-1"></i> Add Payment
+                                                </button>
+                                            @endif
+                                        @endif
                                     @else
                                         @if(!empty($paymentData))
                                             <button type="button" class="btn btn-sm btn-info" data-bs-toggle="modal" data-bs-target="#showPaymentModal{{ $tour->tour_id }}">
@@ -748,7 +834,7 @@
                                             </button>
                                         @endif
 
-                                        @if(in_array(auth()->user()->role_id, [11, 12, 24, 28, 33, 37, 38, 128, 129, 130, 135, 136, 138]))
+                                        @if(hasPermission('add payment'))
                                             @if($remainingAmount > 0 && !$hasPendingPayments)
                                                 <button type="button" class="btn btn-sm btn-primary" data-bs-toggle="modal" data-bs-target="#addPaymentModal{{ $tour->tour_id }}" onclick="checkPendingPayments({{ $tour->tour_id }})">
                                                     <i class="fas fa-plus-circle me-1"></i> Add Payment
@@ -3020,7 +3106,7 @@
                                                                 <small class="text-muted d-block" style="font-size: 0.65rem;">Dropoff</small>
                                                                 <div class="fw-medium d-flex align-items-center" style="font-size: 0.75rem;">
                                                                     <i class="ri-map-pin-2-line text-danger me-1" style="font-size: 0.7rem;"></i>
-                                                                    <span class="text-truncate">{{ $booking['entrydropoff'] ?? 'N/A' }}</span>
+                                                                    <span class="text-truncate">{{ $booking['dropoffLocation'] ?? 'N/A' }}</span>
                                                                 </div>
                                                             </div>
                                                         </div>
@@ -3029,7 +3115,7 @@
                                                     <div class="d-flex align-items-center justify-content-center p-1 bg-white rounded">
                                                         <span class="badge bg-success me-1" style="font-size: 0.65rem; padding: 2px 4px;">{{ Str::limit($booking['entrypickup'] ?? 'Pickup', 15) }}</span>
                                                         <i class="ri-arrow-right-line text-primary mx-1" style="font-size: 0.8rem;"></i>
-                                                        <span class="badge bg-danger" style="font-size: 0.65rem; padding: 2px 4px;">{{ Str::limit($booking['entrydropoff'] ?? 'Dropoff', 15) }}</span>
+                                                        <span class="badge bg-danger" style="font-size: 0.65rem; padding: 2px 4px;">{{ Str::limit($booking['dropoffLocation'] ?? 'Dropoff', 15) }}</span>
                                                     </div>
                                                 </div>
 

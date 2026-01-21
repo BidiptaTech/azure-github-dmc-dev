@@ -509,6 +509,7 @@
                             <th>Guests</th>
                             <th>Services</th>
                             <th>Agent</th>
+                            <th>Created By</th>
                             <th>Status</th>
                             <th>Follow Up Status</th>
                             <th>Last Contact</th>
@@ -670,6 +671,11 @@
                                     @else
                                         <span class="text-muted">No agent assigned</span>
                                     @endif
+                                </div>
+                            </td>
+                            <td>
+                                <div class="d-flex flex-column">
+                                    <span class="fw-medium">{{ $tour->created_by_name ?? 'N/A' }}</span>
                                 </div>
                             </td>
                             <td>
@@ -4078,7 +4084,8 @@ function filterTable() {
         const tourDetails = row.cells[1]?.textContent.toLowerCase() || '';
         const destination = row.cells[2]?.querySelector('.fw-medium')?.textContent || '';
         const agent = row.cells[6]?.querySelector('.fw-medium')?.textContent || '';
-        const status = row.cells[7]?.querySelector('.badge')?.textContent || '';
+        const createdBy = row.cells[7]?.querySelector('.fw-medium')?.textContent || '';
+        const status = row.cells[8]?.querySelector('.badge')?.textContent || '';
         const updatedAt = row.getAttribute('data-updated-at');
         const createdAt = row.getAttribute('data-created-at');
 
@@ -4087,7 +4094,8 @@ function filterTable() {
         if (searchTerm &&
             !tourDetails.includes(searchTerm) &&
             !destination.toLowerCase().includes(searchTerm) &&
-            !agent.toLowerCase().includes(searchTerm)) {
+            !agent.toLowerCase().includes(searchTerm) &&
+            !createdBy.toLowerCase().includes(searchTerm)) {
             show = false;
         }
 
@@ -4332,6 +4340,22 @@ function showFilterResetMessage() {
             $('.datatables-basic').DataTable().destroy();
         }
         
+        const headerTexts = $('#toursTable thead th').map(function() {
+            return $(this).text().trim();
+        }).get();
+        const colIndex = (name) => headerTexts.findIndex(t => t === name);
+
+        const guestsIdx = colIndex('Guests');
+        const servicesIdx = colIndex('Services');
+        const statusIdx = colIndex('Status');
+        const followUpStatusIdx = colIndex('Follow Up Status');
+        const agentNegotiationIdx = colIndex('Agent Negotiation');
+        const negotiationIdx = colIndex('Negotiation');
+        const actionsIdx = colIndex('Actions');
+
+        const nonOrderableTargets = [guestsIdx, servicesIdx, statusIdx, followUpStatusIdx, agentNegotiationIdx, negotiationIdx, actionsIdx].filter(i => i >= 0);
+        const nonSearchableTargets = [agentNegotiationIdx, negotiationIdx, actionsIdx].filter(i => i >= 0);
+
         // Initialize DataTable with export buttons
         table = $('.datatables-basic').DataTable({
             responsive: true,
@@ -4363,17 +4387,16 @@ function showFilterResetMessage() {
             // order: [[8, 'desc']], // Sort by Last Contact column (index 8) in descending order
             columnDefs: [
                 {
-                    targets: [11, 12], // Negotiation and Actions columns (indices 11 and 12)
+                    targets: nonOrderableTargets,
                     orderable: false,
-                    searchable: false
                 },
                 {
-                    targets: [4, 5], // Guests and Services columns (indices 4 and 5)
-                    orderable: false
+                    targets: nonSearchableTargets,
+                    searchable: false,
                 },
                 {
-                    targets: [7, 8], // Status and Follow Up Status columns (indices 7 and 8)
-                    orderable: false
+                    targets: [guestsIdx, servicesIdx].filter(i => i >= 0),
+                    orderable: false,
                 }
             ],
             initComplete: function() {
