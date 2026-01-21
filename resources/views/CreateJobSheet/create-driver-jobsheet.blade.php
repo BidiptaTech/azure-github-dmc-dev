@@ -104,18 +104,35 @@
         background-color: #f9f9f9;
     }
     
-    /* DataTables Responsive toggle button styling */
+    /* DataTables Responsive toggle button styling - Arrow without background circle */
     table.dataTable.dtr-inline.collapsed > tbody > tr > td:first-child:before,
     table.dataTable.dtr-inline.collapsed > tbody > tr > th:first-child:before {
-        background-color: #6777ef;
-        border: 2px solid white;
-        box-shadow: 0 0 3px rgba(0,0,0,0.3);
-        left: 8px; /* Position the toggle button */
+        content: "▶" !important; /* Right-pointing arrow (solid triangle) */
+        background: none !important; /* Remove background circle */
+        background-color: transparent !important;
+        border: none !important;
+        box-shadow: none !important;
+        border-radius: 0 !important;
+        left: 8px;
+        color: #000000 !important;
+        font-size: 10px;
+        line-height: 16px;
+        width: 16px;
+        height: 16px;
+        text-align: center;
+        display: inline-block !important; /* Ensure arrow is visible */
     }
     
     table.dataTable.dtr-inline.collapsed > tbody > tr.parent > td:first-child:before,
     table.dataTable.dtr-inline.collapsed > tbody > tr.parent > th:first-child:before {
-        background-color: #47c363;
+        content: "▼" !important; /* Down-pointing arrow when expanded */
+        background: none !important; /* Remove background circle */
+        background-color: transparent !important;
+        border: none !important;
+        box-shadow: none !important;
+        border-radius: 0 !important;
+        color: #588061 !important;
+        display: inline-block !important; /* Ensure arrow is visible */
     }
     
     /* Smaller font for table content */
@@ -430,7 +447,7 @@ $(document).ready(function() {
                                     return options;
                                 })()}
                             </select>
-                            <input type="hidden" name="order_id[${index}]" value="${item.id || ''}">
+                            <input type="hidden" name="order_id[${index}]" value="${item.booking_id || ''}">
                             <input type="hidden" name="tour_id[${index}]" value="${item.tour_id || ''}">
                         </td>
                         <td>${dataItem.entrytime || 'N/A'}</td>
