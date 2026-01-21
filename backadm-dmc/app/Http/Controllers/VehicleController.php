@@ -741,15 +741,17 @@ class VehicleController extends Controller
             'vehicle_id' => 'required|string',
             'from_zone_id' => 'required|string',
             'to_zone_id' => 'required|string',
+            'from_zone_type' => 'required|string',
+            'to_zone_type' => 'required|string',
         ]);
         
         // Check both active and trashed records
-        $mapping = VehicleZoneMapping::withTrashed()
-            ->where('vehicle_id', $validated['vehicle_id'])
+        $mapping = VehicleZoneMapping::where('vehicle_id', $validated['vehicle_id'])
             ->where('from_zone_id', $validated['from_zone_id'])
             ->where('to_zone_id', $validated['to_zone_id'])
+            ->where('from_zone_type', $validated['from_zone_type'])
+            ->where('to_zone_type', $validated['to_zone_type'])
             ->first();
-        
         if ($mapping) {
             return response()->json([
                 'exists' => true,
@@ -784,6 +786,8 @@ class VehicleController extends Controller
                 ->where('vehicle_id', $vehicleId)
                 ->where('from_zone_id', $fromZoneId)
                 ->where('to_zone_id', $toZoneId)
+                ->where('from_zone_type', $fromZoneType)
+                ->where('to_zone_type', $toZoneType)
                 ->first();
 
             if ($existingMapping) {
