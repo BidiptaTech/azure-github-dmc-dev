@@ -2,12 +2,12 @@
 @section('title', 'Definite Bookings')
 @extends('layouts.datatablecss')
 
-<!-- Date Range Picker CSS -->
-<link rel="stylesheet" type="text/css" href="https://cdn.jsdelivr.net/npm/daterangepicker/daterangepicker.css" />
 <!-- Add SweetAlert2 CSS -->
 <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/sweetalert2@11.7.32/dist/sweetalert2.min.css">
 <!-- Add SweetAlert2 JS -->
 <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11.7.32/dist/sweetalert2.all.min.js"></script>
+<!-- Select2 CSS -->
+<link href="https://cdn.jsdelivr.net/npm/select2@4.0.13/dist/css/select2.min.css" rel="stylesheet" />
 <!-- CSRF Token -->
 <meta name="csrf-token" content="{{ csrf_token() }}">
 <!-- jQuery -->
@@ -137,6 +137,34 @@
     .badge-rounded {
         border-radius: 20px;
         padding: 8px 16px;
+    }
+    /* Select2 Bootstrap Integration */
+    .select2-container--default .select2-selection--single {
+        height: 50px;
+        border: 1px solid #d9dee3;
+        border-radius: 0.375rem;
+    }
+    .select2-container--default .select2-selection--single .select2-selection__rendered {
+        line-height: 50px;
+        padding-left: 12px;
+        padding-right: 50px; /* Space for clear button and arrow */
+    }
+    .select2-container--default .select2-selection--single .select2-selection__arrow {
+        height: 48px;
+        right: 10px;
+    }
+    /* Style and position the clear button (X icon) */
+    .select2-container--default .select2-selection--single .select2-selection__clear {
+        position: absolute;
+        right: 35px; /* Position it before the dropdown arrow */
+        top: 50%;
+        transform: translateY(-50%);
+        cursor: pointer;
+        font-size: 18px;
+        color: #6c757d;
+    }
+    .select2-container--default .select2-selection--single .select2-selection__clear:hover {
+        color: #dc3545;
     }
 </style>
 
@@ -293,10 +321,23 @@
                     </select>
                 </div>
                 <div class="col-md-2">
-                    <label class="form-label">Destination</label>
+                    <label class="form-label">Country</label>
                     <select class="form-select" id="destinationFilter">
-                        <option value="">All Destinations</option>
-                        @foreach($tours->pluck('destination')->unique()->filter() as $destination)
+                        <option value="">All Countries</option>
+                        @php
+                            $allDestinations = [];
+                            foreach($tours as $tour) {
+                                if($tour->destination) {
+                                    // Split by comma to get individual destinations
+                                    $destinations = array_map('trim', explode(',', $tour->destination));
+                                    $allDestinations = array_merge($allDestinations, $destinations);
+                                }
+                            }
+                            // Get unique destinations
+                            $uniqueDestinations = array_unique(array_filter($allDestinations));
+                            sort($uniqueDestinations);
+                        @endphp
+                        @foreach($uniqueDestinations as $destination)
                             <option value="{{ $destination }}">{{ $destination }}</option>
                         @endforeach
                     </select>
@@ -310,11 +351,13 @@
                         @endforeach
                     </select>
                 </div>
-                <div class="col-md-3">
-                    <label class="form-label">Date Range</label>
-                    <input type="text" class="form-control" id="dateRange" placeholder="Select date range" readonly>
-                    <input type="hidden" id="dateRangeStart">
-                    <input type="hidden" id="dateRangeEnd">
+                <div class="col-md-2">
+                    <label class="form-label">Start Date</label>
+                    <input type="date" class="form-control" id="startDateFilter" max="{{ now()->toDateString() }}" value="{{ now()->startOfMonth()->toDateString() }}">
+                </div>
+                <div class="col-md-2">
+                    <label class="form-label">End Date</label>
+                    <input type="date" class="form-control" id="endDateFilter" max="{{ now()->toDateString() }}" value="{{ now()->toDateString() }}">
                 </div>
             </div>
         </div>
@@ -353,7 +396,7 @@
                             <th>Tour Details</th>
                             <th>Destination</th>
                             <th>Guests</th>
-                            <th>Services</th>
+                            <th>Manage Services</th>
                             <th>Agent</th>
                             <th>Travel Dates</th>
                             <th>Execution Status</th>
@@ -403,22 +446,32 @@
                                     @if($tour->multi_enq_id)
                                         <small class="text-info">Multi: {{ $tour->multi_enq_id }}</small>
                                     @endif
+                                    @if($tour->tour_type)
+                                        <small class="text-white" style="display: inline-block; padding: 2px 8px; background: #3b82f6; border-radius: 4px; font-weight: 500;">
+                                            {{ $tour->tour_type }}
+                                        </small>
+                                    @endif
                                 </div>
                             </td>
                             <td>
                                 <div class="d-flex flex-column">
                                     <span class="fw-medium">{{ $tour->destination ?? 'N/A' }}</span>
-                                    <small class="text-muted">{{ $tour->city ?? 'N/A' }}</small>
                                 </div>
                             </td>
                             <td>
-                                <div class="d-flex gap-2">
-                                    @if($tour->adult > 0)
-                                        <span class="badge bg-primary">{{ $tour->adult }} Adults</span>
-                                    @endif
-                                    @if($tour->child > 0)
-                                        <span class="badge bg-warning">{{ $tour->child }} Children</span>
-                                    @endif
+                                <div class="d-flex gap-3 align-items-center">
+                                    <div class="d-flex align-items-center gap-1" title="Adults">
+                                        <i class="ri-user-line text-success" style="font-size: 1.2rem;"></i>
+                                        <span class="fw-medium">{{ $tour->adult ?? 0 }}</span>
+                                    </div>
+                                    <div class="d-flex align-items-center gap-1" title="Children">
+                                        <i class="ri-user-smile-line text-warning" style="font-size: 1.2rem;"></i>
+                                        <span class="fw-medium">{{ $tour->child ?? 0 }}</span>
+                                    </div>
+                                    <div class="d-flex align-items-center gap-1" title="Infants">
+                                        <i class="ri-user-heart-line text-info" style="font-size: 1.2rem;"></i>
+                                        <span class="fw-medium">{{ $tour->infant ?? 0 }}</span>
+                                    </div>
                                 </div>
                             </td>
                             <td>
@@ -485,10 +538,18 @@
                                                             @php $actualBookingIndex = 0; @endphp
                                                             @foreach($restaurantData as $originalKey => $booking)
                                                                 @php $bookingIndex = $actualBookingIndex; @endphp
+                                                                @php $actualCancelDateStr = $tour->auto_cancel_date 
+                                                                    ? \Carbon\Carbon::parse($tour->auto_cancel_date)->format('Y-m-d')
+                                                                    : '';
+                                                                @endphp
+                                                                @php
+                                                                    $restaurantName = $booking['restaurantName'] ?? 'Restaurant';
+                                                                @endphp
                                                                 <span class="badge @if($restaurantOrder->is_approve == 1) bg-success text-white @else bg-light text-dark border @endif me-1 mb-1" style="cursor: pointer;" 
-                                                                      onclick="openIndividualRestaurantModal({{ $tour->tour_id }}, {{ $restaurantOrderIndex }}, {{ $bookingIndex }})">
+                                                                      onclick="openIndividualRestaurantModal({{ $tour->tour_id }}, {{ $restaurantOrderIndex }}, {{ $bookingIndex }}, '{{$actualCancelDateStr}}')"
+                                                                      title="{{ e($restaurantName) }}">
                                                                     <i class="{{ $icons[$key] }} me-1"></i>
-                                                                    Restaurant {{ $globalRestaurantCounter }}
+                                                                    <strong>Restaurant {{ $globalRestaurantCounter }}</strong> : {{ $restaurantName }}
                                                                     @if($restaurantOrder->is_approve == 1)
                                                                         <i class="ri-check-line ms-1"></i>
                                                                     @endif
@@ -513,10 +574,14 @@
                                                             @php $actualBookingIndex = 0; @endphp
                                                             @foreach($guideData as $originalKey => $booking)
                                                                 @php $bookingIndex = $actualBookingIndex; @endphp
+                                                                @php
+                                                                    $guideName = $booking['guide_name'] ?? 'Guide';
+                                                                @endphp
                                                                 <span class="badge @if($guideOrder->is_approve == 1) bg-success text-white @else bg-light text-dark border @endif me-1 mb-1" style="cursor: pointer;" 
-                                                                      onclick="openIndividualGuideModal({{ $tour->tour_id }}, {{ $guideOrderIndex }}, {{ $bookingIndex }})">
+                                                                      onclick="openIndividualGuideModal({{ $tour->tour_id }}, {{ $guideOrderIndex }}, {{ $bookingIndex }})"
+                                                                      title="{{ e($guideName) }}">
                                                                     <i class="{{ $icons[$key] }} me-1"></i>
-                                                                    Guide {{ $globalGuideCounter }}
+                                                                    <strong>Guide {{ $globalGuideCounter }}</strong> : {{ $guideName }}
                                                                     @if($guideOrder->is_approve == 1)
                                                                         <i class="ri-check-line ms-1"></i>
                                                                     @endif
@@ -541,10 +606,19 @@
                                                             @php $actualBookingIndex = 0; @endphp
                                                             @foreach($hotelData as $originalKey => $booking)
                                                                 @php $bookingIndex = $actualBookingIndex; @endphp
+                                                                @php 
+                                                        $actualCancelDateStr = $tour->auto_cancel_date 
+                                                            ? \Carbon\Carbon::parse($tour->auto_cancel_date)->format('Y-m-d')
+                                                            : '';
+                                                        @endphp
+                                                                @php
+                                                                    $hotelName = $booking['hotelDetails']['hotel_name'] ?? 'Hotel';
+                                                                @endphp
                                                                 <span class="badge @if($hotelOrder->is_approve == 1) bg-success text-white @else bg-light text-dark border @endif me-1 mb-1" style="cursor: pointer;" 
-                                                                      onclick="openIndividualHotelModal({{ $tour->tour_id }}, {{ $hotelOrderIndex }}, {{ $bookingIndex }})">
+                                                                      onclick="openIndividualHotelModal({{ $tour->tour_id }}, {{ $hotelOrderIndex }}, {{ $bookingIndex }}, '{{$actualCancelDateStr}}')"
+                                                                      title="{{ e($hotelName) }}">
                                                                     <i class="{{ $icons[$key] }} me-1"></i>
-                                                                    Hotel {{ $globalHotelCounter }}
+                                                                    <strong>Hotel {{ $globalHotelCounter }}</strong> : {{ $hotelName }}
                                                                     @if($hotelOrder->is_approve == 1)
                                                                         <i class="ri-check-line ms-1"></i>
                                                                     @endif
@@ -566,10 +640,18 @@
                                                             @php $actualBookingIndex = 0; @endphp
                                                             @foreach($orderData as $bookingIndex => $booking)
                                                                 @php $bookingIndex = $actualBookingIndex; @endphp
+                                                                @php $actualCancelDateStr = $tour->auto_cancel_date 
+                                                                    ? \Carbon\Carbon::parse($tour->auto_cancel_date)->format('Y-m-d')
+                                                                    : '';
+                                                                @endphp
+                                                                @php
+                                                                    $attractionName = $booking['AttractionName'] ?? 'Attraction';
+                                                                @endphp
                                                                 <span class="badge @if($order->is_approve == 1) bg-success text-white @else bg-light text-dark border @endif me-1 mb-1" style="cursor: pointer;" 
-                                                                      onclick="openIndividualAttractionModal({{ $tour->tour_id }}, {{ $attractionOrderIndex }}, {{ $bookingIndex }})">
+                                                                      onclick="openIndividualAttractionModal({{ $tour->tour_id }}, {{ $attractionOrderIndex }}, {{ $bookingIndex }}, '{{$actualCancelDateStr}}')"
+                                                                      title="{{ e($attractionName) }}">
                                                                     <i class="{{ $icons[$key] }} me-1"></i>
-                                                                    Attraction {{ $globalAttractionCounter }}
+                                                                    <strong>Attraction {{ $globalAttractionCounter }}</strong> : {{ $attractionName }}
                                                                     @if($order->is_approve == 1)
                                                                         <i class="ri-check-line ms-1"></i>
                                                                     @endif
@@ -591,10 +673,14 @@
                                                             @php $actualBookingIndex = 0; @endphp
                                                             @foreach($orderData as $bookingIndex => $booking)
                                                                 @php $bookingIndex = $actualBookingIndex; @endphp
+                                                                @php
+                                                                    $vehicleName = $booking['vehicles_name'] ?? 'Local-Tour Hourly';
+                                                                @endphp
                                                                 <span class="badge @if($order->is_approve == 1) bg-success text-white @else bg-light text-dark border @endif me-1 mb-1" style="cursor: pointer;" 
-                                                                      onclick="openIndividualTravelHourlyModal({{ $tour->tour_id }}, {{ $travelHourlyOrderIndex }}, {{ $bookingIndex }})">
+                                                                      onclick="openIndividualTravelHourlyModal({{ $tour->tour_id }}, {{ $travelHourlyOrderIndex }}, {{ $bookingIndex }})"
+                                                                      title="{{ e($vehicleName) }}">
                                                                     <i class="{{ $icons[$key] }} me-1"></i>
-                                                                    Local-Tour Hourly {{ $globalTravelHourlyCounter }}
+                                                                    <strong>Local-Tour Hourly {{ $globalTravelHourlyCounter }}</strong> : {{ $vehicleName }}
                                                                     @if($order->is_approve == 1)
                                                                         <i class="ri-check-line ms-1"></i>
                                                                     @endif
@@ -616,10 +702,14 @@
                                                             @php $actualBookingIndex = 0; @endphp
                                                             @foreach($orderData as $bookingIndex => $booking)
                                                                 @php $bookingIndex = $actualBookingIndex; @endphp
+                                                                @php
+                                                                    $vehicleName = $booking['vehicles_name'] ?? 'Local-Tour Point to Point';
+                                                                @endphp
                                                                 <span class="badge @if($order->is_approve == 1) bg-success text-white @else bg-light text-dark border @endif me-1 mb-1" style="cursor: pointer;" 
-                                                                      onclick="openIndividualTravelPointModal({{ $tour->tour_id }}, {{ $travelPointOrderIndex }}, {{ $bookingIndex }})">
+                                                                      onclick="openIndividualTravelPointModal({{ $tour->tour_id }}, {{ $travelPointOrderIndex }}, {{ $bookingIndex }})"
+                                                                      title="{{ e($vehicleName) }}">
                                                                     <i class="{{ $icons[$key] }} me-1"></i>
-                                                                    Local-Tour Point to Point {{ $globalTravelPointCounter }}
+                                                                    <strong>Local-Tour Point to Point {{ $globalTravelPointCounter }}</strong> : {{ $vehicleName }}
                                                                     @if($order->is_approve == 1)
                                                                         <i class="ri-check-line ms-1"></i>
                                                                     @endif
@@ -641,10 +731,14 @@
                                                             @php $actualBookingIndex = 0; @endphp
                                                             @foreach($orderData as $bookingIndex => $booking)
                                                                 @php $bookingIndex = $actualBookingIndex; @endphp
+                                                                @php
+                                                                    $vehicleName = $booking['vehicles_name'] ?? 'Local Transport';
+                                                                @endphp
                                                                 <span class="badge @if($order->is_approve == 1) bg-success text-white @else bg-light text-dark border @endif me-1 mb-1" style="cursor: pointer;" 
-                                                                      onclick="openIndividualLocalTransportModal({{ $tour->tour_id }}, {{ $localTransportOrderIndex }}, {{ $bookingIndex }})">
+                                                                      onclick="openIndividualLocalTransportModal({{ $tour->tour_id }}, {{ $localTransportOrderIndex }}, {{ $bookingIndex }})"
+                                                                      title="{{ e($vehicleName) }}">
                                                                     <i class="{{ $icons[$key] }} me-1"></i>
-                                                                    Local Transport {{ $globalLocalTransportCounter }}
+                                                                    <strong>Local Transport {{ $globalLocalTransportCounter }}</strong> : {{ $vehicleName }}
                                                                     @if($order->is_approve == 1)
                                                                         <i class="ri-check-line ms-1"></i>
                                                                     @endif
@@ -660,18 +754,28 @@
                                             @elseif(in_array($key, ['entry_port', 'exit_port']))
                                                 @php
                                                     $isServiceApproved = false;
+                                                    $vehicleNames = [];
                                                     if(isset($serviceData[$key])) {
                                                         foreach($serviceData[$key] as $serviceOrder) {
                                                             if($serviceOrder->is_approve == 1) {
                                                                 $isServiceApproved = true;
-                                                                break;
+                                                            }
+                                                            $orderData = is_string($serviceOrder->data) ? json_decode($serviceOrder->data, true) : $serviceOrder->data;
+                                                            if(is_array($orderData)) {
+                                                                foreach($orderData as $booking) {
+                                                                    if(isset($booking['vehicles_name']) && !empty($booking['vehicles_name'])) {
+                                                                        $vehicleNames[] = $booking['vehicles_name'];
+                                                                    }
+                                                                }
                                                             }
                                                         }
                                                     }
+                                                    $tooltipText = !empty($vehicleNames) ? implode(', ', array_unique($vehicleNames)) : ($key === 'entry_port' ? 'Arrival Transfer' : 'Departure Transfer');
                                                 @endphp
                                                 <span class="badge @if($isServiceApproved) bg-success text-white @else bg-light text-dark border @endif" style="cursor: pointer;" 
                                                       onclick="openServiceModal('{{ $key }}', {{ $tour->tour_id }}, event)"
-                                                      data-debug-info="{{ json_encode($debugInfo) }}">
+                                                      data-debug-info="{{ json_encode($debugInfo) }}"
+                                                      title="{{ e($tooltipText) }}">
                                                     <i class="{{ $icons[$key] }} me-1"></i>
                                                     @if($key === 'entry_port')
                                                         Arrival {{ $count }}
@@ -762,22 +866,49 @@
                             <td>
                                 @php
                                     // Calculate payment details
+                                    // Includes: base price + transfer price + guide price (for attractions)
                                     $tourTotalPrice = 0;
                                     foreach ($tour->booking as $booking) {
                                         if (in_array($booking->status, [1, 2, 3])) { // Only count approved or declined bookings
                                             $data = is_string($booking->data) ? json_decode($booking->data, true) : $booking->data;
                                             if (is_array($data)) {
                                                 foreach ($data as $item) {
-                                                    if (isset($item['totalPrice'])) {
-                                                        $tourTotalPrice += (float)$item['totalPrice'];
+                                                    $itemPrice = (float) ($item['totalPrice'] ?? $item['price'] ?? 0);
+                                                    
+                                                    // Add transfer price if exists
+                                                    $transferPrice = 0;
+                                                    if (isset($item['transfer_options']['cost']) && $item['transfer_options']['cost'] > 0) {
+                                                        $transferPrice = (float) $item['transfer_options']['cost'];
                                                     }
+                                                    
+                                                    // Add guide price if exists (for attractions)
+                                                    $guidePrice = 0;
+                                                    if (isset($item['guide_options']['total_price']) && $item['guide_options']['total_price'] > 0) {
+                                                        $guidePrice = (float) $item['guide_options']['total_price'];
+                                                    }
+                                                    
+                                                    $tourTotalPrice += $itemPrice + $transferPrice + $guidePrice;
                                                 }
                                             }
                                         }
                                     }
                                     $enquiry = \App\Models\Enquiry::where('tour_id', $tour->tour_id)->where('status', 2)->first();
-                                    $discountAmount = $enquiry ? ($enquiry->actual_amount - $enquiry->amount) : 0;
-                                    $finalAmount = ceil($tourTotalPrice) - $discountAmount;
+                                    $enquiry_amount = $enquiry->amount ?? 0;
+                                    $frstenquiry = \App\Models\Enquiry::where('tour_id', $tour->tour_id)->first();
+                                    $first_enquiry_amount = $frstenquiry->actual_amount ?? 0;
+                                    $discountAmount = $frstenquiry ? ($frstenquiry->actual_amount - $enquiry_amount) : 0;
+                                    
+                                    // Calculate base amount before tax (round up if decimal > 0.5, round down if < 0.5)
+                                    $baseAmount = round($tourTotalPrice) - $discountAmount;
+                                    
+                                    // Calculate tax amount using TaxHelper
+                                    $persons = ($tour->adult ?? 0) + ($tour->child ?? 0);
+                                    $days = \App\Helpers\TaxHelper::calculateDays($tour->check_in_time, $tour->check_out_time);
+                                    
+                                    $taxResult = \App\Helpers\TaxHelper::calculateTourTaxes($baseAmount, $tour->taxes, $persons, $days);
+                                    $taxAmount = $taxResult['total_tax'];
+                                    $taxBreakdown = $taxResult['breakdown'];
+                                    $finalAmount = $baseAmount + $taxAmount;
                                     
                                     $paymentData = is_string($tour->payment_details) ? json_decode($tour->payment_details, true) : $tour->payment_details;
                                     $totalPaid = 0;
@@ -888,14 +1019,79 @@
                             </td> --}}
                             <td>
                                 <div class="d-flex flex-column gap-2">
+                                    @if(auth()->user()->role_id == 33 ||auth()->user()->role_id == 11 || auth()->user()->role_id == 34 ||auth()->user()->role_id == 37 || auth()->user()->role_id == 38 ||auth()->user()->role_id == 124 || auth()->user()->role_id == 125 || in_array(auth()->user()->role_id, [128, 129, 130, 131, 132, 134, 135, 136, 137, 138]))
+                                    <a href="{{ route('single-tour-package.edit', Crypt::encrypt($tour->tour_id)) }}"
+                                       class="btn btn-outline-success btn-sm rounded-pill">
+                                        <i class="ri-pencil-line"></i> Edit
+                                    </a>
+                                    @endif
                                     <a href="{{ route('bookings.view-tour', Crypt::encrypt($tour->tour_id)) }}" 
                                        class="btn btn-outline-primary btn-sm rounded-pill">
-                                        <i class="ri-eye-line"></i> View
+                                        <i class="ri-eye-line"></i> Audit Trail
+                                    </a>
+                                    <a href="{{ route('tour.itinerary.pdf', ['tourId' => $tour->tour_id]) }}" 
+                                       class="btn btn-outline-secondary btn-sm rounded-pill"
+                                       target="_blank">
+                                        <i class="ri-file-download-line me-1"></i> Download Quotation
                                     </a>
                                     
                                     @php
-                                        $all_ids = [33, 34, 37, 38, 124, 125, 128, 129, 130, 132, 133, 134, 135, 136, 137, 138];
+                                        $all_ids = [11, 33, 34, 37, 38, 124, 125, 128, 129, 130, 132, 133, 134, 135, 136, 137, 138];
+                                        $proformaInvoice = \App\Models\Invoice::where('tour_id', $tour->tour_id)
+                                            ->where('invoice_type', 'proforma')
+                                            ->whereNull('deleted_at')
+                                            ->first();
+                                        $finalInvoice = \App\Models\Invoice::where('tour_id', $tour->tour_id)
+                                            ->where('invoice_type', 'final')
+                                            ->whereNull('deleted_at')
+                                            ->first();
                                     @endphp
+                                    
+                                    @if($finalInvoice)
+                                        <a href="{{ route('invoices.download', Crypt::encrypt($finalInvoice->invoice_id)) }}" 
+                                           class="btn btn-outline-info btn-sm rounded-pill"
+                                           target="_blank"
+                                           title="Download Final Invoice (Price Breakup)">
+                                            <i class="ri-file-paper-2-line me-1"></i> Final Invoice(Price Breakup)
+                                        </a>
+                                        <a href="{{ route('invoices.download-price-only', Crypt::encrypt($finalInvoice->invoice_id)) }}" 
+                                           class="btn btn-outline-primary btn-sm rounded-pill"
+                                           target="_blank"
+                                           title="Download Final Invoice (Package Price Only)">
+                                            <i class="ri-file-download-line me-1"></i> Final Invoice(Package Price Only)
+                                        </a>
+                                    @elseif($proformaInvoice)
+                                        <a href="{{ route('invoices.download', Crypt::encrypt($proformaInvoice->invoice_id)) }}" 
+                                           class="btn btn-outline-info btn-sm rounded-pill"
+                                           target="_blank"
+                                           title="Download Proforma Invoice (Price Breakup)">
+                                            <i class="ri-file-paper-line me-1"></i> Proforma Invoice(Price Breakup)
+                                        </a>
+                                        <a href="{{ route('invoices.download-price-only', Crypt::encrypt($proformaInvoice->invoice_id)) }}" 
+                                           class="btn btn-outline-primary btn-sm rounded-pill"
+                                           target="_blank"
+                                           title="Download Proforma Invoice (Package Price Only)">
+                                            <i class="ri-file-download-line me-1"></i> Proforma Invoice(Package Price Only)
+                                        </a>
+                                        <form action="{{ route('invoices.convert-to-final', $proformaInvoice->invoice_id) }}" method="POST" class="d-inline">
+                                            @csrf
+                                            <button type="submit" 
+                                                    class="btn btn-outline-warning btn-sm rounded-pill"
+                                                    title="Convert Proforma to Final Invoice"
+                                                    onclick="return confirm('Are you sure you want to convert this proforma invoice to final invoice? This action cannot be undone.');">
+                                                <i class="ri-file-edit-line me-1"></i> Convert to Final
+                                            </button>
+                                        </form>
+                                    @else
+                                        <form action="{{ route('invoices.generate-final', $tour->tour_id) }}" method="POST" class="d-inline">
+                                            @csrf
+                                            <button type="submit" 
+                                                    class="btn btn-outline-info btn-sm rounded-pill"
+                                                    title="Generate Final Invoice">
+                                                <i class="ri-file-add-line me-1"></i> Generate Invoice
+                                            </button>
+                                        </form>
+                                    @endif
                                     @if(in_array(auth()->user()->role_id, $all_ids))
                                     <a href="{{ route('tour.itinerary', ['tourId' => Crypt::encrypt($tour->tour_id)]) }}" 
                                        class="btn btn-outline-success btn-sm rounded-pill"
@@ -904,18 +1100,24 @@
                                         <i class="fas fa-calendar-alt"></i> View Itinerary
                                     </a>
                                     @endif
-                                    @if(auth()->user()->role_id == 33 || auth()->user()->role_id == 34 ||auth()->user()->role_id == 37 || auth()->user()->role_id == 38 ||auth()->user()->role_id == 124 || auth()->user()->role_id == 125||auth()->user()->role_id == 11)
+                                    @if(auth()->user()->role_id == 33 || auth()->user()->role_id == 34 ||auth()->user()->role_id == 37 || auth()->user()->role_id == 38 ||auth()->user()->role_id == 124 || auth()->user()->role_id == 125||auth()->user()->role_id == 11 || in_array(auth()->user()->role_id, [128, 129, 130, 131, 132, 134, 135, 136, 137, 138]))
                                     <a href="{{ route('tour.editpackage', Crypt::encrypt($tour->tour_id)) }}" 
                                        class="btn btn-outline-warning btn-sm rounded-pill">
-                                        <i class="ri-settings-3-line"></i> Edit Tour
+                                        <i class="ri-settings-3-line"></i> Add/Remove Services
                                     </a>
                                     @endif
+                                    @if(auth()->user()->role_id == 33 ||auth()->user()->role_id == 11 || auth()->user()->role_id == 34 ||auth()->user()->role_id == 37 || auth()->user()->role_id == 38 ||auth()->user()->role_id == 124 || auth()->user()->role_id == 125 || in_array(auth()->user()->role_id, [128, 129, 130, 131, 132, 134, 135, 136, 137, 138]))
+                                    <a href="{{ route('guests.index', ['tour_id' => Crypt::encrypt($tour->tour_id)]) }}" 
+                                       class="btn btn-outline-info btn-sm rounded-pill" 
+                                       title="Add guests for this tour">
+                                        <i class="ri-user-add-line me-1"></i> Add Guests
+                                    </a>
                                     <button type="button" 
                                             class="btn btn-outline-danger btn-sm rounded-pill" 
                                             onclick="cancelDefinite('{{ Crypt::encrypt($tour->tour_id) }}', '{{ $tour->display_id }}')">
                                         <i class="ri-close-line"></i> Cancel
                                     </button>
-                                    
+                                    @endif
                                     @if(auth()->user()->role_id == 36 || auth()->user()->role_id == 126 || auth()->user()->role_id == 127 || auth()->user()->role_id == 124 || auth()->user()->role_id == 125)
                                         <button type="button" class="btn btn-sm btn-info" data-bs-toggle="modal" data-bs-target="#showPaymentModal{{ $tour->tour_id }}">
                                             <i class="fas fa-history me-1"></i> Payment Details
@@ -1929,9 +2131,13 @@
                                                             style="border-radius: 25px;">
                                                         <i class="ri-edit-line me-1"></i>Edit
                                                     </button>
+                                                    @php $actualCancelDateStr = $tour->auto_cancel_date 
+                                                                    ? \Carbon\Carbon::parse($tour->auto_cancel_date)->format('Y-m-d')
+                                                                    : '';
+                                                                @endphp
                                                     <button type="button" 
                                                             class="btn btn-outline-success btn-sm px-3 py-2" 
-                                                            onclick="console.log('🎯 BUTTON CLICKED - Attraction Approve'); window.approveIndividualAttraction ? window.approveIndividualAttraction({{ $tour->tour_id }}, {{ $index }}, {{ $bookingIndex }}) : approveIndividualAttraction({{ $tour->tour_id }}, {{ $index }}, {{ $bookingIndex }})"
+                                                            onclick="console.log('🎯 BUTTON CLICKED - Attraction Approve'); window.approveIndividualAttraction ? window.approveIndividualAttraction({{ $tour->tour_id }}, {{ $index }}, {{ $bookingIndex }}, '{{$actualCancelDateStr}}') : approveIndividualAttraction({{ $tour->tour_id }}, {{ $index }}, {{ $bookingIndex }}, '{{$actualCancelDateStr}}')"
                                                             style="border-radius: 25px;">
                                                         <i class="ri-check-line me-1"></i>Approve
                                                     </button>
@@ -2706,12 +2912,12 @@
                                                              style="border-radius: 25px;">
                                                          <i class="ri-edit-line me-1"></i>Edit
                                                      </button>
-                                                     <button type="button" 
+                                                     {{-- <button type="button" 
                                                              class="btn btn-outline-success btn-sm px-3 py-2" 
                                                              onclick="approveIndividualGuide({{ $tour->tour_id }}, {{ $index }}, {{ $bookingIndex }})"
                                                              style="border-radius: 25px;">
                                                          <i class="ri-check-line me-1"></i>Approve
-                                                     </button>
+                                                     </button> --}}
                                                      @endif
                                                      @if(auth()->user()->role_id == 11 || auth()->user()->role_id == 34 || auth()->user()->role_id == 33 || auth()->user()->role_id == 37 || auth()->user()->role_id == 38 || auth()->user()->role_id == 124 || auth()->user()->role_id == 125 || auth()->user()->role_id == 128 || auth()->user()->role_id == 129 || auth()->user()->role_id == 130 || auth()->user()->role_id == 131 || auth()->user()->role_id == 132 || auth()->user()->role_id == 134 || auth()->user()->role_id == 135 || auth()->user()->role_id == 136 || auth()->user()->role_id == 137 || auth()->user()->role_id == 138)
                                                      <button type="button" 
@@ -3036,12 +3242,12 @@
                                                             style="border-radius: 25px;">
                                                         <i class="ri-edit-line me-1"></i>Edit
                                                     </button>
-                                                    <button type="button" 
+                                                    {{-- <button type="button" 
                                                             class="btn btn-outline-success btn-sm px-3 py-2" 
                                                             onclick="approveArrivalBooking({{ $tour->tour_id }}, {{ $index }}, {{ $bookingIndex }})"
                                                             style="border-radius: 25px;">
                                                         <i class="ri-check-line me-1"></i>Approve
-                                                    </button>
+                                                    </button> --}}
                                                     @endif
                                                     @if(auth()->user()->role_id == 11 || auth()->user()->role_id == 34 || auth()->user()->role_id == 33 || auth()->user()->role_id == 37 || auth()->user()->role_id == 38 || auth()->user()->role_id == 124 || auth()->user()->role_id == 125 || auth()->user()->role_id == 128 || auth()->user()->role_id == 129 || auth()->user()->role_id == 130 || auth()->user()->role_id == 131 || auth()->user()->role_id == 132 || auth()->user()->role_id == 134 || auth()->user()->role_id == 135 || auth()->user()->role_id == 136 || auth()->user()->role_id == 137 || auth()->user()->role_id == 138)
                                                     <button type="button" 
@@ -3356,12 +3562,12 @@
                                                             style="border-radius: 25px;">
                                                         <i class="ri-edit-line me-1"></i>Edit
                                                     </button>
-                                                    <button type="button" 
+                                                    {{-- <button type="button" 
                                                             class="btn btn-outline-success btn-sm px-3 py-2" 
                                                             onclick="approveDepartureBooking({{ $tour->tour_id }}, {{ $index }}, {{ $actualBookingIndex }})"
                                                             style="border-radius: 25px;">
                                                         <i class="ri-check-line me-1"></i>Approve
-                                                    </button>
+                                                    </button> --}}
                                                     @endif
                                                     @if(auth()->user()->role_id == 11 || auth()->user()->role_id == 34 || auth()->user()->role_id == 33 || auth()->user()->role_id == 37 || auth()->user()->role_id == 38 || auth()->user()->role_id == 124 || auth()->user()->role_id == 125 || auth()->user()->role_id == 128 || auth()->user()->role_id == 129 || auth()->user()->role_id == 130 || auth()->user()->role_id == 131 || auth()->user()->role_id == 132 || auth()->user()->role_id == 134 || auth()->user()->role_id == 135 || auth()->user()->role_id == 136 || auth()->user()->role_id == 137 || auth()->user()->role_id == 138)
                                                     <button type="button" 
@@ -3413,29 +3619,63 @@
 @foreach($tours as $tour)
     @php
         // Recalculate payment details for modals
+        // Includes: base price + transfer price + guide price (for attractions)
         $tourTotalPrice = 0;
         foreach ($tour->booking as $booking) {
             if (in_array($booking->status, [1, 2, 3])) {
                 $data = is_string($booking->data) ? json_decode($booking->data, true) : $booking->data;
                 if (is_array($data)) {
                     foreach ($data as $item) {
-                        if (isset($item['totalPrice'])) {
-                            $tourTotalPrice += (float)$item['totalPrice'];
+                        $itemPrice = (float) ($item['totalPrice'] ?? $item['price'] ?? 0);
+                        
+                        // Add transfer price if exists
+                        $transferPrice = 0;
+                        if (isset($item['transfer_options']['cost']) && $item['transfer_options']['cost'] > 0) {
+                            $transferPrice = (float) $item['transfer_options']['cost'];
                         }
+                        
+                        // Add guide price if exists (for attractions)
+                        $guidePrice = 0;
+                        if (isset($item['guide_options']['total_price']) && $item['guide_options']['total_price'] > 0) {
+                            $guidePrice = (float) $item['guide_options']['total_price'];
+                        }
+                        
+                        $tourTotalPrice += $itemPrice + $transferPrice + $guidePrice;
                     }
                 }
             }
         }
         $enquiry = \App\Models\Enquiry::where('tour_id', $tour->tour_id)->where('status', 2)->first();
-        $discountAmount = $enquiry ? ($enquiry->actual_amount - $enquiry->amount) : 0;
-        $finalAmount = ceil($tourTotalPrice) - $discountAmount;
+        $enquiry_amount = $enquiry->amount ?? 0;
+        $frstenquiry = \App\Models\Enquiry::where('tour_id', $tour->tour_id)->first();
+        $first_enquiry_amount = $frstenquiry->actual_amount ?? 0;
+        $discountAmount = $frstenquiry ? ($frstenquiry->actual_amount - $enquiry_amount) : 0;
+        
+        // Calculate base amount before tax (round up if decimal > 0.5, round down if < 0.5)
+        $baseAmount = round($tourTotalPrice) - $discountAmount;
+        
+        // Calculate tax amount using TaxHelper
+        $persons = ($tour->adult ?? 0) + ($tour->child ?? 0);
+        $days = \App\Helpers\TaxHelper::calculateDays($tour->check_in_time, $tour->check_out_time);
+        
+        // Debug: Log the taxes data for this tour
+        \Log::info('Tour #' . $tour->tour_id . ' Taxes Data:', ['taxes' => $tour->taxes, 'persons' => $persons, 'days' => $days, 'baseAmount' => $baseAmount]);
+        
+        $taxResult = \App\Helpers\TaxHelper::calculateTourTaxes($baseAmount, $tour->taxes, $persons, $days);
+        $taxAmount = $taxResult['total_tax'];
+        $taxBreakdown = $taxResult['breakdown'];
+        $finalAmount = $baseAmount + $taxAmount;
         
         $paymentData = is_string($tour->payment_details) ? json_decode($tour->payment_details, true) : $tour->payment_details;
         $totalPaid = 0;
+        $hasPendingPayments = false;
         if (is_array($paymentData) && !empty($paymentData)) {
             foreach ($paymentData as $payment) {
                 if (isset($payment['status']) && $payment['status'] == 1) {
                     $totalPaid += isset($payment['amount']) ? (float)$payment['amount'] : 0;
+                }
+                if (isset($payment['status']) && $payment['status'] == 0) {
+                    $hasPendingPayments = true;
                 }
             }
         }
@@ -3561,27 +3801,55 @@
                         
                         <!-- Payment Summary -->
                         <div class="row mt-3 g-2">
-                            <div class="col-md-4">
+                            <div class="col-md-3">
+                                <div class="card bg-secondary text-white" style="border-radius: 10px;">
+                                    <div class="card-body text-center py-2 px-3">
+                                        <h6 class="card-title mb-1" style="font-size: 0.85rem; font-weight: 600;">Base Amount</h6>
+                                        <h5 class="mb-0" style="font-size: 1.2rem; font-weight: bold;">{{ number_format($baseAmount, 2) }}</h5>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="col-md-3">
+                                <div class="card bg-info text-white" style="border-radius: 10px;">
+                                    <div class="card-body text-center py-2 px-3">
+                                        <h6 class="card-title mb-1" style="font-size: 0.85rem; font-weight: 600;" 
+                                            @if(!empty($taxBreakdown))
+                                                title="{{ \App\Helpers\TaxHelper::formatTaxBreakdown($taxBreakdown) }}"
+                                            @endif>
+                                            Tax @if(!empty($taxBreakdown))({{ count($taxBreakdown) }} taxes)@endif
+                                        </h6>
+                                        <h5 class="mb-0" style="font-size: 1.2rem; font-weight: bold;">{{ number_format($taxAmount, 2) }}</h5>
+                                        @if(!empty($taxBreakdown) && count($taxBreakdown) > 0)
+                                            <small style="font-size: 0.65rem; opacity: 0.9;">
+                                                @foreach($taxBreakdown as $taxName => $taxVal)
+                                                    {{ $taxName }}: {{ number_format($taxVal, 2) }}@if(!$loop->last), @endif
+                                                @endforeach
+                                            </small>
+                                        @endif
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="col-md-2">
                                 <div class="card bg-primary text-white" style="border-radius: 10px;">
                                     <div class="card-body text-center py-2 px-3">
-                                        <h6 class="card-title mb-1" style="font-size: 0.85rem; font-weight: 600;">Total Amount</h6>
-                                        <h4 class="mb-0" style="font-size: 1.5rem; font-weight: bold;">{{ number_format($finalAmount, 2) }}</h4>
+                                        <h6 class="card-title mb-1" style="font-size: 0.85rem; font-weight: 600;">Total</h6>
+                                        <h5 class="mb-0" style="font-size: 1.2rem; font-weight: bold;">{{ number_format($finalAmount, 2) }}</h5>
                                     </div>
                                 </div>
                             </div>
-                            <div class="col-md-4">
+                            <div class="col-md-2">
                                 <div class="card bg-success text-white" style="border-radius: 10px;">
                                     <div class="card-body text-center py-2 px-3">
-                                        <h6 class="card-title mb-1" style="font-size: 0.85rem; font-weight: 600;">Paid Amount</h6>
-                                        <h4 class="mb-0" style="font-size: 1.5rem; font-weight: bold;">{{ number_format($totalPaid, 2) }}</h4>
+                                        <h6 class="card-title mb-1" style="font-size: 0.85rem; font-weight: 600;">Paid</h6>
+                                        <h5 class="mb-0" style="font-size: 1.2rem; font-weight: bold;">{{ number_format($totalPaid, 2) }}</h5>
                                     </div>
                                 </div>
                             </div>
-                            <div class="col-md-4">
+                            <div class="col-md-2">
                                 <div class="card bg-warning text-white" style="border-radius: 10px;">
                                     <div class="card-body text-center py-2 px-3">
-                                        <h6 class="card-title mb-1" style="font-size: 0.85rem; font-weight: 600;">Remaining Amount</h6>
-                                        <h4 class="mb-0" style="font-size: 1.5rem; font-weight: bold;">{{ number_format($remainingAmount, 2) }}</h4>
+                                        <h6 class="card-title mb-1" style="font-size: 0.85rem; font-weight: 600;">Remaining</h6>
+                                        <h5 class="mb-0" style="font-size: 1.2rem; font-weight: bold;">{{ number_format($remainingAmount, 2) }}</h5>
                                     </div>
                                 </div>
                             </div>
@@ -3625,18 +3893,55 @@
                                 <i class="fas fa-info-circle text-info me-2"></i>Payment Information
                             </label>
                             <div class="alert alert-info">
-                                <div class="row text-center">
+                                <!-- Pricing Breakdown -->
+                                @if($discountAmount > 0)
+                                <div class="row text-center mb-2">
+                                    <div class="col-6">
+                                        <small class="text-muted">Actual Price</small>
+                                        <div class="fw-bold text-secondary">{{ number_format(round($tourTotalPrice), 2) }} SGD</div>
+                                    </div>
+                                    <div class="col-6">
+                                        <small class="text-muted">Discount</small>
+                                        <div class="fw-bold text-success">- {{ number_format(round($discountAmount), 2) }} SGD</div>
+                                    </div>
+                                </div>
+                                <hr class="my-2">
+                                @endif
+                                <div class="row text-center mb-2">
+                                    <div class="col-4">
+                                        <small class="text-muted">Base Amount</small>
+                                        <div class="fw-bold text-dark">{{ number_format(round($baseAmount), 2) }} SGD</div>
+                                    </div>
+                                    <div class="col-4">
+                                        <small class="text-muted" 
+                                            @if(!empty($taxBreakdown))
+                                                title="{{ \App\Helpers\TaxHelper::formatTaxBreakdown($taxBreakdown) }}"
+                                            @endif>
+                                            Tax @if(!empty($taxBreakdown))({{ count($taxBreakdown) }})@endif
+                                        </small>
+                                        <div class="fw-bold text-warning">{{ number_format(round($taxAmount), 2) }} SGD</div>
+                                        @if(!empty($taxBreakdown) && count($taxBreakdown) > 0)
+                                            <div style="font-size: 0.7rem; margin-top: 2px;">
+                                                @foreach($taxBreakdown as $taxName => $taxVal)
+                                                    <div>{{ $taxName }}: {{ number_format(round($taxVal), 2) }}</div>
+                                                @endforeach
+                                            </div>
+                                        @endif
+                                    </div>
                                     <div class="col-4">
                                         <small class="text-muted">Total Amount</small>
-                                        <div class="fw-bold text-primary">{{ number_format($finalAmount, 2) }} SGD</div>
+                                        <div class="fw-bold text-primary">{{ number_format(round($finalAmount), 2) }} SGD</div>
                                     </div>
-                                    <div class="col-4">
+                                </div>
+                                <hr class="my-2">
+                                <div class="row text-center">
+                                    <div class="col-6">
                                         <small class="text-muted">Paid Amount</small>
-                                        <div class="fw-bold text-success">{{ number_format($totalPaid, 2) }} SGD</div>
+                                        <div class="fw-bold text-success">{{ number_format(round($totalPaid), 2) }} SGD</div>
                                     </div>
-                                    <div class="col-4">
+                                    <div class="col-6">
                                         <small class="text-muted">Remaining</small>
-                                        <div class="fw-bold text-danger">{{ number_format($remainingAmount, 2) }} SGD</div>
+                                        <div class="fw-bold text-danger">{{ number_format(round($remainingAmount), 2) }} SGD</div>
                                     </div>
                                 </div>
                             </div>
@@ -3710,7 +4015,7 @@
                             <div class="mt-2" id="conversionInfoContainer{{ $tour->tour_id }}" style="display: none;">
                                 <small class="text-info" id="conversionInfo{{ $tour->tour_id }}">
                                     <i class="fas fa-info-circle me-1"></i>
-                                    Amount in SGD: {{ number_format($remainingAmount, 2) }}
+                                    Amount in SGD: {{ number_format(round($remainingAmount), 2) }}
                                 </small>
                             </div>
                             <div class="mt-1">
@@ -4074,12 +4379,12 @@
                                                             style="border-radius: 25px;">
                                                         <i class="ri-edit-line me-1"></i>Edit
                                                     </button>
-                                                    <button type="button" 
+                                                    {{-- <button type="button" 
                                                             class="btn btn-outline-success btn-sm px-3 py-2" 
                                                             onclick="approveTravelHourlyBooking({{ $tour->tour_id }}, {{ $index }}, {{ $actualBookingIndex }})"
                                                             style="border-radius: 25px;">
                                                         <i class="ri-check-line me-1"></i>Approve
-                                                    </button>
+                                                    </button> --}}
                                                     @endif
                                                     @if(auth()->user()->role_id == 11 || auth()->user()->role_id == 34 || auth()->user()->role_id == 33 || auth()->user()->role_id == 37 || auth()->user()->role_id == 38 || auth()->user()->role_id == 124 || auth()->user()->role_id == 125 || auth()->user()->role_id == 128 || auth()->user()->role_id == 129 || auth()->user()->role_id == 130 || auth()->user()->role_id == 131 || auth()->user()->role_id == 132 || auth()->user()->role_id == 134 || auth()->user()->role_id == 135 || auth()->user()->role_id == 136 || auth()->user()->role_id == 137 || auth()->user()->role_id == 138)
                                                     <button type="button" 
@@ -4459,12 +4764,12 @@
                                                             style="border-radius: 25px;">
                                                         <i class="ri-edit-line me-1"></i>Edit
                                                     </button>
-                                                    <button type="button" 
+                                                    {{-- <button type="button" 
                                                             class="btn btn-outline-success btn-sm px-3 py-2" 
                                                             onclick="approveTravelPointBooking({{ $tour->tour_id }}, {{ $index }}, {{ $actualBookingIndex }})"
                                                             style="border-radius: 25px;">
                                                         <i class="ri-check-line me-1"></i>Approve
-                                                    </button>
+                                                    </button> --}}
                                                     @endif
                                                     @if(auth()->user()->role_id == 11 || auth()->user()->role_id == 34 || auth()->user()->role_id == 33 || auth()->user()->role_id == 37 || auth()->user()->role_id == 38 || auth()->user()->role_id == 124 || auth()->user()->role_id == 125 || auth()->user()->role_id == 128 || auth()->user()->role_id == 129 || auth()->user()->role_id == 130 || auth()->user()->role_id == 131 || auth()->user()->role_id == 132 || auth()->user()->role_id == 134 || auth()->user()->role_id == 135 || auth()->user()->role_id == 136 || auth()->user()->role_id == 137 || auth()->user()->role_id == 138)
                                                     <button type="button" 
@@ -4843,12 +5148,12 @@
                                                             style="border-radius: 25px;">
                                                         <i class="ri-edit-line me-1"></i>Edit
                                                     </button>
-                                                    <button type="button" 
+                                                    {{-- <button type="button" 
                                                             class="btn btn-outline-success btn-sm px-3 py-2" 
                                                             onclick="approveIndividualLocalTransport({{ $tour->tour_id }}, {{ $index }}, {{ $actualBookingIndex }})"
                                                             style="border-radius: 25px;">
                                                         <i class="ri-check-line me-1"></i>Approve
-                                                    </button>
+                                                    </button> --}}
                                                     @endif
                                                     @if(auth()->user()->role_id == 11 || auth()->user()->role_id == 34 || auth()->user()->role_id == 33 || auth()->user()->role_id == 37 || auth()->user()->role_id == 38 || auth()->user()->role_id == 124 || auth()->user()->role_id == 125 || auth()->user()->role_id == 128 || auth()->user()->role_id == 129 || auth()->user()->role_id == 130 || auth()->user()->role_id == 131 || auth()->user()->role_id == 132 || auth()->user()->role_id == 134 || auth()->user()->role_id == 135 || auth()->user()->role_id == 136 || auth()->user()->role_id == 137 || auth()->user()->role_id == 138)
                                                     <button type="button" 
@@ -5427,12 +5732,7 @@ function generateGuideActionButtons(booking, tourId, guideOrderIndex, bookingInd
                             style="border-radius: 25px;">
                         <i class="ri-edit-line me-1"></i>Edit
                     </button>
-                    <button type="button" 
-                            class="btn btn-outline-success btn-sm px-3 py-2" 
-                            onclick="approveIndividualGuide(${tourId}, ${guideOrderIndex}, ${bookingIndex})"
-                            style="border-radius: 25px;">
-                        <i class="ri-check-line me-1"></i>Approve
-                    </button>
+                    
             ` : ''}
             ${[11, 34, 33, 37, 38, 124, 125, 128, 129, 130, 131, 132, 134, 135, 136, 137, 138].includes(userRole) ? `
                     <button type="button" 
@@ -5564,8 +5864,34 @@ function createGuideRejectionModal(tourId, guideOrderIndex, bookingIndex) {
     document.body.insertAdjacentHTML('beforeend', modalHTML);
     
     // Show modal
-    const modal = new bootstrap.Modal(document.getElementById(modalId));
+    const modalElement = document.getElementById(modalId);
+    const modal = new bootstrap.Modal(modalElement);
     modal.show();
+    
+    // Add event listener to restore modal-open state when this modal closes
+    modalElement.addEventListener('hidden.bs.modal', function restoreModalState() {
+        // Check if there's still an open individual guide view modal
+        const openIndividualModals = document.querySelectorAll('[id*="individualGuideViewModal_"]');
+        if (openIndividualModals.length > 0) {
+            // Restore modal-open class and padding to body
+            document.body.classList.add('modal-open');
+            
+            // Calculate scrollbar width and restore padding
+            const scrollbarWidth = window.innerWidth - document.documentElement.clientWidth;
+            if (scrollbarWidth > 0) {
+                document.body.style.paddingRight = scrollbarWidth + 'px';
+            }
+            
+            // Ensure backdrop is visible for the underlying modal
+            const backdrops = document.querySelectorAll('.modal-backdrop');
+            if (backdrops.length > 0) {
+                backdrops[backdrops.length - 1].style.display = 'block';
+            }
+        }
+        
+        // Remove this event listener after it's executed once
+        modalElement.removeEventListener('hidden.bs.modal', restoreModalState);
+    }, { once: true });
     
     // Load guide data for the modal
     loadGuideDataForReject(tourId, guideOrderIndex, bookingIndex);
@@ -5775,12 +6101,12 @@ function createGuideApprovalModal(tourId, guideOrderIndex, bookingIndex) {
 
                             <div class="mb-3">
                                 <label for="actualDueDate_${tourId}_${guideOrderIndex}_${bookingIndex}" class="form-label fw-semibold">
-                                    <i class="ri-calendar-line me-2"></i>Actual Due Date <span class="text-danger">*</span>
+                                    <i class="ri-calendar-line me-2"></i>Free Cancellation Date <span class="text-danger">*</span>
                                 </label>
                                 <input type="date" class="form-control form-control-lg" id="actualDueDate_${tourId}_${guideOrderIndex}_${bookingIndex}" name="actual_due_date" required 
                                        onchange="calculateGuideDisplayDueDate('${tourId}', '${guideOrderIndex}', '${bookingIndex}')"
                                        style="border-radius: 8px; border: 2px solid #e9ecef;">
-                                <div class="form-text">Select the actual due date for this booking</div>
+                                <div class="form-text">Select the Free Cancellation Date for this booking</div>
                             </div>
 
                             <div class="mb-3">
@@ -5798,7 +6124,7 @@ function createGuideApprovalModal(tourId, guideOrderIndex, bookingIndex) {
                                     <option value="7">1 week before</option>
                                     <option value="14">2 weeks before</option>
                                 </select>
-                                <div class="form-text">Select how many days before the actual due date to display</div>
+                                <div class="form-text">Select how many days before the Free Cancellation Date to display</div>
                             </div>
 
                             <div class="mb-3">
@@ -5830,8 +6156,34 @@ function createGuideApprovalModal(tourId, guideOrderIndex, bookingIndex) {
     document.body.insertAdjacentHTML('beforeend', modalHTML);
     
     // Show modal
-    const modal = new bootstrap.Modal(document.getElementById(modalId));
+    const modalElement = document.getElementById(modalId);
+    const modal = new bootstrap.Modal(modalElement);
     modal.show();
+    
+    // Add event listener to restore modal-open state when this modal closes
+    modalElement.addEventListener('hidden.bs.modal', function restoreModalState() {
+        // Check if there's still an open individual guide view modal
+        const openIndividualModals = document.querySelectorAll('[id*="individualGuideViewModal_"]');
+        if (openIndividualModals.length > 0) {
+            // Restore modal-open class and padding to body
+            document.body.classList.add('modal-open');
+            
+            // Calculate scrollbar width and restore padding
+            const scrollbarWidth = window.innerWidth - document.documentElement.clientWidth;
+            if (scrollbarWidth > 0) {
+                document.body.style.paddingRight = scrollbarWidth + 'px';
+            }
+            
+            // Ensure backdrop is visible for the underlying modal
+            const backdrops = document.querySelectorAll('.modal-backdrop');
+            if (backdrops.length > 0) {
+                backdrops[backdrops.length - 1].style.display = 'block';
+            }
+        }
+        
+        // Remove this event listener after it's executed once
+        modalElement.removeEventListener('hidden.bs.modal', restoreModalState);
+    }, { once: true });
     
     // Load guide data for the modal
     loadGuideDataForApprove(tourId, guideOrderIndex, bookingIndex);
@@ -6075,12 +6427,12 @@ function createHourlyApprovalModal(tourId, hourlyOrderIndex, bookingIndex) {
 
                             <div class="mb-3">
                                 <label for="actualDueDate_${tourId}_${hourlyOrderIndex}_${bookingIndex}" class="form-label fw-semibold">
-                                    <i class="ri-calendar-line me-2"></i>Actual Due Date <span class="text-danger">*</span>
+                                    <i class="ri-calendar-line me-2"></i>Free Cancellation Date <span class="text-danger">*</span>
                                 </label>
                                 <input type="date" class="form-control form-control-lg" id="actualDueDate_${tourId}_${hourlyOrderIndex}_${bookingIndex}" name="actual_due_date" required 
                                        onchange="calculateHourlyDisplayDueDate('${tourId}', '${hourlyOrderIndex}', '${bookingIndex}')"
                                        style="border-radius: 8px; border: 2px solid #e9ecef;">
-                                <div class="form-text">Select the actual due date for this booking</div>
+                                <div class="form-text">Select the Free Cancellation Date for this booking</div>
                             </div>
 
                             <div class="mb-3">
@@ -6098,7 +6450,7 @@ function createHourlyApprovalModal(tourId, hourlyOrderIndex, bookingIndex) {
                                     <option value="7">1 week before</option>
                                     <option value="14">2 weeks before</option>
                                 </select>
-                                <div class="form-text">Select how many days before the actual due date to display</div>
+                                <div class="form-text">Select how many days before the Free Cancellation Date to display</div>
                             </div>
 
                             <div class="mb-3">
@@ -6130,8 +6482,34 @@ function createHourlyApprovalModal(tourId, hourlyOrderIndex, bookingIndex) {
     document.body.insertAdjacentHTML('beforeend', modalHTML);
     
     // Show modal
-    const modal = new bootstrap.Modal(document.getElementById(modalId));
+    const modalElement = document.getElementById(modalId);
+    const modal = new bootstrap.Modal(modalElement);
     modal.show();
+    
+    // Add event listener to restore modal-open state when this modal closes
+    modalElement.addEventListener('hidden.bs.modal', function restoreModalState() {
+        // Check if there's still an open individual hourly view modal
+        const openIndividualModals = document.querySelectorAll('[id*="individualTravelHourlyViewModal_"]');
+        if (openIndividualModals.length > 0) {
+            // Restore modal-open class and padding to body
+            document.body.classList.add('modal-open');
+            
+            // Calculate scrollbar width and restore padding
+            const scrollbarWidth = window.innerWidth - document.documentElement.clientWidth;
+            if (scrollbarWidth > 0) {
+                document.body.style.paddingRight = scrollbarWidth + 'px';
+            }
+            
+            // Ensure backdrop is visible for the underlying modal
+            const backdrops = document.querySelectorAll('.modal-backdrop');
+            if (backdrops.length > 0) {
+                backdrops[backdrops.length - 1].style.display = 'block';
+            }
+        }
+        
+        // Remove this event listener after it's executed once
+        modalElement.removeEventListener('hidden.bs.modal', restoreModalState);
+    }, { once: true });
     
     // Load hourly data for the modal
     loadHourlyDataForApprove(tourId, hourlyOrderIndex, bookingIndex);
@@ -6235,8 +6613,34 @@ function createHourlyRejectionModal(tourId, hourlyOrderIndex, bookingIndex) {
     document.body.insertAdjacentHTML('beforeend', modalHTML);
     
     // Show modal
-    const modal = new bootstrap.Modal(document.getElementById(modalId));
+    const modalElement = document.getElementById(modalId);
+    const modal = new bootstrap.Modal(modalElement);
     modal.show();
+    
+    // Add event listener to restore modal-open state when this modal closes
+    modalElement.addEventListener('hidden.bs.modal', function restoreModalState() {
+        // Check if there's still an open individual hourly view modal
+        const openIndividualModals = document.querySelectorAll('[id*="individualTravelHourlyViewModal_"]');
+        if (openIndividualModals.length > 0) {
+            // Restore modal-open class and padding to body
+            document.body.classList.add('modal-open');
+            
+            // Calculate scrollbar width and restore padding
+            const scrollbarWidth = window.innerWidth - document.documentElement.clientWidth;
+            if (scrollbarWidth > 0) {
+                document.body.style.paddingRight = scrollbarWidth + 'px';
+            }
+            
+            // Ensure backdrop is visible for the underlying modal
+            const backdrops = document.querySelectorAll('.modal-backdrop');
+            if (backdrops.length > 0) {
+                backdrops[backdrops.length - 1].style.display = 'block';
+            }
+        }
+        
+        // Remove this event listener after it's executed once
+        modalElement.removeEventListener('hidden.bs.modal', restoreModalState);
+    }, { once: true });
     
     // Load hourly data for the modal
     loadHourlyDataForReject(tourId, hourlyOrderIndex, bookingIndex);
@@ -6717,7 +7121,7 @@ window.calculateHourlyDisplayDueDate = function(tourId, hourlyOrderIndex, bookin
             return;
         }
         
-        // Calculate display due date by subtracting days from actual due date
+        // Calculate display due date by subtracting days from Free Cancellation Date
         const actualDate = new Date(actualDueDate);
         const displayDate = new Date(actualDate);
         displayDate.setDate(actualDate.getDate() - parseInt(daysBefore));
@@ -7910,7 +8314,7 @@ function confirmIndividualGuideRejection(tourId, guideOrderIndex, bookingIndex) 
 }
 
 // Individual Hotel Modal Functions
-window.openIndividualHotelModal = function(tourId, hotelOrderIndex, bookingIndex) {
+window.openIndividualHotelModal = function(tourId, hotelOrderIndex, bookingIndex, autoCancelDate=null) {
     try {
         console.log('🏨 Opening individual hotel modal for:', { tourId, hotelOrderIndex, bookingIndex });
         
@@ -7923,7 +8327,7 @@ window.openIndividualHotelModal = function(tourId, hotelOrderIndex, bookingIndex
         }
         
         // Create and show the individual hotel modal
-        createIndividualHotelViewModal(tourId, hotelOrderIndex, bookingIndex);
+        createIndividualHotelViewModal(tourId, hotelOrderIndex, bookingIndex, autoCancelDate);
         
     } catch (error) {
         console.error('Error opening individual hotel modal:', error);
@@ -7931,7 +8335,7 @@ window.openIndividualHotelModal = function(tourId, hotelOrderIndex, bookingIndex
     }
 }
 
-function createIndividualHotelViewModal(tourId, hotelOrderIndex, bookingIndex) {
+function createIndividualHotelViewModal(tourId, hotelOrderIndex, bookingIndex, autoCancelDate=null) {
     const modalId = `individualHotelViewModal_${tourId}_${hotelOrderIndex}_${bookingIndex}`;
     
     const modalHTML = `
@@ -8016,7 +8420,7 @@ function createIndividualHotelViewModal(tourId, hotelOrderIndex, bookingIndex) {
     modal.show();
     
     // Load the individual hotel content
-    loadIndividualHotelContent(tourId, hotelOrderIndex, bookingIndex, modalId);
+    loadIndividualHotelContent(tourId, hotelOrderIndex, bookingIndex, modalId, autoCancelDate);
 };
 
 function closeIndividualHotelViewModal(modalId) {
@@ -8033,7 +8437,7 @@ function closeIndividualHotelViewModal(modalId) {
     }
 }
 
-function loadIndividualHotelContent(tourId, hotelOrderIndex, bookingIndex, modalId) {
+function loadIndividualHotelContent(tourId, hotelOrderIndex, bookingIndex, modalId, autoCancelDate=null) {
     // Fetch hotel data from backend and populate the modal content
     console.log('🔄 Fetching hotel data from backend', { tourId, hotelOrderIndex, bookingIndex, modalId });
     
@@ -8101,7 +8505,7 @@ function loadIndividualHotelContent(tourId, hotelOrderIndex, bookingIndex, modal
             };
             
             console.log('✅ Hotel booking data prepared for display', hotelBooking);
-            generateIndividualHotelContent(hotelBooking, modalId, tourId, hotelOrderIndex, bookingIndex);
+            generateIndividualHotelContent(hotelBooking, modalId, tourId, hotelOrderIndex, bookingIndex, autoCancelDate);
         } else {
             console.error('❌ Hotel data fetch failed', data);
             // Show error message
@@ -8127,7 +8531,7 @@ function loadIndividualHotelContent(tourId, hotelOrderIndex, bookingIndex, modal
     });
 }
 
-function generateIndividualHotelContent(hotelBooking, modalId, tourId, hotelOrderIndex, bookingIndex) {
+function generateIndividualHotelContent(hotelBooking, modalId, tourId, hotelOrderIndex, bookingIndex, autoCancelDate=null) {
     const contentHTML = `
         <!-- Hotel Information Card with Image -->
         <div class="row mb-4">
@@ -8286,10 +8690,10 @@ function generateIndividualHotelContent(hotelBooking, modalId, tourId, hotelOrde
     document.getElementById(`individualHotelContent_${modalId}`).innerHTML = contentHTML;
     
     // Update modal footer based on approval status
-    updateHotelModalFooter(modalId, hotelBooking.isApprove, tourId, hotelOrderIndex, bookingIndex, hotelBooking);
+    updateHotelModalFooter(modalId, hotelBooking.isApprove, tourId, hotelOrderIndex, bookingIndex, hotelBooking, autoCancelDate);
 }
 
-function updateHotelModalFooter(modalId, isApproved, tourId, hotelOrderIndex, bookingIndex, hotelBooking) {
+function updateHotelModalFooter(modalId, isApproved, tourId, hotelOrderIndex, bookingIndex, hotelBooking, autoCancelDate=null) {
     const modalElement = document.getElementById(modalId);
     if (!modalElement) return;
     
@@ -8337,9 +8741,10 @@ function updateHotelModalFooter(modalId, isApproved, tourId, hotelOrderIndex, bo
                             style="border-radius: 25px;">
                         <i class="ri-edit-line me-1"></i>Edit
                     </button>
+
                     <button type="button" 
                             class="btn btn-outline-success btn-sm px-3 py-2" 
-                            onclick="approveIndividualHotel(${tourId}, ${hotelOrderIndex}, ${bookingIndex})"
+                            onclick="approveIndividualHotel(${tourId}, ${hotelOrderIndex}, ${bookingIndex}, '${autoCancelDate}')"
                             style="border-radius: 25px;">
                         <i class="ri-check-line me-1"></i>Approve
                     </button>
@@ -8374,10 +8779,10 @@ function editIndividualHotel(tourId, hotelOrderIndex, bookingIndex) {
     createAndShowIndividualHotelModal(tourId, hotelOrderIndex, bookingIndex);
 }
 
-function approveIndividualHotel(tourId, hotelOrderIndex, bookingIndex) {
+function approveIndividualHotel(tourId, hotelOrderIndex, bookingIndex, autoCancelDate=null) {
     console.log('Approving individual hotel:', { tourId, hotelOrderIndex, bookingIndex });
     // Create and show the hotel approve modal (reuse existing approve functionality)
-    createAndShowIndividualHotelModal(tourId, hotelOrderIndex, bookingIndex, 'approve');
+    createAndShowIndividualHotelModal(tourId, hotelOrderIndex, bookingIndex, 'approve', autoCancelDate);
 }
 
 function rejectIndividualHotel(tourId, hotelOrderIndex, bookingIndex) {
@@ -8387,22 +8792,23 @@ function rejectIndividualHotel(tourId, hotelOrderIndex, bookingIndex) {
 }
 
 // Override any previous definitions - this is the correct attraction approve function
-window.approveIndividualAttraction = function(tourId, attractionOrderIndex, bookingIndex) {
-    console.log('🎢 ATTRACTION APPROVE - CORRECT FUNCTION: Approving individual attraction:', { tourId, attractionOrderIndex, bookingIndex });
+window.approveIndividualAttraction = function(tourId, attractionOrderIndex, bookingIndex, actualCancelDateStr=null) {
+    console.log('🎢 ATTRACTION APPROVE - CORRECT FUNCTION: Approving individual attraction:', { tourId, attractionOrderIndex, bookingIndex, 'actualCancelDateStr': actualCancelDateStr });
     console.log('🎢 This is the CORRECT approve function with full modal support');
     // Create and show the attraction approve modal
-    createAndShowIndividualAttractionModal(tourId, attractionOrderIndex, bookingIndex, 'approve');
+    createAndShowIndividualAttractionModal(tourId, attractionOrderIndex, bookingIndex, 'approve', actualCancelDateStr);
 }
 
 // Override any previous definitions - this is the correct attraction reject function
-window.rejectIndividualAttraction = function(tourId, attractionOrderIndex, bookingIndex) {
+window.rejectIndividualAttraction = function(tourId, attractionOrderIndex, bookingIndex, actualCancelDateStr=null) {
     console.log('🎢 ATTRACTION REJECT - CORRECT FUNCTION: Rejecting individual attraction:', { tourId, attractionOrderIndex, bookingIndex });
     console.log('🎢 This is the CORRECT reject function with full modal support');
     // Create and show the attraction reject modal
-    createAndShowIndividualAttractionModal(tourId, attractionOrderIndex, bookingIndex, 'reject');
+    createAndShowIndividualAttractionModal(tourId, attractionOrderIndex, bookingIndex, 'reject', actualCancelDateStr);
 }
 
-function createAndShowIndividualAttractionModal(tourId, attractionOrderIndex, bookingIndex, action) {
+function createAndShowIndividualAttractionModal(tourId, attractionOrderIndex, bookingIndex, action, actualCancelDateStr=null) {
+    console.log('actualCancelDateStr in createAndShowIndividualAttractionModal', actualCancelDateStr);
     try {
         const modalId = `individualAttractionModal_${tourId}_${attractionOrderIndex}_${bookingIndex}_${action}`;
         
@@ -8427,7 +8833,7 @@ function createAndShowIndividualAttractionModal(tourId, attractionOrderIndex, bo
                 buttonText = '<i class="ri-check-line me-2"></i>Confirm Approval';
                 onSubmit = `window.confirmIndividualAttractionApproval ? window.confirmIndividualAttractionApproval(${tourId}, ${attractionOrderIndex}, ${bookingIndex}) : confirmIndividualAttractionApproval(${tourId}, ${attractionOrderIndex}, ${bookingIndex})`;
                 console.log('🎢 Using window.generateApproveAttractionForm for correct form');
-                modalContent = window.generateApproveAttractionForm ? window.generateApproveAttractionForm(tourId, attractionOrderIndex, bookingIndex) : generateApproveAttractionForm(tourId, attractionOrderIndex, bookingIndex);
+                modalContent = window.generateApproveAttractionForm ? window.generateApproveAttractionForm(tourId, attractionOrderIndex, bookingIndex, actualCancelDateStr) : generateApproveAttractionForm(tourId, attractionOrderIndex, bookingIndex, actualCancelDateStr);
                 break;
                 
             case 'reject':
@@ -8486,6 +8892,31 @@ function createAndShowIndividualAttractionModal(tourId, attractionOrderIndex, bo
         const modal = new bootstrap.Modal(modalElement);
         modal.show();
         
+        // Add event listener to restore modal-open state when this modal closes
+        modalElement.addEventListener('hidden.bs.modal', function restoreModalState() {
+            // Check if there's still an open individual attraction view modal
+            const openIndividualModals = document.querySelectorAll('[id*="individualAttractionViewModal_"]');
+            if (openIndividualModals.length > 0) {
+                // Restore modal-open class and padding to body
+                document.body.classList.add('modal-open');
+                
+                // Calculate scrollbar width and restore padding
+                const scrollbarWidth = window.innerWidth - document.documentElement.clientWidth;
+                if (scrollbarWidth > 0) {
+                    document.body.style.paddingRight = scrollbarWidth + 'px';
+                }
+                
+                // Ensure backdrop is visible for the underlying modal
+                const backdrops = document.querySelectorAll('.modal-backdrop');
+                if (backdrops.length > 0) {
+                    backdrops[backdrops.length - 1].style.display = 'block';
+                }
+            }
+            
+            // Remove modal from DOM
+            document.getElementById(modalId).remove();
+        }, { once: true });
+        
         // Load data for approve modal
         if (action === 'approve') {
             setTimeout(() => {
@@ -8497,11 +8928,6 @@ function createAndShowIndividualAttractionModal(tourId, attractionOrderIndex, bo
                 }
             }, 100);
         }
-        
-        // Remove modal from DOM when hidden
-        modalElement.addEventListener('hidden.bs.modal', function () {
-            document.getElementById(modalId).remove();
-        });
         
     } catch (error) {
         console.error('Error creating individual attraction modal:', error);
@@ -8517,8 +8943,8 @@ function closeIndividualAttractionModal(modalId) {
 }
 
 // Override any previous definitions - this is the correct attraction approve form function
-window.generateApproveAttractionForm = function(tourId, attractionOrderIndex, bookingIndex) {
-    console.log('🎢 ATTRACTION FORM - CORRECT FUNCTION: Generating FULL approve form with all fields');
+window.generateApproveAttractionForm = function(tourId, attractionOrderIndex, bookingIndex, actualCancelDateStr=null) {
+    console.log('🎢 ATTRACTION FORM - CORRECT FUNCTION: Generating FULL approve form with all fields', 'actualCancelDateStr', actualCancelDateStr);
     return `
         <form id="approveIndividualAttractionForm_${tourId}_${attractionOrderIndex}_${bookingIndex}">
             <input type="hidden" name="tour_id" value="${tourId}">
@@ -8569,23 +8995,23 @@ window.generateApproveAttractionForm = function(tourId, attractionOrderIndex, bo
             </div>
 
             <div class="mb-3">
-                <label for="referenceFile_${tourId}_${attractionOrderIndex}_${bookingIndex}" class="form-label fw-semibold">
-                    <i class="ri-attachment-line me-2"></i>Reference File (Optional)
+                <label for="referenceFiles_${tourId}_${attractionOrderIndex}_${bookingIndex}" class="form-label fw-semibold">
+                    <i class="ri-attachment-line me-2"></i>Reference Files (Optional)
                 </label>
-                <input type="file" class="form-control form-control-lg" id="referenceFile_${tourId}_${attractionOrderIndex}_${bookingIndex}" name="reference_file"
-                       accept=".pdf,.doc,.docx,.jpg,.jpeg,.png"
+                <input type="file" class="form-control form-control-lg" id="referenceFiles_${tourId}_${attractionOrderIndex}_${bookingIndex}" name="reference_files[]"
+                       accept=".pdf,.doc,.docx,.jpg,.jpeg,.png" multiple
                        style="border-radius: 8px; border: 2px solid #e9ecef;">
-                <div class="form-text">Upload supporting documents if available (PDF, DOC, JPG, PNG)</div>
+                <div class="form-text">Upload multiple supporting documents if available (PDF, DOC, JPG, PNG)</div>
             </div>
 
             <div class="mb-3">
                 <label for="actualDueDate_${tourId}_${attractionOrderIndex}_${bookingIndex}" class="form-label fw-semibold">
-                    <i class="ri-calendar-line me-2"></i>Actual Due Date <span class="text-danger">*</span>
+                    <i class="ri-calendar-line me-2"></i>Free Cancellation Date <span class="text-danger">*</span>
                 </label>
-                <input type="date" class="form-control form-control-lg" id="actualDueDate_${tourId}_${attractionOrderIndex}_${bookingIndex}" name="actual_due_date" required 
-                       onchange="window.calculateAttractionDisplayDueDate ? window.calculateAttractionDisplayDueDate('${tourId}', '${attractionOrderIndex}', '${bookingIndex}') : calculateAttractionDisplayDueDate('${tourId}', '${attractionOrderIndex}', '${bookingIndex}')"
+                <input type="text" class="form-control form-control-lg" id="actualDueDate_${tourId}_${attractionOrderIndex}_${bookingIndex}" name="actual_due_date" required readonly value="${actualCancelDateStr}" 
+                       
                        style="border-radius: 8px; border: 2px solid #e9ecef;">
-                <div class="form-text">Select the actual due date for this booking</div>
+                <div class="form-text">Select the Free Cancellation Date for this booking</div>
             </div>
 
             <div class="mb-3">
@@ -8603,7 +9029,7 @@ window.generateApproveAttractionForm = function(tourId, attractionOrderIndex, bo
                     <option value="7">1 week before</option>
                     <option value="14">2 weeks before</option>
                 </select>
-                <div class="form-text">Select how many days before the actual due date to display</div>
+                <div class="form-text">Select how many days before the Free Cancellation Date to display</div>
             </div>
 
             <div class="mb-3">
@@ -8781,7 +9207,7 @@ window.loadAttractionDataForApprove = function(tourId, attractionOrderIndex, boo
                     attractionNameElement.textContent = attractionData.attraction_name || 'Attraction Booking';
                 }
                 
-                // Set default actual due date to today + 7 days
+                // Set default Free Cancellation Date to today + 7 days
                 const actualDueDateInput = document.getElementById(`actualDueDate_${tourId}_${attractionOrderIndex}_${bookingIndex}`);
                 if (actualDueDateInput) {
                     const defaultDate = new Date();
@@ -8846,39 +9272,75 @@ window.confirmIndividualAttractionApproval = function(tourId, attractionOrderInd
             return;
         }
         
+        // Check for file uploads and show appropriate message
+        const fileInput = form.querySelector('input[type="file"]');
+        const fileCount = fileInput && fileInput.files ? fileInput.files.length : 0;
+        
         // Disable submit button to prevent double submission
         const submitButton = form.closest('.modal').querySelector('.btn-success');
         if (submitButton) {
             submitButton.disabled = true;
-            submitButton.innerHTML = '<i class="ri-loader-4-line me-2"></i>Processing...';
+            if (fileCount > 0) {
+                submitButton.innerHTML = `<i class="ri-loader-4-line me-2"></i>Uploading ${fileCount} file(s)...`;
+            } else {
+                submitButton.innerHTML = '<i class="ri-loader-4-line me-2"></i>Processing...';
+            }
         }
         
-        // Submit to backend
+        // Show progress overlay for file uploads
+        if (fileCount > 0) {
+            showApprovalProgressOverlay(fileCount);
+        }
+        
+        // Create AbortController for timeout handling
+        const controller = new AbortController();
+        const timeoutId = setTimeout(() => {
+            controller.abort();
+        }, fileCount > 0 ? 120000 : 30000); // 2 minutes for file uploads, 30 seconds for regular approval
+        
+        // Submit to backend with timeout handling
         fetch('{{ url("/booking/approve-attraction-booking") }}', {
             method: 'POST',
             body: formData,
             headers: {
                 'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').getAttribute('content')
-            }
+            },
+            signal: controller.signal
         })
-        .then(response => response.json())
+        .then(response => {
+            clearTimeout(timeoutId);
+            if (!response.ok) {
+                throw new Error(`HTTP error! status: ${response.status}`);
+            }
+            return response.json();
+        })
         .then(data => {
+            hideApprovalProgressOverlay();
             if (data.success) {
                 console.log('Attraction booking approved successfully:', data);
-                alert(`Attraction booking approved successfully!\nReference ID: ${referenceId}\nDue Date: ${displayDueDate}`);
+                showToast(`Attraction booking approved successfully!\nReference ID: ${referenceId}\nDue Date: ${displayDueDate}`, 'success');
                 
                 // Close modal and refresh page
                 const modalId = `individualAttractionModal_${tourId}_${attractionOrderIndex}_${bookingIndex}_approve`;
                 closeIndividualAttractionModal(modalId);
-                location.reload();
+                setTimeout(() => location.reload(), 1000);
             } else {
                 console.error('Failed to approve attraction booking:', data);
-                alert('Failed to approve attraction booking: ' + (data.message || 'Unknown error'));
+                showToast('Failed to approve attraction booking: ' + (data.message || 'Unknown error'), 'error');
             }
         })
         .catch(error => {
+            clearTimeout(timeoutId);
+            hideApprovalProgressOverlay();
             console.error('Error approving attraction booking:', error);
-            alert('Error approving attraction booking. Please try again.');
+            
+            if (error.name === 'AbortError') {
+                showToast('Request timed out. This may happen with large file uploads. Please try with fewer or smaller files.', 'warning');
+            } else if (error.message.includes('Failed to fetch') || error.message.includes('NetworkError')) {
+                showToast('Network error. Please check your connection and try again.', 'error');
+            } else {
+                showToast('Error approving attraction booking. Please try again.', 'error');
+            }
         })
         .finally(() => {
             // Re-enable submit button
@@ -8890,7 +9352,7 @@ window.confirmIndividualAttractionApproval = function(tourId, attractionOrderInd
         
     } catch (error) {
         console.error('Error in confirmIndividualAttractionApproval:', error);
-        alert('Error processing approval. Please try again.');
+        showToast('Error processing approval. Please try again.', 'error');
     }
 }
 
@@ -8977,7 +9439,7 @@ window.confirmIndividualAttractionRejection = function(tourId, attractionOrderIn
 }
 
 // Individual Attraction Modal Functions
-function openIndividualAttractionModal(tourId, attractionOrderIndex, bookingIndex) {
+function openIndividualAttractionModal(tourId, attractionOrderIndex, bookingIndex, actualCancelDateStr) {
     try {
         console.log('🎢 Opening individual attraction modal for:', { tourId, attractionOrderIndex, bookingIndex });
         
@@ -8991,7 +9453,7 @@ function openIndividualAttractionModal(tourId, attractionOrderIndex, bookingInde
         
         // Create and show the modal
         createIndividualAttractionViewModal(modalId, tourId, attractionOrderIndex, bookingIndex);
-        loadIndividualAttractionContent(modalId, tourId, attractionOrderIndex, bookingIndex);
+        loadIndividualAttractionContent(modalId, tourId, attractionOrderIndex, bookingIndex, actualCancelDateStr);
         
     } catch (error) {
         console.error('Error opening individual attraction modal:', error);
@@ -9055,7 +9517,7 @@ function closeIndividualAttractionViewModal(modalId) {
     }
 }
 
-function loadIndividualAttractionContent(modalId, tourId, attractionOrderIndex, bookingIndex) {
+function loadIndividualAttractionContent(modalId, tourId, attractionOrderIndex, bookingIndex, actualCancelDateStr=null) {
     console.log('🔍 Loading individual attraction content for:', { tourId, attractionOrderIndex, bookingIndex });
     
     fetch('{{ url("/booking/get-attraction-data") }}', {
@@ -9111,7 +9573,7 @@ function loadIndividualAttractionContent(modalId, tourId, attractionOrderIndex, 
             };
             
             console.log('✅ Attraction booking data prepared for display', attractionBooking);
-            generateIndividualAttractionContent(attractionBooking, modalId, tourId, attractionOrderIndex, bookingIndex);
+            generateIndividualAttractionContent(attractionBooking, modalId, tourId, attractionOrderIndex, bookingIndex, actualCancelDateStr);
         } else {
             console.error('❌ Attraction data fetch failed', data);
             displayErrorContent(modalId, 'Failed to load attraction details');
@@ -9123,7 +9585,7 @@ function loadIndividualAttractionContent(modalId, tourId, attractionOrderIndex, 
     });
 }
 
-function generateIndividualAttractionContent(attractionBooking, modalId, tourId, attractionOrderIndex, bookingIndex) {
+function generateIndividualAttractionContent(attractionBooking, modalId, tourId, attractionOrderIndex, bookingIndex, actualCancelDateStr=null) {
     const bookingDate = attractionBooking.bookingDate;
     const formattedDate = bookingDate ? new Date(bookingDate).toLocaleDateString('en-US', { 
         weekday: 'short', 
@@ -9371,11 +9833,20 @@ function generateIndividualAttractionContent(attractionBooking, modalId, tourId,
                             <h6 class="fw-bold mb-0 text-dark">Booking Actions</h6>
                         </div>
                         ${attractionBooking.isApprove ? 
-                            `<div class="alert alert-success mb-0 py-1 px-3" style="border-radius: 25px;">
-                                <i class="ri-check-circle-fill me-1"></i>
-                                <small><strong>Approved Booking</strong></small>
-                                ${attractionBooking.referenceId ? `<br><small class="text-muted">Ref: ${attractionBooking.referenceId}</small>` : ''}
-                                ${attractionBooking.displayDueDate ? `<br><small class="text-muted">Due: ${attractionBooking.displayDueDate}</small>` : ''}
+                            `<div class="d-flex align-items-center gap-3">
+                                <div class="alert alert-success mb-0 py-1 px-3" style="border-radius: 25px;">
+                                    <i class="ri-check-circle-fill me-1"></i>
+                                    <small><strong>Approved Booking</strong></small>
+                                    ${attractionBooking.referenceId ? `<br><small class="text-muted">Ref: ${attractionBooking.referenceId}</small>` : ''}
+                                    ${attractionBooking.displayDueDate ? `<br><small class="text-muted">Due: ${attractionBooking.displayDueDate}</small>` : ''}
+                                </div>
+                                ${[11, 34, 124, 125, 128, 131, 132, 134, 135, 137, 138].includes({{ auth()->user()->role_id ?? 0 }}) ? `
+                                    <button type="button" class="btn btn-outline-primary btn-sm" 
+                                            onclick="openAttractionFilesModal('${tourId}', '${attractionOrderIndex}', '${bookingIndex}')"
+                                            title="View and manage uploaded files">
+                                        <i class="ri-file-list-3-line me-1"></i>View Files
+                                    </button>
+                                ` : ''}
                             </div>` :
                             `<div class="d-flex gap-2" id="attraction_buttons_${tourId}_${attractionOrderIndex}_${bookingIndex}">
                                 <!-- Buttons will be dynamically added based on user role -->
@@ -9408,7 +9879,7 @@ function generateIndividualAttractionContent(attractionBooking, modalId, tourId,
                     </button>
                     <button type="button" 
                             class="btn btn-outline-success btn-sm px-3 py-2" 
-                            onclick="window.approveIndividualAttraction ? window.approveIndividualAttraction(${tourId}, ${attractionOrderIndex}, ${bookingIndex}) : approveIndividualAttraction(${tourId}, ${attractionOrderIndex}, ${bookingIndex})"
+                            onclick="window.approveIndividualAttraction ? window.approveIndividualAttraction(${tourId}, ${attractionOrderIndex}, ${bookingIndex}, '${actualCancelDateStr}') : approveIndividualAttraction(${tourId}, ${attractionOrderIndex}, ${bookingIndex}, '${actualCancelDateStr}')"
                             style="border-radius: 25px;">
                         <i class="ri-check-line me-1"></i>Approve
                     </button>
@@ -9420,7 +9891,7 @@ function generateIndividualAttractionContent(attractionBooking, modalId, tourId,
                 buttonsHTML += `
                     <button type="button" 
                             class="btn btn-outline-danger btn-sm px-3 py-2" 
-                            onclick="window.rejectIndividualAttraction ? window.rejectIndividualAttraction(${tourId}, ${attractionOrderIndex}, ${bookingIndex}) : rejectIndividualAttraction(${tourId}, ${attractionOrderIndex}, ${bookingIndex})"
+                            onclick="window.rejectIndividualAttraction ? window.rejectIndividualAttraction(${tourId}, ${attractionOrderIndex}, ${bookingIndex}, '${actualCancelDateStr}') : rejectIndividualAttraction(${tourId}, ${attractionOrderIndex}, ${bookingIndex}, '${actualCancelDateStr}')"
                             style="border-radius: 25px;">
                         <i class="ri-close-line me-1"></i>Reject
                     </button>
@@ -9752,7 +10223,7 @@ function validateAttractionDate(tourId, attractionOrderIndex, bookingIndex) {
 
 
 // Individual Restaurant Modal Function
-function openIndividualRestaurantModal(tourId, restaurantOrderIndex, bookingIndex) {
+function openIndividualRestaurantModal(tourId, restaurantOrderIndex, bookingIndex, actualCancelDateStr=null) {
     try {
         console.log('🍽️ Opening individual restaurant modal for:', { tourId, restaurantOrderIndex, bookingIndex });
         
@@ -9765,7 +10236,7 @@ function openIndividualRestaurantModal(tourId, restaurantOrderIndex, bookingInde
         }
         
         // Create and show the individual restaurant modal
-        createIndividualRestaurantViewModal(tourId, restaurantOrderIndex, bookingIndex);
+        createIndividualRestaurantViewModal(tourId, restaurantOrderIndex, bookingIndex, actualCancelDateStr);
         
     } catch (error) {
         console.error('Error opening individual restaurant modal:', error);
@@ -9773,7 +10244,7 @@ function openIndividualRestaurantModal(tourId, restaurantOrderIndex, bookingInde
     }
 }
 
-function createIndividualRestaurantViewModal(tourId, restaurantOrderIndex, bookingIndex) {
+function createIndividualRestaurantViewModal(tourId, restaurantOrderIndex, bookingIndex, actualCancelDateStr=null) {
     const modalId = `individualRestaurantViewModal_${tourId}_${restaurantOrderIndex}_${bookingIndex}`;
     
     // Get restaurant data from the server first
@@ -9835,7 +10306,7 @@ function createIndividualRestaurantViewModal(tourId, restaurantOrderIndex, booki
         });
         
         // Load the restaurant content
-        loadIndividualRestaurantContent(tourId, restaurantOrderIndex, bookingIndex, modalId);
+        loadIndividualRestaurantContent(tourId, restaurantOrderIndex, bookingIndex, modalId, actualCancelDateStr);
         
     })
     .catch(error => {
@@ -9858,14 +10329,14 @@ function closeIndividualRestaurantViewModal(modalId) {
     }
 }
 
-function loadIndividualRestaurantContent(tourId, restaurantOrderIndex, bookingIndex, modalId) {
+function loadIndividualRestaurantContent(tourId, restaurantOrderIndex, bookingIndex, modalId, actualCancelDateStr=null) {
     // Get restaurant data and populate the modal content
     getRestaurantServiceData(tourId, restaurantOrderIndex, bookingIndex)
     .then(restaurantData => {
         console.log('📊 Restaurant data received for content generation:', restaurantData);
         
         // Pass the full restaurant data object which contains both restaurantDetails and restaurant_details
-        const contentHTML = generateIndividualRestaurantContent(restaurantData, tourId, restaurantOrderIndex, bookingIndex);
+        const contentHTML = generateIndividualRestaurantContent(restaurantData, tourId, restaurantOrderIndex, bookingIndex, actualCancelDateStr);
         
         // Update the modal content
         const contentContainer = document.getElementById(`restaurantContent_${modalId}`);
@@ -9890,9 +10361,12 @@ function loadIndividualRestaurantContent(tourId, restaurantOrderIndex, bookingIn
     });
 }
 
-function generateIndividualRestaurantContent(booking, tourId, restaurantOrderIndex, bookingIndex) {
+function generateIndividualRestaurantContent(booking, tourId, restaurantOrderIndex, bookingIndex, actualCancelDateStr=null) {
     // Get the full booking data from the restaurantDetails
     const fullBooking = booking.restaurant_details || booking;
+    const userRole = parseInt(document.querySelector('meta[name="user-role"]')?.getAttribute('content')) || {{ auth()->user()->role_id ?? 0 }};
+    const allowedRestaurantQrRoles = [11, 34, 124, 125, 128, 131, 132, 134, 135, 137, 138];
+    const canAccessRestaurantQR = allowedRestaurantQrRoles.includes(userRole);
     
     return `
         <div class="card mb-4 shadow-sm border-0" style="border-radius: 12px; overflow: hidden;">
@@ -10113,23 +10587,66 @@ function generateIndividualRestaurantContent(booking, tourId, restaurantOrderInd
 
                 <!-- Individual Action Buttons -->
                 <div class="bg-white rounded p-3 shadow-sm border-top">
-                    <div class="d-flex align-items-center justify-content-between">
+                    <div class="d-flex align-items-center justify-content-between flex-wrap gap-3">
                         <div class="d-flex align-items-center">
                             <div class="bg-secondary rounded-circle p-2 me-3">
                                 <i class="ri-settings-line text-white"></i>
                             </div>
                             <h6 class="fw-bold mb-0 text-dark">Booking Actions</h6>
                         </div>
-                        ${generateRestaurantActionButtons(booking, tourId, restaurantOrderIndex, bookingIndex)}
+                        ${generateRestaurantActionButtons(booking, tourId, restaurantOrderIndex, bookingIndex, actualCancelDateStr)}
                     </div>
                 </div>
+
+                ${canAccessRestaurantQR ? `
+                <!-- Restaurant QR Code -->
+                <div class="bg-white rounded p-3 shadow-sm mt-3" id="restaurantQRSection_${tourId}_${restaurantOrderIndex}_${bookingIndex}">
+                    <div class="d-flex align-items-center justify-content-between flex-wrap gap-3">
+                        <div class="d-flex align-items-center">
+                            <div class="bg-dark rounded-circle p-2 me-3">
+                                <i class="ri-qr-code-line text-white"></i>
+                            </div>
+                            <div>
+                                <h6 class="fw-bold mb-1 text-dark">Restaurant Check-in QR</h6>
+                                <small class="text-muted">Generate a QR code with key restaurant booking details.</small>
+                            </div>
+                        </div>
+                        <div class="d-flex align-items-center gap-2 flex-wrap">
+                            <button type="button"
+                                    class="btn btn-outline-secondary btn-sm px-3 py-2"
+                                    id="restaurantQRGenerateBtn_${tourId}_${restaurantOrderIndex}_${bookingIndex}"
+                                    onclick="generateRestaurantQRCode(${tourId}, ${restaurantOrderIndex}, ${bookingIndex})"
+                                    style="border-radius: 25px;">
+                                <i class="ri-qr-code-line me-1"></i>Generate QR
+                            </button>
+                            <button type="button"
+                                    class="btn btn-outline-dark btn-sm px-3 py-2"
+                                    id="restaurantQRDownloadBtn_${tourId}_${restaurantOrderIndex}_${bookingIndex}"
+                                    onclick="downloadRestaurantQRCode(${tourId}, ${restaurantOrderIndex}, ${bookingIndex})"
+                                    style="border-radius: 25px;"
+                                    disabled>
+                                <i class="ri-download-2-line me-1"></i>Download
+                            </button>
+                        </div>
+                    </div>
+                    <div class="mt-4 d-none text-center" id="restaurantQRWrapper_${tourId}_${restaurantOrderIndex}_${bookingIndex}">
+                        <div class="d-inline-block position-relative rounded-4 p-4" 
+                             style="background: #ffffff; border: 6px solid #ffffff; box-shadow: 0 12px 30px rgba(0, 0, 0, 0.08);">
+                            <div id="restaurantQRCode_${tourId}_${restaurantOrderIndex}_${bookingIndex}"></div>
+                        </div>
+                        <div class="mt-3 text-muted small fw-medium" id="restaurantQRDetails_${tourId}_${restaurantOrderIndex}_${bookingIndex}">
+                            Scan this code at the restaurant to view the booking details.
+                        </div>
+                    </div>
+                </div>
+                ` : ''}
             </div>
         </div>
     `;
 }
 
 // Generate restaurant action buttons based on approval status
-function generateRestaurantActionButtons(booking, tourId, restaurantOrderIndex, bookingIndex) {
+function generateRestaurantActionButtons(booking, tourId, restaurantOrderIndex, bookingIndex, actualCancelDateStr=null) {
     const isApproved = booking.restaurant_details?.is_approve || booking.is_approve || false;
     
     // Get user role from meta tag or global variable (assuming it's available)
@@ -10145,11 +10662,20 @@ function generateRestaurantActionButtons(booking, tourId, restaurantOrderIndex, 
     
     if (isApproved) {
         return `
-            <div class="alert alert-success mb-0 py-2 px-3" style="border-radius: 25px;">
-                <i class="ri-check-circle-fill me-1"></i>
-                <small><strong>Approved Booking</strong></small>
-                ${booking.reference_id ? `<br><small class="text-muted">Ref: ${booking.reference_id}</small>` : ''}
-                ${booking.display_due_date ? `<br><small class="text-muted">Due: ${booking.display_due_date}</small>` : ''}
+            <div class="d-flex align-items-center gap-3">
+                <div class="alert alert-success mb-0 py-2 px-3" style="border-radius: 25px;">
+                    <i class="ri-check-circle-fill me-1"></i>
+                    <small><strong>Approved Booking</strong></small>
+                    ${booking.reference_id ? `<br><small class="text-muted">Ref: ${booking.reference_id}</small>` : ''}
+                    ${booking.display_due_date ? `<br><small class="text-muted">Due: ${booking.display_due_date}</small>` : ''}
+                </div>
+                ${[11, 34, 124, 125, 128, 131, 132, 134, 135, 137, 138].includes(userRole) ? `
+                    <button type="button" class="btn btn-outline-primary btn-sm" 
+                            onclick="openRestaurantFilesModal('${tourId}', '${restaurantOrderIndex}', '${bookingIndex}')"
+                            title="View and manage uploaded files">
+                        <i class="ri-file-list-3-line me-1"></i>View Files
+                    </button>
+                ` : ''}
             </div>
         `;
     }
@@ -10169,7 +10695,7 @@ function generateRestaurantActionButtons(booking, tourId, restaurantOrderIndex, 
                 </button>
                 <button type="button" 
                         class="btn btn-outline-success btn-sm px-3 py-2" 
-                        onclick="approveIndividualRestaurant(${tourId}, ${restaurantOrderIndex}, ${bookingIndex})"
+                        onclick="approveIndividualRestaurant(${tourId}, ${restaurantOrderIndex}, ${bookingIndex}, '${actualCancelDateStr}')"
                         style="border-radius: 25px;">
                     <i class="ri-check-line me-1"></i>Approve
                 </button>
@@ -10185,6 +10711,483 @@ function generateRestaurantActionButtons(booking, tourId, restaurantOrderIndex, 
         </div>
     `;
 }
+
+let qrCodeLibraryPromise = null;
+
+function ensureQRCodeLibrary() {
+    if (window.QRCode) {
+        return Promise.resolve();
+    }
+
+    if (qrCodeLibraryPromise) {
+        return qrCodeLibraryPromise;
+    }
+
+    qrCodeLibraryPromise = new Promise((resolve, reject) => {
+        const existingScript = document.querySelector('script[data-qr-library="qrcodejs"]');
+
+        const handleLoaded = () => {
+            if (window.QRCode) {
+                resolve();
+            } else {
+                qrCodeLibraryPromise = null;
+                reject(new Error('QR code library loaded but QRCode is unavailable.'));
+            }
+        };
+
+        const handleError = () => {
+            qrCodeLibraryPromise = null;
+            reject(new Error('Failed to load QR code library.'));
+        };
+
+        if (existingScript) {
+            existingScript.addEventListener('load', handleLoaded, { once: true });
+            existingScript.addEventListener('error', handleError, { once: true });
+            return;
+        }
+
+        const script = document.createElement('script');
+        script.src = 'https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js';
+        script.async = true;
+        script.dataset.qrLibrary = 'qrcodejs';
+        script.onload = handleLoaded;
+        script.onerror = handleError;
+        document.head.appendChild(script);
+    });
+
+    return qrCodeLibraryPromise;
+}
+
+function extractRestaurantLogoData(fullData, fallbackName = '') {
+    const ensureString = (value) => (typeof value === 'string' ? value.trim() : '');
+
+    const fromObject = (obj) => {
+        if (!obj || typeof obj !== 'object') {
+            return '';
+        }
+        const candidateKeys = ['url', 'src', 'image', 'image_url', 'logo', 'logo_url', 'path'];
+        for (const key of candidateKeys) {
+            const candidate = ensureString(obj[key]);
+            if (candidate) {
+                return candidate;
+            }
+        }
+        return '';
+    };
+
+    const extractFromValue = (value) => {
+        if (!value) {
+            return '';
+        }
+        if (typeof value === 'string') {
+            return ensureString(value);
+        }
+        if (Array.isArray(value)) {
+            for (const item of value) {
+                const candidate = extractFromValue(item);
+                if (candidate) {
+                    return candidate;
+                }
+            }
+        }
+        return fromObject(value);
+    };
+
+    const candidates = [];
+
+    if (fullData && typeof fullData === 'object') {
+        const directKeys = [
+            'restaurant_logo_url',
+            'restaurant_logo',
+            'restaurantLogoUrl',
+            'restaurantLogo',
+            'logo_url',
+            'logoUrl',
+            'logo',
+            'image_url',
+            'imageUrl',
+            'image',
+            'thumbnail',
+            'photo',
+            'picture',
+            'featured_image',
+            'featuredImage',
+            'primary_image',
+            'primaryImage',
+            'cover_image',
+            'coverImage'
+        ];
+
+        for (const key of directKeys) {
+            const candidate = ensureString(fullData[key]);
+            if (candidate) {
+                candidates.push(candidate);
+            }
+        }
+
+        const nestedValues = [
+            fullData?.restaurant,
+            fullData?.vendor,
+            fullData?.supplier,
+            fullData?.meta,
+            fullData?.details,
+            fullData?.media,
+            fullData?.images,
+            fullData?.gallery,
+            fullData?.photos
+        ];
+
+        for (const nested of nestedValues) {
+            const candidate = extractFromValue(nested);
+            if (candidate) {
+                candidates.push(candidate);
+            }
+        }
+    }
+
+    const normalizeUrl = (value) => {
+        if (!value) {
+            return '';
+        }
+        if (value.startsWith('data:')) {
+            return value;
+        }
+        if (/^https?:\/\//i.test(value)) {
+            return value;
+        }
+        if (value.startsWith('//')) {
+            return `${window.location.protocol}${value}`;
+        }
+        if (value.startsWith('/')) {
+            return `${window.location.origin}${value}`;
+        }
+        return `${window.location.origin}/${value}`;
+    };
+
+    for (const candidate of candidates) {
+        const normalized = normalizeUrl(candidate);
+        if (normalized) {
+            return { type: 'image', value: normalized };
+        }
+    }
+
+    const fallbackLetter = (fallbackName || 'R').trim().charAt(0).toUpperCase() || 'R';
+    return { type: 'letter', value: fallbackLetter };
+}
+
+function drawLogoOnCanvas(canvas, logoData, restaurantName) {
+    return new Promise((resolve) => {
+        try {
+            if (!canvas) {
+                resolve();
+                return;
+            }
+
+            const context = canvas.getContext('2d');
+            if (!context) {
+                resolve();
+                return;
+            }
+
+            const size = Math.min(canvas.width, canvas.height);
+            const centerX = canvas.width / 2;
+            const centerY = canvas.height / 2;
+            const outerRadius = Math.floor(size * 0.18);
+            const innerRadius = Math.floor(size * 0.15);
+
+            context.save();
+            context.beginPath();
+            context.arc(centerX, centerY, outerRadius, 0, Math.PI * 2, true);
+            context.fillStyle = '#ffffff';
+            context.fill();
+            context.lineWidth = Math.max(2, size * 0.015);
+            context.strokeStyle = 'rgba(0, 0, 0, 0.08)';
+            context.stroke();
+            context.restore();
+
+            const drawLetter = () => {
+                const letter =
+                    (logoData && logoData.type === 'letter' && logoData.value) ||
+                    (restaurantName || 'R').trim().charAt(0) ||
+                    'R';
+
+                context.save();
+                context.beginPath();
+                context.arc(centerX, centerY, innerRadius, 0, Math.PI * 2, true);
+                context.clip();
+                context.fillStyle = '#2d3436';
+                context.font = `700 ${innerRadius * 1.4}px "Segoe UI", Arial, sans-serif`;
+                context.textAlign = 'center';
+                context.textBaseline = 'middle';
+                context.fillText(letter.toUpperCase(), centerX, centerY + innerRadius * 0.05);
+                context.restore();
+            };
+
+            if (logoData && logoData.type === 'image' && logoData.value) {
+                const image = new Image();
+                if (/^https?:\/\//i.test(logoData.value)) {
+                    image.crossOrigin = 'anonymous';
+                }
+                image.onload = () => {
+                    try {
+                        context.save();
+                        context.beginPath();
+                        context.arc(centerX, centerY, innerRadius, 0, Math.PI * 2, true);
+                        context.clip();
+                        context.drawImage(
+                            image,
+                            centerX - innerRadius,
+                            centerY - innerRadius,
+                            innerRadius * 2,
+                            innerRadius * 2
+                        );
+                        context.restore();
+                    } catch (drawError) {
+                        console.error('Error drawing restaurant logo onto QR canvas:', drawError);
+                        drawLetter();
+                    }
+                    resolve();
+                };
+                image.onerror = () => {
+                    drawLetter();
+                    resolve();
+                };
+
+                image.src = logoData.value;
+            } else {
+                drawLetter();
+                resolve();
+            }
+        } catch (error) {
+            console.error('Error preparing restaurant logo overlay:', error);
+            resolve();
+        }
+    });
+}
+
+function applyRestaurantLogoToQRCode(qrContainer, logoData, restaurantName) {
+    return new Promise((resolve) => {
+        try {
+            if (!qrContainer) {
+                resolve();
+                return;
+            }
+
+            const canvas = qrContainer.querySelector('canvas');
+            if (canvas) {
+                drawLogoOnCanvas(canvas, logoData, restaurantName)
+                    .then(resolve)
+                    .catch(() => resolve());
+                return;
+            }
+
+            const img = qrContainer.querySelector('img');
+            if (img) {
+                const renderWithImage = () => {
+                    const tempCanvas = document.createElement('canvas');
+                    tempCanvas.width = img.naturalWidth || 220;
+                    tempCanvas.height = img.naturalHeight || 220;
+
+                    const context = tempCanvas.getContext('2d');
+                    if (!context) {
+                        resolve();
+                        return;
+                    }
+
+                    context.drawImage(img, 0, 0, tempCanvas.width, tempCanvas.height);
+                    drawLogoOnCanvas(tempCanvas, logoData, restaurantName)
+                        .then(() => {
+                            try {
+                                img.src = tempCanvas.toDataURL('image/png');
+                            } catch (conversionError) {
+                                console.error('Error updating QR image with logo overlay:', conversionError);
+                            }
+                            resolve();
+                        })
+                        .catch(() => {
+                            try {
+                                img.src = tempCanvas.toDataURL('image/png');
+                            } catch (conversionError) {
+                                console.error('Error updating QR image during fallback overlay:', conversionError);
+                            }
+                            resolve();
+                        });
+                };
+
+                if (img.complete && img.naturalWidth) {
+                    renderWithImage();
+                } else {
+                    img.onload = renderWithImage;
+                    img.onerror = () => resolve();
+                }
+                return;
+            }
+
+            resolve();
+        } catch (error) {
+            console.error('Error applying restaurant logo to QR code:', error);
+            resolve();
+        }
+    });
+}
+
+window.generateRestaurantQRCode = function(tourId, restaurantOrderIndex, bookingIndex) {
+    const generateBtn = document.getElementById(`restaurantQRGenerateBtn_${tourId}_${restaurantOrderIndex}_${bookingIndex}`);
+    const downloadBtn = document.getElementById(`restaurantQRDownloadBtn_${tourId}_${restaurantOrderIndex}_${bookingIndex}`);
+    const wrapper = document.getElementById(`restaurantQRWrapper_${tourId}_${restaurantOrderIndex}_${bookingIndex}`);
+    const qrContainer = document.getElementById(`restaurantQRCode_${tourId}_${restaurantOrderIndex}_${bookingIndex}`);
+    const detailsContainer = document.getElementById(`restaurantQRDetails_${tourId}_${restaurantOrderIndex}_${bookingIndex}`);
+
+    if (!generateBtn || !qrContainer || !downloadBtn) {
+        console.warn('QR elements not found for restaurant booking', { tourId, restaurantOrderIndex, bookingIndex });
+        return;
+    }
+
+    const originalButtonText = generateBtn.getAttribute('data-original-text') || generateBtn.innerHTML;
+    generateBtn.setAttribute('data-original-text', originalButtonText);
+
+    generateBtn.disabled = true;
+    generateBtn.innerHTML = `
+        <span class="spinner-border spinner-border-sm me-2" role="status" aria-hidden="true"></span>
+        Generating...
+    `;
+
+    if (downloadBtn) {
+        downloadBtn.disabled = true;
+        downloadBtn.classList.remove('btn-primary');
+        if (!downloadBtn.classList.contains('btn-outline-dark')) {
+            downloadBtn.classList.add('btn-outline-dark');
+        }
+    }
+
+    ensureQRCodeLibrary()
+        .then(() => getRestaurantServiceData(tourId, restaurantOrderIndex, bookingIndex))
+        .then(restaurantData => {
+            const fullData = restaurantData.restaurantDetails || restaurantData.restaurant_details || restaurantData;
+
+            const qrPayload = {
+                tour_id: tourId,
+                restaurant: fullData?.restaurant_name || fullData?.restaurantName || 'Restaurant',
+                reservation_date: fullData?.booking_date || fullData?.bookingDate || '',
+                reservation_time: fullData?.visit_time || fullData?.visitTime || '',
+                meal_type: fullData?.meal_type || fullData?.mealType || '',
+                meal_specific_type: fullData?.meal_specific_type || fullData?.mealSpecificType || '',
+                guests: {
+                    adults: Number(fullData?.adult_count ?? fullData?.adultCount ?? 0),
+                    children: Number(fullData?.child_count ?? fullData?.childCount ?? 0)
+                },
+                total_price: Number(fullData?.total_price ?? fullData?.totalPrice ?? 0),
+                reference: fullData?.reference_id || restaurantData?.reference_id || '',
+                provider: fullData?.provider_name || fullData?.providerName || '',
+                contact: {
+                    name: fullData?.full_name || fullData?.fullName || '',
+                    email: fullData?.email || '',
+                    phone: `${fullData?.country_code || fullData?.countryCode || ''} ${fullData?.phone || ''}`.trim()
+                },
+                generated_at: new Date().toISOString()
+            };
+
+            const qrContent = JSON.stringify(qrPayload);
+
+            qrContainer.innerHTML = '';
+
+            new QRCode(qrContainer, {
+                text: qrContent,
+                width: 220,
+                height: 220,
+                colorDark: '#000000',
+                colorLight: '#ffffff',
+                correctLevel: window.QRCode?.CorrectLevel?.M ?? 0
+            });
+
+            if (wrapper) {
+                wrapper.classList.remove('d-none');
+            }
+
+            const logoData = extractRestaurantLogoData(fullData, qrPayload.restaurant);
+
+            return applyRestaurantLogoToQRCode(qrContainer, logoData, qrPayload.restaurant)
+                .catch(overlayError => {
+                    console.error('Error overlaying restaurant logo onto QR:', overlayError);
+                })
+                .finally(() => {
+                    if (detailsContainer) {
+                        detailsContainer.textContent = 'Scan this code at the restaurant to view the booking details.';
+                    }
+
+                    if (downloadBtn) {
+                        downloadBtn.disabled = false;
+                        downloadBtn.classList.remove('btn-outline-dark');
+                        downloadBtn.classList.add('btn-primary');
+                    }
+                });
+        })
+        .catch(error => {
+            console.error('Error generating restaurant QR:', error);
+            showToast('Unable to generate restaurant QR code. Please try again.', 'error');
+            if (wrapper) {
+                wrapper.classList.add('d-none');
+            }
+            if (detailsContainer) {
+                detailsContainer.innerHTML = '';
+            }
+            if (downloadBtn) {
+                downloadBtn.disabled = true;
+                downloadBtn.classList.remove('btn-primary');
+                if (!downloadBtn.classList.contains('btn-outline-dark')) {
+                    downloadBtn.classList.add('btn-outline-dark');
+                }
+            }
+        })
+        .finally(() => {
+            if (generateBtn) {
+                generateBtn.disabled = false;
+                generateBtn.innerHTML = generateBtn.getAttribute('data-original-text') || originalButtonText;
+            }
+        });
+};
+
+window.downloadRestaurantQRCode = function(tourId, restaurantOrderIndex, bookingIndex) {
+    const qrContainer = document.getElementById(`restaurantQRCode_${tourId}_${restaurantOrderIndex}_${bookingIndex}`);
+    const downloadBtn = document.getElementById(`restaurantQRDownloadBtn_${tourId}_${restaurantOrderIndex}_${bookingIndex}`);
+
+    if (!qrContainer) {
+        showToast('QR section not ready yet. Please try again.', 'warning');
+        return;
+    }
+
+    const canvas = qrContainer.querySelector('canvas');
+    const img = qrContainer.querySelector('img');
+
+    if (!canvas && !img) {
+        showToast('Generate the QR code before downloading.', 'warning');
+        return;
+    }
+
+    let dataUrl;
+
+    if (canvas) {
+        dataUrl = canvas.toDataURL('image/png');
+    } else if (img) {
+        dataUrl = img.src;
+    }
+
+    if (!dataUrl) {
+        showToast('Unable to prepare QR download.', 'error');
+        return;
+    }
+
+    const link = document.createElement('a');
+    link.href = dataUrl;
+    link.download = `restaurant_${tourId}_${bookingIndex}_qr.png`;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+
+    if (downloadBtn) {
+        downloadBtn.blur();
+    }
+};
 
 // Load restaurant data for approve modal (similar to attraction)
 window.loadRestaurantDataForApprove = function(tourId, restaurantOrderIndex, bookingIndex) {
@@ -10331,8 +11334,34 @@ function createArrivalApprovalModal(tourId, arrivalOrderIndex, arrivalBookingInd
     document.body.insertAdjacentHTML('beforeend', modalHTML);
     
     // Show modal
-    const modal = new bootstrap.Modal(document.getElementById(modalId));
+    const modalElement = document.getElementById(modalId);
+    const modal = new bootstrap.Modal(modalElement);
     modal.show();
+    
+    // Add event listener to restore modal-open state when this modal closes
+    modalElement.addEventListener('hidden.bs.modal', function restoreModalState() {
+        // Check if there's still an open individual arrival view modal
+        const openIndividualModals = document.querySelectorAll('[id*="Modal_"]');
+        if (openIndividualModals.length > 0) {
+            // Restore modal-open class and padding to body
+            document.body.classList.add('modal-open');
+            
+            // Calculate scrollbar width and restore padding
+            const scrollbarWidth = window.innerWidth - document.documentElement.clientWidth;
+            if (scrollbarWidth > 0) {
+                document.body.style.paddingRight = scrollbarWidth + 'px';
+            }
+            
+            // Ensure backdrop is visible for the underlying modal
+            const backdrops = document.querySelectorAll('.modal-backdrop');
+            if (backdrops.length > 0) {
+                backdrops[backdrops.length - 1].style.display = 'block';
+            }
+        }
+        
+        // Remove this event listener after it's executed once
+        modalElement.removeEventListener('hidden.bs.modal', restoreModalState);
+    }, { once: true });
     
     // Load arrival data for the modal
     loadArrivalDataForApprove(tourId, arrivalOrderIndex, arrivalBookingIndex);
@@ -10410,12 +11439,12 @@ function generateApproveArrivalForm(tourId, arrivalOrderIndex, arrivalBookingInd
 
             <div class="mb-3">
                 <label for="actualDueDate_${tourId}_${arrivalOrderIndex}_${arrivalBookingIndex}" class="form-label fw-semibold">
-                    <i class="ri-calendar-line me-2"></i>Actual Due Date <span class="text-danger">*</span>
+                    <i class="ri-calendar-line me-2"></i>Free Cancellation Date <span class="text-danger">*</span>
                 </label>
                 <input type="date" class="form-control form-control-lg" id="actualDueDate_${tourId}_${arrivalOrderIndex}_${arrivalBookingIndex}" name="actual_due_date" required 
                        onchange="calculateArrivalDisplayDueDate('${tourId}', '${arrivalOrderIndex}', '${arrivalBookingIndex}')"
                        style="border-radius: 8px; border: 2px solid #e9ecef;">
-                <div class="form-text">Select the actual due date for this booking</div>
+                <div class="form-text">Select the Free Cancellation Date for this booking</div>
             </div>
 
             <div class="mb-3">
@@ -10433,7 +11462,7 @@ function generateApproveArrivalForm(tourId, arrivalOrderIndex, arrivalBookingInd
                     <option value="7">1 week before</option>
                     <option value="14">2 weeks before</option>
                 </select>
-                <div class="form-text">Select how many days before the actual due date to display</div>
+                <div class="form-text">Select how many days before the Free Cancellation Date to display</div>
             </div>
 
             <div class="mb-3">
@@ -10782,8 +11811,34 @@ function createDepartureApprovalModal(tourId, departureOrderIndex, departureBook
     document.body.insertAdjacentHTML('beforeend', modalHTML);
     
     // Show modal
-    const modal = new bootstrap.Modal(document.getElementById(modalId));
+    const modalElement = document.getElementById(modalId);
+    const modal = new bootstrap.Modal(modalElement);
     modal.show();
+    
+    // Add event listener to restore modal-open state when this modal closes
+    modalElement.addEventListener('hidden.bs.modal', function restoreModalState() {
+        // Check if there's still an open individual departure view modal
+        const openIndividualModals = document.querySelectorAll('[id*="Modal_"]');
+        if (openIndividualModals.length > 0) {
+            // Restore modal-open class and padding to body
+            document.body.classList.add('modal-open');
+            
+            // Calculate scrollbar width and restore padding
+            const scrollbarWidth = window.innerWidth - document.documentElement.clientWidth;
+            if (scrollbarWidth > 0) {
+                document.body.style.paddingRight = scrollbarWidth + 'px';
+            }
+            
+            // Ensure backdrop is visible for the underlying modal
+            const backdrops = document.querySelectorAll('.modal-backdrop');
+            if (backdrops.length > 0) {
+                backdrops[backdrops.length - 1].style.display = 'block';
+            }
+        }
+        
+        // Remove this event listener after it's executed once
+        modalElement.removeEventListener('hidden.bs.modal', restoreModalState);
+    }, { once: true });
     
     // Load departure data for the modal
     loadDepartureDataForApprove(tourId, departureOrderIndex, departureBookingIndex);
@@ -10861,12 +11916,12 @@ function generateApproveDepartureForm(tourId, departureOrderIndex, departureBook
 
             <div class="mb-3">
                 <label for="actualDueDate_${tourId}_${departureOrderIndex}_${departureBookingIndex}" class="form-label fw-semibold">
-                    <i class="ri-calendar-line me-2"></i>Actual Due Date <span class="text-danger">*</span>
+                    <i class="ri-calendar-line me-2"></i>Free Cancellation Date <span class="text-danger">*</span>
                 </label>
                 <input type="date" class="form-control form-control-lg" id="actualDueDate_${tourId}_${departureOrderIndex}_${departureBookingIndex}" name="actual_due_date" required 
                        onchange="calculateDepartureDisplayDueDate('${tourId}', '${departureOrderIndex}', '${departureBookingIndex}')"
                        style="border-radius: 8px; border: 2px solid #e9ecef;">
-                <div class="form-text">Select the actual due date for this booking</div>
+                <div class="form-text">Select the Free Cancellation Date for this booking</div>
             </div>
 
             <div class="mb-3">
@@ -10884,7 +11939,7 @@ function generateApproveDepartureForm(tourId, departureOrderIndex, departureBook
                     <option value="7">1 week before</option>
                     <option value="14">2 weeks before</option>
                 </select>
-                <div class="form-text">Select how many days before the actual due date to display</div>
+                <div class="form-text">Select how many days before the Free Cancellation Date to display</div>
             </div>
 
             <div class="mb-3">
@@ -13327,12 +14382,7 @@ function generateIndividualTravelHourlyContent(travelHourlyData, modalId, tourId
                                         style="border-radius: 25px;">
                                     <i class="ri-edit-line me-1"></i>Edit
                                 </button>
-                                <button type="button" 
-                                        class="btn btn-outline-success btn-sm px-3 py-2" 
-                                            onclick="approveTravelHourlyBooking(${tourId}, ${travelHourlyOrderIndex}, ${bookingIndex})"
-                                        style="border-radius: 25px;">
-                                    <i class="ri-check-line me-1"></i>Approve
-                                </button>
+                                
                                 @endif
                                 @if(auth()->user()->role_id == 11 || auth()->user()->role_id == 34 || auth()->user()->role_id == 33 || auth()->user()->role_id == 37 || auth()->user()->role_id == 38 || auth()->user()->role_id == 124 || auth()->user()->role_id == 125 || auth()->user()->role_id == 128 || auth()->user()->role_id == 129 || auth()->user()->role_id == 130 || auth()->user()->role_id == 131 || auth()->user()->role_id == 132 || auth()->user()->role_id == 134 || auth()->user()->role_id == 135 || auth()->user()->role_id == 136 || auth()->user()->role_id == 137 || auth()->user()->role_id == 138)
                                 <button type="button" 
@@ -13816,12 +14866,12 @@ function generateApproveTravelHourlyForm(tourId, travelHourlyOrderIndex, booking
 
             <div class="mb-3">
                 <label for="actualDueDate_${tourId}_${travelHourlyOrderIndex}_${bookingIndex}" class="form-label fw-semibold">
-                    <i class="ri-calendar-line me-2"></i>Actual Due Date <span class="text-danger">*</span>
+                    <i class="ri-calendar-line me-2"></i>Free Cancellation Date <span class="text-danger">*</span>
                 </label>
                 <input type="date" class="form-control form-control-lg" id="actualDueDate_${tourId}_${travelHourlyOrderIndex}_${bookingIndex}" name="actual_due_date" required 
                        onchange="calculateHourlyDisplayDueDate('${tourId}', '${travelHourlyOrderIndex}', '${bookingIndex}')"
                        style="border-radius: 8px; border: 2px solid #e9ecef;">
-                <div class="form-text">Select the actual due date for this booking</div>
+                <div class="form-text">Select the Free Cancellation Date for this booking</div>
             </div>
 
             <div class="mb-3">
@@ -13839,7 +14889,7 @@ function generateApproveTravelHourlyForm(tourId, travelHourlyOrderIndex, booking
                     <option value="7">1 week before</option>
                     <option value="14">2 weeks before</option>
                 </select>
-                <div class="form-text">Choose how many days before the actual due date to display</div>
+                <div class="form-text">Choose how many days before the Free Cancellation Date to display</div>
             </div>
 
             <div class="mb-3">
@@ -14607,12 +15657,7 @@ function generateIndividualTravelPointContent(travelPointData, modalId, tourId, 
                                             style="border-radius: 25px;">
                                         <i class="ri-edit-line me-1"></i>Edit
                                     </button>
-                                    <button type="button" 
-                                            class="btn btn-outline-success btn-sm px-3 py-2" 
-                                            onclick="approveTravelPointBooking(${tourId}, ${travelPointOrderIndex}, ${bookingIndex})"
-                                            style="border-radius: 25px;">
-                                        <i class="ri-check-line me-1"></i>Approve
-                                    </button>
+                                    
                                     @endif
                                     @if(auth()->user()->role_id == 11 || auth()->user()->role_id == 34 || auth()->user()->role_id == 33 || auth()->user()->role_id == 37 || auth()->user()->role_id == 38 || auth()->user()->role_id == 124 || auth()->user()->role_id == 125 || auth()->user()->role_id == 128 || auth()->user()->role_id == 129 || auth()->user()->role_id == 130 || auth()->user()->role_id == 131 || auth()->user()->role_id == 132 || auth()->user()->role_id == 134 || auth()->user()->role_id == 135 || auth()->user()->role_id == 136 || auth()->user()->role_id == 137 || auth()->user()->role_id == 138)
                                     <button type="button" 
@@ -14692,8 +15737,34 @@ function createTravelPointApprovalModal(tourId, travelPointOrderIndex, bookingIn
     `;
     
     document.body.insertAdjacentHTML('beforeend', modalHTML);
-    const modal = new bootstrap.Modal(document.getElementById(modalId));
+    const modalElement = document.getElementById(modalId);
+    const modal = new bootstrap.Modal(modalElement);
     modal.show();
+    
+    // Add event listener to restore modal-open state when this modal closes
+    modalElement.addEventListener('hidden.bs.modal', function restoreModalState() {
+        // Check if there's still an open individual travel point view modal
+        const openIndividualModals = document.querySelectorAll('[id*="individualTravelPointViewModal_"]');
+        if (openIndividualModals.length > 0) {
+            // Restore modal-open class and padding to body
+            document.body.classList.add('modal-open');
+            
+            // Calculate scrollbar width and restore padding
+            const scrollbarWidth = window.innerWidth - document.documentElement.clientWidth;
+            if (scrollbarWidth > 0) {
+                document.body.style.paddingRight = scrollbarWidth + 'px';
+            }
+            
+            // Ensure backdrop is visible for the underlying modal
+            const backdrops = document.querySelectorAll('.modal-backdrop');
+            if (backdrops.length > 0) {
+                backdrops[backdrops.length - 1].style.display = 'block';
+            }
+        }
+        
+        // Remove this event listener after it's executed once
+        modalElement.removeEventListener('hidden.bs.modal', restoreModalState);
+    }, { once: true });
     
     // Load travel point data for the modal
     loadTravelPointDataForApprove(tourId, travelPointOrderIndex, bookingIndex);
@@ -14740,8 +15811,34 @@ function createTravelPointRejectionModal(tourId, travelPointOrderIndex, bookingI
     `;
     
     document.body.insertAdjacentHTML('beforeend', modalHTML);
-    const modal = new bootstrap.Modal(document.getElementById(modalId));
+    const modalElement = document.getElementById(modalId);
+    const modal = new bootstrap.Modal(modalElement);
     modal.show();
+    
+    // Add event listener to restore modal-open state when this modal closes
+    modalElement.addEventListener('hidden.bs.modal', function restoreModalState() {
+        // Check if there's still an open individual travel point view modal
+        const openIndividualModals = document.querySelectorAll('[id*="individualTravelPointViewModal_"]');
+        if (openIndividualModals.length > 0) {
+            // Restore modal-open class and padding to body
+            document.body.classList.add('modal-open');
+            
+            // Calculate scrollbar width and restore padding
+            const scrollbarWidth = window.innerWidth - document.documentElement.clientWidth;
+            if (scrollbarWidth > 0) {
+                document.body.style.paddingRight = scrollbarWidth + 'px';
+            }
+            
+            // Ensure backdrop is visible for the underlying modal
+            const backdrops = document.querySelectorAll('.modal-backdrop');
+            if (backdrops.length > 0) {
+                backdrops[backdrops.length - 1].style.display = 'block';
+            }
+        }
+        
+        // Remove this event listener after it's executed once
+        modalElement.removeEventListener('hidden.bs.modal', restoreModalState);
+    }, { once: true });
     
     // Load travel point data for the modal
     loadTravelPointDataForReject(tourId, travelPointOrderIndex, bookingIndex);
@@ -14863,7 +15960,7 @@ window.calculatePointDisplayDueDate = function(tourId, travelPointOrderIndex, bo
             return;
         }
         
-        // Calculate display due date by subtracting days from actual due date
+        // Calculate display due date by subtracting days from Free Cancellation Date
         const actualDate = new Date(actualDueDate);
         const displayDate = new Date(actualDate);
         displayDate.setDate(actualDate.getDate() - parseInt(daysBefore));
@@ -14951,12 +16048,12 @@ function generateApproveTravelPointForm(tourId, travelPointOrderIndex, bookingIn
 
             <div class="mb-3">
                 <label for="actualDueDate_${tourId}_${travelPointOrderIndex}_${bookingIndex}" class="form-label fw-semibold">
-                    <i class="ri-calendar-line me-2"></i>Actual Due Date <span class="text-danger">*</span>
+                    <i class="ri-calendar-line me-2"></i>Free Cancellation Date <span class="text-danger">*</span>
                 </label>
                 <input type="date" class="form-control form-control-lg" id="actualDueDate_${tourId}_${travelPointOrderIndex}_${bookingIndex}" name="actual_due_date" required 
                        onchange="calculatePointDisplayDueDate('${tourId}', '${travelPointOrderIndex}', '${bookingIndex}')"
                        style="border-radius: 8px; border: 2px solid #e9ecef;">
-                <div class="form-text">Select the actual due date for this booking</div>
+                <div class="form-text">Select the Free Cancellation Date for this booking</div>
             </div>
 
             <div class="mb-3">
@@ -14974,7 +16071,7 @@ function generateApproveTravelPointForm(tourId, travelPointOrderIndex, bookingIn
                     <option value="7">1 week before</option>
                     <option value="14">2 weeks before</option>
                 </select>
-                <div class="form-text">Choose how many days before the actual due date to display</div>
+                <div class="form-text">Choose how many days before the Free Cancellation Date to display</div>
             </div>
 
             <div class="mb-3">
@@ -16062,12 +17159,7 @@ function generateIndividualTravelPointContent(travelPointData, modalId, tourId, 
                                         style="border-radius: 25px;">
                                     <i class="ri-edit-line me-1"></i>Edit
                                 </button>
-                                <button type="button" 
-                                        class="btn btn-outline-success btn-sm px-3 py-2" 
-                                        onclick="approveTravelPointBooking(${tourId}, ${travelPointOrderIndex}, ${bookingIndex})"
-                                        style="border-radius: 25px;">
-                                    <i class="ri-check-line me-1"></i>Approve
-                                </button>
+                                
                                 @endif
                                 @if(auth()->user()->role_id == 11 || auth()->user()->role_id == 34 || auth()->user()->role_id == 33 || auth()->user()->role_id == 37 || auth()->user()->role_id == 38 || auth()->user()->role_id == 124 || auth()->user()->role_id == 125 || auth()->user()->role_id == 128 || auth()->user()->role_id == 129 || auth()->user()->role_id == 130 || auth()->user()->role_id == 131 || auth()->user()->role_id == 132 || auth()->user()->role_id == 134 || auth()->user()->role_id == 135 || auth()->user()->role_id == 136 || auth()->user()->role_id == 137 || auth()->user()->role_id == 138)
                                 <button type="button" 
@@ -17276,12 +18368,7 @@ function generateIndividualLocalTransportContent(localTransportData, modalId, to
                                         style="border-radius: 25px;">
                                     <i class="ri-edit-line me-1"></i>Edit
                                 </button>
-                                <button type="button" 
-                                        class="btn btn-outline-success btn-sm px-3 py-2" 
-                                        onclick="approveIndividualLocalTransport(${tourId}, ${localTransportOrderIndex}, ${bookingIndex})"
-                                        style="border-radius: 25px;">
-                                    <i class="ri-check-line me-1"></i>Approve
-                                </button>
+                                
                                 @endif
                                 @if(auth()->user()->role_id == 11 || auth()->user()->role_id == 34 || auth()->user()->role_id == 33 || auth()->user()->role_id == 37 || auth()->user()->role_id == 38 || auth()->user()->role_id == 124 || auth()->user()->role_id == 125 || auth()->user()->role_id == 128 || auth()->user()->role_id == 129 || auth()->user()->role_id == 130 || auth()->user()->role_id == 131 || auth()->user()->role_id == 132 || auth()->user()->role_id == 134 || auth()->user()->role_id == 135 || auth()->user()->role_id == 136 || auth()->user()->role_id == 137 || auth()->user()->role_id == 138)
                                 <button type="button" 
@@ -17289,9 +18376,11 @@ function generateIndividualLocalTransportContent(localTransportData, modalId, to
                                         onclick="rejectIndividualLocalTransport(${tourId}, ${localTransportOrderIndex}, ${bookingIndex})"
                                         style="border-radius: 25px;">
                                     <i class="ri-close-line me-1"></i>Reject
+
                                 </button>
                                 @endif
                             </div>
+                            
                             @endif
                             `}
                         </div>
@@ -17438,12 +18527,12 @@ function createLocalTransportApprovalModal(tourId, localTransportOrderIndex, boo
 
                             <div class="mb-3">
                                 <label for="actualDueDate_${tourId}_${localTransportOrderIndex}_${bookingIndex}" class="form-label fw-semibold">
-                                    <i class="ri-calendar-line me-2"></i>Actual Due Date <span class="text-danger">*</span>
+                                    <i class="ri-calendar-line me-2"></i>Free Cancellation Date <span class="text-danger">*</span>
                                 </label>
                                 <input type="date" class="form-control form-control-lg" id="actualDueDate_${tourId}_${localTransportOrderIndex}_${bookingIndex}" name="actual_due_date" required 
                                        onchange="calculateLocalTransportDisplayDueDate('${tourId}', '${localTransportOrderIndex}', '${bookingIndex}')"
                                        style="border-radius: 8px; border: 2px solid #e9ecef;">
-                                <div class="form-text">Select the actual due date for this booking</div>
+                                <div class="form-text">Select the Free Cancellation Date for this booking</div>
                             </div>
 
                             <div class="mb-3">
@@ -17462,7 +18551,7 @@ function createLocalTransportApprovalModal(tourId, localTransportOrderIndex, boo
                                     <option value="14">2 weeks before</option>
                                     <option value="30">1 month before</option>
                                 </select>
-                                <div class="form-text">Select how many days before the actual due date to display</div>
+                                <div class="form-text">Select how many days before the Free Cancellation Date to display</div>
                             </div>
 
                             <div class="mb-3">
@@ -17765,7 +18854,7 @@ function confirmIndividualLocalTransportApproval(tourId, localTransportOrderInde
         }
 
         if (!actualDueDate) {
-            alert('Please select an actual due date.');
+            alert('Please select an Free Cancellation Date.');
             return;
         }
 
@@ -18329,10 +19418,10 @@ function generateApproveLocalTransportForm(tourId, localTransportOrderIndex, boo
                             <small class="text-muted">Supported: PDF, DOC, DOCX, JPG, PNG (Max: 10MB)</small>
                         </div>
 
-                        <!-- Actual Due Date -->
+                        <!-- Free Cancellation Date -->
                         <div class="col-md-6">
                             <label for="actualDueDate_${tourId}_${localTransportOrderIndex}_${bookingIndex}" class="form-label fw-medium text-dark">
-                                <i class="ri-calendar-line me-1"></i>Actual Due Date <span class="text-danger">*</span>
+                                <i class="ri-calendar-line me-1"></i>Free Cancellation Date <span class="text-danger">*</span>
                             </label>
                             <input type="date" 
                                    class="form-control" 
@@ -19548,7 +20637,7 @@ function editIndividualHotel(tourId, hotelOrderIndex, bookingIndex) {
     }
 }
 
-function approveIndividualHotel(tourId, hotelOrderIndex, bookingIndex) {
+function approveIndividualHotel(tourId, hotelOrderIndex, bookingIndex, autoCancelDate=null) {
     try {
         console.log('Opening individual hotel approve modal for tour:', tourId, 'hotel order:', hotelOrderIndex, 'booking:', bookingIndex);
         
@@ -19563,7 +20652,7 @@ function approveIndividualHotel(tourId, hotelOrderIndex, bookingIndex) {
         
         // Wait a moment for the modal to close, then show approve modal
         setTimeout(() => {
-            createAndShowIndividualHotelModal(tourId, hotelOrderIndex, bookingIndex, 'approve');
+            createAndShowIndividualHotelModal(tourId, hotelOrderIndex, bookingIndex, 'approve', autoCancelDate);
         }, 300);
         
     } catch (error) {
@@ -19596,7 +20685,7 @@ function rejectIndividualHotel(tourId, hotelOrderIndex, bookingIndex) {
     }
 }
 
-function createAndShowIndividualHotelModal(tourId, hotelOrderIndex, bookingIndex, action) {
+function createAndShowIndividualHotelModal(tourId, hotelOrderIndex, bookingIndex, action, autoCancelDate=null) {
     try {
         const modalId = `individualHotelModal_${tourId}_${hotelOrderIndex}_${bookingIndex}_${action}`;
         
@@ -19629,7 +20718,7 @@ function createAndShowIndividualHotelModal(tourId, hotelOrderIndex, bookingIndex
                 buttonClass = 'btn-success';
                 buttonText = '<i class="ri-check-line me-2"></i>Confirm Approval';
                 onSubmit = `confirmIndividualHotelApproval(${tourId}, ${hotelOrderIndex}, ${bookingIndex})`;
-                modalContent = generateApproveHotelForm(tourId, hotelOrderIndex, bookingIndex);
+                modalContent = generateApproveHotelForm(tourId, hotelOrderIndex, bookingIndex,autoCancelDate);
                 break;
                 
             case 'reject':
@@ -19692,17 +20781,37 @@ function createAndShowIndividualHotelModal(tourId, hotelOrderIndex, bookingIndex
         const modal = new bootstrap.Modal(modalElement);
         modal.show();
         
+        // Add event listener to restore modal-open state when this modal closes
+        modalElement.addEventListener('hidden.bs.modal', function restoreModalState() {
+            // Check if there's still an open individual hotel view modal
+            const openIndividualModals = document.querySelectorAll('[id*="individualHotelViewModal_"]');
+            if (openIndividualModals.length > 0) {
+                // Restore modal-open class and padding to body
+                document.body.classList.add('modal-open');
+                
+                // Calculate scrollbar width and restore padding
+                const scrollbarWidth = window.innerWidth - document.documentElement.clientWidth;
+                if (scrollbarWidth > 0) {
+                    document.body.style.paddingRight = scrollbarWidth + 'px';
+                }
+                
+                // Ensure backdrop is visible for the underlying modal
+                const backdrops = document.querySelectorAll('.modal-backdrop');
+                if (backdrops.length > 0) {
+                    backdrops[backdrops.length - 1].style.display = 'block';
+                }
+            }
+            
+            // Remove modal from DOM
+            modalElement.remove();
+        }, { once: true });
+        
         // Load data for approve modal
         if (action === 'approve') {
             setTimeout(() => {
                 loadHotelDataForApprove(tourId, hotelOrderIndex, bookingIndex);
             }, 100);
         }
-        
-        // Remove modal from DOM when hidden
-        modalElement.addEventListener('hidden.bs.modal', function () {
-            modalElement.remove();
-        });
         
     } catch (error) {
         console.error('Error creating individual hotel modal:', error);
@@ -19828,7 +20937,7 @@ function generateEditHotelForm(tourId, hotelOrderIndex, bookingIndex) {
     `;
 }
 
-function generateApproveHotelForm(tourId, hotelOrderIndex, bookingIndex) {
+function generateApproveHotelForm(tourId, hotelOrderIndex, bookingIndex, autoCancelDate=null) {
     return `
         <form id="approveIndividualHotelForm_${tourId}_${hotelOrderIndex}_${bookingIndex}">
             <input type="hidden" name="tour_id" value="${tourId}">
@@ -19890,12 +20999,11 @@ function generateApproveHotelForm(tourId, hotelOrderIndex, bookingIndex) {
 
             <div class="mb-3">
                 <label for="actualDueDate_${tourId}_${hotelOrderIndex}_${bookingIndex}" class="form-label fw-semibold">
-                    <i class="ri-calendar-line me-2"></i>Actual Due Date <span class="text-danger">*</span>
+                    <i class="ri-calendar-line me-2"></i>Free Cancellation Date <span class="text-danger">*</span>
                 </label>
-                <input type="date" class="form-control form-control-lg" id="actualDueDate_${tourId}_${hotelOrderIndex}_${bookingIndex}" name="actual_due_date" required 
-                       onchange="calculateDisplayDueDate('${tourId}', '${hotelOrderIndex}', '${bookingIndex}')"
+                <input type="text" value="${autoCancelDate}" readonly class="form-control form-control-lg" id="actualDueDate_${tourId}_${hotelOrderIndex}_${bookingIndex}" name="actual_due_date" required 
                        style="border-radius: 8px; border: 2px solid #e9ecef;">
-                <div class="form-text">Select the actual due date for this booking</div>
+                <div class="form-text">Select the Free Cancellation Date for this booking</div>
             </div>
 
             <div class="mb-3">
@@ -19913,7 +21021,7 @@ function generateApproveHotelForm(tourId, hotelOrderIndex, bookingIndex) {
                     <option value="7">1 week before</option>
                     <option value="14">2 weeks before</option>
                 </select>
-                <div class="form-text">Select how many days before the actual due date to display</div>
+                <div class="form-text">Select how many days before the Free Cancellation Date to display</div>
             </div>
 
             <div class="mb-3">
@@ -20160,6 +21268,7 @@ function loadHotelDataForApprove(tourId, hotelOrderIndex, bookingIndex) {
         .then(data => {
             if (data.success && data.data && data.data.hotel_booking) {
                 const hotelData = data.data.hotel_booking;
+                const tourData = data.data.tour;
                 console.log('Hotel data loaded for approve modal:', hotelData);
                 
                 // Update hotel image
@@ -20188,12 +21297,11 @@ function loadHotelDataForApprove(tourId, hotelOrderIndex, bookingIndex) {
                     hotelNameElement.textContent = hotelData.hotel_name || 'Hotel Booking';
                 }
                 
-                // Set default actual due date to today + 7 days
+                // Set default Free Cancellation Date to today + 7 days
                 const actualDueDateInput = document.getElementById(`actualDueDate_${tourId}_${hotelOrderIndex}_${bookingIndex}`);
                 if (actualDueDateInput) {
-                    const defaultDate = new Date();
-                    defaultDate.setDate(defaultDate.getDate() + 7);
-                    actualDueDateInput.value = defaultDate.toISOString().split('T')[0];
+                    const autoCancelDate = (tourData && tourData.auto_cancel_date) ? tourData.auto_cancel_date : '';
+                    actualDueDateInput.value = autoCancelDate;
                 }
                 
             } else {
@@ -20287,15 +21395,10 @@ function confirmIndividualHotelApproval(tourId, hotelOrderIndex, bookingIndex) {
             return;
         }
         
-        // Validate actual due date is not in the past
+        // Validate Free Cancellation Date is not in the past
         const selectedDate = new Date(actualDueDate);
         const today = new Date();
         today.setHours(0, 0, 0, 0);
-        
-        if (selectedDate < today) {
-            alert('Actual due date cannot be in the past');
-            return;
-        }
         
         // Show loading state
         const approveButton = event.target;
@@ -21609,114 +22712,98 @@ function showUpcomingTours() {
     filterTable();
 }
 
-function resetFilters() {
-    document.getElementById('searchInput').value = '';
-    document.getElementById('statusFilter').value = '';
-    document.getElementById('destinationFilter').value = '';
-    document.getElementById('agentFilter').value = '';
-    const dr = document.getElementById('dateRange');
-    const ds = document.getElementById('dateRangeStart');
-    const de = document.getElementById('dateRangeEnd');
-    if (dr) dr.value = '';
-    if (ds) ds.value = '';
-    if (de) de.value = '';
-    filterTable();
-}
-
 window.filterTable = function() {
     const searchTerm = document.getElementById('searchInput')?.value.toLowerCase() || '';
     const statusFilter = document.getElementById('statusFilter')?.value || '';
     const destinationFilter = document.getElementById('destinationFilter')?.value || '';
     const agentFilter = document.getElementById('agentFilter')?.value || '';
-    const dateStart = document.getElementById('dateRangeStart')?.value || '';
-    const dateEnd = document.getElementById('dateRangeEnd')?.value || '';
+    const startDateValue = document.getElementById('startDateFilter')?.value || '';
+    const endDateValue = document.getElementById('endDateFilter')?.value || '';
     
     const rows = document.querySelectorAll('#toursTable tbody tr');
+    const totalRows = Array.from(rows).filter(r => r.cells.length > 1).length;
     
-    table.rows('.dt-hasChild').every(function() {
-        if (this.child.isShown()) this.child.hide();
-        $(this.node()).removeClass('dt-hasChild');
-    });
+    if (typeof table !== 'undefined' && table && table.rows) {
+        table.rows('.dt-hasChild').every(function() {
+            if (this.child.isShown()) this.child.hide();
+            $(this.node()).removeClass('dt-hasChild');
+        });
+    }
 
     let visibleCount = 0;
     
     rows.forEach(row => {
-        if (row.cells.length === 1) return; // Skip empty state row
+        if (row.cells.length === 1) return;
         
         const tourDetails = row.cells[1]?.textContent.toLowerCase() || '';
         const destination = row.cells[2]?.querySelector('.fw-medium')?.textContent || '';
         const agent = row.cells[5]?.querySelector('.fw-medium')?.textContent || '';
         const executionStatus = row.getAttribute('data-execution-status') || '';
-        const travelDates = row.cells[6]?.textContent.toLowerCase() || '';
-        const confirmationDateText = row.cells[7]?.textContent || '';
         const updatedAt = row.getAttribute('data-updated-at');
+        const createdAtAttr = row.getAttribute('data-created-at');
         
         let show = true;
         
         if (searchTerm && !tourDetails.includes(searchTerm)) {
-            console.log('Search term not found', searchTerm, tourDetails);
             show = false;
         }
         
-        // Status filter - use data attribute for accurate filtering
         if (statusFilter && executionStatus !== statusFilter) {
-            console.log('Status filter not found', statusFilter, executionStatus);
             show = false;
         }
         
-        if (destinationFilter && destination !== destinationFilter) {
-            console.log('Destination filter not found', destinationFilter, destination);
-            show = false;
+        // Country filter - use LIKE operator logic (contains)
+        // This works for multi-country destinations like "India, Singapore"
+        if (destinationFilter) {
+            // Split destination by comma and trim spaces
+            const destinationCountries = destination.split(',').map(c => c.trim());
+            // Check if the selected country is in the destination list
+            if (!destinationCountries.includes(destinationFilter)) {
+                show = false;
+            }
         }
         
         if (agentFilter && agent !== agentFilter) {
-            console.log('Agent filter not found', agentFilter, agent);
             show = false;
         }
         
-        // Date range filtering (check both created_at and updated_at)
-        if (dateStart && dateEnd && (updatedAt || row.getAttribute('data-created-at'))) {
-            const createdAt = row.getAttribute('data-created-at');
-            const s = new Date(dateStart + 'T00:00:00');
-            const e = new Date(dateEnd + 'T23:59:59');
+        if ((startDateValue || endDateValue) && (updatedAt || createdAtAttr)) {
+            const startDate = startDateValue ? new Date(startDateValue + 'T00:00:00') : null;
+            const endDate = endDateValue ? new Date(endDateValue + 'T23:59:59') : null;
             let dateInRange = false;
             
-            // Check updated_at if available
             if (updatedAt) {
                 const updatedDate = new Date(updatedAt + 'T00:00:00');
-                if (updatedDate >= s && updatedDate <= e) {
+                if ((!startDate || updatedDate >= startDate) && (!endDate || updatedDate <= endDate)) {
                     dateInRange = true;
                 }
             }
             
-            // Check created_at if available and updated_at didn't match
-            if (!dateInRange && createdAt) {
-                const createdDate = new Date(createdAt + 'T00:00:00');
-                if (createdDate >= s && createdDate <= e) {
+            if (!dateInRange && createdAtAttr) {
+                const createdDate = new Date(createdAtAttr + 'T00:00:00');
+                if ((!startDate || createdDate >= startDate) && (!endDate || createdDate <= endDate)) {
                     dateInRange = true;
                 }
             }
             
             if (!dateInRange) {
-                console.log('Date range filter not found', dateStart, dateEnd, createdAt, updatedAt);
                 show = false;
             }
+        } else if (startDateValue || endDateValue) {
+            show = false;
         }
         
         row.style.display = show ? '' : 'none';
         if (show) visibleCount++;
     });
     
-    // Update visible count display
-    updateFilterResults(visibleCount, rows.length);
+    updateFilterResults(visibleCount, totalRows);
 
-    // Update header/cards counts based on visible rows
     const visibleRows = Array.from(document.querySelectorAll('#toursTable tbody tr')).filter(r => r.style.display !== 'none' && r.cells.length > 1);
-    const rangeCount = visibleRows.length;
+    const rangeCount = visibleCount;
     const adults = visibleRows.reduce((sum, r) => sum + parseInt(r.getAttribute('data-adult') || '0', 10), 0);
     const children = visibleRows.reduce((sum, r) => sum + parseInt(r.getAttribute('data-child') || '0', 10), 0);
     
-    // Count today's bookings from visible rows
     const today = new Date().toISOString().split('T')[0];
     const todayCount = visibleRows.filter(r => {
         const createdAt = r.getAttribute('data-created-at');
@@ -21739,28 +22826,33 @@ window.filterTable = function() {
     if (statChildren) statChildren.textContent = children;
     if (statToday) statToday.textContent = todayCount;
 
-    if (dateStart && dateEnd) {
-        const start = new Date(dateStart);
-        const end = new Date(dateEnd);
-        
-        // Format the date range label
-        let label;
-        if (start.getMonth() === end.getMonth() && start.getFullYear() === end.getFullYear()) {
-            // Same month
-            if (start.getDate() === 1 && end.getDate() === new Date(end.getFullYear(), end.getMonth() + 1, 0).getDate()) {
-                // Full month
-                label = start.toLocaleString('default', { month: 'long', year: 'numeric' });
+    if (startDateValue || endDateValue) {
+        const start = startDateValue ? new Date(startDateValue) : null;
+        const end = endDateValue ? new Date(endDateValue) : null;
+        let label = '';
+
+        if (start && end) {
+            if (start.getTime() === end.getTime()) {
+                label = start.toLocaleString('default', { month: 'short', day: '2-digit', year: 'numeric' });
+            } else if (start.getMonth() === end.getMonth() && start.getFullYear() === end.getFullYear()) {
+                if (start.getDate() === 1 && end.getDate() === new Date(end.getFullYear(), end.getMonth() + 1, 0).getDate()) {
+                    label = start.toLocaleString('default', { month: 'long', year: 'numeric' });
+                } else {
+                    label = `${start.getDate()}-${end.getDate()} ${start.toLocaleString('default', { month: 'short' })}, ${start.getFullYear()}`;
+                }
             } else {
-                label = `${start.getDate()}-${end.getDate()} ${start.toLocaleString('default', { month: 'short' })}, ${start.getFullYear()}`;
+                label = `${start.toLocaleString('default', { month: 'short' })} ${start.getDate()} - ${end.toLocaleString('default', { month: 'short' })} ${end.getDate()}, ${end.getFullYear()}`;
             }
-        } else {
-            label = `${start.toLocaleString('default', { month: 'short' })} ${start.getDate()} - ${end.toLocaleString('default', { month: 'short' })} ${end.getDate()}, ${end.getFullYear()}`;
+        } else if (start) {
+            label = `From ${start.toLocaleString('default', { month: 'short', day: '2-digit', year: 'numeric' })}`;
+        } else if (end) {
+            label = `Up to ${end.toLocaleString('default', { month: 'short', day: '2-digit', year: 'numeric' })}`;
         }
-        
-        if (labelEl) labelEl.textContent = label;
-        if (statConfirmedLabel) statConfirmedLabel.textContent = `Definite - ${label}`;
-        if (statAdultsLabel) statAdultsLabel.textContent = `Adults - ${label}`;
-        if (statChildrenLabel) statChildrenLabel.textContent = `Childrens - ${label}`;
+
+        if (label && labelEl) labelEl.textContent = label;
+        if (label && statConfirmedLabel) statConfirmedLabel.textContent = `Definite - ${label}`;
+        if (label && statAdultsLabel) statAdultsLabel.textContent = `Adults - ${label}`;
+        if (label && statChildrenLabel) statChildrenLabel.textContent = `Children - ${label}`;
     } else {
         const month = new Date().toLocaleString('default', { month: 'long' });
         if (labelEl) labelEl.textContent = month;
@@ -21771,16 +22863,34 @@ window.filterTable = function() {
 };
 
 function resetFilters() {
-    document.getElementById('searchInput').value = '';
-    document.getElementById('statusFilter').value = '';
-    document.getElementById('destinationFilter').value = '';
-    document.getElementById('agentFilter').value = '';
-    const dr = document.getElementById('dateRange');
-    const ds = document.getElementById('dateRangeStart');
-    const de = document.getElementById('dateRangeEnd');
-    if (dr) dr.value = '';
-    if (ds) ds.value = '';
-    if (de) de.value = '';
+    const searchInput = document.getElementById('searchInput');
+    const statusSelect = document.getElementById('statusFilter');
+    const destinationSelect = document.getElementById('destinationFilter');
+    const agentSelect = document.getElementById('agentFilter');
+    const startDateInput = document.getElementById('startDateFilter');
+    const endDateInput = document.getElementById('endDateFilter');
+
+    if (searchInput) searchInput.value = '';
+    if (statusSelect) statusSelect.value = '';
+    
+    // Reset Select2 dropdowns properly
+    if (destinationSelect && $('#destinationFilter').hasClass('select2-hidden-accessible')) {
+        $('#destinationFilter').val(null).trigger('change');
+    } else if (destinationSelect) {
+        destinationSelect.value = '';
+    }
+    
+    if (agentSelect && $('#agentFilter').hasClass('select2-hidden-accessible')) {
+        $('#agentFilter').val(null).trigger('change');
+    } else if (agentSelect) {
+        agentSelect.value = '';
+    }
+    
+    if (startDateInput) startDateInput.value = '';
+    if (endDateInput) {
+        endDateInput.value = '';
+        endDateInput.removeAttribute('min');
+    }
     filterTable();
     
     // Show success message
@@ -21823,23 +22933,52 @@ document.addEventListener('DOMContentLoaded', function() {
     const statusFilter = document.getElementById('statusFilter');
     const destinationFilter = document.getElementById('destinationFilter');
     const agentFilter = document.getElementById('agentFilter');
-    const dateRange = document.getElementById('dateRange');
-    const dateRangeStart = document.getElementById('dateRangeStart');
-    const dateRangeEnd = document.getElementById('dateRangeEnd');
+    const startDateFilter = document.getElementById('startDateFilter');
+    const endDateFilter = document.getElementById('endDateFilter');
+    const today = new Date().toISOString().split('T')[0];
     
     // Add event listeners
     if (searchInput) searchInput.addEventListener('input', filterTable);
     if (statusFilter) statusFilter.addEventListener('change', filterTable);
-    if (destinationFilter) destinationFilter.addEventListener('change', filterTable);
-    if (agentFilter) agentFilter.addEventListener('change', filterTable);
-    // Date range picker will be initialized in scripts section where jQuery is available
+    // Note: destinationFilter and agentFilter event listeners are handled by Select2 initialization
+    // They will trigger filterTable when changed via Select2's change event
+    if (startDateFilter) {
+        startDateFilter.setAttribute('max', today);
+        startDateFilter.addEventListener('change', function() {
+            if (endDateFilter) {
+                if (startDateFilter.value) {
+                    endDateFilter.setAttribute('min', startDateFilter.value);
+                    if (endDateFilter.value && endDateFilter.value < startDateFilter.value) {
+                        endDateFilter.value = startDateFilter.value;
+                    }
+                } else {
+                    endDateFilter.removeAttribute('min');
+                }
+            }
+            filterTable();
+        });
+    }
+    if (endDateFilter) {
+        endDateFilter.setAttribute('max', today);
+        if (startDateFilter && startDateFilter.value) {
+            endDateFilter.setAttribute('min', startDateFilter.value);
+        }
+        endDateFilter.addEventListener('change', function() {
+            if (startDateFilter && endDateFilter.value && startDateFilter.value && endDateFilter.value < startDateFilter.value) {
+                startDateFilter.value = endDateFilter.value;
+                startDateFilter.dispatchEvent(new Event('change'));
+                return;
+            }
+            filterTable();
+        });
+    }
     
     // Apply initial filter on page load to show today's data
     filterTable();
 });
 
 // Individual Attraction Functions (for handling multiple attraction bookings separately)
-function editIndividualAttraction(tourId, attractionOrderIndex, bookingIndex) {
+function editIndividualAttraction(tourId, attractionOrderIndex, bookingIndex, actualCancelDateStr=null) {
     try {
         console.log('Opening individual attraction edit modal for tour:', tourId, 'attraction order:', attractionOrderIndex, 'booking:', bookingIndex);
         
@@ -21867,9 +23006,9 @@ function editIndividualAttraction(tourId, attractionOrderIndex, bookingIndex) {
     }
 }
 
-function approveIndividualAttraction(tourId, attractionOrderIndex, bookingIndex) {
+function approveIndividualAttraction(tourId, attractionOrderIndex, bookingIndex, actualCancelDateStr=null) {
     try {
-        console.log('Opening individual attraction approve modal for tour:', tourId, 'attraction order:', attractionOrderIndex, 'booking:', bookingIndex);
+        console.log('Opening individual attraction approve modal for tour:', tourId, 'attraction order:', attractionOrderIndex, 'booking:', bookingIndex, 'actual cancel date:', actualCancelDateStr);
         
         // Close the attraction details modal first
         const attractionDetailsModal = document.getElementById('attractionDetailsModal' + tourId);
@@ -21882,7 +23021,7 @@ function approveIndividualAttraction(tourId, attractionOrderIndex, bookingIndex)
         
         // Wait a moment for the modal to close, then show individual approve modal
         setTimeout(() => {
-            createAndShowIndividualAttractionModal(tourId, attractionOrderIndex, bookingIndex, 'approve');
+            createAndShowIndividualAttractionModal(tourId, attractionOrderIndex, bookingIndex, 'approve', actualCancelDateStr);
         }, 300);
         
     } catch (error) {
@@ -21891,7 +23030,7 @@ function approveIndividualAttraction(tourId, attractionOrderIndex, bookingIndex)
     }
 }
 
-function rejectIndividualAttraction(tourId, attractionOrderIndex, bookingIndex) {
+function rejectIndividualAttraction(tourId, attractionOrderIndex, bookingIndex, actualCancelDateStr=null) {
     try {
         console.log('Opening individual attraction reject modal for tour:', tourId, 'attraction order:', attractionOrderIndex, 'booking:', bookingIndex);
         
@@ -21906,7 +23045,7 @@ function rejectIndividualAttraction(tourId, attractionOrderIndex, bookingIndex) 
         
         // Wait a moment for the modal to close, then show individual reject modal
         setTimeout(() => {
-            createAndShowIndividualAttractionModal(tourId, attractionOrderIndex, bookingIndex, 'reject');
+            createAndShowIndividualAttractionModal(tourId, attractionOrderIndex, bookingIndex, 'reject', actualCancelDateStr);
         }, 300);
         
     } catch (error) {
@@ -21915,7 +23054,7 @@ function rejectIndividualAttraction(tourId, attractionOrderIndex, bookingIndex) 
     }
 }
 
-function createAndShowIndividualAttractionModal(tourId, attractionOrderIndex, bookingIndex, action) {
+function createAndShowIndividualAttractionModal(tourId, attractionOrderIndex, bookingIndex, action, actualCancelDateStr=null) {
     try {
         const modalId = `individualAttractionModal_${tourId}_${attractionOrderIndex}_${bookingIndex}_${action}`;
         
@@ -21934,7 +23073,7 @@ function createAndShowIndividualAttractionModal(tourId, attractionOrderIndex, bo
                 buttonClass = 'btn-primary';
                 buttonText = '<i class="ri-save-line me-2"></i>Save Changes';
                 onSubmit = `saveIndividualAttractionChanges(${tourId}, ${attractionOrderIndex}, ${bookingIndex})`;
-                modalContent = generateEditAttractionForm(tourId, attractionOrderIndex, bookingIndex);
+                modalContent = generateEditAttractionForm(tourId, attractionOrderIndex, bookingIndex, actualCancelDateStr);
                 break;
                 
             case 'approve':
@@ -21943,7 +23082,7 @@ function createAndShowIndividualAttractionModal(tourId, attractionOrderIndex, bo
                 buttonClass = 'btn-success';
                 buttonText = '<i class="ri-check-line me-2"></i>Confirm Approval';
                 onSubmit = `confirmIndividualAttractionApproval(${tourId}, ${attractionOrderIndex}, ${bookingIndex})`;
-                modalContent = generateApproveAttractionForm(tourId, attractionOrderIndex, bookingIndex);
+                modalContent = generateApproveAttractionForm(tourId, attractionOrderIndex, bookingIndex, actualCancelDateStr);
                 break;
                 
             case 'reject':
@@ -21953,7 +23092,7 @@ function createAndShowIndividualAttractionModal(tourId, attractionOrderIndex, bo
                 buttonText = '<i class="ri-close-line me-2"></i>Confirm Rejection';
                 onSubmit = `window.confirmIndividualAttractionRejection ? window.confirmIndividualAttractionRejection(${tourId}, ${attractionOrderIndex}, ${bookingIndex}) : confirmIndividualAttractionRejection(${tourId}, ${attractionOrderIndex}, ${bookingIndex})`;
                 console.log('🎢 Using window.generateRejectAttractionForm for correct reject form');
-                modalContent = window.generateRejectAttractionForm ? window.generateRejectAttractionForm(tourId, attractionOrderIndex, bookingIndex) : generateRejectAttractionForm(tourId, attractionOrderIndex, bookingIndex);
+                modalContent = window.generateRejectAttractionForm ? window.generateRejectAttractionForm(tourId, attractionOrderIndex, bookingIndex) : generateRejectAttractionForm(tourId, attractionOrderIndex, bookingIndex, actualCancelDateStr);
                 break;
         }
         
@@ -22002,10 +23141,30 @@ function createAndShowIndividualAttractionModal(tourId, attractionOrderIndex, bo
         const modal = new bootstrap.Modal(modalElement);
         modal.show();
         
-        // Remove modal from DOM when hidden
-        modalElement.addEventListener('hidden.bs.modal', function () {
+        // Add event listener to restore modal-open state when this modal closes
+        modalElement.addEventListener('hidden.bs.modal', function restoreModalState() {
+            // Check if there's still an open individual attraction view modal
+            const openIndividualModals = document.querySelectorAll('[id*="individualAttractionViewModal_"]');
+            if (openIndividualModals.length > 0) {
+                // Restore modal-open class and padding to body
+                document.body.classList.add('modal-open');
+                
+                // Calculate scrollbar width and restore padding
+                const scrollbarWidth = window.innerWidth - document.documentElement.clientWidth;
+                if (scrollbarWidth > 0) {
+                    document.body.style.paddingRight = scrollbarWidth + 'px';
+                }
+                
+                // Ensure backdrop is visible for the underlying modal
+                const backdrops = document.querySelectorAll('.modal-backdrop');
+                if (backdrops.length > 0) {
+                    backdrops[backdrops.length - 1].style.display = 'block';
+                }
+            }
+            
+            // Remove modal from DOM
             modalElement.remove();
-        });
+        }, { once: true });
         
     } catch (error) {
         console.error('Error creating individual attraction modal:', error);
@@ -22013,7 +23172,7 @@ function createAndShowIndividualAttractionModal(tourId, attractionOrderIndex, bo
     }
 }
 
-function generateEditAttractionForm(tourId, attractionOrderIndex, bookingIndex) {
+function generateEditAttractionForm(tourId, attractionOrderIndex, bookingIndex, actualCancelDateStr=null) {
     return `
         <form id="editIndividualAttractionForm_${tourId}_${attractionOrderIndex}_${bookingIndex}">
             <input type="hidden" name="tour_id" value="${tourId}">
@@ -22146,7 +23305,7 @@ function generateEditAttractionForm(tourId, attractionOrderIndex, bookingIndex) 
     `;
 }
 
-function generateApproveAttractionForm(tourId, attractionOrderIndex, bookingIndex) {
+function generateApproveAttractionForm(tourId, attractionOrderIndex, bookingIndex, actualCancelDateStr=null) {
     return `
         <form id="approveIndividualAttractionForm_${tourId}_${attractionOrderIndex}_${bookingIndex}">
             <input type="hidden" name="tour_id" value="${tourId}">
@@ -22169,7 +23328,7 @@ function generateApproveAttractionForm(tourId, attractionOrderIndex, bookingInde
     `;
 }
 
-function generateRejectAttractionForm(tourId, attractionOrderIndex, bookingIndex) {
+function generateRejectAttractionForm(tourId, attractionOrderIndex, bookingIndex, actualCancelDateStr=null) {
     return `
         <form id="rejectIndividualAttractionForm_${tourId}_${attractionOrderIndex}_${bookingIndex}">
             <input type="hidden" name="tour_id" value="${tourId}">
@@ -22840,7 +23999,7 @@ function editIndividualRestaurant(tourId, restaurantOrderIndex, bookingIndex) {
     }
 }
 
-function approveIndividualRestaurant(tourId, restaurantOrderIndex, bookingIndex) {
+function approveIndividualRestaurant(tourId, restaurantOrderIndex, bookingIndex, actualCancelDateStr=null) {
     try {
         console.log('Opening individual restaurant approve modal for tour:', tourId, 'restaurant order:', restaurantOrderIndex, 'booking:', bookingIndex);
         
@@ -22855,7 +24014,7 @@ function approveIndividualRestaurant(tourId, restaurantOrderIndex, bookingIndex)
         
         // Wait a moment for the modal to close, then show individual approve modal
         setTimeout(() => {
-            createAndShowIndividualRestaurantModal(tourId, restaurantOrderIndex, bookingIndex, 'approve');
+            createAndShowIndividualRestaurantModal(tourId, restaurantOrderIndex, bookingIndex, 'approve', actualCancelDateStr);
         }, 300);
         
     } catch (error) {
@@ -22888,7 +24047,7 @@ function rejectIndividualRestaurant(tourId, restaurantOrderIndex, bookingIndex) 
     }
 }
 
-function createAndShowIndividualRestaurantModal(tourId, restaurantOrderIndex, bookingIndex, action) {
+function createAndShowIndividualRestaurantModal(tourId, restaurantOrderIndex, bookingIndex, action, actualCancelDateStr=null) {
     try {
         const modalId = `individualRestaurantModal_${tourId}_${restaurantOrderIndex}_${bookingIndex}_${action}`;
         
@@ -22916,7 +24075,7 @@ function createAndShowIndividualRestaurantModal(tourId, restaurantOrderIndex, bo
                 buttonClass = 'btn-success';
                 buttonText = '<i class="ri-check-line me-2"></i>Confirm Approval';
                 onSubmit = `confirmIndividualRestaurantApproval(${tourId}, ${restaurantOrderIndex}, ${bookingIndex})`;
-                modalContent = generateApproveRestaurantForm(tourId, restaurantOrderIndex, bookingIndex);
+                modalContent = generateApproveRestaurantForm(tourId, restaurantOrderIndex, bookingIndex, actualCancelDateStr);
                 break;
                 
             case 'reject':
@@ -22974,10 +24133,30 @@ function createAndShowIndividualRestaurantModal(tourId, restaurantOrderIndex, bo
         const modal = new bootstrap.Modal(modalElement);
         modal.show();
         
-        // Remove modal from DOM when hidden
-        modalElement.addEventListener('hidden.bs.modal', function () {
+        // Add event listener to restore modal-open state when this modal closes
+        modalElement.addEventListener('hidden.bs.modal', function restoreModalState() {
+            // Check if there's still an open individual restaurant view modal
+            const openIndividualModals = document.querySelectorAll('[id*="individualRestaurantViewModal_"]');
+            if (openIndividualModals.length > 0) {
+                // Restore modal-open class and padding to body
+                document.body.classList.add('modal-open');
+                
+                // Calculate scrollbar width and restore padding
+                const scrollbarWidth = window.innerWidth - document.documentElement.clientWidth;
+                if (scrollbarWidth > 0) {
+                    document.body.style.paddingRight = scrollbarWidth + 'px';
+                }
+                
+                // Ensure backdrop is visible for the underlying modal
+                const backdrops = document.querySelectorAll('.modal-backdrop');
+                if (backdrops.length > 0) {
+                    backdrops[backdrops.length - 1].style.display = 'block';
+                }
+            }
+            
+            // Remove modal from DOM
             modalElement.remove();
-        });
+        }, { once: true });
         
         // Load data for approve modal
         if (action === 'approve') {
@@ -23130,7 +24309,7 @@ function generateEditRestaurantForm(tourId, restaurantOrderIndex, bookingIndex) 
     `;
 }
 
-function generateApproveRestaurantForm(tourId, restaurantOrderIndex, bookingIndex) {
+function generateApproveRestaurantForm(tourId, restaurantOrderIndex, bookingIndex, actualCancelDateStr=null) {
     return `
         <form id="approveIndividualRestaurantForm_${tourId}_${restaurantOrderIndex}_${bookingIndex}">
             <input type="hidden" name="tour_id" value="${tourId}">
@@ -23181,23 +24360,23 @@ function generateApproveRestaurantForm(tourId, restaurantOrderIndex, bookingInde
             </div>
 
             <div class="mb-3">
-                <label for="referenceFile_${tourId}_${restaurantOrderIndex}_${bookingIndex}" class="form-label fw-semibold">
-                    <i class="ri-attachment-line me-2"></i>Reference File (Optional)
+                <label for="referenceFiles_${tourId}_${restaurantOrderIndex}_${bookingIndex}" class="form-label fw-semibold">
+                    <i class="ri-attachment-line me-2"></i>Reference Files (Optional)
                 </label>
-                <input type="file" class="form-control form-control-lg" id="referenceFile_${tourId}_${restaurantOrderIndex}_${bookingIndex}" name="reference_file"
-                       accept=".pdf,.doc,.docx,.jpg,.jpeg,.png"
+                <input type="file" class="form-control form-control-lg" id="referenceFiles_${tourId}_${restaurantOrderIndex}_${bookingIndex}" name="reference_files[]"
+                       accept=".pdf,.doc,.docx,.jpg,.jpeg,.png" multiple
                        style="border-radius: 8px; border: 2px solid #e9ecef;">
-                <div class="form-text">Upload supporting documents if available (PDF, DOC, JPG, PNG)</div>
+                <div class="form-text">Upload multiple supporting documents if available (PDF, DOC, JPG, PNG)</div>
             </div>
 
             <div class="mb-3">
                 <label for="actualDueDate_${tourId}_${restaurantOrderIndex}_${bookingIndex}" class="form-label fw-semibold">
-                    <i class="ri-calendar-line me-2"></i>Actual Due Date <span class="text-danger">*</span>
+                    <i class="ri-calendar-line me-2"></i>Free Cancellation Date <span class="text-danger">*</span>
                 </label>
-                <input type="date" class="form-control form-control-lg" id="actualDueDate_${tourId}_${restaurantOrderIndex}_${bookingIndex}" name="actual_due_date" required 
-                       onchange="calculateRestaurantDisplayDueDate('${tourId}', '${restaurantOrderIndex}', '${bookingIndex}')"
+                <input type="text" class="form-control form-control-lg" id="actualDueDate_${tourId}_${restaurantOrderIndex}_${bookingIndex}" name="actual_due_date" required readonly value="${actualCancelDateStr}" 
+                       
                        style="border-radius: 8px; border: 2px solid #e9ecef;">
-                <div class="form-text">Select the actual due date for this booking</div>
+                <div class="form-text">Select the Free Cancellation Date for this booking</div>
             </div>
 
             <div class="mb-3">
@@ -23215,7 +24394,7 @@ function generateApproveRestaurantForm(tourId, restaurantOrderIndex, bookingInde
                     <option value="7">1 week before</option>
                     <option value="14">2 weeks before</option>
                 </select>
-                <div class="form-text">Select how many days before the actual due date to display</div>
+                <div class="form-text">Select how many days before the Free Cancellation Date to display</div>
             </div>
 
             <div class="mb-3">
@@ -23876,25 +25055,52 @@ function confirmIndividualRestaurantApproval(tourId, restaurantOrderIndex, booki
         const formData = new FormData(form);
         formData.append('_token', document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') || '');
         
+        // Check for file uploads and show appropriate message
+        const fileInput = form.querySelector('input[type="file"]');
+        const fileCount = fileInput && fileInput.files ? fileInput.files.length : 0;
+        
         // Show loading state
         const approveButton = event.target;
         const originalText = approveButton.innerHTML;
-        approveButton.innerHTML = '<i class="ri-loader-4-line me-2"></i>Approving...';
+        if (fileCount > 0) {
+            approveButton.innerHTML = `<i class="ri-loader-4-line me-2"></i>Uploading ${fileCount} file(s)...`;
+        } else {
+            approveButton.innerHTML = '<i class="ri-loader-4-line me-2"></i>Processing...';
+        }
         approveButton.disabled = true;
+        
+        // Show progress overlay for file uploads
+        if (fileCount > 0) {
+            showApprovalProgressOverlay(fileCount);
+        }
         
         console.log('Approving individual restaurant booking:', Object.fromEntries(formData.entries()));
         
-        // Submit to backend
+        // Create AbortController for timeout handling
+        const controller = new AbortController();
+        const timeoutId = setTimeout(() => {
+            controller.abort();
+        }, fileCount > 0 ? 120000 : 30000); // 2 minutes for file uploads, 30 seconds for regular approval
+        
+        // Submit to backend with timeout handling
         fetch('{{ url("/booking/approve-restaurant-booking") }}', {
             method: 'POST',
             body: formData,
             headers: {
                 'X-CSRF-TOKEN': formData.get('_token'),
                 'Accept': 'application/json'
-            }
+            },
+            signal: controller.signal
         })
-        .then(response => response.json())
+        .then(response => {
+            clearTimeout(timeoutId);
+            if (!response.ok) {
+                throw new Error(`HTTP error! status: ${response.status}`);
+            }
+            return response.json();
+        })
         .then(data => {
+            hideApprovalProgressOverlay();
             // Reset button
             approveButton.innerHTML = originalText;
             approveButton.disabled = false;
@@ -23903,29 +25109,38 @@ function confirmIndividualRestaurantApproval(tourId, restaurantOrderIndex, booki
                 console.log('Restaurant booking approved successfully:', data);
                 const referenceId = formData.get('reference_id');
                 const displayDueDate = formData.get('display_due_date');
-                alert(`Restaurant booking approved successfully!\nReference ID: ${referenceId}\nDue Date: ${displayDueDate}`);
+                showToast(`Restaurant booking approved successfully!\nReference ID: ${referenceId}\nDue Date: ${displayDueDate}`, 'success');
                 
                 // Close modal and refresh page
                 const modalId = `individualRestaurantModal_${tourId}_${restaurantOrderIndex}_${bookingIndex}_approve`;
                 closeIndividualRestaurantModal(modalId);
-                window.location.reload();
+                setTimeout(() => window.location.reload(), 1000);
             } else {
                 console.error('Failed to approve restaurant booking:', data);
-                alert('Failed to approve restaurant booking: ' + (data.message || 'Unknown error'));
+                showToast('Failed to approve restaurant booking: ' + (data.message || 'Unknown error'), 'error');
             }
         })
         .catch(error => {
+            clearTimeout(timeoutId);
+            hideApprovalProgressOverlay();
             // Reset button
             approveButton.innerHTML = originalText;
             approveButton.disabled = false;
             
             console.error('Error approving restaurant booking:', error);
-            alert('Error approving restaurant booking. Please try again.');
+            
+            if (error.name === 'AbortError') {
+                showToast('Request timed out. This may happen with large file uploads. Please try with fewer or smaller files.', 'warning');
+            } else if (error.message.includes('Failed to fetch') || error.message.includes('NetworkError')) {
+                showToast('Network error. Please check your connection and try again.', 'error');
+            } else {
+                showToast('Error approving restaurant booking. Please try again.', 'error');
+            }
         });
         
     } catch (error) {
         console.error('Error approving individual restaurant booking:', error);
-        alert('Error approving booking. Please try again.');
+        showToast('Error approving booking. Please try again.', 'error');
     }
 }
 
@@ -24219,12 +25434,12 @@ function generateApproveGuideForm(tourId, guideOrderIndex, bookingIndex) {
 
             <div class="mb-3">
                 <label for="actualDueDate_${tourId}_${guideOrderIndex}_${bookingIndex}" class="form-label fw-semibold">
-                    <i class="ri-calendar-line me-2"></i>Actual Due Date <span class="text-danger">*</span>
+                    <i class="ri-calendar-line me-2"></i>Free Cancellation Date <span class="text-danger">*</span>
                 </label>
                 <input type="date" class="form-control form-control-lg" id="actualDueDate_${tourId}_${guideOrderIndex}_${bookingIndex}" name="actual_due_date" required 
                        onchange="calculateGuideDisplayDueDate('${tourId}', '${guideOrderIndex}', '${bookingIndex}')"
                        style="border-radius: 8px; border: 2px solid #e9ecef;">
-                <div class="form-text">Select the actual due date for this booking</div>
+                <div class="form-text">Select the Free Cancellation Date for this booking</div>
             </div>
 
             <div class="mb-3">
@@ -24242,7 +25457,7 @@ function generateApproveGuideForm(tourId, guideOrderIndex, bookingIndex) {
                     <option value="7">1 week before</option>
                     <option value="14">2 weeks before</option>
                 </select>
-                <div class="form-text">Select how many days before the actual due date to display</div>
+                <div class="form-text">Select how many days before the Free Cancellation Date to display</div>
             </div>
 
             <div class="mb-3">
@@ -24370,13 +25585,13 @@ function loadGuideDataForApprove(tourId, guideOrderIndex, bookingIndex) {
                     }
                 }
                 
-                // Set default actual due date to today + 7 days
+                // Set default Free Cancellation Date to today + 7 days
                 const actualDueDateInput = document.getElementById(`actualDueDate_${tourId}_${guideOrderIndex}_${bookingIndex}`);
                 if (actualDueDateInput) {
                     const defaultDate = new Date();
                     defaultDate.setDate(defaultDate.getDate() + 7);
                     actualDueDateInput.value = defaultDate.toISOString().split('T')[0];
-                    console.log('✅ Set default actual due date to:', actualDueDateInput.value);
+                    console.log('✅ Set default Free Cancellation Date to:', actualDueDateInput.value);
                 }
                 
             } else {
@@ -24578,87 +25793,39 @@ function confirmIndividualGuideRejection(tourId, guideOrderIndex, bookingIndex) 
 @endsection
 
 @section('scripts')
-<!-- Date Range Picker JS - Load after jQuery -->
-<script src="https://cdn.jsdelivr.net/npm/moment/min/moment.min.js"></script>
-<script src="https://cdn.jsdelivr.net/npm/daterangepicker/daterangepicker.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/select2@4.0.13/dist/js/select2.min.js"></script>
 <script src="{{ env('APP_URL') . '/assets/vendor/libs/datatables-bs5/datatables-bootstrap5.js' }}"></script>
 <script>
     // Wait for all scripts to load before initializing
     $(document).ready(function() {
         // Small delay to ensure all scripts are loaded
         setTimeout(function() {
-            initializeDateRangePicker();
+            initializeSelect2();
             initializeDataTable();
+            filterTable();
         }, 200);
     });
     
-    function initializeDateRangePicker() {
-        // Initialize date range picker first
-        const dateRange = document.getElementById('dateRange');
-        const dateRangeStart = document.getElementById('dateRangeStart');
-        const dateRangeEnd = document.getElementById('dateRangeEnd');
+    function initializeSelect2() {
+        // Initialize Select2 for Country filter
+        $('#destinationFilter').select2({
+            placeholder: 'All Countries',
+            allowClear: true,
+            width: '100%'
+        });
         
-        if (dateRange && typeof moment !== 'undefined' && typeof $.fn.daterangepicker !== 'undefined') {
-            // Set default to current month
-            const startOfMonth = moment().startOf('month');
-            const endOfMonth = moment().endOf('month');
-            
-            $(dateRange).daterangepicker({
-                opens: 'left',
-                autoUpdateInput: true,
-                maxDate: moment(), // No future dates
-                startDate: startOfMonth,
-                endDate: endOfMonth,
-                locale: {
-                    cancelLabel: 'Clear',
-                    format: 'MMM DD, YYYY'
-                }
-            });
-
-            // Set initial values for current month
-            $(dateRange).val(startOfMonth.format('MMM DD') + ' - ' + endOfMonth.format('MMM DD, YYYY'));
-            if (dateRangeStart) dateRangeStart.value = startOfMonth.format('YYYY-MM-DD');
-            if (dateRangeEnd) dateRangeEnd.value = endOfMonth.format('YYYY-MM-DD');
-
-            $(dateRange).on('apply.daterangepicker', function(ev, picker) {
-                const start = picker.startDate.clone().startOf('day');
-                const end = picker.endDate.clone().endOf('day');
-                $(this).val(start.format('MMM DD') + ' - ' + end.format('MMM DD, YYYY'));
-                if (dateRangeStart) dateRangeStart.value = start.format('YYYY-MM-DD');
-                if (dateRangeEnd) dateRangeEnd.value = end.format('YYYY-MM-DD');
-                filterTable();
-            });
-
-            $(dateRange).on('cancel.daterangepicker', function() {
-                $(this).val('');
-                if (dateRangeStart) dateRangeStart.value = '';
-                if (dateRangeEnd) dateRangeEnd.value = '';
-                filterTable();
-            });
-            
-            // Apply initial filter with current month data
-            setTimeout(function() {
-                filterTable();
-            }, 100);
-        } else {
-            console.error('Date range picker could not be initialized. Missing dependencies:', {
-                dateRange: !!dateRange,
-                moment: typeof moment !== 'undefined',
-                daterangepicker: typeof $.fn.daterangepicker !== 'undefined',
-                jquery: typeof $ !== 'undefined'
-            });
-            
-            // Fallback: still set initial date values for current month
-            if (dateRange && typeof moment !== 'undefined') {
-                const startOfMonth = moment().startOf('month');
-                const endOfMonth = moment().endOf('month');
-                if (dateRangeStart) dateRangeStart.value = startOfMonth.format('YYYY-MM-DD');
-                if (dateRangeEnd) dateRangeEnd.value = endOfMonth.format('YYYY-MM-DD');
-                setTimeout(function() {
-                    filterTable();
-                }, 100);
-            }
-        }
+        // Initialize Select2 for Agent filter
+        $('#agentFilter').select2({
+            placeholder: 'All Agents',
+            allowClear: true,
+            width: '100%'
+        });
+        
+        // Trigger filterTable when Select2 values change (including when cleared)
+        $('#destinationFilter, #agentFilter').on('change', function() {
+            // When cleared, the value will be empty string, which shows all results
+            filterTable();
+        });
     }
     var table;
     function initializeDataTable() {
@@ -26125,6 +27292,1275 @@ function confirmIndividualGuideRejection(tourId, guideOrderIndex, bookingIndex) 
         </div>
     </div>
 </div>
+
+
+<!-- Attraction Files Management Modal -->
+<div class="modal fade" id="attractionFilesModal" tabindex="-1" aria-labelledby="attractionFilesModalLabel" aria-hidden="true" style="z-index: 1060;">
+    <div class="modal-dialog modal-xl">
+        <div class="modal-content" style="border-radius: 16px; border: none; box-shadow: 0 20px 60px rgba(0,0,0,0.15);">
+            <div class="modal-header" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); border-radius: 16px 16px 0 0; padding: 24px 32px; border: none;">
+                <h5 class="modal-title text-white fw-bold" id="attractionFilesModalLabel" style="font-size: 1.25rem;">
+                    <i class="ri-file-list-3-line me-2"></i>Manage Attraction Files
+                </h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close" style="filter: brightness(0) invert(1);"></button>
+            </div>
+            <div class="modal-body" style="padding: 32px; background-color: #f8f9fa;">
+                <div id="attractionFilesContent">
+                    <div class="text-center py-5">
+                        <div class="spinner-border text-primary" role="status" style="width: 3rem; height: 3rem;">
+                            <span class="visually-hidden">Loading...</span>
+                        </div>
+                        <p class="mt-3 text-muted fw-medium">Loading files...</p>
+                    </div>
+                </div>
+            </div>
+            <div class="modal-footer" style="padding: 24px 32px; background-color: #ffffff; border-radius: 0 0 16px 16px; border: none;">
+                <button type="button" class="btn btn-light px-4 py-2" data-bs-dismiss="modal" style="border-radius: 8px; font-weight: 500;">
+                    Close
+                </button>
+                <button type="button" class="btn btn-success px-4 py-2" id="saveAttractionFiles" onclick="saveAttractionChanges()" 
+                        style="display: none; border-radius: 8px; font-weight: 500;">
+                    <i class="ri-save-line me-1"></i>Save Changes
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Restaurant Files Management Modal -->
+<div class="modal fade" id="restaurantFilesModal" tabindex="-1" aria-labelledby="restaurantFilesModalLabel" aria-hidden="true" style="z-index: 1060;">
+    <div class="modal-dialog modal-xl">
+        <div class="modal-content" style="border-radius: 16px; border: none; box-shadow: 0 20px 60px rgba(0,0,0,0.15);">
+            <div class="modal-header" style="background: linear-gradient(135deg, #fd9853 0%, #fe7854 100%); border-radius: 16px 16px 0 0; padding: 24px 32px; border: none;">
+                <h5 class="modal-title text-white fw-bold" id="restaurantFilesModalLabel" style="font-size: 1.25rem;">
+                    <i class="ri-restaurant-line me-2"></i>Manage Restaurant Files
+                </h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close" style="filter: brightness(0) invert(1);"></button>
+            </div>
+            <div class="modal-body" style="padding: 32px; background-color: #f8f9fa;">
+                <div id="restaurantFilesContent">
+                    <div class="text-center py-5">
+                        <div class="spinner-border text-primary" role="status" style="width: 3rem; height: 3rem;">
+                            <span class="visually-hidden">Loading...</span>
+                        </div>
+                        <p class="mt-3 text-muted fw-medium">Loading files...</p>
+                    </div>
+                </div>
+            </div>
+            <div class="modal-footer" style="padding: 24px 32px; background-color: #ffffff; border-radius: 0 0 16px 16px; border: none;">
+                <button type="button" class="btn btn-light px-4 py-2" data-bs-dismiss="modal" style="border-radius: 8px; font-weight: 500;">
+                    Close
+                </button>
+                <button type="button" class="btn btn-success px-4 py-2" id="saveRestaurantFiles" onclick="saveRestaurantChanges()" 
+                        style="display: none; border-radius: 8px; font-weight: 500;">
+                    <i class="ri-save-line me-1"></i>Save Changes
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+// Function to open attraction files modal
+function openAttractionFilesModal(tourId, attractionOrderIndex, bookingIndex) {
+    console.log('Opening attraction files modal:', tourId, attractionOrderIndex, bookingIndex);
+    
+    // Set higher z-index to ensure it appears on top
+    const modalElement = document.getElementById('attractionFilesModal');
+    modalElement.style.zIndex = '1060';
+    
+    // Show modal with backdrop set to static to prevent closing the underlying modal
+    const modal = new bootstrap.Modal(modalElement, {
+        backdrop: 'static',
+        keyboard: true
+    });
+    modal.show();
+    
+    // Add event listener to restore modal-open state when this modal closes
+    modalElement.addEventListener('hidden.bs.modal', function restoreModalState() {
+        // Check if there's still an open individual attraction modal
+        const openIndividualModals = document.querySelectorAll('[id*="individualAttractionViewModal_"]');
+        if (openIndividualModals.length > 0) {
+            // Restore modal-open class and padding to body
+            document.body.classList.add('modal-open');
+            
+            // Calculate scrollbar width and restore padding
+            const scrollbarWidth = window.innerWidth - document.documentElement.clientWidth;
+            if (scrollbarWidth > 0) {
+                document.body.style.paddingRight = scrollbarWidth + 'px';
+            }
+            
+            // Ensure backdrop is visible for the underlying modal
+            const backdrops = document.querySelectorAll('.modal-backdrop');
+            if (backdrops.length > 0) {
+                backdrops[backdrops.length - 1].style.display = 'block';
+            }
+        }
+        
+        // Remove this event listener after it's executed once
+        modalElement.removeEventListener('hidden.bs.modal', restoreModalState);
+    }, { once: true });
+    
+    // Load files data
+    loadAttractionFiles(tourId, attractionOrderIndex, bookingIndex);
+}
+
+// Function to load attraction files
+function loadAttractionFiles(tourId, attractionOrderIndex, bookingIndex) {
+    fetch('{{ url("/hotel-booking/get-attraction-files") }}', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+            'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').getAttribute('content')
+        },
+        body: JSON.stringify({
+            tour_id: tourId,
+            attraction_order_index: attractionOrderIndex,
+            booking_index: bookingIndex
+        })
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            displayAttractionFiles(data.data, tourId, attractionOrderIndex, bookingIndex);
+        } else {
+            document.getElementById('attractionFilesContent').innerHTML = `
+                <div class="alert alert-danger">
+                    <i class="ri-error-warning-line me-2"></i>Error loading files: ${data.message}
+                </div>
+            `;
+        }
+    })
+    .catch(error => {
+        console.error('Error loading files:', error);
+        document.getElementById('attractionFilesContent').innerHTML = `
+            <div class="alert alert-danger">
+                <i class="ri-error-warning-line me-2"></i>Error loading files. Please try again.
+            </div>
+        `;
+    });
+}
+
+// Function to display attraction files
+function displayAttractionFiles(data, tourId, attractionOrderIndex, bookingIndex) {
+    const files = data.upload_files || [];
+    const attractionName = data.attraction_name || 'Unknown Attraction';
+    
+    let content = `
+        <div class="mb-4 p-4 bg-white rounded-3 shadow-sm">
+            <div class="d-flex align-items-center mb-2">
+                <div class="bg-primary bg-opacity-10 rounded-circle p-2 me-3">
+                    <i class="ri-camera-line text-primary fs-5"></i>
+                </div>
+                <div class="flex-grow-1">
+                    <h6 class="fw-bold text-dark mb-1">${attractionName}</h6>
+                    <p class="text-muted small mb-0">Order ${parseInt(attractionOrderIndex) + 1}, Booking ${parseInt(bookingIndex) + 1}</p>
+                </div>
+                ${hasPendingChanges ? `
+                    <div class="ms-auto">
+                        <span class="badge bg-warning bg-opacity-20 text-dark px-3 py-2" style="border-radius: 20px;">
+                            <i class="ri-time-line me-1"></i>
+                            Unsaved Changes
+                        </span>
+                    </div>
+                ` : ''}
+            </div>
+        </div>
+        
+        ${hasPendingChanges ? `
+            <div class="alert alert-warning border-0 mb-4" style="background: linear-gradient(45deg, #fff3cd, #fef7e0); border-radius: 12px;">
+                <div class="d-flex align-items-center">
+                    <i class="ri-information-line me-2 text-warning fs-4"></i>
+                    <div>
+                        <strong class="text-warning">Pending Changes</strong>
+                        <p class="mb-0 text-muted small mt-1">You have unsaved changes. Click "Save Changes" to apply them and refresh the page.</p>
+                    </div>
+                </div>
+            </div>
+        ` : ''}
+        
+        <div class="row g-4">
+            <div class="col-md-6">
+                <div class="bg-white rounded-3 shadow-sm p-4">
+                    <div class="d-flex align-items-center mb-3">
+                        <div class="bg-secondary bg-opacity-10 rounded-circle p-2 me-3">
+                            <i class="ri-folder-open-line text-secondary fs-5"></i>
+                        </div>
+                        <h6 class="fw-semibold mb-0 text-dark">Existing Files (${files.length})</h6>
+                    </div>
+                    <div id="existingFilesList" style="max-height: 400px; overflow-y: auto;">
+    `;
+    
+    if (files.length > 0) {
+        files.forEach((file, index) => {
+            const fileName = file.split('/').pop();
+            const fileExtension = fileName.split('.').pop().toLowerCase();
+            const isImage = ['jpg', 'jpeg', 'png', 'gif'].includes(fileExtension);
+            
+            content += `
+                <div class="border rounded-3 p-3 mb-3 bg-light file-item" id="file_${index}" style="transition: all 0.3s ease;">
+                    <div class="d-flex align-items-center justify-content-between">
+                        <div class="d-flex align-items-center">
+                            <div class="me-3 position-relative">
+                                ${isImage ? 
+                                    `<img src="${file}" alt="${fileName}" class="rounded-2" style="width: 48px; height: 48px; object-fit: cover; border: 2px solid #e9ecef;">` :
+                                    `<div class="bg-white rounded-2 d-flex align-items-center justify-content-center border" style="width: 48px; height: 48px;">
+                                        <i class="ri-file-text-line text-primary fs-4"></i>
+                                    </div>`
+                                }
+                                ${hasPendingChanges ? `
+                                    <div class="position-absolute top-0 end-0 translate-middle">
+                                        <span class="badge bg-warning rounded-pill" style="font-size: 0.6rem;">
+                                            <i class="ri-time-line"></i>
+                                        </span>
+                                    </div>
+                                ` : ''}
+                            </div>
+                            <div>
+                                <p class="mb-1 fw-semibold text-dark" style="font-size: 0.95rem;">${fileName}</p>
+                                <div class="d-flex align-items-center gap-2">
+                                    <small class="text-muted fw-medium">${fileExtension.toUpperCase()}</small>
+                                    ${hasPendingChanges ? `
+                                        <span class="badge bg-warning bg-opacity-20 text-dark" style="font-size: 0.65rem;">
+                                            Pending Save
+                                        </span>
+                                    ` : ''}
+                                </div>
+                            </div>
+                        </div>
+                        <div class="d-flex gap-2">
+                            <button type="button" class="btn btn-outline-primary btn-sm rounded-2" onclick="previewFile('${file}', '${fileName}')" title="Preview">
+                                <i class="ri-eye-line"></i>
+                            </button>
+                            <button type="button" class="btn btn-outline-danger btn-sm rounded-2" onclick="removeFile(${index}, '${tourId}', '${attractionOrderIndex}', '${bookingIndex}')" title="Delete">
+                                <i class="ri-delete-bin-line"></i>
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            `;
+        });
+    } else {
+        content += `
+            <div class="text-center py-5">
+                <div class="bg-light rounded-circle mx-auto mb-3" style="width: 80px; height: 80px; display: flex; align-items: center; justify-content: center;">
+                    <i class="ri-file-list-line fs-1 text-muted"></i>
+                </div>
+                <p class="text-muted fw-medium">No files uploaded yet</p>
+                <small class="text-muted">Upload your first file using the form on the right</small>
+            </div>
+        `;
+    }
+    
+    content += `
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-6">
+                <div class="bg-white rounded-3 shadow-sm p-4">
+                    <div class="d-flex align-items-center mb-3">
+                        <div class="bg-success bg-opacity-10 rounded-circle p-2 me-3">
+                            <i class="ri-upload-line text-success fs-5"></i>
+                        </div>
+                        <h6 class="fw-semibold mb-0 text-dark">Upload New Files</h6>
+                    </div>
+                    <form id="attractionFilesUploadForm" enctype="multipart/form-data">
+                        <input type="hidden" name="tour_id" value="${tourId}">
+                        <input type="hidden" name="attraction_order_index" value="${attractionOrderIndex}">
+                        <input type="hidden" name="booking_index" value="${bookingIndex}">
+                        
+                        <div class="mb-4">
+                            <label for="newAttractionFiles" class="form-label fw-semibold text-dark">Select Files</label>
+                            <input type="file" class="form-control form-control-lg" id="newAttractionFiles" name="new_files[]" 
+                                   accept=".pdf,.doc,.docx,.jpg,.jpeg,.png" multiple
+                                   style="border-radius: 12px; border: 2px dashed #dee2e6; padding: 16px;">
+                            <div class="form-text mt-2">
+                                <small class="text-muted">Upload multiple files (PDF, DOC, JPG, PNG)</small>
+                            </div>
+                        </div>
+                        
+                        <button type="button" class="btn btn-success w-100 py-3 fw-semibold" onclick="uploadNewAttractionFiles()" 
+                                style="border-radius: 12px; font-size: 1.1rem;">
+                            <i class="ri-upload-cloud-line me-2"></i>Upload Files
+                        </button>
+                    </form>
+                </div>
+            </div>
+        </div>
+    `;
+    
+    document.getElementById('attractionFilesContent').innerHTML = content;
+}
+
+// Function to preview file
+function previewFile(fileUrl, fileName) {
+    const fileExtension = fileName.split('.').pop().toLowerCase();
+    const isImage = ['jpg', 'jpeg', 'png', 'gif'].includes(fileExtension);
+    
+    if (isImage) {
+        // Show image in modal with higher z-index
+        const previewModal = `
+            <div class="modal fade" id="filePreviewModal" tabindex="-1" style="z-index: 1070;">
+                <div class="modal-dialog modal-lg">
+                    <div class="modal-content" style="border-radius: 16px; border: none; box-shadow: 0 20px 60px rgba(0,0,0,0.15);">
+                        <div class="modal-header" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); border-radius: 16px 16px 0 0; padding: 20px 24px; border: none;">
+                            <h5 class="modal-title text-white fw-bold">${fileName}</h5>
+                            <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" style="filter: brightness(0) invert(1);"></button>
+                        </div>
+                        <div class="modal-body text-center p-4" style="background-color: #f8f9fa;">
+                            <img src="${fileUrl}" alt="${fileName}" class="img-fluid rounded-3 shadow-sm" style="max-height: 70vh;">
+                        </div>
+                        <div class="modal-footer" style="padding: 20px 24px; background-color: #ffffff; border-radius: 0 0 16px 16px; border: none;">
+                            <button type="button" class="btn btn-light px-4 py-2" data-bs-dismiss="modal" style="border-radius: 8px; font-weight: 500;">
+                                Close
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        `;
+        
+        // Remove existing preview modal if any
+        const existingModal = document.getElementById('filePreviewModal');
+        if (existingModal) {
+            existingModal.remove();
+        }
+        
+        // Add new modal
+        document.body.insertAdjacentHTML('beforeend', previewModal);
+        const modal = new bootstrap.Modal(document.getElementById('filePreviewModal'), {
+            backdrop: 'static',
+            keyboard: true
+        });
+        modal.show();
+    } else {
+        // Open file in new tab for PDFs and documents
+        window.open(fileUrl, '_blank');
+    }
+}
+
+// Function to remove file
+function removeFile(fileIndex, tourId, attractionOrderIndex, bookingIndex) {
+    if (confirm('Are you sure you want to remove this file?')) {
+        // Show loading state for the specific file
+        const fileElement = document.getElementById(`file_${fileIndex}`);
+        const originalContent = fileElement.innerHTML;
+        fileElement.style.opacity = '0.5';
+        fileElement.innerHTML = `
+            <div class="d-flex align-items-center justify-content-center py-3">
+                <div class="spinner-border spinner-border-sm me-2" role="status">
+                    <span class="visually-hidden">Removing...</span>
+                </div>
+                <span class="text-muted">Removing file...</span>
+            </div>
+        `;
+        
+        fetch('{{ url("/hotel-booking/remove-attraction-file") }}', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').getAttribute('content')
+            },
+            body: JSON.stringify({
+                tour_id: tourId,
+                attraction_order_index: attractionOrderIndex,
+                booking_index: bookingIndex,
+                file_index: fileIndex
+            })
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                // Mark as having pending changes
+                hasPendingChanges = true;
+                updateSaveChangesButton();
+                
+                // Reload files
+                loadAttractionFiles(tourId, attractionOrderIndex, bookingIndex);
+                showToast('File removed successfully! Click "Save Changes" to apply.', 'success');
+            } else {
+                // Restore original content on error
+                fileElement.style.opacity = '1';
+                fileElement.innerHTML = originalContent;
+                showToast('Error removing file: ' + data.message, 'error');
+            }
+        })
+        .catch(error => {
+            // Restore original content on error
+            fileElement.style.opacity = '1';
+            fileElement.innerHTML = originalContent;
+            console.error('Error removing file:', error);
+            showToast('Error removing file', 'error');
+        });
+    }
+}
+
+// Global variable to track pending changes
+let hasPendingChanges = false;
+
+// Function to upload new files with advanced loading
+function uploadNewAttractionFiles() {
+    const form = document.getElementById('attractionFilesUploadForm');
+    const formData = new FormData(form);
+    const fileInput = document.getElementById('newAttractionFiles');
+    const uploadButton = document.querySelector('button[onclick="uploadNewAttractionFiles()"]');
+    
+    if (fileInput.files.length === 0) {
+        showToast('Please select files to upload', 'warning');
+        return;
+    }
+    
+    // Show loading state
+    const originalButtonText = uploadButton.innerHTML;
+    uploadButton.disabled = true;
+    uploadButton.innerHTML = `
+        <div class="d-flex align-items-center justify-content-center">
+            <div class="spinner-border spinner-border-sm me-2" role="status">
+                <span class="visually-hidden">Loading...</span>
+            </div>
+            Uploading ${fileInput.files.length} file(s)...
+        </div>
+    `;
+    
+    // Show upload progress overlay
+    showUploadProgress(fileInput.files.length);
+    
+    fetch('{{ url("/hotel-booking/upload-attraction-files") }}', {
+        method: 'POST',
+        headers: {
+            'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').getAttribute('content')
+        },
+        body: formData
+    })
+    .then(response => response.json())
+    .then(data => {
+        // Hide upload progress
+        hideUploadProgress();
+        
+        if (data.success) {
+            // Mark as having pending changes
+            hasPendingChanges = true;
+            updateSaveChangesButton();
+            
+            // Reload files
+            const tourId = formData.get('tour_id');
+            const attractionOrderIndex = formData.get('attraction_order_index');
+            const bookingIndex = formData.get('booking_index');
+            
+            loadAttractionFiles(tourId, attractionOrderIndex, bookingIndex);
+            showToast(`${data.data.uploaded_files.length} file(s) uploaded successfully! Click "Save Changes" to apply.`, 'success');
+            
+            // Clear file input
+            fileInput.value = '';
+        } else {
+            showToast('Error uploading files: ' + data.message, 'error');
+        }
+    })
+    .catch(error => {
+        hideUploadProgress();
+        console.error('Error uploading files:', error);
+        showToast('Error uploading files', 'error');
+    })
+    .finally(() => {
+        // Restore button state
+        uploadButton.disabled = false;
+        uploadButton.innerHTML = originalButtonText;
+    });
+}
+
+// Function to show upload progress overlay
+function showUploadProgress(fileCount) {
+    const progressOverlay = `
+        <div id="uploadProgressOverlay" class="position-fixed top-0 start-0 w-100 h-100 d-flex align-items-center justify-content-center" 
+             style="background: rgba(0,0,0,0.7); z-index: 1080;">
+            <div class="bg-white rounded-4 p-5 text-center shadow-lg" style="min-width: 350px;">
+                <div class="mb-4">
+                    <div class="bg-primary bg-opacity-10 rounded-circle mx-auto mb-3" style="width: 80px; height: 80px; display: flex; align-items: center; justify-content: center;">
+                        <i class="ri-upload-cloud-line text-primary" style="font-size: 2.5rem;"></i>
+                    </div>
+                    <h5 class="fw-bold text-dark mb-2">Uploading Files</h5>
+                    <p class="text-muted mb-0">Processing ${fileCount} file(s)...</p>
+                </div>
+                <div class="progress mb-3" style="height: 8px;">
+                    <div class="progress-bar progress-bar-striped progress-bar-animated bg-primary" 
+                         role="progressbar" style="width: 100%"></div>
+                </div>
+                <small class="text-muted">Please wait while your files are being uploaded</small>
+            </div>
+        </div>
+    `;
+    
+    document.body.insertAdjacentHTML('beforeend', progressOverlay);
+}
+
+// Function to hide upload progress overlay
+function hideUploadProgress() {
+    const overlay = document.getElementById('uploadProgressOverlay');
+    if (overlay) {
+        overlay.remove();
+    }
+}
+
+// Function to update Save Changes button state
+function updateSaveChangesButton() {
+    const saveButton = document.getElementById('saveAttractionFiles');
+    if (hasPendingChanges) {
+        saveButton.style.display = 'inline-block';
+        saveButton.classList.remove('btn-primary');
+        saveButton.classList.add('btn-success');
+        saveButton.innerHTML = `
+            <i class="ri-save-line me-1"></i>Save Changes
+            <span class="badge bg-white text-success ms-2">!</span>
+        `;
+        
+        // Add pulsing animation
+        saveButton.style.animation = 'pulse 2s infinite';
+    } else {
+        saveButton.style.display = 'none';
+        saveButton.style.animation = 'none';
+    }
+}
+
+// Function to handle Save Changes
+function saveAttractionChanges() {
+    if (!hasPendingChanges) {
+        return;
+    }
+    
+    const saveButton = document.getElementById('saveAttractionFiles');
+    const originalContent = saveButton.innerHTML;
+    
+    // Show saving state
+    saveButton.disabled = true;
+    saveButton.innerHTML = `
+        <div class="d-flex align-items-center">
+            <div class="spinner-border spinner-border-sm me-2" role="status">
+                <span class="visually-hidden">Saving...</span>
+            </div>
+            Saving Changes...
+        </div>
+    `;
+    
+    // Show saving overlay
+    const savingOverlay = `
+        <div id="savingOverlay" class="position-fixed top-0 start-0 w-100 h-100 d-flex align-items-center justify-content-center" 
+             style="background: rgba(0,0,0,0.7); z-index: 1080;">
+            <div class="bg-white rounded-4 p-5 text-center shadow-lg" style="min-width: 350px;">
+                <div class="mb-4">
+                    <div class="bg-success bg-opacity-10 rounded-circle mx-auto mb-3" style="width: 80px; height: 80px; display: flex; align-items: center; justify-content: center;">
+                        <i class="ri-save-line text-success" style="font-size: 2.5rem;"></i>
+                    </div>
+                    <h5 class="fw-bold text-dark mb-2">Saving Changes</h5>
+                    <p class="text-muted mb-0">Applying your file changes...</p>
+                </div>
+                <div class="progress mb-3" style="height: 8px;">
+                    <div class="progress-bar progress-bar-striped progress-bar-animated bg-success" 
+                         role="progressbar" style="width: 100%"></div>
+                </div>
+                <small class="text-muted">Please wait while changes are being saved</small>
+            </div>
+        </div>
+    `;
+    
+    document.body.insertAdjacentHTML('beforeend', savingOverlay);
+    
+    // Simulate save process and refresh page
+    setTimeout(() => {
+        // Hide saving overlay
+        const overlay = document.getElementById('savingOverlay');
+        if (overlay) {
+            overlay.remove();
+        }
+        
+        // Show success message
+        showToast('Changes saved successfully! Refreshing page...', 'success');
+        
+        // Reset pending changes
+        hasPendingChanges = false;
+        
+        // Close the files modal
+        const modal = bootstrap.Modal.getInstance(document.getElementById('attractionFilesModal'));
+        if (modal) {
+            modal.hide();
+        }
+        
+        // Refresh the page after a short delay
+        setTimeout(() => {
+            window.location.reload();
+        }, 1500);
+        
+    }, 2000); // 2 second delay to show the saving process
+}
+
+// Add event listener for Save Changes button
+document.addEventListener('DOMContentLoaded', function() {
+    // Add click event to save button when it's created
+    document.addEventListener('click', function(e) {
+        if (e.target && e.target.id === 'saveAttractionFiles') {
+            saveAttractionChanges();
+        }
+    });
+});
+
+// ============ RESTAURANT FILES MANAGEMENT ============
+
+// Global variable to track pending changes for restaurant
+let hasRestaurantPendingChanges = false;
+
+// Function to open restaurant files modal
+function openRestaurantFilesModal(tourId, restaurantOrderIndex, bookingIndex) {
+    console.log('Opening restaurant files modal:', tourId, restaurantOrderIndex, bookingIndex);
+    
+    // Set higher z-index to ensure it appears on top
+    const modalElement = document.getElementById('restaurantFilesModal');
+    modalElement.style.zIndex = '1060';
+    
+    // Show modal with backdrop set to static to prevent closing the underlying modal
+    const modal = new bootstrap.Modal(modalElement, {
+        backdrop: 'static',
+        keyboard: true
+    });
+    modal.show();
+    
+    // Add event listener to restore modal-open state when this modal closes
+    modalElement.addEventListener('hidden.bs.modal', function restoreModalState() {
+        // Check if there's still an open individual restaurant modal
+        const openIndividualModals = document.querySelectorAll('[id*="individualRestaurantViewModal_"]');
+        if (openIndividualModals.length > 0) {
+            // Restore modal-open class and padding to body
+            document.body.classList.add('modal-open');
+            
+            // Calculate scrollbar width and restore padding
+            const scrollbarWidth = window.innerWidth - document.documentElement.clientWidth;
+            if (scrollbarWidth > 0) {
+                document.body.style.paddingRight = scrollbarWidth + 'px';
+            }
+            
+            // Ensure backdrop is visible for the underlying modal
+            const backdrops = document.querySelectorAll('.modal-backdrop');
+            if (backdrops.length > 0) {
+                backdrops[backdrops.length - 1].style.display = 'block';
+            }
+        }
+        
+        // Remove this event listener after it's executed once
+        modalElement.removeEventListener('hidden.bs.modal', restoreModalState);
+    }, { once: true });
+    
+    // Load files data
+    loadRestaurantFiles(tourId, restaurantOrderIndex, bookingIndex);
+}
+
+// Function to load restaurant files
+function loadRestaurantFiles(tourId, restaurantOrderIndex, bookingIndex) {
+    fetch('{{ url("/hotel-booking/get-restaurant-files") }}', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+            'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').getAttribute('content')
+        },
+        body: JSON.stringify({
+            tour_id: tourId,
+            restaurant_order_index: restaurantOrderIndex,
+            booking_index: bookingIndex
+        })
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            displayRestaurantFiles(data.data, tourId, restaurantOrderIndex, bookingIndex);
+        } else {
+            document.getElementById('restaurantFilesContent').innerHTML = `
+                <div class="alert alert-danger">
+                    <i class="ri-error-warning-line me-2"></i>Error loading files: ${data.message}
+                </div>
+            `;
+        }
+    })
+    .catch(error => {
+        console.error('Error loading files:', error);
+        document.getElementById('restaurantFilesContent').innerHTML = `
+            <div class="alert alert-danger">
+                <i class="ri-error-warning-line me-2"></i>Error loading files. Please try again.
+            </div>
+        `;
+    });
+}
+
+// Function to display restaurant files
+function displayRestaurantFiles(data, tourId, restaurantOrderIndex, bookingIndex) {
+    const files = data.upload_files || [];
+    const restaurantName = data.restaurant_name || 'Unknown Restaurant';
+    
+    let content = `
+        <div class="mb-4 p-4 bg-white rounded-3 shadow-sm">
+            <div class="d-flex align-items-center mb-2">
+                <div class="bg-warning bg-opacity-10 rounded-circle p-2 me-3">
+                    <i class="ri-restaurant-line text-warning fs-5"></i>
+                </div>
+                <div class="flex-grow-1">
+                    <h6 class="fw-bold text-dark mb-1">${restaurantName}</h6>
+                    <p class="text-muted small mb-0">Order ${parseInt(restaurantOrderIndex) + 1}, Booking ${parseInt(bookingIndex) + 1}</p>
+                </div>
+                ${hasRestaurantPendingChanges ? `
+                    <div class="ms-auto">
+                        <span class="badge bg-warning bg-opacity-20 text-dark px-3 py-2" style="border-radius: 20px;">
+                            <i class="ri-time-line me-1"></i>
+                            Unsaved Changes
+                        </span>
+                    </div>
+                ` : ''}
+            </div>
+        </div>
+        
+        ${hasRestaurantPendingChanges ? `
+            <div class="alert alert-warning border-0 mb-4" style="background: linear-gradient(45deg, #fff3cd, #fef7e0); border-radius: 12px;">
+                <div class="d-flex align-items-center">
+                    <i class="ri-information-line me-2 text-warning fs-4"></i>
+                    <div>
+                        <strong class="text-warning">Pending Changes</strong>
+                        <p class="mb-0 text-muted small mt-1">You have unsaved changes. Click "Save Changes" to apply them and refresh the page.</p>
+                    </div>
+                </div>
+            </div>
+        ` : ''}
+        
+        <div class="row g-4">
+            <div class="col-md-6">
+                <div class="bg-white rounded-3 shadow-sm p-4">
+                    <div class="d-flex align-items-center mb-3">
+                        <div class="bg-secondary bg-opacity-10 rounded-circle p-2 me-3">
+                            <i class="ri-folder-open-line text-secondary fs-5"></i>
+                        </div>
+                        <h6 class="fw-semibold mb-0 text-dark">Existing Files (${files.length})</h6>
+                    </div>
+                    <div id="existingRestaurantFilesList" style="max-height: 400px; overflow-y: auto;">
+    `;
+    
+    if (files.length > 0) {
+        files.forEach((file, index) => {
+            const fileName = file.split('/').pop();
+            const fileExtension = fileName.split('.').pop().toLowerCase();
+            const isImage = ['jpg', 'jpeg', 'png', 'gif'].includes(fileExtension);
+            
+            content += `
+                <div class="border rounded-3 p-3 mb-3 bg-light file-item" id="restaurant_file_${index}" style="transition: all 0.3s ease;">
+                    <div class="d-flex align-items-center justify-content-between">
+                        <div class="d-flex align-items-center">
+                            <div class="me-3 position-relative">
+                                ${isImage ? 
+                                    `<img src="${file}" alt="${fileName}" class="rounded-2" style="width: 48px; height: 48px; object-fit: cover; border: 2px solid #e9ecef;">` :
+                                    `<div class="bg-white rounded-2 d-flex align-items-center justify-content-center border" style="width: 48px; height: 48px;">
+                                        <i class="ri-file-text-line text-primary fs-4"></i>
+                                    </div>`
+                                }
+                                ${hasRestaurantPendingChanges ? `
+                                    <div class="position-absolute top-0 end-0 translate-middle">
+                                        <span class="badge bg-warning rounded-pill" style="font-size: 0.6rem;">
+                                            <i class="ri-time-line"></i>
+                                        </span>
+                                    </div>
+                                ` : ''}
+                            </div>
+                            <div>
+                                <p class="mb-1 fw-semibold text-dark" style="font-size: 0.95rem;">${fileName}</p>
+                                <div class="d-flex align-items-center gap-2">
+                                    <small class="text-muted fw-medium">${fileExtension.toUpperCase()}</small>
+                                    ${hasRestaurantPendingChanges ? `
+                                        <span class="badge bg-warning bg-opacity-20 text-dark" style="font-size: 0.65rem;">
+                                            Pending Save
+                                        </span>
+                                    ` : ''}
+                                </div>
+                            </div>
+                        </div>
+                        <div class="d-flex gap-2">
+                            <button type="button" class="btn btn-outline-primary btn-sm rounded-2" onclick="previewFile('${file}', '${fileName}')" title="Preview">
+                                <i class="ri-eye-line"></i>
+                            </button>
+                            <button type="button" class="btn btn-outline-danger btn-sm rounded-2" onclick="removeRestaurantFile(${index}, '${tourId}', '${restaurantOrderIndex}', '${bookingIndex}')" title="Delete">
+                                <i class="ri-delete-bin-line"></i>
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            `;
+        });
+    } else {
+        content += `
+            <div class="text-center py-5">
+                <div class="bg-light rounded-circle mx-auto mb-3" style="width: 80px; height: 80px; display: flex; align-items: center; justify-content: center;">
+                    <i class="ri-file-list-line fs-1 text-muted"></i>
+                </div>
+                <p class="text-muted fw-medium">No files uploaded yet</p>
+                <small class="text-muted">Upload your first file using the form on the right</small>
+            </div>
+        `;
+    }
+    
+    content += `
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-6">
+                <div class="bg-white rounded-3 shadow-sm p-4">
+                    <div class="d-flex align-items-center mb-3">
+                        <div class="bg-success bg-opacity-10 rounded-circle p-2 me-3">
+                            <i class="ri-upload-line text-success fs-5"></i>
+                        </div>
+                        <h6 class="fw-semibold mb-0 text-dark">Upload New Files</h6>
+                    </div>
+                    <form id="restaurantFilesUploadForm" enctype="multipart/form-data">
+                        <input type="hidden" name="tour_id" value="${tourId}">
+                        <input type="hidden" name="restaurant_order_index" value="${restaurantOrderIndex}">
+                        <input type="hidden" name="booking_index" value="${bookingIndex}">
+                        
+                        <div class="mb-4">
+                            <label for="newRestaurantFiles" class="form-label fw-semibold text-dark">Select Files</label>
+                            <input type="file" class="form-control form-control-lg" id="newRestaurantFiles" name="new_files[]" 
+                                   accept=".pdf,.doc,.docx,.jpg,.jpeg,.png" multiple
+                                   style="border-radius: 12px; border: 2px dashed #dee2e6; padding: 16px;">
+                            <div class="form-text mt-2">
+                                <small class="text-muted">Upload multiple files (PDF, DOC, JPG, PNG)</small>
+                            </div>
+                        </div>
+                        
+                        <button type="button" class="btn btn-success w-100 py-3 fw-semibold" onclick="uploadNewRestaurantFiles()" 
+                                style="border-radius: 12px; font-size: 1.1rem;">
+                            <i class="ri-upload-cloud-line me-2"></i>Upload Files
+                        </button>
+                    </form>
+                </div>
+            </div>
+        </div>
+    `;
+    
+    document.getElementById('restaurantFilesContent').innerHTML = content;
+}
+
+// Function to remove restaurant file
+function removeRestaurantFile(fileIndex, tourId, restaurantOrderIndex, bookingIndex) {
+    if (confirm('Are you sure you want to remove this file?')) {
+        // Show loading state for the specific file
+        const fileElement = document.getElementById(`restaurant_file_${fileIndex}`);
+        const originalContent = fileElement.innerHTML;
+        fileElement.style.opacity = '0.5';
+        fileElement.innerHTML = `
+            <div class="d-flex align-items-center justify-content-center py-3">
+                <div class="spinner-border spinner-border-sm me-2" role="status">
+                    <span class="visually-hidden">Removing...</span>
+                </div>
+                <span class="text-muted">Removing file...</span>
+            </div>
+        `;
+        
+        fetch('{{ url("/hotel-booking/remove-restaurant-file") }}', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').getAttribute('content')
+            },
+            body: JSON.stringify({
+                tour_id: tourId,
+                restaurant_order_index: restaurantOrderIndex,
+                booking_index: bookingIndex,
+                file_index: fileIndex
+            })
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                // Mark as having pending changes
+                hasRestaurantPendingChanges = true;
+                updateRestaurantSaveChangesButton();
+                
+                // Reload files
+                loadRestaurantFiles(tourId, restaurantOrderIndex, bookingIndex);
+                showToast('File removed successfully! Click "Save Changes" to apply.', 'success');
+            } else {
+                // Restore original content on error
+                fileElement.style.opacity = '1';
+                fileElement.innerHTML = originalContent;
+                showToast('Error removing file: ' + data.message, 'error');
+            }
+        })
+        .catch(error => {
+            // Restore original content on error
+            fileElement.style.opacity = '1';
+            fileElement.innerHTML = originalContent;
+            console.error('Error removing file:', error);
+            showToast('Error removing file', 'error');
+        });
+    }
+}
+
+// Function to upload new restaurant files
+function uploadNewRestaurantFiles() {
+    const form = document.getElementById('restaurantFilesUploadForm');
+    const formData = new FormData(form);
+    const fileInput = document.getElementById('newRestaurantFiles');
+    const uploadButton = document.querySelector('button[onclick="uploadNewRestaurantFiles()"]');
+    
+    if (fileInput.files.length === 0) {
+        showToast('Please select files to upload', 'warning');
+        return;
+    }
+    
+    // Show loading state
+    const originalButtonText = uploadButton.innerHTML;
+    uploadButton.disabled = true;
+    uploadButton.innerHTML = `
+        <div class="d-flex align-items-center justify-content-center">
+            <div class="spinner-border spinner-border-sm me-2" role="status">
+                <span class="visually-hidden">Loading...</span>
+            </div>
+            Uploading ${fileInput.files.length} file(s)...
+        </div>
+    `;
+    
+    // Show upload progress overlay
+    showUploadProgress(fileInput.files.length);
+    
+    fetch('{{ url("/hotel-booking/upload-restaurant-files") }}', {
+        method: 'POST',
+        headers: {
+            'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').getAttribute('content')
+        },
+        body: formData
+    })
+    .then(response => response.json())
+    .then(data => {
+        // Hide upload progress
+        hideUploadProgress();
+        
+        if (data.success) {
+            // Mark as having pending changes
+            hasRestaurantPendingChanges = true;
+            updateRestaurantSaveChangesButton();
+            
+            // Reload files
+            const tourId = formData.get('tour_id');
+            const restaurantOrderIndex = formData.get('restaurant_order_index');
+            const bookingIndex = formData.get('booking_index');
+            
+            loadRestaurantFiles(tourId, restaurantOrderIndex, bookingIndex);
+            showToast(`${data.data.uploaded_files.length} file(s) uploaded successfully! Click "Save Changes" to apply.`, 'success');
+            
+            // Clear file input
+            fileInput.value = '';
+        } else {
+            showToast('Error uploading files: ' + data.message, 'error');
+        }
+    })
+    .catch(error => {
+        hideUploadProgress();
+        console.error('Error uploading files:', error);
+        showToast('Error uploading files', 'error');
+    })
+    .finally(() => {
+        // Restore button state
+        uploadButton.disabled = false;
+        uploadButton.innerHTML = originalButtonText;
+    });
+}
+
+// Function to update Restaurant Save Changes button state
+function updateRestaurantSaveChangesButton() {
+    const saveButton = document.getElementById('saveRestaurantFiles');
+    if (hasRestaurantPendingChanges) {
+        saveButton.style.display = 'inline-block';
+        saveButton.classList.remove('btn-primary');
+        saveButton.classList.add('btn-success');
+        saveButton.innerHTML = `
+            <i class="ri-save-line me-1"></i>Save Changes
+            <span class="badge bg-white text-success ms-2">!</span>
+        `;
+        
+        // Add pulsing animation
+        saveButton.style.animation = 'pulse 2s infinite';
+    } else {
+        saveButton.style.display = 'none';
+        saveButton.style.animation = 'none';
+    }
+}
+
+// Function to handle Restaurant Save Changes
+function saveRestaurantChanges() {
+    if (!hasRestaurantPendingChanges) {
+        return;
+    }
+    
+    const saveButton = document.getElementById('saveRestaurantFiles');
+    const originalContent = saveButton.innerHTML;
+    
+    // Show saving state
+    saveButton.disabled = true;
+    saveButton.innerHTML = `
+        <div class="d-flex align-items-center">
+            <div class="spinner-border spinner-border-sm me-2" role="status">
+                <span class="visually-hidden">Saving...</span>
+            </div>
+            Saving Changes...
+        </div>
+    `;
+    
+    // Show saving overlay
+    const savingOverlay = `
+        <div id="savingRestaurantOverlay" class="position-fixed top-0 start-0 w-100 h-100 d-flex align-items-center justify-content-center" 
+             style="background: rgba(0,0,0,0.7); z-index: 1080;">
+            <div class="bg-white rounded-4 p-5 text-center shadow-lg" style="min-width: 350px;">
+                <div class="mb-4">
+                    <div class="bg-success bg-opacity-10 rounded-circle mx-auto mb-3" style="width: 80px; height: 80px; display: flex; align-items: center; justify-content: center;">
+                        <i class="ri-save-line text-success" style="font-size: 2.5rem;"></i>
+                    </div>
+                    <h5 class="fw-bold text-dark mb-2">Saving Changes</h5>
+                    <p class="text-muted mb-0">Applying your file changes...</p>
+                </div>
+                <div class="progress mb-3" style="height: 8px;">
+                    <div class="progress-bar progress-bar-striped progress-bar-animated bg-success" 
+                         role="progressbar" style="width: 100%"></div>
+                </div>
+                <small class="text-muted">Please wait while changes are being saved</small>
+            </div>
+        </div>
+    `;
+    
+    document.body.insertAdjacentHTML('beforeend', savingOverlay);
+    
+    // Simulate save process and refresh page
+    setTimeout(() => {
+        // Hide saving overlay
+        const overlay = document.getElementById('savingRestaurantOverlay');
+        if (overlay) {
+            overlay.remove();
+        }
+        
+        // Show success message
+        showToast('Changes saved successfully! Refreshing page...', 'success');
+        
+        // Reset pending changes
+        hasRestaurantPendingChanges = false;
+        
+        // Close the files modal
+        const modal = bootstrap.Modal.getInstance(document.getElementById('restaurantFilesModal'));
+        if (modal) {
+            modal.hide();
+        }
+        
+        // Refresh the page after a short delay
+        setTimeout(() => {
+            window.location.reload();
+        }, 1500);
+        
+    }, 2000); // 2 second delay to show the saving process
+}
+
+// Function to show approval progress overlay
+function showApprovalProgressOverlay(fileCount) {
+    const progressOverlay = `
+        <div id="approvalProgressOverlay" class="position-fixed top-0 start-0 w-100 h-100 d-flex align-items-center justify-content-center" 
+             style="background: rgba(0,0,0,0.8); z-index: 1090; backdrop-filter: blur(5px);">
+            <div class="bg-white rounded-4 p-5 text-center shadow-lg" style="min-width: 400px; max-width: 500px;">
+                <div class="mb-4">
+                    <div class="bg-success bg-opacity-10 rounded-circle mx-auto mb-3" style="width: 80px; height: 80px; display: flex; align-items: center; justify-content: center;">
+                        <i class="ri-upload-cloud-line text-success" style="font-size: 2.5rem;"></i>
+                    </div>
+                    <h5 class="fw-bold text-dark mb-2">Processing Approval</h5>
+                    <p class="text-muted mb-0">Uploading ${fileCount} file(s) and processing approval...</p>
+                </div>
+                <div class="progress mb-3" style="height: 10px;">
+                    <div class="progress-bar progress-bar-striped progress-bar-animated bg-success" 
+                         role="progressbar" style="width: 100%"></div>
+                </div>
+                <small class="text-muted">This may take a few moments for multiple files. Please wait...</small>
+                <div class="mt-3">
+                    <div class="spinner-border text-success" role="status">
+                        <span class="visually-hidden">Processing...</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+    `;
+    
+    // Remove existing overlay if any
+    const existingOverlay = document.getElementById('approvalProgressOverlay');
+    if (existingOverlay) {
+        existingOverlay.remove();
+    }
+    
+    document.body.insertAdjacentHTML('beforeend', progressOverlay);
+}
+
+// Function to hide approval progress overlay
+function hideApprovalProgressOverlay() {
+    const overlay = document.getElementById('approvalProgressOverlay');
+    if (overlay) {
+        overlay.remove();
+    }
+}
+
+// Helper function to show toast notifications
+function showToast(message, type = 'info') {
+    // Create toast element
+    const toastId = 'toast_' + Date.now();
+    const bgClass = type === 'success' ? 'bg-success' : type === 'error' ? 'bg-danger' : type === 'warning' ? 'bg-warning' : 'bg-info';
+    
+    const toastHtml = `
+        <div class="toast align-items-center text-white ${bgClass} border-0" role="alert" id="${toastId}">
+            <div class="d-flex">
+                <div class="toast-body">
+                    ${message}
+                </div>
+                <button type="button" class="btn-close btn-close-white me-2 m-auto" data-bs-dismiss="toast"></button>
+            </div>
+        </div>
+    `;
+    
+    // Add to toast container or create one
+    let toastContainer = document.getElementById('toastContainer');
+    if (!toastContainer) {
+        toastContainer = document.createElement('div');
+        toastContainer.id = 'toastContainer';
+        toastContainer.className = 'toast-container position-fixed top-0 end-0 p-3';
+        toastContainer.style.zIndex = '9999';
+        document.body.appendChild(toastContainer);
+    }
+    
+    toastContainer.insertAdjacentHTML('beforeend', toastHtml);
+    
+    // Show toast
+    const toastElement = document.getElementById(toastId);
+    const toast = new bootstrap.Toast(toastElement);
+    toast.show();
+    
+    // Remove toast element after it's hidden
+    toastElement.addEventListener('hidden.bs.toast', () => {
+        toastElement.remove();
+    });
+}
+</script>
+
+<style>
+/* Ensure proper modal layering */
+.modal {
+    z-index: 1050;
+}
+
+#attractionFilesModal, #restaurantFilesModal {
+    z-index: 1060 !important;
+}
+
+#filePreviewModal {
+    z-index: 1070 !important;
+}
+
+/* File item hover effects */
+.border.rounded-3.p-3.mb-3.bg-light:hover {
+    background-color: #ffffff !important;
+    box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+    transform: translateY(-2px);
+}
+
+/* Upload area styling */
+input[type="file"].form-control:focus {
+    border-color: #667eea;
+    box-shadow: 0 0 0 0.2rem rgba(102, 126, 234, 0.25);
+}
+
+/* Custom scrollbar for file list */
+#existingFilesList::-webkit-scrollbar {
+    width: 6px;
+}
+
+#existingFilesList::-webkit-scrollbar-track {
+    background: #f1f1f1;
+    border-radius: 3px;
+}
+
+#existingFilesList::-webkit-scrollbar-thumb {
+    background: #c1c1c1;
+    border-radius: 3px;
+}
+
+#existingFilesList::-webkit-scrollbar-thumb:hover {
+    background: #a8a8a8;
+}
+
+/* Button hover effects */
+.btn-outline-primary:hover, .btn-outline-danger:hover {
+    transform: scale(1.05);
+    transition: all 0.2s ease;
+}
+
+/* Modal backdrop adjustments */
+.modal-backdrop {
+    z-index: 1040;
+}
+
+.modal-backdrop.show {
+    opacity: 0.5;
+}
+
+/* Ensure attraction files modal backdrop is above the main modal */
+#attractionFilesModal + .modal-backdrop {
+    z-index: 1055 !important;
+}
+
+#filePreviewModal + .modal-backdrop {
+    z-index: 1065 !important;
+}
+
+/* Pulse animation for Save Changes button */
+@keyframes pulse {
+    0% {
+        box-shadow: 0 0 0 0 rgba(25, 135, 84, 0.7);
+    }
+    70% {
+        box-shadow: 0 0 0 10px rgba(25, 135, 84, 0);
+    }
+    100% {
+        box-shadow: 0 0 0 0 rgba(25, 135, 84, 0);
+    }
+}
+
+/* Upload progress overlay styling */
+#uploadProgressOverlay, #savingOverlay {
+    backdrop-filter: blur(5px);
+}
+
+/* File input drag and drop styling */
+input[type="file"].form-control:hover {
+    border-color: #667eea;
+    background-color: #f8f9ff;
+}
+
+/* Loading states */
+.loading-file {
+    opacity: 0.6;
+    pointer-events: none;
+}
+
+/* Success state for uploaded files */
+.file-uploaded {
+    border-color: #198754 !important;
+    background-color: #f0f9f4 !important;
+}
+
+/* Removed file animation */
+.file-removing {
+    animation: fadeOut 0.5s ease-out;
+}
+
+@keyframes fadeOut {
+    from { opacity: 1; transform: translateX(0); }
+    to { opacity: 0; transform: translateX(-20px); }
+}
+
+/* Progress bar custom styling */
+.progress-bar-custom {
+    background: linear-gradient(45deg, #667eea, #764ba2);
+}
+</style>
 
 @endsection
 

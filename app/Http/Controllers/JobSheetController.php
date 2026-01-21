@@ -177,7 +177,11 @@ class JobSheetController extends Controller
                     // Get transportation orders
                     $transportOrders = Order::whereIn('type', ['entry_port', 'travel_hourly', 'travel_point', 'exit_port', 'local_transport'])
                         ->where('data->0->>dmc_id', $dmcId)
-                        ->where('data->0->>pickupdate', $tomorrow)
+                        ->where(function ($q) use ($tomorrow) {
+                            // Some orders use pickupdate, some use exitpickupdate – support both
+                            $q->where('data->0->>pickupdate', $tomorrow)
+                              ->orWhere('data->0->>exitpickupdate', $tomorrow);
+                        })
                         ->get();
                     
                     // Get attraction orders with transfer
@@ -289,14 +293,30 @@ class JobSheetController extends Controller
                                     }
                                 }
                                 
-                                // Extract pickup time from visitTime or guide_options
+                                // Extract pickup time from visitTime or guide_options (and normalize to 12‑hour with AM/PM for display)
                                 $pickupTime = null;
                                 if (isset($dataItem['visitTime'])) {
-                                    // Parse visitTime (e.g., "09:00 - 09:00" or "8:30 AM")
+                                    // Examples: "10:00 - 21:00", "8:30 AM", "8:30 AM - 9:30 AM"
                                     $visitTime = $dataItem['visitTime'];
-                                    if (preg_match('/(\d{1,2}):(\d{2})/', $visitTime, $matches)) {
-                                        $pickupTime = $matches[1] . ':' . $matches[2];
+                                    
+                                    // Case 1: explicit AM/PM in the string
+                                    if (preg_match('/(\d{1,2}:\d{2})\s*(AM|PM)/i', $visitTime, $matches)) {
+                                        $pickupTime = $matches[1] . ' ' . strtoupper($matches[2]);
+                                    }
+                                    // Case 2: 24‑hour or plain HH:MM, derive AM/PM from hour
+                                    elseif (preg_match('/(\d{1,2}):(\d{2})/', $visitTime, $matches)) {
+                                        $hour24 = (int) $matches[1];
+                                        $minute = $matches[2];
+                                        
+                                        $suffix = $hour24 >= 12 ? 'PM' : 'AM';
+                                        $hour12 = $hour24 % 12;
+                                        if ($hour12 === 0) {
+                                            $hour12 = 12;
+                                        }
+                                        
+                                        $pickupTime = sprintf('%02d:%s %s', $hour12, $minute, $suffix);
                                     } else {
+                                        // Fallback – keep whatever is provided
                                         $pickupTime = $visitTime;
                                     }
                                 } elseif (isset($dataItem['guide_options']['pickup_time'])) {
@@ -308,17 +328,14 @@ class JobSheetController extends Controller
                                 $dataItem['entrypickup'] = $pickupLocation;
                                 $dataItem['entrydropoff'] = $dropoffLocation;
                                 $dataItem['vehicles_id'] = $vehicleIdFromOrder;
-                                $dataItem['vehicles_name'] = $transferOptions['vehicle_details']['vehicle_name'] ?? null;
+                                $dataItem['vehicles_name'] = $vehicleFromOrder ? $vehicleFromOrder->vehicle_name : $transferOptions['vehicle_details']['vehicle_name'] ?? null;
                                 $dataItem['pickupdate'] = $dataItem['bookingDate'] ?? null;
                                 $dataItem['type'] = $transferOptions['type'] ?? null;
                                 
-                                // Check if there's an assignment in the jobsheets table
-                                $jobsheet = Jobsheet::where('date', $tomorrow)
+                                // Prefer jobsheet assignment (by order_id) over order defaults
+                                $jobsheet = Jobsheet::where('order_id', $order->booking_id)
                                     ->where('type', $order->type)
-                                    ->where('service_type', 'transfer')
-                                    ->where('journey_time', $pickupTime)
-                                    ->where('dmc_id', $dmcId)
-                                    ->where('order_id', $order->order_id)
+                                    ->where('date', $tomorrow)
                                     ->first();
                                 
                                 // Priority: Jobsheet assignment > Vehicle from order data
@@ -364,14 +381,30 @@ class JobSheetController extends Controller
                                     }
                                 }
                                 
-                                // Extract pickup time from visitTime
+                                // Extract pickup time from visitTime (normalize to 12‑hour with AM/PM for display)
                                 $pickupTime = null;
                                 if (isset($dataItem['visitTime'])) {
-                                    // Parse visitTime (e.g., "8:30 AM" or "09:00 - 09:00")
+                                    // Examples: "8:30 AM", "10:00 - 21:00"
                                     $visitTime = $dataItem['visitTime'];
-                                    if (preg_match('/(\d{1,2}):(\d{2})/', $visitTime, $matches)) {
-                                        $pickupTime = $matches[1] . ':' . $matches[2];
+                                    
+                                    // Case 1: explicit AM/PM in the string
+                                    if (preg_match('/(\d{1,2}:\d{2})\s*(AM|PM)/i', $visitTime, $matches)) {
+                                        $pickupTime = $matches[1] . ' ' . strtoupper($matches[2]);
+                                    }
+                                    // Case 2: 24‑hour or plain HH:MM, derive AM/PM from hour
+                                    elseif (preg_match('/(\d{1,2}):(\d{2})/', $visitTime, $matches)) {
+                                        $hour24 = (int) $matches[1];
+                                        $minute = $matches[2];
+                                        
+                                        $suffix = $hour24 >= 12 ? 'PM' : 'AM';
+                                        $hour12 = $hour24 % 12;
+                                        if ($hour12 === 0) {
+                                            $hour12 = 12;
+                                        }
+                                        
+                                        $pickupTime = sprintf('%02d:%s %s', $hour12, $minute, $suffix);
                                     } else {
+                                        // Fallback – keep whatever is provided
                                         $pickupTime = $visitTime;
                                     }
                                 }
@@ -385,13 +418,10 @@ class JobSheetController extends Controller
                                 $dataItem['pickupdate'] = $dataItem['bookingDate'] ?? null;
                                 $dataItem['type'] = $transferOptions['type'] ?? null;
                                 
-                                // Check if there's an assignment in the jobsheets table
-                                $jobsheet = Jobsheet::where('date', $tomorrow)
+                                // Prefer jobsheet assignment (by order_id) over order defaults
+                                $jobsheet = Jobsheet::where('order_id', $order->booking_id)
                                     ->where('type', $order->type)
-                                    ->where('service_type', 'transfer')
-                                    ->where('journey_time', $pickupTime)
-                                    ->where('dmc_id', $dmcId)
-                                    ->where('order_id', $order->order_id)
+                                    ->where('date', $tomorrow)
                                     ->first();
                                 
                                 // Priority: Jobsheet assignment > Vehicle from order data
@@ -420,6 +450,9 @@ class JobSheetController extends Controller
                 $orders = Order::whereIn('type', ['entry_port', 'travel_hourly', 'travel_point', 'exit_port'])
                 ->whereRaw("data->0->>'pickupdate' = ?", [$tomorrow])
                ->get();
+            }
+            else{
+                return redirect()->back()->with('error', 'You are not authorized to access this page');
             }
             
             return view('CreateJobSheet.create-driver-jobsheet', compact('dmcId', 'orders', 'drivers', 'vehicles'));
@@ -1435,8 +1468,6 @@ class JobSheetController extends Controller
                 'date' => $request->date,
                 'dmc_id' => $request->dmc_id
             ]);
-            
-            // Validate required fields
             $validator = Validator::make($request->all(), [
                 'date' => 'required|date',
                 'dmc_id' => 'required',
@@ -1607,8 +1638,23 @@ class JobSheetController extends Controller
                         ->where('dmc_id', $request->dmc_id)
                         ->orderBy('created_at', 'desc')
                         ->first();
-                    $jobsheet->vehicle_id = $order->data[0]['vehicles_id'];
                     
+                    // Decode order data to access vehicle_id
+                    $orderData = is_string($order->data) ? json_decode($order->data, true) : $order->data;
+                    $dataItem = is_array($orderData) && isset($orderData[0]) ? $orderData[0] : [];
+                    
+                    if($request->order_type == 'restaurant' || $request->order_type == 'attraction'){
+                        // For restaurant and attraction orders, vehicle_id is in transfer_options
+                        if(isset($dataItem['transfer_options']['vehicle_id'])) {
+                            $jobsheet->vehicle_id = $dataItem['transfer_options']['vehicle_id'];
+                        }
+                    }
+                    else{
+                        // For other order types, use vehicles_id directly
+                        if(isset($dataItem['vehicles_id'])) {
+                            $jobsheet->vehicle_id = $dataItem['vehicles_id'];
+                        }
+                    }
                 }
                 if ($request->has('vehicle_id') && !empty($request->vehicle_id)) {
                     $jobsheet->vehicle_id = $request->vehicle_id;
@@ -1626,7 +1672,7 @@ class JobSheetController extends Controller
                 }
 
                 $jobsheet->order_id = $request->order_id;
-                $jobsheet->save();
+                $is_saved = $jobsheet->save();
             }
 
             // Log the driver information being returned
@@ -1659,8 +1705,8 @@ class JobSheetController extends Controller
             
             // Return success with driver information
             return response()->json([
-                'success' => true,
-                'message' => 'Assignment updated successfully',
+                'success' => $is_saved,
+                'message' => $is_saved ? 'Assignment updated successfully' : 'Error updating driver/vehicle/guide assignment',
                 'jobsheet' => $jobsheet,
                 'vehicle' => $vehicle,
                 'driver' => $driver ? [
@@ -2237,7 +2283,11 @@ class JobSheetController extends Controller
                         ->leftJoin('tours', 'orders.tour_id', '=', 'tours.tour_id')
                         ->whereIn('orders.type', $orderTypes)
                         ->whereRaw("data->0->>'dmc_id' = ?", [$dmcId])
-                        ->whereRaw("data->0->>'pickupdate' = ?", [$date])
+                        ->where(function ($q) use ($date) {
+                            // Some orders use pickupdate, some use exitpickupdate – support both
+                            $q->whereRaw("data->0->>'pickupdate' = ?", [$date])
+                              ->orWhereRaw("data->0->>'exitpickupdate' = ?", [$date]);
+                        })
                         ->whereNotNull('orders.tour_id')
                         ->whereIn('tours.tour_status', ['Confirmed', 'Definite', 'Actual'])
                         ->get();
@@ -2291,7 +2341,11 @@ class JobSheetController extends Controller
                 $transportOrders = Order::select('orders.*', 'tours.id as tour_id_numeric', 'tours.tour_id', 'tours.display_id')
                     ->leftJoin('tours', 'orders.tour_id', '=', 'tours.tour_id')
                     ->whereIn('orders.type', $orderTypes)
-                    ->whereRaw("data->0->>'pickupdate' = ?", [$date])
+                    ->where(function ($q) use ($date) {
+                        // Some orders use pickupdate, some use exitpickupdate – support both
+                        $q->whereRaw("data->0->>'pickupdate' = ?", [$date])
+                          ->orWhereRaw("data->0->>'exitpickupdate' = ?", [$date]);
+                    })
                     ->whereNotNull('orders.tour_id')
                     ->whereIn('tours.tour_status', ['Confirmed', 'Definite', 'Actual'])
                     ->get();
@@ -2338,7 +2392,6 @@ class JobSheetController extends Controller
                 
                 $orders = $transportOrders->merge($attractionOrders)->merge($restaurantOrders);
             }
-            
             // Fetch assigned drivers/guides for each order and add zone information
             if ($type === 'guide') {
                 $orders->map(function($order) use ($dmcId, $date) {
@@ -2418,6 +2471,7 @@ class JobSheetController extends Controller
                             
                         // Priority: Jobsheet assignment > Vehicle from order data
                         if ($jobsheet) {
+                            
                             $order->assigned_driver_id = $jobsheet->driver_id;
                             $order->assigned_vehicle_id = $jobsheet->vehicle_id;
                             $order->driver = $jobsheet->driver_id ? Driver::where('driver_id', $jobsheet->driver_id)->first() : null;
@@ -2451,6 +2505,7 @@ class JobSheetController extends Controller
                         $driverFromVehicle = null;
                         
                         if ($vehicleIdFromOrder) {
+                            
                             $vehicleFromOrder = Vehicle::where('vehicle_id', $vehicleIdFromOrder)->first();
                             
                             // If vehicle has a driver assigned, get that driver
@@ -2459,35 +2514,63 @@ class JobSheetController extends Controller
                             }
                         }
                         
-                        // Extract pickup time from visitTime or guide_options
+                        // Extract pickup time from visitTime or guide_options (and normalize to 12‑hour with AM/PM for display)
                         $pickupTime = null;
                         if (isset($dataItem['visitTime'])) {
-                            // Parse visitTime (e.g., "09:00 - 09:00" or "8:30 AM")
+                            // Examples: "10:00 - 21:00", "8:30 AM", "8:30 AM - 9:30 AM"
                             $visitTime = $dataItem['visitTime'];
-                            if (preg_match('/(\d{1,2}):(\d{2})/', $visitTime, $matches)) {
-                                $pickupTime = $matches[1] . ':' . $matches[2];
+                            
+                            // Case 1: explicit AM/PM in the string
+                            if (preg_match('/(\d{1,2}:\d{2})\s*(AM|PM)/i', $visitTime, $matches)) {
+                                $pickupTime = $matches[1] . ' ' . strtoupper($matches[2]);
+                            }
+                            // Case 2: 24‑hour or plain HH:MM, derive AM/PM from hour
+                            elseif (preg_match('/(\d{1,2}):(\d{2})/', $visitTime, $matches)) {
+                                $hour24 = (int) $matches[1];
+                                $minute = $matches[2];
+                                
+                                $suffix = $hour24 >= 12 ? 'PM' : 'AM';
+                                $hour12 = $hour24 % 12;
+                                if ($hour12 === 0) {
+                                    $hour12 = 12;
+                                }
+                                
+                                $pickupTime = sprintf('%02d:%s %s', $hour12, $minute, $suffix);
                             } else {
+                                // Fallback – keep whatever is provided
                                 $pickupTime = $visitTime;
                             }
                         } elseif (isset($dataItem['guide_options']['pickup_time'])) {
-                            $pickupTime = $dataItem['guide_options']['pickup_time'];
+                            $guidePickupTime = $dataItem['guide_options']['pickup_time'];
+                            // Convert guide pickup time to AM/PM if needed
+                            if (preg_match('/^(\d{1,2}):(\d{2})$/', $guidePickupTime, $matches)) {
+                                $hour24 = (int) $matches[1];
+                                $minute = $matches[2];
+                                
+                                $suffix = $hour24 >= 12 ? 'PM' : 'AM';
+                                $hour12 = $hour24 % 12;
+                                if ($hour12 === 0) {
+                                    $hour12 = 12;
+                                }
+                                
+                                $pickupTime = sprintf('%02d:%s %s', $hour12, $minute, $suffix);
+                            } else {
+                                $pickupTime = $guidePickupTime;
+                            }
                         }
-                        
                         // Normalize data structure for view compatibility
                         $dataItem['entrytime'] = $pickupTime;
                         $dataItem['entrypickup'] = $pickupLocation;
                         $dataItem['entrydropoff'] = $dropoffLocation;
                         $dataItem['vehicles_id'] = $vehicleIdFromOrder;
-                        $dataItem['vehicles_name'] = $transferOptions['vehicle_details']['vehicle_name'] ?? null;
+                        $dataItem['vehicles_name'] = $vehicleFromOrder ? $vehicleFromOrder->vehicle_name : $transferOptions['vehicle_details']['vehicle_name'] ?? null;
                         $dataItem['pickupdate'] = $dataItem['bookingDate'] ?? null;
                         $dataItem['type'] = $transferOptions['type'] ?? null;
                         
-                        // Check if there's an assignment in the jobsheets table
-                        $jobsheet = Jobsheet::where('date', $date)
+                        // Prefer jobsheet assignment (by order_id) over order defaults
+                        $jobsheet = Jobsheet::where('order_id', $order->booking_id)
                             ->where('type', $order->type)
-                            ->where('service_type', 'transfer')
-                            ->where('journey_time', $pickupTime)
-                            ->where('order_id', $order->booking_id)
+                            ->where('date', $date)
                             ->first();
                         
                         // Priority: Jobsheet assignment > Vehicle from order data
@@ -2534,14 +2617,30 @@ class JobSheetController extends Controller
                             }
                         }
                         
-                        // Extract pickup time from visitTime
+                        // Extract pickup time from visitTime (and normalize to 12‑hour with AM/PM for display)
                         $pickupTime = null;
                         if (isset($dataItem['visitTime'])) {
-                            // Parse visitTime (e.g., "8:30 AM" or "09:00 - 09:00")
+                            // Examples: "10:00 - 21:00", "8:30 AM", "8:30 AM - 9:30 AM"
                             $visitTime = $dataItem['visitTime'];
-                            if (preg_match('/(\d{1,2}):(\d{2})/', $visitTime, $matches)) {
-                                $pickupTime = $matches[1] . ':' . $matches[2];
+                            
+                            // Case 1: explicit AM/PM in the string
+                            if (preg_match('/(\d{1,2}:\d{2})\s*(AM|PM)/i', $visitTime, $matches)) {
+                                $pickupTime = $matches[1] . ' ' . strtoupper($matches[2]);
+                            }
+                            // Case 2: 24‑hour or plain HH:MM, derive AM/PM from hour
+                            elseif (preg_match('/(\d{1,2}):(\d{2})/', $visitTime, $matches)) {
+                                $hour24 = (int) $matches[1];
+                                $minute = $matches[2];
+                                
+                                $suffix = $hour24 >= 12 ? 'PM' : 'AM';
+                                $hour12 = $hour24 % 12;
+                                if ($hour12 === 0) {
+                                    $hour12 = 12;
+                                }
+                                
+                                $pickupTime = sprintf('%02d:%s %s', $hour12, $minute, $suffix);
                             } else {
+                                // Fallback – keep whatever is provided
                                 $pickupTime = $visitTime;
                             }
                         }
@@ -2551,25 +2650,25 @@ class JobSheetController extends Controller
                         $dataItem['entrypickup'] = $pickupLocation;
                         $dataItem['entrydropoff'] = $dropoffLocation;
                         $dataItem['vehicles_id'] = $vehicleIdFromOrder;
-                        $dataItem['vehicles_name'] = $transferOptions['vehicle_details']['vehicle_name'] ?? null;
+                        $dataItem['vehicles_name'] = $vehicleFromOrder ? $vehicleFromOrder->vehicle_name : $transferOptions['vehicle_details']['vehicle_name'] ?? null;
                         $dataItem['pickupdate'] = $dataItem['bookingDate'] ?? null;
                         $dataItem['type'] = $transferOptions['type'] ?? null;
                         
-                        // Check if there's an assignment in the jobsheets table
-                        $jobsheet = Jobsheet::where('date', $date)
+                        // Prefer jobsheet assignment (by order_id) over order defaults
+                        $jobsheet = Jobsheet::where('order_id', $order->booking_id)
                             ->where('type', $order->type)
-                            ->where('service_type', 'transfer')
-                            ->where('journey_time', $pickupTime)
-                            ->where('order_id', $order->booking_id)
+                            ->where('date', $date)
                             ->first();
-                        
+                               
                         // Priority: Jobsheet assignment > Vehicle from order data
                         if ($jobsheet) {
+                            
                             $order->assigned_driver_id = $jobsheet->driver_id;
                             $order->assigned_vehicle_id = $jobsheet->vehicle_id;
                             $order->driver = $jobsheet->driver_id ? Driver::where('driver_id', $jobsheet->driver_id)->first() : null;
                             $order->vehicle = $jobsheet->vehicle_id ? Vehicle::where('vehicle_id', $jobsheet->vehicle_id)->first() : null;
                         } else {
+                            
                             // Use vehicle and driver from order data as default
                             $order->assigned_vehicle_id = $vehicleFromOrder ? $vehicleFromOrder->vehicle_id : null;
                             $order->assigned_driver_id = $driverFromVehicle ? $driverFromVehicle->driver_id : null;
@@ -2583,10 +2682,11 @@ class JobSheetController extends Controller
                         
                         // Update orderData with normalized structure
                         $order->data = [$dataItem];
+                        
                     }
-                    
                     return $order;
                 });
+                
                 return response()->json([
                     'success' => true,
                     'data' => $orders,

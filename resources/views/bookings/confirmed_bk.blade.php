@@ -1,5 +1,5 @@
 @extends('layouts.layout')
-@section('title', 'Definite Bookings')
+@section('title', 'Confirmed Bookings')
 @extends('layouts.datatablecss')
 
 <!-- Add SweetAlert2 CSS -->
@@ -14,6 +14,21 @@
 <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
 
 <style>
+    /* Guest Management Button */
+    .btn-gradient-primary {
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        border: none;
+        color: white;
+        transition: all 0.3s ease;
+        box-shadow: 0 2px 8px rgba(102, 126, 234, 0.3);
+    }
+    
+    .btn-gradient-primary:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 4px 12px rgba(102, 126, 234, 0.5);
+        color: white;
+    }
+    
     /* Payment Processing Overlay */
     .payment-processing-overlay {
         position: fixed;
@@ -46,45 +61,6 @@
         border-top-color: #38ef7d;
         animation: spin 1s ease-in-out infinite;
         margin-bottom: 20px;
-    }
-    
-    /* Execution Status Row Colors */
-    .execution-status-ready {
-        background-color: rgba(40, 167, 69, 0.1) !important; /* Light green */
-        border-left: 4px solid #28a745 !important;
-    }
-    
-    .execution-status-ready:hover {
-        background-color: rgba(40, 167, 69, 0.15) !important;
-    }
-    
-    .execution-status-soon {
-        background-color: rgba(255, 193, 7, 0.1) !important; /* Light yellow */
-        border-left: 4px solid #ffc107 !important;
-    }
-    
-    .execution-status-soon:hover {
-        background-color: rgba(255, 193, 7, 0.15) !important;
-    }
-    
-    .execution-status-definite {
-        background-color: rgba(23, 162, 184, 0.1) !important; /* Light blue */
-        border-left: 4px solid #17a2b8 !important;
-    }
-    
-    .execution-status-definite:hover {
-        background-color: rgba(23, 162, 184, 0.15) !important;
-    }
-    
-    /* Enhanced table styling */
-    #toursTable tbody tr {
-        transition: background-color 0.2s ease, transform 0.1s ease;
-        border-left: 4px solid transparent;
-    }
-    
-    #toursTable tbody tr:hover {
-        transform: translateX(2px);
-        box-shadow: 0 2px 8px rgba(0,0,0,0.1);
     }
     
     @keyframes spin {
@@ -174,15 +150,15 @@
     <div class="d-flex justify-content-between align-items-center mb-4">
         <div>
             <h4 class="fw-bold py-3 mb-2">
-                <span class="text-muted fw-light">Bookings /</span> Definite Bookings
+                <span class="text-muted fw-light">Bookings /</span> Confirmed Bookings
             </h4>
-            <p class="text-muted">Manage definite bookings ready for processing</p>
+            <p class="text-muted">Manage confirmed bookings ready for processing</p>
         </div>
         <div class="d-flex gap-2">
             <span class="badge bg-success fs-6">
                 <i class="ri-check-double-line me-1"></i>
                 <span id="rangeCount">{{ $tours->where('updated_at', '>=', now()->startOfMonth())->where('updated_at', '<=', now()->endOfMonth())->count() }}</span>
-                <span id="rangeLabel">{{ date('F') }}</span> Definite
+                <span id="rangeLabel">{{ date('F') }}</span> Confirmed
             </span>
         </div>
     </div>
@@ -195,7 +171,7 @@
                     <div class="d-flex justify-content-between align-items-center">
                         <div>
                             <h5 class="card-title mb-1" id="statConfirmedCount">{{ $tours->where('updated_at', '>=', now()->startOfMonth())->where('updated_at', '<=', now()->endOfMonth())->count() }}</h5>
-                            <p class="text-muted mb-0" id="statConfirmedLabel">{{ date('F') }} Definite</p>
+                            <p class="text-muted mb-0" id="statConfirmedLabel">{{ date('F') }} Confirmed</p>
                         </div>
                         <div class="avatar">
                             <div class="avatar-initial bg-success rounded">
@@ -212,7 +188,7 @@
                     <div class="d-flex justify-content-between align-items-center">
                         <div>
                             <h5 class="card-title mb-1" id="statTodayCount">{{ $tours->where('created_at', '>=', now()->today())->count() }}</h5>
-                            <p class="text-muted mb-0">Today's Definite</p>
+                            <p class="text-muted mb-0">Today's Confirmed</p>
                         </div>
                         <div class="avatar">
                             <div class="avatar-initial bg-success rounded">
@@ -307,23 +283,23 @@
         </div>
         <div class="card-body">
             <div class="row">
-                <div class="col-md-2">
+                <div class="col-md-3">
                     <label class="form-label">Search</label>
                     <input type="text" class="form-control" id="searchInput" placeholder="Tour ID, Display ID...">
                 </div>
-                <div class="col-md-2">
+                {{-- <div class="col-md-2">
                     <label class="form-label">Status</label>
                     <select class="form-select" id="statusFilter">
                         <option value="">All Status</option>
-                        <option value="Ready">Ready to Execute</option>
-                        <option value="Soon">Starting Soon</option>
-                        <option value="Definite">Definite</option>
+                        <option value="On Hold">On Hold</option>
+                        <option value="Starting Soon">Starting Soon</option>
+                        <option value="In Progress">In Progress</option>
                     </select>
-                </div>
+                </div> --}}
                 <div class="col-md-2">
-                    <label class="form-label">Country</label>
+                    <label class="form-label">Destination</label>
                     <select class="form-select" id="destinationFilter">
-                        <option value="">All Countries</option>
+                        <option value="">All Destinations</option>
                         @php
                             $allDestinations = [];
                             foreach($tours as $tour) {
@@ -351,6 +327,16 @@
                         @endforeach
                     </select>
                 </div>
+                {{-- <div class="col-md-2">
+                    <label class="form-label">Time Range</label>
+                    <select class="form-select" id="timeFilter">
+                        <option value="">All Time</option>
+                        <option value="this_week">This Week</option>
+                        <option value="next_week">Next Week</option>
+                        <option value="this_month">This Month</option>
+                        <option value="next_month">Next Month</option>
+                    </select>
+                </div> --}}
                 <div class="col-md-2">
                     <label class="form-label">Start Date</label>
                     <input type="date" class="form-control" id="startDateFilter" max="{{ now()->toDateString() }}" value="{{ now()->startOfMonth()->toDateString() }}">
@@ -366,7 +352,7 @@
     <!-- Tours Table -->
     <div class="card">
         <div class="card-header d-flex justify-content-between align-items-center">
-            <h5 class="mb-0">Definite Bookings List</h5>
+            <h5 class="mb-0">Confirmed Bookings List</h5>
             <div class="d-flex gap-2">
                 <div class="dropdown">
                     <button class="btn btn-success btn-sm dropdown-toggle" type="button" id="exportDropdown"
@@ -399,9 +385,9 @@
                             <th>Manage Services</th>
                             <th>Agent</th>
                             <th>Travel Dates</th>
-                            <th>Execution Status</th>
                             <th>Payment Status</th>
                             <th>Confirmation Date</th>
+                            {{-- <th>Status</th> --}}
                             <th>Actions</th>
                             <th>Created At</th>
                             <th>Auto Cancel Date</th>
@@ -409,23 +395,8 @@
                     </thead>
                     <tbody>
                         @forelse($tours as $key => $tour)
-                        @php
-                            // Determine execution status and corresponding CSS class
-                            $executionStatusClass = '';
-                            $executionStatus = '';
-                            if ($tour->check_in_time && \Carbon\Carbon::parse($tour->check_in_time)->isPast()) {
-                                $executionStatusClass = 'execution-status-ready';
-                                $executionStatus = 'Ready';
-                            } elseif ($tour->check_in_time && \Carbon\Carbon::parse($tour->check_in_time)->diffInDays(now(), false) <= 7) {
-                                $executionStatusClass = 'execution-status-soon';
-                                $executionStatus = 'Soon';
-                            } else {
-                                $executionStatusClass = 'execution-status-definite';
-                                $executionStatus = 'Definite';
-                            }
-                        @endphp
                         <tr 
-                            class="{{ $executionStatusClass }}"
+                            class="{{ $tour->check_in_time && \Carbon\Carbon::parse($tour->check_in_time)->diffInDays(now(), false) <= 7 && \Carbon\Carbon::parse($tour->check_in_time)->diffInDays(now(), false) >= 0 ? 'table-info' : '' }}"
                             data-updated-at="{{ optional($tour->updated_at)->toDateString() }}"
                             data-created-at="{{ optional($tour->created_at)->toDateString() }}"
                             data-adult="{{ (int)($tour->adult ?? 0) }}"
@@ -433,7 +404,6 @@
                             data-tour-id="{{ $tour->tour_id }}"
                             data-check-in="{{ $tour->check_in_time }}"
                             data-check-out="{{ $tour->check_out_time }}"
-                            data-execution-status="{{ $executionStatus }}"
                         >
                             {{-- <td>
                                 <input type="checkbox" class="form-check-input row-checkbox" value="{{ $tour->tour_id }}">
@@ -546,10 +516,10 @@
                                                                     $restaurantName = $booking['restaurantName'] ?? 'Restaurant';
                                                                 @endphp
                                                                 <span class="badge @if($restaurantOrder->is_approve == 1) bg-success text-white @else bg-light text-dark border @endif me-1 mb-1" style="cursor: pointer;" 
-                                                                      onclick="openIndividualRestaurantModal({{ $tour->tour_id }}, {{ $restaurantOrderIndex }}, {{ $bookingIndex }}, '{{$actualCancelDateStr}}')"
+                                                                      onclick="openIndividualRestaurantModal({{ $tour->tour_id }}, {{ $restaurantOrderIndex }}, {{ $bookingIndex }}, '{{ $actualCancelDateStr }}')"
                                                                       title="{{ e($restaurantName) }}">
                                                                     <i class="{{ $icons[$key] }} me-1"></i>
-                                                                    <strong>Restaurant {{ $globalRestaurantCounter }}</strong> : {{ $restaurantName }}
+                                                                    <strong>Restaurant {{ $globalRestaurantCounter }} :</strong> {{ \Illuminate\Support\Str::limit($restaurantName, 12) }}
                                                                     @if($restaurantOrder->is_approve == 1)
                                                                         <i class="ri-check-line ms-1"></i>
                                                                     @endif
@@ -574,14 +544,18 @@
                                                             @php $actualBookingIndex = 0; @endphp
                                                             @foreach($guideData as $originalKey => $booking)
                                                                 @php $bookingIndex = $actualBookingIndex; @endphp
+                                                                @php $actualCancelDateStr = $tour->auto_cancel_date 
+                                                                    ? \Carbon\Carbon::parse($tour->auto_cancel_date)->format('Y-m-d')
+                                                                    : '';
+                                                                @endphp
                                                                 @php
                                                                     $guideName = $booking['guide_name'] ?? 'Guide';
                                                                 @endphp
                                                                 <span class="badge @if($guideOrder->is_approve == 1) bg-success text-white @else bg-light text-dark border @endif me-1 mb-1" style="cursor: pointer;" 
-                                                                      onclick="openIndividualGuideModal({{ $tour->tour_id }}, {{ $guideOrderIndex }}, {{ $bookingIndex }})"
+                                                                      onclick="openIndividualGuideModal({{ $tour->tour_id }}, {{ $guideOrderIndex }}, {{ $bookingIndex }}, '{{ $actualCancelDateStr }}')"
                                                                       title="{{ e($guideName) }}">
                                                                     <i class="{{ $icons[$key] }} me-1"></i>
-                                                                    <strong>Guide {{ $globalGuideCounter }}</strong> : {{ $guideName }}
+                                                                    <strong>Guide {{ $globalGuideCounter }} :</strong> {{ \Illuminate\Support\Str::limit($guideName, 12) }}
                                                                     @if($guideOrder->is_approve == 1)
                                                                         <i class="ri-check-line ms-1"></i>
                                                                     @endif
@@ -605,8 +579,11 @@
                                                         @if(is_array($hotelData))
                                                             @php $actualBookingIndex = 0; @endphp
                                                             @foreach($hotelData as $originalKey => $booking)
-                                                                @php $bookingIndex = $actualBookingIndex; @endphp
                                                                 @php 
+                                                                $bookingIndex = $actualBookingIndex; 
+                                                                
+                                                        @endphp
+                                                        @php 
                                                         $actualCancelDateStr = $tour->auto_cancel_date 
                                                             ? \Carbon\Carbon::parse($tour->auto_cancel_date)->format('Y-m-d')
                                                             : '';
@@ -618,7 +595,7 @@
                                                                       onclick="openIndividualHotelModal({{ $tour->tour_id }}, {{ $hotelOrderIndex }}, {{ $bookingIndex }}, '{{$actualCancelDateStr}}')"
                                                                       title="{{ e($hotelName) }}">
                                                                     <i class="{{ $icons[$key] }} me-1"></i>
-                                                                    <strong>Hotel {{ $globalHotelCounter }}</strong> : {{ $hotelName }}
+                                                                    <strong>Hotel {{ $globalHotelCounter }} :</strong> {{ \Illuminate\Support\Str::limit($hotelName, 12) }}
                                                                     @if($hotelOrder->is_approve == 1)
                                                                         <i class="ri-check-line ms-1"></i>
                                                                     @endif
@@ -648,10 +625,10 @@
                                                                     $attractionName = $booking['AttractionName'] ?? 'Attraction';
                                                                 @endphp
                                                                 <span class="badge @if($order->is_approve == 1) bg-success text-white @else bg-light text-dark border @endif me-1 mb-1" style="cursor: pointer;" 
-                                                                      onclick="openIndividualAttractionModal({{ $tour->tour_id }}, {{ $attractionOrderIndex }}, {{ $bookingIndex }}, '{{$actualCancelDateStr}}')"
+                                                                      onclick="openIndividualAttractionModal({{ $tour->tour_id }}, {{ $attractionOrderIndex }}, {{ $bookingIndex }}, '{{ $actualCancelDateStr }}')"
                                                                       title="{{ e($attractionName) }}">
                                                                     <i class="{{ $icons[$key] }} me-1"></i>
-                                                                    <strong>Attraction {{ $globalAttractionCounter }}</strong> : {{ $attractionName }}
+                                                                    <strong>Attraction {{ $globalAttractionCounter }} :</strong> {{ \Illuminate\Support\Str::limit($attractionName, 12) }}
                                                                     @if($order->is_approve == 1)
                                                                         <i class="ri-check-line ms-1"></i>
                                                                     @endif
@@ -680,7 +657,7 @@
                                                                       onclick="openIndividualTravelHourlyModal({{ $tour->tour_id }}, {{ $travelHourlyOrderIndex }}, {{ $bookingIndex }})"
                                                                       title="{{ e($vehicleName) }}">
                                                                     <i class="{{ $icons[$key] }} me-1"></i>
-                                                                    <strong>Local-Tour Hourly {{ $globalTravelHourlyCounter }}</strong> : {{ $vehicleName }}
+                                                                    <strong>Local-Tour Hourly {{ $globalTravelHourlyCounter }} :</strong>{{ \Illuminate\Support\Str::limit($vehicleName, 12) }}
                                                                     @if($order->is_approve == 1)
                                                                         <i class="ri-check-line ms-1"></i>
                                                                     @endif
@@ -709,7 +686,7 @@
                                                                       onclick="openIndividualTravelPointModal({{ $tour->tour_id }}, {{ $travelPointOrderIndex }}, {{ $bookingIndex }})"
                                                                       title="{{ e($vehicleName) }}">
                                                                     <i class="{{ $icons[$key] }} me-1"></i>
-                                                                    <strong>Local-Tour Point to Point {{ $globalTravelPointCounter }}</strong> : {{ $vehicleName }}
+                                                                    <strong>Local-Tour Point to Point {{ $globalTravelPointCounter }} :</strong> {{ \Illuminate\Support\Str::limit($vehicleName, 12) }}
                                                                     @if($order->is_approve == 1)
                                                                         <i class="ri-check-line ms-1"></i>
                                                                     @endif
@@ -738,7 +715,7 @@
                                                                       onclick="openIndividualLocalTransportModal({{ $tour->tour_id }}, {{ $localTransportOrderIndex }}, {{ $bookingIndex }})"
                                                                       title="{{ e($vehicleName) }}">
                                                                     <i class="{{ $icons[$key] }} me-1"></i>
-                                                                    <strong>Local Transport {{ $globalLocalTransportCounter }}</strong> : {{ $vehicleName }}
+                                                                    <strong>Local Transport {{ $globalLocalTransportCounter }} :</strong> {{ \Illuminate\Support\Str::limit($vehicleName, 12) }}
                                                                     @if($order->is_approve == 1)
                                                                         <i class="ri-check-line ms-1"></i>
                                                                     @endif
@@ -849,21 +826,6 @@
                                 </div>
                             </td>
                             <td>
-                                @if($tour->check_in_time && \Carbon\Carbon::parse($tour->check_in_time)->isPast())
-                                    <span class="badge bg-success">
-                                        <i class="ri-play-circle-line me-1"></i>Ready
-                                    </span>
-                                @elseif($tour->check_in_time && \Carbon\Carbon::parse($tour->check_in_time)->diffInDays(now(), false) <= 7)
-                                    <span class="badge bg-warning">
-                                        <i class="ri-time-line me-1"></i>Soon
-                                    </span>
-                                @else
-                                    <span class="badge bg-info">
-                                        <i class="ri-shield-check-line me-1"></i>Definite
-                                    </span>
-                                @endif
-                            </td>
-                            <td>
                                 @php
                                     // Calculate payment details
                                     // Includes: base price + transfer price + guide price (for attractions)
@@ -893,21 +855,19 @@
                                         }
                                     }
                                     $enquiry = \App\Models\Enquiry::where('tour_id', $tour->tour_id)->where('status', 2)->first();
-                                    $enquiry_amount = $enquiry->amount ?? 0;
+                                    $enquiry_amount = $enquiry ? ($enquiry->amount ?? 0) : 0;
                                     $frstenquiry = \App\Models\Enquiry::where('tour_id', $tour->tour_id)->first();
-                                    $first_enquiry_amount = $frstenquiry->actual_amount ?? 0;
-                                    $discountAmount = $frstenquiry ? ($frstenquiry->actual_amount - $enquiry_amount) : 0;
+                                    $first_enquiry_amount = $frstenquiry ? ($frstenquiry->actual_amount ?? 0) : 0;
+                                    $discountAmount = $first_enquiry_amount - $enquiry_amount;
                                     
                                     // Calculate base amount before tax (round up if decimal > 0.5, round down if < 0.5)
                                     $baseAmount = round($tourTotalPrice) - $discountAmount;
                                     
-                                    // Calculate tax amount using TaxHelper
-                                    $persons = ($tour->adult ?? 0) + ($tour->child ?? 0);
-                                    $days = \App\Helpers\TaxHelper::calculateDays($tour->check_in_time, $tour->check_out_time);
-                                    
-                                    $taxResult = \App\Helpers\TaxHelper::calculateTourTaxes($baseAmount, $tour->taxes, $persons, $days);
-                                    $taxAmount = $taxResult['total_tax'];
-                                    $taxBreakdown = $taxResult['breakdown'];
+                                    // Calculate tax amount and final amount with tax
+                                    $taxPercentage = $country_tax ?? 0;
+                                    $taxAmount = ($baseAmount * $taxPercentage) / 100;
+                                    // Apply ceiling to tax amount (round up to next whole number)
+                                    $taxAmount = ceil($taxAmount);
                                     $finalAmount = $baseAmount + $taxAmount;
                                     
                                     $paymentData = is_string($tour->payment_details) ? json_decode($tour->payment_details, true) : $tour->payment_details;
@@ -1020,10 +980,10 @@
                             <td>
                                 <div class="d-flex flex-column gap-2">
                                     @if(auth()->user()->role_id == 33 ||auth()->user()->role_id == 11 || auth()->user()->role_id == 34 ||auth()->user()->role_id == 37 || auth()->user()->role_id == 38 ||auth()->user()->role_id == 124 || auth()->user()->role_id == 125 || in_array(auth()->user()->role_id, [128, 129, 130, 131, 132, 134, 135, 136, 137, 138]))
-                                    <a href="{{ route('single-tour-package.edit', Crypt::encrypt($tour->tour_id)) }}"
-                                       class="btn btn-outline-success btn-sm rounded-pill">
-                                        <i class="ri-pencil-line"></i> Edit
-                                    </a>
+                                        <a href="{{ route('single-tour-package.edit', Crypt::encrypt($tour->tour_id)) }}"
+                                        class="btn btn-outline-success btn-sm rounded-pill">
+                                            <i class="ri-pencil-line"></i> Edit
+                                        </a>
                                     @endif
                                     <a href="{{ route('bookings.view-tour', Crypt::encrypt($tour->tour_id)) }}" 
                                        class="btn btn-outline-primary btn-sm rounded-pill">
@@ -1036,61 +996,82 @@
                                     </a>
                                     
                                     @php
-                                        $all_ids = [11, 33, 34, 37, 38, 124, 125, 128, 129, 130, 132, 133, 134, 135, 136, 137, 138];
-                                        $proformaInvoice = \App\Models\Invoice::where('tour_id', $tour->tour_id)
-                                            ->where('invoice_type', 'proforma')
-                                            ->whereNull('deleted_at')
-                                            ->first();
+                                        $all_ids = [11,33, 34, 37, 38, 124, 125, 128, 129, 130, 131, 132, 133, 134, 135, 136, 137, 138];
                                         $finalInvoice = \App\Models\Invoice::where('tour_id', $tour->tour_id)
                                             ->where('invoice_type', 'final')
                                             ->whereNull('deleted_at')
                                             ->first();
+                                        $proformaInvoice = \App\Models\Invoice::where('tour_id', $tour->tour_id)
+                                            ->where('invoice_type', 'proforma')
+                                            ->whereNull('deleted_at')
+                                            ->first();
                                     @endphp
                                     
-                                    @if($finalInvoice)
-                                        <a href="{{ route('invoices.download', Crypt::encrypt($finalInvoice->invoice_id)) }}" 
-                                           class="btn btn-outline-info btn-sm rounded-pill"
-                                           target="_blank"
-                                           title="Download Final Invoice (Price Breakup)">
-                                            <i class="ri-file-paper-2-line me-1"></i> Final Invoice(Price Breakup)
-                                        </a>
-                                        <a href="{{ route('invoices.download-price-only', Crypt::encrypt($finalInvoice->invoice_id)) }}" 
-                                           class="btn btn-outline-primary btn-sm rounded-pill"
-                                           target="_blank"
-                                           title="Download Final Invoice (Package Price Only)">
-                                            <i class="ri-file-download-line me-1"></i> Final Invoice(Package Price Only)
-                                        </a>
-                                    @elseif($proformaInvoice)
-                                        <a href="{{ route('invoices.download', Crypt::encrypt($proformaInvoice->invoice_id)) }}" 
-                                           class="btn btn-outline-info btn-sm rounded-pill"
-                                           target="_blank"
-                                           title="Download Proforma Invoice (Price Breakup)">
-                                            <i class="ri-file-paper-line me-1"></i> Proforma Invoice(Price Breakup)
-                                        </a>
-                                        <a href="{{ route('invoices.download-price-only', Crypt::encrypt($proformaInvoice->invoice_id)) }}" 
-                                           class="btn btn-outline-primary btn-sm rounded-pill"
-                                           target="_blank"
-                                           title="Download Proforma Invoice (Package Price Only)">
-                                            <i class="ri-file-download-line me-1"></i> Proforma Invoice(Package Price Only)
-                                        </a>
-                                        <form action="{{ route('invoices.convert-to-final', $proformaInvoice->invoice_id) }}" method="POST" class="d-inline">
-                                            @csrf
-                                            <button type="submit" 
-                                                    class="btn btn-outline-warning btn-sm rounded-pill"
-                                                    title="Convert Proforma to Final Invoice"
-                                                    onclick="return confirm('Are you sure you want to convert this proforma invoice to final invoice? This action cannot be undone.');">
-                                                <i class="ri-file-edit-line me-1"></i> Convert to Final
-                                            </button>
-                                        </form>
+                                    @if($tour->tour_status == 'Confirmed')
+                                        @if($finalInvoice)
+                                            <a href="{{ route('invoices.download', Crypt::encrypt($finalInvoice->invoice_id)) }}" 
+                                               class="btn btn-outline-info btn-sm rounded-pill"
+                                               target="_blank"
+                                               title="Download Final Invoice (Price Breakup)">
+                                                <i class="ri-file-paper-2-line me-1"></i> Final Invoice(Price Breakup)
+                                            </a>
+                                            <a href="{{ route('invoices.download-price-only', Crypt::encrypt($finalInvoice->invoice_id)) }}" 
+                                               class="btn btn-outline-primary btn-sm rounded-pill"
+                                               target="_blank"
+                                               title="Download Final Invoice (Package Price Only)">
+                                                <i class="ri-file-download-line me-1"></i> Final Invoice(Package Price Only)
+                                            </a>
+                                        @elseif($proformaInvoice)
+                                            <a href="{{ route('invoices.download', Crypt::encrypt($proformaInvoice->invoice_id)) }}" 
+                                               class="btn btn-outline-info btn-sm rounded-pill"
+                                               target="_blank"
+                                               title="Download Proforma Invoice (Price Breakup)">
+                                                <i class="ri-file-paper-line me-1"></i> Proforma Invoice(Price Breakup)
+                                            </a>
+                                            <a href="{{ route('invoices.download-price-only', Crypt::encrypt($proformaInvoice->invoice_id)) }}" 
+                                               class="btn btn-outline-primary btn-sm rounded-pill"
+                                               target="_blank"
+                                               title="Download Proforma Invoice (Package Price Only)">
+                                                <i class="ri-file-download-line me-1"></i> Proforma Invoice(Package Price Only)
+                                            </a>
+                                        @else
+                                            <form action="{{ route('invoices.generate-proforma', $tour->tour_id) }}" method="POST" class="d-inline">
+                                                @csrf
+                                                <button type="submit" 
+                                                        class="btn btn-outline-info btn-sm rounded-pill"
+                                                        title="Generate Proforma Invoice">
+                                                    <i class="ri-file-add-line me-1"></i> Generate Invoice
+                                                </button>
+                                            </form>
+                                        @endif
                                     @else
-                                        <form action="{{ route('invoices.generate-final', $tour->tour_id) }}" method="POST" class="d-inline">
-                                            @csrf
-                                            <button type="submit" 
-                                                    class="btn btn-outline-info btn-sm rounded-pill"
-                                                    title="Generate Final Invoice">
-                                                <i class="ri-file-add-line me-1"></i> Generate Invoice
-                                            </button>
-                                        </form>
+                                        @if($finalInvoice)
+                                            <a href="{{ route('invoices.download', Crypt::encrypt($finalInvoice->invoice_id)) }}" 
+                                               class="btn btn-outline-info btn-sm rounded-pill"
+                                               target="_blank"
+                                               title="Download Final Invoice (Price Breakup)">
+                                                <i class="ri-file-paper-2-line me-1"></i> Final Invoice(Price Breakup)
+                                            </a>
+                                            <a href="{{ route('invoices.download-price-only', Crypt::encrypt($finalInvoice->invoice_id)) }}" 
+                                               class="btn btn-outline-primary btn-sm rounded-pill"
+                                               target="_blank"
+                                               title="Download Final Invoice (Package Price Only)">
+                                                <i class="ri-file-download-line me-1"></i> Final Invoice(Package Price Only)
+                                            </a>
+                                        @elseif($proformaInvoice)
+                                            <a href="{{ route('invoices.download', Crypt::encrypt($proformaInvoice->invoice_id)) }}" 
+                                               class="btn btn-outline-info btn-sm rounded-pill"
+                                               target="_blank"
+                                               title="Download Proforma Invoice (Price Breakup)">
+                                                <i class="ri-file-paper-line me-1"></i> Proforma Invoice(Price Breakup)
+                                            </a>
+                                            <a href="{{ route('invoices.download-price-only', Crypt::encrypt($proformaInvoice->invoice_id)) }}" 
+                                               class="btn btn-outline-primary btn-sm rounded-pill"
+                                               target="_blank"
+                                               title="Download Proforma Invoice (Package Price Only)">
+                                                <i class="ri-file-download-line me-1"></i> Proforma Invoice(Package Price Only)
+                                            </a>
+                                        @endif
                                     @endif
                                     @if(in_array(auth()->user()->role_id, $all_ids))
                                     <a href="{{ route('tour.itinerary', ['tourId' => Crypt::encrypt($tour->tour_id)]) }}" 
@@ -1100,29 +1081,30 @@
                                         <i class="fas fa-calendar-alt"></i> View Itinerary
                                     </a>
                                     @endif
-                                    @if(auth()->user()->role_id == 33 || auth()->user()->role_id == 34 ||auth()->user()->role_id == 37 || auth()->user()->role_id == 38 ||auth()->user()->role_id == 124 || auth()->user()->role_id == 125||auth()->user()->role_id == 11 || in_array(auth()->user()->role_id, [128, 129, 130, 131, 132, 134, 135, 136, 137, 138]))
-                                    <a href="{{ route('tour.editpackage', Crypt::encrypt($tour->tour_id)) }}" 
-                                       class="btn btn-outline-warning btn-sm rounded-pill">
-                                        <i class="ri-settings-3-line"></i> Add/Remove Services
-                                    </a>
-                                    @endif
                                     @if(auth()->user()->role_id == 33 ||auth()->user()->role_id == 11 || auth()->user()->role_id == 34 ||auth()->user()->role_id == 37 || auth()->user()->role_id == 38 ||auth()->user()->role_id == 124 || auth()->user()->role_id == 125 || in_array(auth()->user()->role_id, [128, 129, 130, 131, 132, 134, 135, 136, 137, 138]))
+                                        <a href="{{ route('tour.editpackage', Crypt::encrypt($tour->tour_id)) }}" 
+                                        class="btn btn-outline-warning btn-sm rounded-pill">
+                                            <i class="ri-settings-3-line"></i> Add/Remove Services
+                                        </a>
+                                    @endif
+
+                                    @if(auth()->user()->role_id == 33 ||auth()->user()->role_id == 11 || auth()->user()->role_id == 34 ||auth()->user()->role_id == 37 || auth()->user()->role_id == 38 ||auth()->user()->role_id == 124 || auth()->user()->role_id == 125 || in_array(auth()->user()->role_id, [128, 129, 130,131, 132, 134, 135, 136, 137, 138]))
                                     <a href="{{ route('guests.index', ['tour_id' => Crypt::encrypt($tour->tour_id)]) }}" 
                                        class="btn btn-outline-info btn-sm rounded-pill" 
                                        title="Add guests for this tour">
                                         <i class="ri-user-add-line me-1"></i> Add Guests
                                     </a>
-                                    <button type="button" 
+                                    <button onclick="cancelTour('{{ Crypt::encrypt($tour->tour_id) }}', '{{ $tour->display_id }}')" 
                                             class="btn btn-outline-danger btn-sm rounded-pill" 
-                                            onclick="cancelDefinite('{{ Crypt::encrypt($tour->tour_id) }}', '{{ $tour->display_id }}')">
-                                        <i class="ri-close-line"></i> Cancel
+                                            id="cancel-btn-{{ $tour->tour_id }}">
+                                        <i class="ri-delete-bin-line"></i> Cancel
                                     </button>
                                     @endif
                                     @if(auth()->user()->role_id == 36 || auth()->user()->role_id == 126 || auth()->user()->role_id == 127 || auth()->user()->role_id == 124 || auth()->user()->role_id == 125)
                                         <button type="button" class="btn btn-sm btn-info" data-bs-toggle="modal" data-bs-target="#showPaymentModal{{ $tour->tour_id }}">
                                             <i class="fas fa-history me-1"></i> Payment Details
                                         </button>
-                                    @else  
+                                    @else
                                         @if(!empty($paymentData))
                                             <button type="button" class="btn btn-sm btn-info" data-bs-toggle="modal" data-bs-target="#showPaymentModal{{ $tour->tour_id }}">
                                                 <i class="fas fa-history me-1"></i> Payment Details
@@ -1136,7 +1118,7 @@
                                                 </button>
                                             @endif
                                         @endif
-                                    @endif
+                                @endif
                                 </div>
                             </td>
                             <td>
@@ -1300,7 +1282,55 @@
                                     </div>
                                     
                                     <div class="card-body p-4" style="background-color: #f8f9fa;">
-                                     
+                                        <!-- Guest Information -->
+                                        <div class="row mb-4">
+                                            <div class="col-md-6">
+                                                <div class="bg-white rounded p-3 shadow-sm h-100">
+                                                    <div class="d-flex align-items-center mb-3">
+                                                        <div class="bg-primary rounded-circle p-2 me-3">
+                                                            <i class="ri-user-line text-white"></i>
+                                                        </div>
+                                                        <h6 class="fw-bold mb-0 text-dark">Customer Details</h6>
+                                                    </div>
+                                                    <div class="mb-2">
+                                                        <small class="text-muted">Full Name</small>
+                                                        <div class="fw-medium">{{ $booking['fullName'] ?? 'N/A' }}</div>
+                                                    </div>
+                                                    <div class="mb-2">
+                                                        <small class="text-muted">Email Address</small>
+                                                        <div class="fw-medium text-primary">{{ $booking['email'] ?? 'N/A' }}</div>
+                                                    </div>
+                                                    <div class="mb-0">
+                                                        <small class="text-muted">Phone Number</small>
+                                                        <div class="fw-medium">{{ $booking['countryCode'] ?? '' }} {{ $booking['phone'] ?? 'N/A' }}</div>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                            <div class="col-md-6">
+                                                <div class="bg-white rounded p-3 shadow-sm h-100">
+                                                    <div class="d-flex align-items-center mb-3">
+                                                        <div class="bg-info rounded-circle p-2 me-3">
+                                                            <i class="ri-map-pin-line text-white"></i>
+                                                        </div>
+                                                        <h6 class="fw-bold mb-0 text-dark">Address</h6>
+                                                    </div>
+                                                    <div class="text-muted">
+                                                        @if($booking['address1'] ?? false)
+                                                            <div>{{ $booking['address1'] }}</div>
+                                                        @endif
+                                                        @if($booking['address2'] ?? false)
+                                                            <div>{{ $booking['address2'] }}</div>
+                                                        @endif
+                                                        @if($booking['state'] ?? false)
+                                                            <div>{{ $booking['state'] }} {{ $booking['zip'] ?? '' }}</div>
+                                                        @endif
+                                                        @if(!($booking['address1'] ?? false) && !($booking['address2'] ?? false) && !($booking['state'] ?? false))
+                                                            <div class="text-muted">Address not provided</div>
+                                                        @endif
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        </div>
 
                                         <!-- Stay Information -->
                                         <div class="row mb-4">
@@ -1509,6 +1539,95 @@
                                             </div>
                                         @endif
 
+                                        <!-- Transfer Options -->
+                                        @if(isset($booking['transfer_options']) && is_array($booking['transfer_options']) && isset($booking['transfer_options']['transfer_required']) && ($booking['transfer_options']['transfer_required'] === true || $booking['transfer_options']['transfer_required'] === 'true' || $booking['transfer_options']['transfer_required'] === 'Yes'))
+                                            <div class="bg-white rounded p-3 shadow-sm mb-4">
+                                                <div class="d-flex align-items-center mb-3">
+                                                    <div class="bg-success rounded-circle p-2 me-3">
+                                                        <i class="ri-car-line text-white"></i>
+                                                    </div>
+                                                    <h6 class="fw-bold mb-0 text-dark">Transfer Details</h6>
+                                                </div>
+                                                
+                                                <div class="row">
+                                                    <div class="col-md-6 mb-3">
+                                                        <div class="bg-light rounded p-3 h-100">
+                                                            <div class="mb-2">
+                                                                <small class="text-muted d-block">Transfer Type</small>
+                                                                <div class="fw-medium">
+                                                                    <span class="badge bg-primary">{{ $booking['transfer_options']['type'] ?? 'N/A' }}</span>
+                                                                </div>
+                                                            </div>
+                                                            <div class="mb-2">
+                                                                <small class="text-muted d-block">Transfer Way</small>
+                                                                <div class="fw-medium">
+                                                                    <span class="badge bg-info">{{ $booking['transfer_options']['way'] ?? 'N/A' }}</span>
+                                                                </div>
+                                                            </div>
+                                                            @if(isset($booking['transfer_options']['destination_name']) && !empty($booking['transfer_options']['destination_name']))
+                                                            <div class="mb-0">
+                                                                <small class="text-muted d-block">Destination</small>
+                                                                <div class="fw-medium text-primary">
+                                                                    <i class="ri-map-pin-line me-1"></i>{{ $booking['transfer_options']['destination_name'] }}
+                                                                </div>
+                                                            </div>
+                                                            @endif
+                                                        </div>
+                                                    </div>
+                                                    
+                                                    <div class="col-md-6 mb-3">
+                                                        <div class="bg-light rounded p-3 h-100">
+                                                            @if(isset($booking['transfer_options']['vehicle_details']) && is_array($booking['transfer_options']['vehicle_details']))
+                                                                <div class="mb-2">
+                                                                    <small class="text-muted d-block">Vehicle</small>
+                                                                    <div class="fw-medium">
+                                                                        <i class="ri-car-line me-1"></i>{{ $booking['transfer_options']['vehicle_details']['vehicle_name'] ?? 'N/A' }}
+                                                                    </div>
+                                                                    @if(isset($booking['transfer_options']['vehicle_details']['vehicle_type']))
+                                                                        <small class="text-muted">Type: {{ $booking['transfer_options']['vehicle_details']['vehicle_type'] }}</small>
+                                                                    @endif
+                                                                </div>
+                                                                @if(isset($booking['transfer_options']['vehicle_details']['seating_capacity']))
+                                                                <div class="mb-2">
+                                                                    <small class="text-muted d-block">Seating Capacity</small>
+                                                                    <div class="fw-medium">
+                                                                        <i class="ri-user-line me-1"></i>{{ $booking['transfer_options']['vehicle_details']['seating_capacity'] }} passengers
+                                                                    </div>
+                                                                </div>
+                                                                @endif
+                                                            @elseif(isset($booking['transfer_options']['vehicle_id']))
+                                                                <div class="mb-2">
+                                                                    <small class="text-muted d-block">Vehicle ID</small>
+                                                                    <div class="fw-medium">{{ $booking['transfer_options']['vehicle_id'] }}</div>
+                                                                </div>
+                                                            @endif
+                                                            
+                                                            @if(isset($booking['transfer_options']['cost']) && $booking['transfer_options']['cost'] > 0)
+                                                            <div class="mb-0">
+                                                                <small class="text-muted d-block">Transfer Cost</small>
+                                                                <div class="fs-5 fw-bold text-success">
+                                                                    <i class="ri-money-dollar-circle-line me-1"></i>SGD {{ number_format($booking['transfer_options']['cost'], 2) }}
+                                                                </div>
+                                                            </div>
+                                                            @endif
+                                                        </div>
+                                                    </div>
+                                                </div>
+                                                
+                                                @if(isset($booking['transfer_options']['pickup_location_name']) && !empty($booking['transfer_options']['pickup_location_name']))
+                                                <div class="bg-info bg-opacity-10 rounded p-3 mt-3">
+                                                    <div class="d-flex align-items-center">
+                                                        <i class="ri-map-pin-2-line text-info me-2 fs-5"></i>
+                                                        <div>
+                                                            <small class="text-muted d-block">Pickup Location</small>
+                                                            <div class="fw-medium text-info">{{ $booking['transfer_options']['pickup_location_name'] }}</div>
+                                                        </div>
+                                                    </div>
+                                                </div>
+                                                @endif
+                                            </div>
+                                        @endif
+
                                         <!-- Special Requests -->
                                         @if(isset($booking['specialRequests']) && !empty($booking['specialRequests']))
                                             <div class="bg-white rounded p-3 shadow-sm">
@@ -1539,18 +1658,34 @@
                                                 @if($hotelOrder->is_approve != 1 && (auth()->user()->role_id == 11 || auth()->user()->role_id == 34 || auth()->user()->role_id == 33 || auth()->user()->role_id == 37 || auth()->user()->role_id == 38 || auth()->user()->role_id == 124 || auth()->user()->role_id == 125 || auth()->user()->role_id == 128 || auth()->user()->role_id == 129 || auth()->user()->role_id == 130 || auth()->user()->role_id == 131 || auth()->user()->role_id == 132 || auth()->user()->role_id == 134 || auth()->user()->role_id == 135 || auth()->user()->role_id == 136 || auth()->user()->role_id == 137 || auth()->user()->role_id == 138))
                                                 <div class="d-flex gap-2">
                                                     @if(auth()->user()->role_id == 11 || auth()->user()->role_id == 34 || auth()->user()->role_id == 124 || auth()->user()->role_id == 125 || auth()->user()->role_id == 128 || auth()->user()->role_id == 131 || auth()->user()->role_id == 132 || auth()->user()->role_id == 134 || auth()->user()->role_id == 135 || auth()->user()->role_id == 137 || auth()->user()->role_id == 138)
-                                                    <button type="button" class="btn btn-sm btn-outline-primary px-3" onclick="editIndividualHotel({{ $tour->tour_id }}, {{ $hotelOrderIndex }}, {{ $bookingIndex }})" title="Edit this hotel booking">
+                                                    @php 
+                                                    $actualCancelDateStr = $tour->auto_cancel_date 
+                                                        ? \Carbon\Carbon::parse($tour->auto_cancel_date)->format('Y-m-d')
+                                                        : '';
+                                                    @endphp
+                                                    <button type="button" class="btn btn-sm btn-outline-primary px-3" onclick="editIndividualHotel({{ $tour->tour_id }}, {{ $hotelOrderIndex }}, {{ $bookingIndex }}, '{{$actualCancelDateStr}}')" title="Edit this hotel booking">
                                                         <i class="ri-edit-line me-1"></i>Edit
                                                     </button>
                                                     <button type="button" class="btn btn-sm btn-outline-info px-3" onclick="openHotelMailPreview({{ $tour->tour_id }}, {{ $hotelOrderIndex }}, {{ $bookingIndex }})" title="Preview email for this hotel booking">
                                                         <i class="ri-mail-line me-1"></i>Mail Preview
                                                     </button>
-                                                    <button type="button" class="btn btn-sm btn-outline-success px-3" onclick="approveIndividualHotel({{ $tour->tour_id }}, {{ $hotelOrderIndex }}, {{ $bookingIndex }})" title="Approve this hotel booking">
+                                                    @php 
+                                                    $actualCancelDateStr = $tour->auto_cancel_date 
+                                                        ? \Carbon\Carbon::parse($tour->auto_cancel_date)->format('Y-m-d')
+                                                        : '';
+
+                                                    @endphp
+                                                    <button type="button" class="btn btn-sm btn-outline-success px-3" onclick="approveIndividualHotel({{ $tour->tour_id }}, {{ $hotelOrderIndex }}, {{ $bookingIndex }}, '{{addslashes($actualCancelDateStr)}}')" title="Approve this hotel booking">
                                                         <i class="ri-check-line me-1"></i>Approve
                                                     </button>
                                                     @endif
                                                     @if(auth()->user()->role_id == 11 || auth()->user()->role_id == 34 || auth()->user()->role_id == 33 || auth()->user()->role_id == 37 || auth()->user()->role_id == 38 || auth()->user()->role_id == 124 || auth()->user()->role_id == 125 || auth()->user()->role_id == 128 || auth()->user()->role_id == 129 || auth()->user()->role_id == 130 || auth()->user()->role_id == 131 || auth()->user()->role_id == 132 || auth()->user()->role_id == 134 || auth()->user()->role_id == 135 || auth()->user()->role_id == 136 || auth()->user()->role_id == 137 || auth()->user()->role_id == 138)
-                                                    <button type="button" class="btn btn-sm btn-outline-danger px-3" onclick="rejectIndividualHotel({{ $tour->tour_id }}, {{ $hotelOrderIndex }}, {{ $bookingIndex }})" title="Reject this hotel booking">
+                                                    @php 
+                                                    $actualCancelDateStr = $tour->auto_cancel_date 
+                                                        ? \Carbon\Carbon::parse($tour->auto_cancel_date)->format('Y-m-d')
+                                                        : '';
+                                                    @endphp
+                                                    <button type="button" class="btn btn-sm btn-outline-danger px-3" onclick="rejectIndividualHotel({{ $tour->tour_id }}, {{ $hotelOrderIndex }}, {{ $bookingIndex }}, '{{$actualCancelDateStr}}')" title="Reject this hotel booking">
                                                         <i class="ri-close-line me-1"></i>Reject
                                                     </button>
                                                     @endif
@@ -1837,8 +1972,55 @@
                                     </div>
                                     
                                     <div class="card-body p-4" style="background-color: #f8f9fa;">
-                                  
-                                       
+                                        <!-- Guest Information -->
+                                        <div class="row mb-4">
+                                            <div class="col-md-6">
+                                                <div class="bg-white rounded p-3 shadow-sm h-100">
+                                                    <div class="d-flex align-items-center mb-3">
+                                                        <div class="bg-primary rounded-circle p-2 me-3">
+                                                            <i class="ri-user-line text-white"></i>
+                                                        </div>
+                                                        <h6 class="fw-bold mb-0 text-dark">Customer Details</h6>
+                                                    </div>
+                                                    <div class="mb-2">
+                                                        <small class="text-muted">Full Name</small>
+                                                        <div class="fw-medium">{{ $booking['fullName'] ?? 'N/A' }}</div>
+                                                    </div>
+                                                    <div class="mb-2">
+                                                        <small class="text-muted">Email Address</small>
+                                                        <div class="fw-medium text-primary">{{ $booking['email'] ?? 'N/A' }}</div>
+                                                    </div>
+                                                    <div class="mb-0">
+                                                        <small class="text-muted">Phone Number</small>
+                                                        <div class="fw-medium">{{ $booking['countryCode'] ?? '' }} {{ $booking['phone'] ?? 'N/A' }}</div>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                            <div class="col-md-6">
+                                                <div class="bg-white rounded p-3 shadow-sm h-100">
+                                                    <div class="d-flex align-items-center mb-3">
+                                                        <div class="bg-info rounded-circle p-2 me-3">
+                                                            <i class="ri-map-pin-line text-white"></i>
+                                                        </div>
+                                                        <h6 class="fw-bold mb-0 text-dark">Address</h6>
+                                                    </div>
+                                                    <div class="text-muted">
+                                                        @if($booking['address1'] ?? false)
+                                                            <div>{{ $booking['address1'] }}</div>
+                                                        @endif
+                                                        @if($booking['address2'] ?? false)
+                                                            <div>{{ $booking['address2'] }}</div>
+                                                        @endif
+                                                        @if($booking['state'] ?? false)
+                                                            <div>{{ $booking['state'] }} {{ $booking['zip'] ?? '' }}</div>
+                                                        @endif
+                                                        @if(!($booking['address1'] ?? false) && !($booking['address2'] ?? false) && !($booking['state'] ?? false))
+                                                            <div class="text-muted">Address not provided</div>
+                                                        @endif
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        </div>
 
                                         <!-- Visit & Booking Information -->
                                         <div class="row mb-4">
@@ -2003,6 +2185,176 @@
                                         </div>
                                         @endif
 
+                                        <!-- Transfer Options -->
+                                        @if(isset($booking['transfer_options']) && is_array($booking['transfer_options']) && isset($booking['transfer_options']['transfer_required']) && ($booking['transfer_options']['transfer_required'] === true || $booking['transfer_options']['transfer_required'] === 'true' || $booking['transfer_options']['transfer_required'] === 'Yes'))
+                                            <div class="bg-white rounded p-3 shadow-sm mb-4">
+                                                <div class="d-flex align-items-center mb-3">
+                                                    <div class="bg-success rounded-circle p-2 me-3">
+                                                        <i class="ri-car-line text-white"></i>
+                                                    </div>
+                                                    <h6 class="fw-bold mb-0 text-dark">Transfer Details</h6>
+                                                </div>
+                                                
+                                                <div class="row">
+                                                    <div class="col-md-6 mb-3">
+                                                        <div class="bg-light rounded p-3 h-100">
+                                                            <div class="mb-2">
+                                                                <small class="text-muted d-block">Transfer Type</small>
+                                                                <div class="fw-medium">
+                                                                    <span class="badge bg-primary">{{ $booking['transfer_options']['type'] ?? 'N/A' }}</span>
+                                                                </div>
+                                                            </div>
+                                                            <div class="mb-2">
+                                                                <small class="text-muted d-block">Transfer Way</small>
+                                                                <div class="fw-medium">
+                                                                    <span class="badge bg-info">{{ $booking['transfer_options']['way'] ?? 'N/A' }}</span>
+                                                                </div>
+                                                            </div>
+                                                            @if(isset($booking['transfer_options']['pickup_location_name']) && !empty($booking['transfer_options']['pickup_location_name']))
+                                                            <div class="mb-0">
+                                                                <small class="text-muted d-block">Pickup Location</small>
+                                                                <div class="fw-medium text-primary">
+                                                                    <i class="ri-map-pin-line me-1"></i>{{ $booking['transfer_options']['pickup_location_name'] }}
+                                                                </div>
+                                                            </div>
+                                                            @endif
+                                                        </div>
+                                                    </div>
+                                                    
+                                                    <div class="col-md-6 mb-3">
+                                                        <div class="bg-light rounded p-3 h-100">
+                                                            @if(isset($booking['transfer_options']['vehicle_details']) && is_array($booking['transfer_options']['vehicle_details']))
+                                                                <div class="mb-2">
+                                                                    <small class="text-muted d-block">Vehicle</small>
+                                                                    <div class="fw-medium">
+                                                                        <i class="ri-car-line me-1"></i>{{ $booking['transfer_options']['vehicle_details']['vehicle_name'] ?? 'N/A' }}
+                                                                    </div>
+                                                                    @if(isset($booking['transfer_options']['vehicle_details']['vehicle_type']))
+                                                                        <small class="text-muted">Type: {{ $booking['transfer_options']['vehicle_details']['vehicle_type'] }}</small>
+                                                                    @endif
+                                                                </div>
+                                                                @if(isset($booking['transfer_options']['vehicle_details']['seating_capacity']))
+                                                                <div class="mb-2">
+                                                                    <small class="text-muted d-block">Seating Capacity</small>
+                                                                    <div class="fw-medium">
+                                                                        <i class="ri-user-line me-1"></i>{{ $booking['transfer_options']['vehicle_details']['seating_capacity'] }} passengers
+                                                                    </div>
+                                                                </div>
+                                                                @endif
+                                                            @elseif(isset($booking['transfer_options']['vehicle_id']))
+                                                                <div class="mb-2">
+                                                                    <small class="text-muted d-block">Vehicle ID</small>
+                                                                    <div class="fw-medium">{{ $booking['transfer_options']['vehicle_id'] }}</div>
+                                                                </div>
+                                                            @endif
+                                                            
+                                                            @if(isset($booking['transfer_options']['cost']) && $booking['transfer_options']['cost'] > 0)
+                                                            <div class="mb-0">
+                                                                <small class="text-muted d-block">Transfer Cost</small>
+                                                                <div class="fs-5 fw-bold text-success">
+                                                                    <i class="ri-money-dollar-circle-line me-1"></i>SGD {{ number_format($booking['transfer_options']['cost'], 2) }}
+                                                                </div>
+                                                            </div>
+                                                            @endif
+                                                        </div>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        @endif
+
+                                        <!-- Guide Options -->
+                                        @if(isset($booking['guide_options']) && is_array($booking['guide_options']) && isset($booking['guide_options']['guide_required']) && ($booking['guide_options']['guide_required'] === true || $booking['guide_options']['guide_required'] === 'true' || $booking['guide_options']['guide_required'] === 'Yes'))
+                                            <div class="bg-white rounded p-3 shadow-sm mb-4">
+                                                <div class="d-flex align-items-center mb-3">
+                                                    <div class="bg-info rounded-circle p-2 me-3">
+                                                        <i class="ri-user-star-line text-white"></i>
+                                                    </div>
+                                                    <h6 class="fw-bold mb-0 text-dark">Guide Details</h6>
+                                                </div>
+                                                
+                                                <div class="row">
+                                                    <div class="col-md-6 mb-3">
+                                                        <div class="bg-light rounded p-3 h-100">
+                                                            <div class="mb-2">
+                                                                <small class="text-muted d-block">Guide Name</small>
+                                                                <div class="fw-medium text-primary">
+                                                                    <i class="ri-user-line me-1"></i>{{ $booking['guide_options']['guide_name'] ?? 'N/A' }}
+                                                                </div>
+                                                            </div>
+                                                            <div class="mb-2">
+                                                                <small class="text-muted d-block">Package Duration</small>
+                                                                <div class="fw-medium">
+                                                                    <span class="badge bg-info">{{ $booking['guide_options']['package_hours'] ?? 'N/A' }} Hours</span>
+                                                                </div>
+                                                            </div>
+                                                            @if(isset($booking['guide_options']['pickup_time']) && !empty($booking['guide_options']['pickup_time']))
+                                                            <div class="mb-0">
+                                                                <small class="text-muted d-block">Pickup Time</small>
+                                                                <div class="fw-medium text-success">
+                                                                    @php
+                                                                        $displayPickupTime = $booking['guide_options']['pickup_time'] ?? '';
+                                                                        if (str_contains($displayPickupTime, ' - ')) {
+                                                                            $parts = explode(' - ', $displayPickupTime);
+                                                                            $displayPickupTime = $parts[0]; // Take the first time if it's a range
+                                                                        }
+                                                                        $formattedPickupTime = $displayPickupTime; // Default to original if parsing fails
+                                                                        if (!empty($displayPickupTime)) {
+                                                                            try {
+                                                                                // Try parsing as 24-hour format (H:i)
+                                                                                $timeObj = \Carbon\Carbon::createFromFormat('H:i', $displayPickupTime);
+                                                                                $formattedPickupTime = $timeObj->format('h:i A');
+                                                                            } catch (\Exception $e) {
+                                                                                try {
+                                                                                    // Try parsing as 12-hour format (h:i A)
+                                                                                    $timeObj = \Carbon\Carbon::createFromFormat('h:i A', $displayPickupTime);
+                                                                                    $formattedPickupTime = $timeObj->format('h:i A');
+                                                                                } catch (\Exception $e2) {
+                                                                                    try {
+                                                                                        // Try general parse
+                                                                                        $timeObj = \Carbon\Carbon::parse($displayPickupTime);
+                                                                                        $formattedPickupTime = $timeObj->format('h:i A');
+                                                                                    } catch (\Exception $e3) {
+                                                                                        // Keep original if all parsing fails
+                                                                                    }
+                                                                                }
+                                                                            }
+                                                                        }
+                                                                    @endphp
+                                                                    <i class="ri-time-line me-1"></i>{{ $formattedPickupTime }}
+                                                                </div>
+                                                            </div>
+                                                            @endif
+                                                        </div>
+                                                    </div>
+                                                    
+                                                    <div class="col-md-6 mb-3">
+                                                        <div class="bg-light rounded p-3 h-100">
+                                                            <div class="mb-2">
+                                                                <small class="text-muted d-block">Base Price</small>
+                                                                <div class="fw-medium text-primary">
+                                                                    <i class="ri-money-dollar-circle-line me-1"></i>SGD {{ number_format($booking['guide_options']['base_price'] ?? 0, 2) }}
+                                                                </div>
+                                                            </div>
+                                                            @if(isset($booking['guide_options']['surcharge']) && $booking['guide_options']['surcharge'] > 0)
+                                                            <div class="mb-2">
+                                                                <small class="text-muted d-block">Night Surcharge</small>
+                                                                <div class="fw-medium text-warning">
+                                                                    <i class="ri-moon-line me-1"></i>SGD {{ number_format($booking['guide_options']['surcharge'], 2) }}
+                                                                </div>
+                                                            </div>
+                                                            @endif
+                                                            <div class="mb-0">
+                                                                <small class="text-muted d-block">Total Guide Cost</small>
+                                                                <div class="fs-5 fw-bold text-success">
+                                                                    <i class="ri-money-dollar-circle-line me-1"></i>SGD {{ number_format($booking['guide_options']['total_price'] ?? 0, 2) }}
+                                                                </div>
+                                                            </div>
+                                                        </div>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        @endif
+
                                         <!-- Special Requests -->
                                         @if(isset($booking['specialRequests']) && !empty($booking['specialRequests']))
                                             <div class="bg-white rounded p-3 shadow-sm mb-4">
@@ -2036,13 +2388,14 @@
                                                             style="border-radius: 25px;">
                                                         <i class="ri-edit-line me-1"></i>Edit
                                                     </button>
-                                                    @php $actualCancelDateStr = $tour->auto_cancel_date 
-                                                                    ? \Carbon\Carbon::parse($tour->auto_cancel_date)->format('Y-m-d')
-                                                                    : '';
-                                                                @endphp
+                                                    @php
+                                                     $actualCancelDateStr = $tour->auto_cancel_date 
+                                                        ? \Carbon\Carbon::parse($tour->auto_cancel_date)->format('Y-m-d')
+                                                        : '';
+                                                    @endphp
                                                     <button type="button" 
                                                             class="btn btn-outline-success btn-sm px-3 py-2" 
-                                                            onclick="console.log('🎯 BUTTON CLICKED - Attraction Approve'); window.approveIndividualAttraction ? window.approveIndividualAttraction({{ $tour->tour_id }}, {{ $index }}, {{ $bookingIndex }}, '{{$actualCancelDateStr}}') : approveIndividualAttraction({{ $tour->tour_id }}, {{ $index }}, {{ $bookingIndex }}, '{{$actualCancelDateStr}}')"
+                                                            onclick="console.log('🎯 BUTTON CLICKED - Attraction Approve'); window.approveIndividualAttraction ? window.approveIndividualAttraction({{ $tour->tour_id }}, {{ $index }}, {{ $bookingIndex }}, '{{ $actualCancelDateStr }}') : approveIndividualAttraction({{ $tour->tour_id }}, {{ $index }}, {{ $bookingIndex }}, '{{ $actualCancelDateStr }}')"
                                                             style="border-radius: 25px;">
                                                         <i class="ri-check-line me-1"></i>Approve
                                                     </button>
@@ -2146,7 +2499,67 @@
                                     
                                     <div class="card-body p-4" style="background-color: #f8f9fa;">
                                         <!-- Guest Information -->
-                                        
+                                        <div class="row mb-4">
+                                            <div class="col-md-6">
+                                                <div class="bg-white rounded p-3 shadow-sm h-100">
+                                                    <div class="d-flex align-items-center mb-3">
+                                                        <div class="bg-primary rounded-circle p-2 me-3">
+                                                            <i class="ri-user-line text-white"></i>
+                                                        </div>
+                                                        <h6 class="fw-bold mb-0 text-dark">Customer Details</h6>
+                                                    </div>
+                                                    <div class="mb-2">
+                                                        <small class="text-muted">Full Name</small>
+                                                        <div class="fw-medium">{{ $booking['fullName'] ?? 'N/A' }}</div>
+                                                    </div>
+                                                    <div class="mb-2">
+                                                        <small class="text-muted">Email Address</small>
+                                                        <div class="fw-medium text-primary">{{ $booking['email'] ?? 'N/A' }}</div>
+                                                    </div>
+                                                    <div class="mb-0">
+                                                        <small class="text-muted">Phone Number</small>
+                                                        <div class="fw-medium">{{ $booking['countryCode'] ?? '' }} {{ $booking['phone'] ?? 'N/A' }}</div>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                            <div class="col-md-6">
+                                                <div class="bg-white rounded p-3 shadow-sm h-100">
+                                                    <div class="d-flex align-items-center mb-3">
+                                                        <div class="bg-warning rounded-circle p-2 me-3">
+                                                            <i class="ri-calendar-line text-white"></i>
+                                                        </div>
+                                                        <h6 class="fw-bold mb-0 text-dark">Reservation Details</h6>
+                                                    </div>
+                                                    <div class="mb-3">
+                                                        <small class="text-muted">Dining Date</small>
+                                                        <div class="fw-bold text-success fs-5">{{ \Carbon\Carbon::parse($booking['bookingDate'])->format('D, M d, Y') }}</div>
+                                                    </div>
+                                                    <div class="mb-3">
+                                                        <small class="text-muted">Dining Time</small>
+                                                        <div class="fw-medium text-primary">{{ $booking['visitTime'] ?? 'Time to be confirmed' }}</div>
+                                                    </div>
+                                                    <div class="row">
+                                                        <div class="col-6 text-center">
+                                                            <div class="bg-light rounded p-2">
+                                                                <div class="fs-4 fw-bold text-success">{{ $booking['adultCount'] ?? 0 }}</div>
+                                                                <small class="text-muted">Adults</small>
+                                                            </div>
+                                                        </div>
+                                                        <div class="col-6 text-center">
+                                                            <div class="bg-light rounded p-2">
+                                                                <div class="fs-4 fw-bold text-warning">{{ $booking['childCount'] ?? 0 }}</div>
+                                                                <small class="text-muted">Children</small>
+                                                            </div>
+                                                        </div>
+                                                    </div>
+                                                    <div class="text-center mt-2">
+                                                        <span class="badge bg-primary px-3 py-2">
+                                                            Party of {{ ($booking['adultCount'] ?? 0) + ($booking['childCount'] ?? 0) }}
+                                                        </span>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        </div>
 
                                         <!-- Restaurant Overview -->
                                         <div class="bg-white rounded p-3 shadow-sm mb-4">
@@ -2381,6 +2794,83 @@
                                         </div>
                                         @endif
 
+                                        <!-- Transfer Options -->
+                                        @if(isset($booking['transfer_options']) && is_array($booking['transfer_options']) && isset($booking['transfer_options']['transfer_required']) && ($booking['transfer_options']['transfer_required'] === true || $booking['transfer_options']['transfer_required'] === 'true' || $booking['transfer_options']['transfer_required'] === 'Yes'))
+                                            <div class="bg-white rounded p-3 shadow-sm mb-4">
+                                                <div class="d-flex align-items-center mb-3">
+                                                    <div class="bg-success rounded-circle p-2 me-3">
+                                                        <i class="ri-car-line text-white"></i>
+                                                    </div>
+                                                    <h6 class="fw-bold mb-0 text-dark">Transfer Details</h6>
+                                                </div>
+                                                
+                                                <div class="row">
+                                                    <div class="col-md-6 mb-3">
+                                                        <div class="bg-light rounded p-3 h-100">
+                                                            <div class="mb-2">
+                                                                <small class="text-muted d-block">Transfer Type</small>
+                                                                <div class="fw-medium">
+                                                                    <span class="badge bg-primary">{{ $booking['transfer_options']['type'] ?? 'N/A' }}</span>
+                                                                </div>
+                                                            </div>
+                                                            <div class="mb-2">
+                                                                <small class="text-muted d-block">Transfer Way</small>
+                                                                <div class="fw-medium">
+                                                                    <span class="badge bg-info">{{ $booking['transfer_options']['way'] ?? 'N/A' }}</span>
+                                                                </div>
+                                                            </div>
+                                                            @if(isset($booking['transfer_options']['pickup_location_name']) && !empty($booking['transfer_options']['pickup_location_name']))
+                                                            <div class="mb-0">
+                                                                <small class="text-muted d-block">Pickup Location</small>
+                                                                <div class="fw-medium text-primary">
+                                                                    <i class="ri-map-pin-line me-1"></i>{{ $booking['transfer_options']['pickup_location_name'] }}
+                                                                </div>
+                                                            </div>
+                                                            @endif
+                                                        </div>
+                                                    </div>
+                                                    
+                                                    <div class="col-md-6 mb-3">
+                                                        <div class="bg-light rounded p-3 h-100">
+                                                            @if(isset($booking['transfer_options']['vehicle_details']) && is_array($booking['transfer_options']['vehicle_details']))
+                                                                <div class="mb-2">
+                                                                    <small class="text-muted d-block">Vehicle</small>
+                                                                    <div class="fw-medium">
+                                                                        <i class="ri-car-line me-1"></i>{{ $booking['transfer_options']['vehicle_details']['vehicle_name'] ?? 'N/A' }}
+                                                                    </div>
+                                                                    @if(isset($booking['transfer_options']['vehicle_details']['vehicle_type']))
+                                                                        <small class="text-muted">Type: {{ $booking['transfer_options']['vehicle_details']['vehicle_type'] }}</small>
+                                                                    @endif
+                                                                </div>
+                                                                @if(isset($booking['transfer_options']['vehicle_details']['seating_capacity']))
+                                                                <div class="mb-2">
+                                                                    <small class="text-muted d-block">Seating Capacity</small>
+                                                                    <div class="fw-medium">
+                                                                        <i class="ri-user-line me-1"></i>{{ $booking['transfer_options']['vehicle_details']['seating_capacity'] }} passengers
+                                                                    </div>
+                                                                </div>
+                                                                @endif
+                                                            @elseif(isset($booking['transfer_options']['vehicle_id']))
+                                                                <div class="mb-2">
+                                                                    <small class="text-muted d-block">Vehicle ID</small>
+                                                                    <div class="fw-medium">{{ $booking['transfer_options']['vehicle_id'] }}</div>
+                                                                </div>
+                                                            @endif
+                                                            
+                                                            @if(isset($booking['transfer_options']['cost']) && $booking['transfer_options']['cost'] > 0)
+                                                            <div class="mb-0">
+                                                                <small class="text-muted d-block">Transfer Cost</small>
+                                                                <div class="fs-5 fw-bold text-success">
+                                                                    <i class="ri-money-dollar-circle-line me-1"></i>SGD {{ number_format($booking['transfer_options']['cost'], 2) }}
+                                                                </div>
+                                                            </div>
+                                                            @endif
+                                                        </div>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        @endif
+
                                         <!-- Special Requests -->
                                         @if(isset($booking['specialRequests']) && !empty($booking['specialRequests']))
                                             <div class="bg-white rounded p-3 shadow-sm mb-4">
@@ -2414,9 +2904,13 @@
                                                             style="border-radius: 25px;">
                                                         <i class="ri-edit-line me-1"></i>Edit
                                                     </button>
+                                                    @php $actualCancelDateStr = $tour->auto_cancel_date 
+                                                        ? \Carbon\Carbon::parse($tour->auto_cancel_date)->format('Y-m-d')
+                                                        : '';
+                                                    @endphp
                                                     <button type="button" 
                                                             class="btn btn-outline-success btn-sm px-3 py-2" 
-                                                            onclick="approveIndividualRestaurant({{ $tour->tour_id }}, {{ $index }}, {{ $bookingIndex }})"
+                                                            onclick="approveIndividualRestaurant({{ $tour->tour_id }}, {{ $index }}, {{ $bookingIndex }}, '{{ $actualCancelDateStr }}')"
                                                             style="border-radius: 25px;">
                                                         <i class="ri-check-line me-1"></i>Approve
                                                     </button>
@@ -2424,7 +2918,7 @@
                                                     @if(auth()->user()->role_id == 11 || auth()->user()->role_id == 34 || auth()->user()->role_id == 33 || auth()->user()->role_id == 37 || auth()->user()->role_id == 38 || auth()->user()->role_id == 124 || auth()->user()->role_id == 125 || auth()->user()->role_id == 128 || auth()->user()->role_id == 129 || auth()->user()->role_id == 130 || auth()->user()->role_id == 131 || auth()->user()->role_id == 132 || auth()->user()->role_id == 134 || auth()->user()->role_id == 135 || auth()->user()->role_id == 136 || auth()->user()->role_id == 137 || auth()->user()->role_id == 138)
                                                     <button type="button" 
                                                             class="btn btn-outline-danger btn-sm px-3 py-2" 
-                                                            onclick="rejectIndividualRestaurant({{ $tour->tour_id }}, {{ $index }}, {{ $bookingIndex }})"
+                                                            onclick="rejectIndividualRestaurant({{ $tour->tour_id }}, {{ $index }}, {{ $bookingIndex }}, '{{ $actualCancelDateStr }}')"
                                                             style="border-radius: 25px;">
                                                         <i class="ri-close-line me-1"></i>Reject
                                                     </button>
@@ -2465,21 +2959,20 @@
     <!-- Guide Details Modal -->
     @if(isset($svc['guide']) && $svc['guide'] > 0)
     <div class="modal fade" id="guideDetailsModal{{ $tour->tour_id }}" tabindex="-1" aria-labelledby="guideDetailsModalLabel{{ $tour->tour_id }}" aria-hidden="true" data-bs-backdrop="static" data-bs-keyboard="false">
-        <div class="modal-dialog modal-dialog-centered modal-lg modal-dialog-scrollable">
-            <div class="modal-content shadow-lg border-0" style="border-radius: 12px; overflow: hidden;">
-                <!-- Compact Header -->
-                <div class="modal-header border-0 py-2 px-2" style="background: linear-gradient(135deg, #00cec9 0%, #55a3ff 100%);">
-                    <div class="d-flex align-items-center justify-content-between w-100">
+        <div class="modal-dialog modal-dialog-centered modal-xl modal-dialog-scrollable">
+            <div class="modal-content shadow-lg" style="border-radius: 15px; overflow: hidden;">
+                <div class="modal-header p-0 border-0 position-relative" style="height: 180px; background: linear-gradient(135deg, #00cec9 0%, #55a3ff 100%);">
+                    <div class="position-absolute w-100 h-100 d-flex align-items-center justify-content-between p-4">
                         <div class="text-white">
-                            <h6 class="mb-0 fw-bold" style="font-size: 0.95rem;">
-                                <i class="ri-user-voice-line me-1" style="font-size: 0.9rem;"></i>Guide Bookings - Tour #{{ $tour->tour_id }}
-                            </h6>
+                            <h3 class="mb-1 fw-bold">
+                                <i class="ri-user-voice-line me-2"></i>Guide Bookings
+                            </h3>
+                            <p class="mb-0 opacity-75">Tour #{{ $tour->tour_id }} Guide Details</p>
                         </div>
-                        <button type="button" class="btn-close btn-close-white" onclick="closeServiceModal('guide', {{ $tour->tour_id }})" aria-label="Close" style="font-size: 0.8rem;"></button>
+                        <button type="button" class="btn-close btn-close-white" onclick="closeServiceModal('guide', {{ $tour->tour_id }})" aria-label="Close" style="filter: brightness(0) invert(1); font-size: 1.2rem;"></button>
                     </div>
                 </div>
-                
-                <div class="modal-body p-2" style="background-color: #f8f9fa;">
+                <div class="modal-body p-4" style="background-color: #f8f9fa;">
                     @if(isset($serviceData['guide']) && count($serviceData['guide']) > 0)
                         @foreach($serviceData['guide'] as $index => $guideOrder)
                         @php
@@ -2487,9 +2980,7 @@
                         @endphp
                         
                         @if(is_array($guideData))
-                            @php $actualBookingIndex = 0; @endphp
                             @foreach($guideData as $booking)
-                                @php $bookingIndex = $actualBookingIndex; $actualBookingIndex++; @endphp
                                 <div class="card mb-4 shadow-sm border-0" style="border-radius: 12px; overflow: hidden;">
                                     <div class="card-header border-0" style="background: linear-gradient(90deg, #00cec9 0%, #55a3ff 100%); padding: 20px;">
                                         <div class="row align-items-center">
@@ -2534,10 +3025,6 @@
                                                         <div class="col-6 mb-3">
                                                             <small class="text-muted">Surcharge</small>
                                                             <div class="fw-medium text-warning">SGD {{ number_format($booking['surcharge'] ?? 0, 2) }}</div>
-                                                        </div>
-                                                        <div class="col-6 mb-3">
-                                                            <small class="text-muted">Tax (%)</small>
-                                                            <div class="fw-medium">{{ $booking['Tax'] ?? 0 }}%</div>
                                                         </div>
                                                         {{-- <div class="col-6 mb-3">
                                                             <small class="text-muted">Mode</small>
@@ -2646,14 +3133,6 @@
                                                     </div>
                                                 </div>
                                                 <div class="col-md-3 mb-3">
-                                                    <div class="text-center p-3 border rounded" style="border-color: #17a2b8;">
-                                                        <small class="text-muted d-block">Tax ({{ $booking['Tax'] ?? 0 }}%)</small>
-                                                        <div class="fs-5 fw-bold text-info">
-                                                            SGD {{ number_format((($booking['basePrice'] ?? 0) + ($booking['surcharge'] ?? 0)) * (($booking['Tax'] ?? 0) / 100), 2) }}
-                                                        </div>
-                                                    </div>
-                                                </div>
-                                                <div class="col-md-3 mb-3">
                                                     <div class="text-center p-3 border rounded" style="border-color: #6f42c1; background: linear-gradient(135deg, #f8f9fa, #e9ecef);">
                                                         <small class="text-muted d-block">Total Amount</small>
                                                         <div class="fs-4 fw-bold text-primary">SGD {{ number_format($booking['totalPrice'] ?? 0, 2) }}</div>
@@ -2662,51 +3141,120 @@
                                             </div>
                                         </div>
 
-                                    
-
-                                      
-
-                                        <!-- Booking Status -->
-                                        <div class="bg-light rounded p-1">
-                                            <div class="d-flex align-items-center mb-1">
-                                                <div class="rounded-circle p-1 me-1" style="background: linear-gradient(135deg, #00cec9 0%, #55a3ff 100%); width: 20px; height: 20px; display: flex; align-items: center; justify-content: center;">
-                                                    <i class="ri-settings-line text-white" style="font-size: 0.7rem;"></i>
+                                        <!-- Customer Information -->
+                                        <div class="row mb-4">
+                                            <div class="col-md-6">
+                                                <div class="bg-white rounded p-3 shadow-sm h-100">
+                                                    <div class="d-flex align-items-center mb-3">
+                                                        <div class="bg-primary rounded-circle p-2 me-3">
+                                                            <i class="ri-user-line text-white"></i>
+                                                        </div>
+                                                        <h6 class="fw-bold mb-0 text-dark">Customer Details</h6>
+                                                    </div>
+                                                    <div class="mb-2">
+                                                        <small class="text-muted">Full Name</small>
+                                                        <div class="fw-medium">{{ $booking['fullName'] ?? 'N/A' }}</div>
+                                                    </div>
+                                                    <div class="mb-2">
+                                                        <small class="text-muted">Email</small>
+                                                        <div class="fw-medium text-primary">{{ $booking['email'] ?? 'N/A' }}</div>
+                                                    </div>
+                                                    <div class="mb-0">
+                                                        <small class="text-muted">Phone</small>
+                                                        <div class="fw-medium">{{ $booking['countryCode'] ?? '' }} {{ $booking['phone'] ?? 'N/A' }}</div>
+                                                    </div>
                                                 </div>
-                                                <h6 class="fw-bold mb-0 text-dark" style="font-size: 0.8rem;">Booking Status</h6>
+                                            </div>
+                                            <div class="col-md-6">
+                                                <div class="bg-white rounded p-3 shadow-sm h-100">
+                                                    <div class="d-flex align-items-center mb-3">
+                                                        <div class="bg-info rounded-circle p-2 me-3">
+                                                            <i class="ri-map-pin-line text-white"></i>
+                                                        </div>
+                                                        <h6 class="fw-bold mb-0 text-dark">Address & Location</h6>
+                                                    </div>
+                                                    <div class="mb-2">
+                                                        <small class="text-muted">Pickup Location</small>
+                                                        <div class="fw-medium">{{ $booking['entrypickup'] ?? 'N/A' }}</div>
+                                                    </div>
+                                                    <div class="text-muted">
+                                                        @if($booking['address1'] ?? false)
+                                                            <div>{{ $booking['address1'] }}</div>
+                                                        @endif
+                                                        @if($booking['address2'] ?? false)
+                                                            <div>{{ $booking['address2'] }}</div>
+                                                        @endif
+                                                        @if($booking['state'] ?? false)
+                                                            <div>{{ $booking['state'] }} {{ $booking['zip'] ?? '' }}</div>
+                                                        @endif
+                                                        @if(!($booking['address1'] ?? false) && !($booking['address2'] ?? false) && !($booking['state'] ?? false))
+                                                            <div class="text-muted">Address not provided</div>
+                                                        @endif
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        </div>
+
+                                        <!-- Special Requests -->
+                                        @if(isset($booking['specialRequests']) && !empty($booking['specialRequests']))
+                                            <div class="bg-white rounded p-3 shadow-sm">
+                                                <div class="d-flex align-items-center mb-3">
+                                                    <div class="bg-purple rounded-circle p-2 me-3" style="background-color: #6f42c1;">
+                                                        <i class="ri-message-line text-white"></i>
+                                                    </div>
+                                                    <h6 class="fw-bold mb-0 text-dark">Special Requests</h6>
+                                                </div>
+                                                <div class="bg-light rounded p-3">
+                                                    <p class="mb-0 text-dark">{{ $booking['specialRequests'] }}</p>
+                                                </div>
+                                            </div>
+                                        @endif
+
+                                        <!-- Booking Actions -->
+                                        <div class="bg-white rounded p-3 shadow-sm">
+                                            <div class="d-flex align-items-center mb-3">
+                                                <div class="bg-secondary rounded-circle p-2 me-3">
+                                                    <i class="ri-settings-line text-white"></i>
+                                                </div>
+                                                <h6 class="fw-bold mb-0 text-dark">Booking Actions</h6>
                                             </div>
                                             @if($guideOrder->is_approve == 1)
-                                                <div class="alert alert-success mb-0 py-1 px-2" style="border-radius: 6px; font-size: 0.75rem;">
-                                                    <i class="ri-check-circle-fill me-1" style="font-size: 0.7rem;"></i>
-                                                    <strong>Approved</strong>
+                                                 <div class="alert alert-success mb-0 py-1 px-3" style="border-radius: 25px;">
+                                                     <i class="ri-check-circle-fill me-1"></i>
+                                                     <small><strong>Approved Booking</strong></small>
                                                      @if($guideOrder->reference_id)
-                                                        <span class="ms-1">• Ref: {{ $guideOrder->reference_id }}</span>
+                                                         <br><small class="text-muted">Ref: {{ $guideOrder->reference_id }}</small>
                                                      @endif
                                                      @if($guideOrder->display_due_date)
-                                                        <span class="ms-1">• Due: {{ \Carbon\Carbon::parse($guideOrder->display_due_date)->format('d-m-Y') }}</span>
+                                                         <br><small class="text-muted">Due: {{ $guideOrder->display_due_date }}</small>
                                                      @endif
                                                  </div>
                                              @else
                                                  @if(auth()->user()->role_id == 11 || auth()->user()->role_id == 34 || auth()->user()->role_id == 33 || auth()->user()->role_id == 37 || auth()->user()->role_id == 38 || auth()->user()->role_id == 124 || auth()->user()->role_id == 125 || auth()->user()->role_id == 128 || auth()->user()->role_id == 129 || auth()->user()->role_id == 130 || auth()->user()->role_id == 131 || auth()->user()->role_id == 132 || auth()->user()->role_id == 134 || auth()->user()->role_id == 135 || auth()->user()->role_id == 136 || auth()->user()->role_id == 137 || auth()->user()->role_id == 138)
-                                                <div class="d-flex gap-1 flex-wrap">
+                                                 <div class="d-flex gap-2">
                                                      @if(auth()->user()->role_id == 11 || auth()->user()->role_id == 34 || auth()->user()->role_id == 124 || auth()->user()->role_id == 125 || auth()->user()->role_id == 128 || auth()->user()->role_id == 131 || auth()->user()->role_id == 132 || auth()->user()->role_id == 134 || auth()->user()->role_id == 135 || auth()->user()->role_id == 137 || auth()->user()->role_id == 138)
                                                      <button type="button" 
-                                                            class="btn btn-sm px-2 py-1" 
+                                                             class="btn btn-outline-primary btn-sm px-3 py-2" 
                                                              onclick="editIndividualGuide({{ $tour->tour_id }}, {{ $index }}, {{ $bookingIndex }})"
-                                                            style="border-radius: 6px; background: linear-gradient(135deg, #00cec9 0%, #55a3ff 100%); border: none; color: white; font-size: 0.75rem;">
-                                                        <i class="ri-edit-line me-1" style="font-size: 0.7rem;"></i>Edit
+                                                             style="border-radius: 25px;">
+                                                         <i class="ri-edit-line me-1"></i>Edit
                                                      </button>
+                                                     {{-- <button type="button" 
+                                                             class="btn btn-outline-success btn-sm px-3 py-2" 
+                                                             onclick="approveIndividualGuide({{ $tour->tour_id }}, {{ $index }}, {{ $bookingIndex }}, '{{$actualCancelDateStr}}')"
+                                                             style="border-radius: 25px;">
+                                                         <i class="ri-check-line me-1"></i>Approve
+                                                     </button> --}}
                                                      @endif
                                                      @if(auth()->user()->role_id == 11 || auth()->user()->role_id == 34 || auth()->user()->role_id == 33 || auth()->user()->role_id == 37 || auth()->user()->role_id == 38 || auth()->user()->role_id == 124 || auth()->user()->role_id == 125 || auth()->user()->role_id == 128 || auth()->user()->role_id == 129 || auth()->user()->role_id == 130 || auth()->user()->role_id == 131 || auth()->user()->role_id == 132 || auth()->user()->role_id == 134 || auth()->user()->role_id == 135 || auth()->user()->role_id == 136 || auth()->user()->role_id == 137 || auth()->user()->role_id == 138)
                                                      <button type="button" 
-                                                            class="btn btn-outline-danger btn-sm px-2 py-1" 
+                                                             class="btn btn-outline-danger btn-sm px-3 py-2" 
                                                              onclick="rejectIndividualGuide({{ $tour->tour_id }}, {{ $index }}, {{ $bookingIndex }})"
-                                                            style="border-radius: 6px; font-size: 0.75rem;">
-                                                        <i class="ri-close-line me-1" style="font-size: 0.7rem;"></i>Reject
+                                                             style="border-radius: 25px;">
+                                                         <i class="ri-close-line me-1"></i>Reject
                                                      </button>
                                                      @endif
                                                  </div>
-                                                @else
-                                                <div class="text-muted small" style="font-size: 0.75rem;"><i class="ri-information-line me-1" style="font-size: 0.7rem;"></i>Pending approval</div>
                                                  @endif
                                              @endif
                                         </div>
@@ -2716,23 +3264,22 @@
                         @endif
                         @endforeach
                     @else
-                        <div class="text-center py-4">
-                            <div class="bg-light rounded-circle mx-auto mb-3 d-flex align-items-center justify-content-center" style="width: 80px; height: 80px;">
-                                <i class="ri-user-voice-line text-muted" style="font-size: 2rem;"></i>
+                        <div class="text-center py-5">
+                            <div class="bg-light rounded-circle mx-auto mb-4 d-flex align-items-center justify-content-center" style="width: 100px; height: 100px;">
+                                <i class="ri-user-voice-line ri-48px text-muted"></i>
                             </div>
-                            <h5 class="text-dark mb-2" style="font-size: 1.1rem;">No Guide Data Available</h5>
-                            <p class="text-muted mb-0" style="font-size: 0.9rem;">Guide services are booked but detailed information is not available.</p>
+                            <h4 class="text-dark mb-3">No Guide Data Available</h4>
+                            <p class="text-muted mb-4">Guide services are booked but detailed information is not available.</p>
                         </div>
                     @endif
                 </div>
-                
-                <!-- Compact Footer with Buttons in One Row -->
-                <div class="modal-footer border-0 p-1" style="background: #f8f9fa;">
-                    <div class="d-flex gap-1 w-100 justify-content-end">
-                        <button type="button" class="btn btn-outline-secondary btn-sm px-2 py-1" onclick="closeServiceModal('guide', {{ $tour->tour_id }})" style="border-radius: 6px; font-size: 0.75rem;">
-                            <i class="ri-close-line me-1" style="font-size: 0.7rem;"></i>Close
+                <div class="modal-footer border-0 p-4" style="background: linear-gradient(90deg, #f8f9fa 0%, #e9ecef 100%);">
+                    <button type="button" class="btn btn-outline-secondary px-4 py-2" onclick="closeServiceModal('guide', {{ $tour->tour_id }})" style="border-radius: 25px;">
+                        <i class="ri-close-line me-2"></i>Close
                     </button>
-                    </div>
+                    {{-- <button type="button" class="btn btn-primary px-4 py-2 ms-2" style="border-radius: 25px;">
+                        <i class="ri-download-line me-2"></i>Download Details
+                    </button> --}}
                 </div>
             </div>
         </div>
@@ -2742,19 +3289,20 @@
     <!-- Entry Port (Arrival) Details Modal -->
     @if(isset($svc['entry_port']) && $svc['entry_port'] > 0)
     <div class="modal fade" id="entry_portDetailsModal{{ $tour->tour_id }}" tabindex="-1" aria-labelledby="entry_portDetailsModalLabel{{ $tour->tour_id }}" aria-hidden="true" data-bs-backdrop="static" data-bs-keyboard="false">
-        <div class="modal-dialog modal-dialog-centered modal-lg modal-dialog-scrollable">
+        <div class="modal-dialog modal-dialog-centered modal-xl modal-dialog-scrollable">
             <div class="modal-content shadow-lg" style="border-radius: 15px; overflow: hidden;">
-                <div class="modal-header p-2 border-0" style="background: linear-gradient(135deg, #00b894 0%, #55a3ff 100%);">
-                    <div class="d-flex align-items-center justify-content-between w-100">
+                <div class="modal-header p-0 border-0 position-relative" style="height: 180px; background: linear-gradient(135deg, #00b894 0%, #55a3ff 100%);">
+                    <div class="position-absolute w-100 h-100 d-flex align-items-center justify-content-between p-4">
                         <div class="text-white">
-                            <h6 class="mb-0 fw-bold" style="font-size: 0.95rem;">
-                                <i class="ri-flight-land-line me-1" style="font-size: 0.9rem;"></i>Arrival Transfer - Tour #{{ $tour->tour_id }}
-                            </h6>
+                            <h3 class="mb-1 fw-bold">
+                                <i class="ri-flight-land-line me-2"></i>Arrival Transfer
+                            </h3>
+                            <p class="mb-0 opacity-75">Tour #{{ $tour->tour_id }} Entry Port Details</p>
                         </div>
-                        <button type="button" class="btn-close btn-close-white" onclick="closeServiceModal('entry_port', {{ $tour->tour_id }})" aria-label="Close" style="font-size: 0.8rem;"></button>
+                        <button type="button" class="btn-close btn-close-white" onclick="closeServiceModal('entry_port', {{ $tour->tour_id }})" aria-label="Close" style="filter: brightness(0) invert(1); font-size: 1.2rem;"></button>
                     </div>
                 </div>
-                <div class="modal-body p-2" style="background-color: #f8f9fa;">
+                <div class="modal-body p-4" style="background-color: #f8f9fa;">
                     @if(isset($serviceData['entry_port']) && count($serviceData['entry_port']) > 0)
                         @foreach($serviceData['entry_port'] as $index => $entryOrder)
                         @php
@@ -2926,8 +3474,70 @@
                                             </div>
                                         </div>
 
-                                      
-                                        
+                                        <!-- Customer Information -->
+                                        <div class="row mb-4">
+                                            <div class="col-md-6">
+                                                <div class="bg-white rounded p-3 shadow-sm h-100">
+                                                    <div class="d-flex align-items-center mb-3">
+                                                        <div class="bg-primary rounded-circle p-2 me-3">
+                                                            <i class="ri-user-line text-white"></i>
+                                                        </div>
+                                                        <h6 class="fw-bold mb-0 text-dark">Customer Details</h6>
+                                                    </div>
+                                                    <div class="mb-2">
+                                                        <small class="text-muted">Full Name</small>
+                                                        <div class="fw-medium">{{ $booking['fullName'] ?? 'N/A' }}</div>
+                                                    </div>
+                                                    <div class="mb-2">
+                                                        <small class="text-muted">Email Address</small>
+                                                        <div class="fw-medium text-primary">{{ $booking['email'] ?? 'N/A' }}</div>
+                                                    </div>
+                                                    <div class="mb-0">
+                                                        <small class="text-muted">Phone Number</small>
+                                                        <div class="fw-medium">{{ $booking['countryCode'] ?? '' }} {{ $booking['phone'] ?? 'N/A' }}</div>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                            <div class="col-md-6">
+                                                <div class="bg-white rounded p-3 shadow-sm h-100">
+                                                    <div class="d-flex align-items-center mb-3">
+                                                        <div class="bg-info rounded-circle p-2 me-3">
+                                                            <i class="ri-map-pin-line text-white"></i>
+                                                        </div>
+                                                        <h6 class="fw-bold mb-0 text-dark">Address Information</h6>
+                                                    </div>
+                                                    <div class="text-muted">
+                                                        @if($booking['address1'] ?? false)
+                                                            <div>{{ $booking['address1'] }}</div>
+                                                        @endif
+                                                        @if($booking['address2'] ?? false)
+                                                            <div>{{ $booking['address2'] }}</div>
+                                                        @endif
+                                                        @if($booking['state'] ?? false)
+                                                            <div>{{ $booking['state'] }} {{ $booking['zip'] ?? '' }}</div>
+                                                        @endif
+                                                        @if(!($booking['address1'] ?? false) && !($booking['address2'] ?? false) && !($booking['state'] ?? false))
+                                                            <div class="text-muted">Address not provided</div>
+                                                        @endif
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        </div>
+
+                                        <!-- Special Requests -->
+                                        @if(isset($booking['specialRequests']) && !empty($booking['specialRequests']))
+                                            <div class="bg-white rounded p-3 shadow-sm">
+                                                <div class="d-flex align-items-center mb-3">
+                                                    <div class="bg-purple rounded-circle p-2 me-3" style="background-color: #6f42c1;">
+                                                        <i class="ri-message-line text-white"></i>
+                                                    </div>
+                                                    <h6 class="fw-bold mb-0 text-dark">Special Requests</h6>
+                                                </div>
+                                                <div class="bg-light rounded p-3">
+                                                    <p class="mb-0 text-dark">{{ $booking['specialRequests'] }}</p>
+                                                </div>
+                                            </div>
+                                        @endif
 
                                         <!-- Action Buttons / Approval Status -->
                                         <div class="bg-white rounded p-3 shadow-sm mt-4">
@@ -2986,18 +3596,18 @@
                         @endif
                         @endforeach
                     @else
-                        <div class="text-center py-3">
-                            <div class="bg-light rounded-circle mx-auto mb-2 d-flex align-items-center justify-content-center" style="width: 60px; height: 60px;">
-                                <i class="ri-flight-land-line text-muted" style="font-size: 1.5rem;"></i>
+                        <div class="text-center py-5">
+                            <div class="bg-light rounded-circle mx-auto mb-4 d-flex align-items-center justify-content-center" style="width: 100px; height: 100px;">
+                                <i class="ri-flight-land-line ri-48px text-muted"></i>
                             </div>
-                            <h6 class="text-dark mb-1">No Arrival Transfer Data Available</h6>
-                            <p class="text-muted mb-0" style="font-size: 0.85rem;">Entry port services are booked but detailed information is not available.</p>
+                            <h4 class="text-dark mb-3">No Arrival Transfer Data Available</h4>
+                            <p class="text-muted mb-4">Entry port services are booked but detailed information is not available.</p>
                         </div>
                     @endif
                 </div>
-                <div class="modal-footer border-0 p-1" style="background: linear-gradient(90deg, #f8f9fa 0%, #e9ecef 100%);">
-                    <button type="button" class="btn btn-outline-secondary btn-sm px-2 py-1" onclick="closeServiceModal('entry_port', {{ $tour->tour_id }})" style="border-radius: 6px; font-size: 0.75rem;">
-                        <i class="ri-close-line me-1" style="font-size: 0.7rem;"></i>Close
+                <div class="modal-footer border-0 p-4" style="background: linear-gradient(90deg, #f8f9fa 0%, #e9ecef 100%);">
+                    <button type="button" class="btn btn-outline-secondary px-4 py-2" onclick="closeServiceModal('entry_port', {{ $tour->tour_id }})" style="border-radius: 25px;">
+                        <i class="ri-close-line me-2"></i>Close
                     </button>
                 </div>
             </div>
@@ -3008,19 +3618,20 @@
     <!-- Exit Port (Departure) Details Modal -->
     @if(isset($svc['exit_port']) && $svc['exit_port'] > 0)
     <div class="modal fade" id="exit_portDetailsModal{{ $tour->tour_id }}" tabindex="-1" aria-labelledby="exit_portDetailsModalLabel{{ $tour->tour_id }}" aria-hidden="true" data-bs-backdrop="static" data-bs-keyboard="false">
-        <div class="modal-dialog modal-dialog-centered modal-lg modal-dialog-scrollable">
+        <div class="modal-dialog modal-dialog-centered modal-xl modal-dialog-scrollable">
             <div class="modal-content shadow-lg" style="border-radius: 15px; overflow: hidden;">
-                <div class="modal-header p-2 border-0" style="background: linear-gradient(135deg, #fd7f6f 0%, #feb47b 100%);">
-                    <div class="d-flex align-items-center justify-content-between w-100">
+                <div class="modal-header p-0 border-0 position-relative" style="height: 180px; background: linear-gradient(135deg, #fd7f6f 0%, #feb47b 100%);">
+                    <div class="position-absolute w-100 h-100 d-flex align-items-center justify-content-between p-4">
                         <div class="text-white">
-                            <h6 class="mb-0 fw-bold" style="font-size: 0.95rem;">
-                                <i class="ri-flight-takeoff-line me-1" style="font-size: 0.9rem;"></i>Departure Transfer - Tour #{{ $tour->tour_id }}
-                            </h6>
+                            <h3 class="mb-1 fw-bold">
+                                <i class="ri-flight-takeoff-line me-2"></i>Departure Transfer
+                            </h3>
+                            <p class="mb-0 opacity-75">Tour #{{ $tour->tour_id }} Exit Port Details</p>
                         </div>
-                        <button type="button" class="btn-close btn-close-white" onclick="closeServiceModal('exit_port', {{ $tour->tour_id }})" aria-label="Close" style="font-size: 0.8rem;"></button>
+                        <button type="button" class="btn-close btn-close-white" onclick="closeServiceModal('exit_port', {{ $tour->tour_id }})" aria-label="Close" style="filter: brightness(0) invert(1); font-size: 1.2rem;"></button>
                     </div>
                 </div>
-                <div class="modal-body p-2" style="background-color: #f8f9fa;">
+                <div class="modal-body p-4" style="background-color: #f8f9fa;">
                     @if(isset($serviceData['exit_port']) && count($serviceData['exit_port']) > 0)
                         @foreach($serviceData['exit_port'] as $index => $exitOrder)
                         @php
@@ -3183,10 +3794,70 @@
                                             </div>
                                         </div>
 
-                                        
+                                        <!-- Customer Information -->
+                                        <div class="row mb-4">
+                                            <div class="col-md-6">
+                                                <div class="bg-white rounded p-3 shadow-sm h-100">
+                                                    <div class="d-flex align-items-center mb-3">
+                                                        <div class="bg-primary rounded-circle p-2 me-3">
+                                                            <i class="ri-user-line text-white"></i>
+                                                        </div>
+                                                        <h6 class="fw-bold mb-0 text-dark">Customer Details</h6>
+                                                    </div>
+                                                    <div class="mb-2">
+                                                        <small class="text-muted">Full Name</small>
+                                                        <div class="fw-medium">{{ $booking['fullName'] ?? 'N/A' }}</div>
+                                                    </div>
+                                                    <div class="mb-2">
+                                                        <small class="text-muted">Email Address</small>
+                                                        <div class="fw-medium text-primary">{{ $booking['email'] ?? 'N/A' }}</div>
+                                                    </div>
+                                                    <div class="mb-0">
+                                                        <small class="text-muted">Phone Number</small>
+                                                        <div class="fw-medium">{{ $booking['countryCode'] ?? '' }} {{ $booking['phone'] ?? 'N/A' }}</div>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                            <div class="col-md-6">
+                                                <div class="bg-white rounded p-3 shadow-sm h-100">
+                                                    <div class="d-flex align-items-center mb-3">
+                                                        <div class="bg-info rounded-circle p-2 me-3">
+                                                            <i class="ri-map-pin-line text-white"></i>
+                                                        </div>
+                                                        <h6 class="fw-bold mb-0 text-dark">Address Information</h6>
+                                                    </div>
+                                                    <div class="text-muted">
+                                                        @if($booking['address1'] ?? false)
+                                                            <div>{{ $booking['address1'] }}</div>
+                                                        @endif
+                                                        @if($booking['address2'] ?? false)
+                                                            <div>{{ $booking['address2'] }}</div>
+                                                        @endif
+                                                        @if($booking['state'] ?? false)
+                                                            <div>{{ $booking['state'] }} {{ $booking['zip'] ?? '' }}</div>
+                                                        @endif
+                                                        @if(!($booking['address1'] ?? false) && !($booking['address2'] ?? false) && !($booking['state'] ?? false))
+                                                            <div class="text-muted">Address not provided</div>
+                                                        @endif
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        </div>
 
                                         <!-- Special Requests -->
-                                      
+                                        @if(isset($booking['specialRequests']) && !empty($booking['specialRequests']))
+                                            <div class="bg-white rounded p-3 shadow-sm">
+                                                <div class="d-flex align-items-center mb-3">
+                                                    <div class="bg-purple rounded-circle p-2 me-3" style="background-color: #6f42c1;">
+                                                        <i class="ri-message-line text-white"></i>
+                                                    </div>
+                                                    <h6 class="fw-bold mb-0 text-dark">Special Requests</h6>
+                                                </div>
+                                                <div class="bg-light rounded p-3">
+                                                    <p class="mb-0 text-dark">{{ $booking['specialRequests'] }}</p>
+                                                </div>
+                                            </div>
+                                        @endif
 
                                         <!-- Action Buttons / Approval Status -->
                                         <div class="bg-white rounded p-3 shadow-sm mt-4">
@@ -3245,18 +3916,18 @@
                         @endif
                         @endforeach
                     @else
-                        <div class="text-center py-3">
-                            <div class="bg-light rounded-circle mx-auto mb-2 d-flex align-items-center justify-content-center" style="width: 60px; height: 60px;">
-                                <i class="ri-flight-takeoff-line text-muted" style="font-size: 1.5rem;"></i>
+                        <div class="text-center py-5">
+                            <div class="bg-light rounded-circle mx-auto mb-4 d-flex align-items-center justify-content-center" style="width: 100px; height: 100px;">
+                                <i class="ri-flight-takeoff-line ri-48px text-muted"></i>
                             </div>
-                            <h6 class="text-dark mb-1">No Departure Transfer Data Available</h6>
-                            <p class="text-muted mb-0" style="font-size: 0.85rem;">Exit port services are booked but detailed information is not available.</p>
+                            <h4 class="text-dark mb-3">No Departure Transfer Data Available</h4>
+                            <p class="text-muted mb-4">Exit port services are booked but detailed information is not available.</p>
                         </div>
                     @endif
                 </div>
-                <div class="modal-footer border-0 p-1" style="background: linear-gradient(90deg, #f8f9fa 0%, #e9ecef 100%);">
-                    <button type="button" class="btn btn-outline-secondary btn-sm px-2 py-1" onclick="closeServiceModal('exit_port', {{ $tour->tour_id }})" style="border-radius: 6px; font-size: 0.75rem;">
-                        <i class="ri-close-line me-1" style="font-size: 0.7rem;"></i>Close
+                <div class="modal-footer border-0 p-4" style="background: linear-gradient(90deg, #f8f9fa 0%, #e9ecef 100%);">
+                    <button type="button" class="btn btn-outline-secondary px-4 py-2" onclick="closeServiceModal('exit_port', {{ $tour->tour_id }})" style="border-radius: 25px;">
+                        <i class="ri-close-line me-2"></i>Close
                     </button>
                 </div>
             </div>
@@ -3302,11 +3973,10 @@
             }
         }
         $enquiry = \App\Models\Enquiry::where('tour_id', $tour->tour_id)->where('status', 2)->first();
-        $enquiry_amount = $enquiry->amount ?? 0;
+        $enquiry_amount = $enquiry ? ($enquiry->amount ?? 0) : 0;
         $frstenquiry = \App\Models\Enquiry::where('tour_id', $tour->tour_id)->first();
-        $first_enquiry_amount = $frstenquiry->actual_amount ?? 0;
-        $discountAmount = $frstenquiry ? ($frstenquiry->actual_amount - $enquiry_amount) : 0;
-        
+        $first_enquiry_amount = $frstenquiry ? ($frstenquiry->actual_amount ?? 0) : 0;
+        $discountAmount = $first_enquiry_amount - $enquiry_amount;
         // Calculate base amount before tax (round up if decimal > 0.5, round down if < 0.5)
         $baseAmount = round($tourTotalPrice) - $discountAmount;
         
@@ -3324,14 +3994,10 @@
         
         $paymentData = is_string($tour->payment_details) ? json_decode($tour->payment_details, true) : $tour->payment_details;
         $totalPaid = 0;
-        $hasPendingPayments = false;
         if (is_array($paymentData) && !empty($paymentData)) {
             foreach ($paymentData as $payment) {
                 if (isset($payment['status']) && $payment['status'] == 1) {
                     $totalPaid += isset($payment['amount']) ? (float)$payment['amount'] : 0;
-                }
-                if (isset($payment['status']) && $payment['status'] == 0) {
-                    $hasPendingPayments = true;
                 }
             }
         }
@@ -3526,7 +4192,6 @@
             </div>
         </div>
     </div>
-
     <!-- Add Payment Modal -->
     <div class="modal fade" id="addPaymentModal{{ $tour->tour_id }}" tabindex="-1" aria-labelledby="addPaymentModalLabel{{ $tour->tour_id }}" aria-hidden="true">
         <div class="modal-dialog modal-dialog-centered">
@@ -3955,21 +4620,51 @@
                                                     <small class="text-muted">Total Price</small>
                                                     <div class="fw-bold text-success">${{ $booking['totalPrice'] ?? '0' }}</div>
                                                 </div>
-                                                <div class="col-md-6 mb-3">
-                                                    <small class="text-muted">Tax</small>
-                                                    <div class="fw-medium">{{ $booking['Tax'] ?? '0' }}%</div>
-                                                </div>
                                                 {{-- <div class="col-12 mb-3">
                                                     <small class="text-muted">Booking Type</small>
                                                     <span class="badge bg-primary">{{ ucfirst($booking['bookingType'] ?? 'Standard') }}</span>
                                                 </div> --}}
+                                            </div>
+                                        </div>
+                                    </div>
+                                    <div class="col-md-6">
+                                        <div class="bg-white rounded p-3 shadow-sm h-100">
+                                            <div class="d-flex align-items-center mb-3">
+                                                <div class="bg-info rounded-circle p-2 me-3">
+                                                    <i class="ri-user-line text-white"></i>
+                                                </div>
+                                                <h6 class="fw-bold mb-0 text-dark">Customer Information</h6>
+                                            </div>
+                                            <div class="row">
+                                                <div class="col-12 mb-2">
+                                                    <small class="text-muted">Name</small>
+                                                    <div class="fw-medium">{{ $booking['fullName'] ?? 'N/A' }}</div>
+                                                </div>
+                                                <div class="col-12 mb-2">
+                                                    <small class="text-muted">Email</small>
+                                                    <div class="fw-medium">{{ $booking['email'] ?? 'N/A' }}</div>
+                                                </div>
+                                                <div class="col-12 mb-2">
+                                                    <small class="text-muted">Phone</small>
+                                                    <div class="fw-medium">{{ $booking['phone'] ?? 'N/A' }}</div>
+                                                </div>
+                                            </div>
                                         </div>
                                     </div>
                                 </div>
 
+                                <!-- Special Requests -->
+                                @if(isset($booking['specialRequests']) && !empty($booking['specialRequests']))
+                                <div class="bg-white rounded p-3 shadow-sm mb-4">
+                                    <div class="d-flex align-items-center mb-3">
+                                        <div class="bg-secondary rounded-circle p-2 me-3">
+                                            <i class="ri-message-2-line text-white"></i>
                                         </div>
-
-                              
+                                        <h6 class="fw-bold mb-0 text-dark">Special Requests</h6>
+                                    </div>
+                                    <p class="text-muted mb-0">{{ $booking['specialRequests'] }}</p>
+                                </div>
+                                @endif
 
                                         <!-- Action Buttons / Approval Status -->
                                         <div class="bg-white rounded p-3 shadow-sm mt-4">
@@ -4311,10 +5006,6 @@
                                                     <div class="fw-bold text-success">${{ $booking['totalPrice'] ?? '0' }}</div>
                                                 </div>
                                                 <div class="col-md-6 mb-3">
-                                                    <small class="text-muted">Tax</small>
-                                                    <div class="fw-medium">{{ $booking['Tax'] ?? '0' }}%</div>
-                                                </div>
-                                                <div class="col-md-6 mb-3">
                                                     <small class="text-muted">From Zone</small>
                                                     <div class="fw-medium">{{ $fromZoneName }}</div>
                                                 </div>
@@ -4329,11 +5020,44 @@
                                             </div>
                                         </div>
                                     </div>
-                                    
+                                    <div class="col-md-6">
+                                        <div class="bg-white rounded p-3 shadow-sm h-100">
+                                            <div class="d-flex align-items-center mb-3">
+                                                <div class="bg-info rounded-circle p-2 me-3">
+                                                    <i class="ri-user-line text-white"></i>
+                                                </div>
+                                                <h6 class="fw-bold mb-0 text-dark">Customer Information</h6>
+                                            </div>
+                                            <div class="row">
+                                                <div class="col-12 mb-2">
+                                                    <small class="text-muted">Name</small>
+                                                    <div class="fw-medium">{{ $booking['fullName'] ?? 'N/A' }}</div>
+                                                </div>
+                                                <div class="col-12 mb-2">
+                                                    <small class="text-muted">Email</small>
+                                                    <div class="fw-medium">{{ $booking['email'] ?? 'N/A' }}</div>
+                                                </div>
+                                                <div class="col-12 mb-2">
+                                                    <small class="text-muted">Phone</small>
+                                                    <div class="fw-medium">{{ $booking['phone'] ?? 'N/A' }}</div>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
                                 </div>
 
                                 <!-- Special Requests -->
-                               
+                                @if(isset($booking['specialRequests']) && !empty($booking['specialRequests']))
+                                <div class="bg-white rounded p-3 shadow-sm mb-4">
+                                    <div class="d-flex align-items-center mb-3">
+                                        <div class="bg-secondary rounded-circle p-2 me-3">
+                                            <i class="ri-message-2-line text-white"></i>
+                                        </div>
+                                        <h6 class="fw-bold mb-0 text-dark">Special Requests</h6>
+                                    </div>
+                                    <p class="text-muted mb-0">{{ $booking['specialRequests'] }}</p>
+                                </div>
+                                @endif
 
                                         <!-- Action Buttons -->
                                         <div class="bg-white rounded p-3 shadow-sm mt-4">
@@ -4662,10 +5386,6 @@
                                                     <div class="fw-bold text-success">${{ $booking['totalPrice'] ?? '0' }}</div>
                                                 </div>
                                                 <div class="col-md-6 mb-3">
-                                                    <small class="text-muted">Tax</small>
-                                                    <div class="fw-medium">{{ $booking['Tax'] ?? '0' }}%</div>
-                                                </div>
-                                                <div class="col-md-6 mb-3">
                                                     <small class="text-muted">From Zone</small>
                                                     <div class="fw-medium">{{ $fromZoneName }}</div>
                                                 </div>
@@ -4676,14 +5396,48 @@
                                                 <div class="col-12 mb-3">
                                                     <small class="text-muted">Booking Type</small>
                                                     <span class="badge bg-primary">{{ ucfirst($booking['bookingType'] ?? 'Standard') }}</span>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                    <div class="col-md-6">
+                                        <div class="bg-white rounded p-3 shadow-sm h-100">
+                                            <div class="d-flex align-items-center mb-3">
+                                                <div class="bg-info rounded-circle p-2 me-3">
+                                                    <i class="ri-user-line text-white"></i>
+                                                </div>
+                                                <h6 class="fw-bold mb-0 text-dark">Customer Information</h6>
+                                            </div>
+                                            <div class="row">
+                                                <div class="col-12 mb-2">
+                                                    <small class="text-muted">Name</small>
+                                                    <div class="fw-medium">{{ $booking['fullName'] ?? 'N/A' }}</div>
+                                                </div>
+                                                <div class="col-12 mb-2">
+                                                    <small class="text-muted">Email</small>
+                                                    <div class="fw-medium">{{ $booking['email'] ?? 'N/A' }}</div>
+                                                </div>
+                                                <div class="col-12 mb-2">
+                                                    <small class="text-muted">Phone</small>
+                                                    <div class="fw-medium">{{ $booking['phone'] ?? 'N/A' }}</div>
+                                                </div>
                                             </div>
                                         </div>
                                     </div>
                                 </div>
 
+                                <!-- Special Requests -->
+                                @if(isset($booking['specialRequests']) && !empty($booking['specialRequests']))
+                                <div class="bg-white rounded p-3 shadow-sm mb-4">
+                                    <div class="d-flex align-items-center mb-3">
+                                        <div class="bg-secondary rounded-circle p-2 me-3">
+                                            <i class="ri-message-2-line text-white"></i>
                                         </div>
-
-                               
+                                        <h6 class="fw-bold mb-0 text-dark">Special Requests</h6>
+                                    </div>
+                                    <p class="text-muted mb-0">{{ $booking['specialRequests'] }}</p>
+                                </div>
+                                @endif
 
                                         <!-- Action Buttons -->
                                         <div class="bg-white rounded p-3 shadow-sm mt-4">
@@ -5183,17 +5937,36 @@ function generateIndividualGuideContent(guideBooking, modalId, tourId, guideOrde
                             <div class="fw-medium">SGD ${parseFloat(guideBooking.surcharge || 0).toFixed(2)}</div>
                         </div>
                         <div class="col-md-6 mb-3">
-                            <small class="text-muted">Tax (${guideBooking.tax || '0'}%)</small>
-                            <div class="fw-medium">SGD ${(parseFloat(guideBooking.totalPrice || 0) * parseFloat(guideBooking.tax || 0) / 100).toFixed(2)}</div>
-                        </div>
-                        <div class="col-md-6 mb-3">
                             <small class="text-muted">Total Price</small>
                             <div class="fw-bold text-success fs-5">SGD ${parseFloat(guideBooking.totalPrice || 0).toFixed(2)}</div>
                         </div>
                     </div>
                 </div>
             </div>
-            
+            <div class="col-md-6">
+                <div class="bg-white rounded p-3 shadow-sm h-100">
+                    <div class="d-flex align-items-center mb-3">
+                        <div class="bg-info rounded-circle p-2 me-3">
+                            <i class="ri-user-line text-white"></i>
+                        </div>
+                        <h6 class="fw-bold mb-0 text-dark">Customer Information</h6>
+                    </div>
+                    <div class="row">
+                        <div class="col-12 mb-2">
+                            <small class="text-muted">Name</small>
+                            <div class="fw-medium">${guideBooking.fullName || 'N/A'}</div>
+                        </div>
+                        <div class="col-12 mb-2">
+                            <small class="text-muted">Email</small>
+                            <div class="fw-medium">${guideBooking.email || 'N/A'}</div>
+                        </div>
+                        <div class="col-12 mb-2">
+                            <small class="text-muted">Phone</small>
+                            <div class="fw-medium">${guideBooking.phone || 'N/A'}</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
         </div>
 
         <!-- Special Requests -->
@@ -5635,7 +6408,7 @@ function createGuideApprovalModal(tourId, guideOrderIndex, bookingIndex) {
                                 <label for="actualDueDate_${tourId}_${guideOrderIndex}_${bookingIndex}" class="form-label fw-semibold">
                                     <i class="ri-calendar-line me-2"></i>Free Cancellation Date <span class="text-danger">*</span>
                                 </label>
-                                <input type="date" class="form-control form-control-lg" id="actualDueDate_${tourId}_${guideOrderIndex}_${bookingIndex}" name="actual_due_date" required 
+                                <input type="date" class="form-control form-control-lg" id="actualDueDate_${tourId}_${guideOrderIndex}_${bookingIndex}" name="actual_due_date" required value="{{ $guide_info['actualDueDate'] ?? '' }}" 
                                        onchange="calculateGuideDisplayDueDate('${tourId}', '${guideOrderIndex}', '${bookingIndex}')"
                                        style="border-radius: 8px; border: 2px solid #e9ecef;">
                                 <div class="form-text">Select the Free Cancellation Date for this booking</div>
@@ -6318,40 +7091,6 @@ function loadHourlyDataForReject(tourId, hourlyOrderIndex, bookingIndex) {
     });
 }
 
-window.calculateHourlyDisplayDueDate = function(tourId, travelHourlyOrderIndex, bookingIndex) {
-    console.log('⏰ CALCULATE DATE: Calculating travel hourly display due date');
-    const actualDueDate = document.getElementById(`actualDueDate_${tourId}_${travelHourlyOrderIndex}_${bookingIndex}`).value;
-    const daysBefore = document.getElementById(`displayDueDateDays_${tourId}_${travelHourlyOrderIndex}_${bookingIndex}`).value;
-    const displayDueDateField = document.getElementById(`calculatedDisplayDueDate_${tourId}_${travelHourlyOrderIndex}_${bookingIndex}`);
-    const hiddenDisplayDueDateField = document.getElementById(`hiddenDisplayDueDate_${tourId}_${travelHourlyOrderIndex}_${bookingIndex}`);
-    
-    if (actualDueDate && daysBefore) {
-        const actualDate = new Date(actualDueDate);
-        const displayDate = new Date(actualDate);
-        displayDate.setDate(actualDate.getDate() - parseInt(daysBefore));
-        
-        // Format as dd-mm-yyyy for display
-        const day = String(displayDate.getDate()).padStart(2, '0');
-        const month = String(displayDate.getMonth() + 1).padStart(2, '0');
-        const year = displayDate.getFullYear();
-        const formattedDate = `${day}-${month}-${year}`;
-        
-        // Update the visible field
-        displayDueDateField.value = formattedDate;
-        
-        // Update the hidden field for form submission
-        if (hiddenDisplayDueDateField) {
-            hiddenDisplayDueDateField.value = formattedDate;
-        }
-        
-        console.log('✅ Travel hourly display due date calculated:', formattedDate);
-    } else {
-        displayDueDateField.value = '';
-        if (hiddenDisplayDueDateField) {
-            hiddenDisplayDueDateField.value = '';
-        }
-    }
-}
 
 function confirmHourlyApproval(tourId, hourlyOrderIndex, bookingIndex) {
     console.log('⏰ HOURLY APPROVE: Confirming hourly approval');
@@ -6633,7 +7372,13 @@ window.calculateHourlyDisplayDueDate = function(tourId, hourlyOrderIndex, bookin
         // Target the correct form structure with hourlyOrderIndex
         const actualDueDateInput = document.getElementById(`actualDueDate_${tourId}_${hourlyOrderIndex}_${bookingIndex}`);
         const displayDueDateDaysSelect = document.getElementById(`displayDueDateDays_${tourId}_${hourlyOrderIndex}_${bookingIndex}`);
-        const displayDueDateInput = document.getElementById(`displayDueDate_${tourId}_${hourlyOrderIndex}_${bookingIndex}`);
+        let displayDueDateInput = document.getElementById(`displayDueDate_${tourId}_${hourlyOrderIndex}_${bookingIndex}`);
+        let hiddenDisplayDueDateInput = document.getElementById(`hiddenDisplayDueDate_${tourId}_${hourlyOrderIndex}_${bookingIndex}`);
+        
+        // If not found, try with calculatedDisplayDueDate pattern (for travel hourly)
+        if (!displayDueDateInput) {
+            displayDueDateInput = document.getElementById(`calculatedDisplayDueDate_${tourId}_${hourlyOrderIndex}_${bookingIndex}`);
+        }
         
         if (!actualDueDateInput || !displayDueDateDaysSelect || !displayDueDateInput) {
             console.error('⏰ CALCULATE: Required form elements not found', {
@@ -6650,6 +7395,9 @@ window.calculateHourlyDisplayDueDate = function(tourId, hourlyOrderIndex, bookin
         if (!actualDueDate || !daysBefore) {
             console.log('⏰ CALCULATE: Missing actual date or days before value');
             displayDueDateInput.value = '';
+            if (hiddenDisplayDueDateInput) {
+                hiddenDisplayDueDateInput.value = '';
+            }
             return;
         }
         
@@ -6658,15 +7406,19 @@ window.calculateHourlyDisplayDueDate = function(tourId, hourlyOrderIndex, bookin
         const displayDate = new Date(actualDate);
         displayDate.setDate(actualDate.getDate() - parseInt(daysBefore));
         
-        // Format for display (DD-MM-YYYY)
-        const displayFormatted = displayDate.toLocaleDateString('en-GB', {
-            day: '2-digit',
-            month: '2-digit',
-            year: 'numeric'
-        });
+        // Format as dd-mm-yyyy
+        const day = String(displayDate.getDate()).padStart(2, '0');
+        const month = String(displayDate.getMonth() + 1).padStart(2, '0');
+        const year = displayDate.getFullYear();
+        const displayFormatted = `${day}-${month}-${year}`;
         
         // Update display field
         displayDueDateInput.value = displayFormatted;
+        
+        // Update hidden field if it exists (for travel hourly)
+        if (hiddenDisplayDueDateInput) {
+            hiddenDisplayDueDateInput.value = displayFormatted;
+        }
         
         console.log('⏰ CALCULATE: Display due date calculated', {
             actualDate: actualDueDate,
@@ -7872,45 +8624,71 @@ function createIndividualHotelViewModal(tourId, hotelOrderIndex, bookingIndex, a
     
     const modalHTML = `
         <div class="modal fade" id="${modalId}" tabindex="-1" aria-hidden="true" data-bs-backdrop="static" data-bs-keyboard="false">
-            <div class="modal-dialog modal-dialog-centered modal-lg modal-dialog-scrollable">
-                <div class="modal-content shadow-lg border-0" style="border-radius: 12px; overflow: hidden;">
+            <div class="modal-dialog modal-xl">
+                <div class="modal-content border-0 shadow-lg">
                     <!-- Modal Header -->
-                    <div class="modal-header border-0 py-3 px-4" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);">
-                        <div class="d-flex align-items-center justify-content-between w-100">
+                    <div class="modal-header p-0 border-0 position-relative" style="height: 200px; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);">
+                        <div class="position-absolute w-100 h-100 d-flex align-items-center justify-content-between p-4">
                             <div class="text-white">
-                                <h5 class="mb-0 fw-bold">
+                                <h3 class="mb-1 fw-bold">
                                     <i class="ri-hotel-line me-2"></i>Hotel Details
-                                </h5>
-                             
+                                </h3>
+                                <p class="mb-0 opacity-75">Tour #${tourId} Hotel Booking Details</p>
                             </div>
-                            <button type="button" class="btn-close btn-close-white" onclick="closeIndividualHotelViewModal('${modalId}')" aria-label="Close"></button>
+                            <button type="button" class="btn-close btn-close-white" onclick="closeIndividualHotelViewModal('${modalId}')" aria-label="Close" style="filter: brightness(0) invert(1); font-size: 1.2rem;"></button>
                         </div>
                     </div>
                     
                     <!-- Modal Body -->
-                    <div class="modal-body p-3" style="background: #f8f9fa;">
+                    <div class="modal-body p-4" style="background: #f8fafc;">
                         <div id="individualHotelContent_${modalId}">
-                            <div class="text-center py-4">
-                                <div class="spinner-border" role="status" style="color: #667eea;">
+                            <div class="text-center py-5">
+                                <div class="spinner-border text-primary" role="status">
                                     <span class="visually-hidden">Loading...</span>
                                 </div>
-                                <p class="text-muted mt-2 mb-0" style="font-size: 0.9rem;">Loading hotel details...</p>
+                                <p class="text-muted mt-3">Loading hotel details...</p>
                             </div>
                         </div>
                     </div>
                     
                     <!-- Modal Footer -->
-                    <div class="modal-footer border-0 py-2 px-3" style="background: #f8f9fa;">
-                        <div class="d-flex gap-2 w-100 justify-content-end" id="hotelModalFooter_${modalId}">
+                    <div class="modal-footer bg-light border-0" style="border-radius: 0 0 8px 8px;">
+                        <div class="d-flex justify-content-between w-100">
+                            <button type="button" class="btn btn-outline-secondary" onclick="closeIndividualHotelViewModal('${modalId}')">
+                                <i class="ri-close-line me-1"></i>Close
+                            </button>
                             <button type="button" 
-                                    class="btn btn-outline-info btn-sm px-3 py-1" 
+                                    class="btn btn-outline-info btn-sm px-3 py-2" 
                                     onclick="openHotelMailPreview(${tourId}, ${hotelOrderIndex}, ${bookingIndex})"
-                                    style="border-radius: 8px; font-size: 0.85rem;">
+                                    style="border-radius: 25px;">
                                 <i class="ri-mail-line me-1"></i>Mail Preview
                             </button>
-                            <button type="button" class="btn btn-outline-secondary btn-sm px-3 py-1" onclick="closeIndividualHotelViewModal('${modalId}')" style="border-radius: 8px; font-size: 0.85rem;">
-                                <i class="ri-close-line me-1"></i>Close
+                            @if(auth()->user()->role_id == 11 || auth()->user()->role_id == 34 || auth()->user()->role_id == 33 || auth()->user()->role_id == 37 || auth()->user()->role_id == 38 || auth()->user()->role_id == 124 || auth()->user()->role_id == 125 || auth()->user()->role_id == 128 || auth()->user()->role_id == 129 || auth()->user()->role_id == 130 || auth()->user()->role_id == 131 || auth()->user()->role_id == 132 || auth()->user()->role_id == 134 || auth()->user()->role_id == 135 || auth()->user()->role_id == 136 || auth()->user()->role_id == 137 || auth()->user()->role_id == 138)
+                            <div class="d-flex gap-2">
+                                                 @if(auth()->user()->role_id == 11 || auth()->user()->role_id == 34 || auth()->user()->role_id == 124 || auth()->user()->role_id == 125 || auth()->user()->role_id == 128 || auth()->user()->role_id == 131 || auth()->user()->role_id == 132 || auth()->user()->role_id == 134 || auth()->user()->role_id == 135 || auth()->user()->role_id == 137 || auth()->user()->role_id == 138)
+                                <button type="button" 
+                                        class="btn btn-outline-primary btn-sm px-3 py-2" 
+                                        onclick="editIndividualHotel(${tourId}, ${hotelOrderIndex}, ${bookingIndex}, ${autoCancelDate})"
+                                        style="border-radius: 25px;">
+                                    <i class="ri-edit-line me-1"></i>Edit
                                 </button>
+                                <button type="button" 
+                                        class="btn btn-outline-success btn-sm px-3 py-2" 
+                                        onclick="approveIndividualHotel(${tourId}, ${hotelOrderIndex}, ${bookingIndex}, '${autoCancelDate}')"
+                                        style="border-radius: 25px;">
+                                    <i class="ri-check-line me-1"></i>Approve
+                                </button>
+                                @endif
+                                @if(auth()->user()->role_id == 11 || auth()->user()->role_id == 34 || auth()->user()->role_id == 33 || auth()->user()->role_id == 37 || auth()->user()->role_id == 38 || auth()->user()->role_id == 124 || auth()->user()->role_id == 125 || auth()->user()->role_id == 128 || auth()->user()->role_id == 129 || auth()->user()->role_id == 130 || auth()->user()->role_id == 131 || auth()->user()->role_id == 132 || auth()->user()->role_id == 134 || auth()->user()->role_id == 135 || auth()->user()->role_id == 136 || auth()->user()->role_id == 137 || auth()->user()->role_id == 138)
+                                <button type="button" 
+                                        class="btn btn-outline-danger btn-sm px-3 py-2" 
+                                        onclick="rejectIndividualHotel(${tourId}, ${hotelOrderIndex}, ${bookingIndex})"
+                                        style="border-radius: 25px;">
+                                    <i class="ri-close-line me-1"></i>Reject
+                                </button>
+                                @endif
+                            </div>
+                            @endif
                         </div>
                     </div>
                 </div>
@@ -8002,6 +8780,8 @@ function loadIndividualHotelContent(tourId, hotelOrderIndex, bookingIndex, modal
                     hotelData.rooms[0].beds[0].bed_type || 'N/A' : 'N/A',
                 mealPlan: hotelData.rooms && hotelData.rooms.length > 0 && hotelData.rooms[0].beds && hotelData.rooms[0].beds.length > 0 && hotelData.rooms[0].beds[0].mealTypes && hotelData.rooms[0].beds[0].mealTypes.length > 0 ? 
                     hotelData.rooms[0].beds[0].mealTypes[0] : 'Room Only',
+                // Transfer Options
+                transferOptions: hotelData.transfer_options || null,
                 // Approval status
                 isApprove: hotelData.is_approve || false,
                 referenceId: hotelData.reference_id || null,
@@ -8011,6 +8791,9 @@ function loadIndividualHotelContent(tourId, hotelOrderIndex, bookingIndex, modal
             };
             
             console.log('✅ Hotel booking data prepared for display', hotelBooking);
+            console.log('🔍 Transfer options in hotel booking:', hotelBooking.transferOptions);
+            console.log('🔍 Transfer required value:', hotelBooking.transferOptions?.transfer_required);
+            console.log('🔍 Transfer required type:', typeof hotelBooking.transferOptions?.transfer_required);
             generateIndividualHotelContent(hotelBooking, modalId, tourId, hotelOrderIndex, bookingIndex, autoCancelDate);
         } else {
             console.error('❌ Hotel data fetch failed', data);
@@ -8179,6 +8962,95 @@ function generateIndividualHotelContent(hotelBooking, modalId, tourId, hotelOrde
             </div>
         </div>
 
+        <!-- Transfer Options -->
+        ${hotelBooking.transferOptions && (hotelBooking.transferOptions.transfer_required === true || hotelBooking.transferOptions.transfer_required === 'true' || hotelBooking.transferOptions.transfer_required === 'Yes') ? `
+        <div class="bg-white rounded p-3 shadow-sm mb-4">
+            <div class="d-flex align-items-center mb-3">
+                <div class="bg-success rounded-circle p-2 me-3">
+                    <i class="ri-car-line text-white"></i>
+                </div>
+                <h6 class="fw-bold mb-0 text-dark">Transfer Details</h6>
+            </div>
+            
+            <div class="row">
+                <div class="col-md-6 mb-3">
+                    <div class="bg-light rounded p-3 h-100">
+                        <div class="mb-2">
+                            <small class="text-muted d-block">Transfer Type</small>
+                            <div class="fw-medium">
+                                <span class="badge bg-primary">${hotelBooking.transferOptions.type || 'N/A'}</span>
+                            </div>
+                        </div>
+                        <div class="mb-2">
+                            <small class="text-muted d-block">Transfer Way</small>
+                            <div class="fw-medium">
+                                <span class="badge bg-info">${hotelBooking.transferOptions.way || 'N/A'}</span>
+                            </div>
+                        </div>
+                        ${hotelBooking.transferOptions.destination_name ? `
+                        <div class="mb-0">
+                            <small class="text-muted d-block">Destination</small>
+                            <div class="fw-medium text-primary">
+                                <i class="ri-map-pin-line me-1"></i>${hotelBooking.transferOptions.destination_name}
+                            </div>
+                        </div>
+                        ` : ''}
+                    </div>
+                </div>
+                
+                <div class="col-md-6 mb-3">
+                    <div class="bg-light rounded p-3 h-100">
+                        ${hotelBooking.transferOptions.vehicle_details ? `
+                            <div class="mb-2">
+                                <small class="text-muted d-block">Vehicle</small>
+                                <div class="fw-medium">
+                                    <i class="ri-car-line me-1"></i>${hotelBooking.transferOptions.vehicle_details.vehicle_name || 'N/A'}
+                                </div>
+                                ${hotelBooking.transferOptions.vehicle_details.vehicle_type ? `
+                                    <small class="text-muted">Type: ${hotelBooking.transferOptions.vehicle_details.vehicle_type}</small>
+                                ` : ''}
+                            </div>
+                            ${hotelBooking.transferOptions.vehicle_details.seating_capacity ? `
+                            <div class="mb-2">
+                                <small class="text-muted d-block">Seating Capacity</small>
+                                <div class="fw-medium">
+                                    <i class="ri-user-line me-1"></i>${hotelBooking.transferOptions.vehicle_details.seating_capacity} passengers
+                                </div>
+                            </div>
+                            ` : ''}
+                        ` : hotelBooking.transferOptions.vehicle_id ? `
+                            <div class="mb-2">
+                                <small class="text-muted d-block">Vehicle ID</small>
+                                <div class="fw-medium">${hotelBooking.transferOptions.vehicle_id}</div>
+                            </div>
+                        ` : ''}
+                        
+                        ${hotelBooking.transferOptions.cost && hotelBooking.transferOptions.cost > 0 ? `
+                        <div class="mb-0">
+                            <small class="text-muted d-block">Transfer Cost</small>
+                            <div class="fs-5 fw-bold text-success">
+                                <i class="ri-money-dollar-circle-line me-1"></i>SGD ${parseFloat(hotelBooking.transferOptions.cost).toFixed(2)}
+                            </div>
+                        </div>
+                        ` : ''}
+                    </div>
+                </div>
+            </div>
+            
+            ${hotelBooking.transferOptions.pickup_location_name ? `
+            <div class="bg-info bg-opacity-10 rounded p-3 mt-3">
+                <div class="d-flex align-items-center">
+                    <i class="ri-map-pin-2-line text-info me-2 fs-5"></i>
+                    <div>
+                        <small class="text-muted d-block">Pickup Location</small>
+                        <div class="fw-medium text-info">${hotelBooking.transferOptions.pickup_location_name}</div>
+                    </div>
+                </div>
+            </div>
+            ` : ''}
+        </div>
+        ` : ''}
+
         <!-- Special Requests -->
         ${hotelBooking.specialRequests ? `
         <div class="bg-white rounded p-3 shadow-sm mb-4">
@@ -8243,11 +9115,10 @@ function updateHotelModalFooter(modalId, isApproved, tourId, hotelOrderIndex, bo
                                                  @if(auth()->user()->role_id == 11 || auth()->user()->role_id == 34 || auth()->user()->role_id == 124 || auth()->user()->role_id == 125 || auth()->user()->role_id == 128 || auth()->user()->role_id == 131 || auth()->user()->role_id == 132 || auth()->user()->role_id == 134 || auth()->user()->role_id == 135 || auth()->user()->role_id == 137 || auth()->user()->role_id == 138)
                     <button type="button" 
                             class="btn btn-outline-primary btn-sm px-3 py-2" 
-                            onclick="editIndividualHotel(${tourId}, ${hotelOrderIndex}, ${bookingIndex})"
+                            onclick="editIndividualHotel(${tourId}, ${hotelOrderIndex}, ${bookingIndex}, ${autoCancelDate})"
                             style="border-radius: 25px;">
                         <i class="ri-edit-line me-1"></i>Edit
                     </button>
-
                     <button type="button" 
                             class="btn btn-outline-success btn-sm px-3 py-2" 
                             onclick="approveIndividualHotel(${tourId}, ${hotelOrderIndex}, ${bookingIndex}, '${autoCancelDate}')"
@@ -8278,11 +9149,11 @@ function updateHotelModalFooter(modalId, isApproved, tourId, hotelOrderIndex, bo
     }
 }
 
-function editIndividualHotel(tourId, hotelOrderIndex, bookingIndex) {
+function editIndividualHotel(tourId, hotelOrderIndex, bookingIndex, autoCancelDate=null) {
     console.log('Editing individual hotel:', { tourId, hotelOrderIndex, bookingIndex });
     
     // Create and show the hotel edit modal (reuse existing edit functionality)
-    createAndShowIndividualHotelModal(tourId, hotelOrderIndex, bookingIndex);
+    createAndShowIndividualHotelModal(tourId, hotelOrderIndex, bookingIndex, autoCancelDate);
 }
 
 function approveIndividualHotel(tourId, hotelOrderIndex, bookingIndex, autoCancelDate=null) {
@@ -8291,30 +9162,31 @@ function approveIndividualHotel(tourId, hotelOrderIndex, bookingIndex, autoCance
     createAndShowIndividualHotelModal(tourId, hotelOrderIndex, bookingIndex, 'approve', autoCancelDate);
 }
 
-function rejectIndividualHotel(tourId, hotelOrderIndex, bookingIndex) {
+function rejectIndividualHotel(tourId, hotelOrderIndex, bookingIndex, autoCancelDate=null) {
     console.log('Rejecting individual hotel:', { tourId, hotelOrderIndex, bookingIndex });
     // Create and show the hotel reject modal (reuse existing reject functionality)
-    createAndShowIndividualHotelModal(tourId, hotelOrderIndex, bookingIndex, 'reject');
+    createAndShowIndividualHotelModal(tourId, hotelOrderIndex, bookingIndex, 'reject', autoCancelDate);
 }
 
 // Override any previous definitions - this is the correct attraction approve function
-window.approveIndividualAttraction = function(tourId, attractionOrderIndex, bookingIndex, actualCancelDateStr=null) {
-    console.log('🎢 ATTRACTION APPROVE - CORRECT FUNCTION: Approving individual attraction:', { tourId, attractionOrderIndex, bookingIndex, 'actualCancelDateStr': actualCancelDateStr });
+window.approveIndividualAttraction = function(tourId, attractionOrderIndex, bookingIndex, autoCancelDate=null) {
+    console.log('autoCancelDate', autoCancelDate);
+    console.log('🎢 ATTRACTION APPROVE - CORRECT FUNCTION: Approving individual attraction:', { tourId, attractionOrderIndex, bookingIndex });
     console.log('🎢 This is the CORRECT approve function with full modal support');
     // Create and show the attraction approve modal
-    createAndShowIndividualAttractionModal(tourId, attractionOrderIndex, bookingIndex, 'approve', actualCancelDateStr);
+    createAndShowIndividualAttractionModal(tourId, attractionOrderIndex, bookingIndex, 'approve', autoCancelDate);
 }
 
 // Override any previous definitions - this is the correct attraction reject function
-window.rejectIndividualAttraction = function(tourId, attractionOrderIndex, bookingIndex, actualCancelDateStr=null) {
+window.rejectIndividualAttraction = function(tourId, attractionOrderIndex, bookingIndex, autoCancelDate=null) {
     console.log('🎢 ATTRACTION REJECT - CORRECT FUNCTION: Rejecting individual attraction:', { tourId, attractionOrderIndex, bookingIndex });
     console.log('🎢 This is the CORRECT reject function with full modal support');
     // Create and show the attraction reject modal
-    createAndShowIndividualAttractionModal(tourId, attractionOrderIndex, bookingIndex, 'reject', actualCancelDateStr);
+    createAndShowIndividualAttractionModal(tourId, attractionOrderIndex, bookingIndex, 'reject', autoCancelDate);
 }
 
-function createAndShowIndividualAttractionModal(tourId, attractionOrderIndex, bookingIndex, action, actualCancelDateStr=null) {
-    console.log('actualCancelDateStr in createAndShowIndividualAttractionModal', actualCancelDateStr);
+function createAndShowIndividualAttractionModal(tourId, attractionOrderIndex, bookingIndex, action, autoCancelDate=null) {
+    console.log('autoCancelDate in createAndShowIndividualAttractionModal', autoCancelDate);
     try {
         const modalId = `individualAttractionModal_${tourId}_${attractionOrderIndex}_${bookingIndex}_${action}`;
         
@@ -8339,7 +9211,7 @@ function createAndShowIndividualAttractionModal(tourId, attractionOrderIndex, bo
                 buttonText = '<i class="ri-check-line me-2"></i>Confirm Approval';
                 onSubmit = `window.confirmIndividualAttractionApproval ? window.confirmIndividualAttractionApproval(${tourId}, ${attractionOrderIndex}, ${bookingIndex}) : confirmIndividualAttractionApproval(${tourId}, ${attractionOrderIndex}, ${bookingIndex})`;
                 console.log('🎢 Using window.generateApproveAttractionForm for correct form');
-                modalContent = window.generateApproveAttractionForm ? window.generateApproveAttractionForm(tourId, attractionOrderIndex, bookingIndex, actualCancelDateStr) : generateApproveAttractionForm(tourId, attractionOrderIndex, bookingIndex, actualCancelDateStr);
+                modalContent = window.generateApproveAttractionForm ? window.generateApproveAttractionForm(tourId, attractionOrderIndex, bookingIndex, autoCancelDate) : generateApproveAttractionForm(tourId, attractionOrderIndex, bookingIndex, autoCancelDate);
                 break;
                 
             case 'reject':
@@ -8349,7 +9221,7 @@ function createAndShowIndividualAttractionModal(tourId, attractionOrderIndex, bo
                 buttonText = '<i class="ri-close-line me-2"></i>Confirm Rejection';
                 onSubmit = `window.confirmIndividualAttractionRejection ? window.confirmIndividualAttractionRejection(${tourId}, ${attractionOrderIndex}, ${bookingIndex}) : confirmIndividualAttractionRejection(${tourId}, ${attractionOrderIndex}, ${bookingIndex})`;
                 console.log('🎢 Using window.generateRejectAttractionForm for correct reject form');
-                modalContent = window.generateRejectAttractionForm ? window.generateRejectAttractionForm(tourId, attractionOrderIndex, bookingIndex) : generateRejectAttractionForm(tourId, attractionOrderIndex, bookingIndex);
+                modalContent = window.generateRejectAttractionForm ? window.generateRejectAttractionForm(tourId, attractionOrderIndex, bookingIndex, autoCancelDate) : generateRejectAttractionForm(tourId, attractionOrderIndex, bookingIndex, autoCancelDate);
                 break;
         }
         
@@ -8449,8 +9321,9 @@ function closeIndividualAttractionModal(modalId) {
 }
 
 // Override any previous definitions - this is the correct attraction approve form function
-window.generateApproveAttractionForm = function(tourId, attractionOrderIndex, bookingIndex, actualCancelDateStr=null) {
-    console.log('🎢 ATTRACTION FORM - CORRECT FUNCTION: Generating FULL approve form with all fields', 'actualCancelDateStr', actualCancelDateStr);
+window.generateApproveAttractionForm = function(tourId, attractionOrderIndex, bookingIndex, autoCancelDate=null) {
+    console.log('autoCancelDate in generateApproveAttractionForm', autoCancelDate);
+    console.log('🎢 ATTRACTION FORM - CORRECT FUNCTION: Generating FULL approve form with all fields');
     return `
         <form id="approveIndividualAttractionForm_${tourId}_${attractionOrderIndex}_${bookingIndex}">
             <input type="hidden" name="tour_id" value="${tourId}">
@@ -8514,8 +9387,7 @@ window.generateApproveAttractionForm = function(tourId, attractionOrderIndex, bo
                 <label for="actualDueDate_${tourId}_${attractionOrderIndex}_${bookingIndex}" class="form-label fw-semibold">
                     <i class="ri-calendar-line me-2"></i>Free Cancellation Date <span class="text-danger">*</span>
                 </label>
-                <input type="text" class="form-control form-control-lg" id="actualDueDate_${tourId}_${attractionOrderIndex}_${bookingIndex}" name="actual_due_date" required readonly value="${actualCancelDateStr}" 
-                       
+                <input type="date" class="form-control form-control-lg" id="actualDueDate_${tourId}_${attractionOrderIndex}_${bookingIndex}" name="actual_due_date" required readonly value="${autoCancelDate}"
                        style="border-radius: 8px; border: 2px solid #e9ecef;">
                 <div class="form-text">Select the Free Cancellation Date for this booking</div>
             </div>
@@ -8628,29 +9500,6 @@ window.calculateRestaurantDisplayDueDate = function(tourId, restaurantOrderIndex
 }
 
 // Guide date calculation function (similar to restaurant)
-window.calculateGuideDisplayDueDate = function(tourId, guideOrderIndex, bookingIndex) {
-    console.log('👨‍💼 CALCULATE DATE: Calculating guide display due date');
-    const actualDueDate = document.getElementById(`actualDueDate_${tourId}_${guideOrderIndex}_${bookingIndex}`).value;
-    const daysBefore = document.getElementById(`displayDueDateDays_${tourId}_${guideOrderIndex}_${bookingIndex}`).value;
-    const displayDueDateField = document.getElementById(`displayDueDate_${tourId}_${guideOrderIndex}_${bookingIndex}`);
-    
-    if (actualDueDate && daysBefore) {
-        const actualDate = new Date(actualDueDate);
-        const displayDate = new Date(actualDate);
-        displayDate.setDate(actualDate.getDate() - parseInt(daysBefore));
-        
-        // Format as dd-mm-yyyy
-        const day = String(displayDate.getDate()).padStart(2, '0');
-        const month = String(displayDate.getMonth() + 1).padStart(2, '0');
-        const year = displayDate.getFullYear();
-        
-        displayDueDateField.value = `${day}-${month}-${year}`;
-        console.log('✅ Guide display due date calculated:', `${day}-${month}-${year}`);
-    } else {
-        displayDueDateField.value = '';
-    }
-}
-
 // Override any previous definitions - this is the correct attraction data loading function
 window.loadAttractionDataForApprove = function(tourId, attractionOrderIndex, bookingIndex) {
     try {
@@ -8945,7 +9794,7 @@ window.confirmIndividualAttractionRejection = function(tourId, attractionOrderIn
 }
 
 // Individual Attraction Modal Functions
-function openIndividualAttractionModal(tourId, attractionOrderIndex, bookingIndex, actualCancelDateStr) {
+function openIndividualAttractionModal(tourId, attractionOrderIndex, bookingIndex, autoCancelDate=null) {
     try {
         console.log('🎢 Opening individual attraction modal for:', { tourId, attractionOrderIndex, bookingIndex });
         
@@ -8958,8 +9807,8 @@ function openIndividualAttractionModal(tourId, attractionOrderIndex, bookingInde
         }
         
         // Create and show the modal
-        createIndividualAttractionViewModal(modalId, tourId, attractionOrderIndex, bookingIndex);
-        loadIndividualAttractionContent(modalId, tourId, attractionOrderIndex, bookingIndex, actualCancelDateStr);
+        createIndividualAttractionViewModal(modalId, tourId, attractionOrderIndex, bookingIndex, autoCancelDate);
+        loadIndividualAttractionContent(modalId, tourId, attractionOrderIndex, bookingIndex, autoCancelDate);
         
     } catch (error) {
         console.error('Error opening individual attraction modal:', error);
@@ -8967,40 +9816,30 @@ function openIndividualAttractionModal(tourId, attractionOrderIndex, bookingInde
     }
 }
 
-function createIndividualAttractionViewModal(modalId, tourId, attractionOrderIndex, bookingIndex) {
+function createIndividualAttractionViewModal(modalId, tourId, attractionOrderIndex, bookingIndex, autoCancelDate=null) {
     const modalHtml = `
         <div class="modal fade" id="${modalId}" tabindex="-1" aria-hidden="true" data-bs-backdrop="static" data-bs-keyboard="false">
-            <div class="modal-dialog modal-dialog-centered modal-lg modal-dialog-scrollable">
-                <div class="modal-content shadow-lg border-0" style="border-radius: 12px; overflow: hidden;">
-                    <!-- Modal Header -->
-                    <div class="modal-header border-0 py-3 px-4" style="background: linear-gradient(135deg, #fd9853 0%, #fe7854 100%);">
-                        <div class="d-flex align-items-center justify-content-between w-100">
+            <div class="modal-dialog modal-dialog-centered modal-xl modal-dialog-scrollable">
+                <div class="modal-content shadow-lg" style="border-radius: 15px; overflow: hidden;">
+                    <div class="modal-header p-0 border-0 position-relative" style="height: 180px; background: linear-gradient(135deg, #fd9853 0%, #fe7854 100%);">
+                        <div class="position-absolute w-100 h-100 d-flex align-items-center justify-content-between p-4">
                             <div class="text-white">
-                                <h5 class="mb-0 fw-bold">
+                                <h3 class="mb-1 fw-bold">
                                     <i class="ri-building-2-line me-2"></i>Attraction Details
-                                </h5>
-                              
+                                </h3>
+                                <p class="mb-0 opacity-75">Tour #${tourId} Attraction Booking Details</p>
                             </div>
-                            <button type="button" class="btn-close btn-close-white" onclick="closeIndividualAttractionViewModal('${modalId}')" aria-label="Close"></button>
+                            <button type="button" class="btn-close btn-close-white" onclick="closeIndividualAttractionViewModal('${modalId}')" aria-label="Close" style="filter: brightness(0) invert(1); font-size: 1.2rem;"></button>
                         </div>
                     </div>
-                    <!-- Modal Body -->
-                    <div class="modal-body p-3" style="background: #f8f9fa;">
+                    <div class="modal-body p-4" style="background-color: #f8f9fa;">
                         <div id="${modalId}_content">
-                            <div class="text-center py-4">
-                                <div class="spinner-border" role="status" style="color: #fd9853;">
+                            <div class="d-flex justify-content-center align-items-center py-5">
+                                <div class="spinner-border text-primary" role="status">
                                     <span class="visually-hidden">Loading...</span>
                                 </div>
-                                <p class="text-muted mt-2 mb-0" style="font-size: 0.9rem;">Loading attraction details...</p>
+                                <span class="ms-3 text-muted">Loading attraction details...</span>
                             </div>
-                        </div>
-                    </div>
-                    <!-- Modal Footer -->
-                    <div class="modal-footer border-0 py-2 px-3" style="background: #f8f9fa;">
-                        <div class="d-flex gap-2 w-100 justify-content-end" id="attractionModalFooter_${modalId}">
-                            <button type="button" class="btn btn-outline-secondary btn-sm px-3 py-1" onclick="closeIndividualAttractionViewModal('${modalId}')" style="border-radius: 8px; font-size: 0.85rem;">
-                                <i class="ri-close-line me-1"></i>Close
-                            </button>
                         </div>
                     </div>
                 </div>
@@ -9033,7 +9872,7 @@ function closeIndividualAttractionViewModal(modalId) {
     }
 }
 
-function loadIndividualAttractionContent(modalId, tourId, attractionOrderIndex, bookingIndex, actualCancelDateStr=null) {
+function loadIndividualAttractionContent(modalId, tourId, attractionOrderIndex, bookingIndex, autoCancelDate=null) {
     console.log('🔍 Loading individual attraction content for:', { tourId, attractionOrderIndex, bookingIndex });
     
     fetch('{{ url("/booking/get-attraction-data") }}', {
@@ -9080,6 +9919,9 @@ function loadIndividualAttractionContent(modalId, tourId, attractionOrderIndex, 
                 ticketDetails: attractionData.ticket_details || {},
                 transport: attractionData.transport,
                 selection: attractionData.selection,
+                // Transfer and Guide Options
+                transferOptions: attractionData.transfer_options || null,
+                guideOptions: attractionData.guide_options || null,
                 // Approval status
                 isApprove: attractionData.is_approve || false,
                 referenceId: attractionData.reference_id || null,
@@ -9089,7 +9931,11 @@ function loadIndividualAttractionContent(modalId, tourId, attractionOrderIndex, 
             };
             
             console.log('✅ Attraction booking data prepared for display', attractionBooking);
-            generateIndividualAttractionContent(attractionBooking, modalId, tourId, attractionOrderIndex, bookingIndex, actualCancelDateStr);
+            console.log('🔍 Transfer options in attraction booking:', attractionBooking.transferOptions);
+            console.log('🔍 Guide options in attraction booking:', attractionBooking.guideOptions);
+            console.log('🔍 Transfer required value:', attractionBooking.transferOptions?.transfer_required);
+            console.log('🔍 Guide required value:', attractionBooking.guideOptions?.guide_required);
+            generateIndividualAttractionContent(attractionBooking, modalId, tourId, attractionOrderIndex, bookingIndex, autoCancelDate);
         } else {
             console.error('❌ Attraction data fetch failed', data);
             displayErrorContent(modalId, 'Failed to load attraction details');
@@ -9101,7 +9947,7 @@ function loadIndividualAttractionContent(modalId, tourId, attractionOrderIndex, 
     });
 }
 
-function generateIndividualAttractionContent(attractionBooking, modalId, tourId, attractionOrderIndex, bookingIndex, actualCancelDateStr=null) {
+function generateIndividualAttractionContent(attractionBooking, modalId, tourId, attractionOrderIndex, bookingIndex, autoCancelDate=null) {
     const bookingDate = attractionBooking.bookingDate;
     const formattedDate = bookingDate ? new Date(bookingDate).toLocaleDateString('en-US', { 
         weekday: 'short', 
@@ -9129,7 +9975,44 @@ function generateIndividualAttractionContent(attractionBooking, modalId, tourId,
             </div>
             
             <div class="card-body p-4" style="background-color: #f8f9fa;">
-          
+                <!-- Guest Information -->
+                <div class="row mb-4">
+                    <div class="col-md-6">
+                        <div class="bg-white rounded p-3 shadow-sm h-100">
+                            <div class="d-flex align-items-center mb-3">
+                                <div class="bg-primary rounded-circle p-2 me-3">
+                                    <i class="ri-user-line text-white"></i>
+                                </div>
+                                <h6 class="fw-bold mb-0 text-dark">Customer Details</h6>
+                            </div>
+                            <div class="mb-2">
+                                <small class="text-muted">Full Name</small>
+                                <div class="fw-medium">${attractionBooking.fullName || 'N/A'}</div>
+                            </div>
+                            <div class="mb-2">
+                                <small class="text-muted">Email Address</small>
+                                <div class="fw-medium text-primary">${attractionBooking.email || 'N/A'}</div>
+                            </div>
+                            <div class="mb-0">
+                                <small class="text-muted">Phone Number</small>
+                                <div class="fw-medium">${attractionBooking.phone || 'N/A'}</div>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-md-6">
+                        <div class="bg-white rounded p-3 shadow-sm h-100">
+                            <div class="d-flex align-items-center mb-3">
+                                <div class="bg-info rounded-circle p-2 me-3">
+                                    <i class="ri-map-pin-line text-white"></i>
+                                </div>
+                                <h6 class="fw-bold mb-0 text-dark">Address</h6>
+                            </div>
+                            <div class="text-muted">
+                                ${attractionBooking.address && attractionBooking.address !== 'N/A' ? `<div>${attractionBooking.address}</div>` : '<div class="text-muted">Address not provided</div>'}
+                            </div>
+                        </div>
+                    </div>
+                </div>
 
                 <!-- Visit & Booking Information -->
                 <div class="row mb-4">
@@ -9287,6 +10170,147 @@ function generateIndividualAttractionContent(attractionBooking, modalId, tourId,
                 </div>
                 ` : ''}
 
+                <!-- Transfer Options -->
+                ${attractionBooking.transferOptions && attractionBooking.transferOptions.transfer_required && (attractionBooking.transferOptions.transfer_required === true || attractionBooking.transferOptions.transfer_required === 'true' || attractionBooking.transferOptions.transfer_required === 'Yes' || attractionBooking.transferOptions.transfer_required === 1) ? `
+                <div class="bg-white rounded p-3 shadow-sm mb-4">
+                    <div class="d-flex align-items-center mb-3">
+                        <div class="bg-success rounded-circle p-2 me-3">
+                            <i class="ri-car-line text-white"></i>
+                        </div>
+                        <h6 class="fw-bold mb-0 text-dark">Transfer Details</h6>
+                    </div>
+                    
+                    <div class="row">
+                        <div class="col-md-6 mb-3">
+                            <div class="bg-light rounded p-3 h-100">
+                                <div class="mb-2">
+                                    <small class="text-muted d-block">Transfer Type</small>
+                                    <div class="fw-medium">
+                                        <span class="badge bg-primary">${attractionBooking.transferOptions.type || 'N/A'}</span>
+                                    </div>
+                                </div>
+                                <div class="mb-2">
+                                    <small class="text-muted d-block">Transfer Way</small>
+                                    <div class="fw-medium">
+                                        <span class="badge bg-info">${attractionBooking.transferOptions.way || 'N/A'}</span>
+                                    </div>
+                                </div>
+                                ${attractionBooking.transferOptions.pickup_location_name ? `
+                                <div class="mb-0">
+                                    <small class="text-muted d-block">Pickup Location</small>
+                                    <div class="fw-medium text-primary">
+                                        <i class="ri-map-pin-line me-1"></i>${attractionBooking.transferOptions.pickup_location_name}
+                                    </div>
+                                </div>
+                                ` : ''}
+                            </div>
+                        </div>
+                        
+                        <div class="col-md-6 mb-3">
+                            <div class="bg-light rounded p-3 h-100">
+                                ${attractionBooking.transferOptions.vehicle_details ? `
+                                    <div class="mb-2">
+                                        <small class="text-muted d-block">Vehicle</small>
+                                        <div class="fw-medium">
+                                            <i class="ri-car-line me-1"></i>${attractionBooking.transferOptions.vehicle_details.vehicle_name || 'N/A'}
+                                        </div>
+                                        ${attractionBooking.transferOptions.vehicle_details.vehicle_type ? `
+                                            <small class="text-muted">Type: ${attractionBooking.transferOptions.vehicle_details.vehicle_type}</small>
+                                        ` : ''}
+                                    </div>
+                                    ${attractionBooking.transferOptions.vehicle_details.seating_capacity ? `
+                                    <div class="mb-2">
+                                        <small class="text-muted d-block">Seating Capacity</small>
+                                        <div class="fw-medium">
+                                            <i class="ri-user-line me-1"></i>${attractionBooking.transferOptions.vehicle_details.seating_capacity} passengers
+                                        </div>
+                                    </div>
+                                    ` : ''}
+                                ` : attractionBooking.transferOptions.vehicle_id ? `
+                                    <div class="mb-2">
+                                        <small class="text-muted d-block">Vehicle ID</small>
+                                        <div class="fw-medium">${attractionBooking.transferOptions.vehicle_id}</div>
+                                    </div>
+                                ` : ''}
+                                
+                                ${attractionBooking.transferOptions.cost && attractionBooking.transferOptions.cost > 0 ? `
+                                <div class="mb-0">
+                                    <small class="text-muted d-block">Transfer Cost</small>
+                                    <div class="fs-5 fw-bold text-success">
+                                        <i class="ri-money-dollar-circle-line me-1"></i>SGD ${parseFloat(attractionBooking.transferOptions.cost).toFixed(2)}
+                                    </div>
+                                </div>
+                                ` : ''}
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                ` : ''}
+
+                <!-- Guide Options -->
+                ${attractionBooking.guideOptions && attractionBooking.guideOptions.guide_required && (attractionBooking.guideOptions.guide_required === true || attractionBooking.guideOptions.guide_required === 'true' || attractionBooking.guideOptions.guide_required === 'Yes' || attractionBooking.guideOptions.guide_required === 1) ? `
+                <div class="bg-white rounded p-3 shadow-sm mb-4">
+                    <div class="d-flex align-items-center mb-3">
+                        <div class="bg-info rounded-circle p-2 me-3">
+                            <i class="ri-user-star-line text-white"></i>
+                        </div>
+                        <h6 class="fw-bold mb-0 text-dark">Guide Details</h6>
+                    </div>
+                    
+                    <div class="row">
+                        <div class="col-md-6 mb-3">
+                            <div class="bg-light rounded p-3 h-100">
+                                <div class="mb-2">
+                                    <small class="text-muted d-block">Guide Name</small>
+                                    <div class="fw-medium text-primary">
+                                        <i class="ri-user-line me-1"></i>${attractionBooking.guideOptions.guide_name || 'N/A'}
+                                    </div>
+                                </div>
+                                <div class="mb-2">
+                                    <small class="text-muted d-block">Package Duration</small>
+                                    <div class="fw-medium">
+                                        <span class="badge bg-info">${attractionBooking.guideOptions.package_hours || 'N/A'} Hours</span>
+                                    </div>
+                                </div>
+                                ${attractionBooking.guideOptions.pickup_time ? `
+                                <div class="mb-0">
+                                    <small class="text-muted d-block">Pickup Time</small>
+                                    <div class="fw-medium text-success">
+                                        <i class="ri-time-line me-1"></i>${attractionBooking.guideOptions.pickup_time ? new Date('2000-01-01T' + attractionBooking.guideOptions.pickup_time).toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', hour12: true }) : 'N/A'}
+                                    </div>
+                                </div>
+                                ` : ''}
+                            </div>
+                        </div>
+                        
+                        <div class="col-md-6 mb-3">
+                            <div class="bg-light rounded p-3 h-100">
+                                <div class="mb-2">
+                                    <small class="text-muted d-block">Base Price</small>
+                                    <div class="fw-medium text-primary">
+                                        <i class="ri-money-dollar-circle-line me-1"></i>SGD ${parseFloat(attractionBooking.guideOptions.base_price || 0).toFixed(2)}
+                                    </div>
+                                </div>
+                                ${attractionBooking.guideOptions.surcharge && attractionBooking.guideOptions.surcharge > 0 ? `
+                                <div class="mb-2">
+                                    <small class="text-muted d-block">Night Surcharge</small>
+                                    <div class="fw-medium text-warning">
+                                        <i class="ri-moon-line me-1"></i>SGD ${parseFloat(attractionBooking.guideOptions.surcharge).toFixed(2)}
+                                    </div>
+                                </div>
+                                ` : ''}
+                                <div class="mb-0">
+                                    <small class="text-muted d-block">Total Guide Cost</small>
+                                    <div class="fs-5 fw-bold text-success">
+                                        <i class="ri-money-dollar-circle-line me-1"></i>SGD ${parseFloat(attractionBooking.guideOptions.total_price || 0).toFixed(2)}
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                ` : ''}
+
                 <!-- Special Requests -->
                 ${attractionBooking.specialRequests ? `
                 <div class="bg-white rounded p-3 shadow-sm mb-4">
@@ -9358,7 +10382,7 @@ function generateIndividualAttractionContent(attractionBooking, modalId, tourId,
                     </button>
                     <button type="button" 
                             class="btn btn-outline-success btn-sm px-3 py-2" 
-                            onclick="window.approveIndividualAttraction ? window.approveIndividualAttraction(${tourId}, ${attractionOrderIndex}, ${bookingIndex}, '${actualCancelDateStr}') : approveIndividualAttraction(${tourId}, ${attractionOrderIndex}, ${bookingIndex}, '${actualCancelDateStr}')"
+                            onclick="window.approveIndividualAttraction ? window.approveIndividualAttraction(${tourId}, ${attractionOrderIndex}, ${bookingIndex}, '${autoCancelDate}') : approveIndividualAttraction(${tourId}, ${attractionOrderIndex}, ${bookingIndex}, '${autoCancelDate}')"
                             style="border-radius: 25px;">
                         <i class="ri-check-line me-1"></i>Approve
                     </button>
@@ -9370,7 +10394,7 @@ function generateIndividualAttractionContent(attractionBooking, modalId, tourId,
                 buttonsHTML += `
                     <button type="button" 
                             class="btn btn-outline-danger btn-sm px-3 py-2" 
-                            onclick="window.rejectIndividualAttraction ? window.rejectIndividualAttraction(${tourId}, ${attractionOrderIndex}, ${bookingIndex}, '${actualCancelDateStr}') : rejectIndividualAttraction(${tourId}, ${attractionOrderIndex}, ${bookingIndex}, '${actualCancelDateStr}')"
+                            onclick="window.rejectIndividualAttraction ? window.rejectIndividualAttraction(${tourId}, ${attractionOrderIndex}, ${bookingIndex}, '${autoCancelDate}') : rejectIndividualAttraction(${tourId}, ${attractionOrderIndex}, ${bookingIndex}, '${autoCancelDate}')"
                             style="border-radius: 25px;">
                         <i class="ri-close-line me-1"></i>Reject
                     </button>
@@ -9382,15 +10406,15 @@ function generateIndividualAttractionContent(attractionBooking, modalId, tourId,
     }
 }
 
-function editIndividualAttraction(tourId, attractionOrderIndex, bookingIndex) {
+function editIndividualAttraction(tourId, attractionOrderIndex, bookingIndex, autoCancelDate=null) {
     try {
         console.log('Opening individual attraction edit modal for tour:', tourId, 'attraction order:', attractionOrderIndex, 'booking:', bookingIndex);
         
         // Create and show the edit modal (don't close the view modal)
-        createAndShowIndividualAttractionEditModal(tourId, attractionOrderIndex, bookingIndex, 'edit');
+        createAndShowIndividualAttractionEditModal(tourId, attractionOrderIndex, bookingIndex, 'edit', autoCancelDate);
         // Load attraction data after modal is created
         setTimeout(() => {
-            loadAttractionDataForEdit(tourId, attractionOrderIndex, bookingIndex);
+            loadAttractionDataForEdit(tourId, attractionOrderIndex, bookingIndex, autoCancelDate);
         }, 100);
         
     } catch (error) {
@@ -9469,7 +10493,7 @@ function validateAttractionDate(tourId, attractionOrderIndex, bookingIndex) {
     }
 }
 
-function loadAttractionDataForEdit(tourId, attractionOrderIndex, bookingIndex) {
+function loadAttractionDataForEdit(tourId, attractionOrderIndex, bookingIndex, autoCancelDate=null) {
     console.log('🔍 Loading attraction data for edit:', { tourId, attractionOrderIndex, bookingIndex });
     
     fetch('{{ url("/booking/get-attraction-data") }}', {
@@ -9702,7 +10726,7 @@ function validateAttractionDate(tourId, attractionOrderIndex, bookingIndex) {
 
 
 // Individual Restaurant Modal Function
-function openIndividualRestaurantModal(tourId, restaurantOrderIndex, bookingIndex, actualCancelDateStr=null) {
+function openIndividualRestaurantModal(tourId, restaurantOrderIndex, bookingIndex, autoCancelDate=null) {
     try {
         console.log('🍽️ Opening individual restaurant modal for:', { tourId, restaurantOrderIndex, bookingIndex });
         
@@ -9715,7 +10739,7 @@ function openIndividualRestaurantModal(tourId, restaurantOrderIndex, bookingInde
         }
         
         // Create and show the individual restaurant modal
-        createIndividualRestaurantViewModal(tourId, restaurantOrderIndex, bookingIndex, actualCancelDateStr);
+        createIndividualRestaurantViewModal(tourId, restaurantOrderIndex, bookingIndex, autoCancelDate);
         
     } catch (error) {
         console.error('Error opening individual restaurant modal:', error);
@@ -9723,50 +10747,48 @@ function openIndividualRestaurantModal(tourId, restaurantOrderIndex, bookingInde
     }
 }
 
-function createIndividualRestaurantViewModal(tourId, restaurantOrderIndex, bookingIndex, actualCancelDateStr=null) {
+function createIndividualRestaurantViewModal(tourId, restaurantOrderIndex, bookingIndex, autoCancelDate=null) {
     const modalId = `individualRestaurantViewModal_${tourId}_${restaurantOrderIndex}_${bookingIndex}`;
     
     // Get restaurant data from the server first
-    getRestaurantServiceData(tourId, restaurantOrderIndex, bookingIndex)
+    getRestaurantServiceData(tourId, restaurantOrderIndex, bookingIndex, autoCancelDate)
     .then(restaurantData => {
         const restaurantName = restaurantData.restaurantDetails?.restaurant_name || 'Restaurant';
         
         const modalHTML = `
             <div class="modal fade" id="${modalId}" tabindex="-1" aria-hidden="true" data-bs-backdrop="static" data-bs-keyboard="false">
-                <div class="modal-dialog modal-dialog-centered modal-lg modal-dialog-scrollable">
-                    <div class="modal-content shadow-lg border-0" style="border-radius: 12px; overflow: hidden;">
+                <div class="modal-dialog modal-dialog-centered modal-xl modal-dialog-scrollable">
+                    <div class="modal-content shadow-lg" style="border-radius: 15px; overflow: hidden;">
                         <!-- Modal Header -->
-                        <div class="modal-header border-0 py-3 px-4" style="background: linear-gradient(135deg, #fd79a8 0%, #fdcb6e 100%);">
-                            <div class="d-flex align-items-center justify-content-between w-100">
+                        <div class="modal-header p-0 border-0 position-relative" style="height: 180px; background: linear-gradient(135deg, #fd79a8 0%, #fdcb6e 100%);">
+                            <div class="position-absolute w-100 h-100 d-flex align-items-center justify-content-between p-4">
                                 <div class="text-white">
-                                    <h5 class="mb-0 fw-bold">
-                                        <i class="ri-restaurant-2-line me-2"></i>Restaurant Details
-                                    </h5>
-                                    
+                                    <h3 class="mb-1 fw-bold">
+                                        <i class="ri-restaurant-2-line me-2"></i>${restaurantName}
+                                    </h3>
+                                    <p class="mb-0 opacity-75">Tour #${tourId} Restaurant Details</p>
                                 </div>
-                                <button type="button" class="btn-close btn-close-white" onclick="closeIndividualRestaurantViewModal('${modalId}')" aria-label="Close"></button>
+                                <button type="button" class="btn-close btn-close-white" onclick="closeIndividualRestaurantViewModal('${modalId}')" aria-label="Close" style="filter: brightness(0) invert(1); font-size: 1.2rem;"></button>
                             </div>
                         </div>
 
                         <!-- Modal Body -->
-                        <div class="modal-body p-3" style="background: #f8f9fa;">
+                        <div class="modal-body p-4" style="background-color: #f8f9fa;">
                             <div id="restaurantContent_${modalId}">
-                                <div class="text-center py-4">
-                                    <div class="spinner-border" role="status" style="color: #fd79a8;">
+                                <div class="text-center py-5">
+                                    <div class="spinner-border text-primary" role="status">
                                         <span class="visually-hidden">Loading...</span>
                                     </div>
-                                    <p class="text-muted mt-2 mb-0" style="font-size: 0.9rem;">Loading restaurant details...</p>
+                                    <p class="mt-3 text-muted">Loading restaurant details...</p>
                                 </div>
                             </div>
                         </div>
 
                         <!-- Modal Footer -->
-                        <div class="modal-footer border-0 py-2 px-3" style="background: #f8f9fa;">
-                            <div class="d-flex gap-2 w-100 justify-content-end" id="restaurantModalFooter_${modalId}">
-                                <button type="button" class="btn btn-outline-secondary btn-sm px-3 py-1" onclick="closeIndividualRestaurantViewModal('${modalId}')" style="border-radius: 8px; font-size: 0.85rem;">
-                                    <i class="ri-close-line me-1"></i>Close
+                        <div class="modal-footer border-0 p-4" style="background: linear-gradient(90deg, #f8f9fa 0%, #e9ecef 100%);">
+                            <button type="button" class="btn btn-secondary px-4 py-2" onclick="closeIndividualRestaurantViewModal('${modalId}')" style="border-radius: 25px;">
+                                <i class="ri-close-line me-2"></i>Close
                             </button>
-                            </div>
                         </div>
                     </div>
                 </div>
@@ -9787,7 +10809,7 @@ function createIndividualRestaurantViewModal(tourId, restaurantOrderIndex, booki
         });
         
         // Load the restaurant content
-        loadIndividualRestaurantContent(tourId, restaurantOrderIndex, bookingIndex, modalId, actualCancelDateStr);
+        loadIndividualRestaurantContent(tourId, restaurantOrderIndex, bookingIndex, modalId, autoCancelDate);
         
     })
     .catch(error => {
@@ -9810,95 +10832,19 @@ function closeIndividualRestaurantViewModal(modalId) {
     }
 }
 
-function loadIndividualRestaurantContent(tourId, restaurantOrderIndex, bookingIndex, modalId, actualCancelDateStr=null) {
+function loadIndividualRestaurantContent(tourId, restaurantOrderIndex, bookingIndex, modalId, autoCancelDate=null) {
     // Get restaurant data and populate the modal content
     getRestaurantServiceData(tourId, restaurantOrderIndex, bookingIndex)
     .then(restaurantData => {
         console.log('📊 Restaurant data received for content generation:', restaurantData);
         
         // Pass the full restaurant data object which contains both restaurantDetails and restaurant_details
-        const contentHTML = generateIndividualRestaurantContent(restaurantData, tourId, restaurantOrderIndex, bookingIndex, actualCancelDateStr);
+        const contentHTML = generateIndividualRestaurantContent(restaurantData, tourId, restaurantOrderIndex, bookingIndex, autoCancelDate);
         
         // Update the modal content
         const contentContainer = document.getElementById(`restaurantContent_${modalId}`);
         if (contentContainer) {
             contentContainer.innerHTML = contentHTML;
-        }
-        
-        // Add action buttons based on user role and approval status
-        const isApproved = restaurantData.restaurant_details?.is_approve == 1 || restaurantData.restaurant_details?.is_approve === '1' || restaurantData.restaurant_details?.is_approve === true || restaurantData.restaurantDetails?.is_approve == 1 || restaurantData.restaurantDetails?.is_approve === '1' || restaurantData.restaurantDetails?.is_approve === true || false;
-        
-        if (!isApproved) {
-            const userRoleId = {{ auth()->user()->role_id ?? 0 }};
-            const buttonsContainer = document.getElementById(`restaurant_buttons_${tourId}_${restaurantOrderIndex}_${bookingIndex}`);
-            
-            if (buttonsContainer) {
-                let buttonsHTML = '';
-                
-                // Check permissions
-                const canEdit = [11, 34, 124, 125, 128, 131, 132, 134, 135, 137, 138].includes(userRoleId);
-                const canApprove = [11, 34, 124, 125, 128, 131, 132, 134, 135, 137, 138].includes(userRoleId);
-                const canReject = [11, 34, 33, 37, 38, 124, 125, 128, 129, 130, 131, 132, 134, 135, 136, 137, 138].includes(userRoleId);
-                const hasAnyPermission = canEdit || canApprove || canReject;
-                
-                if (hasAnyPermission) {
-                    // Edit button (DMC and Operational Head only)
-                    if (canEdit) {
-                        buttonsHTML += `
-                            <button type="button" 
-                                    class="btn btn-sm px-2 py-1" 
-                                    onclick="editIndividualRestaurant(${tourId}, ${restaurantOrderIndex}, ${bookingIndex}, '${actualCancelDateStr || ''}')"
-                                    style="border-radius: 6px; background: linear-gradient(135deg, #fd79a8 0%, #fdcb6e 100%); border: none; color: white; font-size: 0.75rem;">
-                                <i class="ri-edit-line me-1" style="font-size: 0.7rem;"></i>Edit
-                            </button>
-                        `;
-                    }
-                    
-                    // Approve button (DMC and Operational Head only)
-                    if (canApprove) {
-                        buttonsHTML += `
-                            <button type="button" 
-                                    class="btn btn-outline-success btn-sm px-2 py-1" 
-                                    onclick="approveIndividualRestaurant(${tourId}, ${restaurantOrderIndex}, ${bookingIndex}, '${actualCancelDateStr || ''}')"
-                                    style="border-radius: 6px; font-size: 0.75rem;">
-                                <i class="ri-check-line me-1" style="font-size: 0.7rem;"></i>Approve
-                            </button>
-                        `;
-                    }
-                    
-                    // Reject button (for users with reject permission)
-                    if (canReject) {
-                        buttonsHTML += `
-                            <button type="button" 
-                                    class="btn btn-outline-danger btn-sm px-2 py-1" 
-                                    onclick="rejectIndividualRestaurant(${tourId}, ${restaurantOrderIndex}, ${bookingIndex}, '${actualCancelDateStr || ''}')"
-                                    style="border-radius: 6px; font-size: 0.75rem;">
-                                <i class="ri-close-line me-1" style="font-size: 0.7rem;"></i>Reject
-                            </button>
-                        `;
-                    }
-                } else {
-                    // Show pending approval only if user has no permissions
-                    buttonsHTML += '<div class="text-muted small" style="font-size: 0.75rem;"><i class="ri-information-line me-1" style="font-size: 0.7rem;"></i>Pending approval</div>';
-                }
-                
-                buttonsContainer.innerHTML = buttonsHTML;
-            }
-        } else {
-            // Show approved status
-            const buttonsContainer = document.getElementById(`restaurant_buttons_${tourId}_${restaurantOrderIndex}_${bookingIndex}`);
-            if (buttonsContainer) {
-                const referenceId = restaurantData.restaurant_details?.reference_id || restaurantData.restaurantDetails?.reference_id || '';
-                const displayDueDate = restaurantData.restaurant_details?.display_due_date || restaurantData.restaurantDetails?.display_due_date || '';
-                buttonsContainer.innerHTML = `
-                    <div class="alert alert-success mb-0 py-1 px-2" style="border-radius: 6px; font-size: 0.75rem;">
-                        <i class="ri-check-circle-fill me-1" style="font-size: 0.7rem;"></i>
-                        <strong>Approved</strong>
-                        ${referenceId ? `<span class="ms-1">• Ref: ${referenceId}</span>` : ''}
-                        ${displayDueDate ? `<span class="ms-1">• Due: ${displayDueDate}</span>` : ''}
-                    </div>
-                `;
-            }
         }
     })
     .catch(error => {
@@ -9918,7 +10864,7 @@ function loadIndividualRestaurantContent(tourId, restaurantOrderIndex, bookingIn
     });
 }
 
-function generateIndividualRestaurantContent(booking, tourId, restaurantOrderIndex, bookingIndex, actualCancelDateStr=null) {
+function generateIndividualRestaurantContent(booking, tourId, restaurantOrderIndex, bookingIndex, autoCancelDate=null) {
     // Get the full booking data from the restaurantDetails
     const fullBooking = booking.restaurant_details || booking;
     const userRole = parseInt(document.querySelector('meta[name="user-role"]')?.getAttribute('content')) || {{ auth()->user()->role_id ?? 0 }};
@@ -9926,207 +10872,347 @@ function generateIndividualRestaurantContent(booking, tourId, restaurantOrderInd
     const canAccessRestaurantQR = allowedRestaurantQrRoles.includes(userRole);
     
     return `
-        <div class="card mb-3 shadow-sm border-0" style="border-radius: 10px; overflow: hidden; border-left: 4px solid #fd79a8 !important;">
-            <!-- Compact Card Header -->
-            <div class="card-header border-0 py-2 px-3" style="background: linear-gradient(90deg, #fd79a8 0%, #fdcb6e 100%);">
-                <div class="row align-items-center g-2">
+        <div class="card mb-4 shadow-sm border-0" style="border-radius: 12px; overflow: hidden;">
+            <div class="card-header border-0" style="background: linear-gradient(90deg, #fd79a8 0%, #fdcb6e 100%); padding: 20px;">
+                <div class="row align-items-center">
                     <div class="col-md-8">
-                        <h6 class="mb-0 fw-bold text-white">
-                            <i class="ri-restaurant-2-line me-1"></i>${fullBooking.restaurantName || booking.restaurant_name || 'Restaurant Booking'}
-                        </h6>
-                        <small class="text-white opacity-90">${fullBooking.mealType || booking.meal_type || 'Meal'} • ${fullBooking.mealSpecificType || booking.meal_specific_type || 'Standard'}</small>
+                        <h5 class="mb-1 fw-bold text-white">
+                            <i class="ri-restaurant-2-line me-2"></i>${fullBooking.restaurantName || booking.restaurant_name || 'Restaurant Booking'}
+                        </h5>
+                        <p class="mb-0 text-white opacity-75">${fullBooking.mealType || booking.meal_type || 'Meal'} • ${fullBooking.mealSpecificType || booking.meal_specific_type || 'Standard'}</p>
                     </div>
                     <div class="col-md-4 text-end">
-                        <span class="badge bg-white text-success px-3 py-2" style="font-size: 0.95rem;">
-                            SGD ${(fullBooking.totalPrice || booking.total_price || 0).toFixed(2)}
-                        </span>
+                        <div class="bg-white rounded-pill px-3 py-2 d-inline-block">
+                            <span class="text-success fw-bold fs-5">SGD ${(fullBooking.totalPrice || booking.total_price || 0).toFixed(2)}</span>
+                        </div>
                     </div>
                 </div>
             </div>
             
-            <div class="card-body p-3" style="background-color: #ffffff;">
-                <!-- Customer & Reservation Details -->
-                <div class="row mb-3 g-3">
-                 
-                    <div class="col-md-12">
-                        <div class="bg-light rounded p-2 h-100">
-                            <div class="d-flex align-items-center mb-2">
-                                <div class="rounded-circle p-1 me-2" style="background: linear-gradient(135deg, #fd79a8 0%, #fdcb6e 100%); width: 28px; height: 28px; display: flex; align-items: center; justify-content: center;">
-                                    <i class="ri-calendar-line text-white" style="font-size: 0.9rem;"></i>
+            <div class="card-body p-4" style="background-color: #f8f9fa;">
+                <!-- Guest Information -->
+                <div class="row mb-4">
+                    <div class="col-md-6">
+                        <div class="bg-white rounded p-3 shadow-sm h-100">
+                            <div class="d-flex align-items-center mb-3">
+                                <div class="bg-primary rounded-circle p-2 me-3">
+                                    <i class="ri-user-line text-white"></i>
                                 </div>
-                                <h6 class="fw-bold mb-0 text-dark" style="font-size: 0.95rem;">Reservation Details</h6>
+                                <h6 class="fw-bold mb-0 text-dark">Customer Details</h6>
                             </div>
-                            <div class="mb-1">
-                                <small class="text-muted d-block" style="font-size: 0.75rem;">Dining Date</small>
-                                <div class="fw-bold text-success" style="font-size: 0.9rem;">${fullBooking.bookingDate ? new Date(fullBooking.bookingDate).toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric', year: 'numeric' }) : 'Date TBD'}</div>
+                            <div class="mb-2">
+                                <small class="text-muted">Full Name</small>
+                                <div class="fw-medium">${fullBooking.fullName || 'N/A'}</div>
                             </div>
-                            <div class="mb-1">
-                                <small class="text-muted d-block" style="font-size: 0.75rem;">Dining Time</small>
-                                <div class="fw-medium text-primary" style="font-size: 0.85rem;">${fullBooking.visitTime || 'TBC'}</div>
+                            <div class="mb-2">
+                                <small class="text-muted">Email Address</small>
+                                <div class="fw-medium text-primary">${fullBooking.email || 'N/A'}</div>
                             </div>
-                            <div class="row g-1 mb-1">
+                            <div class="mb-0">
+                                <small class="text-muted">Phone Number</small>
+                                <div class="fw-medium">${fullBooking.countryCode || ''} ${fullBooking.phone || 'N/A'}</div>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-md-6">
+                        <div class="bg-white rounded p-3 shadow-sm h-100">
+                            <div class="d-flex align-items-center mb-3">
+                                <div class="bg-warning rounded-circle p-2 me-3">
+                                    <i class="ri-calendar-line text-white"></i>
+                                </div>
+                                <h6 class="fw-bold mb-0 text-dark">Reservation Details</h6>
+                            </div>
+                            <div class="mb-3">
+                                <small class="text-muted">Dining Date</small>
+                                <div class="fw-bold text-success fs-5">${fullBooking.bookingDate ? new Date(fullBooking.bookingDate).toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric', year: 'numeric' }) : 'Date TBD'}</div>
+                            </div>
+                            <div class="mb-3">
+                                <small class="text-muted">Dining Time</small>
+                                <div class="fw-medium text-primary">${fullBooking.visitTime || 'Time to be confirmed'}</div>
+                            </div>
+                            <div class="row">
                                 <div class="col-6 text-center">
-                                    <div class="bg-white rounded p-1 border" style="border-color: #fd79a8 !important;">
-                                        <div class="fw-bold text-success" style="font-size: 1rem;">${fullBooking.adultCount || 0}</div>
-                                        <small class="text-muted" style="font-size: 0.6rem;">Adults</small>
+                                    <div class="bg-light rounded p-2">
+                                        <div class="fs-4 fw-bold text-success">${fullBooking.adultCount || 0}</div>
+                                        <small class="text-muted">Adults</small>
                                     </div>
                                 </div>
                                 <div class="col-6 text-center">
-                                    <div class="bg-white rounded p-1 border" style="border-color: #fd79a8 !important;">
-                                        <div class="fw-bold text-warning" style="font-size: 1rem;">${fullBooking.childCount || 0}</div>
-                                        <small class="text-muted" style="font-size: 0.6rem;">Children</small>
+                                    <div class="bg-light rounded p-2">
+                                        <div class="fs-4 fw-bold text-warning">${fullBooking.childCount || 0}</div>
+                                        <small class="text-muted">Children</small>
                                     </div>
                                 </div>
                             </div>
-                            <div class="text-center">
-                                <span class="badge" style="background: linear-gradient(135deg, #fd79a8 0%, #fdcb6e 100%); color: white; font-size: 0.8rem; padding: 2px 6px;">
-                                    Party: ${(fullBooking.adultCount || 0) + (fullBooking.childCount || 0)}
+                            <div class="text-center mt-2">
+                                <span class="badge bg-primary px-3 py-2">
+                                    Party of ${(fullBooking.adultCount || 0) + (fullBooking.childCount || 0)}
                                 </span>
                             </div>
                         </div>
                     </div>
                 </div>
 
-              
+                <!-- Restaurant Overview -->
+                <div class="bg-white rounded p-3 shadow-sm mb-4">
+                    <div class="d-flex align-items-center mb-3">
+                        <div class="bg-info rounded-circle p-2 me-3">
+                            <i class="ri-information-line text-white"></i>
+                        </div>
+                        <h6 class="fw-bold mb-0 text-dark">Restaurant Overview</h6>
+                    </div>
+                    <div class="row">
+                        <div class="col-md-4 mb-3">
+                            <small class="text-muted">Meal Price</small>
+                            <div class="fw-medium text-success">SGD ${(fullBooking.mealPrice || 0).toFixed(2)}</div>
+                        </div>
+                        <div class="col-md-4 mb-3">
+                            <small class="text-muted">Transport Price</small>
+                            <div class="fw-medium text-info">SGD ${(fullBooking.transportPrice || 0).toFixed(2)}</div>
+                        </div>
+                    </div>
+                </div>
 
                 <!-- Transfer Options -->
                 ${(booking.transferOptions || fullBooking.transfer_options) && (booking.transferOptions?.transfer_required || fullBooking.transfer_options?.transfer_required) && (booking.transferOptions?.transfer_required === true || booking.transferOptions?.transfer_required === 'true' || booking.transferOptions?.transfer_required === 'Yes' || booking.transferOptions?.transfer_required === 1 || fullBooking.transfer_options?.transfer_required === true || fullBooking.transfer_options?.transfer_required === 'true' || fullBooking.transfer_options?.transfer_required === 'Yes' || fullBooking.transfer_options?.transfer_required === 1) ? `
-                <div class="bg-light rounded p-2 mb-3">
-                                        <div class="d-flex align-items-center mb-2">
-                        <div class="rounded-circle p-1 me-2" style="background: linear-gradient(135deg, #fd79a8 0%, #fdcb6e 100%); width: 28px; height: 28px; display: flex; align-items: center; justify-content: center;">
-                            <i class="ri-car-line text-white" style="font-size: 0.9rem;"></i>
-                                        </div>
-                        <h6 class="fw-bold mb-0 text-dark" style="font-size: 0.95rem;">Transfer Details</h6>
-                                        </div>
-                    <div class="row g-2">
-                        <div class="col-md-6">
-                            <div class="bg-white rounded p-2">
-                                <small class="text-muted d-block" style="font-size: 0.7rem;">Transfer Type</small>
-                                <div class="fw-medium" style="font-size: 0.8rem;">
-                                    <span class="badge bg-primary" style="font-size: 0.7rem;">${(booking.transferOptions?.type || fullBooking.transfer_options?.type) || 'N/A'}</span>
-                                    </div>
-                                ${(booking.transferOptions?.pickup_location_name || fullBooking.transfer_options?.pickup_location_name) ? `
-                                <div class="mt-1">
-                                    <small class="text-muted d-block" style="font-size: 0.7rem;">Pickup</small>
-                                    <div class="fw-medium text-primary" style="font-size: 0.8rem;">${booking.transferOptions?.pickup_location_name || fullBooking.transfer_options?.pickup_location_name}</div>
-                                        </div>
-                                ` : ''}
+                <div class="bg-white rounded p-3 shadow-sm mb-4">
+                    <div class="d-flex align-items-center mb-3">
+                        <div class="bg-success rounded-circle p-2 me-3">
+                            <i class="ri-car-line text-white"></i>
+                        </div>
+                        <h6 class="fw-bold mb-0 text-dark">Transfer Details</h6>
+                    </div>
+                    
+                    <div class="row">
+                        <div class="col-md-6 mb-3">
+                            <div class="bg-light rounded p-3 h-100">
+                                <div class="mb-2">
+                                    <small class="text-muted d-block">Transfer Type</small>
+                                    <div class="fw-medium">
+                                        <span class="badge bg-primary">${(booking.transferOptions?.type || fullBooking.transfer_options?.type) || 'N/A'}</span>
                                     </div>
                                 </div>
-                        <div class="col-md-6">
-                            <div class="bg-white rounded p-2">
+                                <div class="mb-2">
+                                    <small class="text-muted d-block">Transfer Way</small>
+                                    <div class="fw-medium">
+                                        <span class="badge bg-info">${(booking.transferOptions?.way || fullBooking.transfer_options?.way) || 'N/A'}</span>
+                                    </div>
+                                </div>
+                                ${(booking.transferOptions?.pickup_location_name || fullBooking.transfer_options?.pickup_location_name) ? `
+                                <div class="mb-0">
+                                    <small class="text-muted d-block">Pickup Location</small>
+                                    <div class="fw-medium text-info">
+                                        <i class="ri-map-pin-line me-1"></i>${booking.transferOptions?.pickup_location_name || fullBooking.transfer_options?.pickup_location_name}
+                                    </div>
+                                </div>
+                                ` : ''}
+                            </div>
+                        </div>
+                        <div class="col-md-6 mb-3">
+                            <div class="bg-light rounded p-3 h-100">
                                 ${(booking.transferOptions?.vehicle_details || fullBooking.transfer_options?.vehicle_details) ? `
-                                    <small class="text-muted d-block" style="font-size: 0.7rem;">Vehicle</small>
-                                    <div class="fw-medium" style="font-size: 0.8rem;">${(booking.transferOptions?.vehicle_details?.vehicle_name || fullBooking.transfer_options?.vehicle_details?.vehicle_name) || 'N/A'}</div>
-                                    ${(booking.transferOptions?.vehicle_details?.seating_capacity || fullBooking.transfer_options?.vehicle_details?.seating_capacity) ? `
-                                    <small class="text-muted" style="font-size: 0.65rem;">Capacity: ${booking.transferOptions?.vehicle_details?.seating_capacity || fullBooking.transfer_options?.vehicle_details?.seating_capacity}</small>
+                                <div class="mb-2">
+                                    <small class="text-muted d-block">Vehicle Details</small>
+                                    <div class="fw-medium">
+                                        <i class="ri-car-line me-1"></i>${(booking.transferOptions?.vehicle_details?.vehicle_name || fullBooking.transfer_options?.vehicle_details?.vehicle_name) || 'N/A'}
+                                    </div>
+                                    ${(booking.transferOptions?.vehicle_details?.vehicle_type || fullBooking.transfer_options?.vehicle_details?.vehicle_type) ? `
+                                    <small class="text-muted">Type: ${booking.transferOptions?.vehicle_details?.vehicle_type || fullBooking.transfer_options?.vehicle_details?.vehicle_type}</small>
                                     ` : ''}
+                                </div>
+                                ${(booking.transferOptions?.vehicle_details?.seating_capacity || fullBooking.transfer_options?.vehicle_details?.seating_capacity) ? `
+                                <div class="mb-2">
+                                    <small class="text-muted d-block">Seating Capacity</small>
+                                    <div class="fw-medium">
+                                        <i class="ri-user-line me-1"></i>${booking.transferOptions?.vehicle_details?.seating_capacity || fullBooking.transfer_options?.vehicle_details?.seating_capacity} passengers
+                                    </div>
+                                </div>
+                                ` : ''}
                                 ` : (booking.transferOptions?.vehicle_id || fullBooking.transfer_options?.vehicle_id) ? `
-                                    <small class="text-muted d-block" style="font-size: 0.7rem;">Vehicle ID</small>
-                                    <div class="fw-medium" style="font-size: 0.8rem;">${booking.transferOptions?.vehicle_id || fullBooking.transfer_options?.vehicle_id}</div>
+                                <div class="mb-2">
+                                    <small class="text-muted d-block">Vehicle ID</small>
+                                    <div class="fw-medium">${booking.transferOptions?.vehicle_id || fullBooking.transfer_options?.vehicle_id}</div>
+                                </div>
                                 ` : ''}
                                 ${(booking.transferOptions?.cost || fullBooking.transfer_options?.cost) ? `
-                                <div class="mt-1">
-                                    <small class="text-muted d-block" style="font-size: 0.7rem;">Cost</small>
-                                    <div class="fw-bold text-success" style="font-size: 0.9rem;">SGD ${((booking.transferOptions?.cost || fullBooking.transfer_options?.cost) || 0).toFixed(2)}</div>
-                                                </div>
+                                <div class="mb-0">
+                                    <small class="text-muted d-block">Transfer Cost</small>
+                                    <div class="fw-bold text-success fs-5">
+                                        <i class="ri-money-dollar-circle-line me-1"></i>SGD ${((booking.transferOptions?.cost || fullBooking.transfer_options?.cost) || 0).toFixed(2)}
+                                    </div>
+                                </div>
                                 ` : ''}
-                                            </div>
-                                                </div>
-                                                </div>
-                                            </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
                 ` : ''}
 
                 ${fullBooking.MealDescription && fullBooking.MealDescription.length > 0 ? `
-             
-                ` : ''}
+                <!-- Menu Items -->
+                <div class="bg-white rounded p-3 shadow-sm mb-4">
+                    <div class="d-flex align-items-center mb-3">
+                        <div class="bg-success rounded-circle p-2 me-3">
+                            <i class="ri-restaurant-line text-white"></i>
+                        </div>
+                        <h6 class="fw-bold mb-0 text-dark">Menu Items</h6>
+                    </div>
                     
-  <!-- Pricing Overview -->
-                <div class="bg-light rounded p-2 mb-3">
-                    <div class="d-flex align-items-center mb-2">
-                        <div class="rounded-circle p-1 me-2" style="background: linear-gradient(135deg, #fd79a8 0%, #fdcb6e 100%); width: 28px; height: 28px; display: flex; align-items: center; justify-content: center;">
-                            <i class="ri-money-dollar-circle-line text-white" style="font-size: 0.9rem;"></i>
-                                </div>
-                        <h6 class="fw-bold mb-0 text-dark" style="font-size: 0.95rem;">Pricing Overview</h6>
+                    ${fullBooking.MealDescription.map(meal => `
+                        <div class="card border-0 bg-gradient-light mb-3" style="border-radius: 10px;">
+                            <div class="card-body p-3">
+                                <div class="row align-items-center">
+                                    <div class="col-md-8">
+                                        <div class="d-flex align-items-center mb-2">
+                                            <span class="badge ${meal.item_type === 'Veg' ? 'bg-success' : 'bg-danger'} me-2">
+                                                <i class="${meal.item_type === 'Veg' ? 'ri-leaf-line' : 'ri-restaurant-line'} me-1"></i>
+                                                ${meal.item_type || 'N/A'}
+                                            </span>
+                                            <span class="badge bg-info">
+                                                <i class="ri-price-tag-3-line me-1"></i>
+                                                ${meal.category || 'N/A'}
+                                            </span>
+                                        </div>
+                                        <h6 class="fw-bold text-dark mb-1">${meal.name || meal.item_name || 'Menu Item'}</h6>
+                                        <div class="text-muted small">
+                                            <i class="ri-restaurant-2-line me-1"></i>
+                                            Quantity: ${meal.quantity || 1}
+                                        </div>
                                     </div>
-                    <div class="row g-2">
-                        <div class="col-md-4">
-                            <div class="text-center p-2 border rounded bg-white" style="border-color: #28a745 !important;">
-                                <small class="text-muted d-block" style="font-size: 0.7rem;">Meal Price</small>
-                                <div class="fw-bold text-success" style="font-size: 0.8rem;">SGD ${((fullBooking.totalPrice || booking.total_price || 0) + ((booking.transferOptions?.cost || fullBooking.transfer_options?.cost) || 0)).toFixed(2)}</div>
+                                    <div class="col-md-4 text-end">
+                                        <div class="bg-white rounded-3 p-2 shadow-sm">
+                                            <small class="text-muted d-block">Unit Price</small>
+                                            <div class="fs-5 fw-bold text-success">SGD ${(meal.price || 0).toFixed(2)}</div>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <!-- Price Calculation -->
+                                <div class="bg-gradient-light rounded-3 p-4 border border-primary border-opacity-25 mt-3">
+                                    <div class="row align-items-center">
+                                        <div class="col-md-7">
+                                            <div class="d-flex align-items-center mb-3">
+                                                <div class="bg-primary rounded-circle p-2 me-3">
+                                                    <i class="ri-calculator-line text-white"></i>
+                                                </div>
+                                                <h6 class="fw-bold mb-0 text-dark">Price Calculation</h6>
+                                            </div>
+                                            <div class="d-flex align-items-center gap-3">
+                                                <div class="text-center">
+                                                    <div class="fs-5 fw-bold text-success">SGD ${(meal.price || 0).toFixed(2)}</div>
+                                                    <small class="text-muted">per item</small>
+                                                </div>
+                                                <div class="text-primary fs-3">×</div>
+                                                <div class="text-center">
+                                                    <div class="fs-5 fw-bold text-primary">${meal.quantity || 1}</div>
+                                                    <small class="text-muted">${(meal.quantity || 1) == 1 ? 'item' : 'items'}</small>
+                                                </div>
+                                                <div class="text-primary fs-3">=</div>
+                                            </div>
+                                        </div>
+                                        <div class="col-md-5 text-end">
+                                            <div class="bg-white rounded-3 p-4 shadow border border-success border-opacity-50">
+                                                <small class="text-muted d-block mb-2">Item Subtotal</small>
+                                                <div class="fs-2 fw-bold text-success">
+                                                    SGD ${((meal.price || 0) * (meal.quantity || 1)).toFixed(2)}
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
                                 </div>
                             </div>
-                        <div class="col-md-4">
-                            <div class="text-center p-2 border rounded bg-white" style="border-color: #17a2b8 !important;">
-                                <small class="text-muted d-block" style="font-size: 0.7rem;">Vehicle Price</small>
-                                <div class="fw-bold text-info" style="font-size: 0.8rem;">SGD ${((booking.transferOptions?.cost || fullBooking.transfer_options?.cost) || 0).toFixed(2)}</div>
+                        </div>
+                    `).join('')}
+                    
+                    <!-- Total Summary -->
+                    <div class="card shadow-lg mt-4" style="border: none; border-radius: 15px; overflow: hidden;">
+                        <div class="card-header border-0" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); padding: 20px;">
+                            <div class="row align-items-center">
+                                <div class="col-md-8">
+                                    <h5 class="mb-1 fw-bold text-white">
+                                        <i class="ri-receipt-line me-2"></i>Order Summary
+                                    </h5>
+                                    <p class="mb-0 text-white opacity-75">
+                                        ${fullBooking.MealDescription.length} item(s) • ${fullBooking.mealType || 'Meal'} • ${fullBooking.mealSpecificType || 'Menu'}
+                                    </p>
+                                </div>
+                                <div class="col-md-4 text-end">
+                                    <div class="bg-white bg-opacity-95 rounded-3 px-4 py-3 shadow">
+                                        <small class="text-muted d-block mb-1">Grand Total</small>
+                                        <div class="fs-2 fw-bold text-success">SGD ${(fullBooking.totalPrice || 0).toFixed(2)}</div>
+                                    </div>
+                                </div>
+                            </div>
                         </div>
                     </div>
-                        <div class="col-md-4">
-                            <div class="text-center p-2 border rounded bg-white" style="border-color: #fd79a8 !important; background: linear-gradient(135deg, rgba(253,121,168,0.1) 0%, rgba(253,203,110,0.1) 100%) !important;">
-                                <small class="text-muted d-block" style="font-size: 0.7rem;">Grand Total</small>
-                                <div class="fw-bold" style="font-size: 1.1rem; color: #fd79a8;">SGD ${((fullBooking.totalPrice || booking.total_price || 0) + ((booking.transferOptions?.cost || fullBooking.transfer_options?.cost) || 0)).toFixed(2)}</div>
                 </div>
-                        </div>
-                    </div>
-                    <div class="mt-2 text-center">
-                        <small class="text-muted" style="font-size: 0.75rem;">
-                            <i class="ri-information-line me-1"></i>
-                            Total Price includes Restaurant Price + Vehicle Price
-                        </small>
-                    </div>
-                </div>
+                ` : ''}
 
-                 <!-- Individual Action Buttons -->
+                ${fullBooking.specialRequests ? `
+                <!-- Special Requests -->
+                <div class="bg-white rounded p-3 shadow-sm mb-4">
+                    <div class="d-flex align-items-center mb-3">
+                        <div class="bg-purple rounded-circle p-2 me-3" style="background-color: #6f42c1;">
+                            <i class="ri-message-line text-white"></i>
+                        </div>
+                        <h6 class="fw-bold mb-0 text-dark">Special Requests</h6>
+                    </div>
+                    <div class="bg-light rounded p-3">
+                        <p class="mb-0 text-dark">${fullBooking.specialRequests}</p>
+                    </div>
+                </div>
+                ` : ''}
+
+                <!-- Individual Action Buttons -->
                 <div class="bg-white rounded p-3 shadow-sm border-top">
-                    <div class="d-flex align-items-center justify-content-between flex-wrap gap-3">
+                    <div class="d-flex align-items-center justify-content-between">
                         <div class="d-flex align-items-center">
                             <div class="bg-secondary rounded-circle p-2 me-3">
                                 <i class="ri-settings-line text-white"></i>
                             </div>
                             <h6 class="fw-bold mb-0 text-dark">Booking Actions</h6>
                         </div>
-                        ${generateRestaurantActionButtons(booking, tourId, restaurantOrderIndex, bookingIndex, actualCancelDateStr)}
+                        ${generateRestaurantActionButtons(booking, tourId, restaurantOrderIndex, bookingIndex, autoCancelDate)}
                     </div>
                 </div>
 
                 ${canAccessRestaurantQR ? `
                 <!-- Restaurant QR Code -->
-                <div class="bg-light rounded p-2 mt-2" id="restaurantQRSection_${tourId}_${restaurantOrderIndex}_${bookingIndex}">
-                    <div class="d-flex align-items-center justify-content-between flex-wrap gap-2 mb-2">
+                <div class="bg-white rounded p-3 shadow-sm mt-3" id="restaurantQRSection_${tourId}_${restaurantOrderIndex}_${bookingIndex}">
+                    <div class="d-flex align-items-center justify-content-between flex-wrap gap-3">
                         <div class="d-flex align-items-center">
-                            <div class="rounded-circle p-1 me-2" style="background: linear-gradient(135deg, #fd79a8 0%, #fdcb6e 100%); width: 28px; height: 28px; display: flex; align-items: center; justify-content: center;">
-                                <i class="ri-qr-code-line text-white" style="font-size: 0.9rem;"></i>
+                            <div class="bg-dark rounded-circle p-2 me-3">
+                                <i class="ri-qr-code-line text-white"></i>
                             </div>
                             <div>
-                                <h6 class="fw-bold mb-0 text-dark" style="font-size: 0.9rem;">Restaurant Check-in QR</h6>
-                                <small class="text-muted" style="font-size: 0.7rem;">Generate QR code for booking details</small>
+                                <h6 class="fw-bold mb-1 text-dark">Restaurant Check-in QR</h6>
+                                <small class="text-muted">Generate a QR code with key restaurant booking details.</small>
                             </div>
                         </div>
-                        <div class="d-flex align-items-center gap-1 flex-wrap">
+                        <div class="d-flex align-items-center gap-2 flex-wrap">
                             <button type="button"
-                                    class="btn btn-outline-secondary btn-sm px-2 py-1"
+                                    class="btn btn-outline-secondary btn-sm px-3 py-2"
                                     id="restaurantQRGenerateBtn_${tourId}_${restaurantOrderIndex}_${bookingIndex}"
                                     onclick="generateRestaurantQRCode(${tourId}, ${restaurantOrderIndex}, ${bookingIndex})"
-                                    style="border-radius: 8px; font-size: 0.8rem;">
-                                <i class="ri-qr-code-line me-1"></i>Generate
+                                    style="border-radius: 25px;">
+                                <i class="ri-qr-code-line me-1"></i>Generate QR
                             </button>
                             <button type="button"
-                                    class="btn btn-outline-dark btn-sm px-2 py-1"
+                                    class="btn btn-outline-dark btn-sm px-3 py-2"
                                     id="restaurantQRDownloadBtn_${tourId}_${restaurantOrderIndex}_${bookingIndex}"
                                     onclick="downloadRestaurantQRCode(${tourId}, ${restaurantOrderIndex}, ${bookingIndex})"
-                                    style="border-radius: 8px; font-size: 0.8rem;"
+                                    style="border-radius: 25px;"
                                     disabled>
                                 <i class="ri-download-2-line me-1"></i>Download
                             </button>
                         </div>
                     </div>
-                    <div class="mt-3 d-none text-center" id="restaurantQRWrapper_${tourId}_${restaurantOrderIndex}_${bookingIndex}">
-                        <div class="d-inline-block position-relative rounded-3 p-3" 
-                             style="background: #ffffff; border: 4px solid #ffffff; box-shadow: 0 8px 20px rgba(0, 0, 0, 0.08);">
+                    <div class="mt-4 d-none text-center" id="restaurantQRWrapper_${tourId}_${restaurantOrderIndex}_${bookingIndex}">
+                        <div class="d-inline-block position-relative rounded-4 p-4" 
+                             style="background: #ffffff; border: 6px solid #ffffff; box-shadow: 0 12px 30px rgba(0, 0, 0, 0.08);">
                             <div id="restaurantQRCode_${tourId}_${restaurantOrderIndex}_${bookingIndex}"></div>
                         </div>
-                        <div class="mt-2 text-muted small" style="font-size: 0.7rem;" id="restaurantQRDetails_${tourId}_${restaurantOrderIndex}_${bookingIndex}">
+                        <div class="mt-3 text-muted small fw-medium" id="restaurantQRDetails_${tourId}_${restaurantOrderIndex}_${bookingIndex}">
                             Scan this code at the restaurant to view the booking details.
                         </div>
                     </div>
@@ -10138,7 +11224,7 @@ function generateIndividualRestaurantContent(booking, tourId, restaurantOrderInd
 }
 
 // Generate restaurant action buttons based on approval status
-function generateRestaurantActionButtons(booking, tourId, restaurantOrderIndex, bookingIndex, actualCancelDateStr=null) {
+function generateRestaurantActionButtons(booking, tourId, restaurantOrderIndex, bookingIndex, autoCancelDate=null) {
     const isApproved = booking.restaurant_details?.is_approve || booking.is_approve || false;
     
     // Get user role from meta tag or global variable (assuming it's available)
@@ -10181,13 +11267,13 @@ function generateRestaurantActionButtons(booking, tourId, restaurantOrderIndex, 
             ${[11, 34, 124, 125, 128, 131, 132, 134, 135, 137, 138].includes(userRole) ? `
                 <button type="button" 
                         class="btn btn-outline-primary btn-sm px-3 py-2" 
-                        onclick="editIndividualRestaurant(${tourId}, ${restaurantOrderIndex}, ${bookingIndex})"
+                        onclick="editIndividualRestaurant(${tourId}, ${restaurantOrderIndex}, ${bookingIndex}, '${autoCancelDate}')"
                         style="border-radius: 25px;">
                     <i class="ri-edit-line me-1"></i>Edit
                 </button>
                 <button type="button" 
                         class="btn btn-outline-success btn-sm px-3 py-2" 
-                        onclick="approveIndividualRestaurant(${tourId}, ${restaurantOrderIndex}, ${bookingIndex}, '${actualCancelDateStr}')"
+                        onclick="approveIndividualRestaurant(${tourId}, ${restaurantOrderIndex}, ${bookingIndex}, '${autoCancelDate}')"
                         style="border-radius: 25px;">
                     <i class="ri-check-line me-1"></i>Approve
                 </button>
@@ -10195,7 +11281,7 @@ function generateRestaurantActionButtons(booking, tourId, restaurantOrderIndex, 
             ${[11, 34, 33, 37, 38, 124, 125, 128, 129, 130, 131, 132, 134, 135, 136, 137, 138].includes(userRole) ? `
                 <button type="button" 
                         class="btn btn-outline-danger btn-sm px-3 py-2" 
-                        onclick="rejectIndividualRestaurant(${tourId}, ${restaurantOrderIndex}, ${bookingIndex})"
+                        onclick="rejectIndividualRestaurant(${tourId}, ${restaurantOrderIndex}, ${bookingIndex}, '${autoCancelDate}')"
                         style="border-radius: 25px;">
                     <i class="ri-close-line me-1"></i>Reject
                 </button>
@@ -10204,7 +11290,47 @@ function generateRestaurantActionButtons(booking, tourId, restaurantOrderIndex, 
     `;
 }
 
+@php
+    $travClicksLogoSetting = \App\Helpers\CommonHelper::masterSettingsName('logo');
+    $travClicksLogoUrl = $travClicksLogoSetting['master_value'] ?? '';
+    if (empty($travClicksLogoUrl)) {
+        $travClicksLogoUrl = asset('assets/images/logo-dark.png');
+    } elseif (!preg_match('/^https?:\/\//i', $travClicksLogoUrl) && !\Illuminate\Support\Str::startsWith($travClicksLogoUrl, ['//'])) {
+        $travClicksLogoUrl = asset(ltrim($travClicksLogoUrl, '/'));
+    }
+    $travClicksLogoDataUri = null;
+    try {
+        $logoContent = @file_get_contents($travClicksLogoUrl);
+        if ($logoContent !== false) {
+            $mimeType = null;
+            if (class_exists(\finfo::class)) {
+                $finfo = new \finfo(FILEINFO_MIME_TYPE);
+                if ($finfo) {
+                    $mimeType = $finfo->buffer($logoContent);
+                }
+            }
+            if (!$mimeType) {
+                $path = parse_url($travClicksLogoUrl, PHP_URL_PATH);
+                $extension = strtolower(pathinfo($path ?? '', PATHINFO_EXTENSION));
+                $mimeMap = [
+                    'png' => 'image/png',
+                    'jpg' => 'image/jpeg',
+                    'jpeg' => 'image/jpeg',
+                    'gif' => 'image/gif',
+                    'svg' => 'image/svg+xml',
+                    'webp' => 'image/webp',
+                ];
+                $mimeType = $mimeMap[$extension] ?? 'image/png';
+            }
+            $travClicksLogoDataUri = 'data:' . $mimeType . ';base64,' . base64_encode($logoContent);
+        }
+    } catch (\Exception $e) {
+        $travClicksLogoDataUri = null;
+    }
+@endphp
+
 let qrCodeLibraryPromise = null;
+const TRAVCLICKS_LOGO_URL = @json($travClicksLogoDataUri ?? $travClicksLogoUrl);
 
 function ensureQRCodeLibrary() {
     if (window.QRCode) {
@@ -10364,6 +11490,9 @@ function extractRestaurantLogoData(fullData, fallbackName = '') {
     }
 
     const fallbackLetter = (fallbackName || 'R').trim().charAt(0).toUpperCase() || 'R';
+    if (TRAVCLICKS_LOGO_URL) {
+        return { type: 'image', value: TRAVCLICKS_LOGO_URL };
+    }
     return { type: 'letter', value: fallbackLetter };
 }
 
@@ -10682,7 +11811,7 @@ window.downloadRestaurantQRCode = function(tourId, restaurantOrderIndex, booking
 };
 
 // Load restaurant data for approve modal (similar to attraction)
-window.loadRestaurantDataForApprove = function(tourId, restaurantOrderIndex, bookingIndex) {
+window.loadRestaurantDataForApprove = function(tourId, restaurantOrderIndex, bookingIndex, autoCancelDate=null) {
     try {
         console.log('🍽️ APPROVE MODAL: Loading restaurant data for approve modal:', { tourId, restaurantOrderIndex, bookingIndex });
         
@@ -10692,7 +11821,7 @@ window.loadRestaurantDataForApprove = function(tourId, restaurantOrderIndex, boo
         console.log('🍽️ APPROVE MODAL: Elements found - Image:', !!restaurantImageElement, 'Name:', !!restaurantNameElement);
         
         // Get restaurant data from the server
-        getRestaurantServiceData(tourId, restaurantOrderIndex, bookingIndex)
+        getRestaurantServiceData(tourId, restaurantOrderIndex, bookingIndex, autoCancelDate)
         .then(restaurantData => {
             console.log('Restaurant data loaded for approve modal:', restaurantData);
             
@@ -13505,36 +14634,27 @@ function openIndividualTravelHourlyModal(tourId, travelHourlyOrderIndex, booking
 function createIndividualTravelHourlyViewModal(modalId, tourId, travelHourlyOrderIndex, bookingIndex) {
     const modalHtml = `
         <div class="modal fade" id="${modalId}" tabindex="-1" aria-hidden="true" data-bs-backdrop="static" data-bs-keyboard="false">
-            <div class="modal-dialog modal-dialog-centered modal-lg modal-dialog-scrollable">
-                <div class="modal-content shadow-lg border-0" style="border-radius: 12px; overflow: hidden;">
-                    <!-- Modal Header -->
-                    <div class="modal-header border-0 py-2 px-2" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);">
-                        <div class="d-flex align-items-center justify-content-between w-100">
+            <div class="modal-dialog modal-dialog-centered modal-xl modal-dialog-scrollable">
+                <div class="modal-content shadow-lg" style="border-radius: 15px; overflow: hidden;">
+                    <div class="modal-header p-0 border-0 position-relative" style="height: 180px; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);">
+                        <div class="position-absolute w-100 h-100 d-flex align-items-center justify-content-between p-4">
                             <div class="text-white">
-                                <h6 class="mb-0 fw-bold" style="font-size: 0.95rem;">
-                                    <i class="ri-time-line me-1" style="font-size: 0.9rem;"></i>Hourly Tour Details
-                                </h6>
+                                <h3 class="mb-1 fw-bold">
+                                    <i class="ri-time-line me-2"></i>Local-Tour Hourly ${parseInt(travelHourlyOrderIndex) + 1}
+                                </h3>
+                                <p class="mb-0 opacity-75">Tour #${tourId} Hourly Tour Service Details</p>
                             </div>
-                            <button type="button" class="btn-close btn-close-white" onclick="closeIndividualTravelHourlyViewModal('${modalId}')" aria-label="Close" style="font-size: 0.8rem;"></button>
+                            <button type="button" class="btn-close btn-close-white" onclick="closeIndividualTravelHourlyViewModal('${modalId}')" aria-label="Close" style="filter: brightness(0) invert(1); font-size: 1.2rem;"></button>
                         </div>
                     </div>
-                    <!-- Modal Body -->
-                    <div class="modal-body p-2" style="background: #f8f9fa;">
+                    <div class="modal-body p-4" style="background-color: #f8f9fa;">
                         <div id="${modalId}_content">
-                            <div class="text-center py-4">
-                                <div class="spinner-border" role="status" style="color: #667eea;">
+                            <div class="d-flex justify-content-center align-items-center py-5">
+                                <div class="spinner-border text-primary" role="status">
                                     <span class="visually-hidden">Loading...</span>
                                 </div>
-                                <p class="text-muted mt-2 mb-0" style="font-size: 0.9rem;">Loading travel hourly details...</p>
+                                <span class="ms-3 text-muted">Loading travel hourly details...</span>
                             </div>
-                        </div>
-                    </div>
-                    <!-- Modal Footer -->
-                    <div class="modal-footer border-0 p-1" style="background: #f8f9fa;">
-                        <div class="d-flex gap-1 w-100 justify-content-end" id="travelHourlyModalFooter_${modalId}">
-                            <button type="button" class="btn btn-outline-secondary btn-sm px-2 py-1" onclick="closeIndividualTravelHourlyViewModal('${modalId}')" style="border-radius: 6px; font-size: 0.75rem;">
-                                <i class="ri-close-line me-1" style="font-size: 0.7rem;"></i>Close
-                            </button>
                         </div>
                     </div>
                 </div>
@@ -13810,10 +14930,6 @@ function generateIndividualTravelHourlyContent(travelHourlyData, modalId, tourId
                                     <div class="col-md-6 mb-3">
                                         <small class="text-muted">Total Price</small>
                                         <div class="fw-bold text-success">SGD ${travelHourlyData.totalPrice || '0'}</div>
-                                    </div>
-                                    <div class="col-md-6 mb-3">
-                                        <small class="text-muted">Tax</small>
-                                        <div class="fw-medium">${travelHourlyData.Tax || '0'}%</div>
                                     </div>
                                 </div>
                             </div>
@@ -15098,10 +16214,6 @@ function generateIndividualTravelPointContent(travelPointData, modalId, tourId, 
                                         <small class="text-muted">Total Price</small>
                                         <div class="fw-bold text-success">SGD ${travelPointData.totalPrice || '0'}</div>
                                     </div>
-                                    <div class="col-md-6 mb-3">
-                                        <small class="text-muted">Tax</small>
-                                        <div class="fw-medium">${travelPointData.Tax || '0'}%</div>
-                                    </div>
                                     <div class="col-12 mb-2">
                                         <small class="text-muted">Customer Name</small>
                                         <div class="fw-medium">${travelPointData.fullName || 'N/A'}</div>
@@ -16326,37 +17438,27 @@ function openIndividualTravelPointModal(tourId, travelPointOrderIndex, bookingIn
 function createIndividualTravelPointViewModal(modalId, tourId, travelPointOrderIndex, bookingIndex) {
     const modalHtml = `
         <div class="modal fade" id="${modalId}" tabindex="-1" aria-hidden="true" data-bs-backdrop="static" data-bs-keyboard="false">
-            <div class="modal-dialog modal-dialog-centered modal-lg modal-dialog-scrollable">
-                <div class="modal-content shadow-lg border-0" style="border-radius: 12px; overflow: hidden;">
-                    <!-- Modal Header -->
-                    <div class="modal-header border-0 py-3 px-4" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);">
-                        <div class="d-flex align-items-center justify-content-between w-100">
+            <div class="modal-dialog modal-dialog-centered modal-xl modal-dialog-scrollable">
+                <div class="modal-content shadow-lg" style="border-radius: 15px; overflow: hidden;">
+                    <div class="modal-header p-0 border-0 position-relative" style="height: 180px; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);">
+                        <div class="position-absolute w-100 h-100 d-flex align-items-center justify-content-between p-4">
                             <div class="text-white">
-                                <h5 class="mb-0 fw-bold">
-                                    <i class="ri-route-line me-2"></i>Point to Point Details
-                                </h5>
-                                <small class="opacity-90">Tour #${tourId} • Transfer ${parseInt(travelPointOrderIndex) + 1}</small>
+                                <h3 class="mb-1 fw-bold">
+                                    <i class="ri-route-line me-2"></i>Local-Tour Point to Point ${parseInt(travelPointOrderIndex) + 1}
+                                </h3>
+                                <p class="mb-0 opacity-75">Tour #${tourId} Point to Point Transfer Details</p>
                             </div>
-                            <button type="button" class="btn-close btn-close-white" onclick="closeIndividualTravelPointViewModal('${modalId}')" aria-label="Close"></button>
+                            <button type="button" class="btn-close btn-close-white" onclick="closeIndividualTravelPointViewModal('${modalId}')" aria-label="Close" style="filter: brightness(0) invert(1); font-size: 1.2rem;"></button>
                         </div>
                     </div>
-                    <!-- Modal Body -->
-                    <div class="modal-body p-3" style="background: #f8f9fa;">
+                    <div class="modal-body p-4" style="background-color: #f8f9fa;">
                         <div id="${modalId}_content">
-                            <div class="text-center py-4">
-                                <div class="spinner-border" role="status" style="color: #667eea;">
+                            <div class="d-flex justify-content-center align-items-center py-5">
+                                <div class="spinner-border text-primary" role="status">
                                     <span class="visually-hidden">Loading...</span>
                                 </div>
-                                <p class="text-muted mt-2 mb-0" style="font-size: 0.9rem;">Loading travel point details...</p>
+                                <span class="ms-3 text-muted">Loading travel point details...</span>
                             </div>
-                        </div>
-                    </div>
-                    <!-- Modal Footer -->
-                    <div class="modal-footer border-0 py-2 px-3" style="background: #f8f9fa;">
-                        <div class="d-flex gap-2 w-100 justify-content-end" id="travelPointModalFooter_${modalId}">
-                            <button type="button" class="btn btn-outline-secondary btn-sm px-3 py-1" onclick="closeIndividualTravelPointViewModal('${modalId}')" style="border-radius: 8px; font-size: 0.85rem;">
-                                <i class="ri-close-line me-1"></i>Close
-                            </button>
                         </div>
                     </div>
                 </div>
@@ -16592,10 +17694,6 @@ function generateIndividualTravelPointContent(travelPointData, modalId, tourId, 
                                         <div class="col-md-6 mb-3">
                                             <small class="text-muted">Total Price</small>
                                             <div class="fw-bold text-success">SGD ${travelPointData.totalPrice || '0'}</div>
-                                        </div>
-                                        <div class="col-md-6 mb-3">
-                                            <small class="text-muted">Tax</small>
-                                            <div class="fw-medium">${travelPointData.Tax || '0'}%</div>
                                         </div>
                                     </div>
                                 </div>
@@ -17482,36 +18580,27 @@ function openIndividualLocalTransportModal(tourId, localTransportOrderIndex, boo
 function createIndividualLocalTransportViewModal(modalId, tourId, localTransportOrderIndex, bookingIndex) {
     const modalHtml = `
         <div class="modal fade" id="${modalId}" tabindex="-1" aria-hidden="true" data-bs-backdrop="static" data-bs-keyboard="false">
-            <div class="modal-dialog modal-dialog-centered modal-lg modal-dialog-scrollable">
-                <div class="modal-content shadow-lg border-0" style="border-radius: 12px; overflow: hidden;">
-                    <!-- Modal Header -->
-                    <div class="modal-header border-0 py-2 px-2" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);">
-                        <div class="d-flex align-items-center justify-content-between w-100">
+            <div class="modal-dialog modal-dialog-centered modal-xl modal-dialog-scrollable">
+                <div class="modal-content shadow-lg" style="border-radius: 15px; overflow: hidden;">
+                    <div class="modal-header p-0 border-0 position-relative" style="height: 180px; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);">
+                        <div class="position-absolute w-100 h-100 d-flex align-items-center justify-content-between p-4">
                             <div class="text-white">
-                                <h6 class="mb-0 fw-bold" style="font-size: 0.95rem;">
-                                    <i class="ri-car-line me-1" style="font-size: 0.9rem;"></i>Local Transport Details
-                                </h6>
+                                <h3 class="mb-1 fw-bold">
+                                    <i class="ri-car-line me-2"></i>Local Transport ${parseInt(localTransportOrderIndex) + 1}
+                                </h3>
+                                <p class="mb-0 opacity-75">Tour #${tourId} Local Transport Service Details</p>
                             </div>
-                            <button type="button" class="btn-close btn-close-white" onclick="closeIndividualLocalTransportViewModal('${modalId}')" aria-label="Close" style="font-size: 0.8rem;"></button>
+                            <button type="button" class="btn-close btn-close-white" onclick="closeIndividualLocalTransportViewModal('${modalId}')" aria-label="Close" style="filter: brightness(0) invert(1); font-size: 1.2rem;"></button>
                         </div>
                     </div>
-                    <!-- Modal Body -->
-                    <div class="modal-body p-2" style="background: #f8f9fa;">
+                    <div class="modal-body p-4" style="background-color: #f8f9fa;">
                         <div id="${modalId}_content">
-                            <div class="text-center py-4">
-                                <div class="spinner-border" role="status" style="color: #667eea;">
+                            <div class="d-flex justify-content-center align-items-center py-5">
+                                <div class="spinner-border text-primary" role="status">
                                     <span class="visually-hidden">Loading...</span>
                                 </div>
-                                <p class="text-muted mt-2 mb-0" style="font-size: 0.9rem;">Loading local transport details...</p>
+                                <span class="ms-3 text-muted">Loading local transport details...</span>
                             </div>
-                        </div>
-                    </div>
-                    <!-- Modal Footer -->
-                    <div class="modal-footer border-0 p-1" style="background: #f8f9fa;">
-                        <div class="d-flex gap-1 w-100 justify-content-end" id="localTransportModalFooter_${modalId}">
-                            <button type="button" class="btn btn-outline-secondary btn-sm px-2 py-1" onclick="closeIndividualLocalTransportViewModal('${modalId}')" style="border-radius: 6px; font-size: 0.75rem;">
-                                <i class="ri-close-line me-1" style="font-size: 0.7rem;"></i>Close
-                            </button>
                         </div>
                     </div>
                 </div>
@@ -17811,10 +18900,6 @@ function generateIndividualLocalTransportContent(localTransportData, modalId, to
                                             <small class="text-muted">Total Price</small>
                                             <div class="fw-bold text-success">SGD ${localTransportData.totalPrice || '0'}</div>
                                         </div>
-                                        <div class="col-md-6 mb-3">
-                                            <small class="text-muted">Tax</small>
-                                            <div class="fw-medium">${localTransportData.Tax || '0'}%</div>
-                                        </div>
                                     </div>
                                 </div>
                             </div>
@@ -17896,11 +18981,9 @@ function generateIndividualLocalTransportContent(localTransportData, modalId, to
                                         onclick="rejectIndividualLocalTransport(${tourId}, ${localTransportOrderIndex}, ${bookingIndex})"
                                         style="border-radius: 25px;">
                                     <i class="ri-close-line me-1"></i>Reject
-
                                 </button>
                                 @endif
                             </div>
-                            
                             @endif
                             `}
                         </div>
@@ -20118,7 +21201,7 @@ function rejectHotelBooking(tourId) {
 }
 
 // Individual Hotel Functions (for handling multiple hotels separately)
-function editIndividualHotel(tourId, hotelOrderIndex, bookingIndex) {
+function editIndividualHotel(tourId, hotelOrderIndex, bookingIndex, autoCancelDate=null) {
     try {
         console.log('Opening individual hotel edit modal for tour:', tourId, 'hotel order:', hotelOrderIndex, 'booking:', bookingIndex);
         
@@ -20133,7 +21216,7 @@ function editIndividualHotel(tourId, hotelOrderIndex, bookingIndex) {
         
         // Wait a moment for the modal to close, then show individual edit modal
         setTimeout(() => {
-            createAndShowIndividualHotelModal(tourId, hotelOrderIndex, bookingIndex, 'edit');
+            createAndShowIndividualHotelModal(tourId, hotelOrderIndex, bookingIndex, 'edit', autoCancelDate);
             // Load hotel data after modal is created
             setTimeout(() => {
                 // Try to load real data first, with fallback to sample data
@@ -20145,7 +21228,7 @@ function editIndividualHotel(tourId, hotelOrderIndex, bookingIndex) {
                     const hotelNameElement = document.getElementById(`hotelName_${tourId}_${hotelOrderIndex}_${bookingIndex}`);
                     if (hotelNameElement && (hotelNameElement.textContent === 'Loading...' || hotelNameElement.textContent.trim() === '')) {
                         console.log('Real data not loaded, using sample data as fallback');
-                        testHotelModalWithSampleData(tourId, hotelOrderIndex, bookingIndex);
+                        testHotelModalWithSampleData(tourId, hotelOrderIndex, bookingIndex, autoCancelDate);
                     }
                 }, 2000);
             }, 100);
@@ -20160,6 +21243,7 @@ function editIndividualHotel(tourId, hotelOrderIndex, bookingIndex) {
 function approveIndividualHotel(tourId, hotelOrderIndex, bookingIndex, autoCancelDate=null) {
     try {
         console.log('Opening individual hotel approve modal for tour:', tourId, 'hotel order:', hotelOrderIndex, 'booking:', bookingIndex);
+        console.log('Auto cancel date:', autoCancelDate);
         
         // Close the hotel details modal first
         const hotelDetailsModal = document.getElementById('hotelDetailsModal' + tourId);
@@ -20238,7 +21322,7 @@ function createAndShowIndividualHotelModal(tourId, hotelOrderIndex, bookingIndex
                 buttonClass = 'btn-success';
                 buttonText = '<i class="ri-check-line me-2"></i>Confirm Approval';
                 onSubmit = `confirmIndividualHotelApproval(${tourId}, ${hotelOrderIndex}, ${bookingIndex})`;
-                modalContent = generateApproveHotelForm(tourId, hotelOrderIndex, bookingIndex,autoCancelDate);
+                modalContent = generateApproveHotelForm(tourId, hotelOrderIndex, bookingIndex, autoCancelDate);
                 break;
                 
             case 'reject':
@@ -20458,6 +21542,7 @@ function generateEditHotelForm(tourId, hotelOrderIndex, bookingIndex) {
 }
 
 function generateApproveHotelForm(tourId, hotelOrderIndex, bookingIndex, autoCancelDate=null) {
+    console.log('autoCancelDate', autoCancelDate);
     return `
         <form id="approveIndividualHotelForm_${tourId}_${hotelOrderIndex}_${bookingIndex}">
             <input type="hidden" name="tour_id" value="${tourId}">
@@ -20521,7 +21606,7 @@ function generateApproveHotelForm(tourId, hotelOrderIndex, bookingIndex, autoCan
                 <label for="actualDueDate_${tourId}_${hotelOrderIndex}_${bookingIndex}" class="form-label fw-semibold">
                     <i class="ri-calendar-line me-2"></i>Free Cancellation Date <span class="text-danger">*</span>
                 </label>
-                <input type="text" value="${autoCancelDate}" readonly class="form-control form-control-lg" id="actualDueDate_${tourId}_${hotelOrderIndex}_${bookingIndex}" name="actual_due_date" required 
+                <input type="text" readonly class="form-control form-control-lg" id="actualDueDate_${tourId}_${hotelOrderIndex}_${bookingIndex}" name="actual_due_date" required 
                        style="border-radius: 8px; border: 2px solid #e9ecef;">
                 <div class="form-text">Select the Free Cancellation Date for this booking</div>
             </div>
@@ -20817,7 +21902,7 @@ function loadHotelDataForApprove(tourId, hotelOrderIndex, bookingIndex) {
                     hotelNameElement.textContent = hotelData.hotel_name || 'Hotel Booking';
                 }
                 
-                // Set default Free Cancellation Date to today + 7 days
+                // Set Free Cancellation Date from tour's auto_cancel_date
                 const actualDueDateInput = document.getElementById(`actualDueDate_${tourId}_${hotelOrderIndex}_${bookingIndex}`);
                 if (actualDueDateInput) {
                     const autoCancelDate = (tourData && tourData.auto_cancel_date) ? tourData.auto_cancel_date : '';
@@ -20853,24 +21938,78 @@ function loadHotelDataForApprove(tourId, hotelOrderIndex, bookingIndex) {
     }
 }
 
-function calculateDisplayDueDate(tourId, hotelOrderIndex, bookingIndex) {
-    const actualDueDate = document.getElementById(`actualDueDate_${tourId}_${hotelOrderIndex}_${bookingIndex}`).value;
-    const daysBefore = document.getElementById(`displayDueDateDays_${tourId}_${hotelOrderIndex}_${bookingIndex}`).value;
-    const displayDueDateField = document.getElementById(`displayDueDate_${tourId}_${hotelOrderIndex}_${bookingIndex}`);
-    
-    if (actualDueDate && daysBefore) {
-        const actualDate = new Date(actualDueDate);
-        const displayDate = new Date(actualDate);
-        displayDate.setDate(actualDate.getDate() - parseInt(daysBefore));
+window.calculateDisplayDueDate = function(tourId, hotelOrderIndex, bookingIndex) {
+    try {
+        console.log('🏨 CALCULATE DATE: Calculating hotel display due date', { tourId, hotelOrderIndex, bookingIndex });
         
-        // Format as dd-mm-yyyy
-        const day = String(displayDate.getDate()).padStart(2, '0');
-        const month = String(displayDate.getMonth() + 1).padStart(2, '0');
-        const year = displayDate.getFullYear();
+        const actualDueDateElement = document.getElementById(`actualDueDate_${tourId}_${hotelOrderIndex}_${bookingIndex}`);
+        const displayDueDateDaysElement = document.getElementById(`displayDueDateDays_${tourId}_${hotelOrderIndex}_${bookingIndex}`);
+        const displayDueDateField = document.getElementById(`displayDueDate_${tourId}_${hotelOrderIndex}_${bookingIndex}`);
         
-        displayDueDateField.value = `${day}-${month}-${year}`;
-    } else {
-        displayDueDateField.value = '';
+        if (!actualDueDateElement) {
+            console.error('🏨 CALCULATE DATE: actualDueDate element not found with ID:', `actualDueDate_${tourId}_${hotelOrderIndex}_${bookingIndex}`);
+            return;
+        }
+        
+        if (!displayDueDateDaysElement) {
+            console.error('🏨 CALCULATE DATE: displayDueDateDays element not found with ID:', `displayDueDateDays_${tourId}_${hotelOrderIndex}_${bookingIndex}`);
+            return;
+        }
+        
+        if (!displayDueDateField) {
+            console.error('🏨 CALCULATE DATE: displayDueDate field not found with ID:', `displayDueDate_${tourId}_${hotelOrderIndex}_${bookingIndex}`);
+            return;
+        }
+        
+        const actualDueDate = actualDueDateElement.value;
+        const daysBefore = displayDueDateDaysElement.value;
+        
+        console.log('🏨 CALCULATE DATE: Values found:', { actualDueDate, daysBefore });
+        
+        if (actualDueDate && daysBefore) {
+            // Parse the date - handle different formats
+            let actualDate;
+            
+            // Try to parse the date in different formats
+            if (actualDueDate.includes('-')) {
+                // Handle dd-mm-yyyy or yyyy-mm-dd format
+                const parts = actualDueDate.split('-');
+                if (parts[0].length === 4) {
+                    // yyyy-mm-dd format
+                    actualDate = new Date(actualDueDate);
+                } else {
+                    // dd-mm-yyyy format - convert to yyyy-mm-dd
+                    actualDate = new Date(`${parts[2]}-${parts[1]}-${parts[0]}`);
+                }
+            } else {
+                // Try direct parsing
+                actualDate = new Date(actualDueDate);
+            }
+            
+            console.log('🏨 CALCULATE DATE: Parsed date:', actualDate);
+            
+            if (isNaN(actualDate.getTime())) {
+                console.error('🏨 CALCULATE DATE: Invalid date format:', actualDueDate);
+                displayDueDateField.value = '';
+                return;
+            }
+            
+            const displayDate = new Date(actualDate);
+            displayDate.setDate(actualDate.getDate() - parseInt(daysBefore));
+            
+            // Format as dd-mm-yyyy
+            const day = String(displayDate.getDate()).padStart(2, '0');
+            const month = String(displayDate.getMonth() + 1).padStart(2, '0');
+            const year = displayDate.getFullYear();
+            
+            displayDueDateField.value = `${day}-${month}-${year}`;
+            console.log('✅ Hotel display due date calculated:', `${day}-${month}-${year}`);
+        } else {
+            displayDueDateField.value = '';
+            console.log('🏨 CALCULATE DATE: Missing actualDueDate or daysBefore value');
+        }
+    } catch (error) {
+        console.error('🏨 CALCULATE DATE: Error calculating hotel display due date:', error);
     }
 }
 
@@ -20919,6 +22058,8 @@ function confirmIndividualHotelApproval(tourId, hotelOrderIndex, bookingIndex) {
         const selectedDate = new Date(actualDueDate);
         const today = new Date();
         today.setHours(0, 0, 0, 0);
+        
+        
         
         // Show loading state
         const approveButton = event.target;
@@ -21517,11 +22658,11 @@ function loadIndividualHotelDates(tourId, hotelOrderIndex, bookingIndex) {
 }
 
 // Debug function to test modal with sample data
-function testHotelModalWithSampleData(tourId, hotelOrderIndex, bookingIndex) {
+function testHotelModalWithSampleData(tourId, hotelOrderIndex, bookingIndex, autoCancelDate=null) {
     console.log('Testing hotel modal with sample data...');
     
     // Create and show modal first
-    createAndShowIndividualHotelModal(tourId, hotelOrderIndex, bookingIndex, 'edit');
+    createAndShowIndividualHotelModal(tourId, hotelOrderIndex, bookingIndex, 'edit', autoCancelDate);
     
     // Wait a moment for modal to be created, then populate with sample data
     setTimeout(() => {
@@ -22116,95 +23257,6 @@ function cancelConfirmed(tourId) {
     }
 }
 
-function cancelDefinite(encryptedTourId, displayId) {
-    // Show SweetAlert confirmation dialog
-    Swal.fire({
-        title: 'Cancel Tour?',
-        text: `Are you sure you want to cancel tour ${displayId}? This action cannot be undone.`,
-        icon: 'warning',
-        showCancelButton: true,
-        confirmButtonColor: '#d33',
-        cancelButtonColor: '#3085d6',
-        confirmButtonText: 'Yes, cancel it!',
-        cancelButtonText: 'No, keep it'
-    }).then((result) => {
-        if (result.isConfirmed) {
-            // Extract tour ID from the encrypted string to match the button ID
-            const tourIdMatch = document.querySelector(`[onclick*="${encryptedTourId}"]`);
-            const button = tourIdMatch || event.target.closest('button');
-            const originalContent = button.innerHTML;
-            
-            // Show loading state
-            button.innerHTML = '<i class="ri-loader-4-line spin"></i> Cancelling...';
-            button.disabled = true;
-            
-            // Send AJAX request to cancel tour
-            fetch(`{{ route('bookings.cancel-tour', '') }}/${encryptedTourId}`, {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                    'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').content,
-                    'Accept': 'application/json'
-                }
-            })
-            .then(response => response.json())
-            .then(data => {
-                if (data.success) {
-                    // Show success message
-                    Swal.fire({
-                        title: 'Cancelled!',
-                        text: data.message,
-                        icon: 'success',
-                        confirmButtonText: 'OK'
-                    });
-                    
-                    // Update button to show cancelled state
-                    button.innerHTML = '<i class="ri-check-line"></i> Cancelled';
-                    button.classList.remove('btn-outline-danger');
-                    button.classList.add('btn-success');
-                    button.disabled = true;
-                    
-                    // Refresh the page after a short delay to show updated data
-                    setTimeout(() => {
-                        window.location.reload();
-                    }, 1500);
-                    
-                } else {
-                    // Show error message
-                    Swal.fire({
-                        title: 'Error!',
-                        text: data.message || 'Failed to cancel tour',
-                        icon: 'error',
-                        confirmButtonText: 'OK'
-                    });
-                    
-                    // Restore button state
-                    button.innerHTML = originalContent;
-                    button.disabled = false;
-                }
-            })
-            .catch(error => {
-                console.error('Error cancelling tour:', error);
-                Swal.fire({
-                    title: 'Error!',
-                    text: 'An error occurred while cancelling the tour. Please try again.',
-                    icon: 'error',
-                    confirmButtonText: 'OK'
-                });
-                
-                // Restore button state
-                button.innerHTML = originalContent;
-                button.disabled = false;
-            });
-        }
-    });
-}
-
-// Alias function to match naming convention used in other blade files
-window.cancelTour = function(encryptedTourId, displayId) {
-    return cancelDefinite(encryptedTourId, displayId);
-};
-
 function bulkMakeDefinite() {
     const selectedTours = document.querySelectorAll('.row-checkbox:checked');
     if (selectedTours.length === 0) {
@@ -22232,17 +23284,83 @@ function showUpcomingTours() {
     filterTable();
 }
 
+function resetFilters() {
+    const searchInput = document.getElementById('searchInput');
+    const destinationSelect = document.getElementById('destinationFilter');
+    const agentSelect = document.getElementById('agentFilter');
+    const startDateInput = document.getElementById('startDateFilter');
+    const endDateInput = document.getElementById('endDateFilter');
+
+    if (searchInput) searchInput.value = '';
+    
+    // Reset Select2 dropdowns properly
+    if (destinationSelect && $('#destinationFilter').hasClass('select2-hidden-accessible')) {
+        $('#destinationFilter').val(null).trigger('change');
+    } else if (destinationSelect) {
+        destinationSelect.value = '';
+    }
+    
+    if (agentSelect && $('#agentFilter').hasClass('select2-hidden-accessible')) {
+        $('#agentFilter').val(null).trigger('change');
+    } else if (agentSelect) {
+        agentSelect.value = '';
+    }
+    
+    if (startDateInput) startDateInput.value = '';
+    if (endDateInput) {
+        endDateInput.value = '';
+        endDateInput.removeAttribute('min');
+    }
+    filterTable();
+}
+
 window.filterTable = function() {
     const searchTerm = document.getElementById('searchInput')?.value.toLowerCase() || '';
-    const statusFilter = document.getElementById('statusFilter')?.value || '';
+    // const statusFilter = document.getElementById('statusFilter')?.value || '';
     const destinationFilter = document.getElementById('destinationFilter')?.value || '';
     const agentFilter = document.getElementById('agentFilter')?.value || '';
     const startDateValue = document.getElementById('startDateFilter')?.value || '';
     const endDateValue = document.getElementById('endDateFilter')?.value || '';
     
+    // Get existing DataTable instance if already initialized
+    // var table = $.fn.dataTable.isDataTable('.datatables-basic')
+    //     ? $('.datatables-basic').DataTable() // already initialized, just get it
+    //     : $('.datatables-basic').DataTable({  // initialize only if not already
+    //         responsive: true,
+    //         dom: 'lrtip',
+    //         buttons: ['copy','csv','excel','pdf','print'],
+    //         searching: false,
+    //         language: {
+    //             search: "DataTable Search:",
+    //             searchPlaceholder: "Search all columns...",
+    //             lengthMenu: "Show _MENU_ entries",
+    //             info: "Showing _START_ to _END_ of _TOTAL_ entries",
+    //             infoEmpty: "Showing 0 to 0 of 0 entries",
+    //             infoFiltered: "(filtered from _MAX_ total entries)",
+    //             paginate: {
+    //                 first: "First",
+    //                 last: "Last",
+    //                 next: "Next",
+    //                 previous: "Previous"
+    //             }
+    //         },
+    //         lengthMenu: [10, 25, 50, 100],
+    //         pageLength: 25,
+    //         columnDefs: [
+    //             { targets: [9], orderable: false, searchable: false },
+    //             { targets: [3], orderable: false },
+    //             { targets: [4], orderable: false }
+    //         ],
+    //         initComplete: function() {
+    //             console.log('DataTable initialized successfully');
+    //         }
+    //     });
+
     const rows = document.querySelectorAll('#toursTable tbody tr');
     const totalRows = Array.from(rows).filter(r => r.cells.length > 1).length;
-    
+        
+    // Collapse any open child rows before filtering
+    // Check if table is initialized before using it
     if (typeof table !== 'undefined' && table && table.rows) {
         table.rows('.dt-hasChild').every(function() {
             if (this.child.isShown()) this.child.hide();
@@ -22251,33 +23369,38 @@ window.filterTable = function() {
     }
 
     let visibleCount = 0;
-    
+
     rows.forEach(row => {
-        if (row.cells.length === 1) return;
+        if (row.cells.length === 1) return; // Skip empty state row
         
         const tourDetails = row.cells[1]?.textContent.toLowerCase() || '';
         const destination = row.cells[2]?.querySelector('.fw-medium')?.textContent || '';
         const agent = row.cells[5]?.querySelector('.fw-medium')?.textContent || '';
-        const executionStatus = row.getAttribute('data-execution-status') || '';
+        const status = row.cells[7]?.querySelector('.badge')?.textContent.toLowerCase() || '';
+        const travelDates = row.cells[6]?.textContent.toLowerCase() || '';
+        const confirmationDateText = row.cells[8]?.textContent || '';
         const updatedAt = row.getAttribute('data-updated-at');
         const createdAtAttr = row.getAttribute('data-created-at');
         
         let show = true;
         
-        if (searchTerm && !tourDetails.includes(searchTerm)) {
+        if (searchTerm && 
+            !tourDetails.includes(searchTerm) && 
+            !destination.toLowerCase().includes(searchTerm) && 
+            !agent.toLowerCase().includes(searchTerm)) {
             show = false;
         }
         
-        if (statusFilter && executionStatus !== statusFilter) {
-            show = false;
-        }
+        // if (statusFilter && !status.includes(statusFilter.toLowerCase())) {
+        //     show = false;
+        // }
         
-        // Country filter - use LIKE operator logic (contains)
+        // Destination filter - use LIKE operator logic (contains)
         // This works for multi-country destinations like "India, Singapore"
         if (destinationFilter) {
             // Split destination by comma and trim spaces
             const destinationCountries = destination.split(',').map(c => c.trim());
-            // Check if the selected country is in the destination list
+            // Check if the selected destination is in the destination list
             if (!destinationCountries.includes(destinationFilter)) {
                 show = false;
             }
@@ -22287,11 +23410,13 @@ window.filterTable = function() {
             show = false;
         }
         
+        // Date range filtering (check both created_at and updated_at)
         if ((startDateValue || endDateValue) && (updatedAt || createdAtAttr)) {
             const startDate = startDateValue ? new Date(startDateValue + 'T00:00:00') : null;
             const endDate = endDateValue ? new Date(endDateValue + 'T23:59:59') : null;
             let dateInRange = false;
             
+            // Check updated_at if available
             if (updatedAt) {
                 const updatedDate = new Date(updatedAt + 'T00:00:00');
                 if ((!startDate || updatedDate >= startDate) && (!endDate || updatedDate <= endDate)) {
@@ -22299,6 +23424,7 @@ window.filterTable = function() {
                 }
             }
             
+            // Check created_at if available and updated_at didn't match
             if (!dateInRange && createdAtAttr) {
                 const createdDate = new Date(createdAtAttr + 'T00:00:00');
                 if ((!startDate || createdDate >= startDate) && (!endDate || createdDate <= endDate)) {
@@ -22316,14 +23442,14 @@ window.filterTable = function() {
         row.style.display = show ? '' : 'none';
         if (show) visibleCount++;
     });
-    
-    updateFilterResults(visibleCount, totalRows);
 
+    // Update header/cards counts based on visible rows
     const visibleRows = Array.from(document.querySelectorAll('#toursTable tbody tr')).filter(r => r.style.display !== 'none' && r.cells.length > 1);
     const rangeCount = visibleCount;
     const adults = visibleRows.reduce((sum, r) => sum + parseInt(r.getAttribute('data-adult') || '0', 10), 0);
     const children = visibleRows.reduce((sum, r) => sum + parseInt(r.getAttribute('data-child') || '0', 10), 0);
     
+    // Count today's bookings from visible rows
     const today = new Date().toISOString().split('T')[0];
     const todayCount = visibleRows.filter(r => {
         const createdAt = r.getAttribute('data-created-at');
@@ -22370,87 +23496,23 @@ window.filterTable = function() {
         }
 
         if (label && labelEl) labelEl.textContent = label;
-        if (label && statConfirmedLabel) statConfirmedLabel.textContent = `Definite - ${label}`;
+        if (label && statConfirmedLabel) statConfirmedLabel.textContent = `Confirmed - ${label}`;
         if (label && statAdultsLabel) statAdultsLabel.textContent = `Adults - ${label}`;
         if (label && statChildrenLabel) statChildrenLabel.textContent = `Children - ${label}`;
     } else {
         const month = new Date().toLocaleString('default', { month: 'long' });
         if (labelEl) labelEl.textContent = month;
-        if (statConfirmedLabel) statConfirmedLabel.textContent = `${month} Definite`;
+        if (statConfirmedLabel) statConfirmedLabel.textContent = `${month} Confirmed`;
         if (statAdultsLabel) statAdultsLabel.textContent = `${month} Adults`;
         if (statChildrenLabel) statChildrenLabel.textContent = `${month} Children`;
     }
 };
 
-function resetFilters() {
-    const searchInput = document.getElementById('searchInput');
-    const statusSelect = document.getElementById('statusFilter');
-    const destinationSelect = document.getElementById('destinationFilter');
-    const agentSelect = document.getElementById('agentFilter');
-    const startDateInput = document.getElementById('startDateFilter');
-    const endDateInput = document.getElementById('endDateFilter');
-
-    if (searchInput) searchInput.value = '';
-    if (statusSelect) statusSelect.value = '';
-    
-    // Reset Select2 dropdowns properly
-    if (destinationSelect && $('#destinationFilter').hasClass('select2-hidden-accessible')) {
-        $('#destinationFilter').val(null).trigger('change');
-    } else if (destinationSelect) {
-        destinationSelect.value = '';
-    }
-    
-    if (agentSelect && $('#agentFilter').hasClass('select2-hidden-accessible')) {
-        $('#agentFilter').val(null).trigger('change');
-    } else if (agentSelect) {
-        agentSelect.value = '';
-    }
-    
-    if (startDateInput) startDateInput.value = '';
-    if (endDateInput) {
-        endDateInput.value = '';
-        endDateInput.removeAttribute('min');
-    }
-    filterTable();
-    
-    // Show success message
-    showFilterResetMessage();
-}
-
-function updateFilterResults(visibleCount, totalCount) {
-    // Update the table header to show filter results
-    const tableHeader = document.querySelector('#toursTable').closest('.card').querySelector('.card-header h5');
-    if (tableHeader) {
-        tableHeader.textContent = 'Definite Bookings List';
-    }
-}
-
-function showFilterResetMessage() {
-    // Create a temporary success message
-    const alertDiv = document.createElement('div');
-    alertDiv.className = 'alert alert-success alert-dismissible fade show position-fixed';
-    alertDiv.style.cssText = 'top: 20px; right: 20px; z-index: 1050; min-width: 300px;';
-    alertDiv.innerHTML = `
-        <i class="ri-check-circle-line me-2"></i>
-        <strong>Filters Reset!</strong> All filters have been cleared.
-        <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
-    `;
-    
-    document.body.appendChild(alertDiv);
-    
-    // Auto remove after 3 seconds
-    setTimeout(() => {
-        if (alertDiv.parentNode) {
-            alertDiv.remove();
-        }
-    }, 3000);
-}
-
 
 // Filter functionality
 document.addEventListener('DOMContentLoaded', function() {
     const searchInput = document.getElementById('searchInput');
-    const statusFilter = document.getElementById('statusFilter');
+    // const statusFilter = document.getElementById('statusFilter');
     const destinationFilter = document.getElementById('destinationFilter');
     const agentFilter = document.getElementById('agentFilter');
     const startDateFilter = document.getElementById('startDateFilter');
@@ -22459,7 +23521,7 @@ document.addEventListener('DOMContentLoaded', function() {
     
     // Add event listeners
     if (searchInput) searchInput.addEventListener('input', filterTable);
-    if (statusFilter) statusFilter.addEventListener('change', filterTable);
+    // if (statusFilter) statusFilter.addEventListener('change', filterTable);
     // Note: destinationFilter and agentFilter event listeners are handled by Select2 initialization
     // They will trigger filterTable when changed via Select2's change event
     if (startDateFilter) {
@@ -22498,7 +23560,7 @@ document.addEventListener('DOMContentLoaded', function() {
 });
 
 // Individual Attraction Functions (for handling multiple attraction bookings separately)
-function editIndividualAttraction(tourId, attractionOrderIndex, bookingIndex, actualCancelDateStr=null) {
+function editIndividualAttraction(tourId, attractionOrderIndex, bookingIndex) {
     try {
         console.log('Opening individual attraction edit modal for tour:', tourId, 'attraction order:', attractionOrderIndex, 'booking:', bookingIndex);
         
@@ -22526,9 +23588,9 @@ function editIndividualAttraction(tourId, attractionOrderIndex, bookingIndex, ac
     }
 }
 
-function approveIndividualAttraction(tourId, attractionOrderIndex, bookingIndex, actualCancelDateStr=null) {
+function approveIndividualAttraction(tourId, attractionOrderIndex, bookingIndex, autoCancelDate=null) {
     try {
-        console.log('Opening individual attraction approve modal for tour:', tourId, 'attraction order:', attractionOrderIndex, 'booking:', bookingIndex, 'actual cancel date:', actualCancelDateStr);
+        console.log('Opening individual attraction approve modal for tour:', tourId, 'attraction order:', attractionOrderIndex, 'booking:', bookingIndex);
         
         // Close the attraction details modal first
         const attractionDetailsModal = document.getElementById('attractionDetailsModal' + tourId);
@@ -22541,7 +23603,7 @@ function approveIndividualAttraction(tourId, attractionOrderIndex, bookingIndex,
         
         // Wait a moment for the modal to close, then show individual approve modal
         setTimeout(() => {
-            createAndShowIndividualAttractionModal(tourId, attractionOrderIndex, bookingIndex, 'approve', actualCancelDateStr);
+            createAndShowIndividualAttractionModal(tourId, attractionOrderIndex, bookingIndex, 'approve', autoCancelDate);
         }, 300);
         
     } catch (error) {
@@ -22550,7 +23612,7 @@ function approveIndividualAttraction(tourId, attractionOrderIndex, bookingIndex,
     }
 }
 
-function rejectIndividualAttraction(tourId, attractionOrderIndex, bookingIndex, actualCancelDateStr=null) {
+function rejectIndividualAttraction(tourId, attractionOrderIndex, bookingIndex, autoCancelDate=null) {
     try {
         console.log('Opening individual attraction reject modal for tour:', tourId, 'attraction order:', attractionOrderIndex, 'booking:', bookingIndex);
         
@@ -22565,7 +23627,7 @@ function rejectIndividualAttraction(tourId, attractionOrderIndex, bookingIndex, 
         
         // Wait a moment for the modal to close, then show individual reject modal
         setTimeout(() => {
-            createAndShowIndividualAttractionModal(tourId, attractionOrderIndex, bookingIndex, 'reject', actualCancelDateStr);
+            createAndShowIndividualAttractionModal(tourId, attractionOrderIndex, bookingIndex, 'reject', autoCancelDate);
         }, 300);
         
     } catch (error) {
@@ -22574,7 +23636,7 @@ function rejectIndividualAttraction(tourId, attractionOrderIndex, bookingIndex, 
     }
 }
 
-function createAndShowIndividualAttractionModal(tourId, attractionOrderIndex, bookingIndex, action, actualCancelDateStr=null) {
+function createAndShowIndividualAttractionModal(tourId, attractionOrderIndex, bookingIndex, action, autoCancelDate=null) {
     try {
         const modalId = `individualAttractionModal_${tourId}_${attractionOrderIndex}_${bookingIndex}_${action}`;
         
@@ -22593,7 +23655,7 @@ function createAndShowIndividualAttractionModal(tourId, attractionOrderIndex, bo
                 buttonClass = 'btn-primary';
                 buttonText = '<i class="ri-save-line me-2"></i>Save Changes';
                 onSubmit = `saveIndividualAttractionChanges(${tourId}, ${attractionOrderIndex}, ${bookingIndex})`;
-                modalContent = generateEditAttractionForm(tourId, attractionOrderIndex, bookingIndex, actualCancelDateStr);
+                modalContent = generateEditAttractionForm(tourId, attractionOrderIndex, bookingIndex, autoCancelDate);
                 break;
                 
             case 'approve':
@@ -22602,7 +23664,7 @@ function createAndShowIndividualAttractionModal(tourId, attractionOrderIndex, bo
                 buttonClass = 'btn-success';
                 buttonText = '<i class="ri-check-line me-2"></i>Confirm Approval';
                 onSubmit = `confirmIndividualAttractionApproval(${tourId}, ${attractionOrderIndex}, ${bookingIndex})`;
-                modalContent = generateApproveAttractionForm(tourId, attractionOrderIndex, bookingIndex, actualCancelDateStr);
+                modalContent = generateApproveAttractionForm(tourId, attractionOrderIndex, bookingIndex, autoCancelDate);
                 break;
                 
             case 'reject':
@@ -22612,7 +23674,7 @@ function createAndShowIndividualAttractionModal(tourId, attractionOrderIndex, bo
                 buttonText = '<i class="ri-close-line me-2"></i>Confirm Rejection';
                 onSubmit = `window.confirmIndividualAttractionRejection ? window.confirmIndividualAttractionRejection(${tourId}, ${attractionOrderIndex}, ${bookingIndex}) : confirmIndividualAttractionRejection(${tourId}, ${attractionOrderIndex}, ${bookingIndex})`;
                 console.log('🎢 Using window.generateRejectAttractionForm for correct reject form');
-                modalContent = window.generateRejectAttractionForm ? window.generateRejectAttractionForm(tourId, attractionOrderIndex, bookingIndex) : generateRejectAttractionForm(tourId, attractionOrderIndex, bookingIndex, actualCancelDateStr);
+                modalContent = window.generateRejectAttractionForm ? window.generateRejectAttractionForm(tourId, attractionOrderIndex, bookingIndex, autoCancelDate) : generateRejectAttractionForm(tourId, attractionOrderIndex, bookingIndex, autoCancelDate);
                 break;
         }
         
@@ -22692,7 +23754,7 @@ function createAndShowIndividualAttractionModal(tourId, attractionOrderIndex, bo
     }
 }
 
-function generateEditAttractionForm(tourId, attractionOrderIndex, bookingIndex, actualCancelDateStr=null) {
+function generateEditAttractionForm(tourId, attractionOrderIndex, bookingIndex, autoCancelDate=null) {
     return `
         <form id="editIndividualAttractionForm_${tourId}_${attractionOrderIndex}_${bookingIndex}">
             <input type="hidden" name="tour_id" value="${tourId}">
@@ -22825,7 +23887,7 @@ function generateEditAttractionForm(tourId, attractionOrderIndex, bookingIndex, 
     `;
 }
 
-function generateApproveAttractionForm(tourId, attractionOrderIndex, bookingIndex, actualCancelDateStr=null) {
+function generateApproveAttractionForm(tourId, attractionOrderIndex, bookingIndex, autoCancelDate=null) {
     return `
         <form id="approveIndividualAttractionForm_${tourId}_${attractionOrderIndex}_${bookingIndex}">
             <input type="hidden" name="tour_id" value="${tourId}">
@@ -22848,7 +23910,7 @@ function generateApproveAttractionForm(tourId, attractionOrderIndex, bookingInde
     `;
 }
 
-function generateRejectAttractionForm(tourId, attractionOrderIndex, bookingIndex, actualCancelDateStr=null) {
+function generateRejectAttractionForm(tourId, attractionOrderIndex, bookingIndex) {
     return `
         <form id="rejectIndividualAttractionForm_${tourId}_${attractionOrderIndex}_${bookingIndex}">
             <input type="hidden" name="tour_id" value="${tourId}">
@@ -23519,7 +24581,7 @@ function editIndividualRestaurant(tourId, restaurantOrderIndex, bookingIndex) {
     }
 }
 
-function approveIndividualRestaurant(tourId, restaurantOrderIndex, bookingIndex, actualCancelDateStr=null) {
+function approveIndividualRestaurant(tourId, restaurantOrderIndex, bookingIndex, autoCancelDate=null) {
     try {
         console.log('Opening individual restaurant approve modal for tour:', tourId, 'restaurant order:', restaurantOrderIndex, 'booking:', bookingIndex);
         
@@ -23534,7 +24596,7 @@ function approveIndividualRestaurant(tourId, restaurantOrderIndex, bookingIndex,
         
         // Wait a moment for the modal to close, then show individual approve modal
         setTimeout(() => {
-            createAndShowIndividualRestaurantModal(tourId, restaurantOrderIndex, bookingIndex, 'approve', actualCancelDateStr);
+            createAndShowIndividualRestaurantModal(tourId, restaurantOrderIndex, bookingIndex, 'approve', autoCancelDate);
         }, 300);
         
     } catch (error) {
@@ -23567,7 +24629,7 @@ function rejectIndividualRestaurant(tourId, restaurantOrderIndex, bookingIndex) 
     }
 }
 
-function createAndShowIndividualRestaurantModal(tourId, restaurantOrderIndex, bookingIndex, action, actualCancelDateStr=null) {
+function createAndShowIndividualRestaurantModal(tourId, restaurantOrderIndex, bookingIndex, action, autoCancelDate=null) {
     try {
         const modalId = `individualRestaurantModal_${tourId}_${restaurantOrderIndex}_${bookingIndex}_${action}`;
         
@@ -23595,7 +24657,7 @@ function createAndShowIndividualRestaurantModal(tourId, restaurantOrderIndex, bo
                 buttonClass = 'btn-success';
                 buttonText = '<i class="ri-check-line me-2"></i>Confirm Approval';
                 onSubmit = `confirmIndividualRestaurantApproval(${tourId}, ${restaurantOrderIndex}, ${bookingIndex})`;
-                modalContent = generateApproveRestaurantForm(tourId, restaurantOrderIndex, bookingIndex, actualCancelDateStr);
+                modalContent = generateApproveRestaurantForm(tourId, restaurantOrderIndex, bookingIndex, autoCancelDate);
                 break;
                 
             case 'reject':
@@ -23829,7 +24891,7 @@ function generateEditRestaurantForm(tourId, restaurantOrderIndex, bookingIndex) 
     `;
 }
 
-function generateApproveRestaurantForm(tourId, restaurantOrderIndex, bookingIndex, actualCancelDateStr=null) {
+function generateApproveRestaurantForm(tourId, restaurantOrderIndex, bookingIndex, autoCancelDate=null) {
     return `
         <form id="approveIndividualRestaurantForm_${tourId}_${restaurantOrderIndex}_${bookingIndex}">
             <input type="hidden" name="tour_id" value="${tourId}">
@@ -23893,9 +24955,8 @@ function generateApproveRestaurantForm(tourId, restaurantOrderIndex, bookingInde
                 <label for="actualDueDate_${tourId}_${restaurantOrderIndex}_${bookingIndex}" class="form-label fw-semibold">
                     <i class="ri-calendar-line me-2"></i>Free Cancellation Date <span class="text-danger">*</span>
                 </label>
-                <input type="text" class="form-control form-control-lg" id="actualDueDate_${tourId}_${restaurantOrderIndex}_${bookingIndex}" name="actual_due_date" required readonly value="${actualCancelDateStr}" 
-                       
-                       style="border-radius: 8px; border: 2px solid #e9ecef;">
+                <input type="date" class="form-control form-control-lg" id="actualDueDate_${tourId}_${restaurantOrderIndex}_${bookingIndex}" name="actual_due_date" required readonly value="${autoCancelDate}"
+                    style="border-radius: 8px; border: 2px solid #e9ecef;">
                 <div class="form-text">Select the Free Cancellation Date for this booking</div>
             </div>
 
@@ -24212,9 +25273,12 @@ function getRestaurantServiceData(tourId, restaurantOrderIndex, bookingIndex) {
                     },
                     totalPrice: restaurantBooking.total_price || 0,
                     // Include the full restaurant details for complete data access
-                    restaurant_details: restaurantBooking.restaurant_details || {}
+                    restaurant_details: restaurantBooking.restaurant_details || {},
+                    // Transfer Options
+                    transferOptions: restaurantBooking.restaurant_details?.transfer_options || restaurantBooking.transfer_options || null
                 };
                 console.log('Resolved restaurant data:', restaurantData);
+                console.log('🔍 Transfer options in restaurant data:', restaurantData.transferOptions);
                 resolve(restaurantData);
             } else {
                 console.warn('Server returned unsuccessful response:', data);
@@ -24740,7 +25804,7 @@ function confirmIndividualRestaurantRejection(tourId, restaurantOrderIndex, book
 }
 
 // Guide Individual Booking Functions (following restaurant pattern)
-function approveIndividualGuide(tourId, guideOrderIndex, bookingIndex) {
+function approveIndividualGuide(tourId, guideOrderIndex, bookingIndex, autoCancelDate=null) {
     try {
         console.log('Opening individual guide approve modal for tour:', tourId, 'guide order:', guideOrderIndex, 'booking:', bookingIndex);
         
@@ -25309,7 +26373,133 @@ function confirmIndividualGuideRejection(tourId, guideOrderIndex, bookingIndex) 
 
 // Old jQuery-based date calculation removed - now using direct onchange handlers with calculateGuideDisplayDueDate function
 
+// Tour cancellation function
+window.cancelTour = function(encryptedTourId, displayId) {
+    // Show SweetAlert confirmation dialog
+    Swal.fire({
+        title: 'Cancel Tour?',
+        text: `Are you sure you want to cancel tour ${displayId}? This action cannot be undone.`,
+        icon: 'warning',
+        showCancelButton: true,
+        confirmButtonColor: '#d33',
+        cancelButtonColor: '#3085d6',
+        confirmButtonText: 'Yes, cancel it!',
+        cancelButtonText: 'No, keep it'
+    }).then((result) => {
+        if (result.isConfirmed) {
+            // Extract tour ID from the encrypted string to match the button ID
+            const tourIdMatch = document.querySelector(`[onclick*="${encryptedTourId}"]`);
+            const button = tourIdMatch;
+            const originalContent = button.innerHTML;
+            
+            // Show loading state
+            button.innerHTML = '<i class="ri-loader-4-line spin"></i> Cancelling...';
+            button.disabled = true;
+            
+            // Send AJAX request to cancel tour
+            fetch(`{{ route('bookings.cancel-tour', '') }}/${encryptedTourId}`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').content,
+                    'Accept': 'application/json'
+                }
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    // Show success message
+                    Swal.fire({
+                        title: 'Cancelled!',
+                        text: data.message,
+                        icon: 'success',
+                        confirmButtonText: 'OK'
+                    });
+                    
+                    // Update button to show cancelled state
+                    button.innerHTML = '<i class="ri-check-line"></i> Cancelled';
+                    button.classList.remove('btn-outline-danger');
+                    button.classList.add('btn-success');
+                    button.disabled = true;
+                    
+                    // Refresh the page after a short delay to show updated data
+                    setTimeout(() => {
+                        window.location.reload();
+                    }, 1500);
+                } else {
+                    // Show error message
+                    Swal.fire({
+                        title: 'Error!',
+                        text: data.message || 'Failed to cancel tour',
+                        icon: 'error',
+                        confirmButtonText: 'OK'
+                    });
+                    
+                    // Restore button state
+                    button.innerHTML = originalContent;
+                    button.disabled = false;
+                }
+            })
+            .catch(error => {
+                console.error('Error cancelling tour:', error);
+                Swal.fire({
+                    title: 'Error!',
+                    text: 'An error occurred while cancelling the tour. Please try again.',
+                    icon: 'error',
+                    confirmButtonText: 'OK'
+                });
+                
+                // Restore button state
+                button.innerHTML = originalContent;
+                button.disabled = false;
+            });
+        }
+    });
+};
+
+// Notification helper function
+window.showNotification = function(message, type = 'info') {
+    const alertClass = type === 'success' ? 'alert-success' : 
+                      type === 'error' ? 'alert-danger' : 'alert-info';
+    
+    const notification = document.createElement('div');
+    notification.className = `alert ${alertClass} alert-dismissible fade show position-fixed`;
+    notification.style.cssText = 'top: 20px; right: 20px; z-index: 9999; min-width: 300px;';
+    notification.innerHTML = `
+        ${message}
+        <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+    `;
+    
+    document.body.appendChild(notification);
+    
+    // Auto remove after 5 seconds
+    setTimeout(() => {
+        if (notification.parentNode) {
+            notification.remove();
+        }
+    }, 5000);
+};
+
 </script>
+
+<style>
+/* Loading spinner animation for cancel button */
+.spin {
+    animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+    from { transform: rotate(0deg); }
+    to { transform: rotate(360deg); }
+}
+
+/* Tour status badge styling */
+.tour-status .badge {
+    font-size: 0.75rem;
+    padding: 0.375rem 0.75rem;
+}
+</style>
+
 @endsection
 
 @section('scripts')
@@ -25327,9 +26517,9 @@ function confirmIndividualGuideRejection(tourId, guideOrderIndex, bookingIndex) 
     });
     
     function initializeSelect2() {
-        // Initialize Select2 for Country filter
+        // Initialize Select2 for Destination filter
         $('#destinationFilter').select2({
-            placeholder: 'All Countries',
+            placeholder: 'All Destinations',
             allowClear: true,
             width: '100%'
         });
@@ -25347,6 +26537,7 @@ function confirmIndividualGuideRejection(tourId, guideOrderIndex, bookingIndex) 
             filterTable();
         });
     }
+    
     var table;
     function initializeDataTable() {
         // Check if DataTable is already initialized
@@ -25382,10 +26573,10 @@ function confirmIndividualGuideRejection(tourId, guideOrderIndex, bookingIndex) 
             },
             lengthMenu: [10, 25, 50, 100], // Customize number of entries per page
             pageLength: 25,
-            //  order: [[7, 'desc']], // Sort by Confirmation Date column (index 7) in descending order
+            //  order: [[8, 'desc']], // Sort by Confirmation Date column (index 8) in descending order
             columnDefs: [
                 {
-                    targets: [8], // Actions column (index 8)
+                    targets: [9], // Actions column (index 9)
                     orderable: false,
                     searchable: false
                 },
@@ -25394,7 +26585,7 @@ function confirmIndividualGuideRejection(tourId, guideOrderIndex, bookingIndex) 
                     orderable: false
                 },
                 {
-                    targets: [8], // Status column (index 8)
+                    targets: [4], // Manage Services column (index 4)
                     orderable: false
                 }
             ],
@@ -25402,6 +26593,7 @@ function confirmIndividualGuideRejection(tourId, guideOrderIndex, bookingIndex) 
                 console.log('DataTable initialized successfully');
             }
         });
+
 
         // Custom export button functionality (for the dropdown)
         $('#exportCopy').on('click', function() {
@@ -26813,33 +28005,32 @@ function confirmIndividualGuideRejection(tourId, guideOrderIndex, bookingIndex) 
     </div>
 </div>
 
-
 <!-- Attraction Files Management Modal -->
 <div class="modal fade" id="attractionFilesModal" tabindex="-1" aria-labelledby="attractionFilesModalLabel" aria-hidden="true" style="z-index: 1060;">
-    <div class="modal-dialog modal-lg">
-        <div class="modal-content" style="border-radius: 8px; border: none; box-shadow: 0 20px 60px rgba(0,0,0,0.15);">
-            <div class="modal-header" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); border-radius: 8px 8px 0 0; padding: 8px 16px; border: none;">
-                <h5 class="modal-title text-white fw-bold" id="attractionFilesModalLabel" style="font-size: 0.9rem;">
-                    <i class="ri-file-list-3-line me-1"></i>Manage Attraction Files
+    <div class="modal-dialog modal-xl">
+        <div class="modal-content" style="border-radius: 16px; border: none; box-shadow: 0 20px 60px rgba(0,0,0,0.15);">
+            <div class="modal-header" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); border-radius: 16px 16px 0 0; padding: 24px 32px; border: none;">
+                <h5 class="modal-title text-white fw-bold" id="attractionFilesModalLabel" style="font-size: 1.25rem;">
+                    <i class="ri-file-list-3-line me-2"></i>Manage Attraction Files
                 </h5>
-                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close" style="filter: brightness(0) invert(1); font-size: 0.75rem;"></button>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close" style="filter: brightness(0) invert(1);"></button>
             </div>
-            <div class="modal-body" style="padding: 12px; background-color: #f8f9fa;">
+            <div class="modal-body" style="padding: 32px; background-color: #f8f9fa;">
                 <div id="attractionFilesContent">
-                    <div class="text-center py-2">
-                        <div class="spinner-border text-primary" role="status" style="width: 1.5rem; height: 1.5rem;">
+                    <div class="text-center py-5">
+                        <div class="spinner-border text-primary" role="status" style="width: 3rem; height: 3rem;">
                             <span class="visually-hidden">Loading...</span>
                         </div>
-                        <p class="mt-2 text-muted fw-medium" style="font-size: 0.85rem;">Loading files...</p>
+                        <p class="mt-3 text-muted fw-medium">Loading files...</p>
                     </div>
                 </div>
             </div>
-            <div class="modal-footer" style="padding: 8px 16px; background-color: #ffffff; border-radius: 0 0 8px 8px; border: none;">
-                <button type="button" class="btn btn-light px-2 py-1" data-bs-dismiss="modal" style="border-radius: 4px; font-weight: 500; font-size: 0.85rem;">
+            <div class="modal-footer" style="padding: 24px 32px; background-color: #ffffff; border-radius: 0 0 16px 16px; border: none;">
+                <button type="button" class="btn btn-light px-4 py-2" data-bs-dismiss="modal" style="border-radius: 8px; font-weight: 500;">
                     Close
                 </button>
-                <button type="button" class="btn btn-success px-2 py-1" id="saveAttractionFiles" onclick="saveAttractionChanges()" 
-                        style="display: none; border-radius: 4px; font-weight: 500; font-size: 0.85rem;">
+                <button type="button" class="btn btn-success px-4 py-2" id="saveAttractionFiles" onclick="saveAttractionChanges()" 
+                        style="display: none; border-radius: 8px; font-weight: 500;">
                     <i class="ri-save-line me-1"></i>Save Changes
                 </button>
             </div>
@@ -26849,30 +28040,30 @@ function confirmIndividualGuideRejection(tourId, guideOrderIndex, bookingIndex) 
 
 <!-- Restaurant Files Management Modal -->
 <div class="modal fade" id="restaurantFilesModal" tabindex="-1" aria-labelledby="restaurantFilesModalLabel" aria-hidden="true" style="z-index: 1060;">
-    <div class="modal-dialog modal-lg">
-        <div class="modal-content" style="border-radius: 8px; border: none; box-shadow: 0 20px 60px rgba(0,0,0,0.15);">
-            <div class="modal-header" style="background: linear-gradient(135deg, #fd9853 0%, #fe7854 100%); border-radius: 8px 8px 0 0; padding: 8px 16px; border: none;">
-                <h5 class="modal-title text-white fw-bold" id="restaurantFilesModalLabel" style="font-size: 0.9rem;">
-                    <i class="ri-restaurant-line me-1"></i>Manage Restaurant Files
+    <div class="modal-dialog modal-xl">
+        <div class="modal-content" style="border-radius: 16px; border: none; box-shadow: 0 20px 60px rgba(0,0,0,0.15);">
+            <div class="modal-header" style="background: linear-gradient(135deg, #fd9853 0%, #fe7854 100%); border-radius: 16px 16px 0 0; padding: 24px 32px; border: none;">
+                <h5 class="modal-title text-white fw-bold" id="restaurantFilesModalLabel" style="font-size: 1.25rem;">
+                    <i class="ri-restaurant-line me-2"></i>Manage Restaurant Files
                 </h5>
-                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close" style="filter: brightness(0) invert(1); font-size: 0.75rem;"></button>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close" style="filter: brightness(0) invert(1);"></button>
             </div>
-            <div class="modal-body" style="padding: 12px; background-color: #f8f9fa;">
+            <div class="modal-body" style="padding: 32px; background-color: #f8f9fa;">
                 <div id="restaurantFilesContent">
-                    <div class="text-center py-2">
-                        <div class="spinner-border text-primary" role="status" style="width: 1.5rem; height: 1.5rem;">
+                    <div class="text-center py-5">
+                        <div class="spinner-border text-primary" role="status" style="width: 3rem; height: 3rem;">
                             <span class="visually-hidden">Loading...</span>
                         </div>
-                        <p class="mt-2 text-muted fw-medium" style="font-size: 0.85rem;">Loading files...</p>
+                        <p class="mt-3 text-muted fw-medium">Loading files...</p>
                     </div>
                 </div>
             </div>
-            <div class="modal-footer" style="padding: 8px 16px; background-color: #ffffff; border-radius: 0 0 8px 8px; border: none;">
-                <button type="button" class="btn btn-light px-2 py-1" data-bs-dismiss="modal" style="border-radius: 4px; font-weight: 500; font-size: 0.85rem;">
+            <div class="modal-footer" style="padding: 24px 32px; background-color: #ffffff; border-radius: 0 0 16px 16px; border: none;">
+                <button type="button" class="btn btn-light px-4 py-2" data-bs-dismiss="modal" style="border-radius: 8px; font-weight: 500;">
                     Close
                 </button>
-                <button type="button" class="btn btn-success px-2 py-1" id="saveRestaurantFiles" onclick="saveRestaurantChanges()" 
-                        style="display: none; border-radius: 4px; font-weight: 500; font-size: 0.85rem;">
+                <button type="button" class="btn btn-success px-4 py-2" id="saveRestaurantFiles" onclick="saveRestaurantChanges()" 
+                        style="display: none; border-radius: 8px; font-weight: 500;">
                     <i class="ri-save-line me-1"></i>Save Changes
                 </button>
             </div>
@@ -27000,7 +28191,7 @@ function displayAttractionFiles(data, tourId, attractionOrderIndex, bookingIndex
         ` : ''}
         
         <div class="row g-4">
-            <div class="col-md-8">
+            <div class="col-md-6">
                 <div class="bg-white rounded-3 shadow-sm p-4">
                     <div class="d-flex align-items-center mb-3">
                         <div class="bg-secondary bg-opacity-10 rounded-circle p-2 me-3">
@@ -27076,7 +28267,7 @@ function displayAttractionFiles(data, tourId, attractionOrderIndex, bookingIndex
                     </div>
                 </div>
             </div>
-            <div class="col-md-4">
+            <div class="col-md-6">
                 <div class="bg-white rounded-3 shadow-sm p-4">
                     <div class="d-flex align-items-center mb-3">
                         <div class="bg-success bg-opacity-10 rounded-circle p-2 me-3">
@@ -27546,7 +28737,7 @@ function displayRestaurantFiles(data, tourId, restaurantOrderIndex, bookingIndex
         ` : ''}
         
         <div class="row g-4">
-            <div class="col-md-8">
+            <div class="col-md-6">
                 <div class="bg-white rounded-3 shadow-sm p-4">
                     <div class="d-flex align-items-center mb-3">
                         <div class="bg-secondary bg-opacity-10 rounded-circle p-2 me-3">
@@ -27622,7 +28813,7 @@ function displayRestaurantFiles(data, tourId, restaurantOrderIndex, bookingIndex
                     </div>
                 </div>
             </div>
-            <div class="col-md-4">
+            <div class="col-md-6">
                 <div class="bg-white rounded-3 shadow-sm p-4">
                     <div class="d-flex align-items-center mb-3">
                         <div class="bg-success bg-opacity-10 rounded-circle p-2 me-3">
@@ -28085,3 +29276,4 @@ input[type="file"].form-control:hover {
 @endsection
 
 @extends('layouts.datatablejs')
+
