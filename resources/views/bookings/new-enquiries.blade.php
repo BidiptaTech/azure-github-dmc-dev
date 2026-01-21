@@ -490,6 +490,7 @@
                             <th>Destination</th>
                             <th>Guests</th>
                             <th>Agent</th>
+                            <th>Created By</th>
                             <th>Services</th>
                             <th>Check-in/Check-out</th>
                             <th>Created At</th>
@@ -566,6 +567,11 @@
                                     @else
                                         <span class="text-muted">No agent assigned</span>
                                     @endif
+                                </div>
+                            </td>
+                            <td>
+                                <div class="d-flex flex-column">
+                                    <span class="fw-medium">{{ $tour->created_by_name ?? 'N/A' }}</span>
                                 </div>
                             </td>
                             <td>
@@ -3692,14 +3698,17 @@ function filterTable() {
         const tourDetails = row.cells[1]?.textContent.toLowerCase() || '';
         const destination = row.cells[2]?.querySelector('.fw-medium')?.textContent || '';
         const agent = row.cells[4]?.querySelector('.fw-medium')?.textContent || '';
+        const createdBy = row.cells[5]?.querySelector('.fw-medium')?.textContent || '';
         const createdAt = row.getAttribute('data-created-at');
         const updatedAt = row.getAttribute('data-updated-at');
         
         let show = true;
         
-        // Search filter - check tour details and destination
+        // Search filter - check tour details, destination, agent, and created by
         if (searchTerm && !tourDetails.includes(searchTerm) && 
-            !destination.toLowerCase().includes(searchTerm)) {
+            !destination.toLowerCase().includes(searchTerm) &&
+            !agent.toLowerCase().includes(searchTerm) &&
+            !createdBy.toLowerCase().includes(searchTerm)) {
             show = false;
         }
         
@@ -4199,6 +4208,20 @@ function testServices() {
             $('.datatables-basic').DataTable().destroy();
         }
         
+        const headerTexts = $('#toursTable thead th').map(function() {
+            return $(this).text().trim();
+        }).get();
+        const colIndex = (name) => headerTexts.findIndex(t => t === name);
+
+        const guestsIdx = colIndex('Guests');
+        const servicesIdx = colIndex('Services');
+        const agentNegotiationIdx = colIndex('Agent Negotiation');
+        const negotiationIdx = colIndex('Negotiation');
+        const actionsIdx = colIndex('Actions');
+
+        const nonOrderableTargets = [guestsIdx, servicesIdx, agentNegotiationIdx, negotiationIdx, actionsIdx].filter(i => i >= 0);
+        const nonSearchableTargets = [agentNegotiationIdx, negotiationIdx, actionsIdx].filter(i => i >= 0);
+
         // Initialize DataTable with export buttons
         table = $('.datatables-basic').DataTable({
             responsive: true,
@@ -4230,13 +4253,16 @@ function testServices() {
             // order: [[7, 'desc']], // Sort by Created Date column (index 7) in descending order
             columnDefs: [
                 {
-                    targets: [8, 9], // Negotiation and Actions columns (indices 8 and 9)
+                    targets: nonOrderableTargets,
                     orderable: false,
-                    searchable: false
                 },
                 {
-                    targets: [3, 6], // Guests and Services columns (indices 3 and 6)
-                    orderable: false
+                    targets: nonSearchableTargets,
+                    searchable: false,
+                },
+                {
+                    targets: [guestsIdx, servicesIdx].filter(i => i >= 0),
+                    orderable: false,
                 }
             ],
             initComplete: function() {

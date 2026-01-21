@@ -228,6 +228,7 @@
                             <th>Destination</th>
                             <th>Guests</th>
                             <th>Agent</th>
+                            <th>Created By</th>
                             <th>Travel Dates</th>
                             <th>Refund Status</th>
                             <th>Cancelled Date</th>
@@ -288,6 +289,11 @@
                                         <i class="fas fa-building me-1"></i>
                                         {{ $tour->agent_company_name ?? 'N/A' }}
                                     </small>
+                                </div>
+                            </td>
+                            <td>
+                                <div class="d-flex flex-column">
+                                    <span class="fw-medium">{{ $tour->created_by_name ?? 'N/A' }}</span>
                                 </div>
                             </td>
                             <td>
@@ -719,21 +725,27 @@
             },
             lengthMenu: [10, 25, 50, 100],
             pageLength: 25,
-            columnDefs: [
-                {
-                    targets: [8], // Actions column
-                    orderable: false,
-                    searchable: false
-                },
-                {
-                    targets: [3], // Guests column
-                    orderable: false
-                },
-                {
-                    targets: [6], // Refund Status column
-                    orderable: false
-                }
-            ],
+            columnDefs: (function() {
+                const headerTexts = $('#toursTable thead th').map(function() {
+                    return $(this).text().trim();
+                }).get();
+                const colIndex = (name) => headerTexts.findIndex(t => t === name);
+                const actionsIdx = colIndex('Actions');
+                const guestsIdx = colIndex('Guests');
+                const statusIdx = colIndex('Refund Status');
+
+                return [
+                    {
+                        targets: [actionsIdx].filter(i => i >= 0),
+                        orderable: false,
+                        searchable: false
+                    },
+                    {
+                        targets: [guestsIdx, statusIdx].filter(i => i >= 0),
+                        orderable: false
+                    }
+                ];
+            })(),
             initComplete: function() {
                 console.log('DataTable initialized successfully');
             }
