@@ -142,6 +142,84 @@
     .select2-container--default .select2-selection--single .select2-selection__clear:hover {
         color: #dc3545;
     }
+
+    /* Compact table styles (shared with new-enquiries / follow-ups) */
+    #toursTable {
+        font-size: 0.875rem;
+    }
+
+    #toursTable thead th {
+        padding: 0.5rem 0.75rem;
+        font-size: 0.8125rem;
+        font-weight: 600;
+        white-space: nowrap;
+    }
+
+    #toursTable tbody td {
+        padding: 0.5rem 0.75rem;
+        vertical-align: middle;
+    }
+
+    #toursTable tbody tr {
+        height: auto;
+        min-height: 50px;
+    }
+
+    /* Compact badges in table */
+    #toursTable .badge {
+        font-size: 0.7rem;
+        padding: 0.25rem 0.5rem;
+        margin: 0.1rem 0.15rem;
+        font-weight: 500;
+    }
+
+    /* Compact icons */
+    #toursTable i {
+        font-size: 1rem;
+    }
+
+    /* Compact text in cells */
+    #toursTable .fw-medium,
+    #toursTable .fw-bold {
+        font-size: 0.875rem;
+    }
+
+    #toursTable small {
+        font-size: 0.75rem;
+    }
+
+    /* Compact buttons in table */
+    #toursTable .btn-sm {
+        padding: 0.25rem 0.55rem;
+        font-size: 0.78rem;
+        height: auto;
+        white-space: nowrap;
+    }
+
+    /* Compact guests icons section */
+    #toursTable .d-flex.gap-3 {
+        gap: 0.75rem !important;
+    }
+
+    /* Compact services badges container */
+    #toursTable .d-flex.gap-2.flex-wrap {
+        gap: 0.35rem !important;
+    }
+
+    /* Reduce spacing in tour details */
+    #toursTable .d-flex.flex-column {
+        gap: 0.15rem;
+    }
+
+    /* Compact muted text */
+    #toursTable .text-muted {
+        font-size: 0.7rem;
+    }
+
+    /* Compact date / status text */
+    #toursTable .d-flex.flex-column small {
+        line-height: 1.3;
+    }
 </style>
 
 @section('content')
@@ -1104,6 +1182,14 @@
                                         <button type="button" class="btn btn-sm btn-info" data-bs-toggle="modal" data-bs-target="#showPaymentModal{{ $tour->tour_id }}">
                                             <i class="fas fa-history me-1"></i> Payment Details
                                         </button>
+                                        
+                                        @if(hasPermission('add payment'))
+                                            @if($remainingAmount > 0 && !$hasPendingPayments)
+                                                <button type="button" class="btn btn-sm btn-primary" data-bs-toggle="modal" data-bs-target="#addPaymentModal{{ $tour->tour_id }}" onclick="checkPendingPayments({{ $tour->tour_id }})">
+                                                    <i class="fas fa-plus-circle me-1"></i> Add Payment
+                                                </button>
+                                            @endif
+                                        @endif
                                     @else
                                         @if(!empty($paymentData))
                                             <button type="button" class="btn btn-sm btn-info" data-bs-toggle="modal" data-bs-target="#showPaymentModal{{ $tour->tour_id }}">
@@ -1111,7 +1197,7 @@
                                             </button>
                                         @endif
 
-                                        @if(in_array(auth()->user()->role_id, [11, 12, 24, 28, 33, 37, 38, 128, 129, 130, 135, 136, 138]))
+                                        @if(hasPermission('add payment'))
                                             @if($remainingAmount > 0 && !$hasPendingPayments)
                                                 <button type="button" class="btn btn-sm btn-primary" data-bs-toggle="modal" data-bs-target="#addPaymentModal{{ $tour->tour_id }}" onclick="checkPendingPayments({{ $tour->tour_id }})">
                                                     <i class="fas fa-plus-circle me-1"></i> Add Payment
@@ -1651,7 +1737,7 @@
                                                 </div>
                                                 <h6 class="fw-bold mb-0 text-dark" style="font-size: 0.8rem;">Booking Status</h6>
                                             </div>
-                                            @if($hotelOrder->is_approve == 1)
+                                                    @if($hotelOrder->is_approve == 1)
                                                 <div class="alert alert-success mb-0 py-1 px-2" style="border-radius: 6px; font-size: 0.75rem;">
                                                     <i class="ri-check-circle-fill me-1" style="font-size: 0.7rem;"></i>
                                                     <strong>Approved</strong>
@@ -1701,7 +1787,7 @@
                                                 @else
                                                 <div class="text-muted small" style="font-size: 0.75rem;"><i class="ri-information-line me-1" style="font-size: 0.7rem;"></i>Pending approval</div>
                                                 @endif
-                                            @endif
+                                                @endif
                                         </div>
                                     </div>
                                 </div>
@@ -2376,9 +2462,9 @@
                                             <div class="d-flex align-items-center mb-1">
                                                 <div class="rounded-circle p-1 me-1" style="background: linear-gradient(135deg, #fd9853 0%, #fe7854 100%); width: 20px; height: 20px; display: flex; align-items: center; justify-content: center;">
                                                     <i class="ri-settings-line text-white" style="font-size: 0.7rem;"></i>
-                                                </div>
+                                                    </div>
                                                 <h6 class="fw-bold mb-0 text-dark" style="font-size: 0.8rem;">Booking Status</h6>
-                                            </div>
+                                                </div>
                                             @if($attractionOrder->is_approve == 1)
                                                 <div class="alert alert-success mb-0 py-1 px-2" style="border-radius: 6px; font-size: 0.75rem;">
                                                     <i class="ri-check-circle-fill me-1" style="font-size: 0.7rem;"></i>
@@ -2419,12 +2505,12 @@
                                                             style="border-radius: 6px; font-size: 0.75rem;">
                                                         <i class="ri-close-line me-1" style="font-size: 0.7rem;"></i>Reject
                                                     </button>
-                                                    @endif
-                                                </div>
+                                                        @endif
+                                                    </div>
                                                 @else
                                                 <div class="text-muted small" style="font-size: 0.75rem;"><i class="ri-information-line me-1" style="font-size: 0.7rem;"></i>Pending approval</div>
+                                                    @endif
                                                 @endif
-                                            @endif
                                         </div>
                                     </div>
                                 </div>
@@ -2795,22 +2881,22 @@
                                                 <div class="alert alert-success mb-0 py-1 px-2" style="border-radius: 6px; font-size: 0.75rem;">
                                                     <i class="ri-check-circle-fill me-1" style="font-size: 0.7rem;"></i>
                                                     <strong>Approved</strong>
-                                                    @if($restaurantOrder->reference_id)
+                                                     @if($restaurantOrder->reference_id)
                                                         <span class="ms-1">• Ref: {{ $restaurantOrder->reference_id }}</span>
-                                                    @endif
-                                                    @if($restaurantOrder->display_due_date)
+                                                     @endif
+                                                     @if($restaurantOrder->display_due_date)
                                                         <span class="ms-1">• Due: {{ \Carbon\Carbon::parse($restaurantOrder->display_due_date)->format('d-m-Y') }}</span>
-                                                    @endif
-                                                </div>
-                                            @else
-                                                @if(auth()->user()->role_id == 11 || auth()->user()->role_id == 34 || auth()->user()->role_id == 33 || auth()->user()->role_id == 37 || auth()->user()->role_id == 38 || auth()->user()->role_id == 124 || auth()->user()->role_id == 125 || auth()->user()->role_id == 128 || auth()->user()->role_id == 129 || auth()->user()->role_id == 130 || auth()->user()->role_id == 131 || auth()->user()->role_id == 132 || auth()->user()->role_id == 134 || auth()->user()->role_id == 135 || auth()->user()->role_id == 136 || auth()->user()->role_id == 137 || auth()->user()->role_id == 138)
+                                                     @endif
+                                                 </div>
+                                             @else
+                                                 @if(auth()->user()->role_id == 11 || auth()->user()->role_id == 34 || auth()->user()->role_id == 33 || auth()->user()->role_id == 37 || auth()->user()->role_id == 38 || auth()->user()->role_id == 124 || auth()->user()->role_id == 125 || auth()->user()->role_id == 128 || auth()->user()->role_id == 129 || auth()->user()->role_id == 130 || auth()->user()->role_id == 131 || auth()->user()->role_id == 132 || auth()->user()->role_id == 134 || auth()->user()->role_id == 135 || auth()->user()->role_id == 136 || auth()->user()->role_id == 137 || auth()->user()->role_id == 138)
                                                 <div class="d-flex gap-1 flex-wrap">
-                                                    @if(auth()->user()->role_id == 11 || auth()->user()->role_id == 34 || auth()->user()->role_id == 124 || auth()->user()->role_id == 125 || auth()->user()->role_id == 128 || auth()->user()->role_id == 131 || auth()->user()->role_id == 132 || auth()->user()->role_id == 134 || auth()->user()->role_id == 135 || auth()->user()->role_id == 137 || auth()->user()->role_id == 138)
-                                                    @php $actualCancelDateStr = $tour->auto_cancel_date 
-                                                        ? \Carbon\Carbon::parse($tour->auto_cancel_date)->format('Y-m-d')
-                                                        : '';
-                                                    @endphp
-                                                    <button type="button" 
+                                                     @if(auth()->user()->role_id == 11 || auth()->user()->role_id == 34 || auth()->user()->role_id == 124 || auth()->user()->role_id == 125 || auth()->user()->role_id == 128 || auth()->user()->role_id == 131 || auth()->user()->role_id == 132 || auth()->user()->role_id == 134 || auth()->user()->role_id == 135 || auth()->user()->role_id == 137 || auth()->user()->role_id == 138)
+                                                     @php $actualCancelDateStr = $tour->auto_cancel_date 
+                                                         ? \Carbon\Carbon::parse($tour->auto_cancel_date)->format('Y-m-d')
+                                                         : '';
+                                                     @endphp
+                                                     <button type="button" 
                                                             class="btn btn-sm px-2 py-1" 
                                                             onclick="editIndividualRestaurant({{ $tour->tour_id }}, {{ $index }}, {{ $bookingIndex }})"
                                                             style="border-radius: 6px; background: linear-gradient(135deg, #fd79a8 0%, #fdcb6e 100%); border: none; color: white; font-size: 0.75rem;">
@@ -2818,24 +2904,24 @@
                                                     </button>
                                                     <button type="button" 
                                                             class="btn btn-outline-success btn-sm px-2 py-1" 
-                                                            onclick="approveIndividualRestaurant({{ $tour->tour_id }}, {{ $index }}, {{ $bookingIndex }}, '{{ $actualCancelDateStr }}')"
+                                                             onclick="approveIndividualRestaurant({{ $tour->tour_id }}, {{ $index }}, {{ $bookingIndex }}, '{{ $actualCancelDateStr }}')"
                                                             style="border-radius: 6px; font-size: 0.75rem;">
                                                         <i class="ri-check-line me-1" style="font-size: 0.7rem;"></i>Approve
-                                                    </button>
-                                                    @endif
-                                                    @if(auth()->user()->role_id == 11 || auth()->user()->role_id == 34 || auth()->user()->role_id == 33 || auth()->user()->role_id == 37 || auth()->user()->role_id == 38 || auth()->user()->role_id == 124 || auth()->user()->role_id == 125 || auth()->user()->role_id == 128 || auth()->user()->role_id == 129 || auth()->user()->role_id == 130 || auth()->user()->role_id == 131 || auth()->user()->role_id == 132 || auth()->user()->role_id == 134 || auth()->user()->role_id == 135 || auth()->user()->role_id == 136 || auth()->user()->role_id == 137 || auth()->user()->role_id == 138)
-                                                    <button type="button" 
+                                                     </button>
+                                                     @endif
+                                                     @if(auth()->user()->role_id == 11 || auth()->user()->role_id == 34 || auth()->user()->role_id == 33 || auth()->user()->role_id == 37 || auth()->user()->role_id == 38 || auth()->user()->role_id == 124 || auth()->user()->role_id == 125 || auth()->user()->role_id == 128 || auth()->user()->role_id == 129 || auth()->user()->role_id == 130 || auth()->user()->role_id == 131 || auth()->user()->role_id == 132 || auth()->user()->role_id == 134 || auth()->user()->role_id == 135 || auth()->user()->role_id == 136 || auth()->user()->role_id == 137 || auth()->user()->role_id == 138)
+                                                     <button type="button" 
                                                             class="btn btn-outline-danger btn-sm px-2 py-1" 
-                                                            onclick="rejectIndividualRestaurant({{ $tour->tour_id }}, {{ $index }}, {{ $bookingIndex }}, '{{ $actualCancelDateStr }}')"
+                                                             onclick="rejectIndividualRestaurant({{ $tour->tour_id }}, {{ $index }}, {{ $bookingIndex }}, '{{ $actualCancelDateStr }}')"
                                                             style="border-radius: 6px; font-size: 0.75rem;">
                                                         <i class="ri-close-line me-1" style="font-size: 0.7rem;"></i>Reject
-                                                    </button>
-                                                    @endif
-                                                </div>
+                                                     </button>
+                                                     @endif
+                                                 </div>
                                                 @else
                                                 <div class="text-muted small" style="font-size: 0.75rem;"><i class="ri-information-line me-1" style="font-size: 0.7rem;"></i>Pending approval</div>
-                                                @endif
-                                            @endif
+                                                 @endif
+                                             @endif
                                         </div>
                                     </div>
                                 </div>
@@ -2972,11 +3058,11 @@
                                                         <div class="col-6">
                                                             <small class="text-muted d-block" style="font-size: 0.65rem;">Date</small>
                                                             <div class="fw-medium" style="font-size: 0.75rem;">{{ \Carbon\Carbon::parse($booking['bookingDate'])->format('M d, Y') }}</div>
-                                                        </div>
+                                                    </div>
                                                         <div class="col-6">
                                                             <small class="text-muted d-block" style="font-size: 0.65rem;">Time</small>
                                                             <div class="fw-medium" style="font-size: 0.75rem;">{{ $booking['entrytime'] ?? 'TBC' }}</div>
-                                                        </div>
+                                                    </div>
                                                         <div class="col-6">
                                                             <small class="text-muted d-block" style="font-size: 0.65rem;">Duration</small>
                                                             <span class="badge" style="background: linear-gradient(135deg, #00cec9 0%, #55a3ff 100%); color: white; font-size: 0.65rem; padding: 2px 4px;">{{ $booking['hours'] ?? 'N/A' }}H</span>
@@ -3069,38 +3155,38 @@
                                                 <div class="alert alert-success mb-0 py-1 px-2" style="border-radius: 6px; font-size: 0.75rem;">
                                                     <i class="ri-check-circle-fill me-1" style="font-size: 0.7rem;"></i>
                                                     <strong>Approved</strong>
-                                                    @if($guideOrder->reference_id)
+                                                     @if($guideOrder->reference_id)
                                                         <span class="ms-1">• Ref: {{ $guideOrder->reference_id }}</span>
-                                                    @endif
-                                                    @if($guideOrder->display_due_date)
+                                                     @endif
+                                                     @if($guideOrder->display_due_date)
                                                         <span class="ms-1">• Due: {{ \Carbon\Carbon::parse($guideOrder->display_due_date)->format('d-m-Y') }}</span>
-                                                    @endif
-                                                </div>
-                                            @else
-                                                @if(auth()->user()->role_id == 11 || auth()->user()->role_id == 34 || auth()->user()->role_id == 33 || auth()->user()->role_id == 37 || auth()->user()->role_id == 38 || auth()->user()->role_id == 124 || auth()->user()->role_id == 125 || auth()->user()->role_id == 128 || auth()->user()->role_id == 129 || auth()->user()->role_id == 130 || auth()->user()->role_id == 131 || auth()->user()->role_id == 132 || auth()->user()->role_id == 134 || auth()->user()->role_id == 135 || auth()->user()->role_id == 136 || auth()->user()->role_id == 137 || auth()->user()->role_id == 138)
+                                                     @endif
+                                                 </div>
+                                             @else
+                                                 @if(auth()->user()->role_id == 11 || auth()->user()->role_id == 34 || auth()->user()->role_id == 33 || auth()->user()->role_id == 37 || auth()->user()->role_id == 38 || auth()->user()->role_id == 124 || auth()->user()->role_id == 125 || auth()->user()->role_id == 128 || auth()->user()->role_id == 129 || auth()->user()->role_id == 130 || auth()->user()->role_id == 131 || auth()->user()->role_id == 132 || auth()->user()->role_id == 134 || auth()->user()->role_id == 135 || auth()->user()->role_id == 136 || auth()->user()->role_id == 137 || auth()->user()->role_id == 138)
                                                 <div class="d-flex gap-1 flex-wrap">
-                                                    @if(auth()->user()->role_id == 11 || auth()->user()->role_id == 34 || auth()->user()->role_id == 124 || auth()->user()->role_id == 125 || auth()->user()->role_id == 128 || auth()->user()->role_id == 131 || auth()->user()->role_id == 132 || auth()->user()->role_id == 134 || auth()->user()->role_id == 135 || auth()->user()->role_id == 137 || auth()->user()->role_id == 138)
-                                                    <button type="button" 
+                                                     @if(auth()->user()->role_id == 11 || auth()->user()->role_id == 34 || auth()->user()->role_id == 124 || auth()->user()->role_id == 125 || auth()->user()->role_id == 128 || auth()->user()->role_id == 131 || auth()->user()->role_id == 132 || auth()->user()->role_id == 134 || auth()->user()->role_id == 135 || auth()->user()->role_id == 137 || auth()->user()->role_id == 138)
+                                                     <button type="button" 
                                                             class="btn btn-sm px-2 py-1" 
-                                                            onclick="editIndividualGuide({{ $tour->tour_id }}, {{ $index }}, {{ $bookingIndex }})"
+                                                             onclick="editIndividualGuide({{ $tour->tour_id }}, {{ $index }}, {{ $bookingIndex }})"
                                                             style="border-radius: 6px; background: linear-gradient(135deg, #00cec9 0%, #55a3ff 100%); border: none; color: white; font-size: 0.75rem;">
                                                         <i class="ri-edit-line me-1" style="font-size: 0.7rem;"></i>Edit
-                                                    </button>
-                                                    @endif
-                                                    @if(auth()->user()->role_id == 11 || auth()->user()->role_id == 34 || auth()->user()->role_id == 33 || auth()->user()->role_id == 37 || auth()->user()->role_id == 38 || auth()->user()->role_id == 124 || auth()->user()->role_id == 125 || auth()->user()->role_id == 128 || auth()->user()->role_id == 129 || auth()->user()->role_id == 130 || auth()->user()->role_id == 131 || auth()->user()->role_id == 132 || auth()->user()->role_id == 134 || auth()->user()->role_id == 135 || auth()->user()->role_id == 136 || auth()->user()->role_id == 137 || auth()->user()->role_id == 138)
-                                                    <button type="button" 
+                                                     </button>
+                                                     @endif
+                                                     @if(auth()->user()->role_id == 11 || auth()->user()->role_id == 34 || auth()->user()->role_id == 33 || auth()->user()->role_id == 37 || auth()->user()->role_id == 38 || auth()->user()->role_id == 124 || auth()->user()->role_id == 125 || auth()->user()->role_id == 128 || auth()->user()->role_id == 129 || auth()->user()->role_id == 130 || auth()->user()->role_id == 131 || auth()->user()->role_id == 132 || auth()->user()->role_id == 134 || auth()->user()->role_id == 135 || auth()->user()->role_id == 136 || auth()->user()->role_id == 137 || auth()->user()->role_id == 138)
+                                                     <button type="button" 
                                                             class="btn btn-outline-danger btn-sm px-2 py-1" 
-                                                            onclick="rejectIndividualGuide({{ $tour->tour_id }}, {{ $index }}, {{ $bookingIndex }})"
+                                                             onclick="rejectIndividualGuide({{ $tour->tour_id }}, {{ $index }}, {{ $bookingIndex }})"
                                                             style="border-radius: 6px; font-size: 0.75rem;">
                                                         <i class="ri-close-line me-1" style="font-size: 0.7rem;"></i>Reject
-                                                    </button>
-                                                    @endif
-                                                </div>
+                                                     </button>
+                                                     @endif
+                                                 </div>
                                                 @else
                                                 <div class="text-muted small" style="font-size: 0.75rem;"><i class="ri-information-line me-1" style="font-size: 0.7rem;"></i>Pending approval</div>
-                                                @endif
-                                            @endif
-                                        </div>
+                                                 @endif
+                                             @endif
+                     </div>
                                     </div>
                                 </div>
                             @endforeach
@@ -3189,11 +3275,11 @@
                                                         <div class="col-6">
                                                             <small class="text-muted d-block" style="font-size: 0.65rem;">Date</small>
                                                             <div class="fw-medium" style="font-size: 0.75rem;">{{ \Carbon\Carbon::parse($booking['bookingDate'])->format('M d, Y') }}</div>
-                                                        </div>
+                                                    </div>
                                                         <div class="col-6">
                                                             <small class="text-muted d-block" style="font-size: 0.65rem;">Time</small>
                                                             <div class="fw-medium" style="font-size: 0.75rem;">{{ $booking['entrytime'] ?? 'TBC' }}</div>
-                                                        </div>
+                                                    </div>
                                                         <div class="col-6">
                                                             <small class="text-muted d-block" style="font-size: 0.65rem;">Type</small>
                                                             <div><span class="badge bg-warning px-1 py-0" style="font-size: 0.65rem;">{{ ucfirst($booking['type'] ?? 'Standard') }}</span></div>
@@ -3252,18 +3338,18 @@
                                                             <i class="ri-map-pin-line text-success me-1" style="font-size: 0.7rem;"></i>
                                                             <span class="text-truncate">{{ $booking['entrypickup'] ?? 'N/A' }}</span>
                                                         </div>
+                                                        </div>
                                                     </div>
-                                                </div>
                                                 <div class="col-md-6">
                                                     <div class="bg-white rounded p-1">
                                                         <small class="text-muted d-block" style="font-size: 0.65rem;">Dropoff</small>
                                                         <div class="fw-medium d-flex align-items-center" style="font-size: 0.75rem;">
                                                             <i class="ri-map-pin-2-line text-danger me-1" style="font-size: 0.7rem;"></i>
                                                             <span class="text-truncate">{{ $booking['entrydropoff'] ?? 'N/A' }}</span>
+                                                </div>
+                                                        </div>
                                                         </div>
                                                     </div>
-                                                </div>
-                                            </div>
                                             <!-- Compact Route Direction Visual -->
                                             <div class="d-flex align-items-center justify-content-center p-1 bg-white rounded">
                                                 <span class="badge bg-success me-1" style="font-size: 0.65rem; padding: 2px 4px;">{{ Str::limit($booking['entrypickup'] ?? 'Pickup', 15) }}</span>
@@ -3291,7 +3377,7 @@
                                                             <small class="text-muted d-block mb-0" style="font-size: 0.65rem;">Service</small>
                                                             <div class="fw-medium" style="font-size: 0.75rem;">{{ $booking['type'] ?? 'N/A' }}</div>
                                                         </div>
-                                                    </div>
+                                                        </div>
                                                     <!-- Compact Vehicle Image Display -->
                                                     <div class="d-flex justify-content-center align-items-center" style="min-height: 80px; width: 100%; overflow: hidden; position: relative;">
                                                         @if(isset($booking['image']) && $booking['image'])
@@ -3307,15 +3393,15 @@
                                                                           onclick="event.stopPropagation(); openVehicleImageModal('{{ $booking['image'] }}', '{{ $booking['vehicles_name'] ?? 'Vehicle' }}')">
                                                                         <i class="ri-zoom-in-line"></i>
                                                                     </span>
-                                                                </div>
-                                                            </div>
-                                                        @else
-                                                            <div class="rounded-circle bg-light d-flex align-items-center justify-content-center shadow-sm" style="width: 80px; height: 80px; border: 2px solid #e9ecef; flex-shrink: 0;">
-                                                                <i class="ri-car-line text-muted" style="font-size: 2rem;"></i>
-                                                            </div>
-                                                        @endif
                                                     </div>
                                                 </div>
+                                                @else
+                                                            <div class="rounded-circle bg-light d-flex align-items-center justify-content-center shadow-sm" style="width: 80px; height: 80px; border: 2px solid #e9ecef; flex-shrink: 0;">
+                                                                <i class="ri-car-line text-muted" style="font-size: 2rem;"></i>
+                                                    </div>
+                                                @endif
+                                            </div>
+                                        </div>
                                             </div>
                                             <div class="col-md-6">
                                                 <div class="bg-light rounded p-2 h-100">
@@ -3329,18 +3415,18 @@
                                                         <div class="col-6">
                                                             <small class="text-muted d-block" style="font-size: 0.65rem;">City</small>
                                                             <div class="fw-medium" style="font-size: 0.75rem;">{{ $booking['city'] ?? 'N/A' }}</div>
-                                                        </div>
+                                                    </div>
                                                         <div class="col-6">
                                                             <small class="text-muted d-block" style="font-size: 0.65rem;">Country</small>
                                                             <div class="fw-medium" style="font-size: 0.75rem;">{{ $booking['country'] ?? 'N/A' }}</div>
-                                                        </div>
+                                                    </div>
                                                     </div>
                                                     @if(($booking['Night_Start_Time'] ?? false) && ($booking['Night_End_Time'] ?? false))
                                                     <div class="bg-white rounded p-1 mt-1">
                                                         <small class="text-muted d-block mb-0" style="font-size: 0.65rem;">Night Service</small>
                                                         <div class="fw-medium text-warning" style="font-size: 0.75rem;">{{ $booking['Night_Start_Time'] }} - {{ $booking['Night_End_Time'] }}</div>
-                                                    </div>
-                                                    @endif
+                                                </div>
+                                                        @endif
                                                 </div>
                                             </div>
                                         </div>
@@ -3350,21 +3436,21 @@
                                             <div class="d-flex align-items-center mb-1">
                                                 <div class="rounded-circle p-1 me-1" style="background: linear-gradient(135deg, #00b894 0%, #55a3ff 100%); width: 20px; height: 20px; display: flex; align-items: center; justify-content: center;">
                                                     <i class="ri-settings-line text-white" style="font-size: 0.7rem;"></i>
-                                                </div>
+                                                    </div>
                                                 <h6 class="fw-bold mb-0 text-dark" style="font-size: 0.8rem;">Booking Status</h6>
-                                            </div>
-                                            @if($entryOrder->is_approve == 1)
+                                                </div>
+                                                @if($entryOrder->is_approve == 1)
                                                 <div class="alert alert-success mb-0 py-1 px-2" style="border-radius: 6px; font-size: 0.75rem;">
                                                     <i class="ri-check-circle-fill me-1" style="font-size: 0.7rem;"></i>
                                                     <strong>Approved</strong>
-                                                    @if($entryOrder->reference_id)
+                                                        @if($entryOrder->reference_id)
                                                         <span class="ms-1">• Ref: {{ $entryOrder->reference_id }}</span>
-                                                    @endif
-                                                    @if($entryOrder->display_due_date)
+                                                        @endif
+                                                        @if($entryOrder->display_due_date)
                                                         <span class="ms-1">• Due: {{ \Carbon\Carbon::parse($entryOrder->display_due_date)->format('d-m-Y') }}</span>
-                                                    @endif
-                                                </div>
-                                            @else
+                                                        @endif
+                                                    </div>
+                                                @else
                                                 @if(auth()->user()->role_id == 11 || auth()->user()->role_id == 34 || auth()->user()->role_id == 33 || auth()->user()->role_id == 37 || auth()->user()->role_id == 38 || auth()->user()->role_id == 124 || auth()->user()->role_id == 125 || auth()->user()->role_id == 128 || auth()->user()->role_id == 129 || auth()->user()->role_id == 130 || auth()->user()->role_id == 131 || auth()->user()->role_id == 132 || auth()->user()->role_id == 134 || auth()->user()->role_id == 135 || auth()->user()->role_id == 136 || auth()->user()->role_id == 137 || auth()->user()->role_id == 138)
                                                 <div class="d-flex gap-1 flex-wrap">
                                                     @if(auth()->user()->role_id == 11 || auth()->user()->role_id == 34 || auth()->user()->role_id == 124 || auth()->user()->role_id == 125 || auth()->user()->role_id == 128 || auth()->user()->role_id == 131 || auth()->user()->role_id == 132 || auth()->user()->role_id == 134 || auth()->user()->role_id == 135 || auth()->user()->role_id == 137 || auth()->user()->role_id == 138)
@@ -3386,8 +3472,8 @@
                                                 </div>
                                                 @else
                                                 <div class="text-muted small" style="font-size: 0.75rem;"><i class="ri-information-line me-1" style="font-size: 0.7rem;"></i>Pending approval</div>
+                                                    @endif
                                                 @endif
-                                            @endif
                                         </div>
                                     </div>
                                 </div>
@@ -3473,11 +3559,11 @@
                                                         <div class="col-6">
                                                             <small class="text-muted d-block" style="font-size: 0.65rem;">Date</small>
                                                             <div class="fw-medium" style="font-size: 0.75rem;">{{ \Carbon\Carbon::parse($booking['bookingDate'])->format('M d, Y') }}</div>
-                                                        </div>
+                                                    </div>
                                                         <div class="col-6">
                                                             <small class="text-muted d-block" style="font-size: 0.65rem;">Time</small>
                                                             <div class="fw-medium" style="font-size: 0.75rem;">{{ $booking['entrytime'] ?? 'TBC' }}</div>
-                                                        </div>
+                                                    </div>
                                                         <div class="col-6">
                                                             <small class="text-muted d-block" style="font-size: 0.65rem;">Type</small>
                                                             <div><span class="badge bg-warning px-1 py-0" style="font-size: 0.65rem;">{{ ucfirst($booking['type'] ?? 'Standard') }}</span></div>
@@ -3536,18 +3622,18 @@
                                                             <i class="ri-map-pin-line text-success me-1" style="font-size: 0.7rem;"></i>
                                                             <span class="text-truncate">{{ $booking['exitpickup'] ?? 'N/A' }}</span>
                                                         </div>
+                                                        </div>
                                                     </div>
-                                                </div>
                                                 <div class="col-md-6">
                                                     <div class="bg-white rounded p-1">
                                                         <small class="text-muted d-block" style="font-size: 0.65rem;">Dropoff</small>
                                                         <div class="fw-medium d-flex align-items-center" style="font-size: 0.75rem;">
                                                             <i class="ri-map-pin-2-line text-danger me-1" style="font-size: 0.7rem;"></i>
                                                             <span class="text-truncate">{{ $booking['exitdropoff'] ?? 'N/A' }}</span>
+                                                </div>
+                                                        </div>
                                                         </div>
                                                     </div>
-                                                </div>
-                                            </div>
                                             <!-- Compact Route Direction Visual -->
                                             <div class="d-flex align-items-center justify-content-center p-1 bg-white rounded">
                                                 <span class="badge bg-success me-1" style="font-size: 0.65rem; padding: 2px 4px;">{{ Str::limit($booking['exitpickup'] ?? 'Pickup', 15) }}</span>
@@ -3591,13 +3677,13 @@
                                                                           onclick="event.stopPropagation(); openVehicleImageModal('{{ $booking['image'] }}', '{{ $booking['vehicles_name'] ?? 'Vehicle' }}')">
                                                                         <i class="ri-zoom-in-line"></i>
                                                                     </span>
-                                                                </div>
-                                                            </div>
-                                                        @else
+                                                </div>
+                                            </div>
+                                                @else
                                                             <div class="rounded-circle bg-light d-flex align-items-center justify-content-center shadow-sm" style="width: 80px; height: 80px; border: 2px solid #e9ecef; flex-shrink: 0;">
                                                                 <i class="ri-car-line text-muted" style="font-size: 2rem;"></i>
-                                                            </div>
-                                                        @endif
+                                                    </div>
+                                                @endif
                                                     </div>
                                                 </div>
                                             </div>
@@ -3613,41 +3699,41 @@
                                                         <div class="col-6">
                                                             <small class="text-muted d-block" style="font-size: 0.65rem;">City</small>
                                                             <div class="fw-medium" style="font-size: 0.75rem;">{{ $booking['city'] ?? 'N/A' }}</div>
-                                                        </div>
+                                                    </div>
                                                         <div class="col-6">
                                                             <small class="text-muted d-block" style="font-size: 0.65rem;">Country</small>
                                                             <div class="fw-medium" style="font-size: 0.75rem;">{{ $booking['country'] ?? 'N/A' }}</div>
-                                                        </div>
-                                                    </div>
+                                                </div>
+                                            </div>
                                                     <!-- Compact Pricing Details -->
                                                     <div class="bg-white rounded p-1 mt-1">
                                                         <small class="text-muted d-block mb-0" style="font-size: 0.65rem;">Total Price</small>
                                                         <div class="fw-bold text-success" style="font-size: 0.9rem;">SGD {{ number_format($booking['totalPrice'] ?? 0, 2) }}</div>
+                                        </div>
                                                     </div>
                                                 </div>
-                                            </div>
-                                        </div>
+                                                </div>
 
                                         <!-- Booking Status -->
                                         <div class="bg-light rounded p-1">
                                             <div class="d-flex align-items-center mb-1">
                                                 <div class="rounded-circle p-1 me-1" style="background: linear-gradient(135deg, #fd7f6f 0%, #feb47b 100%); width: 20px; height: 20px; display: flex; align-items: center; justify-content: center;">
                                                     <i class="ri-settings-line text-white" style="font-size: 0.7rem;"></i>
-                                                </div>
+                                                    </div>
                                                 <h6 class="fw-bold mb-0 text-dark" style="font-size: 0.8rem;">Booking Status</h6>
-                                            </div>
-                                            @if($exitOrder->is_approve == 1)
+                                                </div>
+                                                @if($exitOrder->is_approve == 1)
                                                 <div class="alert alert-success mb-0 py-1 px-2" style="border-radius: 6px; font-size: 0.75rem;">
                                                     <i class="ri-check-circle-fill me-1" style="font-size: 0.7rem;"></i>
                                                     <strong>Approved</strong>
-                                                    @if($exitOrder->reference_id)
+                                                        @if($exitOrder->reference_id)
                                                         <span class="ms-1">• Ref: {{ $exitOrder->reference_id }}</span>
-                                                    @endif
-                                                    @if($exitOrder->display_due_date)
+                                                        @endif
+                                                        @if($exitOrder->display_due_date)
                                                         <span class="ms-1">• Due: {{ \Carbon\Carbon::parse($exitOrder->display_due_date)->format('d-m-Y') }}</span>
-                                                    @endif
-                                                </div>
-                                            @else
+                                                        @endif
+                                                    </div>
+                                                @else
                                                 @if(auth()->user()->role_id == 11 || auth()->user()->role_id == 34 || auth()->user()->role_id == 33 || auth()->user()->role_id == 37 || auth()->user()->role_id == 38 || auth()->user()->role_id == 124 || auth()->user()->role_id == 125 || auth()->user()->role_id == 128 || auth()->user()->role_id == 129 || auth()->user()->role_id == 130 || auth()->user()->role_id == 131 || auth()->user()->role_id == 132 || auth()->user()->role_id == 134 || auth()->user()->role_id == 135 || auth()->user()->role_id == 136 || auth()->user()->role_id == 137 || auth()->user()->role_id == 138)
                                                 <div class="d-flex gap-1 flex-wrap">
                                                     @if(auth()->user()->role_id == 11 || auth()->user()->role_id == 34 || auth()->user()->role_id == 124 || auth()->user()->role_id == 125 || auth()->user()->role_id == 128 || auth()->user()->role_id == 131 || auth()->user()->role_id == 132 || auth()->user()->role_id == 134 || auth()->user()->role_id == 135 || auth()->user()->role_id == 137 || auth()->user()->role_id == 138)
@@ -3669,8 +3755,8 @@
                                                 </div>
                                                 @else
                                                 <div class="text-muted small" style="font-size: 0.75rem;"><i class="ri-information-line me-1" style="font-size: 0.7rem;"></i>Pending approval</div>
+                                                    @endif
                                                 @endif
-                                            @endif
                                         </div>
                                     </div>
                                 </div>
@@ -4204,7 +4290,7 @@
                                 <h6 class="mb-0 fw-bold" style="font-size: 0.95rem;">
                                     <i class="ri-time-line me-1" style="font-size: 0.9rem;"></i>Local-Tour Hourly - Tour #{{ $tour->tour_id }} • {{ $firstBookingData['city'] ?? 'Location not specified' }}
                                 </h6>
-                            </div>
+                                </div>
                             <button type="button" class="btn-close btn-close-white" onclick="closeServiceModal('travel_hourly', {{ $tour->tour_id }})" aria-label="Close" style="font-size: 0.8rem;"></button>
                         </div>
                     </div>
@@ -4238,68 +4324,68 @@
                                                 <span class="badge bg-white text-success px-2 py-1" style="font-size: 0.8rem;">
                                                     SGD {{ number_format($booking['totalPrice'] ?? 0, 2) }}
                                                 </span>
-                                            </div>
                                         </div>
                                     </div>
-                                    
+                                </div>
+
                                     <div class="card-body p-2" style="background-color: #ffffff;">
-                                        <!-- Service Schedule & Group Information -->
+                                <!-- Service Schedule & Group Information -->
                                         <div class="row mb-2 g-2">
-                                            <div class="col-md-6">
+                                    <div class="col-md-6">
                                                 <div class="bg-light rounded p-2 h-100">
                                                     <div class="d-flex align-items-center mb-1">
                                                         <div class="rounded-circle p-1 me-2" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); width: 24px; height: 24px; display: flex; align-items: center; justify-content: center;">
                                                             <i class="ri-calendar-line text-white" style="font-size: 0.8rem;"></i>
-                                                        </div>
+                                                </div>
                                                         <h6 class="fw-bold mb-0 text-dark" style="font-size: 0.85rem;">Service Schedule</h6>
-                                                    </div>
+                                            </div>
                                                     <div class="row g-1">
                                                         <div class="col-6">
                                                             <small class="text-muted d-block" style="font-size: 0.65rem;">Date</small>
                                                             <div class="fw-medium" style="font-size: 0.75rem;">{{ isset($booking['bookingDate']) ? \Carbon\Carbon::parse($booking['bookingDate'])->format('M d, Y') : 'N/A' }}</div>
-                                                        </div>
+                                                </div>
                                                         <div class="col-6">
                                                             <small class="text-muted d-block" style="font-size: 0.65rem;">Time</small>
                                                             <div class="fw-medium" style="font-size: 0.75rem;">{{ $booking['entrytime'] ?? 'TBC' }}</div>
-                                                        </div>
+                                                </div>
                                                         <div class="col-6">
                                                             <small class="text-muted d-block" style="font-size: 0.65rem;">Hours</small>
                                                             <span class="badge bg-info px-1 py-0" style="font-size: 0.65rem;">{{ $booking['selectedHours'] ?? 'N/A' }}H</span>
-                                                        </div>
+                                                </div>
                                                         <div class="col-6">
                                                             <small class="text-muted d-block" style="font-size: 0.65rem;">Type</small>
                                                             <span class="badge bg-warning px-1 py-0" style="font-size: 0.65rem;">{{ ucfirst($booking['type'] ?? 'Standard') }}</span>
-                                                        </div>
-                                                    </div>
                                                 </div>
                                             </div>
-                                            <div class="col-md-6">
+                                        </div>
+                                    </div>
+                                    <div class="col-md-6">
                                                 <div class="bg-light rounded p-2 h-100">
                                                     <div class="d-flex align-items-center mb-1">
                                                         <div class="rounded-circle p-1 me-2" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); width: 24px; height: 24px; display: flex; align-items: center; justify-content: center;">
                                                             <i class="ri-group-line text-white" style="font-size: 0.8rem;"></i>
-                                                        </div>
+                                                </div>
                                                         <h6 class="fw-bold mb-0 text-dark" style="font-size: 0.85rem;">Group Information</h6>
-                                                    </div>
+                                            </div>
                                                     <div class="row g-1 mb-1">
                                                         <div class="col-6 text-center">
                                                             <div class="bg-white rounded p-1 border" style="border-color: #667eea !important;">
                                                                 <div class="fw-bold text-success" style="font-size: 0.9rem;">{{ $booking['adults'] ?? 0 }}</div>
                                                                 <small class="text-muted" style="font-size: 0.55rem;">Adults</small>
-                                                            </div>
-                                                        </div>
+                                                </div>
+                                                </div>
                                                         <div class="col-6 text-center">
                                                             <div class="bg-white rounded p-1 border" style="border-color: #667eea !important;">
                                                                 <div class="fw-bold text-warning" style="font-size: 0.9rem;">{{ $booking['children'] ?? 0 }}</div>
                                                                 <small class="text-muted" style="font-size: 0.55rem;">Children</small>
-                                                            </div>
-                                                        </div>
-                                                    </div>
+                                                </div>
+                                                </div>
+                                            </div>
                                                     <div class="text-center">
                                                         <span class="badge" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; font-size: 0.7rem; padding: 2px 4px;">
                                                             Total: {{ ($booking['adults'] ?? 0) + ($booking['children'] ?? 0) }} Guests
                                                         </span>
-                                                    </div>
+                                        </div>
                                                     @if(($booking['Night_Start_Time'] ?? false) && ($booking['Night_End_Time'] ?? false))
                                                     <div class="bg-white rounded p-1 mt-1">
                                                         <small class="text-muted d-block mb-0" style="font-size: 0.65rem;">Night Service</small>
@@ -4307,36 +4393,36 @@
                                                     </div>
                                                     @endif
                                                 </div>
-                                            </div>
-                                        </div>
+                                    </div>
+                                </div>
 
-                                        <!-- Pickup Location & Vehicle Information -->
+                                <!-- Pickup Location & Vehicle Information -->
                                         <div class="row mb-2 g-2">
-                                            <div class="col-md-6">
+                                    <div class="col-md-6">
                                                 <div class="bg-light rounded p-2 h-100">
                                                     <div class="d-flex align-items-center mb-1">
                                                         <div class="rounded-circle p-1 me-2" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); width: 24px; height: 24px; display: flex; align-items: center; justify-content: center;">
                                                             <i class="ri-map-pin-line text-white" style="font-size: 0.8rem;"></i>
-                                                        </div>
+                                                </div>
                                                         <h6 class="fw-bold mb-0 text-dark" style="font-size: 0.85rem;">Pickup Location</h6>
-                                                    </div>
+                                            </div>
                                                     <div class="row g-1">
                                                         <div class="col-12">
                                                             <small class="text-muted d-block" style="font-size: 0.65rem;">Pickup Point</small>
                                                             <div class="fw-medium text-truncate" style="font-size: 0.75rem;">{{ $booking['entrypickup'] ?? 'N/A' }}</div>
-                                                        </div>
+                                                </div>
                                                         <div class="col-6">
                                                             <small class="text-muted d-block" style="font-size: 0.65rem;">City</small>
                                                             <div class="fw-medium" style="font-size: 0.75rem;">{{ $booking['city'] ?? 'N/A' }}</div>
-                                                        </div>
+                                                </div>
                                                         <div class="col-6">
                                                             <small class="text-muted d-block" style="font-size: 0.65rem;">Country</small>
                                                             <div class="fw-medium" style="font-size: 0.75rem;">{{ $booking['country'] ?? 'N/A' }}</div>
-                                                        </div>
-                                                    </div>
                                                 </div>
                                             </div>
-                                            <div class="col-md-6">
+                                        </div>
+                                    </div>
+                                    <div class="col-md-6">
                                                 <div class="bg-light rounded p-2 h-100" style="overflow: hidden;">
                                                     <div class="d-flex align-items-center mb-1">
                                                         <div class="rounded-circle p-1 me-2" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); width: 24px; height: 24px; display: flex; align-items: center; justify-content: center; flex-shrink: 0;">
@@ -4369,17 +4455,17 @@
                                                                           onclick="event.stopPropagation(); openVehicleImageModal('{{ $booking['image'] }}', '{{ $booking['vehicles_name'] ?? 'Vehicle' }}')">
                                                                         <i class="ri-zoom-in-line"></i>
                                                                     </span>
-                                                                </div>
-                                                            </div>
-                                                        @else
-                                                            <div class="rounded-circle bg-light d-flex align-items-center justify-content-center shadow-sm" style="width: 80px; height: 80px; border: 2px solid #e9ecef; flex-shrink: 0;">
-                                                                <i class="ri-car-line text-muted" style="font-size: 2rem;"></i>
-                                                            </div>
-                                                        @endif
-                                                    </div>
                                                 </div>
                                             </div>
+                                                @else
+                                                            <div class="rounded-circle bg-light d-flex align-items-center justify-content-center shadow-sm" style="width: 80px; height: 80px; border: 2px solid #e9ecef; flex-shrink: 0;">
+                                                                <i class="ri-car-line text-muted" style="font-size: 2rem;"></i>
+                                                    </div>
+                                                @endif
+                                            </div>
                                         </div>
+                                    </div>
+                                </div>
 
                                         <!-- Booking Status -->
                                         <div class="bg-light rounded p-1">
@@ -4388,19 +4474,19 @@
                                                     <i class="ri-settings-line text-white" style="font-size: 0.7rem;"></i>
                                                 </div>
                                                 <h6 class="fw-bold mb-0 text-dark" style="font-size: 0.8rem;">Booking Status</h6>
-                                            </div>
-                                            @if($hourlyOrder->is_approve == 1)
+                                                </div>
+                                                @if($hourlyOrder->is_approve == 1)
                                                 <div class="alert alert-success mb-0 py-1 px-2" style="border-radius: 6px; font-size: 0.75rem;">
                                                     <i class="ri-check-circle-fill me-1" style="font-size: 0.7rem;"></i>
                                                     <strong>Approved</strong>
-                                                    @if($hourlyOrder->reference_id)
+                                                        @if($hourlyOrder->reference_id)
                                                         <span class="ms-1">• Ref: {{ $hourlyOrder->reference_id }}</span>
-                                                    @endif
-                                                    @if($hourlyOrder->display_due_date)
+                                                        @endif
+                                                        @if($hourlyOrder->display_due_date)
                                                         <span class="ms-1">• Due: {{ \Carbon\Carbon::parse($hourlyOrder->display_due_date)->format('d-m-Y') }}</span>
-                                                    @endif
-                                                </div>
-                                            @else
+                                                        @endif
+                                                    </div>
+                                                @else
                                                 @if(auth()->user()->role_id == 11 || auth()->user()->role_id == 34 || auth()->user()->role_id == 33 || auth()->user()->role_id == 37 || auth()->user()->role_id == 38 || auth()->user()->role_id == 124 || auth()->user()->role_id == 125 || auth()->user()->role_id == 128 || auth()->user()->role_id == 129 || auth()->user()->role_id == 130 || auth()->user()->role_id == 131 || auth()->user()->role_id == 132 || auth()->user()->role_id == 134 || auth()->user()->role_id == 135 || auth()->user()->role_id == 136 || auth()->user()->role_id == 137 || auth()->user()->role_id == 138)
                                                 <div class="d-flex gap-1 flex-wrap">
                                                     @if(auth()->user()->role_id == 11 || auth()->user()->role_id == 34 || auth()->user()->role_id == 124 || auth()->user()->role_id == 125 || auth()->user()->role_id == 128 || auth()->user()->role_id == 131 || auth()->user()->role_id == 132 || auth()->user()->role_id == 134 || auth()->user()->role_id == 135 || auth()->user()->role_id == 137 || auth()->user()->role_id == 138)
@@ -4422,11 +4508,11 @@
                                                 </div>
                                                 @else
                                                 <div class="text-muted small" style="font-size: 0.75rem;"><i class="ri-information-line me-1" style="font-size: 0.7rem;"></i>Pending approval</div>
+                                                    @endif
                                                 @endif
-                                            @endif
                                         </div>
-                                    </div>
-                                </div>
+                                            </div>
+                                        </div>
                                         @php $actualBookingIndex++; @endphp
                                     @endforeach
                                 @endif
@@ -4728,11 +4814,11 @@
                                                     <small class="text-muted">Booking Type</small>
                                                     <span class="badge bg-primary">{{ ucfirst($booking['bookingType'] ?? 'Standard') }}</span>
                                                 </div> --}}
-                                            </div>
                                         </div>
                                     </div>
-                                   
                                 </div>
+
+                                        </div>
 
                             
 
@@ -8720,7 +8806,7 @@ function generateIndividualHotelContent(hotelBooking, modalId, tourId, hotelOrde
             
             if (hasAnyPermission) {
                 // Edit button (DMC and Operational Head only)
-                if (canEdit) {
+            if (canEdit) {
                     buttonsHTML += `
                         <button type="button" 
                                 class="btn btn-sm px-2 py-1" 
@@ -8732,7 +8818,7 @@ function generateIndividualHotelContent(hotelBooking, modalId, tourId, hotelOrde
                 }
                 
                 // Approve button (DMC and Operational Head only)
-                if (canApprove) {
+            if (canApprove) {
                     buttonsHTML += `
                         <button type="button" 
                                 class="btn btn-outline-success btn-sm px-2 py-1" 
@@ -8741,10 +8827,10 @@ function generateIndividualHotelContent(hotelBooking, modalId, tourId, hotelOrde
                             <i class="ri-check-line me-1" style="font-size: 0.7rem;"></i>Approve
                         </button>
                     `;
-                }
-                
+        }
+        
                 // Reject button (for users with reject permission)
-                if (canReject) {
+        if (canReject) {
                     buttonsHTML += `
                         <button type="button" 
                                 class="btn btn-outline-danger btn-sm px-2 py-1" 
@@ -9898,22 +9984,38 @@ function generateIndividualAttractionContent(attractionBooking, modalId, tourId,
                     </div>
                 </div>
 
-                <!-- Booking Status -->
-                <div class="bg-light rounded p-1">
-                    <div class="d-flex align-items-center mb-1">
-                        <div class="rounded-circle p-1 me-1" style="background: linear-gradient(135deg, #fd9853 0%, #fe7854 100%); width: 20px; height: 20px; display: flex; align-items: center; justify-content: center;">
-                            <i class="ri-settings-line text-white" style="font-size: 0.7rem;"></i>
+             
+                <!-- Individual Action Buttons -->
+                <div class="bg-white rounded p-3 shadow-sm border-top">
+                    <div class="d-flex align-items-center justify-content-between">
+                        <div class="d-flex align-items-center">
+                            <div class="bg-secondary rounded-circle p-2 me-3">
+                                <i class="ri-settings-line text-white"></i>
+                            </div>
+                            <h6 class="fw-bold mb-0 text-dark">Booking Actions</h6>
                         </div>
-                        <h6 class="fw-bold mb-0 text-dark" style="font-size: 0.8rem;">Booking Status</h6>
-                    </div>
-                    <div class="d-flex gap-1 flex-wrap" id="attraction_buttons_${tourId}_${attractionOrderIndex}_${bookingIndex}">
-                        <!-- Buttons will be dynamically added based on user role -->
+                        ${attractionBooking.isApprove ? 
+                            `<div class="d-flex align-items-center gap-3">
+                                <div class="alert alert-success mb-0 py-1 px-3" style="border-radius: 25px;">
+                                    <i class="ri-check-circle-fill me-1"></i>
+                                    <small><strong>Approved Booking</strong></small>
+                                    ${attractionBooking.referenceId ? `<br><small class="text-muted">Ref: ${attractionBooking.referenceId}</small>` : ''}
+                                    ${attractionBooking.displayDueDate ? `<br><small class="text-muted">Due: ${attractionBooking.displayDueDate}</small>` : ''}
+                                </div>
+                                ${[11, 34, 124, 125, 128, 131, 132, 134, 135, 137, 138].includes({{ auth()->user()->role_id ?? 0 }}) ? `
+                                    <button type="button" class="btn btn-outline-primary btn-sm" 
+                                            onclick="openAttractionFilesModal('${tourId}', '${attractionOrderIndex}', '${bookingIndex}')"
+                                            title="View and manage uploaded files">
+                                        <i class="ri-file-list-3-line me-1"></i>View Files
+                                    </button>
+                                ` : ''}
+                            </div>` :
+                            `<div class="d-flex gap-2" id="attraction_buttons_${tourId}_${attractionOrderIndex}_${bookingIndex}">
+                                <!-- Buttons will be dynamically added based on user role -->
+                            </div>`
+                        }
                     </div>
                 </div>
-                
-
-               
-            </div>
         </div>
     `;
     
@@ -9938,26 +10040,26 @@ function generateIndividualAttractionContent(attractionBooking, modalId, tourId,
             if (hasAnyPermission) {
                 // Edit button (DMC and Operational Head only)
                 if (canEdit) {
-                    buttonsHTML += `
-                        <button type="button" 
+                buttonsHTML += `
+                    <button type="button" 
                                 class="btn btn-sm px-2 py-1" 
                                 onclick="editIndividualAttraction(${tourId}, ${attractionOrderIndex}, ${bookingIndex}, '${autoCancelDate || ''}')"
                                 style="border-radius: 6px; background: linear-gradient(135deg, #fd9853 0%, #fe7854 100%); border: none; color: white; font-size: 0.75rem;">
                             <i class="ri-edit-line me-1" style="font-size: 0.7rem;"></i>Edit
-                        </button>
+                    </button>
                     `;
                 }
                 
                 // Approve button (DMC and Operational Head only)
                 if (canApprove) {
                     buttonsHTML += `
-                        <button type="button" 
+                    <button type="button" 
                                 class="btn btn-outline-success btn-sm px-2 py-1" 
                                 onclick="window.approveIndividualAttraction ? window.approveIndividualAttraction(${tourId}, ${attractionOrderIndex}, ${bookingIndex}, '${autoCancelDate || ''}') : approveIndividualAttraction(${tourId}, ${attractionOrderIndex}, ${bookingIndex}, '${autoCancelDate || ''}')"
                                 style="border-radius: 6px; font-size: 0.75rem;">
                             <i class="ri-check-line me-1" style="font-size: 0.7rem;"></i>Approve
-                        </button>
-                    `;
+                    </button>
+                `;
                 }
                 
                 // Reject button (for users with reject permission)
@@ -10691,55 +10793,57 @@ function generateIndividualRestaurantContent(booking, tourId, restaurantOrderInd
                     </div>
                 </div>
                 
-                <!-- Booking Status -->
-                <div class="bg-light rounded p-1">
-                    <div class="d-flex align-items-center mb-1">
-                        <div class="rounded-circle p-1 me-1" style="background: linear-gradient(135deg, #fd79a8 0%, #fdcb6e 100%); width: 20px; height: 20px; display: flex; align-items: center; justify-content: center;">
-                            <i class="ri-settings-line text-white" style="font-size: 0.7rem;"></i>
+              
+                <!-- Individual Action Buttons -->
+                <div class="bg-white rounded p-3 shadow-sm border-top">
+                    <div class="d-flex align-items-center justify-content-between">
+                        <div class="d-flex align-items-center">
+                            <div class="bg-secondary rounded-circle p-2 me-3">
+                                <i class="ri-settings-line text-white"></i>
+                            </div>
+                            <h6 class="fw-bold mb-0 text-dark">Booking Actions</h6>
                         </div>
-                        <h6 class="fw-bold mb-0 text-dark" style="font-size: 0.8rem;">Booking Status</h6>
-                    </div>
-                    <div class="d-flex gap-1 flex-wrap" id="restaurant_buttons_${tourId}_${restaurantOrderIndex}_${bookingIndex}">
-                        <!-- Buttons will be dynamically added based on user role -->
+                        ${generateRestaurantActionButtons(booking, tourId, restaurantOrderIndex, bookingIndex, autoCancelDate)}
                     </div>
                 </div>
+
                 ${canAccessRestaurantQR ? `
                 <!-- Restaurant QR Code -->
-                <div class="bg-light rounded p-2 mt-2" id="restaurantQRSection_${tourId}_${restaurantOrderIndex}_${bookingIndex}">
-                    <div class="d-flex align-items-center justify-content-between flex-wrap gap-2 mb-2">
+                <div class="bg-white rounded p-3 shadow-sm mt-3" id="restaurantQRSection_${tourId}_${restaurantOrderIndex}_${bookingIndex}">
+                    <div class="d-flex align-items-center justify-content-between flex-wrap gap-3">
                         <div class="d-flex align-items-center">
-                            <div class="rounded-circle p-1 me-2" style="background: linear-gradient(135deg, #fd79a8 0%, #fdcb6e 100%); width: 28px; height: 28px; display: flex; align-items: center; justify-content: center;">
-                                <i class="ri-qr-code-line text-white" style="font-size: 0.9rem;"></i>
+                            <div class="bg-dark rounded-circle p-2 me-3">
+                                <i class="ri-qr-code-line text-white"></i>
                             </div>
                             <div>
-                                <h6 class="fw-bold mb-0 text-dark" style="font-size: 0.9rem;">Restaurant Check-in QR</h6>
-                                <small class="text-muted" style="font-size: 0.7rem;">Generate QR code for booking details</small>
+                                <h6 class="fw-bold mb-1 text-dark">Restaurant Check-in QR</h6>
+                                <small class="text-muted">Generate a QR code with key restaurant booking details.</small>
                             </div>
                         </div>
-                        <div class="d-flex align-items-center gap-1 flex-wrap">
+                        <div class="d-flex align-items-center gap-2 flex-wrap">
                             <button type="button"
-                                    class="btn btn-outline-secondary btn-sm px-2 py-1"
+                                    class="btn btn-outline-secondary btn-sm px-3 py-2"
                                     id="restaurantQRGenerateBtn_${tourId}_${restaurantOrderIndex}_${bookingIndex}"
                                     onclick="generateRestaurantQRCode(${tourId}, ${restaurantOrderIndex}, ${bookingIndex})"
-                                    style="border-radius: 8px; font-size: 0.8rem;">
-                                <i class="ri-qr-code-line me-1"></i>Generate
+                                    style="border-radius: 25px;">
+                                <i class="ri-qr-code-line me-1"></i>Generate QR
                             </button>
                             <button type="button"
-                                    class="btn btn-outline-dark btn-sm px-2 py-1"
+                                    class="btn btn-outline-dark btn-sm px-3 py-2"
                                     id="restaurantQRDownloadBtn_${tourId}_${restaurantOrderIndex}_${bookingIndex}"
                                     onclick="downloadRestaurantQRCode(${tourId}, ${restaurantOrderIndex}, ${bookingIndex})"
-                                    style="border-radius: 8px; font-size: 0.8rem;"
+                                    style="border-radius: 25px;"
                                     disabled>
                                 <i class="ri-download-2-line me-1"></i>Download
                             </button>
                         </div>
                     </div>
-                    <div class="mt-2 d-none text-center" id="restaurantQRWrapper_${tourId}_${restaurantOrderIndex}_${bookingIndex}">
-                        <div class="d-inline-block position-relative rounded p-2" 
-                             style="background: #ffffff; border: 3px solid #ffffff; box-shadow: 0 8px 20px rgba(0, 0, 0, 0.08);">
+                    <div class="mt-4 d-none text-center" id="restaurantQRWrapper_${tourId}_${restaurantOrderIndex}_${bookingIndex}">
+                        <div class="d-inline-block position-relative rounded-4 p-4" 
+                             style="background: #ffffff; border: 6px solid #ffffff; box-shadow: 0 12px 30px rgba(0, 0, 0, 0.08);">
                             <div id="restaurantQRCode_${tourId}_${restaurantOrderIndex}_${bookingIndex}"></div>
                         </div>
-                        <div class="mt-2 text-muted small fw-medium" style="font-size: 0.75rem;" id="restaurantQRDetails_${tourId}_${restaurantOrderIndex}_${bookingIndex}">
+                        <div class="mt-3 text-muted small fw-medium" id="restaurantQRDetails_${tourId}_${restaurantOrderIndex}_${bookingIndex}">
                             Scan this code at the restaurant to view the booking details.
                         </div>
                     </div>
@@ -10752,7 +10856,7 @@ function generateIndividualRestaurantContent(booking, tourId, restaurantOrderInd
 
 // Generate restaurant action buttons based on approval status
 function generateRestaurantActionButtons(booking, tourId, restaurantOrderIndex, bookingIndex, autoCancelDate=null) {
-    const isApproved = booking.restaurant_details?.is_approve == 1 || booking.restaurant_details?.is_approve === '1' || booking.restaurant_details?.is_approve === true || booking.is_approve == 1 || booking.is_approve === '1' || booking.is_approve === true || false;
+    const isApproved = booking.restaurant_details?.is_approve || booking.is_approve || false;
     
     // Get user role from meta tag or global variable (assuming it's available)
     const userRole = parseInt(document.querySelector('meta[name="user-role"]')?.getAttribute('content')) || {{ auth()->user()->role_id ?? 0 }};
@@ -10767,59 +10871,54 @@ function generateRestaurantActionButtons(booking, tourId, restaurantOrderIndex, 
     
     if (isApproved) {
         return `
-            <div class="alert alert-success mb-0 py-1 px-2" style="border-radius: 6px; font-size: 0.75rem;">
-                <i class="ri-check-circle-fill me-1" style="font-size: 0.7rem;"></i>
-                <strong>Approved</strong>
-                ${booking.reference_id ? `<span class="ms-1">• Ref: ${booking.reference_id}</span>` : ''}
-                ${booking.display_due_date ? `<span class="ms-1">• Due: ${booking.display_due_date}</span>` : ''}
+            <div class="d-flex align-items-center gap-3">
+                <div class="alert alert-success mb-0 py-2 px-3" style="border-radius: 25px;">
+                    <i class="ri-check-circle-fill me-1"></i>
+                    <small><strong>Approved Booking</strong></small>
+                    ${booking.reference_id ? `<br><small class="text-muted">Ref: ${booking.reference_id}</small>` : ''}
+                    ${booking.display_due_date ? `<br><small class="text-muted">Due: ${booking.display_due_date}</small>` : ''}
+                </div>
+                ${[11, 34, 124, 125, 128, 131, 132, 134, 135, 137, 138].includes(userRole) ? `
+                    <button type="button" class="btn btn-outline-primary btn-sm" 
+                            onclick="openRestaurantFilesModal('${tourId}', '${restaurantOrderIndex}', '${bookingIndex}')"
+                            title="View and manage uploaded files">
+                        <i class="ri-file-list-3-line me-1"></i>View Files
+                    </button>
+                ` : ''}
             </div>
         `;
     }
     
-    // Check permissions
-    const canEdit = [11, 34, 124, 125, 128, 131, 132, 134, 135, 137, 138].includes(userRole);
-    const canApprove = [11, 34, 124, 125, 128, 131, 132, 134, 135, 137, 138].includes(userRole);
-    const canReject = [11, 34, 33, 37, 38, 124, 125, 128, 129, 130, 131, 132, 134, 135, 136, 137, 138].includes(userRole);
-    const hasAnyPermission = canEdit || canApprove || canReject;
-    
-    if (!hasAnyPermission) {
-        return '<div class="text-muted small" style="font-size: 0.75rem;"><i class="ri-information-line me-1" style="font-size: 0.7rem;"></i>Pending approval</div>';
+    if (![11, 34, 33, 37, 38, 124, 125, 128, 129, 130, 131, 132, 134, 135, 136, 137, 138].includes(userRole)) {
+        return '<div class="text-muted small"><i class="ri-information-line me-1"></i>No actions available for your role</div>';
     }
     
-    // Show all buttons in booking status section
-    let buttonsHTML = '';
-    if (canEdit) {
-        buttonsHTML += `
-            <button type="button" 
-                    class="btn btn-sm px-2 py-1" 
-                    onclick="editIndividualRestaurant(${tourId}, ${restaurantOrderIndex}, ${bookingIndex}, '${autoCancelDate || ''}')"
-                    style="border-radius: 6px; background: linear-gradient(135deg, #fd79a8 0%, #fdcb6e 100%); border: none; color: white; font-size: 0.75rem;">
-                <i class="ri-edit-line me-1" style="font-size: 0.7rem;"></i>Edit
-            </button>
-        `;
-    }
-    if (canApprove) {
-        buttonsHTML += `
-            <button type="button" 
-                    class="btn btn-outline-success btn-sm px-2 py-1" 
-                    onclick="approveIndividualRestaurant(${tourId}, ${restaurantOrderIndex}, ${bookingIndex}, '${autoCancelDate || ''}')"
-                    style="border-radius: 6px; font-size: 0.75rem;">
-                <i class="ri-check-line me-1" style="font-size: 0.7rem;"></i>Approve
-            </button>
-        `;
-    }
-    if (canReject) {
-        buttonsHTML += `
-            <button type="button" 
-                    class="btn btn-outline-danger btn-sm px-2 py-1" 
-                    onclick="rejectIndividualRestaurant(${tourId}, ${restaurantOrderIndex}, ${bookingIndex}, '${autoCancelDate || ''}')"
-                    style="border-radius: 6px; font-size: 0.75rem;">
-                <i class="ri-close-line me-1" style="font-size: 0.7rem;"></i>Reject
-            </button>
-        `;
-    }
-    
-    return `<div class="d-flex gap-1 flex-wrap">${buttonsHTML}</div>`;
+    return `
+        <div class="d-flex gap-2">
+            ${[11, 34, 124, 125, 128, 131, 132, 134, 135, 137, 138].includes(userRole) ? `
+                <button type="button" 
+                        class="btn btn-outline-primary btn-sm px-3 py-2" 
+                        onclick="editIndividualRestaurant(${tourId}, ${restaurantOrderIndex}, ${bookingIndex}, '${autoCancelDate}')"
+                        style="border-radius: 25px;">
+                    <i class="ri-edit-line me-1"></i>Edit
+                </button>
+                <button type="button" 
+                        class="btn btn-outline-success btn-sm px-3 py-2" 
+                        onclick="approveIndividualRestaurant(${tourId}, ${restaurantOrderIndex}, ${bookingIndex}, '${autoCancelDate}')"
+                        style="border-radius: 25px;">
+                    <i class="ri-check-line me-1"></i>Approve
+                </button>
+            ` : ''}
+            ${[11, 34, 33, 37, 38, 124, 125, 128, 129, 130, 131, 132, 134, 135, 136, 137, 138].includes(userRole) ? `
+                <button type="button" 
+                        class="btn btn-outline-danger btn-sm px-3 py-2" 
+                        onclick="rejectIndividualRestaurant(${tourId}, ${restaurantOrderIndex}, ${bookingIndex}, '${autoCancelDate}')"
+                        style="border-radius: 25px;">
+                    <i class="ri-close-line me-1"></i>Reject
+                </button>
+            ` : ''}
+        </div>
+    `;
 }
 
 @php
@@ -14511,16 +14610,16 @@ function generateIndividualTravelHourlyContent(travelHourlyData, modalId, tourId
                 const hasAnyPermission = canEdit || canReject;
                 
                 if (hasAnyPermission) {
-                    // Edit button (DMC and Operational Head only)
+                // Edit button (DMC and Operational Head only)
                     if (canEdit) {
-                        buttonsHTML += `
-                            <button type="button" 
+                    buttonsHTML += `
+                        <button type="button" 
                                     class="btn btn-sm px-2 py-1" 
-                                    onclick="editIndividualTravelHourly(${tourId}, ${travelHourlyOrderIndex}, ${bookingIndex})"
+                                onclick="editIndividualTravelHourly(${tourId}, ${travelHourlyOrderIndex}, ${bookingIndex})"
                                     style="border-radius: 6px; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); border: none; color: white; font-size: 0.75rem;">
                                 <i class="ri-edit-line me-1" style="font-size: 0.7rem;"></i>Edit
-                            </button>
-                        `;
+                        </button>
+                    `;
                     }
                     
                     // Reject button (for users with reject permission)
@@ -14540,7 +14639,7 @@ function generateIndividualTravelHourlyContent(travelHourlyData, modalId, tourId
                 }
                 
                 buttonsContainer.innerHTML = buttonsHTML;
-            }
+                }
         }
         
     } catch (error) {
@@ -17275,16 +17374,16 @@ function generateIndividualTravelPointContent(travelPointData, modalId, tourId, 
                 const hasAnyPermission = canEdit || canReject;
                 
                 if (hasAnyPermission) {
-                    // Edit button (DMC and Operational Head only)
+                // Edit button (DMC and Operational Head only)
                     if (canEdit) {
-                        buttonsHTML += `
-                            <button type="button" 
-                                    class="btn btn-sm px-3 py-1" 
-                                    onclick="editIndividualTravelPoint(${tourId}, ${travelPointOrderIndex}, ${bookingIndex})"
-                                    style="border-radius: 8px; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); border: none; color: white; font-size: 0.85rem;">
-                                <i class="ri-edit-line me-1"></i>Edit
-                            </button>
-                        `;
+                    buttonsHTML += `
+                        <button type="button" 
+                                class="btn btn-sm px-3 py-1" 
+                                onclick="editIndividualTravelPoint(${tourId}, ${travelPointOrderIndex}, ${bookingIndex})"
+                                style="border-radius: 8px; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); border: none; color: white; font-size: 0.85rem;">
+                            <i class="ri-edit-line me-1"></i>Edit
+                        </button>
+                    `;
                     }
                     
                     // Reject button (for users with reject permission)
@@ -18198,7 +18297,7 @@ function loadIndividualLocalTransportContent(modalId, tourId, localTransportOrde
                 adults: rawData.adults || '0',
                 children: rawData.children || '0',
                 pickupPoint: rawData.entrypickup || localTransportDetails.entrypickup || localTransportDetails.pickup_point || 'N/A',
-                dropoffPoint: rawData.entrydropoff || localTransportDetails.entrydropoff || localTransportDetails.dropoff_point || 'N/A',
+                dropoffPoint: rawData.dropoffLocation || localTransportDetails.dropoffLocation || localTransportDetails.dropoff_point || 'N/A',
                 city: localTransportDetails.city || 'N/A',
                 country: localTransportDetails.country || 'N/A',
                 Tax: localTransportDetails.Tax || '0',
@@ -18471,16 +18570,16 @@ function generateIndividualLocalTransportContent(localTransportData, modalId, to
                 const hasAnyPermission = canEdit || canReject;
                 
                 if (hasAnyPermission) {
-                    // Edit button (DMC and Operational Head only)
+                // Edit button (DMC and Operational Head only)
                     if (canEdit) {
-                        buttonsHTML += `
-                            <button type="button" 
+                    buttonsHTML += `
+                        <button type="button" 
                                     class="btn btn-sm px-2 py-1" 
-                                    onclick="editIndividualLocalTransport(${tourId}, ${localTransportOrderIndex}, ${bookingIndex})"
+                                onclick="editIndividualLocalTransport(${tourId}, ${localTransportOrderIndex}, ${bookingIndex})"
                                     style="border-radius: 6px; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); border: none; color: white; font-size: 0.75rem;">
                                 <i class="ri-edit-line me-1" style="font-size: 0.7rem;"></i>Edit
-                            </button>
-                        `;
+                        </button>
+                    `;
                     }
                     
                     // Reject button (for users with reject permission)
@@ -18500,7 +18599,7 @@ function generateIndividualLocalTransportContent(localTransportData, modalId, to
                 }
                 
                 buttonsContainer.innerHTML = buttonsHTML;
-            }
+                }
         }
         
     } catch (error) {
@@ -27513,30 +27612,30 @@ window.showNotification = function(message, type = 'info') {
 
 <!-- Attraction Files Management Modal -->
 <div class="modal fade" id="attractionFilesModal" tabindex="-1" aria-labelledby="attractionFilesModalLabel" aria-hidden="true" style="z-index: 1060;">
-    <div class="modal-dialog modal-xl">
-        <div class="modal-content" style="border-radius: 16px; border: none; box-shadow: 0 20px 60px rgba(0,0,0,0.15);">
-            <div class="modal-header" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); border-radius: 16px 16px 0 0; padding: 24px 32px; border: none;">
-                <h5 class="modal-title text-white fw-bold" id="attractionFilesModalLabel" style="font-size: 1.25rem;">
-                    <i class="ri-file-list-3-line me-2"></i>Manage Attraction Files
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content" style="border-radius: 8px; border: none; box-shadow: 0 20px 60px rgba(0,0,0,0.15);">
+            <div class="modal-header" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); border-radius: 8px 8px 0 0; padding: 8px 16px; border: none;">
+                <h5 class="modal-title text-white fw-bold" id="attractionFilesModalLabel" style="font-size: 0.9rem;">
+                    <i class="ri-file-list-3-line me-1"></i>Manage Attraction Files
                 </h5>
-                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close" style="filter: brightness(0) invert(1);"></button>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close" style="filter: brightness(0) invert(1); font-size: 0.75rem;"></button>
             </div>
-            <div class="modal-body" style="padding: 32px; background-color: #f8f9fa;">
+            <div class="modal-body" style="padding: 12px; background-color: #f8f9fa;">
                 <div id="attractionFilesContent">
-                    <div class="text-center py-5">
-                        <div class="spinner-border text-primary" role="status" style="width: 3rem; height: 3rem;">
+                    <div class="text-center py-2">
+                        <div class="spinner-border text-primary" role="status" style="width: 1.5rem; height: 1.5rem;">
                             <span class="visually-hidden">Loading...</span>
                         </div>
-                        <p class="mt-3 text-muted fw-medium">Loading files...</p>
+                        <p class="mt-2 text-muted fw-medium" style="font-size: 0.85rem;">Loading files...</p>
                     </div>
                 </div>
             </div>
-            <div class="modal-footer" style="padding: 24px 32px; background-color: #ffffff; border-radius: 0 0 16px 16px; border: none;">
-                <button type="button" class="btn btn-light px-4 py-2" data-bs-dismiss="modal" style="border-radius: 8px; font-weight: 500;">
+            <div class="modal-footer" style="padding: 8px 16px; background-color: #ffffff; border-radius: 0 0 8px 8px; border: none;">
+                <button type="button" class="btn btn-light px-2 py-1" data-bs-dismiss="modal" style="border-radius: 4px; font-weight: 500; font-size: 0.85rem;">
                     Close
                 </button>
-                <button type="button" class="btn btn-success px-4 py-2" id="saveAttractionFiles" onclick="saveAttractionChanges()" 
-                        style="display: none; border-radius: 8px; font-weight: 500;">
+                <button type="button" class="btn btn-success px-2 py-1" id="saveAttractionFiles" onclick="saveAttractionChanges()" 
+                        style="display: none; border-radius: 4px; font-weight: 500; font-size: 0.85rem;">
                     <i class="ri-save-line me-1"></i>Save Changes
                 </button>
             </div>
@@ -27546,30 +27645,30 @@ window.showNotification = function(message, type = 'info') {
 
 <!-- Restaurant Files Management Modal -->
 <div class="modal fade" id="restaurantFilesModal" tabindex="-1" aria-labelledby="restaurantFilesModalLabel" aria-hidden="true" style="z-index: 1060;">
-    <div class="modal-dialog modal-xl">
-        <div class="modal-content" style="border-radius: 16px; border: none; box-shadow: 0 20px 60px rgba(0,0,0,0.15);">
-            <div class="modal-header" style="background: linear-gradient(135deg, #fd9853 0%, #fe7854 100%); border-radius: 16px 16px 0 0; padding: 24px 32px; border: none;">
-                <h5 class="modal-title text-white fw-bold" id="restaurantFilesModalLabel" style="font-size: 1.25rem;">
-                    <i class="ri-restaurant-line me-2"></i>Manage Restaurant Files
+    <div class="modal-dialog modal-md">
+        <div class="modal-content" style="border-radius: 8px; border: none; box-shadow: 0 20px 60px rgba(0,0,0,0.15);">
+            <div class="modal-header" style="background: linear-gradient(135deg, #fd9853 0%, #fe7854 100%); border-radius: 8px 8px 0 0; padding: 8px 16px; border: none;">
+                <h5 class="modal-title text-white fw-bold" id="restaurantFilesModalLabel" style="font-size: 0.9rem;">
+                    <i class="ri-restaurant-line me-1"></i>Manage Restaurant Files
                 </h5>
-                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close" style="filter: brightness(0) invert(1);"></button>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close" style="filter: brightness(0) invert(1); font-size: 0.75rem;"></button>
             </div>
-            <div class="modal-body" style="padding: 32px; background-color: #f8f9fa;">
+            <div class="modal-body" style="padding: 12px; background-color: #f8f9fa;">
                 <div id="restaurantFilesContent">
-                    <div class="text-center py-5">
-                        <div class="spinner-border text-primary" role="status" style="width: 3rem; height: 3rem;">
+                    <div class="text-center py-2">
+                        <div class="spinner-border text-primary" role="status" style="width: 1.5rem; height: 1.5rem;">
                             <span class="visually-hidden">Loading...</span>
                         </div>
-                        <p class="mt-3 text-muted fw-medium">Loading files...</p>
+                        <p class="mt-2 text-muted fw-medium" style="font-size: 0.85rem;">Loading files...</p>
                     </div>
                 </div>
             </div>
-            <div class="modal-footer" style="padding: 24px 32px; background-color: #ffffff; border-radius: 0 0 16px 16px; border: none;">
-                <button type="button" class="btn btn-light px-4 py-2" data-bs-dismiss="modal" style="border-radius: 8px; font-weight: 500;">
+            <div class="modal-footer" style="padding: 8px 16px; background-color: #ffffff; border-radius: 0 0 8px 8px; border: none;">
+                <button type="button" class="btn btn-light px-2 py-1" data-bs-dismiss="modal" style="border-radius: 4px; font-weight: 500; font-size: 0.85rem;">
                     Close
                 </button>
-                <button type="button" class="btn btn-success px-4 py-2" id="saveRestaurantFiles" onclick="saveRestaurantChanges()" 
-                        style="display: none; border-radius: 8px; font-weight: 500;">
+                <button type="button" class="btn btn-success px-2 py-1" id="saveRestaurantFiles" onclick="saveRestaurantChanges()" 
+                        style="display: none; border-radius: 4px; font-weight: 500; font-size: 0.85rem;">
                     <i class="ri-save-line me-1"></i>Save Changes
                 </button>
             </div>
@@ -27697,7 +27796,7 @@ function displayAttractionFiles(data, tourId, attractionOrderIndex, bookingIndex
         ` : ''}
         
         <div class="row g-4">
-            <div class="col-md-6">
+            <div class="col-md-8">
                 <div class="bg-white rounded-3 shadow-sm p-4">
                     <div class="d-flex align-items-center mb-3">
                         <div class="bg-secondary bg-opacity-10 rounded-circle p-2 me-3">
@@ -27773,7 +27872,7 @@ function displayAttractionFiles(data, tourId, attractionOrderIndex, bookingIndex
                     </div>
                 </div>
             </div>
-            <div class="col-md-6">
+            <div class="col-md-4">
                 <div class="bg-white rounded-3 shadow-sm p-4">
                     <div class="d-flex align-items-center mb-3">
                         <div class="bg-success bg-opacity-10 rounded-circle p-2 me-3">
@@ -28243,7 +28342,7 @@ function displayRestaurantFiles(data, tourId, restaurantOrderIndex, bookingIndex
         ` : ''}
         
         <div class="row g-4">
-            <div class="col-md-6">
+            <div class="col-md-8">
                 <div class="bg-white rounded-3 shadow-sm p-4">
                     <div class="d-flex align-items-center mb-3">
                         <div class="bg-secondary bg-opacity-10 rounded-circle p-2 me-3">
@@ -28319,7 +28418,7 @@ function displayRestaurantFiles(data, tourId, restaurantOrderIndex, bookingIndex
                     </div>
                 </div>
             </div>
-            <div class="col-md-6">
+            <div class="col-md-4">
                 <div class="bg-white rounded-3 shadow-sm p-4">
                     <div class="d-flex align-items-center mb-3">
                         <div class="bg-success bg-opacity-10 rounded-circle p-2 me-3">

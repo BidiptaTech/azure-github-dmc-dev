@@ -166,6 +166,84 @@
     .select2-container--default .select2-selection--single .select2-selection__clear:hover {
         color: #dc3545;
     }
+
+    /* Compact table styles (shared with new-enquiries / follow-ups) */
+    #toursTable {
+        font-size: 0.875rem;
+    }
+
+    #toursTable thead th {
+        padding: 0.5rem 0.75rem;
+        font-size: 0.8125rem;
+        font-weight: 600;
+        white-space: nowrap;
+    }
+
+    #toursTable tbody td {
+        padding: 0.5rem 0.75rem;
+        vertical-align: middle;
+    }
+
+    #toursTable tbody tr {
+        height: auto;
+        min-height: 50px;
+    }
+
+    /* Compact badges in table */
+    #toursTable .badge {
+        font-size: 0.7rem;
+        padding: 0.25rem 0.5rem;
+        margin: 0.1rem 0.15rem;
+        font-weight: 500;
+    }
+
+    /* Compact icons */
+    #toursTable i {
+        font-size: 1rem;
+    }
+
+    /* Compact text in cells */
+    #toursTable .fw-medium,
+    #toursTable .fw-bold {
+        font-size: 0.875rem;
+    }
+
+    #toursTable small {
+        font-size: 0.75rem;
+    }
+
+    /* Compact buttons in table */
+    #toursTable .btn-sm {
+        padding: 0.25rem 0.55rem;
+        font-size: 0.78rem;
+        height: auto;
+        white-space: nowrap;
+    }
+
+    /* Compact guests icons section */
+    #toursTable .d-flex.gap-3 {
+        gap: 0.75rem !important;
+    }
+
+    /* Compact services badges container */
+    #toursTable .d-flex.gap-2.flex-wrap {
+        gap: 0.35rem !important;
+    }
+
+    /* Reduce spacing in tour details */
+    #toursTable .d-flex.flex-column {
+        gap: 0.15rem;
+    }
+
+    /* Compact muted text */
+    #toursTable .text-muted {
+        font-size: 0.7rem;
+    }
+
+    /* Compact date / status text */
+    #toursTable .d-flex.flex-column small {
+        line-height: 1.3;
+    }
 </style>
 
 @section('content')
@@ -1122,6 +1200,14 @@
                                         <button type="button" class="btn btn-sm btn-info" data-bs-toggle="modal" data-bs-target="#showPaymentModal{{ $tour->tour_id }}">
                                             <i class="fas fa-history me-1"></i> Payment Details
                                         </button>
+                                        
+                                        @if(hasPermission('add payment'))
+                                            @if($remainingAmount > 0 && !$hasPendingPayments)
+                                                <button type="button" class="btn btn-sm btn-primary" data-bs-toggle="modal" data-bs-target="#addPaymentModal{{ $tour->tour_id }}" onclick="checkPendingPayments({{ $tour->tour_id }})">
+                                                    <i class="fas fa-plus-circle me-1"></i> Add Payment
+                                                </button>
+                                            @endif
+                                        @endif
                                     @else  
                                         @if(!empty($paymentData))
                                             <button type="button" class="btn btn-sm btn-info" data-bs-toggle="modal" data-bs-target="#showPaymentModal{{ $tour->tour_id }}">
@@ -1129,7 +1215,7 @@
                                             </button>
                                         @endif
 
-                                        @if(in_array(auth()->user()->role_id, [11, 12, 24, 28, 33, 37, 38, 128, 129, 130, 135, 136, 138]))
+                                        @if(hasPermission('add payment'))
                                             @if($remainingAmount > 0 && !$hasPendingPayments)
                                                 <button type="button" class="btn btn-sm btn-primary" data-bs-toggle="modal" data-bs-target="#addPaymentModal{{ $tour->tour_id }}" onclick="checkPendingPayments({{ $tour->tour_id }})">
                                                     <i class="fas fa-plus-circle me-1"></i> Add Payment
@@ -2405,9 +2491,7 @@
                                                     </div>
                                                     <h6 class="fw-bold mb-0 text-dark">Booking Actions</h6>
                                                 </div>
-                                                @if(auth()->user()->role_id == 11 || auth()->user()->role_id == 34 || auth()->user()->role_id == 33 || auth()->user()->role_id == 37 || auth()->user()->role_id == 38 || auth()->user()->role_id == 124 || auth()->user()->role_id == 125 || auth()->user()->role_id == 128 || auth()->user()->role_id == 129 || auth()->user()->role_id == 130 || auth()->user()->role_id == 131 || auth()->user()->role_id == 132 || auth()->user()->role_id == 134 || auth()->user()->role_id == 135 || auth()->user()->role_id == 136 || auth()->user()->role_id == 137 || auth()->user()->role_id == 138)
                                                 <div class="d-flex gap-2">
-                                                    @if(auth()->user()->role_id == 11 || auth()->user()->role_id == 34 || auth()->user()->role_id == 124 || auth()->user()->role_id == 125 || auth()->user()->role_id == 128 || auth()->user()->role_id == 131 || auth()->user()->role_id == 132 || auth()->user()->role_id == 134 || auth()->user()->role_id == 135 || auth()->user()->role_id == 137 || auth()->user()->role_id == 138)
                                                     <button type="button" 
                                                             class="btn btn-outline-primary btn-sm px-3 py-2" 
                                                             onclick="editIndividualRestaurant({{ $tour->tour_id }}, {{ $index }}, {{ $bookingIndex }})"
@@ -2415,22 +2499,24 @@
                                                         <i class="ri-edit-line me-1"></i>Edit
                                                     </button>
                                                     <button type="button" 
+                                                            class="btn btn-outline-info btn-sm px-3 py-2" 
+                                                            onclick="openRestaurantMailPreview({{ $tour->tour_id }}, {{ $index }}, {{ $bookingIndex }})"
+                                                            style="border-radius: 25px;">
+                                                        <i class="ri-mail-line me-1"></i>Mail Preview
+                                                    </button>
+                                                    <button type="button" 
                                                             class="btn btn-outline-success btn-sm px-3 py-2" 
                                                             onclick="approveIndividualRestaurant({{ $tour->tour_id }}, {{ $index }}, {{ $bookingIndex }})"
                                                             style="border-radius: 25px;">
                                                         <i class="ri-check-line me-1"></i>Approve
                                                     </button>
-                                                    @endif
-                                                    @if(auth()->user()->role_id == 11 || auth()->user()->role_id == 34 || auth()->user()->role_id == 33 || auth()->user()->role_id == 37 || auth()->user()->role_id == 38 || auth()->user()->role_id == 124 || auth()->user()->role_id == 125 || auth()->user()->role_id == 128 || auth()->user()->role_id == 129 || auth()->user()->role_id == 130 || auth()->user()->role_id == 131 || auth()->user()->role_id == 132 || auth()->user()->role_id == 134 || auth()->user()->role_id == 135 || auth()->user()->role_id == 136 || auth()->user()->role_id == 137 || auth()->user()->role_id == 138)
                                                     <button type="button" 
                                                             class="btn btn-outline-danger btn-sm px-3 py-2" 
                                                             onclick="rejectIndividualRestaurant({{ $tour->tour_id }}, {{ $index }}, {{ $bookingIndex }})"
                                                             style="border-radius: 25px;">
                                                         <i class="ri-close-line me-1"></i>Reject
                                                     </button>
-                                                    @endif
                                                 </div>
-                                                @endif
                                             </div>
                                         </div>
                                     </div>
@@ -2453,6 +2539,11 @@
                     <button type="button" class="btn btn-outline-secondary px-4 py-2" onclick="closeServiceModal('restaurant', {{ $tour->tour_id }})" style="border-radius: 25px;">
                         <i class="ri-close-line me-2"></i>Close
                     </button>
+                    <div class="ms-auto">
+                        <button type="button" class="btn btn-outline-info px-4 py-2" onclick="openRestaurantMailPreview({{ $tour->tour_id }}, 0, 0)" style="border-radius: 25px;">
+                            <i class="ri-mail-line me-2"></i>Mail Preview
+                        </button>
+                    </div>
                     {{-- <button type="button" class="btn btn-primary px-4 py-2 ms-2" style="border-radius: 25px;">
                         <i class="ri-download-line me-2"></i>Download Details
                     </button> --}}
@@ -2678,37 +2769,37 @@
                                                 <div class="alert alert-success mb-0 py-1 px-2" style="border-radius: 6px; font-size: 0.75rem;">
                                                     <i class="ri-check-circle-fill me-1" style="font-size: 0.7rem;"></i>
                                                     <strong>Approved</strong>
-                                                    @if($guideOrder->reference_id)
+                                                     @if($guideOrder->reference_id)
                                                         <span class="ms-1">• Ref: {{ $guideOrder->reference_id }}</span>
-                                                    @endif
-                                                    @if($guideOrder->display_due_date)
+                                                     @endif
+                                                     @if($guideOrder->display_due_date)
                                                         <span class="ms-1">• Due: {{ \Carbon\Carbon::parse($guideOrder->display_due_date)->format('d-m-Y') }}</span>
-                                                    @endif
-                                                </div>
-                                            @else
-                                                @if(auth()->user()->role_id == 11 || auth()->user()->role_id == 34 || auth()->user()->role_id == 33 || auth()->user()->role_id == 37 || auth()->user()->role_id == 38 || auth()->user()->role_id == 124 || auth()->user()->role_id == 125 || auth()->user()->role_id == 128 || auth()->user()->role_id == 129 || auth()->user()->role_id == 130 || auth()->user()->role_id == 131 || auth()->user()->role_id == 132 || auth()->user()->role_id == 134 || auth()->user()->role_id == 135 || auth()->user()->role_id == 136 || auth()->user()->role_id == 137 || auth()->user()->role_id == 138)
+                                                     @endif
+                                                 </div>
+                                             @else
+                                                 @if(auth()->user()->role_id == 11 || auth()->user()->role_id == 34 || auth()->user()->role_id == 33 || auth()->user()->role_id == 37 || auth()->user()->role_id == 38 || auth()->user()->role_id == 124 || auth()->user()->role_id == 125 || auth()->user()->role_id == 128 || auth()->user()->role_id == 129 || auth()->user()->role_id == 130 || auth()->user()->role_id == 131 || auth()->user()->role_id == 132 || auth()->user()->role_id == 134 || auth()->user()->role_id == 135 || auth()->user()->role_id == 136 || auth()->user()->role_id == 137 || auth()->user()->role_id == 138)
                                                 <div class="d-flex gap-1 flex-wrap">
-                                                    @if(auth()->user()->role_id == 11 || auth()->user()->role_id == 34 || auth()->user()->role_id == 124 || auth()->user()->role_id == 125 || auth()->user()->role_id == 128 || auth()->user()->role_id == 131 || auth()->user()->role_id == 132 || auth()->user()->role_id == 134 || auth()->user()->role_id == 135 || auth()->user()->role_id == 137 || auth()->user()->role_id == 138)
-                                                    <button type="button" 
+                                                     @if(auth()->user()->role_id == 11 || auth()->user()->role_id == 34 || auth()->user()->role_id == 124 || auth()->user()->role_id == 125 || auth()->user()->role_id == 128 || auth()->user()->role_id == 131 || auth()->user()->role_id == 132 || auth()->user()->role_id == 134 || auth()->user()->role_id == 135 || auth()->user()->role_id == 137 || auth()->user()->role_id == 138)
+                                                     <button type="button" 
                                                             class="btn btn-sm px-2 py-1" 
-                                                            onclick="editIndividualGuide({{ $tour->tour_id }}, {{ $index }}, {{ $bookingIndex }})"
+                                                             onclick="editIndividualGuide({{ $tour->tour_id }}, {{ $index }}, {{ $bookingIndex }})"
                                                             style="border-radius: 6px; background: linear-gradient(135deg, #00cec9 0%, #55a3ff 100%); border: none; color: white; font-size: 0.75rem;">
                                                         <i class="ri-edit-line me-1" style="font-size: 0.7rem;"></i>Edit
-                                                    </button>
-                                                    @endif
-                                                    @if(auth()->user()->role_id == 11 || auth()->user()->role_id == 34 || auth()->user()->role_id == 33 || auth()->user()->role_id == 37 || auth()->user()->role_id == 38 || auth()->user()->role_id == 124 || auth()->user()->role_id == 125 || auth()->user()->role_id == 128 || auth()->user()->role_id == 129 || auth()->user()->role_id == 130 || auth()->user()->role_id == 131 || auth()->user()->role_id == 132 || auth()->user()->role_id == 134 || auth()->user()->role_id == 135 || auth()->user()->role_id == 136 || auth()->user()->role_id == 137 || auth()->user()->role_id == 138)
-                                                    <button type="button" 
+                                                     </button>
+                                                     @endif
+                                                     @if(auth()->user()->role_id == 11 || auth()->user()->role_id == 34 || auth()->user()->role_id == 33 || auth()->user()->role_id == 37 || auth()->user()->role_id == 38 || auth()->user()->role_id == 124 || auth()->user()->role_id == 125 || auth()->user()->role_id == 128 || auth()->user()->role_id == 129 || auth()->user()->role_id == 130 || auth()->user()->role_id == 131 || auth()->user()->role_id == 132 || auth()->user()->role_id == 134 || auth()->user()->role_id == 135 || auth()->user()->role_id == 136 || auth()->user()->role_id == 137 || auth()->user()->role_id == 138)
+                                                     <button type="button" 
                                                             class="btn btn-outline-danger btn-sm px-2 py-1" 
-                                                            onclick="rejectIndividualGuide({{ $tour->tour_id }}, {{ $index }}, {{ $bookingIndex }})"
+                                                             onclick="rejectIndividualGuide({{ $tour->tour_id }}, {{ $index }}, {{ $bookingIndex }})"
                                                             style="border-radius: 6px; font-size: 0.75rem;">
                                                         <i class="ri-close-line me-1" style="font-size: 0.7rem;"></i>Reject
-                                                    </button>
-                                                    @endif
-                                                </div>
+                                                     </button>
+                                                     @endif
+                                                 </div>
                                                 @else
                                                 <div class="text-muted small" style="font-size: 0.75rem;"><i class="ri-information-line me-1" style="font-size: 0.7rem;"></i>Pending approval</div>
-                                                @endif
-                                            @endif
+                                                 @endif
+                                             @endif
                                         </div>
                                     </div>
                                 </div>
@@ -2731,7 +2822,7 @@
                     <div class="d-flex gap-1 w-100 justify-content-end">
                         <button type="button" class="btn btn-outline-secondary btn-sm px-2 py-1" onclick="closeServiceModal('guide', {{ $tour->tour_id }})" style="border-radius: 6px; font-size: 0.75rem;">
                             <i class="ri-close-line me-1" style="font-size: 0.7rem;"></i>Close
-                        </button>
+                    </button>
                     </div>
                 </div>
             </div>
@@ -3963,11 +4054,11 @@
                                                     <small class="text-muted">Booking Type</small>
                                                     <span class="badge bg-primary">{{ ucfirst($booking['bookingType'] ?? 'Standard') }}</span>
                                                 </div> --}}
-                                            </div>
                                         </div>
                                     </div>
-                                  
                                 </div>
+
+                                        </div>
 
                               
 
@@ -4676,12 +4767,12 @@
                                                 <div class="col-12 mb-3">
                                                     <small class="text-muted">Booking Type</small>
                                                     <span class="badge bg-primary">{{ ucfirst($booking['bookingType'] ?? 'Standard') }}</span>
-                                                </div>
                                             </div>
                                         </div>
                                     </div>
-                                   
                                 </div>
+
+                                        </div>
 
                                
 
@@ -4912,38 +5003,39 @@ function createIndividualGuideViewModal(tourId, guideOrderIndex, bookingIndex) {
     
     const modalHTML = `
         <div class="modal fade" id="${modalId}" tabindex="-1" aria-hidden="true" data-bs-backdrop="static" data-bs-keyboard="false">
-            <div class="modal-dialog modal-xl">
-                <div class="modal-content border-0 shadow-lg">
+            <div class="modal-dialog modal-dialog-centered modal-lg modal-dialog-scrollable">
+                <div class="modal-content shadow-lg border-0" style="border-radius: 12px; overflow: hidden;">
                     <!-- Modal Header -->
-                    <div class="modal-header p-0 border-0 position-relative" style="height: 200px; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);">
-                        <div class="position-absolute w-100 h-100 d-flex align-items-center justify-content-between p-4">
+                    <div class="modal-header border-0 py-2 px-2" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);">
+                        <div class="d-flex align-items-center justify-content-between w-100">
                             <div class="text-white">
-                                <h3 class="mb-1 fw-bold">
-                                    <i class="ri-user-voice-line me-2 rounded-circle"></i>Guide Details
-                                </h3>
-                                <p class="mb-0 opacity-75">Tour #${tourId} Guide Booking Details</p>
+                                <h6 class="mb-0 fw-bold" style="font-size: 0.95rem;">
+                                    <i class="ri-user-voice-line me-1" style="font-size: 0.9rem;"></i>Guide Details
+                                </h6>
                             </div>
-                            <button type="button" class="btn-close btn-close-white" onclick="closeIndividualGuideViewModal('${modalId}')" aria-label="Close" style="filter: brightness(0) invert(1); font-size: 1.2rem;"></button>
+                            <button type="button" class="btn-close btn-close-white" onclick="closeIndividualGuideViewModal('${modalId}')" aria-label="Close" style="font-size: 0.8rem;"></button>
                         </div>
                     </div>
                     
                     <!-- Modal Body -->
-                    <div class="modal-body p-4" style="background: #f8fafc;">
+                    <div class="modal-body p-2" style="background: #f8f9fa;">
                         <div id="individualGuideContent_${modalId}">
-                            <div class="text-center py-5">
-                                <div class="spinner-border text-primary" role="status">
+                            <div class="text-center py-4">
+                                <div class="spinner-border" role="status" style="color: #667eea;">
                                     <span class="visually-hidden">Loading...</span>
                                 </div>
-                                <p class="text-muted mt-3">Loading guide details...</p>
+                                <p class="text-muted mt-2 mb-0" style="font-size: 0.9rem;">Loading guide details...</p>
                             </div>
                         </div>
                     </div>
                     
                     <!-- Modal Footer -->
-                    <div class="modal-footer bg-light border-0" style="border-radius: 0 0 8px 8px;">
-                        <button type="button" class="btn btn-outline-secondary" onclick="closeIndividualGuideViewModal('${modalId}')">
-                            <i class="ri-close-line me-1"></i>Close
-                        </button>
+                    <div class="modal-footer border-0 p-1" style="background: #f8f9fa;">
+                        <div class="d-flex gap-1 w-100 justify-content-end" id="guideModalFooter_${modalId}">
+                            <button type="button" class="btn btn-outline-secondary btn-sm px-2 py-1" onclick="closeIndividualGuideViewModal('${modalId}')" style="border-radius: 6px; font-size: 0.75rem;">
+                                <i class="ri-close-line me-1" style="font-size: 0.7rem;"></i>Close
+                            </button>
+                        </div>
                     </div>
                 </div>
             </div>
@@ -7910,7 +8002,7 @@ function createIndividualHotelViewModal(tourId, hotelOrderIndex, bookingIndex, a
                             </button>
                             <button type="button" class="btn btn-outline-secondary btn-sm px-3 py-1" onclick="closeIndividualHotelViewModal('${modalId}')" style="border-radius: 8px; font-size: 0.85rem;">
                                 <i class="ri-close-line me-1"></i>Close
-                            </button>
+                                </button>
                         </div>
                     </div>
                 </div>
@@ -8039,161 +8131,273 @@ function loadIndividualHotelContent(tourId, hotelOrderIndex, bookingIndex, modal
 
 function generateIndividualHotelContent(hotelBooking, modalId, tourId, hotelOrderIndex, bookingIndex, autoCancelDate=null) {
     const contentHTML = `
-        <!-- Hotel Information Card with Image -->
-        <div class="row mb-4">
-            <div class="col-md-12">
-                <div class="card border-0 shadow-sm" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);">
-                    <div class="card-body p-4">
-                        <div class="row align-items-center text-white">
-                            <div class="col-md-3 text-center">
-                                ${hotelBooking.image ? `
-                                    <img src="${hotelBooking.image}" 
-                                         alt="${hotelBooking.hotelName || 'Hotel'}" 
-                                         class="rounded border border-white border-3 shadow"
-                                         style="width: 100px; height: 80px; object-fit: cover;">
-                                ` : `
-                                    <div class="bg-white bg-opacity-20 rounded d-flex align-items-center justify-content-center border border-white border-3"
-                                         style="width: 100px; height: 80px;">
-                                        <i class="ri-hotel-line" style="font-size: 2.5rem;"></i>
-                                    </div>
-                                `}
+        <div class="card mb-3 shadow-sm border-0" style="border-radius: 10px; overflow: hidden; border-left: 4px solid #667eea !important;">
+            <!-- Compact Card Header -->
+            <div class="card-header border-0 py-2 px-3" style="background: linear-gradient(90deg, #667eea 0%, #764ba2 100%);">
+                <div class="row align-items-center g-2">
+                    <div class="col-md-8">
+                        <div class="d-flex align-items-center">
+                            ${hotelBooking.image ? `
+                                <img src="${hotelBooking.image}" 
+                                     alt="${hotelBooking.hotelName || 'Hotel'}" 
+                                     class="rounded-circle me-2"
+                                     style="width: 40px; height: 40px; object-fit: cover; border: 2px solid rgba(255,255,255,0.3);">
+                            ` : `
+                                <div class="rounded-circle me-2 bg-white bg-opacity-20 d-flex align-items-center justify-content-center"
+                                     style="width: 40px; height: 40px; border: 2px solid rgba(255,255,255,0.3);">
+                                    <i class="ri-hotel-line text-white" style="font-size: 1.2rem;"></i>
+                                </div>
+                            `}
+                            <div>
+                                <h6 class="mb-0 fw-bold text-white">
+                                    <i class="ri-hotel-line me-1"></i>${hotelBooking.hotelName || 'Hotel Accommodation'}
+                                </h6>
+                                <small class="text-white opacity-90">${hotelBooking.location || 'Location'}</small>
                             </div>
-                            <div class="col-md-9">
-                                <h4 class="mb-2 fw-bold">
-                                    <i class="ri-hotel-line me-2"></i>${hotelBooking.hotelName || 'Hotel Accommodation'}
-                                </h4>
-                                <div class="row">
-                                    <div class="col-md-6">
-                                        <small class="opacity-75">Location</small>
-                                        <div class="fw-medium">${hotelBooking.location || 'N/A'}</div>
-                                    </div>
-                                    <div class="col-md-6">
-                                        <small class="opacity-75">Total Price</small>
-                                        <div class="fw-bold fs-5">SGD ${parseFloat(hotelBooking.totalPrice || 0).toFixed(2)}</div>
-                                    </div>
-                                    ${hotelBooking.isApprove ? `
-                                    <div class="col-md-12 mt-2">
-                                        <div class="d-flex align-items-center">
-                                            <span class="badge bg-opacity-20 text-success px-3 py-2 rounded-pill">
-                                                <i class="ri-check-circle-line me-1"></i>Approved Booking
-                                            </span>
-                                            ${hotelBooking.referenceId ? `
-                                                <span class="ms-2 small opacity-75">Ref: ${hotelBooking.referenceId}</span>
-                                            ` : ''}
-                                        </div>
-                                    </div>
-                                    ` : ''}
+                        </div>
+                    </div>
+                    <div class="col-md-4 text-end">
+                        <span class="badge bg-white text-success px-3 py-2" style="font-size: 0.95rem;">
+                            SGD ${parseFloat(hotelBooking.totalPrice || 0).toFixed(2)}
+                        </span>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="card-body p-3" style="background-color: #ffffff;">
+
+                <!-- Booking Schedule & Room Information -->
+                <div class="row mb-3 g-3">
+                    <div class="col-md-6">
+                        <div class="bg-light rounded p-2 h-100">
+                            <div class="d-flex align-items-center mb-2">
+                                <div class="rounded-circle p-1 me-2" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); width: 28px; height: 28px; display: flex; align-items: center; justify-content: center;">
+                                    <i class="ri-calendar-line text-white" style="font-size: 0.9rem;"></i>
+                                </div>
+                                <h6 class="fw-bold mb-0 text-dark" style="font-size: 0.95rem;">Booking Schedule</h6>
+                            </div>
+                            <div class="row g-2">
+                                <div class="col-6">
+                                    <small class="text-muted d-block" style="font-size: 0.7rem;">Check-in</small>
+                                    <div class="fw-bold text-success" style="font-size: 0.85rem;">${hotelBooking.checkInDate || 'N/A'}</div>
+                                </div>
+                                <div class="col-6">
+                                    <small class="text-muted d-block" style="font-size: 0.7rem;">Check-out</small>
+                                    <div class="fw-bold text-danger" style="font-size: 0.85rem;">${hotelBooking.checkOutDate || 'N/A'}</div>
+                                </div>
+                                <div class="col-6">
+                                    <small class="text-muted d-block" style="font-size: 0.7rem;">Nights</small>
+                                    <div class="fw-medium" style="font-size: 0.85rem;">${hotelBooking.nights || 'N/A'}</div>
+                                </div>
+                                <div class="col-6">
+                                    <small class="text-muted d-block" style="font-size: 0.7rem;">Check-in Time</small>
+                                    <div class="fw-medium" style="font-size: 0.85rem;">${hotelBooking.checkInTime || 'N/A'}</div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-md-6">
+                        <div class="bg-light rounded p-2 h-100">
+                            <div class="d-flex align-items-center mb-2">
+                                <div class="rounded-circle p-1 me-2" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); width: 28px; height: 28px; display: flex; align-items: center; justify-content: center;">
+                                    <i class="ri-home-line text-white" style="font-size: 0.9rem;"></i>
+                                </div>
+                                <h6 class="fw-bold mb-0 text-dark" style="font-size: 0.95rem;">Room Information</h6>
+                            </div>
+                            <div class="row g-2">
+                                <div class="col-6">
+                                    <small class="text-muted d-block" style="font-size: 0.7rem;">Rooms</small>
+                                    <div class="fw-medium" style="font-size: 0.85rem;">${hotelBooking.rooms || '1'}</div>
+                                </div>
+                                <div class="col-6">
+                                    <small class="text-muted d-block" style="font-size: 0.7rem;">Room Type</small>
+                                    <div class="fw-medium" style="font-size: 0.85rem;">${hotelBooking.roomType || 'Standard'}</div>
+                                </div>
+                                <div class="col-6">
+                                    <small class="text-muted d-block" style="font-size: 0.7rem;">Bed Type</small>
+                                    <div class="fw-medium" style="font-size: 0.85rem;">${hotelBooking.bedType || 'N/A'}</div>
+                                </div>
+                                <div class="col-6">
+                                    <small class="text-muted d-block" style="font-size: 0.7rem;">Meal Plan</small>
+                                    <div><span class="badge bg-primary px-2 py-1" style="font-size: 0.7rem;">${hotelBooking.mealPlan || 'Room Only'}</span></div>
                                 </div>
                             </div>
                         </div>
                     </div>
                 </div>
-            </div>
-        </div>
 
-        <!-- Booking Details & Room Information -->
-        <div class="row mb-4">
-            <div class="col-md-6">
-                <div class="bg-white rounded p-3 shadow-sm h-100">
-                    <div class="d-flex align-items-center mb-3">
-                        <div class="bg-primary rounded-circle p-2 me-3">
-                            <i class="ri-calendar-line text-white"></i>
-                        </div>
-                        <h6 class="fw-bold mb-0 text-dark">Booking Schedule</h6>
-                    </div>
-                    <div class="row">
-                        <div class="col-md-6 mb-3">
-                            <small class="text-muted">Check-in Date</small>
-                            <div class="fw-medium">${hotelBooking.checkInDate || 'N/A'}</div>
-                        </div>
-                        <div class="col-md-6 mb-3">
-                            <small class="text-muted">Check-out Date</small>
-                            <div class="fw-medium">${hotelBooking.checkOutDate || 'N/A'}</div>
-                        </div>
-                        <div class="col-md-6 mb-3">
-                            <small class="text-muted">Total Nights</small>
-                            <div class="fw-medium">${hotelBooking.nights || 'N/A'} nights</div>
-                        </div>
-                        <div class="col-md-6 mb-3">
-                            <small class="text-muted">Check-in Time</small>
-                            <div class="fw-medium">${hotelBooking.checkInTime || 'N/A'}</div>
-                        </div>
-                    </div>
-                </div>
-            </div>
-            <div class="col-md-6">
-                <div class="bg-white rounded p-3 shadow-sm h-100">
-                    <div class="d-flex align-items-center mb-3">
-                        <div class="bg-success rounded-circle p-2 me-3">
-                            <i class="ri-home-line text-white"></i>
-                        </div>
-                        <h6 class="fw-bold mb-0 text-dark">Room Information</h6>
-                    </div>
-                    <div class="row">
-                        <div class="col-md-6 mb-3">
-                            <small class="text-muted">Rooms</small>
-                            <div class="fw-medium">${hotelBooking.rooms || '1'}</div>
-                        </div>
-                        <div class="col-md-6 mb-3">
-                            <small class="text-muted">Room Type</small>
-                            <div class="fw-medium">${hotelBooking.roomType || 'Standard'}</div>
-                        </div>
-                        <div class="col-md-6 mb-3">
-                            <small class="text-muted">Bed Type</small>
-                            <div class="fw-medium">${hotelBooking.bedType || 'N/A'}</div>
-                        </div>
-                        <div class="col-md-6 mb-3">
-                            <small class="text-muted">Meal Plan</small>
-                            <span class="badge bg-primary">${hotelBooking.mealPlan || 'Room Only'}</span>
-                        </div>
-                    </div>
-                </div>
-            </div>
-        </div>
+            
 
-        <!-- Customer Information -->
-        <div class="row mb-4">
-            <div class="col-md-12">
-                <div class="bg-white rounded p-3 shadow-sm">
-                    <div class="d-flex align-items-center mb-3">
-                        <div class="bg-info rounded-circle p-2 me-3">
-                            <i class="ri-user-line text-white"></i>
+                <!-- Transfer Options -->
+                ${hotelBooking.transferOptions && (hotelBooking.transferOptions.transfer_required === true || hotelBooking.transferOptions.transfer_required === 'true' || hotelBooking.transferOptions.transfer_required === 'Yes') ? `
+                <div class="bg-light rounded p-2 mb-3">
+                    <div class="d-flex align-items-center mb-2">
+                        <div class="rounded-circle p-1 me-2" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); width: 28px; height: 28px; display: flex; align-items: center; justify-content: center;">
+                            <i class="ri-car-line text-white" style="font-size: 0.9rem;"></i>
                         </div>
-                        <h6 class="fw-bold mb-0 text-dark">Guest Information</h6>
+                        <h6 class="fw-bold mb-0 text-dark" style="font-size: 0.95rem;">Transfer Details</h6>
                     </div>
-                    <div class="row">
-                        <div class="col-md-4 mb-2">
-                            <small class="text-muted">Name</small>
-                            <div class="fw-medium">${hotelBooking.fullName || 'N/A'}</div>
+                    <div class="row g-2">
+                        <div class="col-md-6">
+                            <div class="bg-white rounded p-2">
+                                <small class="text-muted d-block" style="font-size: 0.7rem;">Transfer Type</small>
+                                <div class="fw-medium" style="font-size: 0.8rem;">
+                                    <span class="badge bg-primary" style="font-size: 0.7rem;">${hotelBooking.transferOptions.type || 'N/A'}</span>
+                                </div>
+                                ${hotelBooking.transferOptions.destination_name ? `
+                                <div class="mt-1">
+                                    <small class="text-muted d-block" style="font-size: 0.7rem;">Destination</small>
+                                    <div class="fw-medium text-primary" style="font-size: 0.8rem;">${hotelBooking.transferOptions.destination_name}</div>
+                                </div>
+                                ` : ''}
+                                ${hotelBooking.transferOptions.pickup_location_name ? `
+                                <div class="mt-1">
+                                    <small class="text-muted d-block" style="font-size: 0.7rem;">Pickup</small>
+                                    <div class="fw-medium text-info" style="font-size: 0.8rem;">${hotelBooking.transferOptions.pickup_location_name}</div>
+                                </div>
+                                ` : ''}
+                            </div>
                         </div>
-                        <div class="col-md-4 mb-2">
-                            <small class="text-muted">Email</small>
-                            <div class="fw-medium">${hotelBooking.email || 'N/A'}</div>
-                        </div>
-                        <div class="col-md-4 mb-2">
-                            <small class="text-muted">Phone</small>
-                            <div class="fw-medium">${hotelBooking.phone || 'N/A'}</div>
+                        <div class="col-md-6">
+                            <div class="bg-white rounded p-2">
+                                ${hotelBooking.transferOptions.vehicle_details ? `
+                                    <small class="text-muted d-block" style="font-size: 0.7rem;">Vehicle</small>
+                                    <div class="fw-medium" style="font-size: 0.8rem;">${hotelBooking.transferOptions.vehicle_details.vehicle_name || 'N/A'}</div>
+                                    ${hotelBooking.transferOptions.vehicle_details.seating_capacity ? `
+                                    <small class="text-muted" style="font-size: 0.65rem;">Capacity: ${hotelBooking.transferOptions.vehicle_details.seating_capacity}</small>
+                                    ` : ''}
+                                ` : hotelBooking.transferOptions.vehicle_id ? `
+                                    <small class="text-muted d-block" style="font-size: 0.7rem;">Vehicle ID</small>
+                                    <div class="fw-medium" style="font-size: 0.8rem;">${hotelBooking.transferOptions.vehicle_id}</div>
+                                ` : ''}
+                                ${hotelBooking.transferOptions.cost && hotelBooking.transferOptions.cost > 0 ? `
+                                <div class="mt-1">
+                                    <small class="text-muted d-block" style="font-size: 0.7rem;">Cost</small>
+                                    <div class="fw-bold text-success" style="font-size: 0.9rem;">SGD ${parseFloat(hotelBooking.transferOptions.cost).toFixed(2)}</div>
+                                </div>
+                                ` : ''}
+                            </div>
                         </div>
                     </div>
                 </div>
-            </div>
-        </div>
+                ` : ''}
 
-        <!-- Special Requests -->
-        ${hotelBooking.specialRequests ? `
-        <div class="bg-white rounded p-3 shadow-sm mb-4">
-            <div class="d-flex align-items-center mb-3">
-                <div class="bg-secondary rounded-circle p-2 me-3">
-                    <i class="ri-message-2-line text-white"></i>
+             
+
+                <!-- Pricing Overview -->
+                <div class="bg-light rounded p-2 mb-3">
+                    <div class="d-flex align-items-center mb-2">
+                        <div class="rounded-circle p-1 me-2" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); width: 28px; height: 28px; display: flex; align-items: center; justify-content: center;">
+                            <i class="ri-money-dollar-circle-line text-white" style="font-size: 0.9rem;"></i>
+                        </div>
+                        <h6 class="fw-bold mb-0 text-dark" style="font-size: 0.95rem;">Pricing Overview</h6>
+                    </div>
+                    <div class="row g-2">
+                        <div class="col-md-12">
+                            <div class="text-center p-2 border rounded bg-white" style="border-color: #28a745 !important;">
+                                <small class="text-muted d-block" style="font-size: 0.7rem;">Hotel Price</small>
+                                <div class="fw-bold text-success" style="font-size: 0.8rem;">SGD ${parseFloat(hotelBooking.totalPrice || 0).toFixed(2)}</div>
+                            </div>
+                        </div>
+                       
+                       
+                    </div>
+                 
                 </div>
-                <h6 class="fw-bold mb-0 text-dark">Special Requests</h6>
+
+                <!-- Booking Status -->
+                <div class="bg-light rounded p-1">
+                    <div class="d-flex align-items-center mb-1">
+                        <div class="rounded-circle p-1 me-1" style="background: linear-gradient(135deg, #74b9ff 0%, #0984e3 100%); width: 20px; height: 20px; display: flex; align-items: center; justify-content: center;">
+                            <i class="ri-settings-line text-white" style="font-size: 0.7rem;"></i>
+                        </div>
+                        <h6 class="fw-bold mb-0 text-dark" style="font-size: 0.8rem;">Booking Status</h6>
+                    </div>
+                    <div class="d-flex gap-1 flex-wrap" id="hotel_buttons_${tourId}_${hotelOrderIndex}_${bookingIndex}">
+                        <!-- Buttons will be dynamically added based on user role -->
+                    </div>
+                </div>
             </div>
-            <p class="text-muted mb-0">${hotelBooking.specialRequests}</p>
         </div>
-        ` : ''}
     `;
     
     document.getElementById(`individualHotelContent_${modalId}`).innerHTML = contentHTML;
+    
+    // Add action buttons based on user role and approval status
+    const isApproved = hotelBooking.isApprove == 1 || hotelBooking.isApprove === '1' || hotelBooking.isApprove === true || hotelBooking.is_approve == 1 || hotelBooking.is_approve === '1' || hotelBooking.is_approve === true || false;
+    
+    if (!isApproved) {
+        const userRoleId = {{ auth()->user()->role_id ?? 0 }};
+        const buttonsContainer = document.getElementById(`hotel_buttons_${tourId}_${hotelOrderIndex}_${bookingIndex}`);
+        
+        if (buttonsContainer) {
+            let buttonsHTML = '';
+            
+            // Check permissions
+            const canEdit = [11, 34, 124, 125, 128, 131, 132, 134, 135, 137, 138].includes(userRoleId);
+            const canApprove = [11, 34, 124, 125, 128, 131, 132, 134, 135, 137, 138].includes(userRoleId);
+            const canReject = [11, 34, 33, 37, 38, 124, 125, 128, 129, 130, 131, 132, 134, 135, 136, 137, 138].includes(userRoleId);
+            const hasAnyPermission = canEdit || canApprove || canReject;
+            
+            if (hasAnyPermission) {
+                // Edit button (DMC and Operational Head only)
+            if (canEdit) {
+                    buttonsHTML += `
+                        <button type="button" 
+                                class="btn btn-sm px-2 py-1" 
+                                onclick="editIndividualHotel(${tourId}, ${hotelOrderIndex}, ${bookingIndex}, '${autoCancelDate || ''}')"
+                                style="border-radius: 6px; background: linear-gradient(135deg, #74b9ff 0%, #0984e3 100%); border: none; color: white; font-size: 0.75rem;">
+                            <i class="ri-edit-line me-1" style="font-size: 0.7rem;"></i>Edit
+                        </button>
+                    `;
+                }
+                
+                // Approve button (DMC and Operational Head only)
+            if (canApprove) {
+                    buttonsHTML += `
+                        <button type="button" 
+                                class="btn btn-outline-success btn-sm px-2 py-1" 
+                                onclick="approveIndividualHotel(${tourId}, ${hotelOrderIndex}, ${bookingIndex}, '${autoCancelDate || ''}')"
+                                style="border-radius: 6px; font-size: 0.75rem;">
+                            <i class="ri-check-line me-1" style="font-size: 0.7rem;"></i>Approve
+                        </button>
+                    `;
+        }
+        
+                // Reject button (for users with reject permission)
+        if (canReject) {
+                    buttonsHTML += `
+                        <button type="button" 
+                                class="btn btn-outline-danger btn-sm px-2 py-1" 
+                                onclick="rejectIndividualHotel(${tourId}, ${hotelOrderIndex}, ${bookingIndex}, '${autoCancelDate || ''}')"
+                                style="border-radius: 6px; font-size: 0.75rem;">
+                            <i class="ri-close-line me-1" style="font-size: 0.7rem;"></i>Reject
+                        </button>
+                    `;
+                }
+            } else {
+                // Show pending approval only if user has no permissions
+                buttonsHTML += '<div class="text-muted small" style="font-size: 0.75rem;"><i class="ri-information-line me-1" style="font-size: 0.7rem;"></i>Pending approval</div>';
+            }
+            
+            buttonsContainer.innerHTML = buttonsHTML;
+        }
+    } else {
+        // Show approved status
+        const buttonsContainer = document.getElementById(`hotel_buttons_${tourId}_${hotelOrderIndex}_${bookingIndex}`);
+        if (buttonsContainer) {
+            const referenceId = hotelBooking.referenceId || hotelBooking.reference_id || '';
+            const displayDueDate = hotelBooking.displayDueDate || hotelBooking.display_due_date || '';
+            buttonsContainer.innerHTML = `
+                <div class="alert alert-success mb-0 py-1 px-2" style="border-radius: 6px; font-size: 0.75rem;">
+                    <i class="ri-check-circle-fill me-1" style="font-size: 0.7rem;"></i>
+                    <strong>Approved</strong>
+                    ${referenceId ? `<span class="ms-1">• Ref: ${referenceId}</span>` : ''}
+                    ${displayDueDate ? `<span class="ms-1">• Due: ${displayDueDate}</span>` : ''}
+                </div>
+            `;
+        }
+    }
     
     // Update modal footer based on approval status
     updateHotelModalFooter(modalId, hotelBooking.isApprove, tourId, hotelOrderIndex, bookingIndex, hotelBooking, autoCancelDate);
@@ -8958,7 +9162,7 @@ function openIndividualAttractionModal(tourId, attractionOrderIndex, bookingInde
         }
         
         // Create and show the modal
-        createIndividualAttractionViewModal(modalId, tourId, attractionOrderIndex, bookingIndex);
+        createIndividualAttractionViewModal(modalId, tourId, attractionOrderIndex, bookingIndex, actualCancelDateStr);
         loadIndividualAttractionContent(modalId, tourId, attractionOrderIndex, bookingIndex, actualCancelDateStr);
         
     } catch (error) {
@@ -8967,7 +9171,7 @@ function openIndividualAttractionModal(tourId, attractionOrderIndex, bookingInde
     }
 }
 
-function createIndividualAttractionViewModal(modalId, tourId, attractionOrderIndex, bookingIndex) {
+function createIndividualAttractionViewModal(modalId, tourId, attractionOrderIndex, bookingIndex, autoCancelDate=null) {
     const modalHtml = `
         <div class="modal fade" id="${modalId}" tabindex="-1" aria-hidden="true" data-bs-backdrop="static" data-bs-keyboard="false">
             <div class="modal-dialog modal-dialog-centered modal-lg modal-dialog-scrollable">
@@ -9101,7 +9305,7 @@ function loadIndividualAttractionContent(modalId, tourId, attractionOrderIndex, 
     });
 }
 
-function generateIndividualAttractionContent(attractionBooking, modalId, tourId, attractionOrderIndex, bookingIndex, actualCancelDateStr=null) {
+function generateIndividualAttractionContent(attractionBooking, modalId, tourId, attractionOrderIndex, bookingIndex, autoCancelDate=null) {
     const bookingDate = attractionBooking.bookingDate;
     const formattedDate = bookingDate ? new Date(bookingDate).toLocaleDateString('en-US', { 
         weekday: 'short', 
@@ -9111,80 +9315,81 @@ function generateIndividualAttractionContent(attractionBooking, modalId, tourId,
     }) : 'N/A';
     
     const content = `
-        <div class="card mb-4 shadow-sm border-0" style="border-radius: 12px; overflow: hidden;">
-            <div class="card-header border-0" style="background: linear-gradient(90deg, #fd9853 0%, #fe7854 100%); padding: 20px;">
-                <div class="row align-items-center">
+        <div class="card mb-3 shadow-sm border-0" style="border-radius: 10px; overflow: hidden; border-left: 4px solid #fd9853 !important;">
+            <!-- Compact Card Header -->
+            <div class="card-header border-0 py-2 px-3" style="background: linear-gradient(90deg, #fd9853 0%, #fe7854 100%);">
+                <div class="row align-items-center g-2">
                     <div class="col-md-8">
-                        <h5 class="mb-1 fw-bold text-white">
-                            <i class="ri-building-2-line me-2"></i>${attractionBooking.attractionName || 'Attraction Booking'}
-                        </h5>
-                        <p class="mb-0 text-white opacity-75">${attractionBooking.ticketName || 'Standard Ticket'} • Individual Booking</p>
+                        <h6 class="mb-0 fw-bold text-white">
+                            <i class="ri-building-2-line me-1"></i>${attractionBooking.attractionName || 'Attraction Booking'}
+                        </h6>
+                        <small class="text-white opacity-90">${attractionBooking.ticketName || 'Standard Ticket'} • Individual Booking</small>
                     </div>
                     <div class="col-md-4 text-end">
-                        <div class="bg-white rounded-pill px-3 py-2 d-inline-block">
-                            <span class="text-success fw-bold fs-5">SGD ${parseFloat(attractionBooking.totalPrice || 0).toFixed(2)}</span>
-                        </div>
+                        <span class="badge bg-white text-success px-3 py-2" style="font-size: 0.95rem;">
+                            SGD ${parseFloat(attractionBooking.totalPrice || 0).toFixed(2)}
+                        </span>
                     </div>
                 </div>
             </div>
             
-            <div class="card-body p-4" style="background-color: #f8f9fa;">
-          
+            <div class="card-body p-3" style="background-color: #ffffff;">
+           
 
-                <!-- Visit & Booking Information -->
-                <div class="row mb-4">
+                <!-- Visit Schedule & Guest Information -->
+                <div class="row mb-3 g-3">
                     <div class="col-md-6">
-                        <div class="bg-white rounded p-3 shadow-sm h-100">
-                            <div class="d-flex align-items-center mb-3">
-                                <div class="bg-warning rounded-circle p-2 me-3">
-                                    <i class="ri-calendar-line text-white"></i>
+                        <div class="bg-light rounded p-2 h-100">
+                            <div class="d-flex align-items-center mb-2">
+                                <div class="rounded-circle p-1 me-2" style="background: linear-gradient(135deg, #fd9853 0%, #fe7854 100%); width: 28px; height: 28px; display: flex; align-items: center; justify-content: center;">
+                                    <i class="ri-calendar-line text-white" style="font-size: 0.9rem;"></i>
                                 </div>
-                                <h6 class="fw-bold mb-0 text-dark">Visit Schedule</h6>
+                                <h6 class="fw-bold mb-0 text-dark" style="font-size: 0.95rem;">Visit Schedule</h6>
                             </div>
-                            <div class="mb-3">
-                                <small class="text-muted">Visit Date</small>
-                                <div class="fw-bold text-success fs-5">${formattedDate}</div>
+                            <div class="mb-1">
+                                <small class="text-muted d-block" style="font-size: 0.75rem;">Visit Date</small>
+                                <div class="fw-bold text-success" style="font-size: 0.9rem;">${formattedDate}</div>
                             </div>
-                            <div class="mb-3">
-                                <small class="text-muted">Visit Time</small>
-                                <div class="fw-medium text-primary">${attractionBooking.visitTime || 'Full Day Access'}</div>
+                            <div class="mb-1">
+                                <small class="text-muted d-block" style="font-size: 0.75rem;">Visit Time</small>
+                                <div class="fw-medium text-primary" style="font-size: 0.85rem;">${attractionBooking.visitTime || 'Full Day Access'}</div>
                             </div>
                             <div>
-                                <small class="text-muted">Selection Type</small>
-                                <div><span class="badge bg-info px-3 py-2">${attractionBooking.selection ? attractionBooking.selection.charAt(0).toUpperCase() + attractionBooking.selection.slice(1) : 'Standard'}</span></div>
+                                <small class="text-muted d-block" style="font-size: 0.75rem;">Selection Type</small>
+                                <div><span class="badge bg-info px-2 py-1" style="font-size: 0.7rem;">${attractionBooking.selection ? attractionBooking.selection.charAt(0).toUpperCase() + attractionBooking.selection.slice(1) : 'Standard'}</span></div>
                             </div>
                         </div>
                     </div>
                     <div class="col-md-6">
-                        <div class="bg-white rounded p-3 shadow-sm h-100">
-                            <div class="d-flex align-items-center mb-3">
-                                <div class="bg-info rounded-circle p-2 me-3">
-                                    <i class="ri-group-line text-white"></i>
+                        <div class="bg-light rounded p-2 h-100">
+                            <div class="d-flex align-items-center mb-2">
+                                <div class="rounded-circle p-1 me-2" style="background: linear-gradient(135deg, #fd9853 0%, #fe7854 100%); width: 28px; height: 28px; display: flex; align-items: center; justify-content: center;">
+                                    <i class="ri-group-line text-white" style="font-size: 0.9rem;"></i>
                                 </div>
-                                <h6 class="fw-bold mb-0 text-dark">Guest Information</h6>
+                                <h6 class="fw-bold mb-0 text-dark" style="font-size: 0.95rem;">Guest Information</h6>
                             </div>
-                            <div class="row">
-                                <div class="col-4 text-center mb-3">
-                                    <div class="bg-light rounded p-2">
-                                        <div class="fs-4 fw-bold text-success">${attractionBooking.adultCount || 0}</div>
-                                        <small class="text-muted">Adults</small>
+                            <div class="row g-1 mb-1">
+                                <div class="col-4 text-center">
+                                    <div class="bg-white rounded p-1 border" style="border-color: #fd9853 !important;">
+                                        <div class="fw-bold text-success" style="font-size: 1rem;">${attractionBooking.adultCount || 0}</div>
+                                        <small class="text-muted" style="font-size: 0.6rem;">Adults</small>
                                     </div>
                                 </div>
-                                <div class="col-4 text-center mb-3">
-                                    <div class="bg-light rounded p-2">
-                                        <div class="fs-4 fw-bold text-warning">${attractionBooking.childCount || 0}</div>
-                                        <small class="text-muted">Children</small>
+                                <div class="col-4 text-center">
+                                    <div class="bg-white rounded p-1 border" style="border-color: #fd9853 !important;">
+                                        <div class="fw-bold text-warning" style="font-size: 1rem;">${attractionBooking.childCount || 0}</div>
+                                        <small class="text-muted" style="font-size: 0.6rem;">Children</small>
                                     </div>
                                 </div>
-                                <div class="col-4 text-center mb-3">
-                                    <div class="bg-light rounded p-2">
-                                        <div class="fs-4 fw-bold text-info">0</div>
-                                        <small class="text-muted">Seniors</small>
+                                <div class="col-4 text-center">
+                                    <div class="bg-white rounded p-1 border" style="border-color: #fd9853 !important;">
+                                        <div class="fw-bold text-info" style="font-size: 1rem;">0</div>
+                                        <small class="text-muted" style="font-size: 0.6rem;">Seniors</small>
                                     </div>
                                 </div>
                             </div>
                             <div class="text-center">
-                                <span class="badge bg-primary px-3 py-2">
+                                <span class="badge" style="background: linear-gradient(135deg, #fd9853 0%, #fe7854 100%); color: white; font-size: 0.8rem; padding: 2px 6px;">
                                     Total: ${(parseInt(attractionBooking.adultCount || 0) + parseInt(attractionBooking.childCount || 0))} Guests
                                 </span>
                             </div>
@@ -9192,116 +9397,221 @@ function generateIndividualAttractionContent(attractionBooking, modalId, tourId,
                     </div>
                 </div>
 
-                <!-- Attraction Details -->
-                <div class="bg-white rounded p-3 shadow-sm mb-4">
-                    <div class="d-flex align-items-center mb-3">
-                        <div class="bg-success rounded-circle p-2 me-3">
-                            <i class="ri-building-2-line text-white"></i>
-                        </div>
-                        <h6 class="fw-bold mb-0 text-dark">Attraction Details</h6>
-                    </div>
-                    <div class="row">
-                        <div class="col-md-4 mb-3">
-                            <small class="text-muted">Attraction ID</small>
-                            <div class="fw-medium">${attractionBooking.attraction_id || 'N/A'}</div>
-                        </div>
-                        <div class="col-md-4 mb-3">
-                            <small class="text-muted">Ticket ID</small>
-                            <div class="fw-medium">${attractionBooking.ticketDetails?.ticketId || 'N/A'}</div>
-                        </div>
-                        <div class="col-md-4 mb-3">
-                            <small class="text-muted">NRI Status</small>
-                            <span class="badge bg-info">${attractionBooking.ticketDetails?.nri ? attractionBooking.ticketDetails.nri.charAt(0).toUpperCase() + attractionBooking.ticketDetails.nri.slice(1) : 'N/A'}</span>
-                        </div>
-                    </div>
-                </div>
+              
 
                 <!-- Ticket & Pricing Details -->
                 ${attractionBooking.ticketDetails && (attractionBooking.ticketDetails.adult_price || attractionBooking.ticketDetails.child_price) ? `
-                <div class="bg-white rounded p-3 shadow-sm mb-4">
-                    <div class="d-flex align-items-center mb-3">
-                        <div class="bg-success rounded-circle p-2 me-3">
-                            <i class="ri-ticket-line text-white"></i>
+                <div class="bg-light rounded p-2 mb-3">
+                    <div class="d-flex align-items-center mb-2">
+                        <div class="rounded-circle p-1 me-2" style="background: linear-gradient(135deg, #fd9853 0%, #fe7854 100%); width: 28px; height: 28px; display: flex; align-items: center; justify-content: center;">
+                            <i class="ri-ticket-line text-white" style="font-size: 0.9rem;"></i>
                         </div>
-                        <h6 class="fw-bold mb-0 text-dark">Ticket & Pricing Information</h6>
+                        <h6 class="fw-bold mb-0 text-dark" style="font-size: 0.95rem;">Ticket & Pricing Information</h6>
                     </div>
                     
-                    <!-- Pricing Cards -->
-                    <div class="row mb-3">
-                        <div class="col-md-4 mb-3">
-                            <div class="border rounded-3 p-3 text-center" style="border-color: #28a745; background: linear-gradient(135deg, #d4edda, #f8f9fa);">
-                                <div class="text-success mb-2">
-                                    <i class="ri-user-line ri-24px"></i>
-                                </div>
-                                <h6 class="fw-bold text-success mb-1">Adult Ticket</h6>
-                                <div class="fs-4 fw-bold text-success">SGD ${parseFloat(attractionBooking.ticketDetails.adult_price || 0).toFixed(2)}</div>
-                                <small class="text-muted">Per person</small>
+                    <!-- Compact Pricing Cards -->
+                    <div class="row g-2 mb-2">
+                        <div class="col-md-4">
+                            <div class="border rounded p-2 text-center bg-white" style="border-color: #28a745 !important;">
+                                <small class="text-muted d-block" style="font-size: 0.7rem;">Adult Ticket</small>
+                                <div class="fw-bold text-success" style="font-size: 0.9rem;">SGD ${parseFloat(attractionBooking.ticketDetails.adult_price || 0).toFixed(2)}</div>
                             </div>
                         </div>
-                        <div class="col-md-4 mb-3">
-                            <div class="border rounded-3 p-3 text-center" style="border-color: #ffc107; background: linear-gradient(135deg, #fff3cd, #f8f9fa);">
-                                <div class="text-warning mb-2">
-                                    <i class="ri-user-smile-line ri-24px"></i>
-                                </div>
-                                <h6 class="fw-bold text-warning mb-1">Child Ticket</h6>
-                                <div class="fs-4 fw-bold text-warning">SGD ${parseFloat(attractionBooking.ticketDetails.child_price || 0).toFixed(2)}</div>
-                                <small class="text-muted">Per child</small>
+                        <div class="col-md-4">
+                            <div class="border rounded p-2 text-center bg-white" style="border-color: #ffc107 !important;">
+                                <small class="text-muted d-block" style="font-size: 0.7rem;">Child Ticket</small>
+                                <div class="fw-bold text-warning" style="font-size: 0.9rem;">SGD ${parseFloat(attractionBooking.ticketDetails.child_price || 0).toFixed(2)}</div>
                             </div>
                         </div>
-                        <div class="col-md-4 mb-3">
-                            <div class="border rounded-3 p-3 text-center" style="border-color: #17a2b8; background: linear-gradient(135deg, #d1ecf1, #f8f9fa);">
-                                <div class="text-info mb-2">
-                                    <i class="ri-user-star-line ri-24px"></i>
-                                </div>
-                                <h6 class="fw-bold text-info mb-1">Senior Ticket</h6>
-                                <div class="fs-4 fw-bold text-info">SGD ${parseFloat(attractionBooking.ticketDetails.senior_price || 0).toFixed(2)}</div>
-                                <small class="text-muted">Per senior</small>
+                        <div class="col-md-4">
+                            <div class="border rounded p-2 text-center bg-white" style="border-color: #17a2b8 !important;">
+                                <small class="text-muted d-block" style="font-size: 0.7rem;">Senior Ticket</small>
+                                <div class="fw-bold text-info" style="font-size: 0.9rem;">SGD ${parseFloat(attractionBooking.ticketDetails.senior_price || 0).toFixed(2)}</div>
                             </div>
                         </div>
                     </div>
 
-                    <!-- Booking Summary -->
-                    <div class="bg-light rounded p-3 mb-3">
-                        <div class="row align-items-center">
-                            <div class="col-md-8">
-                                <h6 class="fw-bold text-dark mb-2">Booking Summary</h6>
-                                <div class="d-flex gap-3">
-                                    ${attractionBooking.adultCount && parseInt(attractionBooking.adultCount) > 0 ? `<span class="badge bg-success">${attractionBooking.adultCount} × SGD ${parseFloat(attractionBooking.ticketDetails.adult_price || 0).toFixed(2)}</span>` : ''}
-                                    ${attractionBooking.childCount && parseInt(attractionBooking.childCount) > 0 ? `<span class="badge bg-warning">${attractionBooking.childCount} × SGD ${parseFloat(attractionBooking.ticketDetails.child_price || 0).toFixed(2)}</span>` : ''}
+                    <!-- Compact Booking Summary -->
+                    <div class="bg-white rounded p-2 mb-2">
+                        <div class="d-flex align-items-center justify-content-between">
+                            <div>
+                                <h6 class="fw-bold text-dark mb-1" style="font-size: 0.9rem;">Booking Summary</h6>
+                                <div class="d-flex gap-1 flex-wrap">
+                                    ${attractionBooking.adultCount && parseInt(attractionBooking.adultCount) > 0 ? `<span class="badge bg-success" style="font-size: 0.7rem;">${attractionBooking.adultCount} × SGD ${parseFloat(attractionBooking.ticketDetails.adult_price || 0).toFixed(2)}</span>` : ''}
+                                    ${attractionBooking.childCount && parseInt(attractionBooking.childCount) > 0 ? `<span class="badge bg-warning" style="font-size: 0.7rem;">${attractionBooking.childCount} × SGD ${parseFloat(attractionBooking.ticketDetails.child_price || 0).toFixed(2)}</span>` : ''}
                                 </div>
                             </div>
-                            <div class="col-md-4 text-end">
-                                <small class="text-muted d-block">Total Amount</small>
-                                <div class="fs-3 fw-bold text-primary">SGD ${parseFloat(attractionBooking.totalPrice || 0).toFixed(2)}</div>
+                            <div class="text-end">
+                                <small class="text-muted d-block" style="font-size: 0.7rem;">Total Amount</small>
+                                <div class="fw-bold" style="font-size: 1.2rem; color: #fd9853;">SGD ${parseFloat(attractionBooking.totalPrice || 0).toFixed(2)}</div>
                             </div>
                         </div>
                     </div>
 
                     ${attractionBooking.ticketDetails.description ? `
                     <!-- Ticket Description -->
-                    <div class="border-start border-3 border-primary ps-3">
-                        <h6 class="fw-bold text-dark mb-2">Ticket Information</h6>
-                        <div class="text-muted">${attractionBooking.ticketDetails.description}</div>
+                    <div class="bg-white rounded p-2">
+                        <h6 class="fw-bold text-dark mb-1" style="font-size: 0.85rem;">Ticket Information</h6>
+                        <div class="text-muted" style="font-size: 0.8rem;">${attractionBooking.ticketDetails.description}</div>
                     </div>
                     ` : ''}
                 </div>
                 ` : ''}
 
-                <!-- Special Requests -->
-                ${attractionBooking.specialRequests ? `
-                <div class="bg-white rounded p-3 shadow-sm mb-4">
-                    <div class="d-flex align-items-center mb-3">
-                        <div class="bg-purple rounded-circle p-2 me-3" style="background-color: #6f42c1;">
-                            <i class="ri-message-line text-white"></i>
+                <!-- Transfer Options -->
+                ${attractionBooking.transferOptions && attractionBooking.transferOptions.transfer_required && (attractionBooking.transferOptions.transfer_required === true || attractionBooking.transferOptions.transfer_required === 'true' || attractionBooking.transferOptions.transfer_required === 'Yes' || attractionBooking.transferOptions.transfer_required === 1) ? `
+                <div class="bg-light rounded p-2 mb-3">
+                    <div class="d-flex align-items-center mb-2">
+                        <div class="rounded-circle p-1 me-2" style="background: linear-gradient(135deg, #fd9853 0%, #fe7854 100%); width: 28px; height: 28px; display: flex; align-items: center; justify-content: center;">
+                            <i class="ri-car-line text-white" style="font-size: 0.9rem;"></i>
                         </div>
-                        <h6 class="fw-bold mb-0 text-dark">Special Requests</h6>
+                        <h6 class="fw-bold mb-0 text-dark" style="font-size: 0.95rem;">Transfer Details</h6>
                     </div>
-                    <div class="bg-light rounded p-3">
-                        <p class="mb-0 text-dark">${attractionBooking.specialRequests}</p>
+                    <div class="row g-2">
+                        <div class="col-md-6">
+                            <div class="bg-white rounded p-2">
+                                <small class="text-muted d-block" style="font-size: 0.7rem;">Transfer Type</small>
+                                <div class="fw-medium" style="font-size: 0.8rem;">
+                                    <span class="badge bg-primary" style="font-size: 0.7rem;">${attractionBooking.transferOptions.type || 'N/A'}</span>
+                                </div>
+                                ${attractionBooking.transferOptions.pickup_location_name ? `
+                                <div class="mt-1">
+                                    <small class="text-muted d-block" style="font-size: 0.7rem;">Pickup</small>
+                                    <div class="fw-medium text-primary" style="font-size: 0.8rem;">${attractionBooking.transferOptions.pickup_location_name}</div>
+                                </div>
+                                ` : ''}
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="bg-white rounded p-2">
+                                ${attractionBooking.transferOptions.vehicle_details ? `
+                                    <small class="text-muted d-block" style="font-size: 0.7rem;">Vehicle</small>
+                                    <div class="fw-medium" style="font-size: 0.8rem;">${attractionBooking.transferOptions.vehicle_details.vehicle_name || 'N/A'}</div>
+                                    ${attractionBooking.transferOptions.vehicle_details.seating_capacity ? `
+                                    <small class="text-muted" style="font-size: 0.65rem;">Capacity: ${attractionBooking.transferOptions.vehicle_details.seating_capacity}</small>
+                                    ` : ''}
+                                ` : attractionBooking.transferOptions.vehicle_id ? `
+                                    <small class="text-muted d-block" style="font-size: 0.7rem;">Vehicle ID</small>
+                                    <div class="fw-medium" style="font-size: 0.8rem;">${attractionBooking.transferOptions.vehicle_id}</div>
+                                ` : ''}
+                                ${attractionBooking.transferOptions.cost && attractionBooking.transferOptions.cost > 0 ? `
+                                <div class="mt-1">
+                                    <small class="text-muted d-block" style="font-size: 0.7rem;">Cost</small>
+                                    <div class="fw-bold text-success" style="font-size: 0.9rem;">SGD ${parseFloat(attractionBooking.transferOptions.cost).toFixed(2)}</div>
+                                </div>
+                                ` : ''}
+                            </div>
+                        </div>
                     </div>
                 </div>
                 ` : ''}
 
+                <!-- Guide Options -->
+                ${attractionBooking.guideOptions && attractionBooking.guideOptions.guide_required && (attractionBooking.guideOptions.guide_required === true || attractionBooking.guideOptions.guide_required === 'true' || attractionBooking.guideOptions.guide_required === 'Yes' || attractionBooking.guideOptions.guide_required === 1) ? `
+                <div class="bg-light rounded p-2 mb-3">
+                    <div class="d-flex align-items-center mb-2">
+                        <div class="rounded-circle p-1 me-2" style="background: linear-gradient(135deg, #fd9853 0%, #fe7854 100%); width: 28px; height: 28px; display: flex; align-items: center; justify-content: center;">
+                            <i class="ri-user-star-line text-white" style="font-size: 0.9rem;"></i>
+                        </div>
+                        <h6 class="fw-bold mb-0 text-dark" style="font-size: 0.95rem;">Guide Details</h6>
+                    </div>
+                    <div class="row g-2">
+                        <div class="col-md-6">
+                            <div class="bg-white rounded p-2">
+                                <small class="text-muted d-block" style="font-size: 0.7rem;">Guide Name</small>
+                                <div class="fw-medium text-primary" style="font-size: 0.8rem;">${attractionBooking.guideOptions.guide_name || 'N/A'}</div>
+                                <div class="mt-1">
+                                    <small class="text-muted d-block" style="font-size: 0.7rem;">Duration</small>
+                                    <div class="fw-medium">
+                                        <span class="badge bg-info" style="font-size: 0.7rem;">${attractionBooking.guideOptions.package_hours || 'N/A'} H</span>
+                                    </div>
+                                </div>
+                                ${attractionBooking.guideOptions.pickup_time ? `
+                                <div class="mt-1">
+                                    <small class="text-muted d-block" style="font-size: 0.7rem;">Pickup Time</small>
+                                    <div class="fw-medium text-success" style="font-size: 0.8rem;">${attractionBooking.guideOptions.pickup_time ? new Date('2000-01-01T' + attractionBooking.guideOptions.pickup_time).toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', hour12: true }) : 'N/A'}</div>
+                                </div>
+                                ` : ''}
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="bg-white rounded p-2">
+                                <small class="text-muted d-block" style="font-size: 0.7rem;">Base Price</small>
+                                <div class="fw-medium text-primary" style="font-size: 0.8rem;">SGD ${parseFloat(attractionBooking.guideOptions.base_price || 0).toFixed(2)}</div>
+                                ${attractionBooking.guideOptions.surcharge && attractionBooking.guideOptions.surcharge > 0 ? `
+                                <div class="mt-1">
+                                    <small class="text-muted d-block" style="font-size: 0.7rem;">Night Surcharge</small>
+                                    <div class="fw-medium text-warning" style="font-size: 0.8rem;">SGD ${parseFloat(attractionBooking.guideOptions.surcharge).toFixed(2)}</div>
+                                </div>
+                                ` : ''}
+                                <div class="mt-1">
+                                    <small class="text-muted d-block" style="font-size: 0.7rem;">Total Cost</small>
+                                    <div class="fw-bold text-success" style="font-size: 0.9rem;">SGD ${parseFloat(attractionBooking.guideOptions.total_price || 0).toFixed(2)}</div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                ` : ''}
+
+                <!-- Special Requests -->
+                ${attractionBooking.specialRequests ? `
+                <div class="bg-light rounded p-2 mb-3">
+                    <div class="d-flex align-items-center mb-2">
+                        <div class="rounded-circle p-1 me-2" style="background: linear-gradient(135deg, #fd9853 0%, #fe7854 100%); width: 28px; height: 28px; display: flex; align-items: center; justify-content: center;">
+                            <i class="ri-message-line text-white" style="font-size: 0.9rem;"></i>
+                        </div>
+                        <h6 class="fw-bold mb-0 text-dark" style="font-size: 0.95rem;">Special Requests</h6>
+                    </div>
+                    <div class="bg-white rounded p-2">
+                        <p class="mb-0 text-dark" style="font-size: 0.85rem;">${attractionBooking.specialRequests}</p>
+                    </div>
+                </div>
+                ` : ''}
+
+                <!-- Pricing Overview -->
+                <div class="bg-light rounded p-2 mb-3">
+                    <div class="d-flex align-items-center mb-2">
+                        <div class="rounded-circle p-1 me-2" style="background: linear-gradient(135deg, #fd9853 0%, #fe7854 100%); width: 28px; height: 28px; display: flex; align-items: center; justify-content: center;">
+                            <i class="ri-money-dollar-circle-line text-white" style="font-size: 0.9rem;"></i>
+                        </div>
+                        <h6 class="fw-bold mb-0 text-dark" style="font-size: 0.95rem;">Pricing Overview</h6>
+                    </div>
+                    <div class="row g-2">
+                        <div class="col-md-3">
+                            <div class="text-center p-2 border rounded bg-white" style="border-color: #28a745 !important;">
+                                <small class="text-muted d-block" style="font-size: 0.7rem;">Attraction Price</small>
+                                <div class="fw-bold text-success" style="font-size: 0.8rem;">SGD ${parseFloat(attractionBooking.totalPrice || 0).toFixed(2)}</div>
+                            </div>
+                        </div>
+                        <div class="col-md-3">
+                            <div class="text-center p-2 border rounded bg-white" style="border-color: #17a2b8 !important;">
+                                <small class="text-muted d-block" style="font-size: 0.7rem;">Vehicle Price</small>
+                                <div class="fw-bold text-info" style="font-size: 0.8rem;">SGD ${parseFloat((attractionBooking.transferOptions?.cost || 0)).toFixed(2)}</div>
+                            </div>
+                        </div>
+                        <div class="col-md-3">
+                            <div class="text-center p-2 border rounded bg-white" style="border-color: #6c757d !important;">
+                                <small class="text-muted d-block" style="font-size: 0.7rem;">Guide Price</small>
+                                <div class="fw-bold" style="font-size: 0.8rem; color: #6c757d;">SGD ${parseFloat((attractionBooking.guideOptions?.total_price || 0)).toFixed(2)}</div>
+                            </div>
+                        </div>
+                        <div class="col-md-3">
+                            <div class="text-center p-2 border rounded bg-white" style="border-color: #fd9853 !important; background: linear-gradient(135deg, rgba(253,152,83,0.1) 0%, rgba(254,120,84,0.1) 100%) !important;">
+                                <small class="text-muted d-block" style="font-size: 0.7rem;">Grand Total</small>
+                                <div class="fw-bold" style="font-size: 1.1rem; color: #fd9853;">SGD ${(parseFloat(attractionBooking.totalPrice || 0) + parseFloat(attractionBooking.transferOptions?.cost || 0) + parseFloat(attractionBooking.guideOptions?.total_price || 0)).toFixed(2)}</div>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="mt-2 text-center">
+                        <small class="text-muted" style="font-size: 0.75rem;">
+                            <i class="ri-information-line me-1"></i>
+                            Grand Total includes Attraction Price + Vehicle Price + Guide Price
+                        </small>
+                    </div>
+                </div>
+
+             
                 <!-- Individual Action Buttons -->
                 <div class="bg-white rounded p-3 shadow-sm border-top">
                     <div class="d-flex align-items-center justify-content-between">
@@ -9333,48 +9643,66 @@ function generateIndividualAttractionContent(attractionBooking, modalId, tourId,
                         }
                     </div>
                 </div>
-            </div>
         </div>
     `;
     
     document.getElementById(`${modalId}_content`).innerHTML = content;
     
     // Add action buttons based on user role and approval status
-    if (!attractionBooking.isApprove) {
+    const isApproved = attractionBooking.isApprove == 1 || attractionBooking.isApprove === '1' || attractionBooking.isApprove === true || attractionBooking.is_approve == 1 || attractionBooking.is_approve === '1' || attractionBooking.is_approve === true || false;
+    
+    if (!isApproved) {
         const userRoleId = {{ auth()->user()->role_id ?? 0 }};
         const buttonsContainer = document.getElementById(`attraction_buttons_${tourId}_${attractionOrderIndex}_${bookingIndex}`);
         
         if (buttonsContainer) {
             let buttonsHTML = '';
             
-            // Edit and Approve buttons (DMC and Operational Head only)
-            if (userRoleId === 11 || userRoleId === 34 || userRoleId === 124 || userRoleId === 125 || userRoleId === 128 || userRoleId === 131 || userRoleId === 132 || userRoleId === 134 || userRoleId === 135 || userRoleId === 137 || userRoleId === 138) {
-                buttonsHTML += `
-                    <button type="button" 
-                            class="btn btn-outline-primary btn-sm px-3 py-2" 
-                            onclick="editIndividualAttraction(${tourId}, ${attractionOrderIndex}, ${bookingIndex})"
-                            style="border-radius: 25px;">
-                        <i class="ri-edit-line me-1"></i>Edit
-                    </button>
-                    <button type="button" 
-                            class="btn btn-outline-success btn-sm px-3 py-2" 
-                            onclick="window.approveIndividualAttraction ? window.approveIndividualAttraction(${tourId}, ${attractionOrderIndex}, ${bookingIndex}, '${actualCancelDateStr}') : approveIndividualAttraction(${tourId}, ${attractionOrderIndex}, ${bookingIndex}, '${actualCancelDateStr}')"
-                            style="border-radius: 25px;">
-                        <i class="ri-check-line me-1"></i>Approve
-                    </button>
-                `;
-            }
+            // Check permissions
+            const canEdit = [11, 34, 124, 125, 128, 131, 132, 134, 135, 137, 138].includes(userRoleId);
+            const canApprove = [11, 34, 124, 125, 128, 131, 132, 134, 135, 137, 138].includes(userRoleId);
+            const canReject = [11, 34, 33, 37, 38, 124, 125, 128, 129, 130, 131, 132, 134, 135, 136, 137, 138].includes(userRoleId);
+            const hasAnyPermission = canEdit || canApprove || canReject;
             
-            // Reject button (DMC, Operational Head, and Sales Head)
-            if (userRoleId === 11 || userRoleId === 34 || userRoleId === 33 || userRoleId === 37 || userRoleId === 38 || userRoleId === 124 || userRoleId === 125 || userRoleId === 128 || userRoleId === 129 || userRoleId === 130 || userRoleId === 131 || userRoleId === 132 || userRoleId === 134 || userRoleId === 135 || userRoleId === 136 || userRoleId === 137 || userRoleId === 138) {
+            if (hasAnyPermission) {
+                // Edit button (DMC and Operational Head only)
+                if (canEdit) {
                 buttonsHTML += `
                     <button type="button" 
-                            class="btn btn-outline-danger btn-sm px-3 py-2" 
-                            onclick="window.rejectIndividualAttraction ? window.rejectIndividualAttraction(${tourId}, ${attractionOrderIndex}, ${bookingIndex}, '${actualCancelDateStr}') : rejectIndividualAttraction(${tourId}, ${attractionOrderIndex}, ${bookingIndex}, '${actualCancelDateStr}')"
-                            style="border-radius: 25px;">
-                        <i class="ri-close-line me-1"></i>Reject
+                                class="btn btn-sm px-2 py-1" 
+                                onclick="editIndividualAttraction(${tourId}, ${attractionOrderIndex}, ${bookingIndex}, '${autoCancelDate || ''}')"
+                                style="border-radius: 6px; background: linear-gradient(135deg, #fd9853 0%, #fe7854 100%); border: none; color: white; font-size: 0.75rem;">
+                            <i class="ri-edit-line me-1" style="font-size: 0.7rem;"></i>Edit
+                    </button>
+                    `;
+                }
+                
+                // Approve button (DMC and Operational Head only)
+                if (canApprove) {
+                    buttonsHTML += `
+                    <button type="button" 
+                                class="btn btn-outline-success btn-sm px-2 py-1" 
+                                onclick="window.approveIndividualAttraction ? window.approveIndividualAttraction(${tourId}, ${attractionOrderIndex}, ${bookingIndex}, '${autoCancelDate || ''}') : approveIndividualAttraction(${tourId}, ${attractionOrderIndex}, ${bookingIndex}, '${autoCancelDate || ''}')"
+                                style="border-radius: 6px; font-size: 0.75rem;">
+                            <i class="ri-check-line me-1" style="font-size: 0.7rem;"></i>Approve
                     </button>
                 `;
+                }
+                
+                // Reject button (for users with reject permission)
+                if (canReject) {
+                    buttonsHTML += `
+                        <button type="button" 
+                                class="btn btn-outline-danger btn-sm px-2 py-1" 
+                                onclick="window.rejectIndividualAttraction ? window.rejectIndividualAttraction(${tourId}, ${attractionOrderIndex}, ${bookingIndex}, '${autoCancelDate || ''}') : rejectIndividualAttraction(${tourId}, ${attractionOrderIndex}, ${bookingIndex}, '${autoCancelDate || ''}')"
+                                style="border-radius: 6px; font-size: 0.75rem;">
+                            <i class="ri-close-line me-1" style="font-size: 0.7rem;"></i>Reject
+                        </button>
+                    `;
+                }
+            } else {
+                // Show pending approval only if user has no permissions
+                buttonsHTML += '<div class="text-muted small" style="font-size: 0.75rem;"><i class="ri-information-line me-1" style="font-size: 0.7rem;"></i>Pending approval</div>';
             }
             
             buttonsContainer.innerHTML = buttonsHTML;
@@ -9742,7 +10070,7 @@ function createIndividualRestaurantViewModal(tourId, restaurantOrderIndex, booki
                                     <h5 class="mb-0 fw-bold">
                                         <i class="ri-restaurant-2-line me-2"></i>Restaurant Details
                                     </h5>
-                                  
+                                    
                                 </div>
                                 <button type="button" class="btn-close btn-close-white" onclick="closeIndividualRestaurantViewModal('${modalId}')" aria-label="Close"></button>
                             </div>
@@ -9765,7 +10093,7 @@ function createIndividualRestaurantViewModal(tourId, restaurantOrderIndex, booki
                             <div class="d-flex gap-2 w-100 justify-content-end" id="restaurantModalFooter_${modalId}">
                                 <button type="button" class="btn btn-outline-secondary btn-sm px-3 py-1" onclick="closeIndividualRestaurantViewModal('${modalId}')" style="border-radius: 8px; font-size: 0.85rem;">
                                     <i class="ri-close-line me-1"></i>Close
-                                </button>
+                            </button>
                             </div>
                         </div>
                     </div>
@@ -9829,58 +10157,39 @@ function loadIndividualRestaurantContent(tourId, restaurantOrderIndex, bookingIn
         const isApproved = restaurantData.restaurant_details?.is_approve == 1 || restaurantData.restaurant_details?.is_approve === '1' || restaurantData.restaurant_details?.is_approve === true || restaurantData.restaurantDetails?.is_approve == 1 || restaurantData.restaurantDetails?.is_approve === '1' || restaurantData.restaurantDetails?.is_approve === true || false;
         
         if (!isApproved) {
-            const userRoleId = {{ auth()->user()->role_id ?? 0 }};
             const buttonsContainer = document.getElementById(`restaurant_buttons_${tourId}_${restaurantOrderIndex}_${bookingIndex}`);
             
             if (buttonsContainer) {
                 let buttonsHTML = '';
                 
-                // Check permissions
-                const canEdit = [11, 34, 124, 125, 128, 131, 132, 134, 135, 137, 138].includes(userRoleId);
-                const canApprove = [11, 34, 124, 125, 128, 131, 132, 134, 135, 137, 138].includes(userRoleId);
-                const canReject = [11, 34, 33, 37, 38, 124, 125, 128, 129, 130, 131, 132, 134, 135, 136, 137, 138].includes(userRoleId);
-                const hasAnyPermission = canEdit || canApprove || canReject;
-                
-                if (hasAnyPermission) {
-                    // Edit button (DMC and Operational Head only)
-                    if (canEdit) {
-                        buttonsHTML += `
-                            <button type="button" 
-                                    class="btn btn-sm px-2 py-1" 
-                                    onclick="editIndividualRestaurant(${tourId}, ${restaurantOrderIndex}, ${bookingIndex}, '${actualCancelDateStr || ''}')"
-                                    style="border-radius: 6px; background: linear-gradient(135deg, #fd79a8 0%, #fdcb6e 100%); border: none; color: white; font-size: 0.75rem;">
-                                <i class="ri-edit-line me-1" style="font-size: 0.7rem;"></i>Edit
-                            </button>
-                        `;
-                    }
-                    
-                    // Approve button (DMC and Operational Head only)
-                    if (canApprove) {
-                        buttonsHTML += `
-                            <button type="button" 
-                                    class="btn btn-outline-success btn-sm px-2 py-1" 
-                                    onclick="approveIndividualRestaurant(${tourId}, ${restaurantOrderIndex}, ${bookingIndex}, '${actualCancelDateStr || ''}')"
-                                    style="border-radius: 6px; font-size: 0.75rem;">
-                                <i class="ri-check-line me-1" style="font-size: 0.7rem;"></i>Approve
-                            </button>
-                        `;
-                    }
-                    
-                    // Reject button (for users with reject permission)
-                    if (canReject) {
-                        buttonsHTML += `
-                            <button type="button" 
-                                    class="btn btn-outline-danger btn-sm px-2 py-1" 
-                                    onclick="rejectIndividualRestaurant(${tourId}, ${restaurantOrderIndex}, ${bookingIndex}, '${actualCancelDateStr || ''}')"
-                                    style="border-radius: 6px; font-size: 0.75rem;">
-                                <i class="ri-close-line me-1" style="font-size: 0.7rem;"></i>Reject
-                            </button>
-                        `;
-                    }
-                } else {
-                    // Show pending approval only if user has no permissions
-                    buttonsHTML += '<div class="text-muted small" style="font-size: 0.75rem;"><i class="ri-information-line me-1" style="font-size: 0.7rem;"></i>Pending approval</div>';
-                }
+                // Show all buttons without role checks for testing
+                buttonsHTML += `
+                    <button type="button" 
+                            class="btn btn-sm px-2 py-1" 
+                            onclick="editIndividualRestaurant(${tourId}, ${restaurantOrderIndex}, ${bookingIndex}, '${actualCancelDateStr || ''}')"
+                            style="border-radius: 6px; background: linear-gradient(135deg, #fd79a8 0%, #fdcb6e 100%); border: none; color: white; font-size: 0.75rem;">
+                        <i class="ri-edit-line me-1" style="font-size: 0.7rem;"></i>Edit
+                    </button>
+                    <button type="button" 
+                            class="btn btn-outline-info btn-sm px-2 py-1" 
+                            onclick="openRestaurantMailPreview(${tourId}, ${restaurantOrderIndex}, ${bookingIndex})"
+                            style="border-radius: 6px; font-size: 0.75rem;"
+                            title="Preview email for this restaurant booking">
+                        <i class="ri-mail-line me-1" style="font-size: 0.7rem;"></i>Mail Preview
+                    </button>
+                    <button type="button" 
+                            class="btn btn-outline-success btn-sm px-2 py-1" 
+                            onclick="approveIndividualRestaurant(${tourId}, ${restaurantOrderIndex}, ${bookingIndex}, '${actualCancelDateStr || ''}')"
+                            style="border-radius: 6px; font-size: 0.75rem;">
+                        <i class="ri-check-line me-1" style="font-size: 0.7rem;"></i>Approve
+                    </button>
+                    <button type="button" 
+                            class="btn btn-outline-danger btn-sm px-2 py-1" 
+                            onclick="rejectIndividualRestaurant(${tourId}, ${restaurantOrderIndex}, ${bookingIndex}, '${actualCancelDateStr || ''}')"
+                            style="border-radius: 6px; font-size: 0.75rem;">
+                        <i class="ri-close-line me-1" style="font-size: 0.7rem;"></i>Reject
+                    </button>
+                `;
                 
                 buttonsContainer.innerHTML = buttonsHTML;
             }
@@ -9890,12 +10199,21 @@ function loadIndividualRestaurantContent(tourId, restaurantOrderIndex, bookingIn
             if (buttonsContainer) {
                 const referenceId = restaurantData.restaurant_details?.reference_id || restaurantData.restaurantDetails?.reference_id || '';
                 const displayDueDate = restaurantData.restaurant_details?.display_due_date || restaurantData.restaurantDetails?.display_due_date || '';
+                
                 buttonsContainer.innerHTML = `
-                    <div class="alert alert-success mb-0 py-1 px-2" style="border-radius: 6px; font-size: 0.75rem;">
-                        <i class="ri-check-circle-fill me-1" style="font-size: 0.7rem;"></i>
-                        <strong>Approved</strong>
-                        ${referenceId ? `<span class="ms-1">• Ref: ${referenceId}</span>` : ''}
-                        ${displayDueDate ? `<span class="ms-1">• Due: ${displayDueDate}</span>` : ''}
+                    <div class="d-flex align-items-center gap-2">
+                        <div class="alert alert-success mb-0 py-1 px-2" style="border-radius: 6px; font-size: 0.75rem;">
+                            <i class="ri-check-circle-fill me-1" style="font-size: 0.7rem;"></i>
+                            <strong>Approved</strong>
+                            ${referenceId ? `<span class="ms-1">• Ref: ${referenceId}</span>` : ''}
+                            ${displayDueDate ? `<span class="ms-1">• Due: ${displayDueDate}</span>` : ''}
+                        </div>
+                        <button type="button" class="btn btn-outline-info btn-sm px-3 py-1" 
+                                onclick="openRestaurantMailPreview(${tourId}, ${restaurantOrderIndex}, ${bookingIndex})"
+                                style="border-radius: 25px; font-size: 0.75rem;"
+                                title="Preview email for this restaurant booking">
+                            <i class="ri-mail-line me-1"></i>Mail Preview
+                        </button>
                     </div>
                 `;
             }
@@ -9992,27 +10310,27 @@ function generateIndividualRestaurantContent(booking, tourId, restaurantOrderInd
                 <!-- Transfer Options -->
                 ${(booking.transferOptions || fullBooking.transfer_options) && (booking.transferOptions?.transfer_required || fullBooking.transfer_options?.transfer_required) && (booking.transferOptions?.transfer_required === true || booking.transferOptions?.transfer_required === 'true' || booking.transferOptions?.transfer_required === 'Yes' || booking.transferOptions?.transfer_required === 1 || fullBooking.transfer_options?.transfer_required === true || fullBooking.transfer_options?.transfer_required === 'true' || fullBooking.transfer_options?.transfer_required === 'Yes' || fullBooking.transfer_options?.transfer_required === 1) ? `
                 <div class="bg-light rounded p-2 mb-3">
-                    <div class="d-flex align-items-center mb-2">
+                                        <div class="d-flex align-items-center mb-2">
                         <div class="rounded-circle p-1 me-2" style="background: linear-gradient(135deg, #fd79a8 0%, #fdcb6e 100%); width: 28px; height: 28px; display: flex; align-items: center; justify-content: center;">
                             <i class="ri-car-line text-white" style="font-size: 0.9rem;"></i>
-                        </div>
+                                        </div>
                         <h6 class="fw-bold mb-0 text-dark" style="font-size: 0.95rem;">Transfer Details</h6>
-                    </div>
+                                        </div>
                     <div class="row g-2">
                         <div class="col-md-6">
                             <div class="bg-white rounded p-2">
                                 <small class="text-muted d-block" style="font-size: 0.7rem;">Transfer Type</small>
                                 <div class="fw-medium" style="font-size: 0.8rem;">
                                     <span class="badge bg-primary" style="font-size: 0.7rem;">${(booking.transferOptions?.type || fullBooking.transfer_options?.type) || 'N/A'}</span>
-                                </div>
+                                    </div>
                                 ${(booking.transferOptions?.pickup_location_name || fullBooking.transfer_options?.pickup_location_name) ? `
                                 <div class="mt-1">
                                     <small class="text-muted d-block" style="font-size: 0.7rem;">Pickup</small>
                                     <div class="fw-medium text-primary" style="font-size: 0.8rem;">${booking.transferOptions?.pickup_location_name || fullBooking.transfer_options?.pickup_location_name}</div>
-                                </div>
+                                        </div>
                                 ` : ''}
-                            </div>
-                        </div>
+                                    </div>
+                                </div>
                         <div class="col-md-6">
                             <div class="bg-white rounded p-2">
                                 ${(booking.transferOptions?.vehicle_details || fullBooking.transfer_options?.vehicle_details) ? `
@@ -10029,44 +10347,44 @@ function generateIndividualRestaurantContent(booking, tourId, restaurantOrderInd
                                 <div class="mt-1">
                                     <small class="text-muted d-block" style="font-size: 0.7rem;">Cost</small>
                                     <div class="fw-bold text-success" style="font-size: 0.9rem;">SGD ${((booking.transferOptions?.cost || fullBooking.transfer_options?.cost) || 0).toFixed(2)}</div>
-                                </div>
+                                                </div>
                                 ` : ''}
-                            </div>
-                        </div>
-                    </div>
-                </div>
+                                            </div>
+                                                </div>
+                                                </div>
+                                            </div>
                 ` : ''}
 
                 ${fullBooking.MealDescription && fullBooking.MealDescription.length > 0 ? `
              
                 ` : ''}
-
+                    
   <!-- Pricing Overview -->
                 <div class="bg-light rounded p-2 mb-3">
                     <div class="d-flex align-items-center mb-2">
                         <div class="rounded-circle p-1 me-2" style="background: linear-gradient(135deg, #fd79a8 0%, #fdcb6e 100%); width: 28px; height: 28px; display: flex; align-items: center; justify-content: center;">
                             <i class="ri-money-dollar-circle-line text-white" style="font-size: 0.9rem;"></i>
-                        </div>
+                                </div>
                         <h6 class="fw-bold mb-0 text-dark" style="font-size: 0.95rem;">Pricing Overview</h6>
-                    </div>
+                                    </div>
                     <div class="row g-2">
                         <div class="col-md-4">
                             <div class="text-center p-2 border rounded bg-white" style="border-color: #28a745 !important;">
                                 <small class="text-muted d-block" style="font-size: 0.7rem;">Meal Price</small>
                                 <div class="fw-bold text-success" style="font-size: 0.8rem;">SGD ${((fullBooking.totalPrice || booking.total_price || 0) + ((booking.transferOptions?.cost || fullBooking.transfer_options?.cost) || 0)).toFixed(2)}</div>
+                                </div>
                             </div>
-                        </div>
                         <div class="col-md-4">
                             <div class="text-center p-2 border rounded bg-white" style="border-color: #17a2b8 !important;">
                                 <small class="text-muted d-block" style="font-size: 0.7rem;">Vehicle Price</small>
                                 <div class="fw-bold text-info" style="font-size: 0.8rem;">SGD ${((booking.transferOptions?.cost || fullBooking.transfer_options?.cost) || 0).toFixed(2)}</div>
-                            </div>
                         </div>
+                    </div>
                         <div class="col-md-4">
                             <div class="text-center p-2 border rounded bg-white" style="border-color: #fd79a8 !important; background: linear-gradient(135deg, rgba(253,121,168,0.1) 0%, rgba(253,203,110,0.1) 100%) !important;">
                                 <small class="text-muted d-block" style="font-size: 0.7rem;">Grand Total</small>
                                 <div class="fw-bold" style="font-size: 1.1rem; color: #fd79a8;">SGD ${((fullBooking.totalPrice || booking.total_price || 0) + ((booking.transferOptions?.cost || fullBooking.transfer_options?.cost) || 0)).toFixed(2)}</div>
-                            </div>
+                </div>
                         </div>
                     </div>
                     <div class="mt-2 text-center">
@@ -10076,17 +10394,17 @@ function generateIndividualRestaurantContent(booking, tourId, restaurantOrderInd
                         </small>
                     </div>
                 </div>
-                
-                <!-- Booking Status -->
-                <div class="bg-light rounded p-1">
-                    <div class="d-flex align-items-center mb-1">
-                        <div class="rounded-circle p-1 me-1" style="background: linear-gradient(135deg, #fd79a8 0%, #fdcb6e 100%); width: 20px; height: 20px; display: flex; align-items: center; justify-content: center;">
-                            <i class="ri-settings-line text-white" style="font-size: 0.7rem;"></i>
+
+                 <!-- Individual Action Buttons -->
+                <div class="bg-white rounded p-3 shadow-sm border-top">
+                    <div class="d-flex align-items-center justify-content-between flex-wrap gap-3">
+                        <div class="d-flex align-items-center">
+                            <div class="bg-secondary rounded-circle p-2 me-3">
+                                <i class="ri-settings-line text-white"></i>
+                            </div>
+                            <h6 class="fw-bold mb-0 text-dark">Booking Actions</h6>
                         </div>
-                        <h6 class="fw-bold mb-0 text-dark" style="font-size: 0.8rem;">Booking Status</h6>
-                    </div>
-                    <div class="d-flex gap-1 flex-wrap" id="restaurant_buttons_${tourId}_${restaurantOrderIndex}_${bookingIndex}">
-                        <!-- Buttons will be dynamically added based on user role -->
+                        ${generateRestaurantActionButtons(booking, tourId, restaurantOrderIndex, bookingIndex, actualCancelDateStr)}
                     </div>
                 </div>
 
@@ -10139,69 +10457,65 @@ function generateIndividualRestaurantContent(booking, tourId, restaurantOrderInd
 
 // Generate restaurant action buttons based on approval status
 function generateRestaurantActionButtons(booking, tourId, restaurantOrderIndex, bookingIndex, actualCancelDateStr=null) {
-    const isApproved = booking.restaurant_details?.is_approve == 1 || booking.restaurant_details?.is_approve === '1' || booking.restaurant_details?.is_approve === true || booking.is_approve == 1 || booking.is_approve === '1' || booking.is_approve === true || false;
+    const isApproved = booking.restaurant_details?.is_approve || booking.is_approve || false;
     
-    // Get user role from meta tag or global variable (assuming it's available)
-    const userRole = parseInt(document.querySelector('meta[name="user-role"]')?.getAttribute('content')) || {{ auth()->user()->role_id ?? 0 }};
+    console.log('🍽️ Generating restaurant action buttons (no role checks):', {
+        isApproved
+    });
     
     if (isApproved) {
-        const referenceId = booking.restaurant_details?.reference_id || booking.reference_id || '';
-        const displayDueDate = booking.restaurant_details?.display_due_date || booking.display_due_date || '';
         return `
-            <div class="alert alert-success mb-0 py-1 px-2" style="border-radius: 6px; font-size: 0.75rem;">
-                <i class="ri-check-circle-fill me-1" style="font-size: 0.7rem;"></i>
-                <strong>Approved</strong>
-                ${referenceId ? `<span class="ms-1">• Ref: ${referenceId}</span>` : ''}
-                ${displayDueDate ? `<span class="ms-1">• Due: ${displayDueDate}</span>` : ''}
+            <div class="d-flex align-items-center gap-3">
+                <div class="alert alert-success mb-0 py-2 px-3" style="border-radius: 25px;">
+                    <i class="ri-check-circle-fill me-1"></i>
+                    <small><strong>Approved Booking</strong></small>
+                    ${booking.reference_id ? `<br><small class="text-muted">Ref: ${booking.reference_id}</small>` : ''}
+                    ${booking.display_due_date ? `<br><small class="text-muted">Due: ${booking.display_due_date}</small>` : ''}
+                </div>
+                <button type="button" class="btn btn-outline-info btn-sm px-3 py-2" 
+                        onclick="openRestaurantMailPreview(${tourId}, ${restaurantOrderIndex}, ${bookingIndex})"
+                        style="border-radius: 25px;"
+                        title="Preview email for this restaurant booking">
+                    <i class="ri-mail-line me-1"></i>Mail Preview
+                </button>
+                <button type="button" class="btn btn-outline-primary btn-sm" 
+                        onclick="openRestaurantFilesModal('${tourId}', '${restaurantOrderIndex}', '${bookingIndex}')"
+                        title="View and manage uploaded files">
+                    <i class="ri-file-list-3-line me-1"></i>View Files
+                </button>
             </div>
         `;
     }
     
-    const canEdit = [11, 34, 124, 125, 128, 131, 132, 134, 135, 137, 138].includes(userRole);
-    const canApprove = [11, 34, 124, 125, 128, 131, 132, 134, 135, 137, 138].includes(userRole);
-    const canReject = [11, 34, 33, 37, 38, 124, 125, 128, 129, 130, 131, 132, 134, 135, 136, 137, 138].includes(userRole);
-    const hasAnyPermission = canEdit || canApprove || canReject;
-    
-    if (!hasAnyPermission) {
-        return '<div class="text-muted small" style="font-size: 0.75rem;"><i class="ri-information-line me-1" style="font-size: 0.7rem;"></i>Pending approval</div>';
-    }
-    
-    let buttonsHTML = '';
-    
-    if (canEdit) {
-        buttonsHTML += `
+    return `
+        <div class="d-flex gap-2">
             <button type="button" 
-                    class="btn btn-sm px-2 py-1" 
-                    onclick="editIndividualRestaurant(${tourId}, ${restaurantOrderIndex}, ${bookingIndex}, '${actualCancelDateStr || ''}')"
-                    style="border-radius: 6px; background: linear-gradient(135deg, #fd79a8 0%, #fdcb6e 100%); border: none; color: white; font-size: 0.75rem;">
-                <i class="ri-edit-line me-1" style="font-size: 0.7rem;"></i>Edit
+                    class="btn btn-outline-primary btn-sm px-3 py-2" 
+                    onclick="editIndividualRestaurant(${tourId}, ${restaurantOrderIndex}, ${bookingIndex})"
+                    style="border-radius: 25px;">
+                <i class="ri-edit-line me-1"></i>Edit
             </button>
-        `;
-    }
-    
-    if (canApprove) {
-        buttonsHTML += `
             <button type="button" 
-                    class="btn btn-outline-success btn-sm px-2 py-1" 
-                    onclick="approveIndividualRestaurant(${tourId}, ${restaurantOrderIndex}, ${bookingIndex}, '${actualCancelDateStr || ''}')"
-                    style="border-radius: 6px; font-size: 0.75rem;">
-                <i class="ri-check-line me-1" style="font-size: 0.7rem;"></i>Approve
+                    class="btn btn-outline-info btn-sm px-3 py-2" 
+                    onclick="openRestaurantMailPreview(${tourId}, ${restaurantOrderIndex}, ${bookingIndex})"
+                    style="border-radius: 25px;"
+                    title="Preview email for this restaurant booking">
+                <i class="ri-mail-line me-1"></i>Mail Preview
             </button>
-        `;
-    }
-    
-    if (canReject) {
-        buttonsHTML += `
             <button type="button" 
-                    class="btn btn-outline-danger btn-sm px-2 py-1" 
-                    onclick="rejectIndividualRestaurant(${tourId}, ${restaurantOrderIndex}, ${bookingIndex}, '${actualCancelDateStr || ''}')"
-                    style="border-radius: 6px; font-size: 0.75rem;">
-                <i class="ri-close-line me-1" style="font-size: 0.7rem;"></i>Reject
+                    class="btn btn-outline-success btn-sm px-3 py-2" 
+                    onclick="approveIndividualRestaurant(${tourId}, ${restaurantOrderIndex}, ${bookingIndex}, '${actualCancelDateStr}')"
+                    style="border-radius: 25px;">
+                <i class="ri-check-line me-1"></i>Approve
             </button>
-        `;
-    }
-    
-    return `<div class="d-flex gap-1 flex-wrap">${buttonsHTML}</div>`;
+            <button type="button" 
+                    class="btn btn-outline-danger btn-sm px-3 py-2" 
+                    onclick="rejectIndividualRestaurant(${tourId}, ${restaurantOrderIndex}, ${bookingIndex})"
+                    style="border-radius: 25px;">
+                <i class="ri-close-line me-1"></i>Reject
+            </button>
+        </div>
+    `;
 }
 
 let qrCodeLibraryPromise = null;
@@ -17582,7 +17896,7 @@ function loadIndividualLocalTransportContent(modalId, tourId, localTransportOrde
                 adults: rawData.adults || '0',
                 children: rawData.children || '0',
                 pickupPoint: rawData.entrypickup || localTransportDetails.entrypickup || localTransportDetails.pickup_point || 'N/A',
-                dropoffPoint: rawData.entrydropoff || localTransportDetails.entrydropoff || localTransportDetails.dropoff_point || 'N/A',
+                dropoffPoint: rawData.dropoffLocation || localTransportDetails.dropoffLocation || localTransportDetails.dropoff_point || 'N/A',
                 city: localTransportDetails.city || 'N/A',
                 country: localTransportDetails.country || 'N/A',
                 Tax: localTransportDetails.Tax || '0',
@@ -25928,7 +26242,408 @@ function confirmIndividualGuideRejection(tourId, guideOrderIndex, bookingIndex) 
         });
     }
 
+    // Restaurant Mail Preview Function
+    function openRestaurantMailPreview(tourId, restaurantOrderIndex, bookingIndex) {
+        console.log('🔍 Opening restaurant mail preview for:', { tourId, restaurantOrderIndex, bookingIndex });
+        
+        // Close any open individual restaurant modals first
+        closeOpenRestaurantModals(tourId, restaurantOrderIndex, bookingIndex);
+        
+        // Get tour and restaurant data
+        const tourRow = document.querySelector(`tr[data-tour-id="${tourId}"]`);
+        if (!tourRow) {
+            console.error('Tour row not found for tour ID:', tourId);
+            return;
+        }
 
+        // Get tour details from the table
+        const tourDisplayId = tourRow.querySelector('.text-success')?.textContent || `Tour #${tourId}`;
+        const destination = tourRow.querySelector('td:nth-child(3) .fw-medium')?.textContent || 'N/A';
+        const checkInDate = tourRow.querySelector('td:nth-child(7) small:first-child strong')?.nextSibling?.textContent?.trim() || 'N/A';
+        const checkOutDate = tourRow.querySelector('td:nth-child(7) small:nth-child(2) strong')?.nextSibling?.textContent?.trim() || 'N/A';
+        const agentName = tourRow.querySelector('td:nth-child(6) .fw-medium')?.textContent || 'N/A';
+        
+        // Generate email subject
+        const emailSubject = `Restaurant Booking Confirmation - ${tourDisplayId} - ${destination}`;
+        document.getElementById('restaurantEmailSubject').value = emailSubject;
+
+        // Reset modal state
+        resetRestaurantMailPreviewModal();
+        
+        // Show loading state
+        document.getElementById('restaurantEmailLoadingState').style.display = 'block';
+        document.getElementById('restaurantEmailContent').textContent = '';
+
+        // Generate email content asynchronously
+        generateRestaurantEmailContent(tourId, tourDisplayId, destination, checkInDate, checkOutDate, agentName, restaurantOrderIndex, bookingIndex)
+            .then(emailContent => {
+                // Hide loading state and show content
+                document.getElementById('restaurantEmailLoadingState').style.display = 'none';
+                document.getElementById('restaurantEmailContent').textContent = emailContent;
+                
+                // Show the modal
+                const modal = new bootstrap.Modal(document.getElementById('restaurantMailPreviewModal'));
+                modal.show();
+            })
+            .catch(error => {
+                console.error('Error generating email content:', error);
+                
+                // Hide loading state
+                document.getElementById('restaurantEmailLoadingState').style.display = 'none';
+                
+                // Show fallback content
+                const fallbackContent = `Dear Valued Partner,\n\nWe are pleased to confirm your restaurant booking request. Please find the details below:\n\n=== RESTAURANT BOOKING CONFIRMATION ===\n\nBOOKING INFORMATION\nReference ID: ${tourDisplayId}\nTour ID: ${tourId}\nAgent: ${agentName}\n\nTOUR DETAILS\nDestination: ${destination}\nCheck-in Date: ${checkInDate}\nCheck-out Date: ${checkOutDate}\n\nFor any questions or modifications, please contact our support team.`;
+                
+                document.getElementById('restaurantEmailContent').textContent = fallbackContent;
+                
+                // Show the modal
+                const modal = new bootstrap.Modal(document.getElementById('restaurantMailPreviewModal'));
+                modal.show();
+            });
+    }
+
+    // Function to close open restaurant modals
+    function closeOpenRestaurantModals(tourId, restaurantOrderIndex, bookingIndex) {
+        console.log('🔒 Closing open restaurant modals for:', { tourId, restaurantOrderIndex, bookingIndex });
+        
+        // Close individual restaurant view modal
+        const individualModalId = `individualRestaurantViewModal_${tourId}_${restaurantOrderIndex}_${bookingIndex}`;
+        const individualModal = document.getElementById(individualModalId);
+        if (individualModal) {
+            try {
+                const modalInstance = bootstrap.Modal.getInstance(individualModal);
+                if (modalInstance) {
+                    modalInstance.hide();
+                    console.log('✅ Closed individual restaurant view modal');
+                }
+            } catch (error) {
+                console.log('Individual modal not found or already closed');
+            }
+        }
+        
+        // Close any other individual restaurant modals (edit, approve, reject)
+        const actionModals = ['edit', 'approve', 'reject'];
+        actionModals.forEach(action => {
+            const actionModalId = `individualRestaurantModal_${tourId}_${restaurantOrderIndex}_${bookingIndex}_${action}`;
+            const actionModal = document.getElementById(actionModalId);
+            if (actionModal) {
+                try {
+                    const modalInstance = bootstrap.Modal.getInstance(actionModal);
+                    if (modalInstance) {
+                        modalInstance.hide();
+                        console.log(`✅ Closed ${action} restaurant modal`);
+                    }
+                } catch (error) {
+                    console.log(`${action} modal not found or already closed`);
+                }
+            }
+        });
+        
+        // Close main restaurant details modal
+        const mainRestaurantModal = document.getElementById(`restaurantDetailsModal${tourId}`);
+        if (mainRestaurantModal) {
+            try {
+                const modalInstance = bootstrap.Modal.getInstance(mainRestaurantModal);
+                if (modalInstance) {
+                    modalInstance.hide();
+                    console.log('✅ Closed main restaurant details modal');
+                }
+            } catch (error) {
+                console.log('Main restaurant modal not found or already closed');
+            }
+        }
+        
+        // Wait a moment for modals to close before opening mail preview
+        setTimeout(() => {
+            console.log('⏳ Modals closed, ready to open mail preview');
+        }, 300);
+    }
+
+    // Function to close restaurant mail preview modal
+    function closeRestaurantMailPreviewModal() {
+        const mailPreviewModal = document.getElementById('restaurantMailPreviewModal');
+        if (mailPreviewModal) {
+            const modal = bootstrap.Modal.getInstance(mailPreviewModal);
+            if (modal) {
+                modal.hide();
+                console.log('✅ Restaurant mail preview modal closed');
+            }
+        }
+    }
+
+    // Function to show copy success message in restaurant modal
+    function showRestaurantCopySuccessMessage() {
+        const successMessage = document.getElementById('restaurantCopySuccessMessage');
+        const emailContent = document.getElementById('restaurantEmailContent');
+        
+        if (successMessage && emailContent) {
+            // Hide email content and show success message
+            emailContent.style.display = 'none';
+            successMessage.style.display = 'block';
+            
+            console.log('✅ Copy success message displayed');
+        }
+    }
+
+    // Function to reset restaurant mail preview modal state
+    function resetRestaurantMailPreviewModal() {
+        const successMessage = document.getElementById('restaurantCopySuccessMessage');
+        const emailContent = document.getElementById('restaurantEmailContent');
+        const loadingState = document.getElementById('restaurantEmailLoadingState');
+        
+        if (successMessage) successMessage.style.display = 'none';
+        if (emailContent) {
+            emailContent.style.display = 'block';
+            emailContent.textContent = '';
+        }
+        if (loadingState) loadingState.style.display = 'none';
+        
+        console.log('🔄 Restaurant mail preview modal state reset');
+    }
+
+    // Generate restaurant email content with proper formatting
+    function generateRestaurantEmailContent(tourId, tourDisplayId, destination, checkInDate, checkOutDate, agentName, restaurantOrderIndex, bookingIndex) {
+        // Fetch actual restaurant data from the backend
+        return fetchRestaurantDataAndGenerateEmail(tourId, restaurantOrderIndex, bookingIndex, tourDisplayId, destination, checkInDate, checkOutDate, agentName);
+    }
+
+    // Function to fetch restaurant data and generate formatted email
+    async function fetchRestaurantDataAndGenerateEmail(tourId, restaurantOrderIndex, bookingIndex, tourDisplayId, destination, checkInDate, checkOutDate, agentName) {
+        try {
+            console.log('🔍 Fetching restaurant data for email generation:', { tourId, restaurantOrderIndex, bookingIndex });
+            
+            // Get CSRF token
+            const csrfToken = document.querySelector('meta[name="csrf-token"]')?.getAttribute('content');
+            
+            // Fetch restaurant data from backend
+            const response = await fetch('{{ url("/booking/get-restaurant-data") }}', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRF-TOKEN': csrfToken,
+                    'Accept': 'application/json'
+                },
+                body: JSON.stringify({
+                    tour_id: tourId,
+                    restaurant_order_index: restaurantOrderIndex,
+                    booking_index: bookingIndex
+                })
+            });
+
+            if (!response.ok) {
+                throw new Error(`HTTP error! status: ${response.status}`);
+            }
+
+            const data = await response.json();
+            console.log('📊 Restaurant data received:', data);
+
+            if (data.success && data.data && data.data.restaurant_booking) {
+                const restaurantData = data.data.restaurant_booking;
+                console.log('🍽️ Restaurant booking data structure:', restaurantData);
+                return generateFormattedRestaurantEmail(restaurantData, tourId, tourDisplayId, destination, checkInDate, checkOutDate, agentName);
+            } else {
+                console.warn('No restaurant data found, using fallback');
+                return generateFallbackRestaurantEmail(tourId, tourDisplayId, destination, checkInDate, checkOutDate, agentName);
+            }
+        } catch (error) {
+            console.error('Error fetching restaurant data:', error);
+            return generateFallbackRestaurantEmail(tourId, tourDisplayId, destination, checkInDate, checkOutDate, agentName);
+        }
+    }
+
+    // Generate formatted restaurant email with proper structure
+    function generateFormattedRestaurantEmail(restaurantData, tourId, tourDisplayId, destination, checkInDate, checkOutDate, agentName) {
+        const WIDTH = 66;
+        const border = '┌' + '─'.repeat(WIDTH - 2) + '┐';
+        const sectionBorder = '├' + '─'.repeat(WIDTH - 2) + '┤';
+        const endBorder = '└' + '─'.repeat(WIDTH - 2) + '┘';
+        const header = '╔' + '═'.repeat(WIDTH - 2) + '╗';
+        const headerEnd = '╚' + '═'.repeat(WIDTH - 2) + '╝';
+        const sectionHeader = (title) => `│${centerText(title, WIDTH - 2)}│`;
+        const row = (label, value) => `│ ${padRight(label, 16)} │ ${padRight(value, 43)}│`;
+        const fullRow = (text) => `│ ${padRight(text, WIDTH - 4)} │`;
+
+        let content = `Dear Valued Partner,\n\nWe are pleased to confirm your restaurant booking request. Please find the details below:\n\n${header}\n║${centerText('=== RESTAURANT BOOKING CONFIRMATION ===', WIDTH - 2)}║\n${headerEnd}\n`;
+        
+        // BOOKING INFORMATION
+        content += `${border}\n${sectionHeader('BOOKING INFORMATION')}\n${sectionBorder}\n`;
+        content += `${row('Reference ID', tourDisplayId)}\n`;
+        content += `${row('Tour ID', tourId.toString())}\n`;
+        content += `${row('Agent', agentName)}\n`;
+        content += `${endBorder}\n\n`;
+        
+        // TOUR DETAILS
+        content += `${border}\n${sectionHeader('TOUR DETAILS')}\n${sectionBorder}\n`;
+        
+        // Get restaurant name for display
+        let restaurantName = 'N/A';
+        if (restaurantData.restaurant_name) {
+            restaurantName = restaurantData.restaurant_name;
+        } else if (restaurantData.restaurant_details?.restaurantName) {
+            restaurantName = restaurantData.restaurant_details.restaurantName;
+        } else if (restaurantData.restaurant_details?.restaurant_name) {
+            restaurantName = restaurantData.restaurant_details.restaurant_name;
+        }
+        
+        content += `${row('Restaurant Name', restaurantName)}\n`;
+        content += `${row('Destination', destination)}\n`;
+        content += `${endBorder}\n\n`;
+        
+        // SERVICE DETAILS
+        content += `${border}\n${sectionHeader('SERVICE DETAILS')}\n${sectionBorder}\n`;
+        content += `${row('Service Type', 'Restaurant')}\n`;
+        
+        if (restaurantData.meal_type) {
+            content += `${row('Meal Type', restaurantData.meal_type)}\n`;
+        }
+        if (restaurantData.meal_specific_type) {
+            content += `${row('Meal Specific Type', restaurantData.meal_specific_type)}\n`;
+        }
+        if (restaurantData.booking_date) {
+            content += `${row('Booking Date', formatEmailDate(restaurantData.booking_date))}\n`;
+        }
+        if (restaurantData.visit_time) {
+            content += `${row('Visit Time', restaurantData.visit_time)}\n`;
+        }
+        if (restaurantData.adult_count !== undefined) {
+            content += `${row('Adult Count', restaurantData.adult_count.toString())}\n`;
+        }
+        if (restaurantData.child_count !== undefined) {
+            content += `${row('Child Count', restaurantData.child_count.toString())}\n`;
+        }
+        if (restaurantData.total_price) {
+            const price = (parseFloat(restaurantData.total_price) / 100).toFixed(2); // Convert from cents to dollars
+            content += `${row('Total Price', 'SGD ' + price)}\n`;
+        }
+        
+        // Transfer Options
+        if (restaurantData.transfer_options && restaurantData.transfer_options.transfer_required) {
+            content += `${row('Transfer Required', 'Yes')}\n`;
+            if (restaurantData.transfer_options.type) {
+                content += `${row('Transfer Type', restaurantData.transfer_options.type)}\n`;
+            }
+            if (restaurantData.transfer_options.pickup_location_name) {
+                content += `${row('Pickup Location', restaurantData.transfer_options.pickup_location_name)}\n`;
+            }
+            if (restaurantData.transfer_options.cost) {
+                const transferCost = (parseFloat(restaurantData.transfer_options.cost) / 100).toFixed(2);
+                content += `${row('Transfer Cost', 'SGD ' + transferCost)}\n`;
+            }
+        }
+        
+        content += `${endBorder}\n\n`;
+        
+        // IMPORTANT NOTES
+        content += `${border}\n${sectionHeader('IMPORTANT NOTES')}\n${sectionBorder}\n`;
+        content += `${fullRow('• Please confirm this booking within 24 hours')}\n`;
+        content += `${fullRow('• All timings are local time')}\n`;
+        content += `${fullRow('• Prices are subject to availability and confirmation')}\n`;
+        content += `${fullRow('• Terms and conditions apply')}\n`;
+        content += `${fullRow('')}\n`;
+        content += `${fullRow('For any queries or modifications, please contact us immediately.')}\n`;
+        content += `${endBorder}\n\n`;
+        
+        return content;
+    }
+
+    // Generate fallback email if restaurant data cannot be fetched
+    function generateFallbackRestaurantEmail(tourId, tourDisplayId, destination, checkInDate, checkOutDate, agentName) {
+        const WIDTH = 66;
+        const border = '┌' + '─'.repeat(WIDTH - 2) + '┐';
+        const sectionBorder = '├' + '─'.repeat(WIDTH - 2) + '┤';
+        const endBorder = '└' + '─'.repeat(WIDTH - 2) + '┘';
+        const header = '╔' + '═'.repeat(WIDTH - 2) + '╗';
+        const headerEnd = '╚' + '═'.repeat(WIDTH - 2) + '╝';
+        const sectionHeader = (title) => `│${centerText(title, WIDTH - 2)}│`;
+        const row = (label, value) => `│ ${padRight(label, 16)} │ ${padRight(value, 43)}│`;
+
+        let content = `Dear Valued Partner,\n\nWe are pleased to confirm your restaurant booking request. Please find the details below:\n\n${header}\n║${centerText('=== RESTAURANT BOOKING CONFIRMATION ===', WIDTH - 2)}║\n${headerEnd}\n`;
+        
+        content += `${border}\n${sectionHeader('BOOKING INFORMATION')}\n${sectionBorder}\n`;
+        content += `${row('Reference ID', tourDisplayId)}\n`;
+        content += `${row('Tour ID', tourId.toString())}\n`;
+        content += `${row('Agent', agentName)}\n`;
+        content += `${endBorder}\n\n`;
+        
+        content += `${border}\n${sectionHeader('TOUR DETAILS')}\n${sectionBorder}\n`;
+        content += `${row('Restaurant Name', 'To be confirmed')}\n`;
+        content += `${row('Destination', destination)}\n`;
+        content += `${row('Check-in Date', formatEmailDate(checkInDate))}\n`;
+        content += `${row('Check-out Date', formatEmailDate(checkOutDate))}\n`;
+        content += `${endBorder}\n\n`;
+        
+        content += `${border}\n${sectionHeader('SERVICE DETAILS')}\n${sectionBorder}\n`;
+        content += `${row('Service Type', 'Restaurant')}\n`;
+        content += `${row('Note', 'Restaurant details to be confirmed')}\n`;
+        content += `${endBorder}\n\n`;
+        
+        content += `${border}\n${sectionHeader('IMPORTANT NOTES')}\n${sectionBorder}\n`;
+        content += `${row('Note', 'Please contact us for complete restaurant details')}\n`;
+        content += `${endBorder}\n\n`;
+        
+        return content;
+    }
+
+    // Copy restaurant email content to clipboard
+    document.addEventListener('DOMContentLoaded', function() {
+        const copyRestaurantEmailBtn = document.getElementById('copyRestaurantEmailBtn');
+        const copyRestaurantEmailBtn2 = document.getElementById('copyRestaurantEmailBtn2');
+
+        if (copyRestaurantEmailBtn) {
+            copyRestaurantEmailBtn.addEventListener('click', function() {
+                copyRestaurantEmailToClipboard();
+            });
+        }
+
+        if (copyRestaurantEmailBtn2) {
+            copyRestaurantEmailBtn2.addEventListener('click', function() {
+                copyRestaurantEmailToClipboard();
+            });
+        }
+
+        // Add event listener for restaurant mail preview modal close
+        const restaurantMailPreviewModal = document.getElementById('restaurantMailPreviewModal');
+        if (restaurantMailPreviewModal) {
+            restaurantMailPreviewModal.addEventListener('hidden.bs.modal', function() {
+                console.log('📧 Restaurant mail preview modal closed');
+                // You can add any cleanup logic here if needed
+            });
+        }
+    });
+
+    function copyRestaurantEmailToClipboard() {
+        const subject = document.getElementById('restaurantEmailSubject').value;
+        const content = document.getElementById('restaurantEmailContent').textContent;
+        
+        const fullEmail = `Subject: ${subject}\n\n${content}`;
+        
+        navigator.clipboard.writeText(fullEmail).then(function() {
+            // Show success message in modal
+            showRestaurantCopySuccessMessage();
+            
+            // Close the mail preview modal after successful copy
+            setTimeout(() => {
+                closeRestaurantMailPreviewModal();
+            }, 1500); // Slightly longer delay to ensure user sees the success message
+        }).catch(function(err) {
+            console.error('Failed to copy: ', err);
+            // Fallback for older browsers
+            const textArea = document.createElement('textarea');
+            textArea.value = fullEmail;
+            document.body.appendChild(textArea);
+            textArea.select();
+            document.execCommand('copy');
+            document.body.removeChild(textArea);
+            
+            // Show success message in modal
+            showRestaurantCopySuccessMessage();
+            
+            // Close the mail preview modal after successful copy (fallback)
+            setTimeout(() => {
+                closeRestaurantMailPreviewModal();
+            }, 1500); // Slightly longer delay to ensure user sees the success message
+        });
+    }
 
     function createAndShowArrivalEditModal(tourId, arrivalOrderIndex, bookingIndex) {
         console.log('🛬 Opening arrival edit modal for:', { tourId, arrivalOrderIndex, bookingIndex });
@@ -26813,33 +27528,113 @@ function confirmIndividualGuideRejection(tourId, guideOrderIndex, bookingIndex) 
     </div>
 </div>
 
+<!-- Restaurant Mail Preview Modal -->
+<div class="modal fade" id="restaurantMailPreviewModal" tabindex="-1" aria-labelledby="restaurantMailPreviewModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-lg modal-dialog-centered modal-dialog-scrollable">
+        <div class="modal-content border-0 shadow-lg">
+            <div class="modal-header border-0 bg-light">
+                <h5 class="modal-title d-flex align-items-center gap-2" id="restaurantMailPreviewModalLabel">
+                    <span class="badge rounded-circle bg-primary-subtle text-primary d-flex align-items-center justify-content-center" style="width: 32px; height: 32px;">
+                        <i class="fas fa-envelope"></i>
+                    </span>
+                    <span>Email Preview &mdash; Restaurant Booking</span>
+                </h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+
+            <div class="modal-body">
+                <div class="row g-3 align-items-end mb-3">
+                    <div class="col-md-8">
+                        <label for="restaurantEmailSubject" class="form-label fw-semibold">
+                            Subject
+                        </label>
+                        <input 
+                            type="text" 
+                            id="restaurantEmailSubject" 
+                            class="form-control bg-light" 
+                            readonly
+                        >
+                    </div>
+                    <div class="col-md-4 text-md-end">
+                        <button type="button" class="btn btn-success w-100" id="copyRestaurantEmailBtn">
+                            <i class="fas fa-copy me-1"></i>
+                            Copy Email Content
+                        </button>
+                    </div>
+                </div>
+
+                <div class="border rounded-3 p-3 bg-light" style="max-height: 400px; overflow-y: auto; overflow-x: hidden;">
+                    <div id="restaurantEmailLoadingState" class="text-center py-4" style="display: none;">
+                        <div class="spinner-border text-primary" role="status">
+                            <span class="visually-hidden">Loading...</span>
+                        </div>
+                        <p class="text-muted mt-2 mb-0">Generating email content...</p>
+                    </div>
+
+                    <div id="restaurantCopySuccessMessage" class="alert alert-success text-center py-3 mb-0" style="display: none;">
+                        <i class="fas fa-check-circle me-2"></i>
+                        <strong>Email content copied successfully!</strong>
+                        <div class="small text-muted mt-1">
+                            Modal will close automatically in a moment.
+                        </div>
+                    </div>
+
+                    <pre 
+                        id="restaurantEmailContent" 
+                        class="mb-0"
+                        style="white-space: pre-wrap; word-wrap: break-word; overflow-wrap: break-word; font-family: 'Courier New', monospace; color: #333;"
+                    ></pre>
+                </div>
+
+                <div class="alert alert-info mt-3 mb-0">
+                    <i class="fas fa-info-circle me-2"></i>
+                    <strong>How to use:</strong>
+                    <span class="text-muted">
+                        Click <em>Copy Email Content</em> to copy the subject and body, then paste it into your email client.
+                    </span>
+                </div>
+            </div>
+
+            <div class="modal-footer border-0 bg-light">
+                <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">
+                    <i class="fas fa-times me-1"></i>
+                    Close
+                </button>
+                <button type="button" class="btn btn-primary ms-auto" id="copyRestaurantEmailBtn2">
+                    <i class="fas fa-copy me-1"></i>
+                    Copy to Clipboard
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
 
 <!-- Attraction Files Management Modal -->
 <div class="modal fade" id="attractionFilesModal" tabindex="-1" aria-labelledby="attractionFilesModalLabel" aria-hidden="true" style="z-index: 1060;">
-    <div class="modal-dialog modal-xl">
-        <div class="modal-content" style="border-radius: 16px; border: none; box-shadow: 0 20px 60px rgba(0,0,0,0.15);">
-            <div class="modal-header" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); border-radius: 16px 16px 0 0; padding: 24px 32px; border: none;">
-                <h5 class="modal-title text-white fw-bold" id="attractionFilesModalLabel" style="font-size: 1.25rem;">
-                    <i class="ri-file-list-3-line me-2"></i>Manage Attraction Files
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content" style="border-radius: 8px; border: none; box-shadow: 0 20px 60px rgba(0,0,0,0.15);">
+            <div class="modal-header" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); border-radius: 8px 8px 0 0; padding: 8px 16px; border: none;">
+                <h5 class="modal-title text-white fw-bold" id="attractionFilesModalLabel" style="font-size: 0.9rem;">
+                    <i class="ri-file-list-3-line me-1"></i>Manage Attraction Files
                 </h5>
-                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close" style="filter: brightness(0) invert(1);"></button>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close" style="filter: brightness(0) invert(1); font-size: 0.75rem;"></button>
             </div>
-            <div class="modal-body" style="padding: 32px; background-color: #f8f9fa;">
+            <div class="modal-body" style="padding: 12px; background-color: #f8f9fa;">
                 <div id="attractionFilesContent">
-                    <div class="text-center py-5">
-                        <div class="spinner-border text-primary" role="status" style="width: 3rem; height: 3rem;">
+                    <div class="text-center py-2">
+                        <div class="spinner-border text-primary" role="status" style="width: 1.5rem; height: 1.5rem;">
                             <span class="visually-hidden">Loading...</span>
                         </div>
-                        <p class="mt-3 text-muted fw-medium">Loading files...</p>
+                        <p class="mt-2 text-muted fw-medium" style="font-size: 0.85rem;">Loading files...</p>
                     </div>
                 </div>
             </div>
-            <div class="modal-footer" style="padding: 24px 32px; background-color: #ffffff; border-radius: 0 0 16px 16px; border: none;">
-                <button type="button" class="btn btn-light px-4 py-2" data-bs-dismiss="modal" style="border-radius: 8px; font-weight: 500;">
+            <div class="modal-footer" style="padding: 8px 16px; background-color: #ffffff; border-radius: 0 0 8px 8px; border: none;">
+                <button type="button" class="btn btn-light px-2 py-1" data-bs-dismiss="modal" style="border-radius: 4px; font-weight: 500; font-size: 0.85rem;">
                     Close
                 </button>
-                <button type="button" class="btn btn-success px-4 py-2" id="saveAttractionFiles" onclick="saveAttractionChanges()" 
-                        style="display: none; border-radius: 8px; font-weight: 500;">
+                <button type="button" class="btn btn-success px-2 py-1" id="saveAttractionFiles" onclick="saveAttractionChanges()" 
+                        style="display: none; border-radius: 4px; font-weight: 500; font-size: 0.85rem;">
                     <i class="ri-save-line me-1"></i>Save Changes
                 </button>
             </div>
@@ -26849,30 +27644,30 @@ function confirmIndividualGuideRejection(tourId, guideOrderIndex, bookingIndex) 
 
 <!-- Restaurant Files Management Modal -->
 <div class="modal fade" id="restaurantFilesModal" tabindex="-1" aria-labelledby="restaurantFilesModalLabel" aria-hidden="true" style="z-index: 1060;">
-    <div class="modal-dialog modal-xl">
-        <div class="modal-content" style="border-radius: 16px; border: none; box-shadow: 0 20px 60px rgba(0,0,0,0.15);">
-            <div class="modal-header" style="background: linear-gradient(135deg, #fd9853 0%, #fe7854 100%); border-radius: 16px 16px 0 0; padding: 24px 32px; border: none;">
-                <h5 class="modal-title text-white fw-bold" id="restaurantFilesModalLabel" style="font-size: 1.25rem;">
-                    <i class="ri-restaurant-line me-2"></i>Manage Restaurant Files
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content" style="border-radius: 8px; border: none; box-shadow: 0 20px 60px rgba(0,0,0,0.15);">
+            <div class="modal-header" style="background: linear-gradient(135deg, #fd9853 0%, #fe7854 100%); border-radius: 8px 8px 0 0; padding: 8px 16px; border: none;">
+                <h5 class="modal-title text-white fw-bold" id="restaurantFilesModalLabel" style="font-size: 0.9rem;">
+                    <i class="ri-restaurant-line me-1"></i>Manage Restaurant Files
                 </h5>
-                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close" style="filter: brightness(0) invert(1);"></button>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close" style="filter: brightness(0) invert(1); font-size: 0.75rem;"></button>
             </div>
-            <div class="modal-body" style="padding: 32px; background-color: #f8f9fa;">
+            <div class="modal-body" style="padding: 12px; background-color: #f8f9fa;">
                 <div id="restaurantFilesContent">
-                    <div class="text-center py-5">
-                        <div class="spinner-border text-primary" role="status" style="width: 3rem; height: 3rem;">
+                    <div class="text-center py-2">
+                        <div class="spinner-border text-primary" role="status" style="width: 1.5rem; height: 1.5rem;">
                             <span class="visually-hidden">Loading...</span>
                         </div>
-                        <p class="mt-3 text-muted fw-medium">Loading files...</p>
+                        <p class="mt-2 text-muted fw-medium" style="font-size: 0.85rem;">Loading files...</p>
                     </div>
                 </div>
             </div>
-            <div class="modal-footer" style="padding: 24px 32px; background-color: #ffffff; border-radius: 0 0 16px 16px; border: none;">
-                <button type="button" class="btn btn-light px-4 py-2" data-bs-dismiss="modal" style="border-radius: 8px; font-weight: 500;">
+            <div class="modal-footer" style="padding: 8px 16px; background-color: #ffffff; border-radius: 0 0 8px 8px; border: none;">
+                <button type="button" class="btn btn-light px-2 py-1" data-bs-dismiss="modal" style="border-radius: 4px; font-weight: 500; font-size: 0.85rem;">
                     Close
                 </button>
-                <button type="button" class="btn btn-success px-4 py-2" id="saveRestaurantFiles" onclick="saveRestaurantChanges()" 
-                        style="display: none; border-radius: 8px; font-weight: 500;">
+                <button type="button" class="btn btn-success px-2 py-1" id="saveRestaurantFiles" onclick="saveRestaurantChanges()" 
+                        style="display: none; border-radius: 4px; font-weight: 500; font-size: 0.85rem;">
                     <i class="ri-save-line me-1"></i>Save Changes
                 </button>
             </div>
@@ -27000,7 +27795,7 @@ function displayAttractionFiles(data, tourId, attractionOrderIndex, bookingIndex
         ` : ''}
         
         <div class="row g-4">
-            <div class="col-md-6">
+            <div class="col-md-8">
                 <div class="bg-white rounded-3 shadow-sm p-4">
                     <div class="d-flex align-items-center mb-3">
                         <div class="bg-secondary bg-opacity-10 rounded-circle p-2 me-3">
@@ -27076,7 +27871,7 @@ function displayAttractionFiles(data, tourId, attractionOrderIndex, bookingIndex
                     </div>
                 </div>
             </div>
-            <div class="col-md-6">
+            <div class="col-md-4">
                 <div class="bg-white rounded-3 shadow-sm p-4">
                     <div class="d-flex align-items-center mb-3">
                         <div class="bg-success bg-opacity-10 rounded-circle p-2 me-3">
@@ -27546,7 +28341,7 @@ function displayRestaurantFiles(data, tourId, restaurantOrderIndex, bookingIndex
         ` : ''}
         
         <div class="row g-4">
-            <div class="col-md-6">
+            <div class="col-md-8">
                 <div class="bg-white rounded-3 shadow-sm p-4">
                     <div class="d-flex align-items-center mb-3">
                         <div class="bg-secondary bg-opacity-10 rounded-circle p-2 me-3">
@@ -27622,7 +28417,7 @@ function displayRestaurantFiles(data, tourId, restaurantOrderIndex, bookingIndex
                     </div>
                 </div>
             </div>
-            <div class="col-md-6">
+            <div class="col-md-4">
                 <div class="bg-white rounded-3 shadow-sm p-4">
                     <div class="d-flex align-items-center mb-3">
                         <div class="bg-success bg-opacity-10 rounded-circle p-2 me-3">
