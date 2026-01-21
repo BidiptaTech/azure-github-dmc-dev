@@ -278,13 +278,19 @@
                                         <th>Assign Vehicle</th>
                                         <th>Assign Driver</th>
                                         <th>Pickup Time</th>
-                                        <th>Order Type</th>
-                                        <th>Tour Type</th>
+                                        <th>Transfer Type</th>
+                                        <th>Transport Type</th>
+                                        <th>Reference No</th>
+                                        <th>Guest Name</th>
+                                        <th>Guest Mobile No</th>
+                                        <th>Adults</th>
+                                        <th>Child</th>
+                                        <th>Infant</th>
                                     </tr>
                                 </thead>
                                 <tbody id="tourOrdersTableBody">
                                     <tr>
-                                        <td colspan="11" class="text-center">Loading data...</td>
+                                        <td colspan="17" class="text-center">Loading data...</td>
                                     </tr>
                                 </tbody>
                             </table>
@@ -453,6 +459,12 @@ $(document).ready(function() {
                         <td>${dataItem.entrytime || 'N/A'}</td>
                         <td>${formatOrderType(item.type) || 'N/A'}</td>
                         <td>${dataItem.type || 'N/A'}</td>
+                        <td>${item.tour_id || 'N/A'}</td>
+                        <td>${dataItem.fullName || dataItem.name || 'N/A'}</td>
+                        <td>${dataItem.countryCode && dataItem.phone ? dataItem.countryCode + ' ' + dataItem.phone : (dataItem.phone || 'N/A')}</td>
+                        <td>${dataItem.adultCount || dataItem.adults || '0'}</td>
+                        <td>${dataItem.childCount || dataItem.children || '0'}</td>
+                        <td>${dataItem.infantCount || dataItem.infants || '0'}</td>
                     </tr>`;
             });
             
@@ -465,7 +477,7 @@ $(document).ready(function() {
             // Initialize DataTable
             initializeDataTable();
         } else {
-            $('#tourOrdersTableBody').html('<tr><td colspan="11" class="text-center">No orders found</td></tr>');
+            $('#tourOrdersTableBody').html('<tr><td colspan="17" class="text-center">No orders found</td></tr>');
             $('#exportOrdersBtn').hide();
         }
     }
@@ -495,7 +507,7 @@ $(document).ready(function() {
         cleanupDataTable();
         
         if (!date) {
-            $('#tourOrdersTableBody').html('<tr><td colspan="11" class="text-center">Please select a date</td></tr>');
+            $('#tourOrdersTableBody').html('<tr><td colspan="17" class="text-center">Please select a date</td></tr>');
             $('#exportOrdersBtn').hide();
             return;
         }
@@ -504,7 +516,7 @@ $(document).ready(function() {
         $('#hiddenDate').val(date);
         
         // Show loading indicator
-        $('#tourOrdersTableBody').html('<tr><td colspan="11" class="text-center"><i class="fas fa-spinner fa-spin"></i> Loading data...</td></tr>');
+        $('#tourOrdersTableBody').html('<tr><td colspan="17" class="text-center"><i class="fas fa-spinner fa-spin"></i> Loading data...</td></tr>');
 
         fetch(getOrdersByDateUrl.replace(':date', date), {
             method: 'GET',
@@ -607,6 +619,12 @@ $(document).ready(function() {
                                 <td>${dataItem.entrytime || 'N/A'}</td>
                                 <td>${formatOrderType(item.type) || 'N/A'}</td>
                                 <td>${dataItem.type || 'N/A'}</td>
+                                <td>${item.tour_id || 'N/A'}</td>
+                                <td>${dataItem.fullName || dataItem.name || 'N/A'}</td>
+                                <td>${dataItem.countryCode && dataItem.phone ? dataItem.countryCode + ' ' + dataItem.phone : (dataItem.phone || 'N/A')}</td>
+                                <td>${dataItem.adultCount || dataItem.adults || '0'}</td>
+                                <td>${dataItem.childCount || dataItem.children || '0'}</td>
+                                <td>${dataItem.infantCount || dataItem.infants || '0'}</td>
                             </tr>`;
                     });
                     
@@ -619,14 +637,14 @@ $(document).ready(function() {
                     // Initialize DataTable after content is loaded
                     initializeDataTable();
                 } else {
-                    $('#tourOrdersTableBody').html('<tr><td colspan="11" class="text-center">No orders found for this date</td></tr>');
+                    $('#tourOrdersTableBody').html('<tr><td colspan="17" class="text-center">No orders found for this date</td></tr>');
                     $('#exportOrdersBtn').hide();
                 }
             } else {
                 const errorMessage = response.message || 'Error loading orders';
                 console.error('Error:', errorMessage);
                 showAlert('error', errorMessage);
-                $('#tourOrdersTableBody').html('<tr><td colspan="11" class="text-center">Error loading orders</td></tr>');
+                $('#tourOrdersTableBody').html('<tr><td colspan="17" class="text-center">Error loading orders</td></tr>');
                 $('#exportOrdersBtn').hide();
             }
         })
@@ -758,7 +776,7 @@ $(document).ready(function() {
             }
             
             const cells = $row.find('td');
-            if (cells.length < 11) {
+            if (cells.length < 17) {
                 return; // Skip incomplete rows
             }
             
@@ -771,6 +789,12 @@ $(document).ready(function() {
             const vehicle = $(cells[5]).text().trim();
             const orderType = $(cells[9]).text().trim(); // Already formatted by formatOrderType()
             const tourType = $(cells[10]).text().trim();
+            const referenceNo = $(cells[11]).text().trim();
+            const guestName = $(cells[12]).text().trim();
+            const guestMobile = $(cells[13]).text().trim();
+            const adults = $(cells[14]).text().trim();
+            const child = $(cells[15]).text().trim();
+            const infant = $(cells[16]).text().trim();
             
             // Get selected vehicle and driver from the dropdowns
             const vehicleSelect = $(cells[6]).find('.vehicle-select');
@@ -792,7 +816,13 @@ $(document).ready(function() {
                 'Assigned Driver': assignedDriver,
                 'Pickup Time': pickupTime,
                 'Order Type': orderType,
-                'Tour Type': tourType
+                'Tour Type': tourType,
+                'Reference No': referenceNo,
+                'Guest Name': guestName,
+                'Guest Mobile No': guestMobile,
+                'Adults': adults,
+                'Child': child,
+                'Infant': infant
             });
         });
         
