@@ -1544,7 +1544,7 @@ use Illuminate\Support\Facades\Crypt;
             <!-- Right Side: Action Buttons -->
             <div style="display: flex; gap: 6px;">
                 <button class="btn btn-success btn-sm" onclick="saveEnquiryData()">
-                    <i class="ri-save-line me-1"></i>Create Enquiry
+                    <i class="ri-save-line me-1"></i>Update Enquiry
                 </button>
                 <button class="btn btn-danger btn-sm">Cancel</button>
             </div>
@@ -2642,11 +2642,14 @@ use Illuminate\Support\Facades\Crypt;
                                 <th style="padding: 4px 8px; min-width: 150px;">Meal Type</th>
                                 <th style="padding: 4px 8px; min-width: 80px;">No Of Meals</th>
                                 <th style="width: 60px; padding: 4px 8px; text-align: center;">Adults</th>
-                                <th style="width: 100px; padding: 4px 8px;">Charges /pax</th>
+                                <th style="width: 90px; padding: 4px 8px;">Cost /pax</th>
+                                <th style="width: 90px; padding: 4px 8px;">Sell /pax</th>
                                 <th style="width: 60px; padding: 4px 8px; text-align: center;">Child</th>
-                                <th style="width: 100px; padding: 4px 8px;">Charges /pax</th>
+                                <th style="width: 90px; padding: 4px 8px;">Cost /pax</th>
+                                <th style="width: 90px; padding: 4px 8px;">Sell /pax</th>
                                 <th style="width: 60px; padding: 4px 8px; text-align: center;">Infant</th>
-                                <th style="width: 100px; padding: 4px 8px;">Charges /pax</th>
+                                <th style="width: 90px; padding: 4px 8px;">Cost /pax</th>
+                                <th style="width: 90px; padding: 4px 8px;">Sell /pax</th>
                             </tr>
                         </thead>
                         <tbody id="mealsTableBody">
@@ -2873,14 +2876,19 @@ use Illuminate\Support\Facades\Crypt;
                     </div>
                 </div>
 
-                <!-- Footer Notes -->
+                <!-- Footer Totals -->
                 <div class="border-top p-2" style="background: #f8f9fa; font-size: 10px;">
                     <div class="d-flex justify-content-between align-items-center">
                         <div>
-                            <span class="me-3"><strong>Number of records:</strong> 3</span>
+                            <span class="me-3"><strong>Number of records:</strong> <span id="mealRecordCount">0</span></span>
                         </div>
-                        <div>
-                            <strong>Total Amount:</strong> <input type="text" class="form-control form-control-sm d-inline-block" id="mealTotalAmount" value="SGD 0.00" readonly style="width: 120px; font-size: 11px; padding: 2px 6px;">
+                        <div class="d-flex align-items-center gap-3">
+                            <div>
+                                <strong>Total COST:</strong> <input type="text" class="form-control form-control-sm d-inline-block" id="mealTotalCost" value="SGD 0.00" readonly style="width: 120px; font-size: 11px; padding: 2px 6px; background-color: #e9ecef;">
+                            </div>
+                            <div>
+                                <strong>Total SELL:</strong> <input type="text" class="form-control form-control-sm d-inline-block" id="mealTotalSell" value="SGD 0.00" readonly style="width: 120px; font-size: 11px; padding: 2px 6px; background-color: #e9ecef;">
+                            </div>
                         </div>
                     </div>
                 </div>
@@ -8820,6 +8828,21 @@ use Illuminate\Support\Facades\Crypt;
         const nights = document.getElementById('numNights').value;
         const headerValues = getHeaderValues();
         
+        // Get pricing summary values (cost and sell)
+        const singleCostEl = document.getElementById('pricingSummarySingleCost');
+        const twinCostEl = document.getElementById('pricingSummaryTwinCost');
+        const tripleCostEl = document.getElementById('pricingSummaryTripleCost');
+        const singleSellEl = document.getElementById('pricingSummarySingleSell');
+        const twinSellEl = document.getElementById('pricingSummaryTwinSell');
+        const tripleSellEl = document.getElementById('pricingSummaryTripleSell');
+        
+        const singleCost = parseFloat(singleCostEl?.textContent || 0);
+        const twinCost = parseFloat(twinCostEl?.textContent || 0);
+        const tripleCost = parseFloat(tripleCostEl?.textContent || 0);
+        const singleSell = parseFloat(singleSellEl?.value || 0);
+        const twinSell = parseFloat(twinSellEl?.value || 0);
+        const tripleSell = parseFloat(tripleSellEl?.value || 0);
+        
         return combinations.map(combo => ({
             id: generateId('hotel'),
             hotelId: hotelId, // Database ID
@@ -8844,8 +8867,8 @@ use Illuminate\Support\Facades\Crypt;
             mealPlanLabel: combo.mealPlanLabel || combo.mealPlan, // Label format for single tour package
             supplement: '',
             roomPrice: combo.price,
-            cost: combo.price || 0,
-            sell: combo.price || 0,
+            cost: singleCost || combo.price || 0,
+            sell: singleSell || combo.price || 0,
             extraBedPrice: combo.extraBedPrice || 0,
             cwb: combo.extraBed || 0,
             cnb: combo.childWithoutBed || 0,
@@ -12700,17 +12723,27 @@ use Illuminate\Support\Facades\Crypt;
                 const priceAttr = guideOption.getAttribute('data-twelve-hour-price') || '0';
                 const defaultPrice = parseFloat(priceAttr) || 0;
                 
+                // Get adult and child quantities from guide inputs
+                const guideAdultQtyInput = row.querySelector('.attraction-guide-adult-qty');
+                const guideChildQtyInput = row.querySelector('.attraction-guide-child-qty');
+                const guideAdultsQty = parseInt(guideAdultQtyInput?.value || 0) || 0;
+                const guideChildQty = parseInt(guideChildQtyInput?.value || 0) || 0;
+                
                 console.log('Editing linked guide:', {
                     guideId: guideId,
                     guideName: guideName,
                     priceAttr: priceAttr,
-                    defaultPrice: defaultPrice
+                    defaultPrice: defaultPrice,
+                    guideAdultsQty: guideAdultsQty,
+                    guideChildQty: guideChildQty
                 });
                 
                 guideInfo = {
                     guide_id: guideId,
                     name: guideName,
-                    languages: guideLanguages
+                    languages: guideLanguages,
+                    adultsQty: guideAdultsQty,
+                    childQty: guideChildQty
                 };
                 
                 // Use existing guide ID or generate new one
@@ -12724,12 +12757,19 @@ use Illuminate\Support\Facades\Crypt;
                     guide_id: guideId,
                     dateTime: dateTime,
                     tourName: `${attractionName} - ${guideName}`,
+                    tourActivity: `${attractionName} - ${guideName}`,
                     languages: guideLanguages,
                     name: guideName,
+                    guideName: guideName,
                     hours: 12,  // Set default hours to 12 (standard default)
+                    adultsQty: guideAdultsQty,
+                    childQty: guideChildQty,
                     cost: defaultPrice,    // Use default 12-hour price from guide data
                     sell: defaultPrice,    // Use default 12-hour price from guide data
-                    isStandalone: false  // Mark as linked to attraction
+                    isStandalone: false,  // Mark as linked to attraction
+                    sourceType: 'attraction',
+                    sourceId: tourId,
+                    linkedTo: 'attraction'
                 };
                 
                 guideList.push(guideEntry);
@@ -12959,17 +12999,27 @@ use Illuminate\Support\Facades\Crypt;
                 const priceAttr = guideOption.getAttribute('data-twelve-hour-price') || '0';
                 const defaultPrice = parseFloat(priceAttr) || 0;
                 
+                // Get adult and child quantities from guide inputs
+                const guideAdultQtyInput = row.querySelector('.attraction-guide-adult-qty');
+                const guideChildQtyInput = row.querySelector('.attraction-guide-child-qty');
+                const guideAdultsQty = parseInt(guideAdultQtyInput?.value || 0) || 0;
+                const guideChildQty = parseInt(guideChildQtyInput?.value || 0) || 0;
+                
                 console.log('Creating linked guide:', {
                     guideId: guideId,
                     guideName: guideName,
                     priceAttr: priceAttr,
-                    defaultPrice: defaultPrice
+                    defaultPrice: defaultPrice,
+                    guideAdultsQty: guideAdultsQty,
+                    guideChildQty: guideChildQty
                 });
                 
                 guideInfo = {
                     guide_id: guideId,
                     name: guideName,
-                    languages: guideLanguages
+                    languages: guideLanguages,
+                    adultsQty: guideAdultsQty,
+                    childQty: guideChildQty
                 };
                 
                 // Add guide to guide list
@@ -12979,12 +13029,19 @@ use Illuminate\Support\Facades\Crypt;
                     guide_id: guideId,
                     dateTime: dateTime,
                     tourName: `${attractionName} - ${guideName}`,
+                    tourActivity: `${attractionName} - ${guideName}`,
                     languages: guideLanguages,
                     name: guideName,
+                    guideName: guideName,
                     hours: 12,  // Set default hours to 12 (standard default)
+                    adultsQty: guideAdultsQty,
+                    childQty: guideChildQty,
                     cost: defaultPrice,    // Use default 12-hour price from guide data
                     sell: defaultPrice,    // Use default 12-hour price from guide data
-                    isStandalone: false  // Mark as linked to attraction
+                    isStandalone: false,  // Mark as linked to attraction
+                    sourceType: 'attraction',
+                    sourceId: tourId,
+                    linkedTo: 'attraction'
                 };
                 
                 guideList.push(guideEntry);
@@ -13364,6 +13421,16 @@ use Illuminate\Support\Facades\Crypt;
                             if (guideSelect) {
                                 console.log('Setting guide select to:', tour.guideInfo.guide_id);
                                 guideSelect.value = tour.guideInfo.guide_id;
+                            }
+                            
+                            // Set adult and child quantities
+                            const guideAdultQtyInput = row.querySelector('.attraction-guide-adult-qty');
+                            const guideChildQtyInput = row.querySelector('.attraction-guide-child-qty');
+                            if (guideAdultQtyInput && tour.guideInfo.adultsQty !== undefined) {
+                                guideAdultQtyInput.value = tour.guideInfo.adultsQty || 0;
+                            }
+                            if (guideChildQtyInput && tour.guideInfo.childQty !== undefined) {
+                                guideChildQtyInput.value = tour.guideInfo.childQty || 0;
                             }
                         }
                     }
@@ -14615,12 +14682,16 @@ use Illuminate\Support\Facades\Crypt;
 
     // ==================== MEAL FUNCTIONS ====================
     
-    // Update meal total amount display
+    // Update meal total cost and sell display
     function updateMealTotalAmount() {
-        const mealTotalField = document.getElementById('mealTotalAmount');
-        if (!mealTotalField) return;
+        const mealTotalCostField = document.getElementById('mealTotalCost');
+        const mealTotalSellField = document.getElementById('mealTotalSell');
+        const mealRecordCount = document.getElementById('mealRecordCount');
         
-        let totalAmount = 0;
+        if (!mealTotalCostField || !mealTotalSellField) return;
+        
+        let totalCost = 0;
+        let totalSell = 0;
         
         // Get all checked meal rows
         const checkedMeals = document.querySelectorAll('.meal-checkbox:checked');
@@ -14636,19 +14707,34 @@ use Illuminate\Support\Facades\Crypt;
             const childQty = parseInt(row.querySelector('.meal-child-qty')?.value || 0);
             const infantQty = parseInt(row.querySelector('.meal-infant-qty')?.value || 0);
             
-            // Get charges (remove "SGD " prefix and parse as float)
-            const adultCharge = parseFloat((row.querySelector('.meal-adult-charge')?.value || '0').replace(/[^\d.-]/g, ''));
-            const childCharge = parseFloat((row.querySelector('.meal-child-charge')?.value || '0').replace(/[^\d.-]/g, ''));
-            const infantCharge = parseFloat((row.querySelector('.meal-infant-charge')?.value || '0').replace(/[^\d.-]/g, ''));
+            // Get cost prices (remove "SGD " prefix and parse as float)
+            const adultCost = parseFloat((row.querySelector('.meal-adult-cost')?.value || '0').replace(/[^\d.-]/g, ''));
+            const childCost = parseFloat((row.querySelector('.meal-child-cost')?.value || '0').replace(/[^\d.-]/g, ''));
+            const infantCost = parseFloat((row.querySelector('.meal-infant-cost')?.value || '0').replace(/[^\d.-]/g, ''));
             
-            // Calculate subtotal for this meal: mealCount * (adultQty * adultCharge + childQty * childCharge + infantQty * infantCharge)
-            const mealSubtotal = mealCount * ((adultQty * adultCharge) + (childQty * childCharge) + (infantQty * infantCharge));
+            // Get sell prices (remove "SGD " prefix and parse as float)
+            const adultSell = parseFloat((row.querySelector('.meal-adult-sell')?.value || '0').replace(/[^\d.-]/g, ''));
+            const childSell = parseFloat((row.querySelector('.meal-child-sell')?.value || '0').replace(/[^\d.-]/g, ''));
+            const infantSell = parseFloat((row.querySelector('.meal-infant-sell')?.value || '0').replace(/[^\d.-]/g, ''));
             
-            totalAmount += mealSubtotal;
+            // Calculate cost subtotal for this meal: mealCount * (adultQty * adultCost + childQty * childCost + infantQty * infantCost)
+            const mealCostSubtotal = mealCount * ((adultQty * adultCost) + (childQty * childCost) + (infantQty * infantCost));
+            
+            // Calculate sell subtotal for this meal: mealCount * (adultQty * adultSell + childQty * childSell + infantQty * infantSell)
+            const mealSellSubtotal = mealCount * ((adultQty * adultSell) + (childQty * childSell) + (infantQty * infantSell));
+            
+            totalCost += mealCostSubtotal;
+            totalSell += mealSellSubtotal;
         });
         
-        // Update the total field
-        mealTotalField.value = `SGD ${totalAmount.toFixed(2)}`;
+        // Update the total fields
+        mealTotalCostField.value = `SGD ${totalCost.toFixed(2)}`;
+        mealTotalSellField.value = `SGD ${totalSell.toFixed(2)}`;
+        
+        // Update record count
+        if (mealRecordCount) {
+            mealRecordCount.textContent = checkedMeals.length;
+        }
     }
     
     // Open Meal Modal
@@ -15285,8 +15371,15 @@ use Illuminate\Support\Facades\Crypt;
             row.setAttribute('data-restaurant-id', restaurantId);
             row.setAttribute('data-restaurant-name', restaurantName);
             
+            // Parse prices from database - both cost and sell should be the same value from database
             const adultPrice = parseFloat(meal.adult_price || meal.price || 0).toFixed(2);
             const childPrice = parseFloat(meal.child_price || meal.price || 0).toFixed(2);
+            
+            // Use the same database price for both cost and sell (no calculation)
+            const adultCostPrice = adultPrice;
+            const adultSellPrice = adultPrice;
+            const childCostPrice = childPrice;
+            const childSellPrice = childPrice;
             
             // Icon based on meal type
             let mealIcon = 'ri-restaurant-fill';
@@ -15318,19 +15411,28 @@ use Illuminate\Support\Facades\Crypt;
                     <input type="number" class="form-control form-control-sm meal-adult-qty" data-meal-id="${meal.meal_id}" value="0" min="0" style="font-size: 10px; padding: 2px 4px; text-align: center;" oninput="updateMealTotalAmount()">
                 </td>
                 <td style="padding: 2px 8px;">
-                    <input type="text" class="form-control form-control-sm meal-adult-charge" data-meal-id="${meal.meal_id}" value="SGD ${adultPrice}" style="font-size: 10px; padding: 2px 4px;" oninput="updateMealTotalAmount()">
+                    <input type="text" class="form-control form-control-sm meal-adult-cost" data-meal-id="${meal.meal_id}" value="SGD ${adultCostPrice}" readonly style="font-size: 10px; padding: 2px 4px; background-color: #f5f5f5;">
+                </td>
+                <td style="padding: 2px 8px;">
+                    <input type="text" class="form-control form-control-sm meal-adult-sell" data-meal-id="${meal.meal_id}" value="SGD ${adultSellPrice}" style="font-size: 10px; padding: 2px 4px;" oninput="updateMealTotalAmount()">
                 </td>
                 <td style="padding: 2px 8px;">
                     <input type="number" class="form-control form-control-sm meal-child-qty" data-meal-id="${meal.meal_id}" value="0" min="0" style="font-size: 10px; padding: 2px 4px; text-align: center;" oninput="updateMealTotalAmount()">
                 </td>
                 <td style="padding: 2px 8px;">
-                    <input type="text" class="form-control form-control-sm meal-child-charge" data-meal-id="${meal.meal_id}" value="SGD ${childPrice}" style="font-size: 10px; padding: 2px 4px;" oninput="updateMealTotalAmount()">
+                    <input type="text" class="form-control form-control-sm meal-child-cost" data-meal-id="${meal.meal_id}" value="SGD ${childCostPrice}" readonly style="font-size: 10px; padding: 2px 4px; background-color: #f5f5f5;">
+                </td>
+                <td style="padding: 2px 8px;">
+                    <input type="text" class="form-control form-control-sm meal-child-sell" data-meal-id="${meal.meal_id}" value="SGD ${childSellPrice}" style="font-size: 10px; padding: 2px 4px;" oninput="updateMealTotalAmount()">
                 </td>
                 <td style="padding: 2px 8px;">
                     <input type="number" class="form-control form-control-sm meal-infant-qty" data-meal-id="${meal.meal_id}" value="0" min="0" style="font-size: 10px; padding: 2px 4px; text-align: center;" oninput="updateMealTotalAmount()">
                 </td>
                 <td style="padding: 2px 8px;">
-                    <input type="text" class="form-control form-control-sm meal-infant-charge" data-meal-id="${meal.meal_id}" value="SGD 0.00" style="font-size: 10px; padding: 2px 4px;" oninput="updateMealTotalAmount()">
+                    <input type="text" class="form-control form-control-sm meal-infant-cost" data-meal-id="${meal.meal_id}" value="SGD 0.00" readonly style="font-size: 10px; padding: 2px 4px; background-color: #f5f5f5;">
+                </td>
+                <td style="padding: 2px 8px;">
+                    <input type="text" class="form-control form-control-sm meal-infant-sell" data-meal-id="${meal.meal_id}" value="SGD 0.00" style="font-size: 10px; padding: 2px 4px;" oninput="updateMealTotalAmount()">
                 </td>
             `;
             
@@ -15482,11 +15584,14 @@ use Illuminate\Support\Facades\Crypt;
             // Get values from the row
             const mealCount = parseInt(row.querySelector('.meal-count').value) || 0;
             const adultsQty = parseInt(row.querySelector('.meal-adult-qty').value) || 0;
-            const adultCharge = row.querySelector('.meal-adult-charge').value || 'SGD 0.00';
+            const adultCostValue = row.querySelector('.meal-adult-cost')?.value || 'SGD 0.00';
+            const adultSellValue = row.querySelector('.meal-adult-sell')?.value || 'SGD 0.00';
             const childQty = parseInt(row.querySelector('.meal-child-qty').value) || 0;
-            const childCharge = row.querySelector('.meal-child-charge').value || 'SGD 0.00';
+            const childCostValue = row.querySelector('.meal-child-cost')?.value || 'SGD 0.00';
+            const childSellValue = row.querySelector('.meal-child-sell')?.value || 'SGD 0.00';
             const infantQty = parseInt(row.querySelector('.meal-infant-qty').value) || 0;
-            const infantCharge = row.querySelector('.meal-infant-charge').value || 'SGD 0.00';
+            const infantCostValue = row.querySelector('.meal-infant-cost')?.value || 'SGD 0.00';
+            const infantSellValue = row.querySelector('.meal-infant-sell')?.value || 'SGD 0.00';
             
             // Get transfer info from restaurant transfer section (not per-row)
             const transferChecked = document.getElementById('restaurantTransferCheckbox')?.checked || false;
@@ -15510,13 +15615,13 @@ use Illuminate\Support\Facades\Crypt;
             console.log('Transfer destination:', transferDestination);
             console.log('Transfer destination name:', transferDestinationName);
             
-            // Parse charges
-            const adultCost = parseFloat(adultCharge.replace(/[^0-9.]/g, '')) || 0;
-            const adultSell = adultCost;
-            const childCost = parseFloat(childCharge.replace(/[^0-9.]/g, '')) || 0;
-            const childSell = childCost;
-            const infantCost = parseFloat(infantCharge.replace(/[^0-9.]/g, '')) || 0;
-            const infantSell = infantCost;
+            // Parse cost and sell prices separately
+            const adultCost = parseFloat(adultCostValue.replace(/[^0-9.]/g, '')) || 0;
+            const adultSell = parseFloat(adultSellValue.replace(/[^0-9.]/g, '')) || 0;
+            const childCost = parseFloat(childCostValue.replace(/[^0-9.]/g, '')) || 0;
+            const childSell = parseFloat(childSellValue.replace(/[^0-9.]/g, '')) || 0;
+            const infantCost = parseFloat(infantCostValue.replace(/[^0-9.]/g, '')) || 0;
+            const infantSell = parseFloat(infantSellValue.replace(/[^0-9.]/g, '')) || 0;
             
             // Get restaurant info from dropdown (source of truth)
             const restaurantSelect = document.getElementById('mealRestaurant');
@@ -15966,19 +16071,22 @@ use Illuminate\Support\Facades\Crypt;
                 // Get values from the row
                 const mealCount = parseInt(row.querySelector('.meal-count').value) || 0;
                 const adultsQty = parseInt(row.querySelector('.meal-adult-qty').value) || 0;
-                const adultCharge = row.querySelector('.meal-adult-charge').value || 'SGD 0.00';
+                const adultCostValue = row.querySelector('.meal-adult-cost')?.value || 'SGD 0.00';
+                const adultSellValue = row.querySelector('.meal-adult-sell')?.value || 'SGD 0.00';
                 const childQty = parseInt(row.querySelector('.meal-child-qty').value) || 0;
-                const childCharge = row.querySelector('.meal-child-charge').value || 'SGD 0.00';
+                const childCostValue = row.querySelector('.meal-child-cost')?.value || 'SGD 0.00';
+                const childSellValue = row.querySelector('.meal-child-sell')?.value || 'SGD 0.00';
                 const infantQty = parseInt(row.querySelector('.meal-infant-qty').value) || 0;
-                const infantCharge = row.querySelector('.meal-infant-charge').value || 'SGD 0.00';
+                const infantCostValue = row.querySelector('.meal-infant-cost')?.value || 'SGD 0.00';
+                const infantSellValue = row.querySelector('.meal-infant-sell')?.value || 'SGD 0.00';
                 
-                // Parse charges
-                const adultCost = parseFloat(adultCharge.replace(/[^0-9.]/g, '')) || 0;
-                const adultSell = adultCost;
-                const childCost = parseFloat(childCharge.replace(/[^0-9.]/g, '')) || 0;
-                const childSell = childCost;
-                const infantCost = parseFloat(infantCharge.replace(/[^0-9.]/g, '')) || 0;
-                const infantSell = infantCost;
+                // Parse cost and sell prices separately
+                const adultCost = parseFloat(adultCostValue.replace(/[^0-9.]/g, '')) || 0;
+                const adultSell = parseFloat(adultSellValue.replace(/[^0-9.]/g, '')) || 0;
+                const childCost = parseFloat(childCostValue.replace(/[^0-9.]/g, '')) || 0;
+                const childSell = parseFloat(childSellValue.replace(/[^0-9.]/g, '')) || 0;
+                const infantCost = parseFloat(infantCostValue.replace(/[^0-9.]/g, '')) || 0;
+                const infantSell = parseFloat(infantSellValue.replace(/[^0-9.]/g, '')) || 0;
                 
                 // Create meal data (use shared transfer ID and guide for all meals, and pre-generated ID)
                 const mealData = {
@@ -18550,9 +18658,9 @@ use Illuminate\Support\Facades\Crypt;
         miscList.forEach(misc => {
             // Only include if supplement is not checked
             if (!misc.supplement) {
-                tourCostPerPax += parseFloat(misc.adultSell || 0);
+                tourCostPerPax += parseFloat(misc.adultCost || 0);
                 tourSellPerPax += parseFloat(misc.adultSell || 0);
-                childCostPerPax += parseFloat(misc.childSell || 0);
+                childCostPerPax += parseFloat(misc.childCost || 0);
                 childSellPerPax += parseFloat(misc.childSell || 0);
             }
         });
@@ -18737,20 +18845,22 @@ use Illuminate\Support\Facades\Crypt;
                 if (hotel.supplement) return;
                 
                 const nights = parseInt(hotel.nights) || 0;
-                const roomPrice = parseFloat(hotel.roomPrice) || 0;
-                const totalRoomCost = nights * roomPrice;
+                const hotelCostPerNight = parseFloat(hotel.cost) || 0;
+                const hotelSellPerNight = parseFloat(hotel.sell) || 0;
+                const totalHotelCost = nights * hotelCostPerNight;
+                const totalHotelSell = nights * hotelSellPerNight;
                 
                 // Calculate per-person cost based on sharing
                 // Add local transfer contributions to both cost and sell prices
                 // Single = 1 person, Twin = 2 people, Triple = 3 people
-                const singleCost = totalRoomCost + (tourCostPerPax * 1) + (transferCostPerPax * 1) + guideSingleCost + localTransferSingleCost;
-                const singleSell = totalRoomCost + (tourSellPerPax * 1) + (transferSellPerPax * 1) + guideSingleSell + localTransferSingleSell;
+                const singleCost = totalHotelCost + (tourCostPerPax * 1) + (transferCostPerPax * 1) + guideSingleCost + localTransferSingleCost;
+                const singleSell = totalHotelSell + (tourSellPerPax * 1) + (transferSellPerPax * 1) + guideSingleSell + localTransferSingleSell;
                 
-                const twinCost = (totalRoomCost / 2) + (tourCostPerPax * 2) + (transferCostPerPax * 2) + guideTwinCost + localTransferTwinCost;
-                const twinSell = (totalRoomCost / 2) + (tourSellPerPax * 2) + (transferSellPerPax * 2) + guideTwinSell + localTransferTwinSell;
+                const twinCost = (totalHotelCost / 2) + (tourCostPerPax * 2) + (transferCostPerPax * 2) + guideTwinCost + localTransferTwinCost;
+                const twinSell = (totalHotelSell / 2) + (tourSellPerPax * 2) + (transferSellPerPax * 2) + guideTwinSell + localTransferTwinSell;
                 
-                const tripleCost = (totalRoomCost / 3) + (tourCostPerPax * 3) + (transferCostPerPax * 3) + guideTripleCost + localTransferTripleCost;
-                const tripleSell = (totalRoomCost / 3) + (tourSellPerPax * 3) + (transferSellPerPax * 3) + guideTripleSell + localTransferTripleSell;
+                const tripleCost = (totalHotelCost / 3) + (tourCostPerPax * 3) + (transferCostPerPax * 3) + guideTripleCost + localTransferTripleCost;
+                const tripleSell = (totalHotelSell / 3) + (tourSellPerPax * 3) + (transferSellPerPax * 3) + guideTripleSell + localTransferTripleSell;
                 
                 const childWithBedCost = childCostPerPax;
                 const childWithBedSell = childSellPerPax;
@@ -20931,11 +21041,11 @@ use Illuminate\Support\Facades\Crypt;
             </div>
         `;
         
-        // Simulate loading or fetch actual data
-        setTimeout(() => {
+        // Use requestAnimationFrame for better performance
+        requestAnimationFrame(() => {
             const costSheetHTML = generateCostSheetHTML();
             contentDiv.innerHTML = costSheetHTML;
-        }, 500);
+        });
     }
 
     // Generate Cost Sheet HTML
@@ -20946,7 +21056,11 @@ use Illuminate\Support\Facades\Crypt;
         const agencyName = agencySelect?.options[agencySelect.selectedIndex]?.text || 'N/A';
         const agentName = agentSelect?.options[agentSelect.selectedIndex]?.text || 'N/A';
         
-        let html = `
+        const sections = [];
+        const totals = { cost: 0, sell: 0 };
+        
+        // Header Section
+        sections.push(`
             <div class="card shadow-sm">
                 <div class="card-header bg-primary text-white">
                     <h5 class="mb-0">Cost Sheet Summary</h5>
@@ -20968,11 +21082,37 @@ use Illuminate\Support\Facades\Crypt;
                                <strong>End:</strong> ${document.getElementById('tourEndDate')?.value || 'N/A'}</p>
                         </div>
                     </div>
-        `;
+        `);
         
         // Arrival/Departure Section
         if (arrivalDepartureList.length > 0) {
-            html += `
+            let totalArrDepCost = 0;
+            let totalArrDepSell = 0;
+            
+            const rows = arrivalDepartureList.map(item => {
+                const cost = parseFloat(item.transferCost || item.adultCost || 0);
+                const sell = parseFloat(item.transferSell || item.adultSell || 0);
+                totalArrDepCost += cost;
+                totalArrDepSell += sell;
+                
+                return `
+                    <tr>
+                        <td>${item.dateTime || 'N/A'}</td>
+                        <td>${item.portName || 'N/A'}</td>
+                        <td>${item.flightNo || item.flightNumber || 'N/A'}</td>
+                        <td>${item.type || 'N/A'}</td>
+                        <td>${item.hasTransfer || item.transferRequired ? 'Yes' : 'No'}</td>
+                        <td>${item.vehicleName || 'N/A'}</td>
+                        <td>${item.vehicleType || 'N/A'}</td>
+                        <td class="text-end">${cost.toFixed(2)}</td>
+                        <td class="text-end">${sell.toFixed(2)}</td>
+                    </tr>`;
+            }).join('');
+            
+            totals.cost += totalArrDepCost;
+            totals.sell += totalArrDepSell;
+            
+            sections.push(`
                 <div class="mb-3">
                     <h6 class="bg-light p-2 border mb-0"><i class="ri-flight-takeoff-line me-2"></i>Arrival / Departure</h6>
                     <table class="table table-bordered table-sm mb-0">
@@ -20990,47 +21130,73 @@ use Illuminate\Support\Facades\Crypt;
                             </tr>
                         </thead>
                         <tbody style="font-size: 10px;">
-            `;
-            
-            let totalArrDepCost = 0;
-            let totalArrDepSell = 0;
-            
-            arrivalDepartureList.forEach(item => {
-                const cost = parseFloat(item.transferCost || item.adultCost || 0);
-                const sell = parseFloat(item.transferSell || item.adultSell || 0);
-                totalArrDepCost += cost;
-                totalArrDepSell += sell;
-                
-                html += `
-                    <tr>
-                        <td>${item.dateTime || 'N/A'}</td>
-                        <td>${item.portName || 'N/A'}</td>
-                        <td>${item.flightNo || item.flightNumber || 'N/A'}</td>
-                        <td>${item.type || 'N/A'}</td>
-                        <td>${item.hasTransfer || item.transferRequired ? 'Yes' : 'No'}</td>
-                        <td>${item.vehicleName || 'N/A'}</td>
-                        <td>${item.vehicleType || 'N/A'}</td>
-                        <td class="text-end">${cost.toFixed(2)}</td>
-                        <td class="text-end">${sell.toFixed(2)}</td>
-                    </tr>
-                `;
-            });
-            
-            html += `
-                        <tr class="table-secondary fw-bold" style="font-size: 10px;">
-                            <td colspan="7" class="text-end">Subtotal:</td>
-                            <td class="text-end">${totalArrDepCost.toFixed(2)}</td>
-                            <td class="text-end">${totalArrDepSell.toFixed(2)}</td>
-                        </tr>
+                            ${rows}
+                            <tr class="table-secondary fw-bold" style="font-size: 10px;">
+                                <td colspan="7" class="text-end">Subtotal:</td>
+                                <td class="text-end">${totalArrDepCost.toFixed(2)}</td>
+                                <td class="text-end">${totalArrDepSell.toFixed(2)}</td>
+                            </tr>
                         </tbody>
                     </table>
                 </div>
-            `;
+            `);
         }
         
         // Accommodation Section
         if (accommodationList.length > 0) {
-            html += `
+            let totalAccomCost = 0;
+            let totalAccomSell = 0;
+            
+            const rows = accommodationList.map(hotel => {
+                const cost = parseFloat(hotel.totalCost || 0);
+                const sell = parseFloat(hotel.totalSell || 0);
+                totalAccomCost += cost;
+                totalAccomSell += sell;
+                
+                // Handle both array and number for hotel.rooms
+                let roomDetails = 'N/A';
+                let adultsPerRoom = 'N/A';
+                let roomsCount = 0;
+                
+                if (Array.isArray(hotel.rooms)) {
+                    // New structure: rooms is an array
+                    roomDetails = hotel.rooms.map(room => {
+                        const bedName = room.beds?.[0]?.bed_type || 'N/A';
+                        const mealType = room.meal_type || 'N/A';
+                        return `${room.room_type} / ${bedName} / ${mealType}`;
+                    }).join(', ');
+                    adultsPerRoom = hotel.rooms[0]?.beds?.[0]?.head_count || 'N/A';
+                    roomsCount = hotel.rooms.length;
+                } else {
+                    // Old structure: rooms is a number, use direct properties
+                    const roomType = hotel.roomType || 'N/A';
+                    const bedType = hotel.bedType || 'N/A';
+                    const mealType = hotel.mealPlanLabel || hotel.mealPlan || 'N/A';
+                    roomDetails = `${roomType} / ${bedType} / ${mealType}`;
+                    adultsPerRoom = hotel.adultsPerRoom || 'N/A';
+                    roomsCount = hotel.rooms || 0;
+                }
+                
+                const nights = hotel.numberOfNights || hotel.nights || '0';
+                
+                return `
+                    <tr>
+                        <td>${hotel.hotelName || 'N/A'}<br><small>${roomDetails}</small></td>
+                        <td>${hotel.checkInDate || 'N/A'} ${hotel.checkInTime || ''}</td>
+                        <td>${hotel.checkOutDate || 'N/A'} ${hotel.checkOutTime || ''}</td>
+                        <td>${nights}</td>
+                        <td>${roomsCount}</td>
+                        <td>${adultsPerRoom}</td>
+                        <td class="text-end">${cost.toFixed(2)}</td>
+                        <td class="text-end">${sell.toFixed(2)}</td>
+                        <td>${hotel.supplement || ''}</td>
+                    </tr>`;
+            }).join('');
+            
+            totals.cost += totalAccomCost;
+            totals.sell += totalAccomSell;
+            
+            sections.push(`
                 <div class="mb-3">
                     <h6 class="bg-light p-2 border mb-0"><i class="ri-hotel-line me-2"></i>Accommodation</h6>
                     <table class="table table-bordered table-sm mb-0">
@@ -21048,58 +21214,56 @@ use Illuminate\Support\Facades\Crypt;
                             </tr>
                         </thead>
                         <tbody style="font-size: 10px;">
-            `;
-            
-            let totalAccomCost = 0;
-            let totalAccomSell = 0;
-            
-            accommodationList.forEach(hotel => {
-                const cost = parseFloat(hotel.totalCost || 0);
-                const sell = parseFloat(hotel.totalSell || 0);
-                totalAccomCost += cost;
-                totalAccomSell += sell;
-                
-                const roomDetails = hotel.rooms?.map(room => {
-                    const bedName = room.beds?.[0]?.bed_type || 'N/A';
-                    const mealType = room.meal_type || 'N/A';
-                    return `${room.room_type} / ${bedName} / ${mealType}`;
-                }).join(', ') || 'N/A';
-                
-                const adultsPerRoom = hotel.rooms?.[0]?.beds?.[0]?.head_count || 'N/A';
-                const nights = hotel.numberOfNights || '0';
-                const roomsCount = hotel.rooms?.length || 0;
-                
-                html += `
-                    <tr>
-                        <td>${hotel.hotelName || 'N/A'}<br><small>${roomDetails}</small></td>
-                        <td>${hotel.checkInDate || 'N/A'} ${hotel.checkInTime || ''}</td>
-                        <td>${hotel.checkOutDate || 'N/A'} ${hotel.checkOutTime || ''}</td>
-                        <td>${nights}</td>
-                        <td>${roomsCount}</td>
-                        <td>${adultsPerRoom}</td>
-                        <td class="text-end">${cost.toFixed(2)}</td>
-                        <td class="text-end">${sell.toFixed(2)}</td>
-                        <td>${hotel.supplement || ''}</td>
-                    </tr>
-                `;
-            });
-            
-            html += `
-                        <tr class="table-secondary fw-bold" style="font-size: 10px;">
-                            <td colspan="6" class="text-end">Subtotal:</td>
-                            <td class="text-end">${totalAccomCost.toFixed(2)}</td>
-                            <td class="text-end">${totalAccomSell.toFixed(2)}</td>
-                            <td></td>
-                        </tr>
+                            ${rows}
+                            <tr class="table-secondary fw-bold" style="font-size: 10px;">
+                                <td colspan="6" class="text-end">Subtotal:</td>
+                                <td class="text-end">${totalAccomCost.toFixed(2)}</td>
+                                <td class="text-end">${totalAccomSell.toFixed(2)}</td>
+                                <td></td>
+                            </tr>
                         </tbody>
                     </table>
                 </div>
-            `;
+            `);
         }
         
         // Attractions Section
         if (tourList.length > 0) {
-            html += `
+            let totalTourCost = 0;
+            let totalTourSell = 0;
+            
+            const rows = tourList.map(tour => {
+                const adultQty = parseInt(tour.adultCount || 0);
+                const childQty = parseInt(tour.childCount || 0);
+                const adultCostPerPax = parseFloat(tour.adultCost || 0);
+                const adultSellPerPax = parseFloat(tour.adultSell || 0);
+                const childCostPerPax = parseFloat(tour.childCost || 0);
+                const childSellPerPax = parseFloat(tour.childSell || 0);
+                
+                const totalCost = (adultQty * adultCostPerPax) + (childQty * childCostPerPax);
+                const totalSell = (adultQty * adultSellPerPax) + (childQty * childSellPerPax);
+                
+                totalTourCost += totalCost;
+                totalTourSell += totalSell;
+                
+                return `
+                    <tr>
+                        <td>${tour.dateTime || 'N/A'}</td>
+                        <td>${tour.AttractionName || tour.Name || 'N/A'}</td>
+                        <td>${adultQty}</td>
+                        <td class="text-end">${adultCostPerPax.toFixed(2)}</td>
+                        <td class="text-end">${adultSellPerPax.toFixed(2)}</td>
+                        <td>${childQty}</td>
+                        <td class="text-end">${childCostPerPax.toFixed(2)}</td>
+                        <td class="text-end">${childSellPerPax.toFixed(2)}</td>
+                        <td>${tour.supplement || ''}</td>
+                    </tr>`;
+            }).join('');
+            
+            totals.cost += totalTourCost;
+            totals.sell += totalTourSell;
+            
+            sections.push(`
                 <div class="mb-3">
                     <h6 class="bg-light p-2 border mb-0"><i class="ri-map-pin-line me-2"></i>Attractions</h6>
                     <table class="table table-bordered table-sm mb-0">
@@ -21117,56 +21281,56 @@ use Illuminate\Support\Facades\Crypt;
                             </tr>
                         </thead>
                         <tbody style="font-size: 10px;">
-            `;
+                            ${rows}
+                            <tr class="table-secondary fw-bold" style="font-size: 10px;">
+                                <td colspan="2" class="text-end">Subtotal:</td>
+                                <td colspan="2" class="text-end">${totalTourCost.toFixed(2)}</td>
+                                <td colspan="4" class="text-end">${totalTourSell.toFixed(2)}</td>
+                                <td></td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            `);
+        }
+        
+        // Restaurants Section
+        if (mealList.length > 0) {
+            let totalMealCost = 0;
+            let totalMealSell = 0;
             
-            let totalTourCost = 0;
-            let totalTourSell = 0;
-            
-            tourList.forEach(tour => {
-                const adultQty = parseInt(tour.adultCount || 0);
-                const childQty = parseInt(tour.childCount || 0);
-                const adultCostPerPax = parseFloat(tour.adultCost || 0);
-                const adultSellPerPax = parseFloat(tour.adultSell || 0);
-                const childCostPerPax = parseFloat(tour.childCost || 0);
-                const childSellPerPax = parseFloat(tour.childSell || 0);
+            const rows = mealList.map(meal => {
+                const adultQty = parseInt(meal.adultCount || 0);
+                const childQty = parseInt(meal.childCount || 0);
+                const adultCostPerPax = parseFloat(meal.adultCost || 0);
+                const adultSellPerPax = parseFloat(meal.adultSell || 0);
+                const childCostPerPax = parseFloat(meal.childCost || 0);
+                const childSellPerPax = parseFloat(meal.childSell || 0);
                 
                 const totalCost = (adultQty * adultCostPerPax) + (childQty * childCostPerPax);
                 const totalSell = (adultQty * adultSellPerPax) + (childQty * childSellPerPax);
                 
-                totalTourCost += totalCost;
-                totalTourSell += totalSell;
+                totalMealCost += totalCost;
+                totalMealSell += totalSell;
                 
-                html += `
+                return `
                     <tr>
-                        <td>${tour.dateTime || 'N/A'}</td>
-                        <td>${tour.AttractionName || tour.Name || 'N/A'}</td>
+                        <td>${meal.bookingDate || meal.Date || 'N/A'} ${meal.visitTime || ''}</td>
+                        <td>${meal.restaurantName || meal.Name || 'N/A'}</td>
                         <td>${adultQty}</td>
                         <td class="text-end">${adultCostPerPax.toFixed(2)}</td>
                         <td class="text-end">${adultSellPerPax.toFixed(2)}</td>
                         <td>${childQty}</td>
                         <td class="text-end">${childCostPerPax.toFixed(2)}</td>
                         <td class="text-end">${childSellPerPax.toFixed(2)}</td>
-                        <td>${tour.supplement || ''}</td>
-                    </tr>
-                `;
-            });
+                        <td>${meal.supplement || ''}</td>
+                    </tr>`;
+            }).join('');
             
-            html += `
-                        <tr class="table-secondary fw-bold" style="font-size: 10px;">
-                            <td colspan="2" class="text-end">Subtotal:</td>
-                            <td colspan="2" class="text-end">${totalTourCost.toFixed(2)}</td>
-                            <td colspan="4" class="text-end">${totalTourSell.toFixed(2)}</td>
-                            <td></td>
-                        </tr>
-                        </tbody>
-                    </table>
-                </div>
-            `;
-        }
-        
-        // Restaurants Section
-        if (mealList.length > 0) {
-            html += `
+            totals.cost += totalMealCost;
+            totals.sell += totalMealSell;
+            
+            sections.push(`
                 <div class="mb-3">
                     <h6 class="bg-light p-2 border mb-0"><i class="ri-restaurant-line me-2"></i>Restaurants</h6>
                     <table class="table table-bordered table-sm mb-0">
@@ -21184,56 +21348,54 @@ use Illuminate\Support\Facades\Crypt;
                             </tr>
                         </thead>
                         <tbody style="font-size: 10px;">
-            `;
-            
-            let totalMealCost = 0;
-            let totalMealSell = 0;
-            
-            mealList.forEach(meal => {
-                const adultQty = parseInt(meal.adultCount || 0);
-                const childQty = parseInt(meal.childCount || 0);
-                const adultCostPerPax = parseFloat(meal.adultCost || 0);
-                const adultSellPerPax = parseFloat(meal.adultSell || 0);
-                const childCostPerPax = parseFloat(meal.childCost || 0);
-                const childSellPerPax = parseFloat(meal.childSell || 0);
-                
-                const totalCost = (adultQty * adultCostPerPax) + (childQty * childCostPerPax);
-                const totalSell = (adultQty * adultSellPerPax) + (childQty * childSellPerPax);
-                
-                totalMealCost += totalCost;
-                totalMealSell += totalSell;
-                
-                html += `
-                    <tr>
-                        <td>${meal.bookingDate || meal.Date || 'N/A'} ${meal.visitTime || ''}</td>
-                        <td>${meal.restaurantName || meal.Name || 'N/A'}</td>
-                        <td>${adultQty}</td>
-                        <td class="text-end">${adultCostPerPax.toFixed(2)}</td>
-                        <td class="text-end">${adultSellPerPax.toFixed(2)}</td>
-                        <td>${childQty}</td>
-                        <td class="text-end">${childCostPerPax.toFixed(2)}</td>
-                        <td class="text-end">${childSellPerPax.toFixed(2)}</td>
-                        <td>${meal.supplement || ''}</td>
-                    </tr>
-                `;
-            });
-            
-            html += `
-                        <tr class="table-secondary fw-bold" style="font-size: 10px;">
-                            <td colspan="2" class="text-end">Subtotal:</td>
-                            <td colspan="2" class="text-end">${totalMealCost.toFixed(2)}</td>
-                            <td colspan="4" class="text-end">${totalMealSell.toFixed(2)}</td>
-                            <td></td>
-                        </tr>
+                            ${rows}
+                            <tr class="table-secondary fw-bold" style="font-size: 10px;">
+                                <td colspan="2" class="text-end">Subtotal:</td>
+                                <td colspan="2" class="text-end">${totalMealCost.toFixed(2)}</td>
+                                <td colspan="4" class="text-end">${totalMealSell.toFixed(2)}</td>
+                                <td></td>
+                            </tr>
                         </tbody>
                     </table>
                 </div>
-            `;
+            `);
         }
         
         // Local Transfer Section
         if (transferList.length > 0) {
-            html += `
+            let totalTransferCost = 0;
+            let totalTransferSell = 0;
+            
+            const rows = transferList.map(transfer => {
+                const cost = parseFloat(transfer.Cost || transfer.cost || 0);
+                const sell = parseFloat(transfer.Sell || transfer.sell || 0);
+                totalTransferCost += cost;
+                totalTransferSell += sell;
+                
+                const serviceDetails = transfer.Mode === 'local' 
+                    ? `${transfer.entrypickup || 'N/A'} to ${transfer.entrydropoff || 'N/A'}` 
+                    : `${transfer.departureCity || ''} to ${transfer.arrivalCity || ''}`;
+                
+                return `
+                    <tr>
+                        <td>${transfer.bookingDate || transfer.Date || 'N/A'} ${transfer.entrytime || ''}</td>
+                        <td>${serviceDetails}</td>
+                        <td>${transfer.Mode || 'N/A'}</td>
+                        <td>${transfer.vehicles_name || transfer.vehicleType || 'N/A'}</td>
+                        <td>${transfer.type || transfer.Type || 'N/A'}</td>
+                        <td>${transfer.way || 'N/A'}</td>
+                        <td>${transfer.adults || '0'}</td>
+                        <td>${transfer.children || '0'}</td>
+                        <td class="text-end">${cost.toFixed(2)}</td>
+                        <td class="text-end">${sell.toFixed(2)}</td>
+                        <td>${transfer.supplement || ''}</td>
+                    </tr>`;
+            }).join('');
+            
+            totals.cost += totalTransferCost;
+            totals.sell += totalTransferSell;
+            
+            sections.push(`
                 <div class="mb-3">
                     <h6 class="bg-light p-2 border mb-0"><i class="ri-car-line me-2"></i>Local Transfer</h6>
                     <table class="table table-bordered table-sm mb-0">
@@ -21253,54 +21415,49 @@ use Illuminate\Support\Facades\Crypt;
                             </tr>
                         </thead>
                         <tbody style="font-size: 10px;">
-            `;
-            
-            let totalTransferCost = 0;
-            let totalTransferSell = 0;
-            
-            transferList.forEach(transfer => {
-                const cost = parseFloat(transfer.Cost || 0);
-                const sell = parseFloat(transfer.Sell || 0);
-                totalTransferCost += cost;
-                totalTransferSell += sell;
-                
-                const serviceDetails = transfer.Mode === 'local' 
-                    ? `${transfer.entrypickup || 'N/A'} to ${transfer.entrydropoff || 'N/A'}` 
-                    : `${transfer.departureCity || ''} to ${transfer.arrivalCity || ''}`;
-                
-                html += `
-                    <tr>
-                        <td>${transfer.bookingDate || transfer.Date || 'N/A'} ${transfer.entrytime || ''}</td>
-                        <td>${serviceDetails}</td>
-                        <td>${transfer.Mode || 'N/A'}</td>
-                        <td>${transfer.vehicles_name || transfer.vehicleType || 'N/A'}</td>
-                        <td>${transfer.type || transfer.Type || 'N/A'}</td>
-                        <td>${transfer.way || 'N/A'}</td>
-                        <td>${transfer.adults || '0'}</td>
-                        <td>${transfer.children || '0'}</td>
-                        <td class="text-end">${cost.toFixed(2)}</td>
-                        <td class="text-end">${sell.toFixed(2)}</td>
-                        <td>${transfer.supplement || ''}</td>
-                    </tr>
-                `;
-            });
-            
-            html += `
-                        <tr class="table-secondary fw-bold" style="font-size: 10px;">
-                            <td colspan="8" class="text-end">Subtotal:</td>
-                            <td class="text-end">${totalTransferCost.toFixed(2)}</td>
-                            <td class="text-end">${totalTransferSell.toFixed(2)}</td>
-                            <td></td>
-                        </tr>
+                            ${rows}
+                            <tr class="table-secondary fw-bold" style="font-size: 10px;">
+                                <td colspan="8" class="text-end">Subtotal:</td>
+                                <td class="text-end">${totalTransferCost.toFixed(2)}</td>
+                                <td class="text-end">${totalTransferSell.toFixed(2)}</td>
+                                <td></td>
+                            </tr>
                         </tbody>
                     </table>
                 </div>
-            `;
+            `);
         }
         
         // Tour Guide Section
         if (guideList.length > 0) {
-            html += `
+            let totalGuideCost = 0;
+            let totalGuideSell = 0;
+            
+            const rows = guideList.map(guide => {
+                const cost = parseFloat(guide.Cost || guide.cost || 0);
+                const sell = parseFloat(guide.Sell || guide.sell || 0);
+                totalGuideCost += cost;
+                totalGuideSell += sell;
+                
+                const languageList = guide.languages ? (Array.isArray(guide.languages) ? guide.languages.join(', ') : guide.languages) : 'N/A';
+                
+                return `
+                    <tr>
+                        <td>${guide.bookingDate || guide.Date || 'N/A'} ${guide.entrytime || ''}</td>
+                        <td>${guide.TourActivity || guide.Activity || 'N/A'}</td>
+                        <td>${languageList}</td>
+                        <td>${guide.guide_name || guide.Name || 'N/A'}</td>
+                        <td>${guide.hours || guide.Hours || '0'}</td>
+                        <td class="text-end">${cost.toFixed(2)}</td>
+                        <td class="text-end">${sell.toFixed(2)}</td>
+                        <td>${guide.supplement || ''}</td>
+                    </tr>`;
+            }).join('');
+            
+            totals.cost += totalGuideCost;
+            totals.sell += totalGuideSell;
+            
+            sections.push(`
                 <div class="mb-3">
                     <h6 class="bg-light p-2 border mb-0"><i class="ri-user-line me-2"></i>Tour Guide</h6>
                     <table class="table table-bordered table-sm mb-0">
@@ -21317,49 +21474,62 @@ use Illuminate\Support\Facades\Crypt;
                             </tr>
                         </thead>
                         <tbody style="font-size: 10px;">
-            `;
-            
-            let totalGuideCost = 0;
-            let totalGuideSell = 0;
-            
-            guideList.forEach(guide => {
-                const cost = parseFloat(guide.Cost || 0);
-                const sell = parseFloat(guide.Sell || 0);
-                totalGuideCost += cost;
-                totalGuideSell += sell;
-                
-                const languageList = guide.languages ? (Array.isArray(guide.languages) ? guide.languages.join(', ') : guide.languages) : 'N/A';
-                
-                html += `
-                    <tr>
-                        <td>${guide.bookingDate || guide.Date || 'N/A'} ${guide.entrytime || ''}</td>
-                        <td>${guide.TourActivity || guide.Activity || 'N/A'}</td>
-                        <td>${languageList}</td>
-                        <td>${guide.guide_name || guide.Name || 'N/A'}</td>
-                        <td>${guide.hours || guide.Hours || '0'}</td>
-                        <td class="text-end">${cost.toFixed(2)}</td>
-                        <td class="text-end">${sell.toFixed(2)}</td>
-                        <td>${guide.supplement || ''}</td>
-                    </tr>
-                `;
-            });
-            
-            html += `
-                        <tr class="table-secondary fw-bold" style="font-size: 10px;">
-                            <td colspan="5" class="text-end">Subtotal:</td>
-                            <td class="text-end">${totalGuideCost.toFixed(2)}</td>
-                            <td class="text-end">${totalGuideSell.toFixed(2)}</td>
-                            <td></td>
-                        </tr>
+                            ${rows}
+                            <tr class="table-secondary fw-bold" style="font-size: 10px;">
+                                <td colspan="5" class="text-end">Subtotal:</td>
+                                <td class="text-end">${totalGuideCost.toFixed(2)}</td>
+                                <td class="text-end">${totalGuideSell.toFixed(2)}</td>
+                                <td></td>
+                            </tr>
                         </tbody>
                     </table>
                 </div>
-            `;
+            `);
         }
         
         // Miscellaneous Section
         if (miscList.length > 0) {
-            html += `
+            let totalMiscCost = 0;
+            let totalMiscSell = 0;
+            
+            const rows = miscList.map(misc => {
+                const adultQty = parseInt(misc.adultCount || 0);
+                const childQty = parseInt(misc.childCount || 0);
+                const infantQty = parseInt(misc.infantCount || 0);
+                const adultCostPerPax = parseFloat(misc.adultCost || 0);
+                const adultSellPerPax = parseFloat(misc.adultSell || 0);
+                const childCostPerPax = parseFloat(misc.childCost || 0);
+                const childSellPerPax = parseFloat(misc.childSell || 0);
+                const infantCostPerPax = parseFloat(misc.infantCost || 0);
+                const infantSellPerPax = parseFloat(misc.infantSell || 0);
+                
+                const totalCost = (adultQty * adultCostPerPax) + (childQty * childCostPerPax) + (infantQty * infantCostPerPax);
+                const totalSell = (adultQty * adultSellPerPax) + (childQty * childSellPerPax) + (infantQty * infantSellPerPax);
+                
+                totalMiscCost += totalCost;
+                totalMiscSell += totalSell;
+                
+                return `
+                    <tr>
+                        <td>${misc.bookingDate || misc.Date || 'N/A'}</td>
+                        <td>${misc.itemName || misc.Name || 'N/A'}</td>
+                        <td>${adultQty}</td>
+                        <td class="text-end">${adultCostPerPax.toFixed(2)}</td>
+                        <td class="text-end">${adultSellPerPax.toFixed(2)}</td>
+                        <td>${childQty}</td>
+                        <td class="text-end">${childCostPerPax.toFixed(2)}</td>
+                        <td class="text-end">${childSellPerPax.toFixed(2)}</td>
+                        <td>${infantQty}</td>
+                        <td class="text-end">${infantCostPerPax.toFixed(2)}</td>
+                        <td class="text-end">${infantSellPerPax.toFixed(2)}</td>
+                        <td>${misc.supplement || ''}</td>
+                    </tr>`;
+            }).join('');
+            
+            totals.cost += totalMiscCost;
+            totals.sell += totalMiscSell;
+            
+            sections.push(`
                 <div class="mb-3">
                     <h6 class="bg-light p-2 border mb-0"><i class="ri-more-line me-2"></i>Miscellaneous</h6>
                     <table class="table table-bordered table-sm mb-0">
@@ -21380,133 +21550,31 @@ use Illuminate\Support\Facades\Crypt;
                             </tr>
                         </thead>
                         <tbody style="font-size: 10px;">
-            `;
-            
-            let totalMiscCost = 0;
-            let totalMiscSell = 0;
-            
-            miscList.forEach(misc => {
-                const adultQty = parseInt(misc.adultCount || 0);
-                const childQty = parseInt(misc.childCount || 0);
-                const infantQty = parseInt(misc.infantCount || 0);
-                const adultCostPerPax = parseFloat(misc.adultCost || 0);
-                const adultSellPerPax = parseFloat(misc.adultSell || 0);
-                const childCostPerPax = parseFloat(misc.childCost || 0);
-                const childSellPerPax = parseFloat(misc.childSell || 0);
-                const infantCostPerPax = parseFloat(misc.infantCost || 0);
-                const infantSellPerPax = parseFloat(misc.infantSell || 0);
-                
-                const totalCost = (adultQty * adultCostPerPax) + (childQty * childCostPerPax) + (infantQty * infantCostPerPax);
-                const totalSell = (adultQty * adultSellPerPax) + (childQty * childSellPerPax) + (infantQty * infantSellPerPax);
-                
-                totalMiscCost += totalCost;
-                totalMiscSell += totalSell;
-                
-                html += `
-                    <tr>
-                        <td>${misc.bookingDate || misc.Date || 'N/A'}</td>
-                        <td>${misc.itemName || misc.Name || 'N/A'}</td>
-                        <td>${adultQty}</td>
-                        <td class="text-end">${adultCostPerPax.toFixed(2)}</td>
-                        <td class="text-end">${adultSellPerPax.toFixed(2)}</td>
-                        <td>${childQty}</td>
-                        <td class="text-end">${childCostPerPax.toFixed(2)}</td>
-                        <td class="text-end">${childSellPerPax.toFixed(2)}</td>
-                        <td>${infantQty}</td>
-                        <td class="text-end">${infantCostPerPax.toFixed(2)}</td>
-                        <td class="text-end">${infantSellPerPax.toFixed(2)}</td>
-                        <td>${misc.supplement || ''}</td>
-                    </tr>
-                `;
-            });
-            
-            html += `
-                        <tr class="table-secondary fw-bold" style="font-size: 10px;">
-                            <td colspan="2" class="text-end">Subtotal:</td>
-                            <td colspan="3" class="text-end">${totalMiscCost.toFixed(2)}</td>
-                            <td colspan="6" class="text-end">${totalMiscSell.toFixed(2)}</td>
-                            <td></td>
-                        </tr>
+                            ${rows}
+                            <tr class="table-secondary fw-bold" style="font-size: 10px;">
+                                <td colspan="2" class="text-end">Subtotal:</td>
+                                <td colspan="3" class="text-end">${totalMiscCost.toFixed(2)}</td>
+                                <td colspan="6" class="text-end">${totalMiscSell.toFixed(2)}</td>
+                                <td></td>
+                            </tr>
                         </tbody>
                     </table>
                 </div>
-            `;
+            `);
         }
         
-        // Grand Total
-        let grandTotalCost = 0;
-        let grandTotalSell = 0;
+        // Grand Total (already calculated in totals object)
+        const profit = totals.sell - totals.cost;
+        const profitMargin = totals.sell > 0 ? ((profit / totals.sell) * 100).toFixed(2) : 0;
         
-        // Calculate totals from all sections
-        arrivalDepartureList.forEach(item => {
-            grandTotalCost += parseFloat(item.transferCost || 0);
-            grandTotalSell += parseFloat(item.transferSell || 0);
-        });
-        
-        accommodationList.forEach(h => {
-            grandTotalCost += parseFloat(h.totalCost || 0);
-            grandTotalSell += parseFloat(h.totalSell || 0);
-        });
-        
-        tourList.forEach(t => {
-            const adultQty = parseInt(t.adultCount || 0);
-            const childQty = parseInt(t.childCount || 0);
-            const adultCostPerPax = parseFloat(t.adultCost || 0);
-            const adultSellPerPax = parseFloat(t.adultSell || 0);
-            const childCostPerPax = parseFloat(t.childCost || 0);
-            const childSellPerPax = parseFloat(t.childSell || 0);
-            grandTotalCost += (adultQty * adultCostPerPax) + (childQty * childCostPerPax);
-            grandTotalSell += (adultQty * adultSellPerPax) + (childQty * childSellPerPax);
-        });
-        
-        mealList.forEach(m => {
-            const adultQty = parseInt(m.adultCount || 0);
-            const childQty = parseInt(m.childCount || 0);
-            const adultCostPerPax = parseFloat(m.adultCost || 0);
-            const adultSellPerPax = parseFloat(m.adultSell || 0);
-            const childCostPerPax = parseFloat(m.childCost || 0);
-            const childSellPerPax = parseFloat(m.childSell || 0);
-            grandTotalCost += (adultQty * adultCostPerPax) + (childQty * childCostPerPax);
-            grandTotalSell += (adultQty * adultSellPerPax) + (childQty * childSellPerPax);
-        });
-        
-        // Transfers (use consistent lowercase keys: cost, sell)
-        transferList.forEach(t => {
-            grandTotalCost += parseFloat(t.cost || 0);
-            grandTotalSell += parseFloat(t.sell || 0);
-        });
-        
-        // Guides (use consistent lowercase keys: cost, sell)
-        guideList.forEach(g => {
-            grandTotalCost += parseFloat(g.cost || 0);
-            grandTotalSell += parseFloat(g.sell || 0);
-        });
-        
-        miscList.forEach(m => {
-            const adultQty = parseInt(m.adultCount || 0);
-            const childQty = parseInt(m.childCount || 0);
-            const infantQty = parseInt(m.infantCount || 0);
-            const adultCostPerPax = parseFloat(m.adultCost || 0);
-            const adultSellPerPax = parseFloat(m.adultSell || 0);
-            const childCostPerPax = parseFloat(m.childCost || 0);
-            const childSellPerPax = parseFloat(m.childSell || 0);
-            const infantCostPerPax = parseFloat(m.infantCost || 0);
-            const infantSellPerPax = parseFloat(m.infantSell || 0);
-            grandTotalCost += (adultQty * adultCostPerPax) + (childQty * childCostPerPax) + (infantQty * infantCostPerPax);
-            grandTotalSell += (adultQty * adultSellPerPax) + (childQty * childSellPerPax) + (infantQty * infantSellPerPax);
-        });
-        
-        const profit = grandTotalSell - grandTotalCost;
-        const profitMargin = grandTotalSell > 0 ? ((profit / grandTotalSell) * 100).toFixed(2) : 0;
-        
-        html += `
+        sections.push(`
                     <div class="mt-3">
                         <table class="table table-bordered table-sm mb-0">
                             <tbody>
                                 <tr class="table-primary fw-bold">
                                     <td colspan="2">GRAND TOTAL</td>
-                                    <td class="text-end">Cost: ${grandTotalCost.toFixed(2)}</td>
-                                    <td class="text-end">Sell: ${grandTotalSell.toFixed(2)}</td>
+                                    <td class="text-end">Cost: ${totals.cost.toFixed(2)}</td>
+                                    <td class="text-end">Sell: ${totals.sell.toFixed(2)}</td>
                                     <td class="text-end">Profit: ${profit.toFixed(2)} (${profitMargin}%)</td>
                                 </tr>
                             </tbody>
@@ -21514,9 +21582,9 @@ use Illuminate\Support\Facades\Crypt;
                     </div>
                 </div>
             </div>
-        `;
+        `);
         
-        return html;
+        return sections.join('');
     }
 
     // Print Cost Sheet
@@ -21887,12 +21955,12 @@ use Illuminate\Support\Facades\Crypt;
                                 }
                                 
                                 const hotelName = hotelData.hotelName || '';
-                                const destinationName = transferOpts.destination || hotelData.destination || '';
+                                const destinationName = transferOpts.destination || transferOpts.destination_name || hotelData.destination || '';
                                 
                                 // Get pickup and dropoff from transfer options
-                                // Priority: pickup/dropoff from transferOpts > hotelName/destinationName
-                                const pickupName = transferOpts.pickup || transferOpts.pickupLocation || transferOpts.pickupName || hotelName || '';
-                                const dropoffName = transferOpts.dropoff || transferOpts.dropoffLocation || transferOpts.dropoffName || destinationName || '';
+                                // Priority: pickup/dropoff from transferOpts > pickup_location_name/destination_name > hotelName/destinationName
+                                const pickupName = transferOpts.pickup || transferOpts.pickupLocation || transferOpts.pickup_location_name || transferOpts.pickupName || hotelName || '';
+                                const dropoffName = transferOpts.dropoff || transferOpts.dropoffLocation || transferOpts.destination_name || transferOpts.dropoffName || destinationName || '';
                                 
                                 // Construct service name: pickup / dropoff
                                 // The saved format is "pickup / dropoff" so use that directly if available
@@ -21924,6 +21992,10 @@ use Illuminate\Support\Facades\Crypt;
                                 const transferAdults = transferOpts.adults || transferOpts.adultsQty || headerValues.adults || initialAdultCount || hotelData.adultsQty || 0;
                                 const transferChild = transferOpts.child || transferOpts.childQty || transferOpts.children || headerValues.children || initialChildCount || hotelData.childQty || 0;
                                 
+                                // Get cost and sell - handle both field names (cost field from create form contains the sell price)
+                                const transferCost = parseFloat(transferOpts.cost || transferOpts.Cost || 0);
+                                const transferSell = parseFloat(transferOpts.sell || transferOpts.Sell || transferOpts.cost || 0);
+                                
                                 transferList.push({
                                     id: transferId,
                                     dateTime: transferDateTime,
@@ -21948,8 +22020,8 @@ use Illuminate\Support\Facades\Crypt;
                                     adultsQty: transferAdults,
                                     child: transferChild,
                                     childQty: transferChild,
-                                    cost: parseFloat(transferOpts.cost || 0),
-                                    sell: parseFloat(transferOpts.sell || 0),
+                                    cost: transferCost,
+                                    sell: transferSell,
                                     zonePrivatePrice: transferOpts.zonePrivatePrice || 0,
                                     zoneSharedPrice: transferOpts.zoneSharedPrice || 0,
                                     supplement: false
@@ -22023,12 +22095,12 @@ use Illuminate\Support\Facades\Crypt;
                                 }
                                 
                                 const attractionName = tourData.attractionName || '';
-                                const destinationName = transferOpts.destination || tourData.destination || '';
+                                const destinationName = transferOpts.destination || transferOpts.destination_name || tourData.destination || '';
                                 
                                 // Get pickup and dropoff from transfer options
-                                // Priority: pickup/dropoff from transferOpts > attractionName/destinationName
-                                const pickupName = transferOpts.pickup || transferOpts.pickupLocation || transferOpts.pickupName || attractionName || '';
-                                const dropoffName = transferOpts.dropoff || transferOpts.dropoffLocation || transferOpts.dropoffName || destinationName || '';
+                                // Priority: pickup/dropoff from transferOpts > pickup_location_name/destination_name > attractionName/destinationName
+                                const pickupName = transferOpts.pickup || transferOpts.pickupLocation || transferOpts.pickup_location_name || transferOpts.pickupName || attractionName || '';
+                                const dropoffName = transferOpts.dropoff || transferOpts.dropoffLocation || transferOpts.destination_name || transferOpts.dropoffName || destinationName || '';
                                 
                                 // Construct service name: pickup / dropoff
                                 // The saved format is "pickup / dropoff" so use that directly if available
@@ -22047,6 +22119,10 @@ use Illuminate\Support\Facades\Crypt;
                                 const vehicleName = transferOpts.vehicleName || vehicleDetails.vehicle_name || '';
                                 const seatingCapacity = transferOpts.seating_capacity || transferOpts.seatingCapacity || 
                                                        vehicleDetails.seating_capacity || '';
+                                
+                                // Get cost and sell - handle both field names (cost field from create form contains the sell price)
+                                const transferCost = parseFloat(transferOpts.cost || transferOpts.Cost || 0);
+                                const transferSell = parseFloat(transferOpts.sell || transferOpts.Sell || transferOpts.cost || 0);
                                 
                                 transferList.push({
                                     id: transferId,
@@ -22072,8 +22148,8 @@ use Illuminate\Support\Facades\Crypt;
                                     adultsQty: tourData.adultsQty || 0,
                                     child: tourData.childQty || 0,
                                     childQty: tourData.childQty || 0,
-                                    cost: parseFloat(transferOpts.cost || 0),
-                                    sell: parseFloat(transferOpts.sell || 0),
+                                    cost: transferCost,
+                                    sell: transferSell,
                                     zonePrivatePrice: transferOpts.zonePrivatePrice || 0,
                                     zoneSharedPrice: transferOpts.zoneSharedPrice || 0,
                                     supplement: false
@@ -22093,6 +22169,12 @@ use Illuminate\Support\Facades\Crypt;
                                     guideDateTime = `${guideDateTime}T${tourData.visitTime || tourData.time || '09:00'}`;
                                 }
                                 
+                                // Get adult and child quantities from guide_options or tourData
+                                const guideAdultsQty = guideOpts.adultsQty || guideOpts.adults_qty || guideOpts.adultQty || guideOpts.adult_qty || 
+                                                      guideOpts.adults || tourData.adultsQty || 0;
+                                const guideChildQty = guideOpts.childQty || guideOpts.child_qty || guideOpts.childrenQty || guideOpts.children_qty ||
+                                                     guideOpts.children || guideOpts.child || tourData.childQty || 0;
+                                
                                 guideList.push({
                                     id: guideId,
                                     guide_id: guideOpts.guideId || guideOpts.guide_id || guideOpts.GuideId || '',
@@ -22107,6 +22189,10 @@ use Illuminate\Support\Facades\Crypt;
                                     language: guideOpts.language || guideOpts.languages || guideOpts.Language || '',
                                     languages: guideOpts.languages || guideOpts.language || guideOpts.Language || '',
                                     hours: guideOpts.hours || guideOpts.service_hours || guideOpts.Hours || (guideOpts.serviceType === 'Full Day' ? 12 : 8),
+                                    adultsQty: guideAdultsQty,
+                                    adults_qty: guideAdultsQty,
+                                    childQty: guideChildQty,
+                                    child_qty: guideChildQty,
                                     cost: parseFloat(guideOpts.cost || guideOpts.Cost || 0),
                                     sell: parseFloat(guideOpts.sell || guideOpts.Sell || 0),
                                     supplement: false,
@@ -22175,12 +22261,12 @@ use Illuminate\Support\Facades\Crypt;
                                 }
                                 
                                 const restaurantName = mealData.restaurantName || '';
-                                const destinationName = transferOpts.destination || mealData.destination || '';
+                                const destinationName = transferOpts.destination || transferOpts.destination_name || mealData.destination || '';
                                 
                                 // Get pickup and dropoff from transfer options
-                                // Priority: pickup/dropoff from transferOpts > restaurantName/destinationName
-                                const pickupName = transferOpts.pickup || transferOpts.pickupLocation || transferOpts.pickupName || restaurantName || '';
-                                const dropoffName = transferOpts.dropoff || transferOpts.dropoffLocation || transferOpts.dropoffName || destinationName || '';
+                                // Priority: pickup/dropoff from transferOpts > pickup_location_name/destination_name > restaurantName/destinationName
+                                const pickupName = transferOpts.pickup || transferOpts.pickupLocation || transferOpts.pickup_location_name || transferOpts.pickupName || restaurantName || '';
+                                const dropoffName = transferOpts.dropoff || transferOpts.dropoffLocation || transferOpts.destination_name || transferOpts.dropoffName || destinationName || '';
                                 
                                 // Construct service name: pickup / dropoff
                                 // The saved format is "pickup / dropoff" so use that directly if available
@@ -22199,6 +22285,10 @@ use Illuminate\Support\Facades\Crypt;
                                 const vehicleName = transferOpts.vehicleName || vehicleDetails.vehicle_name || '';
                                 const seatingCapacity = transferOpts.seating_capacity || transferOpts.seatingCapacity || 
                                                        vehicleDetails.seating_capacity || '';
+                                
+                                // Get cost and sell - handle both field names (cost field from create form contains the sell price)
+                                const transferCost = parseFloat(transferOpts.cost || transferOpts.Cost || 0);
+                                const transferSell = parseFloat(transferOpts.sell || transferOpts.Sell || transferOpts.cost || 0);
                                 
                                 transferList.push({
                                     id: transferId,
@@ -22224,8 +22314,8 @@ use Illuminate\Support\Facades\Crypt;
                                     adultsQty: mealData.adultsQty || 0,
                                     child: mealData.childQty || 0,
                                     childQty: mealData.childQty || 0,
-                                    cost: parseFloat(transferOpts.cost || 0),
-                                    sell: parseFloat(transferOpts.sell || 0),
+                                    cost: transferCost,
+                                    sell: transferSell,
                                     zonePrivatePrice: transferOpts.zonePrivatePrice || 0,
                                     zoneSharedPrice: transferOpts.zoneSharedPrice || 0,
                                     supplement: false
@@ -22245,6 +22335,12 @@ use Illuminate\Support\Facades\Crypt;
                                     guideDateTime = `${guideDateTime}T${mealData.visitTime || mealData.time || '09:00'}`;
                                 }
                                 
+                                // Get adult and child quantities from guide_options or mealData
+                                const guideAdultsQty = guideOpts.adultsQty || guideOpts.adults_qty || guideOpts.adultQty || guideOpts.adult_qty || 
+                                                      guideOpts.adults || mealData.adultsQty || 0;
+                                const guideChildQty = guideOpts.childQty || guideOpts.child_qty || guideOpts.childrenQty || guideOpts.children_qty ||
+                                                     guideOpts.children || guideOpts.child || mealData.childQty || 0;
+                                
                                 guideList.push({
                                     id: guideId,
                                     guide_id: guideOpts.guideId || guideOpts.guide_id || guideOpts.GuideId || '',
@@ -22258,6 +22354,10 @@ use Illuminate\Support\Facades\Crypt;
                                     language: guideOpts.language || guideOpts.languages || guideOpts.Language || '',
                                     languages: guideOpts.languages || guideOpts.language || guideOpts.Language || '',
                                     hours: guideOpts.hours || guideOpts.service_hours || guideOpts.Hours || (guideOpts.serviceType === 'Full Day' ? 12 : 8),
+                                    adultsQty: guideAdultsQty,
+                                    adults_qty: guideAdultsQty,
+                                    childQty: guideChildQty,
+                                    child_qty: guideChildQty,
                                     cost: parseFloat(guideOpts.cost || guideOpts.Cost || 0),
                                     sell: parseFloat(guideOpts.sell || guideOpts.Sell || 0),
                                     supplement: false,
@@ -22429,14 +22529,21 @@ use Illuminate\Support\Facades\Crypt;
                                 guideDateTime = `${guideDateTime}T${timeStr}`;
                             }
                             
+                            // Extract guide name and tour activity
+                            const guideName = firstItem.guide_name || firstItem.guideName || firstItem.name || '';
+                            const tourActivity = firstItem.tourActivity || firstItem.tour_activity || firstItem.tour_name || firstItem.tourName || firstItem.TourActivity || firstItem.Activity || '';
+                            
+                            // If tourActivity is missing, construct it from guide name
+                            const finalTourActivity = tourActivity || (guideName ? `Guide Service - ${guideName}` : '');
+                            
                             guideList.push({
                                 id: order.booking_id,
                                 guideId: firstItem.guide_id || firstItem.guideId || '',
                                 guide_id: firstItem.guide_id || firstItem.guideId || '',
-                                guideName: firstItem.guide_name || firstItem.guideName || firstItem.name || '',
-                                name: firstItem.guide_name || firstItem.guideName || firstItem.name || '',
-                                tourActivity: firstItem.tourActivity || firstItem.tour_activity || firstItem.tour_name || firstItem.tourName || firstItem.TourActivity || firstItem.Activity || '',
-                                tourName: firstItem.tourActivity || firstItem.tour_activity || firstItem.tour_name || firstItem.tourName || firstItem.TourActivity || firstItem.Activity || '',
+                                guideName: guideName,
+                                name: guideName,
+                                tourActivity: finalTourActivity,
+                                tourName: finalTourActivity,
                                 destination: firstItem.destination || '',
                                 date: firstItem.date || firstItem.bookingDate || '',
                                 dateTime: guideDateTime,
@@ -22445,8 +22552,14 @@ use Illuminate\Support\Facades\Crypt;
                                 language: firstItem.language || firstItem.languages || firstItem.Language || '',
                                 languages: firstItem.languages || firstItem.language || firstItem.Language || '',
                                 hours: firstItem.hours || firstItem.service_hours || firstItem.Hours || (firstItem.serviceType === 'Full Day' ? 12 : 8),
-                                cost: firstItem.cost || firstItem.Cost || 0,
-                                sell: firstItem.sell || firstItem.Sell || 0,
+                                adultsQty: parseInt(firstItem.adults || firstItem.adultsQty || firstItem.adults_qty || 0),
+                                childQty: parseInt(firstItem.children || firstItem.childQty || firstItem.child_qty || 0),
+                                cost: parseFloat(firstItem.cost || firstItem.Cost || 0),
+                                sell: parseFloat(firstItem.sell || firstItem.Sell || 0),
+                                adultCost: parseFloat(firstItem.adultCost || firstItem.cost || firstItem.Cost || 0),
+                                adultSell: parseFloat(firstItem.adultSell || firstItem.sell || firstItem.Sell || 0),
+                                childCost: parseFloat(firstItem.childCost || firstItem.cost || firstItem.Cost || 0),
+                                childSell: parseFloat(firstItem.childSell || firstItem.sell || firstItem.Sell || 0),
                                 supplement: firstItem.supplement || false,
                                 isStandalone: true
                             });
