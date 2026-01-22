@@ -564,7 +564,7 @@
                                     </div>
                                     <input type="hidden" id="selectedPersons" value="1">
                                 </div>
-                                <div class="col-md-3">
+                                <div class="col-md-3" id="mealPlanSection">
                                     <label class="form-label fw-semibold mb-1" style="color: #495057; font-size: 0.8rem;">
                                         <i class="ri-restaurant-line me-1"></i>Meal Plan
                                     </label>
@@ -11134,11 +11134,16 @@ document.addEventListener('DOMContentLoaded', function() {
                     const hasLunch = roomsToUse.some(room => room.lunch == 1 || room.lunch === true);
                     const hasDinner = roomsToUse.some(room => room.dinner == 1 || room.dinner === true);
                     
+                    // Check if any room has rooms_only = 1 (if so, don't show "room only" option)
+                    const hasRoomsOnly = roomsToUse.some(room => room.rooms_only == 1 || room.rooms_only === true || room.rooms_only === '1');
+                    
                     // Generate meal plan options - only show "1 room" options based on database values
                     const roomText = "room";
                     
-                    // Add "Room Only" option first
-                    mealPlans.add(`${roomText} only`);
+                    // Add "Room Only" option only if rooms_only is NOT 1
+                    if (!hasRoomsOnly) {
+                        mealPlans.add(`${roomText} only`);
+                    }
                     
                     // Add specific meal options based on database values (breakfast/lunch/dinner = 1)
                     if (hasBreakfast) {
@@ -11443,8 +11448,11 @@ document.addEventListener('DOMContentLoaded', function() {
         // Get the first room ID to fetch beds (since all rooms of same type should have similar bed options)
         const firstRoom = selectedRooms[0];
         const roomId = firstRoom.room_id;
+        // Get rooms_only value from the first room (all rooms of same type should have same rooms_only value)
+        const roomsOnlyValue = firstRoom.rooms_only || 0;
         
         console.log('Fetching beds for room ID:', roomId);
+        console.log('Room rooms_only value from controller:', roomsOnlyValue);
         
         // Fetch beds from the beds table using the existing API endpoint
         fetch(`{{ route('fetch-beds-by-room') }}?room_id=${roomId}`)
@@ -12973,10 +12981,12 @@ document.addEventListener('DOMContentLoaded', function() {
                      hotelNames = `${selectedHotels[0].name}, ${selectedHotels[1].name} + ${remaining} more`;
                  }
                  
-                 const totalPrice = selectedHotels.reduce((sum, h) => {
-                     const priceNum = parseFloat(h.price) || 0;
-                     return sum + priceNum;
-                 }, 0);
+                const totalPrice = selectedHotels.reduce((sum, h) => {
+                    const priceNum = parseFloat(h.price) || 0;
+                    const numRooms = parseInt(h.numberOfRooms) || 1;
+                    // Multiply price by number of rooms to get total price
+                    return sum + (priceNum * numRooms);
+                }, 0);
                  
                  const formattedPrice = totalPrice.toLocaleString('en-US', {
                      minimumFractionDigits: 2,

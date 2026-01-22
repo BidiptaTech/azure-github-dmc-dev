@@ -162,6 +162,154 @@
             display: inline-block;
         }
         
+        /* Guest Selector Styling */
+        .guest-selector .guest-display:hover {
+            box-shadow: 0 4px 12px rgba(0,0,0,0.1) !important;
+            transform: translateY(-2px);
+        }
+        
+        .guest-selector button[onclick*="openTourGuestSelector"]:hover {
+            background: linear-gradient(135deg, #764ba2 0%, #667eea 100%) !important;
+            box-shadow: 0 4px 12px rgba(102, 126, 234, 0.4) !important;
+            transform: translateY(-1px);
+        }
+        
+        .guest-selector .badge-item {
+            transition: all 0.3s ease;
+        }
+        
+        .guest-selector .badge-item:hover {
+            transform: scale(1.05);
+            box-shadow: 0 4px 12px rgba(0,0,0,0.2) !important;
+        }
+        
+        /* Accordion Styling */
+        #tourInfoAccordion .accordion-button {
+            box-shadow: none !important;
+        }
+        
+        #tourInfoAccordion .accordion-button:not(.collapsed) {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%) !important;
+            color: #ffffff !important;
+        }
+        
+        #tourInfoAccordion .accordion-button:focus {
+            border-color: transparent !important;
+            box-shadow: none !important;
+        }
+        
+        #tourInfoAccordion .accordion-button::after {
+            filter: brightness(0) invert(1);
+            margin-left: auto;
+        }
+        
+        #tourInfoAccordion .accordion-button.collapsed::after {
+            filter: brightness(0) invert(1);
+        }
+        
+        /* Reduce guest selector padding for compact look */
+        .guest-selector .guest-display {
+            padding: 0.75rem !important;
+        }
+        
+        /* Modern Input Styling */
+        .modern-input {
+            height: 42px !important;
+            border: 1px solid #e0e0e0 !important;
+            border-radius: 8px !important;
+            padding: 0.5rem 0.875rem !important;
+            font-size: 0.875rem !important;
+            transition: all 0.3s ease !important;
+            background-color: #ffffff !important;
+        }
+        
+        .modern-input:focus {
+            border-color: #667eea !important;
+            box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1) !important;
+            outline: none !important;
+        }
+        
+        .modern-input:disabled {
+            background-color: #f8f9fa !important;
+            color: #6c757d !important;
+            cursor: not-allowed !important;
+        }
+        
+        /* Modern Select Styling */
+        .modern-select {
+            height: 42px !important;
+            border: 1px solid #e0e0e0 !important;
+            border-radius: 8px !important;
+            padding: 0.5rem 0.875rem !important;
+            font-size: 0.875rem !important;
+            transition: all 0.3s ease !important;
+            background-color: #ffffff !important;
+            background-image: url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3e%3cpath fill='none' stroke='%23343a40' stroke-linecap='round' stroke-linejoin='round' stroke-width='2' d='M2 5l6 6 6-6'/%3e%3c/svg%3e") !important;
+            background-repeat: no-repeat !important;
+            background-position: right 0.75rem center !important;
+            background-size: 16px 12px !important;
+            padding-right: 2.5rem !important;
+        }
+        
+        .modern-select:focus {
+            border-color: #667eea !important;
+            box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1) !important;
+            outline: none !important;
+        }
+        
+        .modern-select:disabled {
+            background-color: #f8f9fa !important;
+            color: #6c757d !important;
+            cursor: not-allowed !important;
+        }
+        
+        /* Modern Update Button Hover */
+        .modern-update-btn:hover {
+            background: linear-gradient(135deg, #764ba2 0%, #667eea 100%) !important;
+            box-shadow: 0 4px 12px rgba(102, 126, 234, 0.4) !important;
+            transform: translateY(-1px);
+        }
+        
+        .modern-update-btn:active {
+            transform: translateY(0);
+        }
+        
+        /* Hotel Modal Styling */
+        #hotelBookingModal .modal-content {
+            border: none !important;
+        }
+        
+        #hotelBookingModal .modal-footer button:hover:not(:disabled) {
+            transform: translateY(-1px);
+            box-shadow: 0 4px 12px rgba(0,0,0,0.15) !important;
+        }
+        
+        #hotelBookingModal .modal-footer button#proceed_hotel_btn:hover:not(:disabled) {
+            background: linear-gradient(135deg, #059669 0%, #10b981 100%) !important;
+            box-shadow: 0 4px 12px rgba(16, 185, 129, 0.4) !important;
+        }
+        
+        #hotelBookingModal .modal-footer button#proceed_hotel_btn:disabled {
+            opacity: 0.6;
+            cursor: not-allowed;
+        }
+        
+        /* Restaurant Modal Styling */
+        #restaurantSelectionModal .modal-footer button:hover:not(:disabled) {
+            transform: translateY(-1px);
+            box-shadow: 0 4px 12px rgba(0,0,0,0.15) !important;
+        }
+        
+        #restaurantSelectionModal .modal-footer button#confirm_restaurant_btn:hover:not(:disabled) {
+            background: linear-gradient(135deg, #f5576c 0%, #f093fb 100%) !important;
+            box-shadow: 0 4px 12px rgba(245, 87, 108, 0.4) !important;
+        }
+        
+        #restaurantSelectionModal .modal-footer button#confirm_restaurant_btn:disabled {
+            opacity: 0.6;
+            cursor: not-allowed;
+        }
+        
         /* Highlight Yes/No transport toggle buttons when selected */
         .btn-check:checked + .btn-outline-primary,
         .btn-check:active + .btn-outline-primary {
@@ -520,23 +668,32 @@
         <form id="singleTourPackageForm" method="POST" action="{{ route('single-tour-package.store') }}" data-update-info-url="{{ isset($tour) ? route('single-tour-package.update-info', $tour->tour_id) : '' }}" data-update-guests-url="{{ isset($tour) ? route('single-tour-package.update-guests', $tour->tour_id) : '' }}">
             @csrf
             
-            <!-- Main Form Card - All in One Row -->
-            <div class="row mb-4">
+            <!-- Main Form Card - All in One Row with Accordion -->
+            <div class="row mb-3">
                 <div class="col-12">
-                    <div class="card shadow-sm border-0">
-                        <div class="card-header bg-gradient-primary text-white">
-                            <h6 class="mb-0 fw-bold">
-                                <i class="ri-settings-3-line me-2"></i>Tour Information
-                            </h6>
-                        </div>
-                        <div class="card-body mt-3">
-                            <div class="row g-3">
+                    <div class="accordion" id="tourInfoAccordion">
+                        <div class="accordion-item border-0" style="box-shadow: 0 4px 20px rgba(0,0,0,0.08); border-radius: 12px; overflow: hidden;">
+                            <h2 class="accordion-header" id="tourInfoHeading">
+                                <button class="accordion-button text-white border-0 collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#tourInfoCollapse" aria-expanded="false" aria-controls="tourInfoCollapse" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); padding: 0.875rem 1.25rem;">
+                                    <div class="d-flex align-items-center w-100">
+                                        <div style="width: 36px; height: 36px; background: rgba(255, 255, 255, 0.2); border-radius: 8px; display: flex; align-items: center; justify-content: center; margin-right: 10px;">
+                                            <i class="ri-settings-3-line" style="font-size: 1.1rem; color: #ffffff;"></i>
+                                        </div>
+                                        <h6 class="mb-0 fw-bold" style="font-size: 1rem; letter-spacing: -0.01em; color: #ffffff;">
+                                            Tour Information
+                                        </h6>
+                                    </div>
+                                </button>
+                            </h2>
+                            <div id="tourInfoCollapse" class="accordion-collapse collapse" aria-labelledby="tourInfoHeading" data-bs-parent="#tourInfoAccordion">
+                                <div class="accordion-body" style="padding: 1.25rem; background: #ffffff;">
+                                    <div class="row g-3">
                                 <!-- Tour ID -->
                                 <div class="col-md-2">
-                                    <label class="form-label fw-semibold">
-                                        <i class="ri-hashtag me-1"></i>Tour ID
+                                    <label class="form-label fw-semibold mb-2" style="color: #495057; font-size: 0.875rem;">
+                                        <i class="ri-hashtag me-1" style="color: #667eea;"></i>Tour ID
                                     </label>
-                                    <input type="text" style="height:38px" class="form-control" name="display_id" id="display_id" value="{{ $tour->display_id ?? '' }}" placeholder="Enter tour reference" disabled>
+                                    <input type="text" class="form-control modern-input" name="display_id" id="display_id" value="{{ $tour->display_id ?? '' }}" placeholder="Enter tour reference" disabled>
                                     <input type="hidden" id="tour_id" name="tour_id" value="{{ $tour->tour_id ?? '' }}">
                                     
                                     <!-- DMC Information -->
@@ -549,10 +706,10 @@
 
                                 <!-- Country -->
                                 <div class="col-md-2">
-                                    <label class="form-label fw-semibold">
-                                        <i class="ri-earth-line me-1"></i>Country
+                                    <label class="form-label fw-semibold mb-2" style="color: #495057; font-size: 0.875rem;">
+                                        <i class="ri-earth-line me-1" style="color: #667eea;"></i>Country
                                     </label>
-                                    <select class="form-select" name="user_country" id="user_country" required disabled>
+                                    <select class="form-select modern-select" name="user_country" id="user_country" required disabled>
                                         <option value="">Select Country</option >
                                         @foreach($countries as $country)
                                             <option value="{{ $country->name }}" {{ ($tour->destination ?? '') == $country->name ? 'selected' : '' }}>
@@ -564,12 +721,12 @@
 
                                 <!-- Travel Dates -->
                                 <div class="col-md-3">
-                                    <label class="form-label fw-semibold" >
-                                        <i class="ri-calendar-line me-1" ></i>Travel Dates
+                                    <label class="form-label fw-semibold mb-2" style="color: #495057; font-size: 0.875rem;">
+                                        <i class="ri-calendar-line me-1" style="color: #667eea;"></i>Travel Dates
                                     </label>
                                     <div class="row g-2">
                                         <div class="col-6">
-                                            <input type="date" style="height:38px" class="form-control" name="start_date" id="start_date" 
+                                            <input type="date" class="form-control modern-input" name="start_date" id="start_date" 
                                                 value="{{ 
                                                     $tour->check_in_time 
                                                         ? (is_string($tour->check_in_time) ? date('Y-m-d', strtotime($tour->check_in_time)) : $tour->check_in_time->format('Y-m-d'))
@@ -578,7 +735,7 @@
                                                 min="{{ date('Y-m-d') }}">
                                         </div>
                                         <div class="col-6">
-                                            <input type="date" style="height:38px" class="form-control" name="end_date" id="end_date" 
+                                            <input type="date" class="form-control modern-input" name="end_date" id="end_date" 
                                                 value="{{ 
                                                     $tour->check_out_time 
                                                         ? (is_string($tour->check_out_time) ? date('Y-m-d', strtotime($tour->check_out_time)) : $tour->check_out_time->format('Y-m-d'))
@@ -591,28 +748,45 @@
 
                                 <!-- Guests -->
                                 <div class="col-md-3">
-                                    <label class="form-label fw-semibold">
-                                        <i class="ri-group-line me-1"></i>Guests
+                                    <label class="form-label fw-semibold mb-2" style="color: #495057; font-size: 0.875rem;">
+                                        <i class="ri-group-line me-1" style="color: #667eea;"></i>Guests
                                     </label>
                                     <div class="guest-selector">
-                                        <div class="guest-display p-2 border rounded bg-light">
-                                            <div class="d-flex align-items-center justify-content-between">
-                                                <div class="guest-info">
-                                                    <span id="tour_guest_summary" class="text-muted small">
-                                                        @php
-                                                            $adultCount = $tour->adult ?? 1;
-                                                            $childCount = $tour->child ?? 0;
-                                                            $infantCount = $tour->infant ?? 0;
-                                                            $maleCount = isset($tour->male_count) ? $tour->male_count : $adultCount;
-                                                            $femaleCount = isset($tour->female_count) ? $tour->female_count : 0;
-                                                        @endphp
-                                                        {{ $adultCount }} adults ({{ $maleCount }} male, {{ $femaleCount }} female), {{ $childCount }} children, {{ $infantCount }} infants
-                                                    </span>
-                                                </div>
-                                                <button type="button" class="btn btn-sm btn-outline-primary" onclick="openTourGuestSelector()">
-                                                    <i class="ri-edit-line"></i> Select
-                                                </button>
+                                        <div class="guest-display" style="background: linear-gradient(135deg, #ffffff 0%, #f8f9fa 100%); border: 1px solid #e9ecef; border-radius: 10px; padding: 0.75rem; box-shadow: 0 2px 8px rgba(0,0,0,0.06); transition: all 0.3s ease;">
+                                            <!-- Guest Summary Text -->
+                                            <div class="guest-info mb-2">
+                                                <span id="tour_guest_summary" class="text-muted" style="font-size: 0.75rem; color: #6c757d; line-height: 1.4; display: block;">
+                                                    @php
+                                                        $adultCount = $tour->adult ?? 1;
+                                                        $childCount = $tour->child ?? 0;
+                                                        $infantCount = $tour->infant ?? 0;
+                                                        $maleCount = isset($tour->male_count) ? $tour->male_count : $adultCount;
+                                                        $femaleCount = isset($tour->female_count) ? $tour->female_count : 0;
+                                                    @endphp
+                                                    {{ $adultCount }} adults ({{ $maleCount }} male, {{ $femaleCount }} female), {{ $childCount }} children, {{ $infantCount }} infants
+                                                </span>
                                             </div>
+                                            
+                                            <!-- Guest Count Badges -->
+                                            <div class="guest-badges d-flex flex-wrap gap-2 mb-2">
+                                                <div class="badge-item" style="display: flex; align-items: center; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; padding: 0.35rem 0.65rem; border-radius: 6px; font-size: 0.7rem; font-weight: 600; box-shadow: 0 2px 6px rgba(102, 126, 234, 0.3);">
+                                                    <i class="ri-user-line me-1" style="font-size: 0.8rem;"></i>
+                                                    <span id="guest-badge-adults">{{ $adultCount }}</span>
+                                                </div>
+                                                <div class="badge-item" style="display: flex; align-items: center; background: linear-gradient(135deg, #10b981 0%, #059669 100%); color: white; padding: 0.35rem 0.65rem; border-radius: 6px; font-size: 0.7rem; font-weight: 600; box-shadow: 0 2px 6px rgba(16, 185, 129, 0.3);">
+                                                    <i class="ri-user-smile-line me-1" style="font-size: 0.8rem;"></i>
+                                                    <span id="guest-badge-children">{{ $childCount }}</span>
+                                                </div>
+                                                <div class="badge-item" style="display: flex; align-items: center; background: linear-gradient(135deg, #f59e0b 0%, #d97706 100%); color: white; padding: 0.35rem 0.65rem; border-radius: 6px; font-size: 0.7rem; font-weight: 600; box-shadow: 0 2px 6px rgba(245, 158, 11, 0.3);">
+                                                    <i class="ri-user-heart-line me-1" style="font-size: 0.8rem;"></i>
+                                                    <span id="guest-badge-infants">{{ $infantCount }}</span>
+                                                </div>
+                                            </div>
+                                            
+                                            <!-- Select Button -->
+                                            <button type="button" class="btn w-100" onclick="openTourGuestSelector()" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; border: none; border-radius: 8px; padding: 0.4rem 0.875rem; font-weight: 500; font-size: 0.8rem; transition: all 0.3s ease; box-shadow: 0 2px 8px rgba(102, 126, 234, 0.25);">
+                                                <i class="ri-edit-line me-2"></i>Select Guests
+                                            </button>
                                         </div>
                                     </div>
                                     <!-- Hidden fields for form submission -->
@@ -626,10 +800,10 @@
 
                                 <!-- Agent -->
                                 <div class="col-md-2">
-                                    <label class="form-label fw-semibold">
-                                        <i class="ri-user-star-line me-1"></i>Agent
+                                    <label class="form-label fw-semibold mb-2" style="color: #495057; font-size: 0.875rem;">
+                                        <i class="ri-user-star-line me-1" style="color: #667eea;"></i>Agent
                                     </label>
-                                    <select class="form-select" name="agent_id" id="agent_id">
+                                    <select class="form-select modern-select" name="agent_id" id="agent_id">
                                         <option value="">Select agent</option>
                                         @foreach($agents as $agent)
                                             <option value="{{ $agent->agent_id }}" {{ ($tour->agent_id ?? null) == $agent->agent_id ? 'selected' : '' }}>
@@ -638,13 +812,16 @@
                                         @endforeach
                                     </select>
                                 </div>
-                            </div>
-                            <div class="d-flex justify-content-end align-items-center gap-3 mt-3">
-                                <div class="text-muted small" id="tour_info_feedback"></div>
-                                <button type="button" class="btn btn-primary d-flex align-items-center gap-2" onclick="UpdateTourInformation(event)">
-                                    <span class="spinner-border spinner-border-sm d-none" id="tour_info_spinner"></span>
-                                    <span>Update Tour Information</span>
-                                </button>
+                                    </div>
+                                    <div class="d-flex justify-content-end align-items-center gap-3 mt-3 pt-3" style="border-top: 1px solid #e9ecef;">
+                                        <div class="text-muted small" id="tour_info_feedback" style="font-size: 0.875rem;"></div>
+                                        <button type="button" class="btn d-flex align-items-center gap-2 modern-update-btn" onclick="UpdateTourInformation(event)" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; border: none; border-radius: 8px; padding: 1rem 1.25rem; font-weight: 500; font-size: 0.875rem; transition: all 0.3s ease; box-shadow: 0 2px 8px rgba(102, 126, 234, 0.25);">
+                                            <span class="spinner-border spinner-border-sm d-none" id="tour_info_spinner" style="width: 1rem; height: 1rem; border-width: 2px;"></span>
+                                            <i class="ri-save-line me-1"></i>
+                                            <span>Update Tour Information</span>
+                                        </button>
+                                    </div>
+                                </div>
                             </div>
                         </div>
                     </div>
@@ -4103,79 +4280,77 @@
 
 <!-- Guide Selection Modal -->
 <div class="modal fade" id="guideSelectionModal" tabindex="-1" aria-labelledby="guideSelectionModalLabel" aria-hidden="true">
-    <div class="modal-dialog modal-lg">
-        <div class="modal-content">
-            <div class="modal-header bg-gradient-info text-white">
-                <h5 class="modal-title" id="guideSelectionModalLabel">
-                    <i class="ri-user-star-line me-2"></i>Select Tour Guide
-                </h5>
-                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+    <div class="modal-dialog modal-dialog-centered modal-lg">
+        <div class="modal-content border-0" style="border-radius: 12px; overflow: hidden; box-shadow: 0 10px 40px rgba(0,0,0,0.15);">
+            <div class="modal-header text-white border-0" style="background: linear-gradient(135deg, #f6d365 0%, #fda085 100%); padding: 0.75rem 1rem;">
+                <div class="d-flex align-items-center">
+                    <div style="width: 32px; height: 32px; background: rgba(255, 255, 255, 0.2); border-radius: 8px; display: flex; align-items: center; justify-content: center; margin-right: 8px;">
+                        <i class="ri-user-star-line" style="font-size: 1rem; color: #ffffff;"></i>
+                    </div>
+                    <h6 class="modal-title mb-0 fw-bold" id="guideSelectionModalLabel" style="font-size: 0.95rem; letter-spacing: -0.01em; color: #ffffff;">
+                        Select Tour Guide
+                    </h6>
+                </div>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close" style="opacity: 0.9; font-size: 0.75rem;"></button>
             </div>
-            <div class="modal-body">
+            <div class="modal-body" style="padding: 1rem; background: #ffffff; max-height: 70vh; overflow-y: auto;">
                 <!-- Tour Info Display -->
-                <div class="row mb-3">
-                    <div class="col-md-6">
-                        <div class="d-flex align-items-center">
-                            <i class="ri-calendar-line me-2 text-primary"></i>
-                            <span class="fw-semibold">Tour Dates: <span id="modal_guide_tour_dates" class="text-primary"></span></span>
+                <div class="row mb-2">
+                    <div class="col-12 col-lg-6">
+                        <div class="d-flex align-items-center rounded" style="background: #f8f9fa; border: 1px solid #e9ecef; padding: 0.375rem 0.5rem;">
+                            <i class="ri-calendar-line me-2" style="color: #fda085; font-size: 0.9rem;"></i>
+                            <small class="fw-semibold" style="color: #495057; font-size: 0.75rem;">Dates: <span id="modal_guide_tour_dates" class="text-primary fw-bold"></span></small>
                         </div>
                     </div>
-                    <div class="col-md-6">
-                        <div class="d-flex align-items-center">
-                            <i class="ri-map-pin-line me-2 text-primary"></i>
-                            <span class="fw-semibold">Destination: <span id="modal_guide_destination" class="text-primary"></span></span>
+                    <div class="col-12 col-lg-6">
+                        <div class="d-flex align-items-center rounded" style="background: #f8f9fa; border: 1px solid #e9ecef; padding: 0.375rem 0.5rem;">
+                            <i class="ri-map-pin-line me-2" style="color: #fda085; font-size: 0.9rem;"></i>
+                            <small class="fw-semibold" style="color: #495057; font-size: 0.75rem;">Dest: <span id="modal_guide_destination" class="text-primary fw-bold"></span></small>
                         </div>
                     </div>
                 </div>
 
                 <!-- Guide Selection Form -->
                 <form id="guideSelectionForm">
-                    <div class="row g-3">
-                        <div class="col-md-3">
-                            <div class="form-group">
-                                <label class="form-label fw-semibold text-muted mb-2">
-                                    <i class="ri-map-pin-line text-success me-2"></i>City
-                                </label>
-                                <div class="position-relative">
-                                    <select class="form-select border-2" id="modal_guide_city_select" name="city" style="padding-left: 45px;" onchange="loadGuidesForCity(this.value, this.dataset.country)">
-                                        <option value="">Select city</option>
-                                        @foreach($cities as $city)
-                                        <option value="{{ $city->name }}" data-city="{{ json_encode($city) }}" data-country="{{ $city->country }}">{{ $city->name }}</option>
-                                        @endforeach
-                                    </select>
-                                    <i style="left: 15px; top: 50%; transform: translateY(-50%); z-index: 5;"></i>
-                                </div>
-                            </div>
+                    <div class="row g-2">
+                        <div class="col-12 col-md-4">
+                            <label class="form-label fw-semibold mb-1" style="color: #495057; font-size: 0.75rem;">
+                                <i class="ri-map-pin-line me-1" style="color: #fda085;"></i>City
+                            </label>
+                            <select class="form-select modern-select" id="modal_guide_city_select" name="city" onchange="loadGuidesForCity(this.value, this.dataset.country)" style="height: 36px; font-size: 0.8rem;">
+                                <option value="">Select city</option>
+                                @foreach($cities as $city)
+                                <option value="{{ $city->name }}" data-city="{{ json_encode($city) }}" data-country="{{ $city->country }}">{{ $city->name }}</option>
+                                @endforeach
+                            </select>
                         </div>
                         <!-- Guide Selection -->
-                        <div class="col-md-6">
-                            <label for="modal_guide_select" class="form-label fw-semibold">
-                                <i class="ri-user-star-line me-1"></i>Select Guide
+                        <div class="col-12 col-md-8">
+                            <label for="modal_guide_select" class="form-label fw-semibold mb-1" style="color: #495057; font-size: 0.75rem;">
+                                <i class="ri-user-star-line me-1" style="color: #fda085;"></i>Select Guide
                             </label>
-                            <select class="form-select" id="modal_guide_select" name="guide_id" required>
+                            <select class="form-select modern-select" id="modal_guide_select" name="guide_id" required style="height: 36px; font-size: 0.8rem;">
                                 <option value="">Search Guide</option>
                             </select>
-                            <div class="form-text">
-                                <i class="ri-information-line text-info me-1"></i>
+                            <small class="form-text text-muted" style="font-size: 0.7rem; margin-top: 0.2rem; display: block;">
                                 <span id="guide_count">0</span> guides available in <span id="modal_guide_city"></span>
-                            </div>
+                            </small>
                         </div>
 
                         <!-- Service Date Selection -->
-                        <div class="col-md-6">
-                            <label for="modal_guide_service_date" class="form-label fw-semibold">
-                                <i class="ri-calendar-line me-1"></i>Service Date
+                        <div class="col-12 col-md-6">
+                            <label for="modal_guide_service_date" class="form-label fw-semibold mb-1" style="color: #495057; font-size: 0.75rem;">
+                                <i class="ri-calendar-line me-1" style="color: #fda085;"></i>Service Date
                             </label>
-                            <input type="date" class="form-control" id="modal_guide_service_date" name="service_date" required>
-                            <small class="text-muted">Select the date for guide service</small>
+                            <input type="date" class="form-control modern-input" id="modal_guide_service_date" name="service_date" required style="height: 36px; font-size: 0.8rem;">
                         </div>
 
                         <!-- Duration Selection -->
-                        <div class="col-md-6">
-                            <label for="modal_guide_duration" class="form-label fw-semibold">
-                                <i class="ri-time-line me-1"></i>Select Duration
+                        <div class="col-12 col-md-6">
+                            <label for="modal_guide_duration" class="form-label fw-semibold mb-1" style="color: #495057; font-size: 0.75rem;">
+                                <i class="ri-time-line me-1" style="color: #fda085;"></i>Select Duration
                             </label>
-                            <select class="form-select" id="modal_guide_duration" name="duration" required>
+                            <select class="form-select modern-select" id="modal_guide_duration" name="duration" required style="height: 36px; font-size: 0.8rem;">
                                 <option value="">Select Duration</option>
                                 <option value="half_day">Half Day (4 hours)</option>
                                 <option value="full_day">Full Day (8 hours)</option>
@@ -4184,42 +4359,40 @@
                         </div>
 
                         <!-- Custom Hours (shown when custom duration selected) -->
-                        <div class="col-md-6" id="custom_hours_container" style="display: none;">
-                            <label for="modal_guide_custom_hours" class="form-label fw-semibold">
-                                <i class="ri-clock-line me-1"></i>Custom Hours
+                        <div class="col-12 col-md-6" id="custom_hours_container" style="display: none;">
+                            <label for="modal_guide_custom_hours" class="form-label fw-semibold mb-1" style="color: #495057; font-size: 0.75rem;">
+                                <i class="ri-clock-line me-1" style="color: #fda085;"></i>Custom Hours
                             </label>
-                            <input type="number" class="form-control" id="modal_guide_custom_hours" name="custom_hours" min="1" max="24" placeholder="Enter hours (1-24)">
+                            <input type="number" class="form-control modern-input" id="modal_guide_custom_hours" name="custom_hours" min="1" max="24" placeholder="Enter hours (1-24)" style="height: 36px; font-size: 0.8rem;">
                         </div>
 
                         <!-- Pickup Time -->
-                        <div class="col-md-6">
-                            <label for="modal_guide_pickup_time" class="form-label fw-semibold">
-                                <i class="ri-time-line me-1"></i>Pickup Time
+                        <div class="col-12 col-md-6">
+                            <label for="modal_guide_pickup_time" class="form-label fw-semibold mb-1" style="color: #495057; font-size: 0.75rem;">
+                                <i class="ri-time-line me-1" style="color: #fda085;"></i>Pickup Time
                             </label>
-                            <input type="time" class="form-control" id="modal_guide_pickup_time" name="pickup_time" required>
+                            <input type="time" class="form-control modern-input" id="modal_guide_pickup_time" name="pickup_time" required style="height: 36px; font-size: 0.8rem;">
                         </div>
 
                         <!-- Guide Details Display -->
-                        <div class="col-12" id="guide_details_container" style="display: none;">
-                            <div >
-                                <div class="card-body p-3">
-                                    <div class="row align-items-center">
-                                        <div class="col-md-2">
-                                            <img id="selected_guide_image" src="" alt="Guide" class="rounded-circle" style="width: 60px; height: 60px; object-fit: cover;">
+                        <div class="col-12 mt-2" id="guide_details_container" style="display: none;">
+                            <div class="card border-0" style="background: #f8f9fa; border-radius: 8px; padding: 0.75rem;">
+                                <div class="row align-items-center">
+                                    <div class="col-md-2">
+                                        <img id="selected_guide_image" src="" alt="Guide" class="rounded-circle" style="width: 60px; height: 60px; object-fit: cover; border: 2px solid #e9ecef;">
+                                    </div>
+                                    <div class="col-md-7">
+                                        <h6 id="selected_guide_name" class="mb-1 fw-bold" style="color: #495057; font-size: 0.9rem;"></h6>
+                                        <p id="selected_guide_specialty" class="mb-1 text-muted" style="font-size: 0.75rem;"></p>
+                                        <p id="selected_guide_experience" class="mb-0 text-muted" style="font-size: 0.75rem;"></p>
+                                    </div>
+                                    <div class="col-md-3 text-end">
+                                        <div class="guide-rating mb-1">
+                                            <i class="ri-star-fill text-warning"></i>
+                                            <span id="selected_guide_rating" class="fw-semibold" style="font-size: 0.85rem;"></span>
                                         </div>
-                                        <div class="col-md-7">
-                                            <h6 id="selected_guide_name" class="mb-1 fw-bold"></h6>
-                                            <p id="selected_guide_specialty" class="mb-1 text-muted small"></p>
-                                            <p id="selected_guide_experience" class="mb-0 text-muted small"></p>
-                                        </div>
-                                        <div class="col-md-3 text-end">
-                                            <div class="guide-rating mb-1">
-                                                <i class="ri-star-fill text-warning"></i>
-                                                <span id="selected_guide_rating" class="fw-semibold"></span>
-                                            </div>
-                                            <div class="guide-rate">
-                                                <span id="selected_guide_rate" class="fw-bold text-primary"></span>
-                                            </div>
+                                        <div class="guide-rate">
+                                            <span id="selected_guide_rate" class="fw-bold" style="color: #fda085; font-size: 0.9rem;"></span>
                                         </div>
                                     </div>
                                 </div>
@@ -4227,24 +4400,24 @@
                         </div>
 
                         <!-- Price Section -->
-                        <div class="col-12 mt-3" id="guide_price_container" style="display: none;">
-                            <div class="card border shadow-sm">
+                        <div class="col-12 mt-2" id="guide_price_container" style="display: none;">
+                            <div class="card border-0 shadow-sm" style="border-radius: 8px; background: #ffffff; border: 1px solid #e9ecef;">
                                 <div class="card-body p-3">
-                                    <h6 class="mb-3 fw-bold">
-                                        <i class="ri-money-dollar-circle-line me-2 text-primary"></i>Price Breakdown
+                                    <h6 class="mb-3 fw-bold" style="color: #495057; font-size: 0.9rem;">
+                                        <i class="ri-money-dollar-circle-line me-2" style="color: #fda085;"></i>Price Breakdown
                                     </h6>
                                     <div class="d-flex justify-content-between align-items-center mb-2">
-                                        <span class="text-muted">Base Price</span>
-                                        <span class="fw-bold" id="price_base_amount">$0.00</span>
+                                        <span class="text-muted" style="font-size: 0.8rem;">Base Price</span>
+                                        <span class="fw-bold" id="price_base_amount" style="color: #495057; font-size: 0.85rem;">$0.00</span>
                                     </div>
                                     <div class="d-flex justify-content-between align-items-center mb-2" id="price_surcharge_row" style="display: none;">
-                                        <span class="text-muted">Night Surcharge</span>
-                                        <span class="fw-bold text-warning" id="price_surcharge_amount">$0.00</span>
+                                        <span class="text-muted" style="font-size: 0.8rem;">Night Surcharge</span>
+                                        <span class="fw-bold text-warning" id="price_surcharge_amount" style="font-size: 0.85rem;">$0.00</span>
                                     </div>
-                                    <hr class="my-2">
+                                    <hr class="my-2" style="border-color: #e9ecef;">
                                     <div class="d-flex justify-content-between align-items-center">
-                                        <span class="fw-bold">Total Price</span>
-                                        <span class="fw-bold text-primary fs-5" id="price_total_amount">$0.00</span>
+                                        <span class="fw-bold" style="color: #495057; font-size: 0.9rem;">Total Price</span>
+                                        <span class="fw-bold" id="price_total_amount" style="color: #fda085; font-size: 1.1rem;">$0.00</span>
                                     </div>
                                 </div>
                             </div>
@@ -4252,9 +4425,9 @@
                     </div>
                 </form>
             </div>
-            <div class="modal-footer">
-                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
-                <button type="button" class="btn btn-primary" id="confirm_guide_btn" disabled>
+            <div class="modal-footer border-0" style="padding: 0.75rem 1rem; background: #f8f9fa;">
+                <button type="button" class="btn btn-secondary btn-sm" data-bs-dismiss="modal" style="font-size: 0.8rem; padding: 0.4rem 0.8rem;">Cancel</button>
+                <button type="button" class="btn btn-primary btn-sm" id="confirm_guide_btn" disabled style="background: linear-gradient(135deg, #f6d365 0%, #fda085 100%); border: none; font-size: 0.8rem; padding: 0.4rem 0.8rem; box-shadow: 0 2px 8px rgba(253, 160, 133, 0.3);">
                     <i class="ri-check-line me-1"></i>Confirm Guide Selection
                 </button>
             </div>
@@ -4264,15 +4437,20 @@
 
 <!-- Hotel Booking Modal -->
 <div class="modal fade" id="hotelBookingModal" tabindex="-1" aria-labelledby="hotelBookingModalLabel" aria-hidden="true">
-    <div class="modal-dialog modal-dialog-centered modal-xl">
-        <div class="modal-content">
-            <div class="modal-header bg-gradient-primary text-white py-2">
-                <h6 class="modal-title mb-0" id="hotelBookingModalLabel">
-                    <i class="ri-hotel-line me-1"></i>Book Your Hotels
-                </h6>
-                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+    <div class="modal-dialog modal-dialog-centered modal-lg">
+        <div class="modal-content border-0" style="border-radius: 12px; overflow: hidden; box-shadow: 0 10px 40px rgba(0,0,0,0.15);">
+            <div class="modal-header text-white border-0" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); padding: 0.75rem 1rem;">
+                <div class="d-flex align-items-center">
+                    <div style="width: 32px; height: 32px; background: rgba(255, 255, 255, 0.2); border-radius: 8px; display: flex; align-items: center; justify-content: center; margin-right: 8px;">
+                        <i class="ri-hotel-line" style="font-size: 1rem; color: #ffffff;"></i>
+                    </div>
+                    <h6 class="modal-title mb-0 fw-bold" id="hotelBookingModalLabel" style="font-size: 0.95rem; letter-spacing: -0.01em; color: #ffffff;">
+                        Book Your Hotels
+                    </h6>
+                </div>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close" style="opacity: 0.9; font-size: 0.75rem;"></button>
             </div>
-            <div class="modal-body p-3">
+            <div class="modal-body" style="padding: 1rem; background: #ffffff; max-height: 70vh; overflow-y: auto;">
                 <form id="hotelBookingForm">
                     @csrf
                     <input type="hidden" id="modal_tour_id" name="tour_id">
@@ -4282,154 +4460,163 @@
                     <!-- Tour Info Display -->
                     <div class="row mb-2">
                         <div class="col-12 col-lg-6">
-                            <div class="d-flex align-items-center">
-                                <i class="ri-calendar-line me-1 text-primary"></i>
-                                <small class="fw-semibold">Dates: <span id="modal_tour_dates" class="text-primary"></span></small>
+                            <div class="d-flex align-items-center rounded" style="background: #f8f9fa; border: 1px solid #e9ecef; padding: 0.375rem 0.5rem;">
+                                <i class="ri-calendar-line me-2" style="color: #667eea; font-size: 0.9rem;"></i>
+                                <small class="fw-semibold" style="color: #495057; font-size: 0.75rem;">Dates: <span id="modal_tour_dates" class="text-primary fw-bold"></span></small>
                             </div>
                         </div>
                         <div class="col-12 col-lg-6">
-                            <div class="d-flex align-items-center">
-                                <i class="ri-map-pin-line me-1 text-primary"></i>
-                                <small class="fw-semibold">Dest: <span id="modal_destination" class="text-primary"></span></small>
+                            <div class="d-flex align-items-center rounded" style="background: #f8f9fa; border: 1px solid #e9ecef; padding: 0.375rem 0.5rem;">
+                                <i class="ri-map-pin-line me-2" style="color: #667eea; font-size: 0.9rem;"></i>
+                                <small class="fw-semibold" style="color: #495057; font-size: 0.75rem;">Dest: <span id="modal_destination" class="text-primary fw-bold"></span></small>
                             </div>
                         </div>
                     </div>
 
-                    <div class="row g-3">
+                    <div class="row g-2">
                         <!-- Left: City, Hotel, Rooms, Pricing -->
                         <div class="col-12 col-lg-6">
-                            <!-- City & Hotel Selection -->
-                            <div class="row g-2 mb-2">
-                                <div class="col-12">
-                                    <label for="modal_city_select" class="form-label small fw-semibold mb-1">
-                                        <i class="ri-map-pin-line me-1"></i>City
-                                    </label>
-                                    <select class="form-select form-select-sm" id="modal_city_select" name="city" onchange="loadHotelsForSelectedCity(this.value)">
-                                        <option value="">Select City</option>
-                                        @foreach($cities as $city)
-                                            @if($city->country == $tour->destination)
-                                                <option value="{{ $city->name }}">{{ $city->name }}</option>
-                                            @endif
-                                        @endforeach
-                                    </select>
-                                    <small class="form-text text-muted">
-                                        <span id="hotel_count">0</span> hotels in <span id="modal_city_display2">No City</span>
-                                    </small>
+                            <div class="card border-0" style="background: #f8f9fa; border-radius: 8px; padding: 0.75rem;">
+                                <!-- City & Hotel Selection -->
+                                <div class="row g-2 mb-2">
+                                    <div class="col-12">
+                                        <label for="modal_city_select" class="form-label fw-semibold mb-1" style="color: #495057; font-size: 0.75rem;">
+                                            <i class="ri-map-pin-line me-1" style="color: #667eea;"></i>City
+                                        </label>
+                                        <select class="form-select modern-select" id="modal_city_select" name="city" onchange="loadHotelsForSelectedCity(this.value)" style="height: 36px; font-size: 0.8rem;">
+                                            <option value="">Select City</option>
+                                            @foreach($cities as $city)
+                                                @if($city->country == $tour->destination)
+                                                    <option value="{{ $city->name }}">{{ $city->name }}</option>
+                                                @endif
+                                            @endforeach
+                                        </select>
+                                        <small class="form-text text-muted" style="font-size: 0.7rem; margin-top: 0.2rem; display: block;">
+                                            <span id="hotel_count">0</span> hotels in <span id="modal_city_display2">No City</span>
+                                        </small>
+                                    </div>
+                                    <div class="col-12">
+                                        <label for="hotel_select" class="form-label fw-semibold mb-1" style="color: #495057; font-size: 0.75rem;">
+                                            <i class="ri-building-line me-1" style="color: #667eea;"></i>Hotel
+                                        </label>
+                                        <select class="form-select modern-select" id="hotel_select" name="hotel_id" onchange="loadRoomsForSelectedHotel(this.value)" disabled style="height: 36px; font-size: 0.8rem;">
+                                            <option value="">Select city first</option>
+                                        </select>
+                                        <small class="text-muted" id="hotel_loading_status" style="font-size: 0.7rem; margin-top: 0.2rem; display: block;">
+                                            <span id="hotel_count_display">0</span> found
+                                        </small>
+                                    </div>
                                 </div>
-                                <div class="col-12">
-                                    <label for="hotel_select" class="form-label small fw-semibold mb-1">
-                                        <i class="ri-building-line me-1"></i>Hotel
-                                    </label>
-                                    <select class="form-select form-select-sm" id="hotel_select" name="hotel_id" onchange="loadRoomsForSelectedHotel(this.value)" disabled>
-                                        <option value="">Select city first</option>
-                                    </select>
-                                    <small class="text-muted" id="hotel_loading_status">
-                                        <span id="hotel_count_display">0</span> found
-                                    </small>
-                                </div>
-                            </div>
 
-                            <!-- Room Details -->
-                            <div class="row g-2 mb-2">
-                                <div class="col-6">
-                                    <label for="room_type" class="form-label small fw-semibold mb-1">Room Type</label>
-                                    <select class="form-select form-select-sm" id="room_type" name="room_type" onchange="loadBedsForSelectedRoom(this.value); updateHotelModalPrice();" disabled>
-                                        <option value="">Select hotel</option>
-                                    </select>
-                                </div>
-                                <div class="col-6">
-                                    <label for="bed_type" class="form-label small fw-semibold mb-1">Bed Type</label>
-                                    <select class="form-select form-select-sm" id="bed_type" name="bed_type" onchange="updateBedPricingAndMealPlans(); updateHotelModalPrice();" disabled>
-                                        <option value="">Select room</option>
-                                    </select>
-                                    <div class="text-success mt-1" style="font-size: 0.75rem;">
-                                        <span id="bed_occupancy_info">Max Occupancy: 2</span>
+                                <!-- Room Details -->
+                                <div class="row g-2 mb-2">
+                                    <div class="col-6">
+                                        <label for="room_type" class="form-label fw-semibold mb-1" style="color: #495057; font-size: 0.75rem;">Room Type</label>
+                                        <select class="form-select modern-select" id="room_type" name="room_type" onchange="loadBedsForSelectedRoom(this.value); updateHotelModalPrice();" disabled style="height: 36px; font-size: 0.8rem;">
+                                            <option value="">Select hotel</option>
+                                        </select>
+                                    </div>
+                                    <div class="col-6">
+                                        <label for="bed_type" class="form-label fw-semibold mb-1" style="color: #495057; font-size: 0.75rem;">Bed Type</label>
+                                        <select class="form-select modern-select" id="bed_type" name="bed_type" onchange="updateBedPricingAndMealPlans(); updateHotelModalPrice();" disabled style="height: 36px; font-size: 0.8rem;">
+                                            <option value="">Select room</option>
+                                        </select>
+                                        <div class="text-success mt-1" style="font-size: 0.65rem; font-weight: 500;">
+                                            <span id="bed_occupancy_info">Max Occupancy: 2</span>
+                                        </div>
+                                    </div>
+                                    <div class="col-6">
+                                        <label class="form-label fw-semibold mb-1" style="color: #495057; font-size: 0.75rem;">Persons</label>
+                                        <select class="form-select modern-select" id="person_count_select" name="person_count" data-no-select2="true" onchange="selectPersonCount(this.value); updateHotelModalPrice();" style="height: 36px; font-size: 0.8rem;">
+                                            <!-- Options generated dynamically -->
+                                        </select>
+                                        <small class="text-muted" style="font-size: 0.65rem;">Max Occ: 2</small>
+                                    </div>
+                                    <div class="col-6">
+                                        <label for="meal_plan" class="form-label fw-semibold mb-1" style="color: #495057; font-size: 0.75rem;">Meal Plan</label>
+                                        <select class="form-select modern-select" id="meal_plan" name="meal_plan" onchange="updateMealPricing()" disabled style="height: 36px; font-size: 0.8rem;">
+                                            <option value="">Select bed</option>
+                                        </select>
                                     </div>
                                 </div>
-                                <div class="col-6">
-                                    <label class="form-label small fw-semibold mb-1">Persons</label>
-                                    <select class="form-select form-select-sm" id="person_count_select" name="person_count" data-no-select2="true" onchange="selectPersonCount(this.value); updateHotelModalPrice();">
-                                        <!-- Options generated dynamically -->
-                                    </select>
-                                    <small class="text-muted">Max Occ: 2</small>
-                                </div>
-                                <div class="col-6">
-                                    <label for="meal_plan" class="form-label small fw-semibold mb-1">Meal Plan</label>
-                                    <select class="form-select form-select-sm" id="meal_plan" name="meal_plan" onchange="updateMealPricing()" disabled>
-                                        <option value="">Select bed</option>
-                                    </select>
-                                </div>
-                            </div>
-                            
-                            <!-- Number of Rooms and Price -->
-                            <div class="row g-2">
-                                <div class="col-6">
-                                    <label for="number_of_rooms_modal" class="form-label small fw-semibold mb-1">Rooms</label>
-                                    <input type="number" class="form-control form-control-sm" id="number_of_rooms_modal" name="number_of_rooms" min="1" value="1" placeholder="1" onchange="updateHotelModalPrice();">
-                                </div>
-                                <div class="col-6">
-                                    <label for="total_price_modal" class="form-label small fw-semibold mb-1">
-                                        <i class="ri-money-dollar-circle-line me-1 text-success"></i>Total
-                                    </label>
-                                    <div class="input-group input-group-sm">
-                                        <span class="input-group-text">$</span>
-                                        <input type="number" class="form-control form-control-sm" id="total_price_modal" name="total_price" step="0.01" min="0" value="0.00" placeholder="0.00">
+                                
+                                <!-- Number of Rooms and Price -->
+                                <div class="row g-2">
+                                    <div class="col-6">
+                                        <label for="number_of_rooms_modal" class="form-label fw-semibold mb-1" style="color: #495057; font-size: 0.75rem;">Rooms</label>
+                                        <input type="number" class="form-control modern-input" id="number_of_rooms_modal" name="number_of_rooms" min="1" value="1" placeholder="1" onchange="updateHotelModalPrice();" style="height: 36px; font-size: 0.8rem;">
                                     </div>
-                                    <small class="text-muted">Per room x qty</small>
+                                    <div class="col-6">
+                                        <label for="total_price_modal" class="form-label fw-semibold mb-1 d-block" style="color: #495057; font-size: 0.75rem;">
+                                            Total Price
+                                        </label>
+                                        <div class="d-flex align-items-center" style="background: linear-gradient(135deg, #f0fdf4 0%, #dcfce7 100%); border: 2px solid #10b981; border-radius: 8px; padding: 0.5rem 0.75rem; height: 36px;">
+                                            <div class="d-flex align-items-center justify-content-center" style="width: 28px; height: 28px; background: linear-gradient(135deg, #10b981 0%, #059669 100%); border-radius: 6px; margin-right: 0.75rem; flex-shrink: 0;">
+                                                <i class="ri-money-dollar-circle-line text-white" style="font-size: 1rem;"></i>
+                                            </div>
+                                            <div class="flex-grow-1 d-flex align-items-center justify-content-end">
+                                                <span class="fw-bold" id="total_price_modal_display" style="font-size: 0.9rem; color: #059669; letter-spacing: 0.5px;">$0.00</span>
+                                            </div>
+                                        </div>
+                                        <input type="hidden" id="total_price_modal" name="total_price" value="0.00">
+                                        <small class="text-muted" style="font-size: 0.65rem; display: block; margin-top: 0.2rem;">Auto-calculated (per room × qty)</small>
+                                    </div>
                                 </div>
                             </div>
                         </div>
 
                         <!-- Right: Dates, Nights, Alerts -->
                         <div class="col-12 col-lg-6">
-                            <div class="mb-2">
-                                <label class="form-label small fw-semibold mb-1">
-                                    <i class="ri-calendar-line me-1"></i>Hotel Nights
-                                </label>
-                                <p class="form-text mb-2" style="font-size: 0.8rem;">Choose nights; consecutive nights auto-selected.</p>
-                                
-                                <div class="d-flex gap-3 mb-2" style="font-size: 0.8rem;">
-                                    <div class="d-flex align-items-center">
-                                        <div class="bg-success text-white rounded me-2" style="width: 18px; height: 18px; display: flex; align-items: center; justify-content: center;">
-                                            <i class="ri-check-line" style="font-size: 0.85rem;"></i>
+                            <div class="card border-0" style="background: #f8f9fa; border-radius: 8px; padding: 0.75rem;">
+                                <div class="mb-2">
+                                    <label class="form-label fw-semibold mb-1" style="color: #495057; font-size: 0.75rem;">
+                                        <i class="ri-calendar-line me-1" style="color: #667eea;"></i>Hotel Nights
+                                    </label>
+                                    <p class="form-text mb-2" style="font-size: 0.7rem; color: #6c757d;">Choose nights; consecutive nights auto-selected.</p>
+                                    
+                                    <div class="d-flex gap-2 mb-2" style="font-size: 0.7rem;">
+                                        <div class="d-flex align-items-center">
+                                            <div class="bg-success text-white rounded me-1" style="width: 14px; height: 14px; display: flex; align-items: center; justify-content: center;">
+                                                <i class="ri-check-line" style="font-size: 0.65rem;"></i>
+                                            </div>
+                                            <span style="color: #495057;">Selected</span>
                                         </div>
-                                        <span>Selected</span>
-                                    </div>
-                                    <div class="d-flex align-items-center">
-                                        <div class="bg-warning text-dark rounded me-2" style="width: 18px; height: 18px; display: flex; align-items: center; justify-content: center;">
-                                            <i class="ri-flashlight-line" style="font-size: 0.85rem;"></i>
+                                        <div class="d-flex align-items-center">
+                                            <div class="bg-warning text-dark rounded me-1" style="width: 14px; height: 14px; display: flex; align-items: center; justify-content: center;">
+                                                <i class="ri-flashlight-line" style="font-size: 0.65rem;"></i>
+                                            </div>
+                                            <span style="color: #495057;">Auto-required</span>
                                         </div>
-                                        <span>Auto-required</span>
+                                    </div>
+                                    
+                                    <div class="row g-2">
+                                        <div class="col-6">
+                                            <label for="check_in_date" class="form-label fw-semibold mb-1" style="color: #495057; font-size: 0.75rem;">Check-in</label>
+                                            <input type="date" class="form-control modern-input" id="check_in_date" name="check_in_date" required onchange="updateHotelModalPrice();" style="height: 36px; font-size: 0.8rem;">
+                                        </div>
+                                        <div class="col-6">
+                                            <label for="check_out_date" class="form-label fw-semibold mb-1" style="color: #495057; font-size: 0.75rem;">Check-out</label>
+                                            <input type="date" class="form-control modern-input" id="check_out_date" name="check_out_date" required onchange="updateHotelModalPrice();" style="height: 36px; font-size: 0.8rem;">
+                                        </div>
+                                    </div>
+                                    
+                                    <div class="mt-2">
+                                        <div id="selected_nights_display" class="d-none">
+                                            <label class="form-label fw-semibold mb-1" style="color: #495057; font-size: 0.75rem;">Selected Nights:</label>
+                                            <div id="nights_list" class="d-flex flex-wrap gap-2"></div>
+                                        </div>
                                     </div>
                                 </div>
-                                
-                                <div class="row g-2">
-                                    <div class="col-6">
-                                        <label for="check_in_date" class="form-label small">Check-in</label>
-                                        <input type="date" class="form-control form-control-sm" id="check_in_date" name="check_in_date" required onchange="updateHotelModalPrice();">
-                                    </div>
-                                    <div class="col-6">
-                                        <label for="check_out_date" class="form-label small">Check-out</label>
-                                        <input type="date" class="form-control form-control-sm" id="check_out_date" name="check_out_date" required onchange="updateHotelModalPrice();">
-                                    </div>
-                                </div>
-                                
-                                <div class="mt-2">
-                                    <div id="selected_nights_display" class="d-none">
-                                        <label class="form-label small fw-semibold mb-1">Selected Nights:</label>
-                                        <div id="nights_list" class="d-flex flex-wrap gap-2"></div>
-                                    </div>
-                                </div>
-                            </div>
 
-                            <!-- Information Alerts -->
-                            <div class="alert alert-info py-2 mb-2" id="no_nights_alert" style="z-index: 1050; position: relative; font-size: 0.9rem;">
-                                <i class="ri-information-line me-1"></i>
-                                No nights selected. Click nights above.
-                            </div>
-                            <div class="alert alert-info py-2 mb-0" id="no_hotels_alert" style="z-index: 1050; position: relative; font-size: 0.9rem;">
-                                <i class="ri-information-line me-1"></i>
-                                No hotels selected yet.
+                                <!-- Information Alerts -->
+                                <div class="alert alert-info mb-2 border-0" id="no_nights_alert" style="z-index: 1050; position: relative; font-size: 0.75rem; background: #e3f2fd; color: #0277bd; border-radius: 6px; padding: 0.375rem 0.5rem;">
+                                    <i class="ri-information-line me-1"></i>
+                                    No nights selected. Click nights above.
+                                </div>
+                                <div class="alert alert-info mb-0 border-0" id="no_hotels_alert" style="z-index: 1050; position: relative; font-size: 0.75rem; background: #e3f2fd; color: #0277bd; border-radius: 6px; padding: 0.375rem 0.5rem;">
+                                    <i class="ri-information-line me-1"></i>
+                                    No hotels selected yet.
+                                </div>
                             </div>
                         </div>
                     </div>
@@ -4550,9 +4737,11 @@
                     </div> -->
                 </form>
             </div>
-            <div class="modal-footer py-2">
-                <button type="button" class="btn btn-sm btn-secondary" data-bs-dismiss="modal">Cancel</button>
-                <button type="button" class="btn btn-sm btn-success" id="proceed_hotel_btn" onclick="proceedWithHotelBooking()" disabled>
+            <div class="modal-footer border-0" style="background: #f8f9fa; padding: 0.75rem 1rem;">
+                <button type="button" class="btn" data-bs-dismiss="modal" style="height: 36px; border-radius: 8px; border: 1px solid #dee2e6; background: #ffffff; color: #495057; padding: 0.375rem 1rem; font-weight: 500; font-size: 0.8rem; transition: all 0.2s;">
+                    Cancel
+                </button>
+                <button type="button" class="btn text-white" id="proceed_hotel_btn" onclick="proceedWithHotelBooking()" disabled style="height: 36px; border-radius: 8px; background: linear-gradient(135deg, #10b981 0%, #059669 100%); border: none; padding: 0.375rem 1rem; font-weight: 500; font-size: 0.8rem; transition: all 0.2s; box-shadow: 0 2px 6px rgba(16, 185, 129, 0.3);">
                     <i class="ri-check-line me-1"></i>Book Hotels
                 </button>
             </div>
@@ -4562,27 +4751,32 @@
 
 <!-- Restaurant Selection Modal -->
 <div class="modal fade" id="restaurantSelectionModal" tabindex="-1" aria-labelledby="restaurantSelectionModalLabel" aria-hidden="true">
-    <div class="modal-dialog modal-dialog-centered modal-xl">
-        <div class="modal-content">
-            <div class="modal-header bg-gradient-success text-white py-2">
-                <h6 class="modal-title mb-0" id="restaurantSelectionModalLabel">
-                    <i class="ri-restaurant-2-line me-1"></i>Select Restaurant & Dining
-                </h6>
-                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+    <div class="modal-dialog modal-dialog-centered modal-lg">
+        <div class="modal-content border-0" style="border-radius: 12px; overflow: hidden; box-shadow: 0 10px 40px rgba(0,0,0,0.15);">
+            <div class="modal-header text-white border-0" style="background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%); padding: 0.75rem 1rem;">
+                <div class="d-flex align-items-center">
+                    <div style="width: 32px; height: 32px; background: rgba(255, 255, 255, 0.2); border-radius: 8px; display: flex; align-items: center; justify-content: center; margin-right: 8px;">
+                        <i class="ri-restaurant-2-line" style="font-size: 1rem; color: #ffffff;"></i>
+                    </div>
+                    <h6 class="modal-title mb-0 fw-bold" id="restaurantSelectionModalLabel" style="font-size: 0.95rem; letter-spacing: -0.01em; color: #ffffff;">
+                        Select Restaurant & Dining
+                    </h6>
+                </div>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close" style="opacity: 0.9; font-size: 0.75rem;"></button>
             </div>
-            <div class="modal-body p-3">
+            <div class="modal-body" style="padding: 1rem; background: #ffffff; max-height: 70vh; overflow-y: auto;">
                 <!-- Tour Info Display -->
                 <div class="row mb-2">
-                    <div class="col-md-6">
-                        <div class="d-flex align-items-center">
-                            <i class="ri-calendar-line me-1 text-primary"></i>
-                            <small class="fw-semibold">Dates: <span id="modal_restaurant_tour_dates" class="text-primary"></span></small>
+                    <div class="col-12 col-lg-6">
+                        <div class="d-flex align-items-center rounded" style="background: #f8f9fa; border: 1px solid #e9ecef; padding: 0.375rem 0.5rem;">
+                            <i class="ri-calendar-line me-2" style="color: #f5576c; font-size: 0.9rem;"></i>
+                            <small class="fw-semibold" style="color: #495057; font-size: 0.75rem;">Dates: <span id="modal_restaurant_tour_dates" class="text-primary fw-bold"></span></small>
                         </div>
                     </div>
-                    <div class="col-md-6">
-                        <div class="d-flex align-items-center">
-                            <i class="ri-map-pin-line me-1 text-primary"></i>
-                            <small class="fw-semibold">Dest: <span id="modal_restaurant_destination" class="text-primary"></span></small>
+                    <div class="col-12 col-lg-6">
+                        <div class="d-flex align-items-center rounded" style="background: #f8f9fa; border: 1px solid #e9ecef; padding: 0.375rem 0.5rem;">
+                            <i class="ri-map-pin-line me-2" style="color: #f5576c; font-size: 0.9rem;"></i>
+                            <small class="fw-semibold" style="color: #495057; font-size: 0.75rem;">Dest: <span id="modal_restaurant_destination" class="text-primary fw-bold"></span></small>
                         </div>
                     </div>
                 </div>
@@ -4591,11 +4785,11 @@
                 <form id="restaurantSelectionForm">
                     <div class="row g-2">
                         <!-- City Selection -->
-                        <div class="col-md-3">
-                            <label class="form-label small fw-semibold mb-1">
-                                <i class="ri-map-pin-line text-success me-1"></i>City
+                        <div class="col-12 col-md-4">
+                            <label class="form-label fw-semibold mb-1" style="color: #495057; font-size: 0.75rem;">
+                                <i class="ri-map-pin-line me-1" style="color: #f5576c;"></i>City
                             </label>
-                            <select class="form-select form-select-sm" id="modal_restaurant_city_select" name="city" onchange="loadRestaurantsForCity(this.value, this.dataset.country)" >
+                            <select class="form-select modern-select" id="modal_restaurant_city_select" name="city" onchange="loadRestaurantsForCity(this.value, this.dataset.country)" style="height: 36px; font-size: 0.8rem;">
                                 <option value="">Select city</option>
                                 @foreach($cities as $city)
                                     <option value="{{ $city->name }}" data-city="{{ json_encode($city) }}" data-country="{{ $city->country }}">{{ $city->name }}</option>
@@ -4603,37 +4797,37 @@
                             </select>
                         </div>
                         <!-- Restaurant Selection -->
-                        <div class="col-md-5">
-                            <label for="modal_restaurant_select" class="form-label small fw-semibold mb-1">
-                                <i class="ri-restaurant-2-line me-1"></i>Restaurant
+                        <div class="col-12 col-md-8">
+                            <label for="modal_restaurant_select" class="form-label fw-semibold mb-1" style="color: #495057; font-size: 0.75rem;">
+                                <i class="ri-restaurant-2-line me-1" style="color: #f5576c;"></i>Restaurant
                             </label>
-                            <select class="form-select form-select-sm" id="modal_restaurant_select" name="restaurant_id" required>
+                            <select class="form-select modern-select" id="modal_restaurant_select" name="restaurant_id" required style="height: 36px; font-size: 0.8rem;">
                                 <option value="">Search Restaurant</option>
                             </select>
-                            <small class="form-text text-muted">
+                            <small class="form-text text-muted" style="font-size: 0.7rem; margin-top: 0.2rem; display: block;">
                                 <span id="restaurant_count">0</span> in <span id="modal_restaurant_city"></span>
                             </small>
                         </div>
 
                         <!-- Guest Selector -->
-                        <div class="col-md-4">
-                            <label class="form-label small fw-semibold mb-1">Guests</label>
+                        <div class="col-12 col-md-4">
+                            <label class="form-label fw-semibold mb-1" style="color: #495057; font-size: 0.75rem;">Guests</label>
                             <div class="guest-selector">
-                                <div class="guest-display p-2 border rounded bg-light">
-                                    <div class="d-flex align-items-center justify-content-between">
+                                <div class="guest-display rounded" style="background: #f8f9fa; border: 1px solid #e9ecef; padding: 0.5rem;">
+                                    <div class="d-flex align-items-center justify-content-between mb-1">
                                         <div class="guest-info">
-                                            <span id="modal_restaurant_guest_summary" class="text-muted small">
+                                            <span id="modal_restaurant_guest_summary" class="text-muted" style="font-size: 0.7rem;">
                                                 1 adults (1 male, 0 female), 0 children -0 infants
                                             </span>
                                         </div>
-                                        <button type="button" class="btn btn-sm btn-outline-primary p-1" onclick="openModalGuestSelector()">
-                                            <i class="ri-edit-line"></i>
+                                        <button type="button" class="btn btn-sm btn-outline-primary p-1" onclick="openModalGuestSelector()" style="height: 28px; width: 28px; padding: 0; display: flex; align-items: center; justify-content: center;">
+                                            <i class="ri-edit-line" style="font-size: 0.75rem;"></i>
                                         </button>
                                     </div>
-                                    <div class="guest-badges mt-1">
-                                        <span class="badge bg-primary">1</span>
-                                        <span class="badge bg-success">0</span>
-                                        <span class="badge bg-warning text-dark">0</span>
+                                    <div class="guest-badges d-flex gap-1">
+                                        <span class="badge" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); font-size: 0.65rem; padding: 0.2rem 0.4rem;">1</span>
+                                        <span class="badge" style="background: linear-gradient(135deg, #11998e 0%, #38ef7d 100%); font-size: 0.65rem; padding: 0.2rem 0.4rem;">0</span>
+                                        <span class="badge" style="background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%); font-size: 0.65rem; padding: 0.2rem 0.4rem;">0</span>
                                     </div>
                                 </div>
                             </div>
@@ -4645,61 +4839,59 @@
                         </div>
 
                         <!-- Dining Date Selection -->
-                        <div class="col-md-3">
-                            <label for="modal_restaurant_dining_date" class="form-label small fw-semibold mb-1">
-                                <i class="ri-calendar-line me-1"></i>Dining Date
+                        <div class="col-12 col-md-4">
+                            <label for="modal_restaurant_dining_date" class="form-label fw-semibold mb-1" style="color: #495057; font-size: 0.75rem;">
+                                <i class="ri-calendar-line me-1" style="color: #f5576c;"></i>Dining Date
                             </label>
-                            <input type="date" class="form-control form-control-sm" id="modal_restaurant_dining_date" name="dining_date" required>
+                            <input type="date" class="form-control modern-input" id="modal_restaurant_dining_date" name="dining_date" required style="height: 36px; font-size: 0.8rem;">
                         </div>
 
                         <!-- Meal Type Selection -->
-                        <div class="col-md-3">
-                            <label for="modal_restaurant_meal_type" class="form-label small fw-semibold mb-1">
-                                <i class="ri-time-line me-1"></i>Meal Type
+                        <div class="col-12 col-md-4">
+                            <label for="modal_restaurant_meal_type" class="form-label fw-semibold mb-1" style="color: #495057; font-size: 0.75rem;">
+                                <i class="ri-time-line me-1" style="color: #f5576c;"></i>Meal Type
                             </label>
-                            <select class="form-select form-select-sm" id="modal_restaurant_meal_type" name="meal_type" required data-no-select2="true">
+                            <select class="form-select modern-select" id="modal_restaurant_meal_type" name="meal_type" required data-no-select2="true" style="height: 36px; font-size: 0.8rem;">
                                 <option value="">Select Restaurant First</option>
                             </select>
-                            <small id="meal-price-section" class="text-muted d-block"></small>
+                            <small id="meal-price-section" class="text-muted d-block" style="font-size: 0.7rem; margin-top: 0.2rem;"></small>
                         </div>
 
                         <!-- Select Dish -->
-                        <div class="col-md-3">
-                            <label for="modal_restaurant_dish" class="form-label small fw-semibold mb-1">Dish</label>
-                            <select class="form-select form-select-sm" name="modal_restaurant_dish" id="modal_restaurant_dish" data-no-select2="true">
+                        <div class="col-12 col-md-6">
+                            <label for="modal_restaurant_dish" class="form-label fw-semibold mb-1" style="color: #495057; font-size: 0.75rem;">Dish</label>
+                            <select class="form-select modern-select" name="modal_restaurant_dish" id="modal_restaurant_dish" data-no-select2="true" style="height: 36px; font-size: 0.8rem;">
                                 <option value="">Select Dish</option>
                             </select>
                         </div>
 
                         <!-- Time Slot -->
-                        <div class="col-md-3">
-                            <label for="modal_restaurant_time_slot" class="form-label small fw-semibold mb-1">Time Slot</label>
-                            <select class="form-select form-select-sm" name="modal_restaurant_time_slot" id="modal_restaurant_time_slot" data-no-select2="true">
+                        <div class="col-12 col-md-6">
+                            <label for="modal_restaurant_time_slot" class="form-label fw-semibold mb-1" style="color: #495057; font-size: 0.75rem;">Time Slot</label>
+                            <select class="form-select modern-select" name="modal_restaurant_time_slot" id="modal_restaurant_time_slot" data-no-select2="true" style="height: 36px; font-size: 0.8rem;">
                                 <option value="">Select Time Slot</option>
                             </select>
                         </div>
 
                         <!-- Restaurant Details Display -->
                         <div class="col-12" id="restaurant_details_container" style="display: none;">
-                            <div>
-                                <div class="card-body p-2">
-                                    <div class="row align-items-center">
-                                        <div class="col-auto">
-                                            <img id="selected_restaurant_image" src="" alt="Restaurant" class="rounded" style="width: 50px; height: 50px; object-fit: cover;">
+                            <div class="card border-0 rounded" style="background: #f8f9fa; border-radius: 8px; padding: 0.75rem; margin-top: 0.5rem;">
+                                <div class="row align-items-center">
+                                    <div class="col-auto">
+                                        <img id="selected_restaurant_image" src="" alt="Restaurant" class="rounded" style="width: 60px; height: 60px; object-fit: cover; border: 2px solid #e9ecef;">
+                                    </div>
+                                    <div class="col">
+                                        <h6 id="selected_restaurant_name" class="mb-1 fw-bold" style="font-size: 0.85rem; color: #212529;"></h6>
+                                        <p id="selected_restaurant_cuisine" class="mb-1 text-muted" style="font-size: 0.75rem;"></p>
+                                        <p id="selected_restaurant_location" class="mb-0 text-muted" style="font-size: 0.7rem;"></p>
+                                    </div>
+                                    <div class="col-auto text-end">
+                                        <div class="restaurant-rating mb-2">
+                                            <i class="ri-star-fill" style="color: #ffc107; font-size: 0.9rem;"></i>
+                                            <span id="selected_restaurant_rating" class="fw-semibold" style="font-size: 0.8rem; color: #495057;"></span>
                                         </div>
-                                        <div class="col">
-                                            <h6 id="selected_restaurant_name" class="mb-0 fw-bold small"></h6>
-                                            <p id="selected_restaurant_cuisine" class="mb-0 text-muted" style="font-size: 0.75rem;"></p>
-                                            <p id="selected_restaurant_location" class="mb-0 text-muted" style="font-size: 0.7rem;"></p>
-                                        </div>
-                                        <div class="col-auto text-end">
-                                            <div class="restaurant-rating mb-1">
-                                                <i class="ri-star-fill text-warning"></i>
-                                                <span id="selected_restaurant_rating" class="fw-semibold small"></span>
-                                            </div>
-                                            <div class="restaurant-price-range">
-                                                <span id="selected_restaurant_price_range" class="fw-bold text-success small"></span>
-                                            </div>
+                                        <div class="restaurant-price-range">
+                                            <span id="selected_restaurant_price_range" class="fw-bold" style="color: #28a745; font-size: 0.8rem;"></span>
                                         </div>
                                     </div>
                                 </div>
@@ -4708,21 +4900,21 @@
                         
                         <!-- Transport for this restaurant -->
                         <div class="col-12">
-                            <div class="border rounded-3 p-3 bg-light mb-3 mt-3">
+                            <div class="card border-0 rounded" style="background: #f8f9fa; border-radius: 8px; padding: 0.75rem; margin-top: 0.5rem;">
                                 <div class="row g-2 align-items-center">
                                     <div class="col-md-4">
-                                        <label class="form-label fw-semibold d-block mb-2">Need transport for this restaurant?</label>
+                                        <label class="form-label fw-semibold d-block mb-2" style="color: #495057; font-size: 0.75rem;">Need transport for this restaurant?</label>
                                         <div class="d-flex align-items-center gap-2">
-                                            <span class="text-muted small toggle-label" id="modal_restaurant_transport_no">No</span>
+                                            <span class="text-muted small toggle-label" id="modal_restaurant_transport_no" style="font-size: 0.7rem;">No</span>
                                             <label class="toggle-switch" for="modal_need_restaurant_transport">
                                                 <input type="checkbox" class="toggle-switch-input" name="modal_need_restaurant_transport" id="modal_need_restaurant_transport" value="yes" autocomplete="off">
                                                 <span class="toggle-switch-slider"></span>
                                             </label>
-                                            <span class="text-muted small toggle-label" id="modal_restaurant_transport_yes">Yes</span>
+                                            <span class="text-muted small toggle-label" id="modal_restaurant_transport_yes" style="font-size: 0.7rem;">Yes</span>
                                         </div>
                                     </div>
                                 </div>
-                                <div id="modal_restaurant_transport_details" class="border rounded-3 p-3 bg-white mt-2 d-none">
+                                <div id="modal_restaurant_transport_details" class="card border-0 rounded mt-2 d-none" style="background: #ffffff; border-radius: 8px; padding: 0.75rem;">
                                     @php
                                         $transportVehicles = $vehicles ?? collect();
                                         $tourCountry = $tour->destination ?? '';
@@ -4737,16 +4929,16 @@
                                             }
                                         }
                                     @endphp
-                                    <div class="row g-3">
+                                    <div class="row g-2">
                                         <!-- First Row: Destination, Transport Type, Vehicle -->
                                         <div class="col-md-3">
-                                            <label class="form-label fw-semibold">Destination</label>
+                                            <label class="form-label fw-semibold" style="color: #495057; font-size: 0.75rem;">Destination</label>
                                             @php
                                                 $destHotels = $hotels ?? collect();
                                                 $destAttractions = $attractions ?? collect();
                                                 $destRestaurants = $restaurants ?? collect();
                                             @endphp
-                                            <select class="form-select form-select-sm modal-restaurant-transport-destination-select" name="modal_restaurant_transport_destination" id="modal_restaurant_transport_destination" data-no-select2="true">
+                                            <select class="form-select modern-select modal-restaurant-transport-destination-select" name="modal_restaurant_transport_destination" id="modal_restaurant_transport_destination" data-no-select2="true" style="height: 36px; font-size: 0.8rem;">
                                                 <option value="">Search & select destination</option>
                                                 <optgroup label="Hotels">
                                                     @foreach($destHotels as $h)
@@ -4779,15 +4971,15 @@
                                         </div>
                                         
                                         <div class="col-md-3">
-                                            <label class="form-label fw-semibold">Vehicle (by city)</label>
-                                            <select class="form-select form-select-sm modal-restaurant-transport-vehicle-select" name="modal_restaurant_transport_vehicle" id="modal_restaurant_transport_vehicle" data-no-select2="true">
+                                            <label class="form-label fw-semibold" style="color: #495057; font-size: 0.75rem;">Vehicle (by city)</label>
+                                            <select class="form-select modern-select modal-restaurant-transport-vehicle-select" name="modal_restaurant_transport_vehicle" id="modal_restaurant_transport_vehicle" data-no-select2="true" style="height: 36px; font-size: 0.8rem;">
                                                 <option value="">Select destination first</option>
                                                 {{-- Vehicles will be loaded via JavaScript when destination is selected, filtered by city --}}
                                             </select>
                                         </div>
                                         <div class="col-md-3">
-                                            <label class="form-label fw-semibold">Transport Type</label>
-                                            <select class="form-select form-select-sm" name="modal_restaurant_transport_type" id="modal_restaurant_transport_type" data-no-select2="true">
+                                            <label class="form-label fw-semibold" style="color: #495057; font-size: 0.75rem;">Transport Type</label>
+                                            <select class="form-select modern-select" name="modal_restaurant_transport_type" id="modal_restaurant_transport_type" data-no-select2="true" style="height: 36px; font-size: 0.8rem;">
                                                 <option value="">Select vehicle first</option>
                                                 {{-- Options will be populated based on vehicle sharable value --}}
                                             </select>
@@ -4805,15 +4997,15 @@
                                             <small class="text-danger d-none" id="modal_restaurant_passenger_error">Passengers cannot exceed total pax or vehicle capacity</small>
                                         </div> -->
                                         <div class="col-md-3">
-                                            <label class="form-label fw-semibold">Transport Price</label>
-                                            <div class="input-group input-group-sm">
-                                                <span class="input-group-text">{{ $tour->currency ?? '$' }}</span>
-                                                <input type="number" min="0" step="0.01" class="form-control form-control-sm" name="modal_restaurant_transport_price" id="modal_restaurant_transport_price" placeholder="0.00" data-original-price="" data-zone-mapped="false">
+                                            <label class="form-label fw-semibold" style="color: #495057; font-size: 0.75rem;">Transport Price</label>
+                                            <div class="input-group" style="height: 36px;">
+                                                <span class="input-group-text" style="background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%); color: #ffffff; border: none; font-size: 0.8rem; font-weight: 600;">{{ $tour->currency ?? '$' }}</span>
+                                                <input type="number" min="0" step="0.01" class="form-control modern-input" name="modal_restaurant_transport_price" id="modal_restaurant_transport_price" placeholder="0.00" data-original-price="" data-zone-mapped="false" style="height: 36px; font-size: 0.8rem; border-left: none;">
                                             </div>
-                                            <small class="text-muted" id="modal_restaurant_transport_price_hint">Select vehicle to see price</small>
+                                            <small class="text-muted" id="modal_restaurant_transport_price_hint" style="font-size: 0.7rem; margin-top: 0.2rem; display: block;">Select vehicle to see price</small>
                                             <div class="form-check mt-2">
                                                 <input class="form-check-input modal-restaurant-transport-return-checkbox" type="checkbox" name="modal_restaurant_transport_return" id="modal_restaurant_transport_return">
-                                                <label class="form-check-label fw-semibold" for="modal_restaurant_transport_return">
+                                                <label class="form-check-label fw-semibold" for="modal_restaurant_transport_return" style="font-size: 0.75rem; color: #495057;">
                                                     Return
                                                 </label>
                                             </div>
@@ -4825,14 +5017,16 @@
                         </div>
                         
                         <!-- Price Grid Section -->
-                        <div class="col-12 mt-3">
-                            <div class="border rounded-3 p-3 bg-light">
-                                <h6 class="fw-semibold mb-3"><i class="ri-money-dollar-circle-line me-1 text-success"></i>Price Breakdown</h6>
+                        <div class="col-12 mt-2">
+                            <div class="card border-0 rounded" style="background: #f8f9fa; border-radius: 8px; padding: 0.75rem;">
+                                <h6 class="fw-semibold mb-2" style="color: #495057; font-size: 0.85rem;">
+                                    <i class="ri-money-dollar-circle-line me-1" style="color: #f5576c;"></i>Price Breakdown
+                                </h6>
                                 <div class="row g-2">
-                                    <div class="col-md-4">
-                                        <div class="d-flex justify-content-between align-items-center p-2 bg-success text-white rounded">
-                                            <span class="fw-semibold">Total Price:</span>
-                                            <span class="fw-bold fs-6" id="modal_restaurant_total_price_display">$ 0.00</span>
+                                    <div class="col-12">
+                                        <div class="d-flex justify-content-between align-items-center rounded" style="background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%); padding: 0.75rem 1rem;">
+                                            <span class="fw-semibold text-white" style="font-size: 0.85rem;">Total Price:</span>
+                                            <span class="fw-bold text-white" id="modal_restaurant_total_price_display" style="font-size: 1.1rem;">$ 0.00</span>
                                         </div>
                                     </div>
                                 </div>
@@ -4841,9 +5035,9 @@
                     </div>
                 </form>
             </div>
-            <div class="modal-footer py-2">
-                <button type="button" class="btn btn-sm btn-secondary" data-bs-dismiss="modal">Cancel</button>
-                <button type="button" class="btn btn-sm btn-success" id="confirm_restaurant_btn">
+            <div class="modal-footer border-0 py-2" style="background: #ffffff; padding: 0.75rem 1rem;">
+                <button type="button" class="btn btn-sm btn-secondary" data-bs-dismiss="modal" style="height: 36px; font-size: 0.8rem; border-radius: 6px; padding: 0.4rem 1rem;">Cancel</button>
+                <button type="button" class="btn btn-sm text-white fw-semibold" id="confirm_restaurant_btn" style="background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%); border: none; height: 36px; font-size: 0.8rem; border-radius: 6px; padding: 0.4rem 1.5rem; transition: all 0.3s ease;">
                     <i class="ri-check-line me-1"></i>Confirm
                 </button>
             </div>
@@ -4851,112 +5045,154 @@
     </div>
 </div>
 
-<!-- Select Tour Guests Modal -->
+<!-- Select Tour Guests Modal (match create.blade.php UI) -->
 <div class="modal fade" id="tourGuestSelectorModal" tabindex="-1" aria-labelledby="tourGuestSelectorModalLabel" aria-hidden="true">
-    <div class="modal-dialog modal-lg">
-        <div class="modal-content">
-            <div class="modal-header border-0 pb-0">
-                <h5 class="modal-title fw-bold" id="tourGuestSelectorModalLabel">Select Tour Guests</h5>
-                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+    <div class="modal-dialog modal-md modal-dialog-centered">
+        <div class="modal-content" style="border: none; border-radius: 10px; overflow: hidden; box-shadow: 0 10px 40px rgba(0,0,0,0.15);">
+            <div class="modal-header text-white" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); border: none; padding: 1rem 1.25rem;">
+                <h5 class="modal-title fw-bold d-flex align-items-center mb-0 text-white" id="tourGuestSelectorModalLabel" style="font-size: 1.1rem; letter-spacing: -0.01em; color: #ffffff !important;">
+                    <div style="width: 32px; height: 32px; background: rgba(255, 255, 255, 0.2); border-radius: 8px; display: flex; align-items: center; justify-content: center; margin-right: 10px;">
+                        <i class="ri-group-line text-white" style="font-size: 1rem; color: #ffffff !important;"></i>
+                    </div>
+                    <span style="color: #ffffff !important;">Select Tour Guests</span>
+                </h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close" style="opacity: 0.9; font-size: 0.75rem;"></button>
             </div>
-            <div class="modal-body">
+            <div class="modal-body" style="padding: 1.25rem; background: #ffffff;">
                 <div class="row g-3">
-                    <!-- Left Section: Adults -->
+                    <!-- Adults Section -->
                     <div class="col-md-6">
-                        <div class="border rounded" style="border-color: #bae6fd !important; border-width: 1px !important;">
-                            <div class="p-3 rounded-top" style="background-color: #e0f2fe; color: #0c4a6e;">
-                                <h6 class="mb-0 fw-semibold">
-                                    <i class="ri-user-line me-2"></i>Adults
+                        <div class="card" style="border: 1px solid #e9ecef; border-radius: 8px; box-shadow: 0 2px 6px rgba(0,0,0,0.04); height: 100%;">
+                            <div class="card-header" style="background: #f8f9fa; border: none; border-bottom: 1px solid #e9ecef; padding: 0.625rem 0.875rem; border-radius: 8px 8px 0 0;">
+                                <h6 class="mb-0 fw-semibold d-flex align-items-center" style="color: #495057; font-size: 0.875rem;">
+                                    <i class="ri-user-line me-2" style="color: #667eea; font-size: 0.9rem;"></i>Adults
                                 </h6>
                             </div>
-                            <div class="p-3">
-                                <!-- Male Sub-section -->
-                                <div class="mb-3">
-                                    <div class="d-flex align-items-center mb-2">
-                                        <i class="ri-user-line me-2" style="color: #38bdf8; font-size: 1.2rem;"></i>
-                                        <label class="form-label mb-0 fw-semibold">Male</label>
-                                    </div>
-                                    <div class="d-flex align-items-center">
-                                        <button type="button" class="btn btn-sm" onclick="decrementTourCount('tour_male_count')" style="background-color: #e0f2fe; color: #0284c7; width: 40px; height: 40px; border: 1px solid #bae6fd; border-radius: 4px; font-weight: bold;">
-                                            <i class="ri-subtract-line"></i>
+                            <div class="card-body" style="padding: 1rem 0.875rem;">
+                                <!-- Male -->
+                                <div class="guest-counter mb-3">
+                                    <label class="form-label fw-semibold mb-2 d-block" style="color: #495057; font-size: 0.85rem;">
+                                        <i class="ri-user-3-line me-1" style="color: #667eea; font-size: 0.9rem;"></i>Male
+                                    </label>
+                                    <div class="d-flex align-items-center justify-content-center">
+                                        <button type="button" class="btn" onclick="decrementTourCount('tour_male_count')" style="width: 36px; height: 36px; border-radius: 6px; border: 1px solid #dee2e6; background: #ffffff; color: #495057; display: flex; align-items: center; justify-content: center; transition: all 0.2s; padding: 0;">
+                                            <i class="ri-subtract-line" style="font-size: 0.9rem;"></i>
                                         </button>
-                                        <input type="number" class="form-control text-center mx-2" id="tour_male_count" name="tour_male_count" value="{{ isset($tour->male_count) ? $tour->male_count : ($tour->adult ?? 1) }}" min="0" max="20" readonly style="width: 60px; height: 40px; border: 1px solid #bae6fd; background-color: white;">
-                                        <button type="button" class="btn btn-sm" onclick="incrementTourCount('tour_male_count')" style="background-color: #bae6fd; color: #0284c7; width: 40px; height: 40px; border: 1px solid #7dd3fc; border-radius: 4px; font-weight: bold;">
-                                            <i class="ri-add-line"></i>
+                                        <input
+                                            type="number"
+                                            class="form-control text-center mx-3 fw-bold"
+                                            id="tour_male_count"
+                                            name="tour_male_count"
+                                            value="{{ isset($tour->male_count) ? $tour->male_count : ($tour->adult ?? 1) }}"
+                                            min="0"
+                                            max="20"
+                                            readonly
+                                            style="font-size: 1.5rem; color: #212529; min-width: 48px; height: 36px; border: none; background-color: transparent; box-shadow: none;"
+                                        >
+                                        <button type="button" class="btn" onclick="incrementTourCount('tour_male_count')" style="width: 36px; height: 36px; border-radius: 6px; border: 1px solid #dee2e6; background: #ffffff; color: #495057; display: flex; align-items: center; justify-content: center; transition: all 0.2s; padding: 0;">
+                                            <i class="ri-add-line" style="font-size: 0.9rem;"></i>
                                         </button>
                                     </div>
                                 </div>
-                                
-                                <!-- Female Sub-section -->
-                                <div>
-                                    <div class="d-flex align-items-center mb-2">
-                                        <i class="ri-user-line me-2" style="color: #38bdf8; font-size: 1.2rem;"></i>
-                                        <label class="form-label mb-0 fw-semibold">Female</label>
-                                    </div>
-                                    <div class="d-flex align-items-center">
-                                        <button type="button" class="btn btn-sm" onclick="decrementTourCount('tour_female_count')" style="background-color: #e0f2fe; color: #0284c7; width: 40px; height: 40px; border: 1px solid #bae6fd; border-radius: 4px; font-weight: bold;">
-                                            <i class="ri-subtract-line"></i>
+
+                                <!-- Female -->
+                                <div class="guest-counter">
+                                    <label class="form-label fw-semibold mb-2 d-block" style="color: #495057; font-size: 0.85rem;">
+                                        <i class="ri-user-4-line me-1" style="color: #667eea; font-size: 0.9rem;"></i>Female
+                                    </label>
+                                    <div class="d-flex align-items-center justify-content-center">
+                                        <button type="button" class="btn" onclick="decrementTourCount('tour_female_count')" style="width: 36px; height: 36px; border-radius: 6px; border: 1px solid #dee2e6; background: #ffffff; color: #495057; display: flex; align-items: center; justify-content: center; transition: all 0.2s; padding: 0;">
+                                            <i class="ri-subtract-line" style="font-size: 0.9rem;"></i>
                                         </button>
-                                        <input type="number" class="form-control text-center mx-2" id="tour_female_count" name="tour_female_count" value="{{ isset($tour->female_count) ? $tour->female_count : 0 }}" min="0" max="20" readonly style="width: 60px; height: 40px; border: 1px solid #bae6fd; background-color: white;">
-                                        <button type="button" class="btn btn-sm" onclick="incrementTourCount('tour_female_count')" style="background-color: #bae6fd; color: #0284c7; width: 40px; height: 40px; border: 1px solid #7dd3fc; border-radius: 4px; font-weight: bold;">
-                                            <i class="ri-add-line"></i>
+                                        <input
+                                            type="number"
+                                            class="form-control text-center mx-3 fw-bold"
+                                            id="tour_female_count"
+                                            name="tour_female_count"
+                                            value="{{ isset($tour->female_count) ? $tour->female_count : 0 }}"
+                                            min="0"
+                                            max="20"
+                                            readonly
+                                            style="font-size: 1.5rem; color: #212529; min-width: 48px; height: 36px; border: none; background-color: transparent; box-shadow: none;"
+                                        >
+                                        <button type="button" class="btn" onclick="incrementTourCount('tour_female_count')" style="width: 36px; height: 36px; border-radius: 6px; border: 1px solid #dee2e6; background: #ffffff; color: #495057; display: flex; align-items: center; justify-content: center; transition: all 0.2s; padding: 0;">
+                                            <i class="ri-add-line" style="font-size: 0.9rem;"></i>
                                         </button>
                                     </div>
                                 </div>
                             </div>
                         </div>
                     </div>
-                    
-                    <!-- Right Section: Children & Infants (light sky blue styling) -->
+
+                    <!-- Children & Infants Section -->
                     <div class="col-md-6">
-                        <div class="border rounded" style="border-color: #bae6fd !important; border-width: 1px !important;">
-                            <div class="p-3 rounded-top" style="background-color: #e0f2fe; color: #0c4a6e;">
-                                <h6 class="mb-0 fw-semibold">
-                                    <i class="ri-user-smile-line me-2"></i>Children & Infants
+                        <div class="card" style="border: 1px solid #e9ecef; border-radius: 8px; box-shadow: 0 2px 6px rgba(0,0,0,0.04); height: 100%;">
+                            <div class="card-header" style="background: #f8f9fa; border: none; border-bottom: 1px solid #e9ecef; padding: 0.625rem 0.875rem; border-radius: 8px 8px 0 0;">
+                                <h6 class="mb-0 fw-semibold d-flex align-items-center" style="color: #495057; font-size: 0.875rem;">
+                                    <i class="ri-user-smile-line me-2" style="color: #667eea; font-size: 0.9rem;"></i>Children & Infants
                                 </h6>
                             </div>
-                            <div class="p-3">
-                                <!-- Children Sub-section -->
-                                <div class="mb-3">
-                                    <div class="d-flex align-items-center mb-2">
-                                        <i class="ri-user-smile-line me-2" style="color: #38bdf8; font-size: 1.2rem;"></i>
-                                        <label class="form-label mb-0 fw-semibold">Children (Ages 1-17)</label>
+                            <div class="card-body" style="padding: 1rem 0.875rem;">
+                                <!-- Children -->
+                                <div class="guest-counter mb-3">
+                                    <label class="form-label fw-semibold mb-2 d-block" style="color: #495057; font-size: 0.85rem;">
+                                        <i class="ri-user-smile-line me-1" style="color: #667eea; font-size: 0.9rem;"></i>Children
+                                        <small class="text-muted d-block mt-1" style="font-size: 0.75rem; font-weight: normal;">Ages 1-17</small>
+                                    </label>
+                                    <div class="d-flex align-items-center justify-content-center">
+                                        <button type="button" class="btn" onclick="decrementTourCount('tour_children_count')" style="width: 36px; height: 36px; border-radius: 6px; border: 1px solid #dee2e6; background: #ffffff; color: #495057; display: flex; align-items: center; justify-content: center; transition: all 0.2s; padding: 0;">
+                                            <i class="ri-subtract-line" style="font-size: 0.9rem;"></i>
+                                        </button>
+                                        <input
+                                            type="number"
+                                            class="form-control text-center mx-3 fw-bold"
+                                            id="tour_children_count"
+                                            name="tour_children_count"
+                                            value="{{ $tour->child ?? 0 }}"
+                                            min="0"
+                                            max="20"
+                                            readonly
+                                            style="font-size: 1.5rem; color: #212529; min-width: 48px; height: 36px; border: none; background-color: transparent; box-shadow: none;"
+                                        >
+                                        <button type="button" class="btn" onclick="incrementTourCount('tour_children_count')" style="width: 36px; height: 36px; border-radius: 6px; border: 1px solid #dee2e6; background: #ffffff; color: #495057; display: flex; align-items: center; justify-content: center; transition: all 0.2s; padding: 0;">
+                                            <i class="ri-add-line" style="font-size: 0.9rem;"></i>
+                                        </button>
                                     </div>
-                                    <div class="d-flex align-items-center">
-                                        <button type="button" class="btn btn-sm" onclick="decrementTourCount('tour_children_count')" style="background-color: #e0f2fe; color: #0284c7; width: 40px; height: 40px; border: 1px solid #bae6fd; border-radius: 4px; font-weight: bold;">
-                                            <i class="ri-subtract-line"></i>
-                                        </button>
-                                        <input type="number" class="form-control text-center mx-2" id="tour_children_count" name="tour_children_count" value="{{ $tour->child ?? 0 }}" min="0" max="20" readonly style="width: 60px; height: 40px; border: 1px solid #bae6fd; background-color: white;">
-                                        <button type="button" class="btn btn-sm" onclick="incrementTourCount('tour_children_count')" style="background-color: #bae6fd; color: #0284c7; width: 40px; height: 40px; border: 1px solid #7dd3fc; border-radius: 4px; font-weight: bold;">
-                                            <i class="ri-add-line"></i>
-                                        </button>
+
+                                    <!-- Child Ages Section -->
+                                    <div id="tour_child_ages_container" class="mt-3" style="display: none;">
+                                        <label class="form-label fw-semibold mb-2 d-block" style="color: #495057; font-size: 0.8rem;">
+                                            <i class="ri-user-settings-line me-1" style="color: #667eea; font-size: 0.85rem;"></i>Select Ages for Children
+                                        </label>
+                                        <div id="tour_child_ages_list" class="d-flex flex-column gap-2">
+                                            <!-- Dynamic child age select boxes will be inserted here -->
+                                        </div>
                                     </div>
                                 </div>
-                                
-                                <!-- Child Ages Selection -->
-                                <div id="tour_child_ages_container" class="mb-3" style="display: none;">
-                                    <div class="d-flex align-items-center mb-2">
-                                        <i class="ri-user-line me-2" style="color: #38bdf8; font-size: 1.1rem;"></i>
-                                        <label class="form-label mb-0 fw-semibold">Select Ages for Children</label>
-                                    </div>
-                                    <div id="tour_child_ages_list">
-                                        <!-- Dynamic child age select boxes will be inserted here -->
-                                    </div>
-                                </div>
-                                
-                                <!-- Infants Sub-section -->
-                                <div>
-                                    <div class="d-flex align-items-center mb-2">
-                                        <i class="ri-baby-carriage-line me-2" style="color: #38bdf8; font-size: 1.2rem;"></i>
-                                        <label class="form-label mb-0 fw-semibold">Infants (Under 1 year)</label>
-                                    </div>
-                                    <div class="d-flex align-items-center">
-                                        <button type="button" class="btn btn-sm" onclick="decrementTourCount('tour_infants_count')" style="background-color: #e0f2fe; color: #0284c7; width: 40px; height: 40px; border: 1px solid #bae6fd; border-radius: 4px; font-weight: bold;">
-                                            <i class="ri-subtract-line"></i>
+
+                                <!-- Infants -->
+                                <div class="guest-counter">
+                                    <label class="form-label fw-semibold mb-2 d-block" style="color: #495057; font-size: 0.85rem;">
+                                        <i class="ri-user-heart-line me-1" style="color: #667eea; font-size: 0.9rem;"></i>Infants
+                                        <small class="text-muted d-block mt-1" style="font-size: 0.75rem; font-weight: normal;">Under 1 year</small>
+                                    </label>
+                                    <div class="d-flex align-items-center justify-content-center">
+                                        <button type="button" class="btn" onclick="decrementTourCount('tour_infants_count')" style="width: 36px; height: 36px; border-radius: 6px; border: 1px solid #dee2e6; background: #ffffff; color: #495057; display: flex; align-items: center; justify-content: center; transition: all 0.2s; padding: 0;">
+                                            <i class="ri-subtract-line" style="font-size: 0.9rem;"></i>
                                         </button>
-                                        <input type="number" class="form-control text-center mx-2" id="tour_infants_count" name="tour_infants_count" value="{{ $tour->infant ?? 0 }}" min="0" max="10" readonly style="width: 60px; height: 40px; border: 1px solid #bae6fd; background-color: white;">
-                                        <button type="button" class="btn btn-sm" onclick="incrementTourCount('tour_infants_count')" style="background-color: #bae6fd; color: #0284c7; width: 40px; height: 40px; border: 1px solid #7dd3fc; border-radius: 4px; font-weight: bold;">
-                                            <i class="ri-add-line"></i>
+                                        <input
+                                            type="number"
+                                            class="form-control text-center mx-3 fw-bold"
+                                            id="tour_infants_count"
+                                            name="tour_infants_count"
+                                            value="{{ $tour->infant ?? 0 }}"
+                                            min="0"
+                                            max="10"
+                                            readonly
+                                            style="font-size: 1.5rem; color: #212529; min-width: 48px; height: 36px; border: none; background-color: transparent; box-shadow: none;"
+                                        >
+                                        <button type="button" class="btn" onclick="incrementTourCount('tour_infants_count')" style="width: 36px; height: 36px; border-radius: 6px; border: 1px solid #dee2e6; background: #ffffff; color: #495057; display: flex; align-items: center; justify-content: center; transition: all 0.2s; padding: 0;">
+                                            <i class="ri-add-line" style="font-size: 0.9rem;"></i>
                                         </button>
                                     </div>
                                 </div>
@@ -4965,9 +5201,11 @@
                     </div>
                 </div>
             </div>
-            <div class="modal-footer border-0 pt-3">
-                <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Cancel</button>
-                <button type="button" class="btn" onclick="confirmTourGuestSelection()" style="background-color: #10b981; color: white; border: none;">
+            <div class="modal-footer" style="border-top: 1px solid #e9ecef; padding: 0.875rem 1.25rem; background: #f8f9fa;">
+                <button type="button" class="btn" data-bs-dismiss="modal" style="height: 36px; border-radius: 6px; border: 1px solid #dee2e6; background: #ffffff; color: #495057; padding: 0.375rem 1.25rem; font-weight: 500; font-size: 0.875rem; transition: all 0.2s;">
+                    Cancel
+                </button>
+                <button type="button" class="btn text-white" onclick="confirmTourGuestSelection()" style="height: 36px; border-radius: 6px; background: linear-gradient(135deg, #10b981 0%, #059669 100%); border: none; padding: 0.375rem 1.25rem; font-weight: 500; font-size: 0.875rem; transition: all 0.2s; box-shadow: 0 2px 6px rgba(16, 185, 129, 0.3);">
                     <i class="ri-check-line me-1"></i>Apply Selection
                 </button>
             </div>
@@ -5061,26 +5299,31 @@
 <!-- Attraction Selection Modal -->
 <div class="modal fade" id="attractionSelectionModal" tabindex="-1" aria-labelledby="attractionSelectionModalLabel" aria-hidden="true">
     <div class="modal-dialog modal-dialog-centered modal-xl">
-        <div class="modal-content">
-            <div class="modal-header bg-gradient-danger text-white py-2">
-                <h6 class="modal-title mb-0" id="attractionSelectionModalLabel">
-                    <i class="ri-ticket-2-line me-1"></i>Select Attraction & Tickets
-                </h6>
-                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+        <div class="modal-content border-0" style="border-radius: 12px; overflow: hidden; box-shadow: 0 10px 40px rgba(0,0,0,0.15);">
+            <div class="modal-header text-white border-0" style="background: linear-gradient(135deg, #fa709a 0%, #fee140 100%); padding: 0.75rem 1rem;">
+                <div class="d-flex align-items-center">
+                    <div style="width: 32px; height: 32px; background: rgba(255, 255, 255, 0.2); border-radius: 8px; display: flex; align-items: center; justify-content: center; margin-right: 8px;">
+                        <i class="ri-ticket-2-line" style="font-size: 1rem; color: #ffffff;"></i>
+                    </div>
+                    <h6 class="modal-title mb-0 fw-bold" id="attractionSelectionModalLabel" style="font-size: 0.95rem; letter-spacing: -0.01em; color: #ffffff;">
+                        Select Attraction & Tickets
+                    </h6>
+                </div>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close" style="opacity: 0.9; font-size: 0.75rem;"></button>
             </div>
-            <div class="modal-body p-3">
+            <div class="modal-body" style="padding: 1rem; background: #ffffff; max-height: 70vh; overflow-y: auto;">
                 <!-- Tour Info Display -->
                 <div class="row mb-2">
                     <div class="col-12 col-lg-6">
-                        <div class="d-flex align-items-center">
-                            <i class="ri-calendar-line me-1 text-primary"></i>
-                            <small class="fw-semibold">Dates: <span id="modal_attraction_tour_dates" class="text-primary"></span></small>
+                        <div class="d-flex align-items-center rounded" style="background: #f8f9fa; border: 1px solid #e9ecef; padding: 0.375rem 0.5rem;">
+                            <i class="ri-calendar-line me-2" style="color: #fa709a; font-size: 0.9rem;"></i>
+                            <small class="fw-semibold" style="color: #495057; font-size: 0.75rem;">Dates: <span id="modal_attraction_tour_dates" class="text-primary fw-bold"></span></small>
                         </div>
                     </div>
                     <div class="col-12 col-lg-6">
-                        <div class="d-flex align-items-center">
-                            <i class="ri-map-pin-line me-1 text-primary"></i>
-                            <small class="fw-semibold">Dest: <span id="modal_attraction_destination" class="text-primary"></span></small>
+                        <div class="d-flex align-items-center rounded" style="background: #f8f9fa; border: 1px solid #e9ecef; padding: 0.375rem 0.5rem;">
+                            <i class="ri-map-pin-line me-2" style="color: #fa709a; font-size: 0.9rem;"></i>
+                            <small class="fw-semibold" style="color: #495057; font-size: 0.75rem;">Dest: <span id="modal_attraction_destination" class="text-primary fw-bold"></span></small>
                         </div>
                     </div>
                 </div>
@@ -5088,12 +5331,12 @@
                 <!-- Attraction Selection Form -->
                 <form id="attractionSelectionForm" onsubmit="return false;">
                     <!-- First Row: City and Attraction Name -->
-                    <div class="row g-3 mb-3">
+                    <div class="row g-2 mb-2">
                         <div class="col-12 col-md-6">
-                            <label class="form-label small fw-semibold mb-1">
-                                <i class="ri-map-pin-line text-success me-1"></i>City
+                            <label class="form-label fw-semibold mb-1" style="color: #495057; font-size: 0.75rem;">
+                                <i class="ri-map-pin-line me-1" style="color: #fa709a;"></i>City
                             </label>
-                            <select class="form-select form-select-sm" id="modal_attraction_city_select" name="city" data-no-select2="true">
+                            <select class="form-select modern-select" id="modal_attraction_city_select" name="city" data-no-select2="true" style="height: 36px; font-size: 0.8rem;">
                                 <option value="">Select city</option>
                                 @foreach($cities as $city)
                                     <option value="{{ $city->name }}" data-city="{{ json_encode($city) }}" data-country="{{ $city->country }}">{{ $city->name }}</option>
@@ -5101,39 +5344,37 @@
                             </select>
                         </div>
                         <div class="col-12 col-md-6">
-                            <label for="modal_attraction_select" class="form-label small fw-semibold mb-1">
-                                <i class="ri-ticket-2-line me-1"></i>Attraction
+                            <label for="modal_attraction_select" class="form-label fw-semibold mb-1" style="color: #495057; font-size: 0.75rem;">
+                                <i class="ri-ticket-2-line me-1" style="color: #fa709a;"></i>Attraction
                             </label>
-                            <select class="form-select form-select-sm" id="modal_attraction_select" name="attraction_id" required data-no-select2="true">
+                            <select class="form-select modern-select" id="modal_attraction_select" name="attraction_id" required data-no-select2="true" style="height: 36px; font-size: 0.8rem;">
                                 <option value="">Search Attraction</option>
                             </select>
-                            <small class="form-text text-muted">
+                            <small class="form-text text-muted" style="font-size: 0.7rem; margin-top: 0.2rem; display: block;">
                                 <span id="attraction_count">0</span> in <span id="modal_attraction_city"></span>
                             </small>
                         </div>
                     </div>
 
                     <!-- Attraction Details Display -->
-                    <div class="row mb-3" id="attraction_details_container" style="display: none;">
+                    <div class="row mb-2" id="attraction_details_container" style="display: none;">
                         <div class="col-12">
-                            <div >
-                                <div class="card-body p-2">
-                                    <div class="row align-items-center">
-                                        <div class="col-auto">
-                                            <img id="selected_attraction_image" src="" alt="Attraction" class="rounded" style="width: 50px; height: 50px; object-fit: cover;">
+                            <div class="card border-0" style="background: #f8f9fa; border-radius: 8px; padding: 0.75rem;">
+                                <div class="row align-items-center">
+                                    <div class="col-auto">
+                                        <img id="selected_attraction_image" src="" alt="Attraction" class="rounded" style="width: 60px; height: 60px; object-fit: cover; border: 2px solid #e9ecef;">
+                                    </div>
+                                    <div class="col">
+                                        <h6 id="selected_attraction_name" class="mb-1 fw-bold" style="color: #495057; font-size: 0.9rem;"></h6>
+                                        <p id="selected_attraction_category" class="mb-1 text-muted" style="font-size: 0.75rem;"></p>
+                                        <p id="selected_attraction_location" class="mb-0 text-muted" style="font-size: 0.7rem;"></p>
+                                    </div>
+                                    <div class="col-auto text-end">
+                                        <div class="attraction-rating mb-1">
+                                            <span id="selected_attraction_rating" class="fw-semibold" style="font-size: 0.85rem;"></span>
                                         </div>
-                                        <div class="col">
-                                            <h6 id="selected_attraction_name" class="mb-0 fw-bold small"></h6>
-                                            <p id="selected_attraction_category" class="mb-0 text-muted" style="font-size: 0.75rem;"></p>
-                                            <p id="selected_attraction_location" class="mb-0 text-muted" style="font-size: 0.7rem;"></p>
-                                        </div>
-                                        <div class="col-auto text-end">
-                                            <div class="attraction-rating mb-1">
-                                                <span id="selected_attraction_rating" class="fw-semibold small"></span>
-                                            </div>
-                                            <div class="attraction-price-range">
-                                                <span id="selected_attraction_price_range" class="fw-bold text-danger small"></span>
-                                            </div>
+                                        <div class="attraction-price-range">
+                                            <span id="selected_attraction_price_range" class="fw-bold" style="color: #fa709a; font-size: 0.9rem;"></span>
                                         </div>
                                     </div>
                                 </div>
@@ -5142,28 +5383,26 @@
                     </div>
 
                     <!-- Below: Guest Selector, Visit Date, Time Slot, Ticket -->
-                    <div class="row g-3">
+                    <div class="row g-2">
                         <!-- Guest Selector -->
                         <div class="col-12 col-md-3">
-                            <label class="form-label small fw-semibold mb-1">Guests</label>
+                            <label class="form-label fw-semibold mb-1" style="color: #495057; font-size: 0.75rem;">Guests</label>
                             <div class="guest-selector">
-                                <div class="guest-display p-2 border rounded bg-light">
-                                    <div class="d-flex align-items-center justify-content-between">
-                                        <div class="flex-grow-1">
-                                            <div class="mb-1">
-                                                <span id="modal_attraction_guest_summary" class="text-dark" style="font-size: 0.9rem;">
-                                                    1 pax (1 adults, 0 children) - 1 male, 0 female - 0 infants
-                                                </span>
-                                            </div>
-                                            <div class="d-flex gap-2">
-                                                <span class="badge bg-primary" id="modal_badge_adults">1</span>
-                                                <span class="badge bg-success" id="modal_badge_children">0</span>
-                                                <span class="badge bg-warning text-dark" id="modal_badge_infants">0</span>
-                                            </div>
+                                <div class="guest-display rounded" style="background: #f8f9fa; border: 1px solid #e9ecef; padding: 0.5rem;">
+                                    <div class="d-flex align-items-center justify-content-between mb-1">
+                                        <div class="guest-info">
+                                            <span id="modal_attraction_guest_summary" class="text-muted" style="font-size: 0.7rem;">
+                                                1 adults (1 male, 0 female), 0 children - 0 infants
+                                            </span>
                                         </div>
-                                        <button type="button" class="btn btn-sm btn-outline-primary p-1" onclick="openAttractionGuestSelector()">
-                                            <i class="ri-edit-line"></i>
+                                        <button type="button" class="btn btn-sm btn-outline-primary p-1" onclick="openAttractionGuestSelector()" style="height: 28px; width: 28px; padding: 0; display: flex; align-items: center; justify-content: center;">
+                                            <i class="ri-edit-line" style="font-size: 0.75rem;"></i>
                                         </button>
+                                    </div>
+                                    <div class="guest-badges d-flex gap-1">
+                                        <span class="badge" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); font-size: 0.65rem; padding: 0.2rem 0.4rem;" id="modal_badge_adults">1</span>
+                                        <span class="badge" style="background: linear-gradient(135deg, #11998e 0%, #38ef7d 100%); font-size: 0.65rem; padding: 0.2rem 0.4rem;" id="modal_badge_children">0</span>
+                                        <span class="badge" style="background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%); font-size: 0.65rem; padding: 0.2rem 0.4rem;" id="modal_badge_infants">0</span>
                                     </div>
                                 </div>
                             </div>
@@ -5176,51 +5415,53 @@
 
                         <!-- Visit Date -->
                         <div class="col-12 col-md-3">
-                            <label for="modal_attraction_visit_date" class="form-label small fw-semibold mb-1">
-                                <i class="ri-calendar-line me-1"></i>Visit Date
+                            <label for="modal_attraction_visit_date" class="form-label fw-semibold mb-1" style="color: #495057; font-size: 0.75rem;">
+                                <i class="ri-calendar-line me-1" style="color: #fa709a;"></i>Visit Date
                             </label>
-                            <input type="date" class="form-control form-control-sm" id="modal_attraction_visit_date" name="visit_date" required>
+                            <input type="date" class="form-control modern-input" id="modal_attraction_visit_date" name="visit_date" required style="height: 36px; font-size: 0.8rem;">
                         </div>
 
                         <!-- Time Slot -->
                         <div class="col-12 col-md-3">
-                            <label for="modal_attraction_time_slot" class="form-label small fw-semibold mb-1">
-                                <i class="ri-time-line me-1"></i>Time Slot
+                            <label for="modal_attraction_time_slot" class="form-label fw-semibold mb-1" style="color: #495057; font-size: 0.75rem;">
+                                <i class="ri-time-line me-1" style="color: #fa709a;"></i>Time Slot
                             </label>
-                            <select class="form-select form-select-sm" id="modal_attraction_time_slot" name="time_slot" required data-no-select2="true">
+                            <select class="form-select modern-select" id="modal_attraction_time_slot" name="time_slot" required data-no-select2="true" style="height: 36px; font-size: 0.8rem;">
                                 <option value="">Select Attraction First</option>
                             </select>
-                            <small class="text-muted">Available time slots</small>
+                            <small class="text-muted" style="font-size: 0.7rem; margin-top: 0.2rem; display: block;">Available time slots</small>
                         </div>
 
                         <!-- Ticket Selection -->
                         <div class="col-12 col-md-3">
-                            <label for="modal_attraction_ticket" class="form-label small fw-semibold mb-1">Ticket</label>
-                            <select class="form-select form-select-sm" name="modal_attraction_ticket" id="modal_attraction_ticket" onchange="onTicketSelection(); updateAttractionPricing();" data-no-select2="true">
+                            <label for="modal_attraction_ticket" class="form-label fw-semibold mb-1" style="color: #495057; font-size: 0.75rem;">
+                                <i class="ri-ticket-2-line me-1" style="color: #fa709a;"></i>Ticket
+                            </label>
+                            <select class="form-select modern-select" name="modal_attraction_ticket" id="modal_attraction_ticket" onchange="onTicketSelection(); updateAttractionPricing();" data-no-select2="true" style="height: 36px; font-size: 0.8rem;">
                                 <option value="">Select Ticket</option>
                             </select>
-                            <small id="modal_attraction_ticket_prices" class="text-muted d-block"></small>
+                            <small id="modal_attraction_ticket_prices" class="text-muted" style="font-size: 0.7rem; margin-top: 0.2rem; display: block;"></small>
                         </div>
 
                         <!-- Attraction Price Display -->
-                        <div class="col-12" id="attraction_price_display" style="display: none;">
-                            <div class="alert alert-info py-2">
+                        <div class="col-12 mt-2" id="attraction_price_display" style="display: none;">
+                            <div class="card border-0" style="background: #e7f3ff; border-radius: 8px; padding: 0.75rem; border: 1px solid #b3d9ff;">
                                 <div class="d-flex align-items-center">
-                                    <i class="ri-money-dollar-circle-line me-2 fs-5"></i>
+                                    <i class="ri-money-dollar-circle-line me-2" style="color: #fa709a; font-size: 1.1rem;"></i>
                                     <div>
-                                        <strong>Attraction Pricing</strong>
-                                        <div id="attraction_price_details" class="small">Select an attraction and configure guests to see pricing</div>
+                                        <strong style="color: #495057; font-size: 0.85rem;">Attraction Pricing</strong>
+                                        <div id="attraction_price_details" style="font-size: 0.75rem; color: #6c757d;">Select an attraction and configure guests to see pricing</div>
                                     </div>
                                 </div>
                             </div>
                         </div>
                         
                         <!-- Guide Section for this attraction -->
-                        <div class="col-12">
-                            <div class="border rounded-3 p-3 bg-light mb-2 mt-2">
+                        <div class="col-12 mt-2">
+                            <div class="border-0 rounded-3 p-3" style="background: #f8f9fa; border: 1px solid #e9ecef;">
                                 <div class="row g-2 align-items-center">
                                     <div class="col-md-4">
-                                        <label class="form-label fw-semibold d-block mb-1">Do you want a guide?</label>
+                                        <label class="form-label fw-semibold d-block mb-1" style="color: #495057; font-size: 0.85rem;">Do you want a guide?</label>
                                         <div class="btn-group btn-group-sm" role="group" aria-label="Need guide toggle">
                                             <input type="radio" class="btn-check" name="modal_need_attraction_guide" id="modal_need_attraction_guide_no" value="no" autocomplete="off" checked>
                                             <label class="btn btn-outline-secondary" for="modal_need_attraction_guide_no">No</label>
@@ -5230,7 +5471,7 @@
                                         </div>
                                     </div>
                                 </div>
-                                <div id="modal_attraction_guide_details" class="border rounded-3 p-3 bg-white mt-2 d-none">
+                                <div id="modal_attraction_guide_details" class="border-0 rounded-3 p-3 mt-2 d-none" style="background: #ffffff; border: 1px solid #e9ecef;">
                                     @php
                                         $availableGuides = $guides ?? collect();
                                         $tourCountry = $tour->destination ?? '';
@@ -5247,10 +5488,10 @@
                                             });
                                         }
                                     @endphp
-                                    <div class="row g-3">
+                                    <div class="row g-2">
                                         <div class="col-md-6">
-                                            <label class="form-label small fw-semibold mb-1">Language</label>
-                                            <select class="form-select form-select-sm" name="modal_attraction_guide_language" id="modal_attraction_guide_language" data-no-select2="true">
+                                            <label class="form-label fw-semibold mb-1" style="color: #495057; font-size: 0.75rem;">Language</label>
+                                            <select class="form-select modern-select" name="modal_attraction_guide_language" id="modal_attraction_guide_language" data-no-select2="true" style="height: 36px; font-size: 0.8rem;">
                                                 <option value="">Select Language</option>
                                                 @php
                                                     $allLanguages = [];
@@ -5274,16 +5515,16 @@
                                             </select>
                                         </div>
                                         <div class="col-md-6">
-                                            <label class="form-label small fw-semibold mb-1">Guide</label>
-                                            <select class="form-select form-select-sm" name="modal_attraction_guide_name" id="modal_attraction_guide_name" data-no-select2="true">
+                                            <label class="form-label fw-semibold mb-1" style="color: #495057; font-size: 0.75rem;">Guide</label>
+                                            <select class="form-select modern-select" name="modal_attraction_guide_name" id="modal_attraction_guide_name" data-no-select2="true" style="height: 36px; font-size: 0.8rem;">
                                                 <option value="">Select Language First</option>
                                             </select>
                                         </div>
                                     </div>
-                                    <div class="row g-3 mt-2">
+                                    <div class="row g-2 mt-2">
                                         <div class="col-md-6">
-                                            <label class="form-label small fw-semibold mb-1">Package (Hours)</label>
-                                            <select class="form-select form-select-sm" name="modal_attraction_guide_hours" id="modal_attraction_guide_hours" data-no-select2="true">
+                                            <label class="form-label fw-semibold mb-1" style="color: #495057; font-size: 0.75rem;">Package (Hours)</label>
+                                            <select class="form-select modern-select" name="modal_attraction_guide_hours" id="modal_attraction_guide_hours" data-no-select2="true" style="height: 36px; font-size: 0.8rem;">
                                                 <option value="">Select Hours</option>
                                                 <option value="1">1 Hour</option>
                                                 <option value="2">2 Hours</option>
@@ -5298,15 +5539,15 @@
                                                 <option value="11">11 Hours</option>
                                                 <option value="12">12 Hours</option>
                                             </select>
-                                            <input type="number" min="1" class="form-control form-control-sm mt-2" name="modal_attraction_guide_custom_hours" id="modal_attraction_guide_custom_hours" placeholder="Enter custom hours" style="display: none;">
+                                            <input type="number" min="1" class="form-control modern-input mt-2" name="modal_attraction_guide_custom_hours" id="modal_attraction_guide_custom_hours" placeholder="Enter custom hours" style="display: none; height: 36px; font-size: 0.8rem;">
                                         </div>
                                         <div class="col-md-6">
-                                            <label class="form-label small fw-semibold mb-1">Guide Price</label>
+                                            <label class="form-label fw-semibold mb-1" style="color: #495057; font-size: 0.75rem;">Guide Price</label>
                                             <div class="position-relative">
                                                 <span class="position-absolute" style="left: 10px; top: 50%; transform: translateY(-50%); z-index: 5; color: #6c757d; font-weight: 500;">{{ $tour->currency ?? '$' }}</span>
-                                                <input type="number" min="0" step="0.01" class="form-control form-control-sm" name="modal_attraction_guide_price" id="modal_attraction_guide_price" placeholder="0.00" readonly style="padding-left: 30px;">
+                                                <input type="number" min="0" step="0.01" class="form-control modern-input" name="modal_attraction_guide_price" id="modal_attraction_guide_price" placeholder="0.00" readonly style="padding-left: 30px; height: 36px; font-size: 0.8rem;">
                                             </div>
-                                            <small class="text-muted" style="font-size: 0.75rem; line-height: 1.2;">
+                                            <small class="text-muted" style="font-size: 0.7rem; margin-top: 0.2rem; display: block;">
                                                 <span id="modal_attraction_guide_price_breakdown" style="display: none;"></span>
                                                 <span id="modal_attraction_guide_price_note">Select guide and enter hours to see price</span>
                                             </small>
@@ -5317,22 +5558,22 @@
                         </div>
                         
                         <!-- Transport for this attraction -->
-                        <div class="col-12">
-                            <div class="border rounded-3 p-3 bg-light mb-2 mt-2">
+                        <div class="col-12 mt-2">
+                            <div class="border-0 rounded-3 p-3" style="background: #f8f9fa; border: 1px solid #e9ecef;">
                                 <div class="row g-2 align-items-center">
                                     <div class="col-md-4">
-                                        <label class="form-label fw-semibold d-block mb-2">Need transport for this attraction?</label>
+                                        <label class="form-label fw-semibold d-block mb-2" style="color: #495057; font-size: 0.85rem;">Need transport for this attraction?</label>
                                         <div class="d-flex align-items-center gap-2">
-                                            <span class="text-muted small toggle-label" id="modal_attraction_transport_no">No</span>
+                                            <span class="text-muted small toggle-label" id="modal_attraction_transport_no" style="font-size: 0.75rem;">No</span>
                                             <label class="toggle-switch" for="modal_need_attraction_transport">
                                                 <input type="checkbox" class="toggle-switch-input" name="modal_need_attraction_transport" id="modal_need_attraction_transport" value="yes" autocomplete="off">
                                                 <span class="toggle-switch-slider"></span>
                                             </label>
-                                            <span class="text-muted small toggle-label" id="modal_attraction_transport_yes">Yes</span>
+                                            <span class="text-muted small toggle-label" id="modal_attraction_transport_yes" style="font-size: 0.75rem;">Yes</span>
                                         </div>
                                     </div>
                                 </div>
-                                <div id="modal_attraction_transport_details" class="border rounded-3 p-3 bg-white mt-2 d-none">
+                                <div id="modal_attraction_transport_details" class="border-0 rounded-3 p-3 mt-2 d-none" style="background: #ffffff; border: 1px solid #e9ecef;">
                                     @php
                                         $transportVehicles = $vehicles ?? collect();
                                         $tourCountry = $tour->destination ?? '';
@@ -5347,17 +5588,15 @@
                                             }
                                         }
                                     @endphp
-                                    <div class="row g-3">
-
-                                        
+                                    <div class="row g-2">
                                         <div class="col-md-3">
-                                            <label class="form-label fw-semibold">Destination</label>
+                                            <label class="form-label fw-semibold mb-1" style="color: #495057; font-size: 0.75rem;">Destination</label>
                                             @php
                                                 $destHotels = $hotels ?? collect();
                                                 $destAttractions = $attractions ?? collect();
                                                 $destRestaurants = $restaurants ?? collect();
                                             @endphp
-                                            <select class="form-select form-select-sm modal-attraction-transport-destination-select" name="modal_attraction_transport_destination" id="modal_attraction_transport_destination" data-no-select2="true">
+                                            <select class="form-select modern-select modal-attraction-transport-destination-select" name="modal_attraction_transport_destination" id="modal_attraction_transport_destination" data-no-select2="true" style="height: 36px; font-size: 0.8rem;">
                                                 <option value="">Search & select destination</option>
                                                 <optgroup label="Hotels">
                                                     @foreach($destHotels as $h)
@@ -5389,16 +5628,16 @@
                                             </select>
                                         </div>
                                         <div class="col-md-3">
-                                            <label class="form-label fw-semibold">Vehicle (by country)</label>
-                                            <select class="form-select form-select-sm modal-attraction-transport-vehicle-select" name="modal_attraction_transport_vehicle" id="modal_attraction_transport_vehicle" data-no-select2="true">
+                                            <label class="form-label fw-semibold mb-1" style="color: #495057; font-size: 0.75rem;">Vehicle (by country)</label>
+                                            <select class="form-select modern-select modal-attraction-transport-vehicle-select" name="modal_attraction_transport_vehicle" id="modal_attraction_transport_vehicle" data-no-select2="true" style="height: 36px; font-size: 0.8rem;">
                                                 <option value="">Select destination first</option>
                                                 {{-- Vehicles will be loaded via JavaScript when destination is selected --}}
                                             </select>
                                         </div>
                                         <!-- First Row: Transport Type, Vehicle, Destination -->
                                         <div class="col-md-3">
-                                            <label class="form-label fw-semibold">Transport Type</label>
-                                            <select class="form-select form-select-sm" name="modal_attraction_transport_type" id="modal_attraction_transport_type" data-no-select2="true">
+                                            <label class="form-label fw-semibold mb-1" style="color: #495057; font-size: 0.75rem;">Transport Type</label>
+                                            <select class="form-select modern-select" name="modal_attraction_transport_type" id="modal_attraction_transport_type" data-no-select2="true" style="height: 36px; font-size: 0.8rem;">
                                                 <option value="">Select type</option>
                                                 <option value="shared">Shared</option>
                                                 <option value="private">Private</option>
@@ -5421,15 +5660,15 @@
                                             <small class="text-danger d-none" id="modal_attraction_passenger_error">Passengers cannot exceed total pax or vehicle capacity</small>
                                         </div> -->
                                         <div class="col-md-3">
-                                            <label class="form-label fw-semibold">Transport Price</label>
-                                            <div class="position-relative">
-                                                <span class="position-absolute" style="left: 10px; top: 50%; transform: translateY(-50%); z-index: 5; color: #6c757d; font-weight: 500;">{{ $tour->currency ?? '$' }}</span>
-                                                <input type="number" min="0" step="0.01" class="form-control form-control-sm" name="modal_attraction_transport_price" id="modal_attraction_transport_price" placeholder="0.00" data-original-price="" style="padding-left: 30px;" readonly>
+                                            <label class="form-label fw-semibold" style="color: #495057; font-size: 0.75rem;">Transport Price</label>
+                                            <div class="input-group" style="height: 36px;">
+                                                <span class="input-group-text" style="background: linear-gradient(135deg, #fa709a 0%, #fee140 100%); color: #ffffff; border: none; font-size: 0.8rem; font-weight: 600;">{{ $tour->currency ?? '$' }}</span>
+                                                <input type="number" min="0" step="0.01" class="form-control modern-input" name="modal_attraction_transport_price" id="modal_attraction_transport_price" placeholder="0.00" data-original-price="" style="height: 36px; font-size: 0.8rem; border-left: none;" readonly>
                                             </div>
-                                            <small class="text-muted">Calculated from zone-based pricing.</small>
+                                            <small class="text-muted" id="modal_attraction_transport_price_hint" style="font-size: 0.7rem; margin-top: 0.2rem; display: block;">Select vehicle to see price</small>
                                             <div class="form-check mt-2">
                                                 <input class="form-check-input modal-attraction-transport-return-checkbox" type="checkbox" name="modal_attraction_transport_return" id="modal_attraction_transport_return">
-                                                <label class="form-check-label fw-semibold" for="modal_attraction_transport_return">
+                                                <label class="form-check-label fw-semibold" for="modal_attraction_transport_return" style="font-size: 0.75rem; color: #495057;">
                                                     Return
                                                 </label>
                                             </div>
@@ -5442,14 +5681,18 @@
                         </div>
                         
                         <!-- Price Grid Section -->
-                        <div class="col-12 mt-3">
-                            <div class="border rounded-3 p-3 bg-light">
-                                <h6 class="fw-semibold mb-3"><i class="ri-money-dollar-circle-line me-1 text-success"></i>Price Breakdown</h6>
-                                <div class="row g-2">
-                                    <div class="col-md-4">
-                                        <div class="d-flex justify-content-between align-items-center p-2 bg-success text-white rounded">
-                                            <span class="fw-semibold">Total Price:</span>
-                                            <span class="fw-bold fs-6" id="modal_attraction_total_price_display">$ 0.00</span>
+                        <div class="col-12 mt-2">
+                            <div class="card border-0 shadow-sm" style="border-radius: 8px; background: #ffffff; border: 1px solid #e9ecef;">
+                                <div class="card-body p-3">
+                                    <h6 class="fw-bold mb-3" style="color: #495057; font-size: 0.9rem;">
+                                        <i class="ri-money-dollar-circle-line me-2" style="color: #fa709a;"></i>Price Breakdown
+                                    </h6>
+                                    <div class="row g-2">
+                                        <div class="col-md-4">
+                                            <div class="d-flex justify-content-between align-items-center p-2 rounded" style="background: linear-gradient(135deg, #fa709a 0%, #fee140 100%);">
+                                                <span class="fw-semibold text-white" style="font-size: 0.85rem;">Total Price:</span>
+                                                <span class="fw-bold text-white" id="modal_attraction_total_price_display" style="font-size: 1.1rem;">$ 0.00</span>
+                                            </div>
                                         </div>
                                     </div>
                                 </div>
@@ -5457,12 +5700,12 @@
                         </div>
                     </div>
                 </form>
-                <div class="modal-footer py-2">
-                    <button type="button" class="btn btn-sm btn-secondary" data-bs-dismiss="modal">Cancel</button>
-                    <button type="button" class="btn btn-sm btn-danger" id="confirm_attraction_btn" disabled>
-                        <i class="ri-check-line me-1"></i>Confirm
-                    </button>
-                </div>
+            </div>
+            <div class="modal-footer border-0" style="padding: 0.75rem 1rem; background: #f8f9fa;">
+                <button type="button" class="btn btn-secondary btn-sm" data-bs-dismiss="modal" style="font-size: 0.8rem; padding: 0.4rem 0.8rem;">Cancel</button>
+                <button type="button" class="btn btn-primary btn-sm" id="confirm_attraction_btn" disabled style="background: linear-gradient(135deg, #fa709a 0%, #fee140 100%); border: none; font-size: 0.8rem; padding: 0.4rem 0.8rem; box-shadow: 0 2px 8px rgba(250, 112, 154, 0.3);">
+                    <i class="ri-check-line me-1"></i>Confirm
+                </button>
             </div>
         </div>
     </div>
@@ -5470,79 +5713,188 @@
 
 <!-- Guest Selector Modal for Attraction -->
 <div class="modal fade" id="attractionGuestSelectorModal" tabindex="-1" aria-labelledby="attractionGuestSelectorModalLabel" aria-hidden="true">
-    <div class="modal-dialog">
-        <div class="modal-content">
-            <div class="modal-header bg-primary text-white">
-                <h5 class="modal-title" id="attractionGuestSelectorModalLabel">
-                    <i class="ri-group-line me-2"></i>Select Guests for Attraction
+    <div class="modal-dialog modal-md modal-dialog-centered">
+        <div class="modal-content" style="border: none; border-radius: 10px; overflow: hidden; box-shadow: 0 10px 40px rgba(0,0,0,0.15);">
+            <div class="modal-header text-white" style="background: linear-gradient(135deg, #fa709a 0%, #fee140 100%); border: none; padding: 1rem 1.25rem;">
+                <h5 class="modal-title fw-bold d-flex align-items-center mb-0 text-white" id="attractionGuestSelectorModalLabel" style="font-size: 1.1rem; letter-spacing: -0.01em; color: #ffffff !important;">
+                    <div style="width: 32px; height: 32px; background: rgba(255, 255, 255, 0.2); border-radius: 8px; display: flex; align-items: center; justify-content: center; margin-right: 10px;">
+                        <i class="ri-group-line text-white" style="font-size: 1rem; color: #ffffff !important;"></i>
+                    </div>
+                    <span style="color: #ffffff !important;">Select Guests for Attraction</span>
                 </h5>
-                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close" style="opacity: 0.9; font-size: 0.75rem;"></button>
             </div>
-            <div class="modal-body">
+            <div class="modal-body" style="padding: 1.25rem; background: #ffffff;">
                 <form id="attractionGuestSelectorForm" onsubmit="return false;">
                     <div class="row g-3">
-                        <!-- Pax -->
+                        <!-- Adults Section -->
                         <div class="col-md-6">
-                            <label for="attraction_modal_pax" class="form-label fw-semibold">Pax</label>
-                            <div class="input-group">
-                                <input type="number" class="form-control text-center" id="attraction_modal_pax" name="attraction_modal_pax" value="1" min="1" data-tour-max="{{ ($tour->adult ?? 0) + ($tour->child ?? 0) }}" readonly>
+                            <div class="card" style="border: 1px solid #e9ecef; border-radius: 8px; box-shadow: 0 2px 6px rgba(0,0,0,0.04); height: 100%;">
+                                <div class="card-header" style="background: #f8f9fa; border: none; border-bottom: 1px solid #e9ecef; padding: 0.625rem 0.875rem; border-radius: 8px 8px 0 0;">
+                                    <h6 class="mb-0 fw-semibold d-flex align-items-center" style="color: #495057; font-size: 0.875rem;">
+                                        <i class="ri-user-line me-2" style="color: #fa709a; font-size: 0.9rem;"></i>Adults
+                                    </h6>
+                                </div>
+                                <div class="card-body" style="padding: 1rem 0.875rem;">
+                                    <!-- Male -->
+                                    <div class="guest-counter mb-3">
+                                        <label class="form-label fw-semibold mb-2 d-block" style="color: #495057; font-size: 0.85rem;">
+                                            <i class="ri-user-3-line me-1" style="color: #fa709a; font-size: 0.9rem;"></i>Male
+                                        </label>
+                                        <div class="d-flex align-items-center justify-content-center">
+                                            <button type="button" class="btn" onclick="decrementAttractionCount('attraction_modal_male_count')" style="width: 36px; height: 36px; border-radius: 6px; border: 1px solid #dee2e6; background: #ffffff; color: #495057; display: flex; align-items: center; justify-content: center; transition: all 0.2s; padding: 0;">
+                                                <i class="ri-subtract-line" style="font-size: 0.9rem;"></i>
+                                            </button>
+                                            <input
+                                                type="number"
+                                                class="form-control text-center mx-3 fw-bold"
+                                                id="attraction_modal_male_count"
+                                                name="attraction_modal_male_count"
+                                                value="1"
+                                                min="0"
+                                                data-tour-max="{{ ($tour->adult ?? 0) + ($tour->child ?? 0) }}"
+                                                readonly
+                                                style="font-size: 1.5rem; color: #212529; min-width: 48px; height: 36px; border: none; background-color: transparent; box-shadow: none;"
+                                            >
+                                            <button type="button" class="btn" onclick="incrementAttractionCount('attraction_modal_male_count')" style="width: 36px; height: 36px; border-radius: 6px; border: 1px solid #dee2e6; background: #ffffff; color: #495057; display: flex; align-items: center; justify-content: center; transition: all 0.2s; padding: 0;">
+                                                <i class="ri-add-line" style="font-size: 0.9rem;"></i>
+                                            </button>
+                                        </div>
+                                    </div>
+
+                                    <!-- Female -->
+                                    <div class="guest-counter">
+                                        <label class="form-label fw-semibold mb-2 d-block" style="color: #495057; font-size: 0.85rem;">
+                                            <i class="ri-user-4-line me-1" style="color: #fa709a; font-size: 0.9rem;"></i>Female
+                                        </label>
+                                        <div class="d-flex align-items-center justify-content-center">
+                                            <button type="button" class="btn" onclick="decrementAttractionCount('attraction_modal_female_count')" style="width: 36px; height: 36px; border-radius: 6px; border: 1px solid #dee2e6; background: #ffffff; color: #495057; display: flex; align-items: center; justify-content: center; transition: all 0.2s; padding: 0;">
+                                                <i class="ri-subtract-line" style="font-size: 0.9rem;"></i>
+                                            </button>
+                                            <input
+                                                type="number"
+                                                class="form-control text-center mx-3 fw-bold"
+                                                id="attraction_modal_female_count"
+                                                name="attraction_modal_female_count"
+                                                value="0"
+                                                min="0"
+                                                data-tour-max="{{ ($tour->adult ?? 0) + ($tour->child ?? 0) }}"
+                                                readonly
+                                                style="font-size: 1.5rem; color: #212529; min-width: 48px; height: 36px; border: none; background-color: transparent; box-shadow: none;"
+                                            >
+                                            <button type="button" class="btn" onclick="incrementAttractionCount('attraction_modal_female_count')" style="width: 36px; height: 36px; border-radius: 6px; border: 1px solid #dee2e6; background: #ffffff; color: #495057; display: flex; align-items: center; justify-content: center; transition: all 0.2s; padding: 0;">
+                                                <i class="ri-add-line" style="font-size: 0.9rem;"></i>
+                                            </button>
+                                        </div>
+                                    </div>
+
+                                    <!-- Pax Display -->
+                                    <div class="mt-3 pt-3" style="border-top: 1px solid #e9ecef;">
+                                        <label class="form-label fw-semibold mb-2 d-block" style="color: #495057; font-size: 0.85rem;">
+                                            <i class="ri-group-line me-1" style="color: #fa709a; font-size: 0.9rem;"></i>Total Pax
+                                        </label>
+                                        <div class="d-flex align-items-center justify-content-center">
+                                            <input
+                                                type="number"
+                                                class="form-control text-center fw-bold"
+                                                id="attraction_modal_pax"
+                                                name="attraction_modal_pax"
+                                                value="1"
+                                                min="1"
+                                                data-tour-max="{{ ($tour->adult ?? 0) + ($tour->child ?? 0) }}"
+                                                readonly
+                                                style="font-size: 1.2rem; color: #212529; max-width: 100px; height: 40px; border: 2px solid #fa709a; background-color: #fff5f7; box-shadow: none;"
+                                            >
+                                        </div>
+                                        <small class="text-muted d-block text-center mt-2" style="font-size: 0.75rem;">Max: {{ ($tour->adult ?? 0) + ($tour->child ?? 0) }}</small>
+                                    </div>
+                                </div>
                             </div>
-                            <small class="text-muted">Total persons (adults + children) - Max: {{ ($tour->adult ?? 0) + ($tour->child ?? 0) }}</small>
                         </div>
 
-                        <!-- Children -->
+                        <!-- Children & Infants Section -->
                         <div class="col-md-6">
-                            <label for="attraction_modal_children" class="form-label fw-semibold">Children</label>
-                            <div class="input-group">
-                                <button type="button" class="btn btn-outline-secondary" onclick="decrementAttractionCount('attraction_modal_children')">-</button>
-                                <input type="number" class="form-control text-center" id="attraction_modal_children" name="attraction_modal_children" value="0" min="0" data-tour-max="{{ ($tour->adult ?? 0) + ($tour->child ?? 0) }}">
-                                <button type="button" class="btn btn-outline-secondary" onclick="incrementAttractionCount('attraction_modal_children')">+</button>
-                            </div>
-                        </div>
+                            <div class="card" style="border: 1px solid #e9ecef; border-radius: 8px; box-shadow: 0 2px 6px rgba(0,0,0,0.04); height: 100%;">
+                                <div class="card-header" style="background: #f8f9fa; border: none; border-bottom: 1px solid #e9ecef; padding: 0.625rem 0.875rem; border-radius: 8px 8px 0 0;">
+                                    <h6 class="mb-0 fw-semibold d-flex align-items-center" style="color: #495057; font-size: 0.875rem;">
+                                        <i class="ri-user-smile-line me-2" style="color: #fa709a; font-size: 0.9rem;"></i>Children & Infants
+                                    </h6>
+                                </div>
+                                <div class="card-body" style="padding: 1rem 0.875rem;">
+                                    <!-- Children -->
+                                    <div class="guest-counter mb-3">
+                                        <label class="form-label fw-semibold mb-2 d-block" style="color: #495057; font-size: 0.85rem;">
+                                            <i class="ri-user-smile-line me-1" style="color: #fa709a; font-size: 0.9rem;"></i>Children
+                                            <small class="text-muted d-block mt-1" style="font-size: 0.75rem; font-weight: normal;">Ages 1-17</small>
+                                        </label>
+                                        <div class="d-flex align-items-center justify-content-center">
+                                            <button type="button" class="btn" onclick="decrementAttractionCount('attraction_modal_children')" style="width: 36px; height: 36px; border-radius: 6px; border: 1px solid #dee2e6; background: #ffffff; color: #495057; display: flex; align-items: center; justify-content: center; transition: all 0.2s; padding: 0;">
+                                                <i class="ri-subtract-line" style="font-size: 0.9rem;"></i>
+                                            </button>
+                                            <input
+                                                type="number"
+                                                class="form-control text-center mx-3 fw-bold"
+                                                id="attraction_modal_children"
+                                                name="attraction_modal_children"
+                                                value="0"
+                                                min="0"
+                                                data-tour-max="{{ ($tour->adult ?? 0) + ($tour->child ?? 0) }}"
+                                                readonly
+                                                style="font-size: 1.5rem; color: #212529; min-width: 48px; height: 36px; border: none; background-color: transparent; box-shadow: none;"
+                                            >
+                                            <button type="button" class="btn" onclick="incrementAttractionCount('attraction_modal_children')" style="width: 36px; height: 36px; border-radius: 6px; border: 1px solid #dee2e6; background: #ffffff; color: #495057; display: flex; align-items: center; justify-content: center; transition: all 0.2s; padding: 0;">
+                                                <i class="ri-add-line" style="font-size: 0.9rem;"></i>
+                                            </button>
+                                        </div>
 
-                        <!-- Male Count -->
-                        <div class="col-md-6">
-                            <label for="attraction_modal_male_count" class="form-label fw-semibold">Male</label>
-                            <div class="input-group">
-                                <button type="button" class="btn btn-outline-secondary" onclick="decrementAttractionCount('attraction_modal_male_count')">-</button>
-                                <input type="number" class="form-control text-center" id="attraction_modal_male_count" name="attraction_modal_male_count" value="1" min="0" data-tour-max="{{ ($tour->adult ?? 0) + ($tour->child ?? 0) }}">
-                                <button type="button" class="btn btn-outline-secondary" onclick="incrementAttractionCount('attraction_modal_male_count')">+</button>
-                            </div>
-                        </div>
+                                        <!-- Child Ages Section -->
+                                        <div id="attraction_modal_child_ages_container" class="mt-3" style="display: none;">
+                                            <label class="form-label fw-semibold mb-2 d-block" style="color: #495057; font-size: 0.8rem;">
+                                                <i class="ri-user-settings-line me-1" style="color: #fa709a; font-size: 0.85rem;"></i>Child Ages
+                                            </label>
+                                            <input type="text" class="form-control" id="attraction_modal_child_ages" name="attraction_modal_child_ages" placeholder="e.g., 5,8,12" disabled style="font-size: 0.85rem; height: 36px;">
+                                            <small class="text-muted d-block mt-1" style="font-size: 0.7rem;">Comma separated ages (only if children > 0)</small>
+                                        </div>
+                                    </div>
 
-                        <!-- Female Count -->
-                        <div class="col-md-6">
-                            <label for="attraction_modal_female_count" class="form-label fw-semibold">Female</label>
-                            <div class="input-group">
-                                <button type="button" class="btn btn-outline-secondary" onclick="decrementAttractionCount('attraction_modal_female_count')">-</button>
-                                <input type="number" class="form-control text-center" id="attraction_modal_female_count" name="attraction_modal_female_count" value="0" min="0" data-tour-max="{{ ($tour->adult ?? 0) + ($tour->child ?? 0) }}">
-                                <button type="button" class="btn btn-outline-secondary" onclick="incrementAttractionCount('attraction_modal_female_count')">+</button>
+                                    <!-- Infants -->
+                                    <div class="guest-counter">
+                                        <label class="form-label fw-semibold mb-2 d-block" style="color: #495057; font-size: 0.85rem;">
+                                            <i class="ri-user-heart-line me-1" style="color: #fa709a; font-size: 0.9rem;"></i>Infants
+                                            <small class="text-muted d-block mt-1" style="font-size: 0.75rem; font-weight: normal;">Under 1 year</small>
+                                        </label>
+                                        <div class="d-flex align-items-center justify-content-center">
+                                            <button type="button" class="btn" onclick="decrementAttractionCount('attraction_modal_infants')" style="width: 36px; height: 36px; border-radius: 6px; border: 1px solid #dee2e6; background: #ffffff; color: #495057; display: flex; align-items: center; justify-content: center; transition: all 0.2s; padding: 0;">
+                                                <i class="ri-subtract-line" style="font-size: 0.9rem;"></i>
+                                            </button>
+                                            <input
+                                                type="number"
+                                                class="form-control text-center mx-3 fw-bold"
+                                                id="attraction_modal_infants"
+                                                name="attraction_modal_infants"
+                                                value="0"
+                                                min="0"
+                                                max="10"
+                                                readonly
+                                                style="font-size: 1.5rem; color: #212529; min-width: 48px; height: 36px; border: none; background-color: transparent; box-shadow: none;"
+                                            >
+                                            <button type="button" class="btn" onclick="incrementAttractionCount('attraction_modal_infants')" style="width: 36px; height: 36px; border-radius: 6px; border: 1px solid #dee2e6; background: #ffffff; color: #495057; display: flex; align-items: center; justify-content: center; transition: all 0.2s; padding: 0;">
+                                                <i class="ri-add-line" style="font-size: 0.9rem;"></i>
+                                            </button>
+                                        </div>
+                                    </div>
+                                </div>
                             </div>
-                        </div>
-
-                        <!-- Infants -->
-                        <div class="col-md-6">
-                            <label for="attraction_modal_infants" class="form-label fw-semibold">Infants</label>
-                            <div class="input-group">
-                                <button type="button" class="btn btn-outline-secondary" onclick="decrementAttractionCount('attraction_modal_infants')">-</button>
-                                <input type="number" class="form-control text-center" id="attraction_modal_infants" name="attraction_modal_infants" value="0" min="0" max="10">
-                                <button type="button" class="btn btn-outline-secondary" onclick="incrementAttractionCount('attraction_modal_infants')">+</button>
-                            </div>
-                        </div>
-
-                        <!-- Child Ages -->
-                        <div class="col-md-6">
-                            <label for="attraction_modal_child_ages" class="form-label fw-semibold">Child Ages</label>
-                            <input type="text" class="form-control" id="attraction_modal_child_ages" name="attraction_modal_child_ages" placeholder="e.g., 5,8,12" disabled>
-                            <small class="text-muted">Comma separated ages (only if children > 0)</small>
                         </div>
                     </div>
                 </form>
             </div>
-            <div class="modal-footer">
-                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
-                <button type="button" class="btn btn-primary" onclick="confirmAttractionGuestSelection()">
-                    <i class="ri-check-line me-1"></i>Confirm Guest Selection
+            <div class="modal-footer" style="border-top: 1px solid #e9ecef; padding: 0.875rem 1.25rem; background: #f8f9fa;">
+                <button type="button" class="btn" data-bs-dismiss="modal" style="height: 36px; border-radius: 6px; border: 1px solid #dee2e6; background: #ffffff; color: #495057; padding: 0.375rem 1.25rem; font-weight: 500; font-size: 0.875rem; transition: all 0.2s;">
+                    Cancel
+                </button>
+                <button type="button" class="btn text-white" onclick="confirmAttractionGuestSelection()" style="height: 36px; border-radius: 6px; background: linear-gradient(135deg, #fa709a 0%, #fee140 100%); border: none; padding: 0.375rem 1.25rem; font-weight: 500; font-size: 0.875rem; transition: all 0.2s; box-shadow: 0 2px 6px rgba(250, 112, 154, 0.3);">
+                    <i class="ri-check-line me-1"></i>Apply Selection
                 </button>
             </div>
         </div>
@@ -5550,15 +5902,20 @@
 </div>
 <!-- Transport Selection Modal -->
 <div class="modal fade" id="transportSelectionModal" tabindex="-1" aria-labelledby="transportSelectionModalLabel" aria-hidden="true">
-    <div class="modal-dialog modal-xl">
-        <div class="modal-content">
-            <div class="modal-header bg-warning text-white">
-                <h5 class="modal-title" id="transportSelectionModalLabel">
-                    <i class="ri-car-line me-2"></i>Transport Service Selection
-                </h5>
-                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+    <div class="modal-dialog modal-dialog-centered modal-lg">
+        <div class="modal-content border-0" style="border-radius: 12px; overflow: hidden; box-shadow: 0 10px 40px rgba(0,0,0,0.15);">
+            <div class="modal-header text-white border-0" id="transport_modal_header" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); padding: 0.75rem 1rem;">
+                <div class="d-flex align-items-center">
+                    <div style="width: 32px; height: 32px; background: rgba(255, 255, 255, 0.2); border-radius: 8px; display: flex; align-items: center; justify-content: center; margin-right: 8px;">
+                        <i class="ri-car-line" style="font-size: 1rem; color: #ffffff;"></i>
+                    </div>
+                    <h6 class="modal-title mb-0 fw-bold" id="transportSelectionModalLabel" style="font-size: 0.95rem; letter-spacing: -0.01em; color: #ffffff;">
+                        Transport Service Selection
+                    </h6>
+                </div>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close" style="opacity: 0.9; font-size: 0.75rem;"></button>
             </div>
-            <div class="modal-body">
+            <div class="modal-body" style="padding: 1rem; background: #ffffff; max-height: 70vh; overflow-y: auto;">
                 <form id="transportSelectionForm" onsubmit="return false;">
                     <input type="hidden" id="modal_transport_tour_id" name="tour_id">
                     <input type="hidden" id="modal_transport_country" name="country">
@@ -5567,203 +5924,181 @@
                     <input type="hidden" id="modal_transport_end_date" name="end_date">
                     <input type="hidden" id="modal_transport_type" name="transport_type" value="entry_port">
                     
-                    <div>
-                        <div class="card-body bg-white">
-                            <div class="row g-4 align-items-end">
-                                <div class="col-md-3">
-                                    <div class="form-group">
-                                        <label class="form-label fw-semibold text-muted mb-2">
-                                            <i class="ri-map-pin-line text-success me-2"></i>City
-                                        </label>
-                                        <div class="position-relative">
-                                            <select class="form-select border-2" id="modal_entryport_transport_city" name="city" style="padding-left: 45px;">
-                                                <option value="">Select city</option>
-                                                @foreach($cities as $city)
-                                                <option value="{{ $city->name }}" data-city="{{ json_encode($city) }}">{{ $city->name }}</option>
-                                                @endforeach
-                                            </select>
-                                            <i style="left: 15px; top: 50%; transform: translateY(-50%); z-index: 5;"></i>
+                    <div class="card border-0" style="background: #f8f9fa; border-radius: 8px; padding: 0.75rem;">
+                        <div class="row g-2">
+                            <div class="col-md-6 col-lg-4">
+                                <label class="form-label fw-semibold mb-1" style="color: #495057; font-size: 0.75rem;">
+                                    <i class="ri-map-pin-line me-1" style="color: #667eea;"></i>City
+                                </label>
+                                <select class="form-select modern-select" id="modal_entryport_transport_city" name="city" style="height: 36px; font-size: 0.8rem;">
+                                    <option value="">Select city</option>
+                                    @foreach($cities as $city)
+                                    <option value="{{ $city->name }}" data-city="{{ json_encode($city) }}">{{ $city->name }}</option>
+                                    @endforeach
+                                </select>
+                            </div>
+                            <div class="col-md-6 col-lg-4">
+                                <label class="form-label fw-semibold mb-1" style="color: #495057; font-size: 0.75rem;">
+                                    <i class="ri-map-pin-line me-1" style="color: #10b981;"></i>Pick Up Location
+                                </label>
+                                <select class="form-select modern-select pickup-zone-select" id="modal_transport_pickup_zone" name="pickup_zone_id" style="height: 36px; font-size: 0.8rem;">
+                                    <option value="">Select pickup location</option>
+                                    @foreach($ports as $port)
+                                        <option data-type="Port" value="{{ $port->port_id }}" data-port="{{ json_encode($port) }}">{{ $port->port_name }}</option>
+                                    @endforeach
+                                </select>
+                            </div>
+                            <div class="col-md-6 col-lg-4">
+                                <label class="form-label fw-semibold mb-1" style="color: #495057; font-size: 0.75rem;">
+                                    <i class="ri-map-pin-line me-1" style="color: #ef4444;"></i>Drop Off Location
+                                </label>
+                                <select class="form-select modern-select dropoff-zone-select" id="modal_transport_dropoff_zone" name="dropoff_zone_id" style="height: 36px; font-size: 0.8rem;">
+                                    <option value="">Select dropoff location</option>
+                                    
+                                    <!-- Hotels -->
+                                    <optgroup label="Hotels">
+                                    @foreach($hotels as $hotel)
+                                        <option data-type="Hotel" value="{{ $hotel->hotel_unique_id }}" data-hotel="{{ json_encode($hotel) }}">{{ $hotel->name }}</option>
+                                    @endforeach
+                                    </optgroup>
+                                    
+                                    <!-- Attractions -->
+                                    <optgroup label="Attractions">
+                                    @foreach($attractions as $attraction)
+                                        <option data-type="Attraction" value="{{ $attraction->attraction_id }}" data-attraction="{{ json_encode($attraction) }}">{{ $attraction->name }}</option>
+                                    @endforeach
+                                    </optgroup>
+                                    
+                                    <!-- Restaurants -->
+                                    <optgroup label="Restaurants">
+                                    @foreach($restaurants as $restaurant)
+                                        <option data-type="Restaurant" value="{{ $restaurant->restaurant_id }}" data-restaurant="{{ json_encode($restaurant) }}">{{ $restaurant->name }}</option>
+                                    @endforeach
+                                    </optgroup>
+                                </select>
+                            </div>
+                            <div class="col-md-6 col-lg-3">
+                                <label class="form-label fw-semibold mb-1" style="color: #495057; font-size: 0.75rem;">
+                                    <i class="ri-time-line me-1" style="color: #f59e0b;"></i>Pick Up Time
+                                </label>
+                                <select class="form-select modern-select" id="modal_transport_pickup_time" name="pickup_time" style="height: 36px; font-size: 0.8rem;">
+                                    <option value="">Select Time</option>
+                                    <option value="12:00 AM">12:00 AM</option>
+                                    <option value="01:00 AM">01:00 AM</option>
+                                    <option value="02:00 AM">02:00 AM</option>
+                                    <option value="03:00 AM">03:00 AM</option>
+                                    <option value="04:00 AM">04:00 AM</option>
+                                    <option value="05:00 AM">05:00 AM</option>
+                                    <option value="06:00 AM">06:00 AM</option>
+                                    <option value="07:00 AM">07:00 AM</option>
+                                    <option value="08:00 AM">08:00 AM</option>
+                                    <option value="09:00 AM">09:00 AM</option>
+                                    <option value="10:00 AM">10:00 AM</option>
+                                    <option value="11:00 AM">11:00 AM</option>
+                                    <option value="12:00 PM">12:00 PM</option>
+                                    <option value="01:00 PM">01:00 PM</option>
+                                    <option value="02:00 PM">02:00 PM</option>
+                                    <option value="03:00 PM">03:00 PM</option>
+                                    <option value="04:00 PM">04:00 PM</option>
+                                    <option value="05:00 PM">05:00 PM</option>
+                                    <option value="06:00 PM">06:00 PM</option>
+                                    <option value="07:00 PM">07:00 PM</option>
+                                    <option value="08:00 PM">08:00 PM</option>
+                                    <option value="09:00 PM">09:00 PM</option>
+                                    <option value="10:00 PM">10:00 PM</option>
+                                    <option value="11:00 PM">11:00 PM</option>
+                                </select>
+                            </div>
+                            <div class="col-md-6 col-lg-3">
+                                <label class="form-label fw-semibold mb-1" style="color: #495057; font-size: 0.75rem;">
+                                    <i class="ri-calendar-line me-1" style="color: #667eea;"></i>Pick Up Date
+                                </label>
+                                <input type="date" class="form-control modern-input" id="modal_transport_pickup_date" name="pickup_date" value="{{ \Carbon\Carbon::parse($tour->check_in_time)->format('Y-m-d') }}" readonly disabled style="height: 36px; font-size: 0.8rem;">
+                            </div>
+                            <div class="col-md-6 col-lg-2">
+                                <label class="form-label fw-semibold mb-1 d-block" style="color: #495057; font-size: 0.75rem;">
+                                    &nbsp;
+                                </label>
+                                <button type="button" class="btn w-100 text-white" onclick="searchVehicles()" id="transport_search_btn" style="height: 36px; border-radius: 8px; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); border: none; font-weight: 500; font-size: 0.8rem; transition: all 0.2s; box-shadow: 0 2px 6px rgba(102, 126, 234, 0.3);">
+                                    <i class="ri-search-line me-1"></i>Search
+                                </button>
+                            </div>
+                        </div>
+                            
+                        <!-- Vehicle Results Section (Hidden Initially) -->
+                        <div class="row mt-3" id="transport_vehicle_results" style="display: none;">
+                            <div class="col-12">
+                                <div class="alert alert-info border-0 mb-3" style="background: #e3f2fd; color: #0277bd; border-radius: 8px; padding: 0.75rem; font-size: 0.8rem;">
+                                    <div class="d-flex align-items-center">
+                                        <i class="ri-car-line me-2" style="font-size: 1.1rem;"></i>
+                                        <div>
+                                            <strong>Available Vehicles</strong>
+                                            <div class="small" style="font-size: 0.75rem; opacity: 0.9;">Select your preferred vehicle and service type below</div>
                                         </div>
                                     </div>
-                                </div>
-                                <div class="col-md-3">
-                                    <div class="form-group">
-                                        <label class="form-label fw-semibold text-muted mb-2">
-                                            <i class="ri-map-pin-line text-success me-2"></i>Pick Up Location
-                                        </label>
-                                        <div class="position-relative">
-                                            <select class="form-select pickup-zone-select border-2" id="modal_transport_pickup_zone" name="pickup_zone_id" style="padding-left: 45px;">
-                                                <option value="">Select pickup location</option>
-                                                @foreach($ports as $port)
-                                                    <option data-type="Port" value="{{ $port->port_id }}" data-port="{{ json_encode($port) }}">{{ $port->port_name }}</option>
-                                                @endforeach
-                                            </select>
-                                            <i style="left: 15px; top: 50%; transform: translateY(-50%); z-index: 5;"></i>
-                                        </div>
-                                    </div>
-                                </div>
-                                <div class="col-md-3">
-                                    <div class="form-group">
-                                        <label class="form-label fw-semibold text-muted mb-2">
-                                            <i class="ri-map-pin-line text-danger me-2"></i>Drop Off Location
-                                        </label>
-                                        <div class="position-relative">
-                                            <select class="form-select dropoff-zone-select border-2" id="modal_transport_dropoff_zone" name="dropoff_zone_id" style="padding-left: 45px; padding-right: 45px;">
-                                                <option value="">Select dropoff location</option>
-                                                
-                                                <!-- Hotels -->
-                                                <optgroup label="Hotels">
-                                                @foreach($hotels as $hotel)
-                                                    <option data-type="Hotel" value="{{ $hotel->hotel_unique_id }}" data-hotel="{{ json_encode($hotel) }}">{{ $hotel->name }}</option>
-                                                @endforeach
-                                                </optgroup>
-                                                
-                                                <!-- Attractions -->
-                                                <optgroup label="Attractions">
-                                                @foreach($attractions as $attraction)
-                                                    <option data-type="Attraction" value="{{ $attraction->attraction_id }}" data-attraction="{{ json_encode($attraction) }}">{{ $attraction->name }}</option>
-                                                @endforeach
-                                                </optgroup>
-                                                
-                                                <!-- Restaurants -->
-                                                <optgroup label="Restaurants">
-                                                @foreach($restaurants as $restaurant)
-                                                    <option data-type="Restaurant" value="{{ $restaurant->restaurant_id }}" data-restaurant="{{ json_encode($restaurant) }}">{{ $restaurant->name }}</option>
-                                                @endforeach
-                                                </optgroup>
-                                            </select>
-                                            <i style="left: 15px; top: 50%; transform: translateY(-50%); z-index: 5;"></i>
-                                            
-                                        </div>
-                                    </div>
-                                </div>
-                                <div class="col-md-2">
-                                    <div class="form-group">
-                                        <label class="form-label fw-semibold text-muted mb-2">
-                                            <i class="ri-time-line text-warning me-2"></i>Pick Up Time
-                                        </label>
-                                        <div class="position-relative">
-                                            <select class="form-select border-2" id="modal_transport_pickup_time" name="pickup_time" style="padding-left: 45px;">
-                                                <option value="">Select The Time</option>
-                                                <option value="12:00 AM">12:00 AM</option>
-                                                <option value="01:00 AM">01:00 AM</option>
-                                                <option value="02:00 AM">02:00 AM</option>
-                                                <option value="03:00 AM">03:00 AM</option>
-                                                <option value="04:00 AM">04:00 AM</option>
-                                                <option value="05:00 AM">05:00 AM</option>
-                                                <option value="06:00 AM">06:00 AM</option>
-                                                <option value="07:00 AM">07:00 AM</option>
-                                                <option value="08:00 AM">08:00 AM</option>
-                                                <option value="09:00 AM">09:00 AM</option>
-                                                <option value="10:00 AM">10:00 AM</option>
-                                                <option value="11:00 AM">11:00 AM</option>
-                                                <option value="12:00 PM">12:00 PM</option>
-                                                <option value="01:00 PM">01:00 PM</option>
-                                                <option value="02:00 PM">02:00 PM</option>
-                                                <option value="03:00 PM">03:00 PM</option>
-                                                <option value="04:00 PM">04:00 PM</option>
-                                                <option value="05:00 PM">05:00 PM</option>
-                                                <option value="06:00 PM">06:00 PM</option>
-                                                <option value="07:00 PM">07:00 PM</option>
-                                                <option value="08:00 PM">08:00 PM</option>
-                                                <option value="09:00 PM">09:00 PM</option>
-                                                <option value="10:00 PM">10:00 PM</option>
-                                                <option value="11:00 PM">11:00 PM</option>
-                                            </select>
-                                            <i style="left: 15px; top: 50%; transform: translateY(-50%); z-index: 5;"></i>
-                                        </div>
-                                    </div>
-                                </div>
-                                <div class="col-md-2">
-                                    <div class="form-group">
-                                        <label class="form-label fw-semibold text-muted mb-2">
-                                            <i class="ri-calendar-line text-primary me-2"></i>Pick Up Date
-                                        </label>
-                                        <div class="position-relative">
-                                            <input type="date" class="form-control border-2" id="modal_transport_pickup_date" name="pickup_date" value="{{ \Carbon\Carbon::parse($tour->check_in_time)->format('Y-m-d') }}" readonly disabled style="height: 42px; padding-left: 45px;">
-                                            <i class="ri-calendar-fill position-absolute text-primary" style="left: 15px; top: 50%; transform: translateY(-50%); z-index: 5;"></i>
-                                        </div>
-                                    </div>
-                                </div>
-                                <div class="col-md-2">
-                                    <button type="button" class="btn btn-primary w-100 py-2" onclick="searchVehicles()" id="transport_search_btn" style="height: 42px;">
-                                        Search
-                                    </button>
                                 </div>
                             </div>
-                            
-                            <!-- Vehicle Results Section (Hidden Initially) -->
-                            <div class="row mt-4" id="transport_vehicle_results" style="display: none;">
-                                <div class="col-12">
-                                    <div class="alert alert-info">
-                                        <div class="d-flex align-items-center">
-                                            <i class="ri-car-line me-2 fs-4"></i>
-                                            <div>
-                                                <strong>Available Vehicles</strong>
-                                                <div class="small text-muted">Select your preferred vehicle and service type below</div>
-                                            </div>
-                                        </div>
-                                    </div>
-                                </div>
 
-                                <!-- Vehicle + Service Type in one row -->
-                                <div class="col-12">
-                                    <div class="row">
+                            <!-- Vehicle + Service Type in one row -->
+                            <div class="col-12">
+                                <div class="card border-0" style="background: #f8f9fa; border-radius: 8px; padding: 0.75rem;">
+                                    <div class="row g-2">
                                         <div class="col-md-4">
-                                            <label class="form-label fw-semibold">Vehicle</label>
-                                            <select class="form-select vehicle-select" 
+                                            <label class="form-label fw-semibold mb-1" style="color: #495057; font-size: 0.75rem;">Vehicle</label>
+                                            <select class="form-select modern-select vehicle-select" 
                                                     id="modal_transport_vehicle_id" 
                                                     name="vehicle_id" 
-                                                    onchange="updateVehicleDetails(); updateServiceTypeOptionsForTransport();">
+                                                    onchange="updateVehicleDetails(); updateServiceTypeOptionsForTransport();"
+                                                    style="height: 36px; font-size: 0.8rem;">
                                                 <option value="">Choose vehicle</option>
                                             </select>
                                         </div>
-                                <div class="col-md-3">
-                                    <label class="form-label fw-semibold">Service Type</label>
-                                    <select class="form-select service-type-select" 
-                                            id="modal_transport_service_type" 
-                                            name="service_type" 
-                                            onchange="updatePricing()">
-                                        <option value="">Select service type</option>
-                                        <option value="Shared">Shared</option>
-                                        <option value="Private">Private</option>
-                                    </select>
-                                </div>
+                                        <div class="col-md-3">
+                                            <label class="form-label fw-semibold mb-1" style="color: #495057; font-size: 0.75rem;">Service Type</label>
+                                            <select class="form-select modern-select service-type-select" 
+                                                    id="modal_transport_service_type" 
+                                                    name="service_type" 
+                                                    onchange="updatePricing()"
+                                                    style="height: 36px; font-size: 0.8rem;">
+                                                <option value="">Select service type</option>
+                                                <option value="Shared">Shared</option>
+                                                <option value="Private">Private</option>
+                                            </select>
+                                        </div>
 
-                                <!-- Manual Price Input (Available for both Zone On and Point-to-Point) -->
-                                @if(isset($UserDmc->zone_on) && $UserDmc->zone_on == 0)
-                                <div class="col-md-3" id="transport_manual_price_field_container" style="display: none;">
-                                    <label class="form-label fw-semibold">
-                                        <i class="ri-money-dollar-circle-line text-success me-1"></i>Manual Price (Optional)
-                                    </label>
-                                    <div class="input-group">
-                                        <span class="input-group-text">$</span>
-                                        <input type="number" 
-                                               class="form-control" 
-                                               id="modal_transport_manual_price" 
-                                               name="manual_price" 
-                                               step="0.01" 
-                                               min="0" 
-                                               placeholder="0.00"
-                                               onchange="updatePricing()"
-                                               oninput="updatePricing()">
-                                    </div>
-                                    <small class="form-text text-muted">
-                                        <i class="ri-information-line me-1"></i>
-                                        Override vehicle price with custom amount
-                                    </small>
-                                </div>
-                                @endif
-                                <div class="col-md-2">
-                                    <div class="form-group">
-                                        <label class="form-label fw-semibold">Number of Passengers</label>
-                                        <div class="input-group">
+                                        <!-- Manual Price Input (Available for both Zone On and Point-to-Point) -->
+                                        @if(isset($UserDmc->zone_on) && $UserDmc->zone_on == 0)
+                                        <div class="col-md-3" id="transport_manual_price_field_container" style="display: none;">
+                                            <label class="form-label fw-semibold" style="color: #495057; font-size: 0.75rem;">
+                                                <i class="ri-money-dollar-circle-line me-1" style="color: #10b981;"></i>Manual Price (Optional)
+                                            </label>
+                                            <div class="input-group" style="height: 36px;">
+                                                <span class="input-group-text" style="background: linear-gradient(135deg, #10b981 0%, #059669 100%); color: #ffffff; border: none; font-size: 0.8rem; font-weight: 600;">{{ $tour->currency ?? '$' }}</span>
+                                                <input type="number" 
+                                                       class="form-control modern-input" 
+                                                       id="modal_transport_manual_price" 
+                                                       name="manual_price" 
+                                                       step="0.01" 
+                                                       min="0" 
+                                                       placeholder="0.00"
+                                                       onchange="updatePricing()"
+                                                       oninput="updatePricing()"
+                                                       style="height: 36px; font-size: 0.8rem; border-left: none;">
+                                            </div>
+                                            <small class="text-muted" style="font-size: 0.7rem; margin-top: 0.2rem; display: block;">
+                                                <i class="ri-information-line me-1"></i>
+                                                Override vehicle price with custom amount
+                                            </small>
+                                        </div>
+                                        @endif
+                                        <div class="col-md-3">
                                             @php
                                                 $tourMaxPassengers = ($tour->adult ?? 0) + ($tour->child ?? 0);
                                             @endphp
+                                            <label class="form-label fw-semibold mb-1" style="color: #495057; font-size: 0.75rem;">Number of Passengers</label>
                                             <input 
                                                 type="number" 
-                                                class="form-control" 
+                                                class="form-control modern-input" 
                                                 id="modal_transport_passengers" 
                                                 name="passengers" 
                                                 min="1" 
@@ -5772,31 +6107,35 @@
                                                 data-tour-guests="{{ $tourMaxPassengers }}"
                                                 onkeyup="updatePricing()" 
                                                 onchange="updatePricing()" 
-                                                style="height: 40px;">
+                                                style="height: 36px; font-size: 0.8rem;">
+                                            <small class="text-muted" style="font-size: 0.65rem; display: block; margin-top: 0.2rem;">
+                                                Maximum: 
+                                                <span id="modal_transport_passengers_help">
+                                                    {{ $tourMaxPassengers }} ({{ $tour->adult ?? 0 }} adults + {{ $tour->child ?? 0 }} children)
+                                                </span>
+                                            </small>
                                         </div>
-                                        <small class="form-text text-muted">
-                                            Maximum passengers: 
-                                            <span id="modal_transport_passengers_help">
-                                                {{ $tourMaxPassengers }} ({{ $tour->adult ?? 0 }} adults + {{ $tour->child ?? 0 }} children)
-                                            </span>
-                                        </small>
                                     </div>
-                                </div>
-                            </div>
-                                    
-                                    <!-- Guest Information -->
-                                    <!-- <div class="row mt-3">
-                                        
-                                    </div> -->
                                     
                                     <!-- Price Display for Transport -->
                                     <div class="col-12 mt-3">
-                                        <div id="transport_price_display" class="alert alert-success" style="display: none;">
-                                            <div class="d-flex align-items-center">
-                                                <i class="ri-money-dollar-circle-line me-2 fs-4"></i>
-                                                <div>
-                                                    <strong>Price Information</strong>
-                                                    <div id="transport_price_details" class="small">Select a vehicle and service type to see pricing</div>
+                                        <div id="transport_price_display" class="border-0" style="display: none; background: linear-gradient(135deg, #ffffff 0%, #f8f9fa 100%); border: 1px solid #e9ecef; border-radius: 10px; padding: 1rem; box-shadow: 0 2px 8px rgba(0,0,0,0.06);">
+                                            <div class="d-flex justify-content-between align-items-start">
+                                                <div class="flex-grow-1">
+                                                    <div class="mb-2">
+                                                        <span class="fw-semibold" style="color: #495057; font-size: 0.8rem; text-transform: uppercase; letter-spacing: 0.5px;">Transport Price</span>
+                                                    </div>
+                                                    <div id="transport_price_details" class="text-muted" style="font-size: 0.75rem; line-height: 1.5; color: #6c757d;">
+                                                        Select a vehicle and service type to see pricing
+                                                    </div>
+                                                </div>
+                                                <div class="text-end ms-3">
+                                                    <div class="fw-bold" id="transport_total_price_display" style="font-size: 1.25rem; color: #10b981; line-height: 1.2;">
+                                                        $0.00
+                                                    </div>
+                                                    <div class="text-muted" style="font-size: 0.7rem; margin-top: 0.2rem;">
+                                                        Total Price
+                                                    </div>
                                                 </div>
                                             </div>
                                         </div>
@@ -5810,13 +6149,15 @@
                         </div>
                     </div>
                     
-                    <div class="text-end mt-4">
-                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
-                        <button type="button" class="btn btn-warning" onclick="confirmTransportSelection()">
-                            <i class="ri-check-line me-1"></i>Confirm Transport Selection
-                        </button>
-                    </div>
                 </form>
+            </div>
+            <div class="modal-footer border-0" style="background: #f8f9fa; padding: 0.75rem 1rem;">
+                <button type="button" class="btn" data-bs-dismiss="modal" style="height: 36px; border-radius: 8px; border: 1px solid #dee2e6; background: #ffffff; color: #495057; padding: 0.375rem 1rem; font-weight: 500; font-size: 0.8rem; transition: all 0.2s;">
+                    Cancel
+                </button>
+                <button type="button" class="btn text-white" onclick="confirmTransportSelection()" style="height: 36px; border-radius: 8px; background: linear-gradient(135deg, #f59e0b 0%, #d97706 100%); border: none; padding: 0.375rem 1rem; font-weight: 500; font-size: 0.8rem; transition: all 0.2s; box-shadow: 0 2px 6px rgba(245, 158, 11, 0.3);">
+                    <i class="ri-check-line me-1"></i>Confirm Transport Selection
+                </button>
             </div>
         </div>
     </div>
@@ -5825,15 +6166,20 @@
 
 <!-- Local Transfer Selection Modal -->
 <div class="modal fade" id="localTransferSelectionModal" tabindex="-1" aria-labelledby="localTransferSelectionModalLabel" aria-hidden="true">
-    <div class="modal-dialog modal-xl">
-        <div class="modal-content">
-            <div class="modal-header bg-info text-white">
-                <h5 class="modal-title" id="localTransferSelectionModalLabel">
-                    <i class="ri-taxi-line me-2"></i>Local Transfer Service Selection
-                </h5>
-                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+    <div class="modal-dialog modal-dialog-centered modal-lg">
+        <div class="modal-content border-0" style="border-radius: 12px; overflow: hidden; box-shadow: 0 10px 40px rgba(0,0,0,0.15);">
+            <div class="modal-header text-white border-0" style="background: linear-gradient(135deg, #06b6d4 0%, #0891b2 100%); padding: 0.75rem 1rem;">
+                <div class="d-flex align-items-center">
+                    <div style="width: 32px; height: 32px; background: rgba(255, 255, 255, 0.2); border-radius: 8px; display: flex; align-items: center; justify-content: center; margin-right: 8px;">
+                        <i class="ri-taxi-line" style="font-size: 1rem; color: #ffffff;"></i>
+                    </div>
+                    <h6 class="modal-title mb-0 fw-bold" id="localTransferSelectionModalLabel" style="font-size: 0.95rem; letter-spacing: -0.01em; color: #ffffff;">
+                        Local Transfer Service Selection
+                    </h6>
+                </div>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close" style="opacity: 0.9; font-size: 0.75rem;"></button>
             </div>
-            <div class="modal-body">
+            <div class="modal-body" style="padding: 1rem; background: #ffffff; max-height: 70vh; overflow-y: auto;">
                 <form id="localTransferSelectionForm" onsubmit="return false;">
                     <input type="hidden" id="local_transfer_tour_id" name="tour_id">
                     <input type="hidden" id="local_transfer_country" name="country">
@@ -5841,416 +6187,348 @@
                     <input type="hidden" id="local_transfer_start_date" name="start_date">
                     <input type="hidden" id="local_transfer_end_date" name="end_date">
                     
-                    <div>
-                        <div class="card-header bg-info text-white">
-                            <div class="d-flex align-items-center">
-                                <span class="service-icon me-3">
-                                    <i class="ri-login-circle-line fs-4"></i>
-                                </span>
-                                <div>
-                                    <h6 class="mb-0 fw-bold">Local Transfer Services</h6>
-                                    <small class="opacity-75">Configure pickup and dropoff locations</small>
+                    <!-- Service Type Selection -->
+                    <div class="card border-0 mb-3" style="background: #f8f9fa; border-radius: 8px; padding: 0.75rem;">
+                        <div class="d-flex gap-3 flex-wrap">
+                            <div class="form-check">
+                                <input class="form-check-input transport-service-type" type="radio" name="service_type_selection" id="local_transfer_service_type_point" value="point_to_point" onchange="handleLocalTransferServiceTypeChange('point_to_point')">
+                                <label class="form-check-label fw-semibold" for="local_transfer_service_type_point" style="font-size: 0.8rem; color: #495057;">
+                                    <i class="ri-route-line me-1" style="color: #667eea;"></i>Point To Point
+                                </label>
+                            </div>
+                            <div class="form-check">
+                                <input class="form-check-input transport-service-type" type="radio" name="service_type_selection" id="local_transfer_service_type_hourly" value="hourly" onchange="handleLocalTransferServiceTypeChange('hourly')">
+                                <label class="form-check-label fw-semibold" for="local_transfer_service_type_hourly" style="font-size: 0.8rem; color: #495057;">
+                                    <i class="ri-time-line me-1" style="color: #f59e0b;"></i>Hourly
+                                </label>
+                            </div>
+                            @if(isset($dmcUser->zone_on) && $dmcUser->zone_on != 0)
+                            <div class="form-check">
+                                <input class="form-check-input transport-service-type" type="radio" name="service_type_selection" id="local_transfer_service_type_local" value="local_transfer" onchange="handleLocalTransferServiceTypeChange('local_transfer')" checked>
+                                <label class="form-check-label fw-semibold" for="local_transfer_service_type_local" style="font-size: 0.8rem; color: #10b981;">
+                                    <i class="ri-car-line me-1"></i>Local Transfer
+                                </label>
+                            </div>
+                            @endif
+                        </div>
+                    </div>
+                    
+                    <div class="card border-0" style="background: #f8f9fa; border-radius: 8px; padding: 0.75rem;">
+                        <div class="row g-2">
+
+                            <!-- Local Transfer Fields (Default) -->
+                            <div class="col-12">
+                                <div id="local_transfer_fields" class="row g-2 local-transfer-fields d-none">
+                                    <div class="col-md-6 col-lg-3">
+                                        <label class="form-label fw-semibold mb-1" style="color: #495057; font-size: 0.75rem;">
+                                            <i class="ri-map-pin-line me-1" style="color: #667eea;"></i>City
+                                        </label>
+                                        <select class="form-select modern-select" id="modal_local_transfer_city" name="city" style="height: 36px; font-size: 0.8rem;">
+                                            <option value="">Select city</option>
+                                            @foreach($cities as $city)
+                                                <option value="{{ $city->name }}" data-city="{{ json_encode($city) }}" data-country="{{ $city->country }}">{{ $city->name }}</option>
+                                            @endforeach
+                                        </select>
+                                    </div>
+                                    <div class="col-md-6 col-lg-3">
+                                        <label class="form-label fw-semibold mb-1" style="color: #495057; font-size: 0.75rem;">
+                                            <i class="ri-map-pin-line me-1" style="color: #10b981;"></i>Pick Up Location
+                                        </label>
+                                        <select class="form-select modern-select pickup-zone-select" id="local_transfer_pickup_zone" name="pickup_zone_id" style="height: 36px; font-size: 0.8rem;">
+                                            <option value="">Select pickup location</option>
+                                            <optgroup label="Ports">
+                                            @foreach($ports as $port)
+                                                <option data-type="Port" value="{{ $port->port_id }}" data-port="{{ json_encode($port) }}">{{ $port->port_name }}</option>
+                                            @endforeach
+                                            </optgroup>
+                                            <optgroup label="Hotels">
+                                            @foreach($hotels as $hotel)
+                                            <option data-type="Hotel" value="{{ $hotel->hotel_unique_id }}" data-hotel="{{ json_encode($hotel) }}">{{ $hotel->name }}</option>
+                                            @endforeach
+                                            </optgroup>
+                                            <optgroup label="Attractions">
+                                            @foreach($attractions as $attraction)
+                                            <option data-type="Attraction" value="{{ $attraction->attraction_id }}" data-attraction="{{ json_encode($attraction) }}">{{ $attraction->name }}</option>
+                                            @endforeach
+                                            </optgroup>
+                                            <optgroup label="Restaurants">
+                                            @foreach($restaurants as $restaurant)
+                                            <option data-type="Restaurant" value="{{ $restaurant->restaurant_id }}" data-restaurant="{{ json_encode($restaurant) }}">{{ $restaurant->name }}</option>
+                                            @endforeach
+                                            </optgroup>
+                                        </select>
+                                    </div>
+                                    <div class="col-md-6 col-lg-3">
+                                        <label class="form-label fw-semibold mb-1" style="color: #495057; font-size: 0.75rem;">
+                                            <i class="ri-map-pin-line me-1" style="color: #ef4444;"></i>Drop Off Location
+                                        </label>
+                                        <select class="form-select modern-select dropoff-zone-select" id="local_transfer_dropoff_zone" name="dropoff_zone_id" style="height: 36px; font-size: 0.8rem;">
+                                            <option value="">Select dropoff location</option>
+                                            <optgroup label="Ports">
+                                            @foreach($ports as $port)
+                                            <option data-type="Port" value="{{ $port->port_id }}" data-port="{{ json_encode($port) }}">{{ $port->port_name }}</option>
+                                            @endforeach
+                                            </optgroup>
+                                            <optgroup label="Hotels">
+                                            @foreach($hotels as $hotel)
+                                                <option data-type="Hotel" value="{{ $hotel->hotel_unique_id }}" data-hotel="{{ json_encode($hotel) }}">{{ $hotel->name }}</option>
+                                            @endforeach
+                                            </optgroup>
+                                            <optgroup label="Attractions">
+                                            @foreach($attractions as $attraction)
+                                            <option data-type="Attraction" value="{{ $attraction->attraction_id }}" data-attraction="{{ json_encode($attraction) }}">{{ $attraction->name }}</option>
+                                            @endforeach
+                                            </optgroup>
+                                            <optgroup label="Restaurants">
+                                            @foreach($restaurants as $restaurant)
+                                            <option data-type="Restaurant" value="{{ $restaurant->restaurant_id }}" data-restaurant="{{ json_encode($restaurant) }}">{{ $restaurant->name }}</option>
+                                            @endforeach
+                                            </optgroup>
+                                        </select>
+                                    </div>
+                                    <div class="col-md-6 col-lg-3">
+                                        <label class="form-label fw-semibold mb-1" style="color: #495057; font-size: 0.75rem;">
+                                            <i class="ri-time-line me-1" style="color: #f59e0b;"></i>Pick Up Time
+                                        </label>
+                                        <select class="form-select modern-select" id="local_transfer_pickup_time" name="pickup_time" style="height: 36px; font-size: 0.8rem;">
+                                            <option value="">Select Time</option>
+                                            <option value="12:00 AM">12:00 AM</option>
+                                            <option value="01:00 AM">01:00 AM</option>
+                                            <option value="02:00 AM">02:00 AM</option>
+                                            <option value="03:00 AM">03:00 AM</option>
+                                            <option value="04:00 AM">04:00 AM</option>
+                                            <option value="05:00 AM">05:00 AM</option>
+                                            <option value="06:00 AM">06:00 AM</option>
+                                            <option value="07:00 AM">07:00 AM</option>
+                                            <option value="08:00 AM">08:00 AM</option>
+                                            <option value="09:00 AM">09:00 AM</option>
+                                            <option value="10:00 AM">10:00 AM</option>
+                                            <option value="11:00 AM">11:00 AM</option>
+                                            <option value="12:00 PM">12:00 PM</option>
+                                            <option value="01:00 PM">01:00 PM</option>
+                                            <option value="02:00 PM">02:00 PM</option>
+                                            <option value="03:00 PM">03:00 PM</option>
+                                            <option value="04:00 PM">04:00 PM</option>
+                                            <option value="05:00 PM">05:00 PM</option>
+                                            <option value="06:00 PM">06:00 PM</option>
+                                            <option value="07:00 PM">07:00 PM</option>
+                                            <option value="08:00 PM">08:00 PM</option>
+                                            <option value="09:00 PM">09:00 PM</option>
+                                            <option value="10:00 PM">10:00 PM</option>
+                                            <option value="11:00 PM">11:00 PM</option>
+                                        </select>
+                                    </div>
+                                    <div class="col-md-6 col-lg-3">
+                                        <label class="form-label fw-semibold mb-1" style="color: #495057; font-size: 0.75rem;">
+                                            <i class="ri-calendar-line me-1" style="color: #667eea;"></i>Pick Up Date
+                                        </label>
+                                        <input type="date" class="form-control modern-input" id="local_transfer_pickup_date" name="pickup_date" value="" placeholder="dd-mm-yyyy" min="{{ \Carbon\Carbon::parse($tour->check_in_time)->format('Y-m-d') }}" max="{{ \Carbon\Carbon::parse($tour->check_out_time)->format('Y-m-d') }}" style="height: 36px; font-size: 0.8rem;">
+                                    </div>
+                                    <div class="col-md-6 col-lg-2 ms-lg-auto">
+                                        <label class="form-label fw-semibold mb-1 d-block" style="color: #495057; font-size: 0.75rem;">
+                                            &nbsp;
+                                        </label>
+                                        <button type="button" class="btn w-100 text-white" onclick="searchLocalTransferVehicles()" id="local_transfer_search_btn" disabled style="height: 36px; border-radius: 8px; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); border: none; font-weight: 500; font-size: 0.8rem; transition: all 0.2s; box-shadow: 0 2px 6px rgba(102, 126, 234, 0.3);">
+                                            <i class="ri-search-line me-1"></i>Search
+                                        </button>
+                                    </div>
+                                </div>
+                            </div>
+                            <!-- Point To Point Fields (Hidden Initially) -->
+                            <div class="col-12">
+                                <div id="point_to_point_fields" class="row g-2 point-to-point-fields d-none">
+                                    <div class="col-md-6 col-lg-3">
+                                        <label class="form-label fw-semibold mb-1" style="color: #495057; font-size: 0.75rem;">
+                                            <i class="ri-map-pin-line me-1" style="color: #10b981;"></i>Pick Up Location
+                                        </label>
+                                        <div class="position-relative location-input">
+                                            <input type="text" class="form-control modern-input google-maps-autocomplete" id="local_transfer_point_pickup_location" name="point_pickup_location" placeholder="Enter pickup location..." style="height: 36px; font-size: 0.8rem;">
+                                            <input type="hidden" name="point_pickup_lat" id="local_transfer_point_pickup_lat">
+                                            <input type="hidden" name="point_pickup_lng" id="local_transfer_point_pickup_lng">
+                                            <input type="hidden" name="point_pickup_place_id" id="local_transfer_point_pickup_place_id">
+                                        </div>
+                                    </div>
+                                    <div class="col-md-6 col-lg-3">
+                                        <label class="form-label fw-semibold mb-1" style="color: #495057; font-size: 0.75rem;">
+                                            <i class="ri-map-pin-line me-1" style="color: #ef4444;"></i>Drop Off Location
+                                        </label>
+                                        <div class="position-relative location-input">
+                                            <input type="text" class="form-control modern-input google-maps-autocomplete" id="local_transfer_point_dropoff_location" name="point_dropoff_location" placeholder="Enter dropoff location..." style="height: 36px; font-size: 0.8rem;">
+                                            <input type="hidden" name="point_dropoff_lat" id="local_transfer_point_dropoff_lat">
+                                            <input type="hidden" name="point_dropoff_lng" id="local_transfer_point_dropoff_lng">
+                                            <input type="hidden" name="point_dropoff_place_id" id="local_transfer_point_dropoff_place_id">
+                                        </div>
+                                    </div>
+                                    <div class="col-md-6 col-lg-2">
+                                        <label class="form-label fw-semibold mb-1" style="color: #495057; font-size: 0.75rem;">
+                                            <i class="ri-time-line me-1" style="color: #f59e0b;"></i>Pick Up Time
+                                        </label>
+                                        <select class="form-select modern-select" id="local_transfer_point_pickup_time" name="point_pickup_time" style="height: 36px; font-size: 0.8rem;">
+                                            <option value="">Select time</option>
+                                            <option value="12:00 AM">12:00 AM</option>
+                                            <option value="01:00 AM">01:00 AM</option>
+                                            <option value="02:00 AM">02:00 AM</option>
+                                            <option value="03:00 AM">03:00 AM</option>
+                                            <option value="04:00 AM">04:00 AM</option>
+                                            <option value="05:00 AM">05:00 AM</option>
+                                            <option value="06:00 AM">06:00 AM</option>
+                                            <option value="07:00 AM">07:00 AM</option>
+                                            <option value="08:00 AM">08:00 AM</option>
+                                            <option value="09:00 AM">09:00 AM</option>
+                                            <option value="10:00 AM">10:00 AM</option>
+                                            <option value="11:00 AM">11:00 AM</option>
+                                            <option value="12:00 PM">12:00 PM</option>
+                                            <option value="01:00 PM">01:00 PM</option>
+                                            <option value="02:00 PM">02:00 PM</option>
+                                            <option value="03:00 PM">03:00 PM</option>
+                                            <option value="04:00 PM">04:00 PM</option>
+                                            <option value="05:00 PM">05:00 PM</option>
+                                            <option value="06:00 PM">06:00 PM</option>
+                                            <option value="07:00 PM">07:00 PM</option>
+                                            <option value="08:00 PM">08:00 PM</option>
+                                            <option value="09:00 PM">09:00 PM</option>
+                                            <option value="10:00 PM">10:00 PM</option>
+                                            <option value="11:00 PM">11:00 PM</option>
+                                        </select>
+                                    </div>
+                                    <div class="col-md-6 col-lg-2">
+                                        <label class="form-label fw-semibold mb-1" style="color: #495057; font-size: 0.75rem;">
+                                            <i class="ri-calendar-line me-1" style="color: #667eea;"></i>Pick Up Date
+                                        </label>
+                                        <input type="date" class="form-control modern-input" id="local_transfer_point_pickup_date" name="point_pickup_date" value="{{ \Carbon\Carbon::parse($tour->check_in_time)->format('Y-m-d') }}" min="{{ \Carbon\Carbon::parse($tour->check_in_time)->format('Y-m-d') }}" max="{{ \Carbon\Carbon::parse($tour->check_out_time)->format('Y-m-d') }}" style="height: 36px; font-size: 0.8rem;">
+                                    </div>
+                                    <div class="col-md-6 col-lg-2">
+                                        <label class="form-label fw-semibold mb-1 d-block" style="color: #495057; font-size: 0.75rem;">
+                                            &nbsp;
+                                        </label>
+                                        <button type="button" class="btn w-100 text-white" onclick="searchPointToPointVehicles()" id="local_transfer_point_to_point_search_btn" disabled style="height: 36px; border-radius: 8px; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); border: none; font-weight: 500; font-size: 0.8rem; transition: all 0.2s; box-shadow: 0 2px 6px rgba(102, 126, 234, 0.3);">
+                                            <i class="ri-search-line me-1"></i>Search
+                                        </button>
+                                    </div>
+                                </div>
+                            </div>
+                            
+                            <!-- Hourly Fields (Hidden Initially) -->
+                            <div class="col-12">
+                                <div id="hourly_fields" class="row g-2 hourly-fields d-none">
+                                    <div class="col-md-6 col-lg-3">
+                                        <label class="form-label fw-semibold mb-1" style="color: #495057; font-size: 0.75rem;">
+                                            <i class="ri-map-pin-line me-1" style="color: #10b981;"></i>Pick Up Location
+                                        </label>
+                                        <div class="position-relative location-input">
+                                            <input type="text" class="form-control modern-input google-maps-autocomplete" id="local_transfer_hourly_pickup_location" name="hourly_pickup_location" placeholder="Enter pickup location..." style="height: 36px; font-size: 0.8rem;">
+                                            <input type="hidden" name="hourly_pickup_lat" id="local_transfer_hourly_pickup_lat">
+                                            <input type="hidden" name="hourly_pickup_lng" id="local_transfer_hourly_pickup_lng">
+                                            <input type="hidden" name="hourly_pickup_place_id" id="local_transfer_hourly_pickup_place_id">
+                                        </div>
+                                    </div>
+                                    <div class="col-md-6 col-lg-3">
+                                        <label class="form-label fw-semibold mb-1" style="color: #495057; font-size: 0.75rem;">
+                                            <i class="ri-time-line me-1" style="color: #f59e0b;"></i>Pick Up Time
+                                        </label>
+                                        <select class="form-select modern-select" id="local_transfer_hourly_pickup_time" name="hourly_pickup_time" style="height: 36px; font-size: 0.8rem;">
+                                            <option value="">Select time</option>
+                                            <option value="12:00 AM">12:00 AM</option>
+                                            <option value="01:00 AM">01:00 AM</option>
+                                            <option value="02:00 AM">02:00 AM</option>
+                                            <option value="03:00 AM">03:00 AM</option>
+                                            <option value="04:00 AM">04:00 AM</option>
+                                            <option value="05:00 AM">05:00 AM</option>
+                                            <option value="06:00 AM">06:00 AM</option>
+                                            <option value="07:00 AM">07:00 AM</option>
+                                            <option value="08:00 AM">08:00 AM</option>
+                                            <option value="09:00 AM">09:00 AM</option>
+                                            <option value="10:00 AM">10:00 AM</option>
+                                            <option value="11:00 AM">11:00 AM</option>
+                                            <option value="12:00 PM">12:00 PM</option>
+                                            <option value="01:00 PM">01:00 PM</option>
+                                            <option value="02:00 PM">02:00 PM</option>
+                                            <option value="03:00 PM">03:00 PM</option>
+                                            <option value="04:00 PM">04:00 PM</option>
+                                            <option value="05:00 PM">05:00 PM</option>
+                                            <option value="06:00 PM">06:00 PM</option>
+                                            <option value="07:00 PM">07:00 PM</option>
+                                            <option value="08:00 PM">08:00 PM</option>
+                                            <option value="09:00 PM">09:00 PM</option>
+                                            <option value="10:00 PM">10:00 PM</option>
+                                            <option value="11:00 PM">11:00 PM</option>
+                                        </select>
+                                    </div>
+                                    <div class="col-md-6 col-lg-2">
+                                        <label class="form-label fw-semibold mb-1" style="color: #495057; font-size: 0.75rem;">
+                                            <i class="ri-calendar-line me-1" style="color: #667eea;"></i>Pick Up Date
+                                        </label>
+                                        <input type="date" class="form-control modern-input" id="local_transfer_hourly_pickup_date" name="hourly_pickup_date" value="" placeholder="dd-mm-yyyy" min="{{ \Carbon\Carbon::parse($tour->check_in_time)->format('Y-m-d') }}" max="{{ \Carbon\Carbon::parse($tour->check_out_time)->format('Y-m-d') }}" style="height: 36px; font-size: 0.8rem;">
+                                    </div>
+                                    <div class="col-md-6 col-lg-3">
+                                        <label class="form-label fw-semibold mb-1" style="color: #495057; font-size: 0.75rem;">
+                                            <i class="ri-time-line me-1" style="color: #06b6d4;"></i>Number of Hours
+                                        </label>
+                                        <select class="form-select modern-select" id="local_transfer_hourly_hours" name="hourly_hours" style="height: 36px; font-size: 0.8rem;">
+                                            <option value="">Select hours</option>
+                                            <option value="1">1 Hour</option>
+                                            <option value="2">2 Hours</option>
+                                            <option value="3">3 Hours</option>
+                                            <option value="4">4 Hours</option>
+                                            <option value="5">5 Hours</option>
+                                            <option value="6">6 Hours</option>
+                                            <option value="7">7 Hours</option>
+                                            <option value="8">8 Hours</option>
+                                            <option value="9">9 Hours</option>
+                                            <option value="10">10 Hours</option>
+                                            <option value="11">11 Hours</option>
+                                            <option value="12">12 Hours</option>
+                                            <option value="24">24 Hours</option>
+                                        </select>
+                                    </div>
+                                    <div class="col-md-6 col-lg-2">
+                                        <label class="form-label fw-semibold mb-1 d-block" style="color: #495057; font-size: 0.75rem;">
+                                            &nbsp;
+                                        </label>
+                                        <button type="button" class="btn w-100 text-white" onclick="searchHourlyVehicles()" id="local_transfer_hourly_search_btn" disabled style="height: 36px; border-radius: 8px; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); border: none; font-weight: 500; font-size: 0.8rem; transition: all 0.2s; box-shadow: 0 2px 6px rgba(102, 126, 234, 0.3);">
+                                            <i class="ri-search-line me-1"></i>Search
+                                        </button>
+                                    </div>
                                 </div>
                             </div>
                         </div>
-                        <div class="card-body bg-white">
-                            <div class="d-flex justify-content-between align-items-center mb-3">
-                                <div class="d-flex gap-3">
-                                    <div class="form-check">
-                                        <input class="form-check-input transport-service-type" type="radio" name="service_type_selection" id="local_transfer_service_type_point" value="point_to_point" onchange="handleLocalTransferServiceTypeChange('point_to_point')">
-                                        <label class="form-check-label fw-semibold" for="local_transfer_service_type_point">
-                                            <i class="ri-route-line me-1"></i>Point To Point
-                                        </label>
-                                    </div>
-                                    <div class="form-check">
-                                        <input class="form-check-input transport-service-type" type="radio" name="service_type_selection" id="local_transfer_service_type_hourly" value="hourly" onchange="handleLocalTransferServiceTypeChange('hourly')">
-                                        <label class="form-check-label fw-semibold" for="local_transfer_service_type_hourly">
-                                            <i class="ri-time-line me-1"></i>Hourly
-                                        </label>
-                                    </div>
-                                    @if(isset($dmcUser->zone_on) && $dmcUser->zone_on != 0)
-                                    <div class="form-check">
-                                        <input class="form-check-input transport-service-type" type="radio" name="service_type_selection" id="local_transfer_service_type_local" value="local_transfer" onchange="handleLocalTransferServiceTypeChange('local_transfer')" checked>
-                                        <label class="form-check-label fw-semibold text-success" for="local_transfer_service_type_local">
-                                            <i class="ri-car-line me-1"></i>Local Transfer
-                                        </label>
-                                    </div>
-                                    @endif
-                                </div>
-                            </div>
                             
-                            <div class="row g-4 align-items-end">
-
-                                <!-- Local Transfer Fields (Default) -->
-                                <div class="col-12">
-                                    
-                                    <div id="local_transfer_fields" class="row g-4 align-items-end local-transfer-fields d-none">
-                                        <div class="col-md-3">
-                                            <div class="form-group">
-                                                <label class="form-label fw-semibold text-muted mb-2">
-                                                    <i class="ri-map-pin-line text-success me-2"></i>City
-                                                </label>
-                                                <div class="position-relative">
-                                                    <select class="form-select border-2" id="modal_local_transfer_city" name="city" style="padding-left: 45px;">
-                                                        <option value="">Select city</option>
-                                                        @foreach($cities as $city)
-                                                            <option value="{{ $city->name }}" data-city="{{ json_encode($city) }}" data-country="{{ $city->country }}">{{ $city->name }}</option>
-                                                        @endforeach
-                                                    </select>
-                                                    <i style="left: 15px; top: 50%; transform: translateY(-50%); z-index: 5;"></i>
-                                                </div>
-                                            </div>
-                                        </div>
-                                        <div class="col-md-3">
-                                            <div class="form-group">
-                                                <label class="form-label fw-semibold text-muted mb-2">
-                                                    <i class="ri-map-pin-line text-success me-2"></i>Pick Up Location
-                                                </label>
-                                                <div class="position-relative">
-                                                    <select class="form-select pickup-zone-select border-2" id="local_transfer_pickup_zone" name="pickup_zone_id" style="padding-left: 45px;">
-                                                        <option value="">Select pickup location</option>
-                                                        <optgroup label="Ports">
-                                                        @foreach($ports as $port)
-                                                            <option data-type="Port" value="{{ $port->port_id }}" data-port="{{ json_encode($port) }}">{{ $port->port_name }}</option>
-                                                        @endforeach
-                                                        </optgroup>
-                                                        <optgroup label="Hotels">
-                                                        @foreach($hotels as $hotel)
-                                                        <option data-type="Hotel" value="{{ $hotel->hotel_unique_id }}" data-hotel="{{ json_encode($hotel) }}">{{ $hotel->name }}</option>
-                                                        @endforeach
-                                                        </optgroup>
-                                                        <optgroup label="Attractions">
-                                                        @foreach($attractions as $attraction)
-                                                        <option data-type="Attraction" value="{{ $attraction->attraction_id }}" data-attraction="{{ json_encode($attraction) }}">{{ $attraction->name }}</option>
-                                                        @endforeach
-                                                        </optgroup>
-                                                        <optgroup label="Restaurants">
-                                                        @foreach($restaurants as $restaurant)
-                                                        <option data-type="Restaurant" value="{{ $restaurant->restaurant_id }}" data-restaurant="{{ json_encode($restaurant) }}">{{ $restaurant->name }}</option>
-                                                        @endforeach
-                                                        </optgroup>
-                                                    </select>
-                                                    <i style="left: 15px; top: 50%; transform: translateY(-50%); z-index: 5;"></i>
-                                                </div>
-                                            </div>
-                                        </div>
-                                        <div class="col-md-3">
-                                            <div class="form-group">
-                                                <label class="form-label fw-semibold text-muted mb-2">
-                                                    <i class="ri-map-pin-line text-danger me-2"></i>Drop Off Location
-                                                </label>
-                                                <div class="position-relative">
-                                                    <select class="form-select dropoff-zone-select border-2" id="local_transfer_dropoff_zone" name="dropoff_zone_id" style="padding-left: 45px; padding-right: 45px;">
-                                                        <option value="">Select dropoff location</option>
-                                                        <!-- Ports -->
-                                                        <optgroup label="Ports">
-                                                        @foreach($ports as $port)
-                                                        <option data-type="Port" value="{{ $port->port_id }}" data-port="{{ json_encode($port) }}">{{ $port->port_name }}</option>
-                                                        @endforeach
-                                                        </optgroup>
-                                                        <!-- Hotels -->
-                                                        <optgroup label="Hotels">
-                                                        @foreach($hotels as $hotel)
-                                                            <option data-type="Hotel" value="{{ $hotel->hotel_unique_id }}" data-hotel="{{ json_encode($hotel) }}">{{ $hotel->name }}</option>
-                                                        @endforeach
-                                                        </optgroup>
-                                                        
-                                                        <!-- Attractions -->
-                                                        <optgroup label="Attractions">
-                                                        @foreach($attractions as $attraction)
-                                                        <option data-type="Attraction" value="{{ $attraction->attraction_id }}" data-attraction="{{ json_encode($attraction) }}">{{ $attraction->name }}</option>
-                                                        @endforeach
-                                                        </optgroup>
-                                                        
-                                                        <!-- Restaurants -->
-                                                        <optgroup label="Restaurants">
-                                                        @foreach($restaurants as $restaurant)
-                                                        <option data-type="Restaurant" value="{{ $restaurant->restaurant_id }}" data-restaurant="{{ json_encode($restaurant) }}">{{ $restaurant->name }}</option>
-                                                        @endforeach
-                                                        </optgroup>
-                                                    </select>
-                                                    <i style="left: 15px; top: 50%; transform: translateY(-50%); z-index: 5;"></i>
-                                                </div>
-                                            </div>
-                                        </div>
-                                        <div class="col-md-2">
-                                            <div class="form-group">
-                                                <label class="form-label fw-semibold text-muted mb-2">
-                                                    <i class="ri-time-line text-warning me-2"></i>Pick Up Time
-                                                </label>
-                                                <div class="position-relative">
-                                                    <select class="form-select border-2" id="local_transfer_pickup_time" name="pickup_time" style="padding-left: 45px;">
-                                                        <option value="">Select The Time</option>
-                                                        <option value="12:00 AM">12:00 AM</option>
-                                                        <option value="01:00 AM">01:00 AM</option>
-                                                        <option value="02:00 AM">02:00 AM</option>
-                                                        <option value="03:00 AM">03:00 AM</option>
-                                                        <option value="04:00 AM">04:00 AM</option>
-                                                        <option value="05:00 AM">05:00 AM</option>
-                                                        <option value="06:00 AM">06:00 AM</option>
-                                                        <option value="07:00 AM">07:00 AM</option>
-                                                        <option value="08:00 AM">08:00 AM</option>
-                                                        <option value="09:00 AM">09:00 AM</option>
-                                                        <option value="10:00 AM">10:00 AM</option>
-                                                        <option value="11:00 AM">11:00 AM</option>
-                                                        <option value="12:00 PM">12:00 PM</option>
-                                                        <option value="01:00 PM">01:00 PM</option>
-                                                        <option value="02:00 PM">02:00 PM</option>
-                                                        <option value="03:00 PM">03:00 PM</option>
-                                                        <option value="04:00 PM">04:00 PM</option>
-                                                        <option value="05:00 PM">05:00 PM</option>
-                                                        <option value="06:00 PM">06:00 PM</option>
-                                                        <option value="07:00 PM">07:00 PM</option>
-                                                        <option value="08:00 PM">08:00 PM</option>
-                                                        <option value="09:00 PM">09:00 PM</option>
-                                                        <option value="10:00 PM">10:00 PM</option>
-                                                        <option value="11:00 PM">11:00 PM</option>
-                                                    </select>
-                                                    <i style="left: 15px; top: 50%; transform: translateY(-50%); z-index: 5;"></i>
-                                                </div>
-                                            </div>
-                                        </div>
-                                        <div class="col-md-2">
-                                            <div class="form-group">
-                                                <label class="form-label fw-semibold text-muted mb-2">
-                                                    <i class="ri-calendar-line text-primary me-2"></i>Pick Up Date
-                                                </label>
-                                                <div class="position-relative">
-                                                    <input type="date" class="form-control border-2" id="local_transfer_pickup_date" name="pickup_date" value="" placeholder="dd-mm-yyyy" min="{{ \Carbon\Carbon::parse($tour->check_in_time)->format('Y-m-d') }}" max="{{ \Carbon\Carbon::parse($tour->check_out_time)->format('Y-m-d') }}" style="padding-left: 45px;">
-                                                    <i class="ri-calendar-fill position-absolute text-primary" style="left: 15px; top: 50%; transform: translateY(-50%); z-index: 5;"></i>
-                                                </div>
-                                            </div>
-                                        </div>
-                                        <div class="col-md-2">
-                                            <button type="button" class="btn btn-primary w-100 py-2" onclick="searchLocalTransferVehicles()" id="local_transfer_search_btn" disabled>
-                                                Search 
-                                            </button>
-                                        </div>
-                                    </div>
-                                </div>
-                                <!-- Point To Point Fields (Hidden Initially) -->
-                                <div class="col-12">
-                                    <div id="point_to_point_fields" class="row g-4 align-items-end point-to-point-fields d-none">
-                                        <div class="col-md-3 point-to-point-fields">
-                                            <div class="form-group">
-                                                <label class="form-label fw-semibold text-muted mb-2">
-                                                    <i class="ri-map-pin-line text-success me-2"></i>Pick Up Location
-                                                </label>
-                                                <div class="position-relative location-input">
-                                                    <input type="text" class="form-control border-2 google-maps-autocomplete" id="local_transfer_point_pickup_location" name="point_pickup_location" placeholder="Search for pickup location..." style="padding-left: 45px;">
-                                                    <i class="ri-search-line position-absolute text-success location-icon"></i>
-                                                    <input type="hidden" name="point_pickup_lat" id="local_transfer_point_pickup_lat">
-                                                    <input type="hidden" name="point_pickup_lng" id="local_transfer_point_pickup_lng">
-                                                    <input type="hidden" name="point_pickup_place_id" id="local_transfer_point_pickup_place_id">
-                                                </div>
-                                                <!-- Keep the original select as backup -->
-                                            </div>
-                                        </div>
-                                        <div class="col-md-3 point-to-point-fields">
-                                            <div class="form-group">
-                                                <label class="form-label fw-semibold text-muted mb-2">
-                                                    <i class="ri-map-pin-line text-danger me-2"></i>Drop Off Location
-                                                </label>
-                                                <div class="position-relative location-input">
-                                                <input type="text" class="form-control border-2 google-maps-autocomplete" id="local_transfer_point_dropoff_location" name="point_dropoff_location" placeholder="Search for dropoff location..." style="padding-left: 45px;">
-                                                    <i class="ri-map-pin-fill position-absolute text-danger location-icon"></i>
-                                                    <input type="hidden" name="point_dropoff_lat" id="local_transfer_point_dropoff_lat">
-                                                    <input type="hidden" name="point_dropoff_lng" id="local_transfer_point_dropoff_lng">
-                                                    <input type="hidden" name="point_dropoff_place_id" id="local_transfer_point_dropoff_place_id">
-                                                </div>
-                                                <!-- Keep the original select as backup -->
-                                                
-                                            </div>
-                                        </div>
-                                        <div class="col-md-3 point-to-point-fields">
-                                            <div class="form-group">
-                                                <label class="form-label fw-semibold text-muted mb-2">
-                                                    <i class="ri-time-line text-warning me-2"></i>Pick Up Time
-                                                </label>
-                                                <div class="position-relative">
-                                                    <select class="form-select border-2" id="local_transfer_point_pickup_time" name="point_pickup_time" style="padding-left: 45px;">
-                                                        <option value="">Select time</option>
-                                                        <option value="12:00 AM">12:00 AM</option>
-                                                        <option value="01:00 AM">01:00 AM</option>
-                                                        <option value="02:00 AM">02:00 AM</option>
-                                                        <option value="03:00 AM">03:00 AM</option>
-                                                        <option value="04:00 AM">04:00 AM</option>
-                                                        <option value="05:00 AM">05:00 AM</option>
-                                                        <option value="06:00 AM">06:00 AM</option>
-                                                        <option value="07:00 AM">07:00 AM</option>
-                                                        <option value="08:00 AM">08:00 AM</option>
-                                                        <option value="09:00 AM">09:00 AM</option>
-                                                        <option value="10:00 AM">10:00 AM</option>
-                                                        <option value="11:00 AM">11:00 AM</option>
-                                                        <option value="12:00 PM">12:00 PM</option>
-                                                        <option value="01:00 PM">01:00 PM</option>
-                                                        <option value="02:00 PM">02:00 PM</option>
-                                                        <option value="03:00 PM">03:00 PM</option>
-                                                        <option value="04:00 PM">04:00 PM</option>
-                                                        <option value="05:00 PM">05:00 PM</option>
-                                                        <option value="06:00 PM">06:00 PM</option>
-                                                        <option value="07:00 PM">07:00 PM</option>
-                                                        <option value="08:00 PM">08:00 PM</option>
-                                                        <option value="09:00 PM">09:00 PM</option>
-                                                        <option value="10:00 PM">10:00 PM</option>
-                                                        <option value="11:00 PM">11:00 PM</option>
-                                                    </select>
-                                                    <i style="left: 15px; top: 50%; transform: translateY(-50%); z-index: 5;"></i>
-                                                </div>
-                                            </div>
-                                        </div>
-                                        <div class="col-md-3 point-to-point-fields">
-                                            <div class="form-group">
-                                                <label class="form-label fw-semibold text-muted mb-2">
-                                                    <i class="ri-calendar-line text-primary me-2"></i>Pick Up Date
-                                                </label>
-                                                <div class="position-relative">
-                                                    <input type="date" class="form-control border-2" id="local_transfer_point_pickup_date" name="point_pickup_date" value="{{ \Carbon\Carbon::parse($tour->check_in_time)->format('Y-m-d') }}" min="{{ \Carbon\Carbon::parse($tour->check_in_time)->format('Y-m-d') }}" max="{{ \Carbon\Carbon::parse($tour->check_out_time)->format('Y-m-d') }}" style="padding-left: 45px;">
-                                                    <i class="ri-calendar-fill position-absolute text-primary" style="left: 15px; top: 50%; transform: translateY(-50%); z-index: 5;"></i>
-                                                </div>
-                                            </div>
-                                        </div>
-                                        <div class="col-md-2">
-                                            <button type="button" class="btn btn-primary w-100 py-2" onclick="searchPointToPointVehicles()" id="local_transfer_point_to_point_search_btn" disabled>
-                                                Search
-                                            </button>
-                                        </div>
-                                    </div>
-                                </div>
-                                
-                                <!-- Hourly Fields (Hidden Initially) -->
-                                <div class="col-12">
-                                    <div id="hourly_fields" class="hourly-fields row g-4 col-12 align-items-end d-none">
-                                        <div class="col-md-3 hourly-fields">
-                                            <div class="form-group">
-                                                <label class="form-label fw-semibold text-muted mb-2">
-                                                    <i class="ri-map-pin-line text-success me-2"></i>Pick Up Location
-                                                </label>
-                                                <div class="position-relative location-input">
-                                                    <input type="text" class="form-control border-2 google-maps-autocomplete" id="local_transfer_hourly_pickup_location" name="hourly_pickup_location" placeholder="Search for pickup location..." style="padding-left: 45px;">
-                                                    <i class="ri-search-line position-absolute text-success location-icon"></i>
-                                                    <input type="hidden" name="hourly_pickup_lat" id="local_transfer_hourly_pickup_lat">
-                                                    <input type="hidden" name="hourly_pickup_lng" id="local_transfer_hourly_pickup_lng">
-                                                    <input type="hidden" name="hourly_pickup_place_id" id="local_transfer_hourly_pickup_place_id">
-                                                </div>
-                                            </div>
-                                        </div>
-                                        <div class="col-md-3 hourly-fields">
-                                            <div class="form-group">
-                                                <label class="form-label fw-semibold text-muted mb-2">
-                                                    <i class="ri-time-line text-warning me-2"></i>Pick Up Time
-                                                </label>
-                                                <div class="position-relative">
-                                                    <select class="form-select border-2" id="local_transfer_hourly_pickup_time" name="hourly_pickup_time" style="padding-left: 45px;">
-                                                        <option value="">Select time</option>
-                                                        <option value="12:00 AM">12:00 AM</option>
-                                                        <option value="01:00 AM">01:00 AM</option>
-                                                        <option value="02:00 AM">02:00 AM</option>
-                                                        <option value="03:00 AM">03:00 AM</option>
-                                                        <option value="04:00 AM">04:00 AM</option>
-                                                        <option value="05:00 AM">05:00 AM</option>
-                                                        <option value="06:00 AM">06:00 AM</option>
-                                                        <option value="07:00 AM">07:00 AM</option>
-                                                        <option value="08:00 AM">08:00 AM</option>
-                                                        <option value="09:00 AM">09:00 AM</option>
-                                                        <option value="10:00 AM">10:00 AM</option>
-                                                        <option value="11:00 AM">11:00 AM</option>
-                                                        <option value="12:00 PM">12:00 PM</option>
-                                                        <option value="01:00 PM">01:00 PM</option>
-                                                        <option value="02:00 PM">02:00 PM</option>
-                                                        <option value="03:00 PM">03:00 PM</option>
-                                                        <option value="04:00 PM">04:00 PM</option>
-                                                        <option value="05:00 PM">05:00 PM</option>
-                                                        <option value="06:00 PM">06:00 PM</option>
-                                                        <option value="07:00 PM">07:00 PM</option>
-                                                        <option value="08:00 PM">08:00 PM</option>
-                                                        <option value="09:00 PM">09:00 PM</option>
-                                                        <option value="10:00 PM">10:00 PM</option>
-                                                        <option value="11:00 PM">11:00 PM</option>
-                                                    </select>
-                                                    <i style="left: 15px; top: 50%; transform: translateY(-50%); z-index: 5;"></i>
-                                                </div>
-                                            </div>
-                                        </div>
-                                        <div class="col-md-3 hourly-fields">
-                                            <div class="form-group">
-                                                <label class="form-label fw-semibold text-muted mb-2">
-                                                    <i class="ri-calendar-line text-primary me-2"></i>Pick Up Date
-                                                </label>
-                                                <div class="position-relative">
-                                                    <input type="date" class="form-control border-2" id="local_transfer_hourly_pickup_date" name="hourly_pickup_date" value="" placeholder="dd-mm-yyyy" min="{{ \Carbon\Carbon::parse($tour->check_in_time)->format('Y-m-d') }}" max="{{ \Carbon\Carbon::parse($tour->check_out_time)->format('Y-m-d') }}" style="padding-left: 45px;">
-                                                    <i class="ri-calendar-fill position-absolute text-primary" style="left: 15px; top: 50%; transform: translateY(-50%); z-index: 5;"></i>
-                                                </div>
-                                            </div>
-                                        </div>
-                                        <div class="col-md-3 hourly-fields">
-                                            <div class="form-group">
-                                                <label class="form-label fw-semibold text-muted mb-2">
-                                                    <i class="ri-time-line text-info me-2"></i>Number of Hours
-                                                </label>
-                                                <div class="position-relative">
-                                                    <select class="form-select border-2" id="local_transfer_hourly_hours" name="hourly_hours" style="padding-left: 45px;">
-                                                        <option value="">Select hours</option>
-                                                        <option value="1">1 Hour</option>
-                                                        <option value="2">2 Hours</option>
-                                                        <option value="3">3 Hours</option>
-                                                        <option value="4">4 Hours</option>
-                                                        <option value="5">5 Hours</option>
-                                                        <option value="6">6 Hours</option>
-                                                        <option value="7">7 Hours</option>
-                                                        <option value="8">8 Hours</option>
-                                                        <option value="9">9 Hours</option>
-                                                        <option value="10">10 Hours</option>
-                                                        <option value="11">11 Hours</option>
-                                                        <option value="12">12 Hours</option>
-                                                        <option value="24">24 Hours</option>
-                                                    </select>
-                                                    <i class="ri-hourglass-fill position-absolute text-info" style="left: 15px; top: 50%; transform: translateY(-50%); z-index: 5;"></i>
-                                                </div>
-                                            </div>
-                                        </div>
-                                        <div class="col-md-2">
-                                            <button type="button" class="btn btn-primary w-100 py-2" onclick="searchHourlyVehicles()" id="local_transfer_hourly_search_btn" disabled>
-                                                Search
-                                            </button>
+                        <!-- Vehicle Results Section (Hidden Initially) -->
+                        <div class="row mt-3" id="local_transfer_vehicle_results" style="display: none;">
+                            <div class="col-12">
+                                <div class="alert alert-info border-0 mb-3" style="background: #e3f2fd; color: #0277bd; border-radius: 8px; padding: 0.75rem; font-size: 0.8rem;">
+                                    <div class="d-flex align-items-center">
+                                        <i class="ri-car-line me-2" style="font-size: 1.1rem;"></i>
+                                        <div>
+                                            <strong>Available Vehicles</strong>
+                                            <div class="small" style="font-size: 0.75rem; opacity: 0.9;">Select your preferred vehicle and service type below</div>
                                         </div>
                                     </div>
                                 </div>
                             </div>
-                            
-                            <!-- Vehicle Results Section (Hidden Initially) -->
-                            <div class="row mt-4" id="local_transfer_vehicle_results" style="display: none;">
-                                <div class="col-12">
-                                    <div class="alert alert-info">
-                                        <div class="d-flex align-items-center">
-                                            <i class="ri-car-line me-2 fs-4"></i>
-                                            <div>
-                                                <strong>Available Vehicles</strong>
-                                                <div class="small text-muted">Select your preferred vehicle and service type below</div>
-                                            </div>
-                                        </div>
-                                    </div>
-                                </div>
 
-                                <!-- Vehicle + Service Type in one row -->
-                                <div class="col-12">
-                                    <div class="row g-3">
+                            <!-- Vehicle + Service Type in one row -->
+                            <div class="col-12">
+                                <div class="card border-0" style="background: #f8f9fa; border-radius: 8px; padding: 0.75rem;">
+                                    <div class="row g-2">
                                         <div class="col-md-4">
-                                            <label class="form-label fw-semibold">Vehicle</label>
-                                            <select class="form-select vehicle-select" 
+                                            <label class="form-label fw-semibold mb-1" style="color: #495057; font-size: 0.75rem;">Vehicle</label>
+                                            <select class="form-select modern-select vehicle-select" 
                                                     id="local_transfer_vehicle_id" 
                                                     name="vehicle_id" 
-                                                    onchange="updateLocalTransferVehicleDetails()">
+                                                    onchange="updateLocalTransferVehicleDetails()"
+                                                    style="height: 36px; font-size: 0.8rem;">
                                                 <option value="">Choose vehicle</option>
                                             </select>
                                         </div>
 
                                         <div class="col-md-3">
-                                            <label class="form-label fw-semibold">Service Type</label>
-                                            <select class="form-select" 
+                                            <label class="form-label fw-semibold mb-1" style="color: #495057; font-size: 0.75rem;">Service Type</label>
+                                            <select class="form-select modern-select" 
                                                     id="local_transfer_service_type" 
                                                     name="service_type" 
-                                                    onchange="updateLocalTransferPricing()">
+                                                    onchange="updateLocalTransferPricing()"
+                                                    style="height: 36px; font-size: 0.8rem;">
                                                 <option value="">Select service type</option>
                                                 <option value="Shared">Shared</option>
                                                 <option value="Private">Private</option>
@@ -6259,22 +6537,23 @@
 
                                         <!-- Manual Price Input (Only available for Point-to-Point) -->
                                         <div class="col-md-3" id="manual_price_field_container" style="display: none;">
-                                            <label class="form-label fw-semibold">
-                                                <i class="ri-money-dollar-circle-line text-success me-1"></i>Manual Price (Optional)
+                                            <label class="form-label fw-semibold mb-1" style="color: #495057; font-size: 0.75rem;">
+                                                <i class="ri-money-dollar-circle-line me-1" style="color: #10b981;"></i>Manual Price (Optional)
                                             </label>
-                                            <div class="input-group">
-                                                <span class="input-group-text">$</span>
+                                            <div class="input-group" style="height: 36px;">
+                                                <span class="input-group-text" style="background: linear-gradient(135deg, #10b981 0%, #059669 100%); color: white; border: none; font-weight: 600; font-size: 0.8rem;">$</span>
                                                 <input type="number" 
-                                                       class="form-control" 
+                                                       class="form-control modern-input border-0" 
                                                        id="local_transfer_manual_price" 
                                                        name="manual_price" 
                                                        step="0.01" 
                                                        min="0" 
                                                        placeholder="0.00"
                                                        onchange="updateLocalTransferPricing()"
-                                                       oninput="updateLocalTransferPricing()">
+                                                       oninput="updateLocalTransferPricing()"
+                                                       style="height: 36px; font-size: 0.8rem;">
                                             </div>
-                                            <small class="form-text text-muted">
+                                            <small class="text-muted" style="font-size: 0.65rem; display: block; margin-top: 0.2rem;">
                                                 <i class="ri-information-line me-1"></i>
                                                 Override vehicle price with custom amount
                                             </small>
@@ -6282,12 +6561,9 @@
 
                                         <!-- Number of Passengers -->
                                         <div class="col-md-2" style="display: none;">
-                                            <label class="form-label fw-semibold">Passengers1</label>
-                                            <div class="input-group">
-                                                <span class="input-group-text"><i class="ri-user-line"></i></span>
-                                                <input type="number" class="form-control" id="local_transfer_passengers" name="passengers" min="1" max="{{ ($tour->adult ?? 0) + ($tour->child ?? 0) }}" value="1" onkeyup="updateLocalTransferPricing()" onchange="updateLocalTransferPricing()">
-                                            </div>
-                                            <small class="form-text text-muted">
+                                            <label class="form-label fw-semibold mb-1" style="color: #495057; font-size: 0.75rem;">Passengers</label>
+                                            <input type="number" class="form-control modern-input" id="local_transfer_passengers" name="passengers" min="1" max="{{ ($tour->adult ?? 0) + ($tour->child ?? 0) }}" value="1" onkeyup="updateLocalTransferPricing()" onchange="updateLocalTransferPricing()" style="height: 36px; font-size: 0.8rem;">
+                                            <small class="text-muted" style="font-size: 0.65rem; display: block; margin-top: 0.2rem;">
                                                 Max: {{ ($tour->adult ?? 0) + ($tour->child ?? 0) }}
                                             </small>
                                         </div>
@@ -6295,12 +6571,23 @@
                                     
                                     <!-- Price Display for Local Transfer -->
                                     <div class="col-12 mt-3">
-                                        <div id="local_transfer_price_display" class="alert alert-success" style="display: none;">
-                                            <div class="d-flex align-items-center">
-                                                <i class="ri-money-dollar-circle-line me-2 fs-4"></i>
-                                                <div>
-                                                    <strong>Price Information</strong>
-                                                    <div id="local_transfer_price_details" class="small">Select a vehicle and service type to see pricing</div>
+                                        <div id="local_transfer_price_display" class="border-0" style="display: none; background: linear-gradient(135deg, #ffffff 0%, #f8f9fa 100%); border: 1px solid #e9ecef; border-radius: 10px; padding: 1rem; box-shadow: 0 2px 8px rgba(0,0,0,0.06);">
+                                            <div class="d-flex justify-content-between align-items-start">
+                                                <div class="flex-grow-1">
+                                                    <div class="mb-2">
+                                                        <span class="fw-semibold" style="color: #495057; font-size: 0.8rem; text-transform: uppercase; letter-spacing: 0.5px;">Transfer Price</span>
+                                                    </div>
+                                                    <div id="local_transfer_price_details" class="text-muted" style="font-size: 0.75rem; line-height: 1.5; color: #6c757d;">
+                                                        Select a vehicle and service type to see pricing
+                                                    </div>
+                                                </div>
+                                                <div class="text-end ms-3">
+                                                    <div class="fw-bold" id="local_transfer_total_price_display" style="font-size: 1.25rem; color: #10b981; line-height: 1.2;">
+                                                        $0.00
+                                                    </div>
+                                                    <div class="text-muted" style="font-size: 0.7rem; margin-top: 0.2rem;">
+                                                        Total Price
+                                                    </div>
                                                 </div>
                                             </div>
                                         </div>
@@ -6314,14 +6601,15 @@
                             </div>
                         </div>
                     </div>
-                    
-                    <div class="text-end mt-4">
-                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
-                        <button type="button" class="btn btn-info" onclick="confirmSelectedLocalTransferService()">
-                            <i class="ri-check-line me-1"></i>Confirm Local Transfer Selection
-                        </button>
-                    </div>
                 </form>
+            </div>
+            <div class="modal-footer border-0" style="background: #f8f9fa; padding: 0.75rem 1rem;">
+                <button type="button" class="btn" data-bs-dismiss="modal" style="height: 36px; border-radius: 8px; border: 1px solid #dee2e6; background: #ffffff; color: #495057; padding: 0.375rem 1rem; font-weight: 500; font-size: 0.8rem; transition: all 0.2s;">
+                    Cancel
+                </button>
+                <button type="button" class="btn text-white" onclick="confirmSelectedLocalTransferService()" style="height: 36px; border-radius: 8px; background: linear-gradient(135deg, #06b6d4 0%, #0891b2 100%); border: none; padding: 0.375rem 1rem; font-weight: 500; font-size: 0.8rem; transition: all 0.2s; box-shadow: 0 2px 6px rgba(6, 182, 212, 0.3);">
+                    <i class="ri-check-line me-1"></i>Confirm Local Transfer Selection
+                </button>
             </div>
         </div>
     </div>
@@ -6567,10 +6855,10 @@
     </div>
 </div>
 <!-- Extra div close tag -->
+<!-- </div>
 </div>
 </div>
-</div>
-</div>
+</div> -->
 <!-- End of Dropoff Transport Selection Modal -->
 
 @endsection
@@ -10176,12 +10464,27 @@
         
         // Update modal title based on type
         const modalTitle = document.getElementById('transportSelectionModalLabel');
+        const modalHeader = document.getElementById('transport_modal_header');
         if (transportType === 'exit_port') {
-            modalTitle.innerHTML = '<i class="ri-logout-circle-line me-2"></i>Departure Transport Service Selection';
-            modalTitle.closest('.modal-header').className = 'modal-header bg-danger text-white';
+            modalTitle.innerHTML = 'Departure Transport Service Selection';
+            if (modalHeader) {
+                modalHeader.style.background = 'linear-gradient(135deg, #ef4444 0%, #dc2626 100%)';
+            }
+            // Update icon
+            const iconContainer = modalHeader?.querySelector('div[style*="width: 32px"]');
+            if (iconContainer) {
+                iconContainer.innerHTML = '<i class="ri-logout-circle-line" style="font-size: 1rem; color: #ffffff;"></i>';
+            }
         } else {
-            modalTitle.innerHTML = '<i class="ri-login-circle-line me-2"></i>Arrival Transport Service Selection';
-            modalTitle.closest('.modal-header').className = 'modal-header bg-success text-white';
+            modalTitle.innerHTML = 'Arrival Transport Service Selection';
+            if (modalHeader) {
+                modalHeader.style.background = 'linear-gradient(135deg, #10b981 0%, #059669 100%)';
+            }
+            // Update icon
+            const iconContainer = modalHeader?.querySelector('div[style*="width: 32px"]');
+            if (iconContainer) {
+                iconContainer.innerHTML = '<i class="ri-login-circle-line" style="font-size: 1rem; color: #ffffff;"></i>';
+            }
         }
         
         // Initialize the modal
@@ -12537,26 +12840,29 @@
                 }
             }
             
-            // Format price details
+            // Format price details - cleaner display
             const priceSource = isManualPriceUsed ? 'Manual Price' : 'Vehicle Price';
-            const priceSourceIcon = isManualPriceUsed ? 'ri-edit-line' : 'ri-car-line';
+            const formattedTotalPrice = totalPrice.toLocaleString('en-US', {
+                minimumFractionDigits: 2,
+                maximumFractionDigits: 2
+            });
             
-            priceDetails.innerHTML = `
-                <div class="row">
-                    <div class="col-md-4">
-                        <i class="${priceSourceIcon} me-1"></i>
-                        <span style="color: #26c6f9;">${priceSource}: $${basePrice.toFixed(2)}</span>
-                        ${isManualPriceUsed ? '<span class="badge bg-info ms-1">Custom</span>' : ''}
-                    </div>
-                    <div class="col-md-4"><span style="color: #26c6f9;">Service: ${serviceType}</span></div>
-                    <div class="col-md-4"><strong style="color: #26c6f9;">Total: $${totalPrice.toFixed(2)}</strong></div>
-                </div>
-                <div class="small mt-2">
-                    <i class="ri-information-line me-1"></i>
-                    <span style="color: #26c6f9;">Vehicle: ${vehicleData.name} (${vehicleData.seatingCapacity} seats) - ${validatedPassengers} passengers</span>
-                    ${isManualPriceUsed ? '<br><i class="ri-edit-line me-1"></i><span style="color: #26c6f9;">Using custom manual price override</span>' : ''}
-                </div>
-            `;
+            // Update price details text
+            let detailsText = `${vehicleData.name} (${vehicleData.seatingCapacity} seats) • ${serviceType} service`;
+            if (serviceType === 'Shared') {
+                detailsText += ` • ${validatedPassengers} passenger${validatedPassengers > 1 ? 's' : ''}`;
+            }
+            if (isManualPriceUsed) {
+                detailsText += ' • Custom price';
+            }
+            
+            priceDetails.textContent = detailsText;
+            
+            // Update total price display
+            const totalPriceDisplay = document.getElementById('transport_total_price_display');
+            if (totalPriceDisplay) {
+                totalPriceDisplay.textContent = '$' + formattedTotalPrice;
+            }
             
             // Update hidden fields
             document.getElementById('modal_transport_base_price').value = basePrice.toFixed(2);
@@ -12676,25 +12982,31 @@
             }
             const costPerHour = parseFloat(vehicleData.costPerHour) || 0;
 
-            priceDetails.innerHTML = `
-                <div class="row">
-                    <div class="col-md-6">
-                        <i class="${priceSourceIcon} me-1"></i>
-                        ${isHourlyService && selectedHours > 0 ? `<span class="badge bg-warning ms-1">Hourly Rate: $${costPerHour.toFixed(2)}</span>` : ''}
-                        <span style="white-space: nowrap; color: #26c6f9;">${priceSource}: ${priceCalculationText}</span>
-                        ${isManualPriceUsed ? '<span class="badge bg-info ms-1">Custom</span>' : ''}
-                        ${isHourlyService && selectedHours > 0 ? '<span class="badge bg-warning ms-1">Hourly</span>' : ''}
-                    </div>
-                    <div class="col-md-3"><span style="color: #26c6f9;">Service: ${serviceType}</span></div>
-                    <div class="col-md-3"><strong style="color: #26c6f9;">Total: $${totalPrice.toFixed(2)}</strong></div>
-                </div>
-                <div class="small mt-2">
-                    <i class="ri-information-line me-1"></i>
-                    <span style="color: #26c6f9;">Vehicle: ${vehicleData.name} (${vehicleData.seatingCapacity} seats) - ${passengers} passengers</span>
-                    ${isHourlyService && selectedHours > 0 ? `<br><i class="ri-time-line me-1"></i><span style="color: #26c6f9;">Duration: ${selectedHours} hour${selectedHours > 1 ? 's' : ''}</span>` : ''}
-                    ${isManualPriceUsed ? '<br><i class="ri-edit-line me-1"></i><span style="color: #26c6f9;">Using custom manual price override</span>' : ''}
-                </div>
-            `;
+            // Format price details - cleaner display
+            const formattedTotalPrice = totalPrice.toLocaleString('en-US', {
+                minimumFractionDigits: 2,
+                maximumFractionDigits: 2
+            });
+            
+            // Update price details text
+            let detailsText = `${vehicleData.name} (${vehicleData.seatingCapacity} seats) • ${serviceType} service`;
+            if (serviceType === 'Shared') {
+                detailsText += ` • ${validatedPassengers} passenger${validatedPassengers > 1 ? 's' : ''}`;
+            }
+            if (isHourlyService && selectedHours > 0) {
+                detailsText += ` • ${selectedHours} hour${selectedHours > 1 ? 's' : ''}`;
+            }
+            if (isManualPriceUsed) {
+                detailsText += ' • Custom price';
+            }
+            
+            priceDetails.textContent = detailsText;
+            
+            // Update total price display
+            const totalPriceDisplay = document.getElementById('local_transfer_total_price_display');
+            if (totalPriceDisplay) {
+                totalPriceDisplay.textContent = '$' + formattedTotalPrice;
+            }
             
             // Update hidden fields
             document.getElementById('local_transfer_base_price').value = basePrice.toFixed(2);
@@ -14949,7 +15261,25 @@
         
         // Update price input if calculated price is valid
         if (totalPrice > 0) {
-            priceInput.value = totalPrice.toFixed(2);
+            // Format price with commas and 2 decimal places
+            const formattedPrice = totalPrice.toLocaleString('en-US', {
+                minimumFractionDigits: 2,
+                maximumFractionDigits: 2
+            });
+            priceInput.value = formattedPrice;
+            
+            // Update display element
+            const priceDisplay = document.getElementById('total_price_modal_display');
+            if (priceDisplay) {
+                priceDisplay.textContent = '$' + formattedPrice;
+            }
+        } else {
+            priceInput.value = '0.00';
+            // Update display element
+            const priceDisplay = document.getElementById('total_price_modal_display');
+            if (priceDisplay) {
+                priceDisplay.textContent = '$0.00';
+            }
         }
     }
     
@@ -16826,6 +17156,15 @@
         if (summaryElement) {
             summaryElement.textContent = summary;
         }
+        
+        // Update badge counts
+        const adultsBadge = document.getElementById('guest-badge-adults');
+        const childrenBadge = document.getElementById('guest-badge-children');
+        const infantsBadge = document.getElementById('guest-badge-infants');
+        
+        if (adultsBadge) adultsBadge.textContent = adults;
+        if (childrenBadge) childrenBadge.textContent = children;
+        if (infantsBadge) infantsBadge.textContent = infants;
     }
     
     function confirmTourGuestSelection() {
