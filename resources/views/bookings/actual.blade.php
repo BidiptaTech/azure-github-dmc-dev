@@ -3338,7 +3338,7 @@
                                         <th class="text-center" style="width: 12%; min-width: 100px;">Transaction ID</th>
                                         <th class="text-center" style="width: 10%; min-width: 80px;">Remarks</th>
                                         <th class="text-center" style="width: 8%; min-width: 70px;">Status</th>
-                                        @if(auth()->user()->role_id == 36 || auth()->user()->role_id == 126 || auth()->user()->role_id == 127)
+                                        @if(auth()->user()->role_id == 36 || auth()->user()->role_id == 126 || auth()->user()->role_id == 127 || auth()->user()->role_id == 128 || auth()->user()->role_id == 129 || auth()->user()->role_id == 130 || auth()->user()->role_id == 131 || auth()->user()->role_id == 133 || auth()->user()->role_id == 134 || auth()->user()->role_id == 135 || auth()->user()->role_id == 136 || auth()->user()->role_id == 137 || auth()->user()->role_id == 138)
                                             <th class="text-center" style="width: 8%; min-width: 80px;">Actions</th>
                                         @endif
                                     </tr>
@@ -3380,7 +3380,10 @@
                                                     <span class="badge bg-secondary text-white" style="font-size: 0.7rem;">Unknown</span>
                                                 @endif
                                             </td>
-                                            @if(auth()->user()->role_id == 36 || auth()->user()->role_id == 126 || auth()->user()->role_id == 127)
+                                            @php
+                                                $financeRoles = [36, 126, 127, 128, 129, 130, 131, 133, 134, 135, 136, 137, 138];
+                                            @endphp
+                                            @if(in_array(auth()->user()->role_id, $financeRoles))
                                                 <td class="text-center py-2">
                                                     @if(!isset($payment['status']) || $payment['status'] == 0)
                                                         <div class="d-flex justify-content-center gap-1">
