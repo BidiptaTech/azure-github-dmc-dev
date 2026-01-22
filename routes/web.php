@@ -305,8 +305,11 @@ Route::get('/clear', function () {
                 return redirect()->back()->with('error', 'Unable to generate itinerary PDF.');
             })->name('tour.itinerary.pdf');
 
-            Route::get('/tour/{tourId}/email-preview', function ($tourId) {
+            Route::get('/tour/{encryptedTourId}/email-preview', function ($encryptedTourId) {
                 try {
+                    // Decrypt the tour ID
+                    $tourId = decrypt($encryptedTourId);
+                    
                     $emailData = CommonHelper::prepareEmailTemplateData($tourId);
                     
                     if (!$emailData) {
@@ -314,9 +317,11 @@ Route::get('/clear', function () {
                     }
                     
                     return view('single-tour-package.email-details', $emailData);
+                } catch (\Illuminate\Contracts\Encryption\DecryptException $e) {
+                    \Log::error('Email preview decryption error: ' . $e->getMessage());
+                    return redirect()->back()->with('error', 'Invalid tour ID.');
                 } catch (\Exception $e) {
                     \Log::error('Email preview error: ' . $e->getMessage(), [
-                        'tour_id' => $tourId,
                         'trace' => $e->getTraceAsString()
                     ]);
                     return redirect()->back()->with('error', 'Unable to load email preview.');
