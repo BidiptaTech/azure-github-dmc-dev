@@ -1072,6 +1072,11 @@
                                        target="_blank">
                                         <i class="ri-file-download-line me-1"></i> Download Quotation
                                     </a>
+                                    <a href="{{ route('tour.email.preview', ['encryptedTourId' => Crypt::encrypt($tour->tour_id)]) }}" 
+                                       class="btn btn-outline-info btn-sm rounded-pill"
+                                       target="_blank">
+                                        <i class="ri-mail-line me-1"></i> Preview Email Template
+                                    </a>
                                     
                                     @php
                                         $all_ids = [11,33, 34, 37, 38, 124, 125, 128, 129, 130, 131, 132, 133, 134, 135, 136, 137, 138];

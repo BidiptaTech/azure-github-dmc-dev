@@ -118,7 +118,7 @@
                                 <i class="ri-file-download-line me-2"></i>Download Quotation
                             </a>
 
-                            <a href="{{ route('tour.email.preview', ['tourId' => $tourDetails['tour_id']]) }}" class="btn btn-outline-info btn-lg px-4" target="_blank">
+                            <a href="{{ route('tour.email.preview', ['encryptedTourId' => Crypt::encrypt($tourDetails['tour_id'])]) }}" class="btn btn-outline-info btn-lg px-4" target="_blank">
                                 <i class="ri-mail-line me-2"></i>Preview Email Template
                             </a>
                         </div>
