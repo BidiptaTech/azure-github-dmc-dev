@@ -2665,14 +2665,14 @@
                                                 if (isset($booking['transfer_options']['cost']) && $booking['transfer_options']['cost'] > 0) {
                                                     $vehicleCost = (float) $booking['transfer_options']['cost'];
                                                 }
-                                                $restaurantPrice = $booking['totalPrice'] ?? 0;
-                                                $totalPrice = $restaurantPrice + $vehicleCost;
+                                                $mealPrice = $booking['mealPrice'] ?? $booking['totalPrice'] ?? 0;
+                                                $totalPrice = $mealPrice + $vehicleCost;
                                             @endphp
                                             <div class="row g-2">
                                                 <div class="col-md-4">
                                                     <div class="text-center p-2 border rounded bg-white" style="border-color: #28a745 !important;">
-                                                        <small class="text-muted d-block" style="font-size: 0.7rem;">Total Price</small>
-                                                        <div class="fw-bold text-success" style="font-size: 0.8rem;">SGD {{ number_format($totalPrice, 2) }}</div>
+                                                        <small class="text-muted d-block" style="font-size: 0.7rem;">Meal Price</small>
+                                                        <div class="fw-bold text-success" style="font-size: 0.8rem;">SGD {{ number_format($mealPrice, 2) }}</div>
                                                     </div>
                                                 </div>
                                                 <div class="col-md-4">
@@ -3906,7 +3906,7 @@
                                         <th class="text-center" style="width: 12%; min-width: 100px;">Transaction ID</th>
                                         <th class="text-center" style="width: 10%; min-width: 80px;">Remarks</th>
                                         <th class="text-center" style="width: 8%; min-width: 70px;">Status</th>
-                                        @if(auth()->user()->role_id == 36 || auth()->user()->role_id == 126 || auth()->user()->role_id == 127)
+                                        @if(auth()->user()->role_id == 36 || auth()->user()->role_id == 126 || auth()->user()->role_id == 127 || auth()->user()->role_id == 128 || auth()->user()->role_id == 129 || auth()->user()->role_id == 130 || auth()->user()->role_id == 131 || auth()->user()->role_id == 133 || auth()->user()->role_id == 134 || auth()->user()->role_id == 135 || auth()->user()->role_id == 136 || auth()->user()->role_id == 137 || auth()->user()->role_id == 138)
                                             <th class="text-center" style="width: 8%; min-width: 80px;">Actions</th>
                                         @endif
                                     </tr>
@@ -3948,7 +3948,10 @@
                                                     <span class="badge bg-secondary text-white" style="font-size: 0.7rem;">Unknown</span>
                                                 @endif
                                             </td>
-                                            @if(auth()->user()->role_id == 36 || auth()->user()->role_id == 126 || auth()->user()->role_id == 127)
+                                            @php
+                                                $financeRoles = [36, 126, 127, 128, 129, 130, 131, 133, 134, 135, 136, 137, 138];
+                                            @endphp
+                                            @if(in_array(auth()->user()->role_id, $financeRoles))
                                                 <td class="text-center py-2">
                                                     @if(!isset($payment['status']) || $payment['status'] == 0)
                                                         <div class="d-flex justify-content-center gap-1">
@@ -9568,6 +9571,9 @@ function createIndividualAttractionViewModal(modalId, tourId, attractionOrderInd
                     <!-- Modal Footer -->
                     <div class="modal-footer border-0 py-2 px-3" style="background: #f8f9fa;">
                         <div class="d-flex gap-2 w-100 justify-content-end" id="attractionModalFooter_${modalId}">
+                            <button type="button" class="btn btn-outline-info btn-sm px-3 py-1" onclick="openAttractionMailPreview(${tourId}, ${attractionOrderIndex}, ${bookingIndex})" style="border-radius: 8px; font-size: 0.85rem;">
+                                <i class="ri-mail-line me-1"></i>Mail Preview
+                            </button>
                             <button type="button" class="btn btn-outline-secondary btn-sm px-3 py-1" onclick="closeIndividualAttractionViewModal('${modalId}')" style="border-radius: 8px; font-size: 0.85rem;">
                                 <i class="ri-close-line me-1"></i>Close
                             </button>
@@ -10073,6 +10079,17 @@ function generateIndividualAttractionContent(attractionBooking, modalId, tourId,
                         </button>
                     `;
                 }
+                
+                // Mail Preview button
+                buttonsHTML += `
+                    <button type="button" 
+                            class="btn btn-outline-info btn-sm px-2 py-1" 
+                            onclick="openAttractionMailPreview(${tourId}, ${attractionOrderIndex}, ${bookingIndex})"
+                            style="border-radius: 6px; font-size: 0.75rem;"
+                            title="Preview email for this attraction booking">
+                        <i class="ri-mail-line me-1" style="font-size: 0.7rem;"></i>Mail Preview
+                    </button>
+                `;
             } else {
                 // Show pending approval only if user has no permissions
                 buttonsHTML += '<div class="text-muted small" style="font-size: 0.75rem;"><i class="ri-information-line me-1" style="font-size: 0.7rem;"></i>Pending approval</div>';
@@ -10087,11 +10104,19 @@ function generateIndividualAttractionContent(attractionBooking, modalId, tourId,
             const referenceId = attractionBooking.referenceId || attractionBooking.reference_id || '';
             const displayDueDate = attractionBooking.displayDueDate || attractionBooking.display_due_date || '';
             buttonsContainer.innerHTML = `
-                <div class="alert alert-success mb-0 py-1 px-2" style="border-radius: 6px; font-size: 0.75rem;">
-                    <i class="ri-check-circle-fill me-1" style="font-size: 0.7rem;"></i>
-                    <strong>Approved</strong>
-                    ${referenceId ? `<span class="ms-1">• Ref: ${referenceId}</span>` : ''}
-                    ${displayDueDate ? `<span class="ms-1">• Due: ${displayDueDate}</span>` : ''}
+                <div class="d-flex align-items-center gap-2">
+                    <div class="alert alert-success mb-0 py-1 px-2" style="border-radius: 6px; font-size: 0.75rem;">
+                        <i class="ri-check-circle-fill me-1" style="font-size: 0.7rem;"></i>
+                        <strong>Approved</strong>
+                        ${referenceId ? `<span class="ms-1">• Ref: ${referenceId}</span>` : ''}
+                        ${displayDueDate ? `<span class="ms-1">• Due: ${displayDueDate}</span>` : ''}
+                    </div>
+                    <button type="button" class="btn btn-outline-info btn-sm px-3 py-1" 
+                            onclick="openAttractionMailPreview(${tourId}, ${attractionOrderIndex}, ${bookingIndex})"
+                            style="border-radius: 25px; font-size: 0.75rem;"
+                            title="Preview email for this attraction booking">
+                        <i class="ri-mail-line me-1"></i>Mail Preview
+                    </button>
                 </div>
             `;
         }
@@ -10593,6 +10618,17 @@ function loadIndividualRestaurantContent(tourId, restaurantOrderIndex, bookingIn
                             </button>
                         `;
                     }
+                    
+                    // Mail Preview button
+                    buttonsHTML += `
+                        <button type="button" 
+                                class="btn btn-outline-info btn-sm px-2 py-1" 
+                                onclick="openRestaurantMailPreview(${tourId}, ${restaurantOrderIndex}, ${bookingIndex})"
+                                style="border-radius: 6px; font-size: 0.75rem;"
+                                title="Preview email for this restaurant booking">
+                            <i class="ri-mail-line me-1" style="font-size: 0.7rem;"></i>Mail Preview
+                        </button>
+                    `;
                 } else {
                     // Show pending approval only if user has no permissions
                     buttonsHTML += '<div class="text-muted small" style="font-size: 0.75rem;"><i class="ri-information-line me-1" style="font-size: 0.7rem;"></i>Pending approval</div>';
@@ -10768,8 +10804,8 @@ function generateIndividualRestaurantContent(booking, tourId, restaurantOrderInd
                     <div class="row g-2">
                         <div class="col-md-4">
                             <div class="text-center p-2 border rounded bg-white" style="border-color: #28a745 !important;">
-                                <small class="text-muted d-block" style="font-size: 0.7rem;">Total Price</small>
-                                <div class="fw-bold text-success" style="font-size: 0.8rem;">SGD ${((fullBooking.totalPrice || booking.total_price || 0) + ((booking.transferOptions?.cost || fullBooking.transfer_options?.cost) || 0)).toFixed(2)}</div>
+                                <small class="text-muted d-block" style="font-size: 0.7rem;">Meal Price</small>
+                                <div class="fw-bold text-success" style="font-size: 0.8rem;">SGD ${(fullBooking.mealPrice || booking.meal_price || fullBooking.totalPrice || booking.total_price || 0).toFixed(2)}</div>
                             </div>
                         </div>
                         <div class="col-md-4">
@@ -10781,7 +10817,7 @@ function generateIndividualRestaurantContent(booking, tourId, restaurantOrderInd
                         <div class="col-md-4">
                             <div class="text-center p-2 border rounded bg-white" style="border-color: #fd79a8 !important; background: linear-gradient(135deg, rgba(253,121,168,0.1) 0%, rgba(253,203,110,0.1) 100%) !important;">
                                 <small class="text-muted d-block" style="font-size: 0.7rem;">Grand Total</small>
-                                <div class="fw-bold" style="font-size: 1.1rem; color: #fd79a8;">SGD ${((fullBooking.totalPrice || booking.total_price || 0) + ((booking.transferOptions?.cost || fullBooking.transfer_options?.cost) || 0)).toFixed(2)}</div>
+                                <div class="fw-bold" style="font-size: 1.1rem; color: #fd79a8;">SGD ${((fullBooking.mealPrice || booking.meal_price || fullBooking.totalPrice || booking.total_price || 0) + ((booking.transferOptions?.cost || fullBooking.transfer_options?.cost) || 0)).toFixed(2)}</div>
                             </div>
                         </div>
                     </div>
@@ -10917,6 +10953,13 @@ function generateRestaurantActionButtons(booking, tourId, restaurantOrderIndex, 
                     <i class="ri-close-line me-1"></i>Reject
                 </button>
             ` : ''}
+            <button type="button" 
+                    class="btn btn-outline-info btn-sm px-3 py-2" 
+                    onclick="openRestaurantMailPreview(${tourId}, ${restaurantOrderIndex}, ${bookingIndex})"
+                    style="border-radius: 25px;"
+                    title="Preview email for this restaurant booking">
+                <i class="ri-mail-line me-1"></i>Mail Preview
+            </button>
         </div>
     `;
 }
@@ -26684,9 +26727,46 @@ window.showNotification = function(message, type = 'info') {
         // Add event listener for mail preview modal close
         const hotelMailPreviewModal = document.getElementById('hotelMailPreviewModal');
         if (hotelMailPreviewModal) {
+            hotelMailPreviewModal.addEventListener('shown.bs.modal', function() {
+                // Ensure backdrop z-index is correct
+                const backdrops = document.querySelectorAll('.modal-backdrop');
+                if (backdrops.length > 0) {
+                    backdrops[backdrops.length - 1].style.zIndex = '1055';
+                }
+            });
             hotelMailPreviewModal.addEventListener('hidden.bs.modal', function() {
                 console.log('📧 Mail preview modal closed');
                 // You can add any cleanup logic here if needed
+            });
+        }
+        
+        // Add event listener for restaurant mail preview modal
+        const restaurantMailPreviewModal = document.getElementById('restaurantMailPreviewModal');
+        if (restaurantMailPreviewModal) {
+            restaurantMailPreviewModal.addEventListener('shown.bs.modal', function() {
+                // Ensure backdrop z-index is correct
+                const backdrops = document.querySelectorAll('.modal-backdrop');
+                if (backdrops.length > 0) {
+                    backdrops[backdrops.length - 1].style.zIndex = '1055';
+                }
+            });
+            restaurantMailPreviewModal.addEventListener('hidden.bs.modal', function() {
+                console.log('📧 Restaurant mail preview modal closed');
+            });
+        }
+        
+        // Add event listener for attraction mail preview modal
+        const attractionMailPreviewModal = document.getElementById('attractionMailPreviewModal');
+        if (attractionMailPreviewModal) {
+            attractionMailPreviewModal.addEventListener('shown.bs.modal', function() {
+                // Ensure backdrop z-index is correct
+                const backdrops = document.querySelectorAll('.modal-backdrop');
+                if (backdrops.length > 0) {
+                    backdrops[backdrops.length - 1].style.zIndex = '1055';
+                }
+            });
+            attractionMailPreviewModal.addEventListener('hidden.bs.modal', function() {
+                console.log('📧 Attraction mail preview modal closed');
             });
         }
     });
@@ -26725,7 +26805,791 @@ window.showNotification = function(message, type = 'info') {
         });
     }
 
+    // Restaurant Mail Preview Function
+    function openRestaurantMailPreview(tourId, restaurantOrderIndex, bookingIndex) {
+        console.log('🔍 Opening restaurant mail preview for:', { tourId, restaurantOrderIndex, bookingIndex });
+        
+        // Close any open individual restaurant modals first
+        closeOpenRestaurantModals(tourId, restaurantOrderIndex, bookingIndex);
+        
+        // Get tour and restaurant data
+        const tourRow = document.querySelector(`tr[data-tour-id="${tourId}"]`);
+        if (!tourRow) {
+            console.error('Tour row not found for tour ID:', tourId);
+            return;
+        }
 
+        // Get tour details from the table
+        const tourDisplayId = tourRow.querySelector('.text-success')?.textContent || `Tour #${tourId}`;
+        const destination = tourRow.querySelector('td:nth-child(3) .fw-medium')?.textContent || 'N/A';
+        const checkInDate = tourRow.querySelector('td:nth-child(7) small:first-child strong')?.nextSibling?.textContent?.trim() || 'N/A';
+        const checkOutDate = tourRow.querySelector('td:nth-child(7) small:nth-child(2) strong')?.nextSibling?.textContent?.trim() || 'N/A';
+        const agentName = tourRow.querySelector('td:nth-child(6) .fw-medium')?.textContent || 'N/A';
+        
+        // Generate email subject
+        const emailSubject = `Restaurant Booking Confirmation - ${tourDisplayId} - ${destination}`;
+        document.getElementById('restaurantEmailSubject').value = emailSubject;
+
+        // Reset modal state
+        resetRestaurantMailPreviewModal();
+        
+        // Show loading state
+        document.getElementById('restaurantEmailLoadingState').style.display = 'block';
+        document.getElementById('restaurantEmailContent').textContent = '';
+
+        // Generate email content asynchronously
+        generateRestaurantEmailContent(tourId, tourDisplayId, destination, checkInDate, checkOutDate, agentName, restaurantOrderIndex, bookingIndex)
+            .then(emailContent => {
+                // Hide loading state and show content
+                document.getElementById('restaurantEmailLoadingState').style.display = 'none';
+                document.getElementById('restaurantEmailContent').textContent = emailContent;
+                
+                // Show the modal
+                const modal = new bootstrap.Modal(document.getElementById('restaurantMailPreviewModal'));
+                modal.show();
+            })
+            .catch(error => {
+                console.error('Error generating email content:', error);
+                
+                // Hide loading state
+                document.getElementById('restaurantEmailLoadingState').style.display = 'none';
+                
+                // Show fallback content
+                const fallbackContent = `Dear Valued Partner,\n\nWe are pleased to confirm your restaurant booking request. Please find the details below:\n\n=== RESTAURANT BOOKING CONFIRMATION ===\n\nBOOKING INFORMATION\nReference ID: ${tourDisplayId}\nTour ID: ${tourId}\nAgent: ${agentName}\n\nTOUR DETAILS\nDestination: ${destination}\nCheck-in Date: ${checkInDate}\nCheck-out Date: ${checkOutDate}\n\nFor any questions or modifications, please contact our support team.`;
+                
+                document.getElementById('restaurantEmailContent').textContent = fallbackContent;
+                
+                // Show the modal
+                const modal = new bootstrap.Modal(document.getElementById('restaurantMailPreviewModal'));
+                modal.show();
+            });
+    }
+
+    // Function to reset restaurant mail preview modal state
+    function resetRestaurantMailPreviewModal() {
+        const successMessage = document.getElementById('restaurantCopySuccessMessage');
+        const emailContent = document.getElementById('restaurantEmailContent');
+        const loadingState = document.getElementById('restaurantEmailLoadingState');
+        
+        if (successMessage) successMessage.style.display = 'none';
+        if (emailContent) {
+            emailContent.style.display = 'block';
+            emailContent.textContent = '';
+        }
+        if (loadingState) loadingState.style.display = 'none';
+    }
+
+    // Generate restaurant email content with proper formatting
+    function generateRestaurantEmailContent(tourId, tourDisplayId, destination, checkInDate, checkOutDate, agentName, restaurantOrderIndex, bookingIndex) {
+        return fetchRestaurantDataAndGenerateEmail(tourId, restaurantOrderIndex, bookingIndex, tourDisplayId, destination, checkInDate, checkOutDate, agentName);
+    }
+
+    // Function to fetch restaurant data and generate formatted email
+    async function fetchRestaurantDataAndGenerateEmail(tourId, restaurantOrderIndex, bookingIndex, tourDisplayId, destination, checkInDate, checkOutDate, agentName) {
+        try {
+            console.log('🔍 Fetching restaurant data for email generation:', { tourId, restaurantOrderIndex, bookingIndex });
+            
+            // Get CSRF token
+            const csrfToken = document.querySelector('meta[name="csrf-token"]')?.getAttribute('content');
+            
+            // Fetch restaurant data from backend
+            const response = await fetch('{{ url("/booking/get-restaurant-data") }}', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRF-TOKEN': csrfToken,
+                    'Accept': 'application/json'
+                },
+                body: JSON.stringify({
+                    tour_id: tourId,
+                    restaurant_order_index: restaurantOrderIndex,
+                    booking_index: bookingIndex
+                })
+            });
+
+            if (!response.ok) {
+                throw new Error(`HTTP error! status: ${response.status}`);
+            }
+
+            const data = await response.json();
+            console.log('📊 Restaurant data received:', data);
+
+            if (data.success && data.data && data.data.restaurant_booking) {
+                const restaurantData = data.data.restaurant_booking;
+                console.log('🍽️ Restaurant booking data structure:', restaurantData);
+                return generateFormattedRestaurantEmail(restaurantData, tourId, tourDisplayId, destination, checkInDate, checkOutDate, agentName);
+            } else {
+                console.warn('No restaurant data found, using fallback');
+                return generateFallbackRestaurantEmail(tourId, tourDisplayId, destination, checkInDate, checkOutDate, agentName);
+            }
+        } catch (error) {
+            console.error('Error fetching restaurant data:', error);
+            return generateFallbackRestaurantEmail(tourId, tourDisplayId, destination, checkInDate, checkOutDate, agentName);
+        }
+    }
+
+    // Generate formatted restaurant email with proper structure
+    function generateFormattedRestaurantEmail(restaurantData, tourId, tourDisplayId, destination, checkInDate, checkOutDate, agentName) {
+        const WIDTH = 66;
+        const border = '┌' + '─'.repeat(WIDTH - 2) + '┐';
+        const sectionBorder = '├' + '─'.repeat(WIDTH - 2) + '┤';
+        const endBorder = '└' + '─'.repeat(WIDTH - 2) + '┘';
+        const header = '╔' + '═'.repeat(WIDTH - 2) + '╗';
+        const headerEnd = '╚' + '═'.repeat(WIDTH - 2) + '╝';
+        const sectionHeader = (title) => `│${centerText(title, WIDTH - 2)}│`;
+        const row = (label, value) => `│ ${padRight(label, 16)} │ ${padRight(value, 43)}│`;
+        const fullRow = (text) => `│ ${padRight(text, WIDTH - 4)} │`;
+
+        let content = `Dear Valued Partner,\n\nWe are pleased to confirm your restaurant booking request. Please find the details below:\n\n${header}\n║${centerText('=== RESTAURANT BOOKING CONFIRMATION ===', WIDTH - 2)}║\n${headerEnd}\n`;
+        
+        // BOOKING INFORMATION
+        content += `${border}\n${sectionHeader('BOOKING INFORMATION')}\n${sectionBorder}\n`;
+        content += `${row('Reference ID', tourDisplayId)}\n`;
+        content += `${row('Tour ID', tourId.toString())}\n`;
+        content += `${row('Agent', agentName)}\n`;
+        content += `${endBorder}\n\n`;
+        
+        // TOUR DETAILS
+        content += `${border}\n${sectionHeader('TOUR DETAILS')}\n${sectionBorder}\n`;
+        
+        // Get restaurant name for display
+        let restaurantName = 'N/A';
+        if (restaurantData.restaurant_name) {
+            restaurantName = restaurantData.restaurant_name;
+        } else if (restaurantData.restaurant_details?.restaurantName) {
+            restaurantName = restaurantData.restaurant_details.restaurantName;
+        } else if (restaurantData.restaurant_details?.restaurant_name) {
+            restaurantName = restaurantData.restaurant_details.restaurant_name;
+        }
+        
+        content += `${row('Restaurant Name', restaurantName)}\n`;
+        content += `${row('Destination', destination)}\n`;
+        content += `${endBorder}\n\n`;
+        
+        // SERVICE DETAILS
+        content += `${border}\n${sectionHeader('SERVICE DETAILS')}\n${sectionBorder}\n`;
+        content += `${row('Service Type', 'Restaurant')}\n`;
+        
+        if (restaurantData.meal_type) {
+            content += `${row('Meal Type', restaurantData.meal_type)}\n`;
+        }
+        if (restaurantData.meal_specific_type) {
+            content += `${row('Meal Specific Type', restaurantData.meal_specific_type)}\n`;
+        }
+        if (restaurantData.booking_date) {
+            content += `${row('Booking Date', formatEmailDate(restaurantData.booking_date))}\n`;
+        }
+        if (restaurantData.visit_time) {
+            content += `${row('Visit Time', restaurantData.visit_time)}\n`;
+        }
+        if (restaurantData.adult_count !== undefined) {
+            content += `${row('Adult Count', restaurantData.adult_count.toString())}\n`;
+        }
+        if (restaurantData.child_count !== undefined) {
+            content += `${row('Child Count', restaurantData.child_count.toString())}\n`;
+        }
+        if (restaurantData.total_price) {
+            const price = parseFloat(restaurantData.total_price).toFixed(2);
+            content += `${row('Total Price', 'SGD ' + price)}\n`;
+        }
+        if (restaurantData.meal_price) {
+            const mealPrice = parseFloat(restaurantData.meal_price).toFixed(2);
+            content += `${row('Meal Price', 'SGD ' + mealPrice)}\n`;
+        }
+        
+        // Transfer Options
+        if (restaurantData.transfer_options && restaurantData.transfer_options.transfer_required) {
+            content += `${row('Transfer Required', 'Yes')}\n`;
+            if (restaurantData.transfer_options.type) {
+                content += `${row('Transfer Type', restaurantData.transfer_options.type)}\n`;
+            }
+            if (restaurantData.transfer_options.pickup_location_name) {
+                content += `${row('Pickup Location', restaurantData.transfer_options.pickup_location_name)}\n`;
+            }
+            if (restaurantData.transfer_options.cost) {
+                const transferCost = parseFloat(restaurantData.transfer_options.cost).toFixed(2);
+                content += `${row('Transfer Cost', 'SGD ' + transferCost)}\n`;
+            }
+        }
+        
+        content += `${endBorder}\n\n`;
+        
+        // IMPORTANT NOTES
+        content += `${border}\n${sectionHeader('IMPORTANT NOTES')}\n${sectionBorder}\n`;
+        content += `${fullRow('• Please confirm this booking within 24 hours')}\n`;
+        content += `${fullRow('• All timings are local time')}\n`;
+        content += `${fullRow('• Prices are subject to availability and confirmation')}\n`;
+        content += `${fullRow('• Terms and conditions apply')}\n`;
+        content += `${fullRow('')}\n`;
+        content += `${fullRow('For any queries or modifications, please contact us immediately.')}\n`;
+        content += `${endBorder}\n\n`;
+        
+        return content;
+    }
+
+    // Generate fallback email if restaurant data cannot be fetched
+    function generateFallbackRestaurantEmail(tourId, tourDisplayId, destination, checkInDate, checkOutDate, agentName) {
+        const WIDTH = 66;
+        const border = '┌' + '─'.repeat(WIDTH - 2) + '┐';
+        const sectionBorder = '├' + '─'.repeat(WIDTH - 2) + '┤';
+        const endBorder = '└' + '─'.repeat(WIDTH - 2) + '┘';
+        const header = '╔' + '═'.repeat(WIDTH - 2) + '╗';
+        const headerEnd = '╚' + '═'.repeat(WIDTH - 2) + '╝';
+        const sectionHeader = (title) => `│${centerText(title, WIDTH - 2)}│`;
+        const row = (label, value) => `│ ${padRight(label, 16)} │ ${padRight(value, 43)}│`;
+
+        let content = `Dear Valued Partner,\n\nWe are pleased to confirm your restaurant booking request. Please find the details below:\n\n${header}\n║${centerText('=== RESTAURANT BOOKING CONFIRMATION ===', WIDTH - 2)}║\n${headerEnd}\n`;
+        content += `${border}\n${sectionHeader('BOOKING INFORMATION')}\n${sectionBorder}\n`;
+        content += `${row('Reference ID', tourDisplayId)}\n`;
+        content += `${row('Tour ID', tourId.toString())}\n`;
+        content += `${row('Agent', agentName)}\n`;
+        content += `${endBorder}\n\n`;
+        content += `${border}\n${sectionHeader('TOUR DETAILS')}\n${sectionBorder}\n`;
+        content += `${row('Destination', destination)}\n`;
+        content += `${row('Check-in Date', checkInDate)}\n`;
+        content += `${row('Check-out Date', checkOutDate)}\n`;
+        content += `${endBorder}\n\n`;
+        content += `For any questions or modifications, please contact our support team.`;
+        
+        return content;
+    }
+
+    // Copy restaurant email content to clipboard
+    document.addEventListener('DOMContentLoaded', function() {
+        const copyRestaurantEmailBtn = document.getElementById('copyRestaurantEmailBtn');
+        const copyRestaurantEmailBtn2 = document.getElementById('copyRestaurantEmailBtn2');
+        
+        if (copyRestaurantEmailBtn) {
+            copyRestaurantEmailBtn.addEventListener('click', function() {
+                copyRestaurantEmailToClipboard();
+            });
+        }
+        
+        if (copyRestaurantEmailBtn2) {
+            copyRestaurantEmailBtn2.addEventListener('click', function() {
+                copyRestaurantEmailToClipboard();
+            });
+        }
+    });
+
+    function copyRestaurantEmailToClipboard() {
+        const subject = document.getElementById('restaurantEmailSubject').value;
+        const content = document.getElementById('restaurantEmailContent').textContent;
+        
+        const fullEmail = `Subject: ${subject}\n\n${content}`;
+        
+        navigator.clipboard.writeText(fullEmail).then(function() {
+            console.log('✅ Restaurant email content copied to clipboard');
+            showRestaurantCopySuccessMessage();
+            setTimeout(() => {
+                closeRestaurantMailPreviewModal();
+            }, 1500);
+        }).catch(function(err) {
+            console.error('Failed to copy: ', err);
+            const textArea = document.createElement('textarea');
+            textArea.value = fullEmail;
+            document.body.appendChild(textArea);
+            textArea.select();
+            document.execCommand('copy');
+            document.body.removeChild(textArea);
+            showRestaurantCopySuccessMessage();
+            setTimeout(() => {
+                closeRestaurantMailPreviewModal();
+            }, 1500);
+        });
+    }
+
+    function showRestaurantCopySuccessMessage() {
+        const successMessage = document.getElementById('restaurantCopySuccessMessage');
+        const emailContent = document.getElementById('restaurantEmailContent');
+        
+        if (successMessage && emailContent) {
+            emailContent.style.display = 'none';
+            successMessage.style.display = 'block';
+        }
+    }
+
+    // Function to close open restaurant modals
+    function closeOpenRestaurantModals(tourId, restaurantOrderIndex, bookingIndex) {
+        console.log('🔒 Closing open restaurant modals for:', { tourId, restaurantOrderIndex, bookingIndex });
+        
+        // Close individual restaurant view modal
+        const individualModalId = `individualRestaurantViewModal_${tourId}_${restaurantOrderIndex}_${bookingIndex}`;
+        const individualModal = document.getElementById(individualModalId);
+        if (individualModal) {
+            try {
+                const modalInstance = bootstrap.Modal.getInstance(individualModal);
+                if (modalInstance) {
+                    modalInstance.hide();
+                    console.log('✅ Closed individual restaurant view modal');
+                }
+            } catch (error) {
+                console.log('Individual modal not found or already closed');
+            }
+        }
+        
+        // Close any other individual restaurant modals (edit, approve, reject)
+        const actionModals = ['edit', 'approve', 'reject'];
+        actionModals.forEach(action => {
+            const actionModalId = `individualRestaurantModal_${tourId}_${restaurantOrderIndex}_${bookingIndex}_${action}`;
+            const actionModal = document.getElementById(actionModalId);
+            if (actionModal) {
+                try {
+                    const modalInstance = bootstrap.Modal.getInstance(actionModal);
+                    if (modalInstance) {
+                        modalInstance.hide();
+                        console.log(`✅ Closed ${action} restaurant modal`);
+                    }
+                } catch (error) {
+                    console.log(`${action} modal not found or already closed`);
+                }
+            }
+        });
+        
+        // Close main restaurant details modal
+        const mainRestaurantModal = document.getElementById(`restaurantDetailsModal${tourId}`);
+        if (mainRestaurantModal) {
+            try {
+                const modalInstance = bootstrap.Modal.getInstance(mainRestaurantModal);
+                if (modalInstance) {
+                    modalInstance.hide();
+                    console.log('✅ Closed main restaurant details modal');
+                }
+            } catch (error) {
+                console.log('Main restaurant modal not found or already closed');
+            }
+        }
+        
+        // Wait a moment for modals to close before opening mail preview
+        setTimeout(() => {
+            console.log('⏳ Modals closed, ready to open mail preview');
+        }, 300);
+    }
+
+    function closeRestaurantMailPreviewModal() {
+        const mailPreviewModal = document.getElementById('restaurantMailPreviewModal');
+        if (mailPreviewModal) {
+            const modal = bootstrap.Modal.getInstance(mailPreviewModal);
+            if (modal) {
+                modal.hide();
+                console.log('✅ Restaurant mail preview modal closed');
+            }
+        }
+    }
+
+    // Attraction Mail Preview Function
+    function openAttractionMailPreview(tourId, attractionOrderIndex, bookingIndex) {
+        console.log('🔍 Opening attraction mail preview for:', { tourId, attractionOrderIndex, bookingIndex });
+        
+        // Close any open individual attraction modals first
+        closeOpenAttractionModals(tourId, attractionOrderIndex, bookingIndex);
+        
+        // Get tour and attraction data
+        const tourRow = document.querySelector(`tr[data-tour-id="${tourId}"]`);
+        if (!tourRow) {
+            console.error('Tour row not found for tour ID:', tourId);
+            return;
+        }
+
+        // Get tour details from the table
+        const tourDisplayId = tourRow.querySelector('.text-success')?.textContent || `Tour #${tourId}`;
+        const destination = tourRow.querySelector('td:nth-child(3) .fw-medium')?.textContent || 'N/A';
+        const checkInDate = tourRow.querySelector('td:nth-child(7) small:first-child strong')?.nextSibling?.textContent?.trim() || 'N/A';
+        const checkOutDate = tourRow.querySelector('td:nth-child(7) small:nth-child(2) strong')?.nextSibling?.textContent?.trim() || 'N/A';
+        const agentName = tourRow.querySelector('td:nth-child(6) .fw-medium')?.textContent || 'N/A';
+        
+        // Generate email subject
+        const emailSubject = `Attraction Booking Confirmation - ${tourDisplayId} - ${destination}`;
+        document.getElementById('attractionEmailSubject').value = emailSubject;
+
+        // Reset modal state
+        resetAttractionMailPreviewModal();
+        
+        // Show loading state
+        document.getElementById('attractionEmailLoadingState').style.display = 'block';
+        document.getElementById('attractionEmailContent').textContent = '';
+
+        // Generate email content asynchronously
+        generateAttractionEmailContent(tourId, tourDisplayId, destination, checkInDate, checkOutDate, agentName, attractionOrderIndex, bookingIndex)
+            .then(emailContent => {
+                // Hide loading state and show content
+                document.getElementById('attractionEmailLoadingState').style.display = 'none';
+                document.getElementById('attractionEmailContent').textContent = emailContent;
+                
+                // Show the modal
+                const modal = new bootstrap.Modal(document.getElementById('attractionMailPreviewModal'));
+                modal.show();
+            })
+            .catch(error => {
+                console.error('Error generating email content:', error);
+                
+                // Hide loading state
+                document.getElementById('attractionEmailLoadingState').style.display = 'none';
+                
+                // Show fallback content
+                const fallbackContent = `Dear Valued Partner,\n\nWe are pleased to confirm your attraction booking request. Please find the details below:\n\n=== ATTRACTION BOOKING CONFIRMATION ===\n\nBOOKING INFORMATION\nReference ID: ${tourDisplayId}\nTour ID: ${tourId}\nAgent: ${agentName}\n\nTOUR DETAILS\nDestination: ${destination}\nCheck-in Date: ${checkInDate}\nCheck-out Date: ${checkOutDate}\n\nFor any questions or modifications, please contact our support team.`;
+                
+                document.getElementById('attractionEmailContent').textContent = fallbackContent;
+                
+                // Show the modal
+                const modal = new bootstrap.Modal(document.getElementById('attractionMailPreviewModal'));
+                modal.show();
+            });
+    }
+
+    // Function to close open attraction modals
+    function closeOpenAttractionModals(tourId, attractionOrderIndex, bookingIndex) {
+        console.log('🔒 Closing open attraction modals for:', { tourId, attractionOrderIndex, bookingIndex });
+        
+        // Close individual attraction view modal
+        const individualModalId = `individualAttractionViewModal_${tourId}_${attractionOrderIndex}_${bookingIndex}`;
+        const individualModal = document.getElementById(individualModalId);
+        if (individualModal) {
+            try {
+                const modalInstance = bootstrap.Modal.getInstance(individualModal);
+                if (modalInstance) {
+                    modalInstance.hide();
+                    console.log('✅ Closed individual attraction view modal');
+                }
+            } catch (error) {
+                console.log('Individual modal not found or already closed');
+            }
+        }
+        
+        // Close any other individual attraction modals (edit, approve, reject)
+        const actionModals = ['edit', 'approve', 'reject'];
+        actionModals.forEach(action => {
+            const actionModalId = `individualAttractionModal_${tourId}_${attractionOrderIndex}_${bookingIndex}_${action}`;
+            const actionModal = document.getElementById(actionModalId);
+            if (actionModal) {
+                try {
+                    const modalInstance = bootstrap.Modal.getInstance(actionModal);
+                    if (modalInstance) {
+                        modalInstance.hide();
+                        console.log(`✅ Closed ${action} attraction modal`);
+                    }
+                } catch (error) {
+                    console.log(`${action} modal not found or already closed`);
+                }
+            }
+        });
+        
+        // Close main attraction details modal
+        const mainAttractionModal = document.getElementById(`attractionDetailsModal${tourId}`);
+        if (mainAttractionModal) {
+            try {
+                const modalInstance = bootstrap.Modal.getInstance(mainAttractionModal);
+                if (modalInstance) {
+                    modalInstance.hide();
+                    console.log('✅ Closed main attraction details modal');
+                }
+            } catch (error) {
+                console.log('Main attraction modal not found or already closed');
+            }
+        }
+        
+        // Wait a moment for modals to close before opening mail preview
+        setTimeout(() => {
+            console.log('⏳ Modals closed, ready to open mail preview');
+        }, 300);
+    }
+
+    // Function to reset attraction mail preview modal state
+    function resetAttractionMailPreviewModal() {
+        const successMessage = document.getElementById('attractionCopySuccessMessage');
+        const emailContent = document.getElementById('attractionEmailContent');
+        const loadingState = document.getElementById('attractionEmailLoadingState');
+        
+        if (successMessage) successMessage.style.display = 'none';
+        if (emailContent) {
+            emailContent.style.display = 'block';
+            emailContent.textContent = '';
+        }
+        if (loadingState) loadingState.style.display = 'none';
+    }
+
+    // Generate attraction email content with proper formatting
+    function generateAttractionEmailContent(tourId, tourDisplayId, destination, checkInDate, checkOutDate, agentName, attractionOrderIndex, bookingIndex) {
+        return fetchAttractionDataAndGenerateEmail(tourId, attractionOrderIndex, bookingIndex, tourDisplayId, destination, checkInDate, checkOutDate, agentName);
+    }
+
+    // Function to fetch attraction data and generate formatted email
+    async function fetchAttractionDataAndGenerateEmail(tourId, attractionOrderIndex, bookingIndex, tourDisplayId, destination, checkInDate, checkOutDate, agentName) {
+        try {
+            console.log('🔍 Fetching attraction data for email generation:', { tourId, attractionOrderIndex, bookingIndex });
+            
+            // Get CSRF token
+            const csrfToken = document.querySelector('meta[name="csrf-token"]')?.getAttribute('content');
+            
+            // Fetch attraction data from backend
+            const response = await fetch('{{ url("/booking/get-attraction-data") }}', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRF-TOKEN': csrfToken,
+                    'Accept': 'application/json'
+                },
+                body: JSON.stringify({
+                    tour_id: tourId,
+                    attraction_order_index: attractionOrderIndex,
+                    booking_index: bookingIndex
+                })
+            });
+
+            if (!response.ok) {
+                throw new Error(`HTTP error! status: ${response.status}`);
+            }
+
+            const data = await response.json();
+            console.log('📊 Attraction data received:', data);
+
+            if (data.success && data.data && data.data.attraction_booking) {
+                const attractionData = data.data.attraction_booking;
+                console.log('🎢 Attraction booking data structure:', attractionData);
+                return generateFormattedAttractionEmail(attractionData, tourId, tourDisplayId, destination, checkInDate, checkOutDate, agentName);
+            } else {
+                console.warn('No attraction data found, using fallback');
+                return generateFallbackAttractionEmail(tourId, tourDisplayId, destination, checkInDate, checkOutDate, agentName);
+            }
+        } catch (error) {
+            console.error('Error fetching attraction data:', error);
+            return generateFallbackAttractionEmail(tourId, tourDisplayId, destination, checkInDate, checkOutDate, agentName);
+        }
+    }
+
+    // Generate formatted attraction email with proper structure
+    function generateFormattedAttractionEmail(attractionData, tourId, tourDisplayId, destination, checkInDate, checkOutDate, agentName) {
+        const WIDTH = 66;
+        const border = '┌' + '─'.repeat(WIDTH - 2) + '┐';
+        const sectionBorder = '├' + '─'.repeat(WIDTH - 2) + '┤';
+        const endBorder = '└' + '─'.repeat(WIDTH - 2) + '┘';
+        const header = '╔' + '═'.repeat(WIDTH - 2) + '╗';
+        const headerEnd = '╚' + '═'.repeat(WIDTH - 2) + '╝';
+        const sectionHeader = (title) => `│${centerText(title, WIDTH - 2)}│`;
+        const row = (label, value) => `│ ${padRight(label, 16)} │ ${padRight(value, 43)}│`;
+        const fullRow = (text) => `│ ${padRight(text, WIDTH - 4)} │`;
+
+        let content = `Dear Valued Partner,\n\nWe are pleased to confirm your attraction booking request. Please find the details below:\n\n${header}\n║${centerText('=== ATTRACTION BOOKING CONFIRMATION ===', WIDTH - 2)}║\n${headerEnd}\n`;
+        
+        // BOOKING INFORMATION
+        content += `${border}\n${sectionHeader('BOOKING INFORMATION')}\n${sectionBorder}\n`;
+        content += `${row('Reference ID', tourDisplayId)}\n`;
+        content += `${row('Tour ID', tourId.toString())}\n`;
+        content += `${row('Agent', agentName)}\n`;
+        content += `${endBorder}\n\n`;
+        
+        // TOUR DETAILS
+        content += `${border}\n${sectionHeader('TOUR DETAILS')}\n${sectionBorder}\n`;
+        
+        // Get attraction name for display
+        let attractionName = 'N/A';
+        if (attractionData.attraction_name) {
+            attractionName = attractionData.attraction_name;
+        } else if (attractionData.attraction_details?.attraction_name) {
+            attractionName = attractionData.attraction_details.attraction_name;
+        } else if (attractionData.attraction_details?.name) {
+            attractionName = attractionData.attraction_details.name;
+        }
+        
+        content += `${row('Attraction Name', attractionName)}\n`;
+        content += `${row('Destination', destination)}\n`;
+        if (attractionData.booking_date) {
+            content += `${row('Booking Date', formatEmailDate(attractionData.booking_date))}\n`;
+        }
+        if (attractionData.visit_time) {
+            content += `${row('Visit Time', attractionData.visit_time)}\n`;
+        }
+        content += `${endBorder}\n\n`;
+        
+        // SERVICE DETAILS
+        content += `${border}\n${sectionHeader('SERVICE DETAILS')}\n${sectionBorder}\n`;
+        content += `${row('Service Type', 'Attraction')}\n`;
+        
+        if (attractionData.ticket_name) {
+            content += `${row('Ticket Type', attractionData.ticket_name)}\n`;
+        }
+        if (attractionData.adult_count !== undefined) {
+            content += `${row('Adult Count', attractionData.adult_count.toString())}\n`;
+        }
+        if (attractionData.child_count !== undefined) {
+            content += `${row('Child Count', attractionData.child_count.toString())}\n`;
+        }
+        if (attractionData.senior_count !== undefined) {
+            content += `${row('Senior Count', attractionData.senior_count.toString())}\n`;
+        }
+        if (attractionData.total_price) {
+            const price = parseFloat(attractionData.total_price).toFixed(2);
+            content += `${row('Total Price', 'SGD ' + price)}\n`;
+        }
+        
+        // Transfer Options
+        if (attractionData.transfer_options && attractionData.transfer_options.transfer_required) {
+            content += `${row('Transfer Required', 'Yes')}\n`;
+            if (attractionData.transfer_options.type) {
+                content += `${row('Transfer Type', attractionData.transfer_options.type)}\n`;
+            }
+            if (attractionData.transfer_options.pickup_location_name) {
+                content += `${row('Pickup Location', attractionData.transfer_options.pickup_location_name)}\n`;
+            }
+            if (attractionData.transfer_options.cost) {
+                const transferCost = parseFloat(attractionData.transfer_options.cost).toFixed(2);
+                content += `${row('Transfer Cost', 'SGD ' + transferCost)}\n`;
+            }
+        }
+        
+        // Guide Options
+        if (attractionData.guide_options && attractionData.guide_options.guide_required) {
+            content += `${row('Guide Required', 'Yes')}\n`;
+            if (attractionData.guide_options.total_price) {
+                const guidePrice = parseFloat(attractionData.guide_options.total_price).toFixed(2);
+                content += `${row('Guide Cost', 'SGD ' + guidePrice)}\n`;
+            }
+        }
+        
+        content += `${endBorder}\n\n`;
+        
+        // CUSTOMER DETAILS
+        content += `${border}\n${sectionHeader('CUSTOMER DETAILS')}\n${sectionBorder}\n`;
+        
+        if (attractionData.full_name) {
+            content += `${row('Customer Name', attractionData.full_name)}\n`;
+        }
+        if (attractionData.email) {
+            content += `${row('Email Address', attractionData.email)}\n`;
+        }
+        if (attractionData.phone) {
+            const phone = attractionData.country_code ? `+${attractionData.country_code} ${attractionData.phone}` : attractionData.phone;
+            content += `${row('Phone Number', phone)}\n`;
+        }
+        if (attractionData.address) {
+            content += `${row('Address', attractionData.address)}\n`;
+        }
+        if (attractionData.special_requests) {
+            content += `${row('Special Requests', attractionData.special_requests)}\n`;
+        }
+        
+        content += `${endBorder}\n\n`;
+        
+        // IMPORTANT NOTES
+        content += `${border}\n${sectionHeader('IMPORTANT NOTES')}\n${sectionBorder}\n`;
+        content += `${fullRow('• Please confirm this booking within 24 hours')}\n`;
+        content += `${fullRow('• All timings are local time')}\n`;
+        content += `${fullRow('• Prices are subject to availability and confirmation')}\n`;
+        content += `${fullRow('• Terms and conditions apply')}\n`;
+        content += `${fullRow('')}\n`;
+        content += `${fullRow('For any queries or modifications, please contact us immediately.')}\n`;
+        content += `${endBorder}\n\n`;
+        
+        return content;
+    }
+
+    // Generate fallback email if attraction data cannot be fetched
+    function generateFallbackAttractionEmail(tourId, tourDisplayId, destination, checkInDate, checkOutDate, agentName) {
+        const WIDTH = 66;
+        const border = '┌' + '─'.repeat(WIDTH - 2) + '┐';
+        const sectionBorder = '├' + '─'.repeat(WIDTH - 2) + '┤';
+        const endBorder = '└' + '─'.repeat(WIDTH - 2) + '┘';
+        const header = '╔' + '═'.repeat(WIDTH - 2) + '╗';
+        const headerEnd = '╚' + '═'.repeat(WIDTH - 2) + '╝';
+        const sectionHeader = (title) => `│${centerText(title, WIDTH - 2)}│`;
+        const row = (label, value) => `│ ${padRight(label, 16)} │ ${padRight(value, 43)}│`;
+
+        let content = `Dear Valued Partner,\n\nWe are pleased to confirm your attraction booking request. Please find the details below:\n\n${header}\n║${centerText('=== ATTRACTION BOOKING CONFIRMATION ===', WIDTH - 2)}║\n${headerEnd}\n`;
+        content += `${border}\n${sectionHeader('BOOKING INFORMATION')}\n${sectionBorder}\n`;
+        content += `${row('Reference ID', tourDisplayId)}\n`;
+        content += `${row('Tour ID', tourId.toString())}\n`;
+        content += `${row('Agent', agentName)}\n`;
+        content += `${endBorder}\n\n`;
+        content += `${border}\n${sectionHeader('TOUR DETAILS')}\n${sectionBorder}\n`;
+        content += `${row('Destination', destination)}\n`;
+        content += `${row('Check-in Date', checkInDate)}\n`;
+        content += `${row('Check-out Date', checkOutDate)}\n`;
+        content += `${endBorder}\n\n`;
+        content += `For any questions or modifications, please contact our support team.`;
+        
+        return content;
+    }
+
+    // Copy attraction email content to clipboard
+    document.addEventListener('DOMContentLoaded', function() {
+        const copyAttractionEmailBtn = document.getElementById('copyAttractionEmailBtn');
+        const copyAttractionEmailBtn2 = document.getElementById('copyAttractionEmailBtn2');
+        
+        if (copyAttractionEmailBtn) {
+            copyAttractionEmailBtn.addEventListener('click', function() {
+                copyAttractionEmailToClipboard();
+            });
+        }
+        
+        if (copyAttractionEmailBtn2) {
+            copyAttractionEmailBtn2.addEventListener('click', function() {
+                copyAttractionEmailToClipboard();
+            });
+        }
+        
+        // Add event listener for attraction mail preview modal close
+        const attractionMailPreviewModal = document.getElementById('attractionMailPreviewModal');
+        if (attractionMailPreviewModal) {
+            attractionMailPreviewModal.addEventListener('shown.bs.modal', function() {
+                // Ensure backdrop z-index is correct
+                const backdrops = document.querySelectorAll('.modal-backdrop');
+                if (backdrops.length > 0) {
+                    backdrops[backdrops.length - 1].style.zIndex = '1055';
+                }
+            });
+            attractionMailPreviewModal.addEventListener('hidden.bs.modal', function() {
+                console.log('📧 Attraction mail preview modal closed');
+            });
+        }
+    });
+
+    function copyAttractionEmailToClipboard() {
+        const subject = document.getElementById('attractionEmailSubject').value;
+        const content = document.getElementById('attractionEmailContent').textContent;
+        
+        const fullEmail = `Subject: ${subject}\n\n${content}`;
+        
+        navigator.clipboard.writeText(fullEmail).then(function() {
+            console.log('✅ Attraction email content copied to clipboard');
+            showAttractionCopySuccessMessage();
+            setTimeout(() => {
+                closeAttractionMailPreviewModal();
+            }, 1500);
+        }).catch(function(err) {
+            console.error('Failed to copy: ', err);
+            const textArea = document.createElement('textarea');
+            textArea.value = fullEmail;
+            document.body.appendChild(textArea);
+            textArea.select();
+            document.execCommand('copy');
+            document.body.removeChild(textArea);
+            showAttractionCopySuccessMessage();
+            setTimeout(() => {
+                closeAttractionMailPreviewModal();
+            }, 1500);
+        });
+    }
+
+    function showAttractionCopySuccessMessage() {
+        const successMessage = document.getElementById('attractionCopySuccessMessage');
+        const emailContent = document.getElementById('attractionEmailContent');
+        
+        if (successMessage && emailContent) {
+            emailContent.style.display = 'none';
+            successMessage.style.display = 'block';
+        }
+    }
+
+    function closeAttractionMailPreviewModal() {
+        const mailPreviewModal = document.getElementById('attractionMailPreviewModal');
+        if (mailPreviewModal) {
+            const modal = bootstrap.Modal.getInstance(mailPreviewModal);
+            if (modal) {
+                modal.hide();
+                console.log('✅ Attraction mail preview modal closed');
+            }
+        }
+    }
 
     function createAndShowArrivalEditModal(tourId, arrivalOrderIndex, bookingIndex) {
         console.log('🛬 Opening arrival edit modal for:', { tourId, arrivalOrderIndex, bookingIndex });
@@ -27553,58 +28417,137 @@ window.showNotification = function(message, type = 'info') {
 </script>
 
 <!-- Mail Preview Modal -->
-<div class="modal fade" id="hotelMailPreviewModal" tabindex="-1" aria-labelledby="hotelMailPreviewModalLabel" aria-hidden="true">
-    <div class="modal-dialog modal-lg">
-        <div class="modal-content">
-            <div class="modal-header">
-                <h5 class="modal-title" id="hotelMailPreviewModalLabel">
+<div class="modal fade" id="hotelMailPreviewModal" tabindex="-1" aria-labelledby="hotelMailPreviewModalLabel" aria-hidden="true" style="z-index: 1060;">
+    <div class="modal-dialog modal-lg modal-dialog-centered modal-dialog-scrollable">
+        <div class="modal-content border-0 shadow-lg">
+            <div class="modal-header border-0 bg-light py-2">
+                <h5 class="modal-title mb-0" id="hotelMailPreviewModalLabel" style="font-size: 1rem;">
                     <i class="fas fa-envelope me-2"></i>Email Preview - Hotel Booking Details
                 </h5>
                 <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
             </div>
-            <div class="modal-body">
-                <div class="row mb-3">
+            <div class="modal-body p-3">
+                <div class="row g-2 mb-2">
                     <div class="col-md-8">
-                        <label class="form-label fw-bold">Subject:</label>
-                        <input type="text" id="hotelEmailSubject" class="form-control" readonly style="background-color: #f8f9fa;">
+                        <label class="form-label fw-semibold mb-1" style="font-size: 0.875rem;">Subject:</label>
+                        <input type="text" id="hotelEmailSubject" class="form-control form-control-sm bg-light" readonly>
                     </div>
                     <div class="col-md-4 d-flex align-items-end">
-                        <button type="button" class="btn btn-success w-100" id="copyHotelEmailBtn">
+                        <button type="button" class="btn btn-success btn-sm w-100" id="copyHotelEmailBtn">
                             <i class="fas fa-copy me-1"></i> Copy Email Content
                         </button>
                     </div>
                 </div>
                 
-                <div class="border rounded p-3" style="background-color: #f8f9fa;">
-                    <div id="emailLoadingState" class="text-center py-4" style="display: none;">
-                        <div class="spinner-border text-primary" role="status">
+                <div class="border rounded-3 p-2 bg-light" style="max-height: 350px; overflow-y: auto; overflow-x: hidden;">
+                    <div id="emailLoadingState" class="text-center py-3" style="display: none;">
+                        <div class="spinner-border spinner-border-sm text-primary" role="status">
                             <span class="visually-hidden">Loading...</span>
                         </div>
-                        <p class="text-muted mt-2">Generating email content...</p>
+                        <p class="text-muted mt-2 mb-0 small">Generating email content...</p>
                     </div>
-                    <div id="copySuccessMessage" class="alert alert-success text-center py-3" style="display: none;">
+                    <div id="copySuccessMessage" class="alert alert-success text-center py-2 mb-0" style="display: none; font-size: 0.875rem;">
                         <i class="fas fa-check-circle me-2"></i>
                         <strong>Email content copied successfully!</strong>
                         <br>
                         <small class="text-muted">Modal will close automatically...</small>
                     </div>
-                    <pre id="hotelEmailContent" style="white-space: pre-wrap; font-family: 'Courier New', monospace; margin: 0; color: #333;"></pre>
+                    <pre id="hotelEmailContent" style="white-space: pre-wrap; font-family: 'Courier New', monospace; margin: 0; color: #333; font-size: 0.8rem; line-height: 1.4;"></pre>
                 </div>
                 
-                <div class="alert alert-info mt-3">
+                <div class="alert alert-info mt-2 mb-0 py-2" style="font-size: 0.8rem;">
                     <i class="fas fa-info-circle me-2"></i>
                     <strong>Instructions:</strong> Click the "Copy Email Content" button to copy the subject and message to your clipboard. Then paste it into your email client.
                 </div>
             </div>
-            <div class="modal-footer">
-                <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">
+            <div class="modal-footer border-0 bg-light py-2">
+                <button type="button" class="btn btn-outline-secondary btn-sm" data-bs-dismiss="modal">
                     <i class="fas fa-times me-1"></i> Close
                 </button>
-                <div class="ms-auto">
-                    <button type="button" class="btn btn-primary" id="copyHotelEmailBtn2">
-                        <i class="fas fa-copy me-1"></i> Copy to Clipboard
-                    </button>
+                <button type="button" class="btn btn-primary btn-sm ms-auto" id="copyHotelEmailBtn2">
+                    <i class="fas fa-copy me-1"></i> Copy to Clipboard
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Restaurant Mail Preview Modal -->
+<div class="modal fade" id="restaurantMailPreviewModal" tabindex="-1" aria-labelledby="restaurantMailPreviewModalLabel" aria-hidden="true" style="z-index: 1060;">
+    <div class="modal-dialog modal-lg modal-dialog-centered modal-dialog-scrollable">
+        <div class="modal-content border-0 shadow-lg">
+            <div class="modal-header border-0 bg-light py-2">
+                <h5 class="modal-title d-flex align-items-center gap-2 mb-0" id="restaurantMailPreviewModalLabel" style="font-size: 1rem;">
+                    <span class="badge rounded-circle bg-primary-subtle text-primary d-flex align-items-center justify-content-center" style="width: 28px; height: 28px; font-size: 0.75rem;">
+                        <i class="fas fa-envelope"></i>
+                    </span>
+                    <span>Email Preview &mdash; Restaurant Booking</span>
+                </h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+
+            <div class="modal-body p-3">
+                <div class="row g-2 align-items-end mb-2">
+                    <div class="col-md-8">
+                        <label for="restaurantEmailSubject" class="form-label fw-semibold mb-1" style="font-size: 0.875rem;">
+                            Subject
+                        </label>
+                        <input 
+                            type="text" 
+                            id="restaurantEmailSubject" 
+                            class="form-control form-control-sm bg-light" 
+                            readonly
+                        >
+                    </div>
+                    <div class="col-md-4 text-md-end">
+                        <button type="button" class="btn btn-success btn-sm w-100" id="copyRestaurantEmailBtn">
+                            <i class="fas fa-copy me-1"></i>
+                            Copy Email Content
+                        </button>
+                    </div>
                 </div>
+
+                <div class="border rounded-3 p-2 bg-light" style="max-height: 350px; overflow-y: auto; overflow-x: hidden;">
+                    <div id="restaurantEmailLoadingState" class="text-center py-3" style="display: none;">
+                        <div class="spinner-border spinner-border-sm text-primary" role="status">
+                            <span class="visually-hidden">Loading...</span>
+                        </div>
+                        <p class="text-muted mt-2 mb-0 small">Generating email content...</p>
+                    </div>
+
+                    <div id="restaurantCopySuccessMessage" class="alert alert-success text-center py-2 mb-0" style="display: none; font-size: 0.875rem;">
+                        <i class="fas fa-check-circle me-2"></i>
+                        <strong>Email content copied successfully!</strong>
+                        <div class="small text-muted mt-1">
+                            Modal will close automatically in a moment.
+                        </div>
+                    </div>
+
+                    <pre 
+                        id="restaurantEmailContent" 
+                        class="mb-0"
+                        style="white-space: pre-wrap; word-wrap: break-word; overflow-wrap: break-word; font-family: 'Courier New', monospace; color: #333; font-size: 0.8rem; line-height: 1.4;"
+                    ></pre>
+                </div>
+
+                <div class="alert alert-info mt-2 mb-0 py-2" style="font-size: 0.8rem;">
+                    <i class="fas fa-info-circle me-2"></i>
+                    <strong>How to use:</strong>
+                    <span class="text-muted">
+                        Click <em>Copy Email Content</em> to copy the subject and body, then paste it into your email client.
+                    </span>
+                </div>
+            </div>
+
+            <div class="modal-footer border-0 bg-light py-2">
+                <button type="button" class="btn btn-outline-secondary btn-sm" data-bs-dismiss="modal">
+                    <i class="fas fa-times me-1"></i>
+                    Close
+                </button>
+                <button type="button" class="btn btn-primary btn-sm ms-auto" id="copyRestaurantEmailBtn2">
+                    <i class="fas fa-copy me-1"></i>
+                    Copy to Clipboard
+                </button>
             </div>
         </div>
     </div>
@@ -27637,6 +28580,87 @@ window.showNotification = function(message, type = 'info') {
                 <button type="button" class="btn btn-success px-2 py-1" id="saveAttractionFiles" onclick="saveAttractionChanges()" 
                         style="display: none; border-radius: 4px; font-weight: 500; font-size: 0.85rem;">
                     <i class="ri-save-line me-1"></i>Save Changes
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Attraction Mail Preview Modal -->
+<div class="modal fade" id="attractionMailPreviewModal" tabindex="-1" aria-labelledby="attractionMailPreviewModalLabel" aria-hidden="true" style="z-index: 1060;">
+    <div class="modal-dialog modal-lg modal-dialog-centered modal-dialog-scrollable">
+        <div class="modal-content border-0 shadow-lg">
+            <div class="modal-header border-0 bg-light py-2">
+                <h5 class="modal-title d-flex align-items-center gap-2 mb-0" id="attractionMailPreviewModalLabel" style="font-size: 1rem;">
+                    <span class="badge rounded-circle bg-primary-subtle text-primary d-flex align-items-center justify-content-center" style="width: 28px; height: 28px; font-size: 0.75rem;">
+                        <i class="fas fa-envelope"></i>
+                    </span>
+                    <span>Email Preview &mdash; Attraction Booking</span>
+                </h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+
+            <div class="modal-body p-3">
+                <div class="row g-2 align-items-end mb-2">
+                    <div class="col-md-8">
+                        <label for="attractionEmailSubject" class="form-label fw-semibold mb-1" style="font-size: 0.875rem;">
+                            Subject
+                        </label>
+                        <input 
+                            type="text" 
+                            id="attractionEmailSubject" 
+                            class="form-control form-control-sm bg-light" 
+                            readonly
+                        >
+                    </div>
+                    <div class="col-md-4 text-md-end">
+                        <button type="button" class="btn btn-success btn-sm w-100" id="copyAttractionEmailBtn">
+                            <i class="fas fa-copy me-1"></i>
+                            Copy Email Content
+                        </button>
+                    </div>
+                </div>
+
+                <div class="border rounded-3 p-2 bg-light" style="max-height: 350px; overflow-y: auto; overflow-x: hidden;">
+                    <div id="attractionEmailLoadingState" class="text-center py-3" style="display: none;">
+                        <div class="spinner-border spinner-border-sm text-primary" role="status">
+                            <span class="visually-hidden">Loading...</span>
+                        </div>
+                        <p class="text-muted mt-2 mb-0 small">Generating email content...</p>
+                    </div>
+
+                    <div id="attractionCopySuccessMessage" class="alert alert-success text-center py-2 mb-0" style="display: none; font-size: 0.875rem;">
+                        <i class="fas fa-check-circle me-2"></i>
+                        <strong>Email content copied successfully!</strong>
+                        <div class="small text-muted mt-1">
+                            Modal will close automatically in a moment.
+                        </div>
+                    </div>
+
+                    <pre 
+                        id="attractionEmailContent" 
+                        class="mb-0"
+                        style="white-space: pre-wrap; word-wrap: break-word; overflow-wrap: break-word; font-family: 'Courier New', monospace; color: #333; font-size: 0.8rem; line-height: 1.4;"
+                    ></pre>
+                </div>
+
+                <div class="alert alert-info mt-2 mb-0 py-2" style="font-size: 0.8rem;">
+                    <i class="fas fa-info-circle me-2"></i>
+                    <strong>How to use:</strong>
+                    <span class="text-muted">
+                        Click <em>Copy Email Content</em> to copy the subject and body, then paste it into your email client.
+                    </span>
+                </div>
+            </div>
+
+            <div class="modal-footer border-0 bg-light py-2">
+                <button type="button" class="btn btn-outline-secondary btn-sm" data-bs-dismiss="modal">
+                    <i class="fas fa-times me-1"></i>
+                    Close
+                </button>
+                <button type="button" class="btn btn-primary btn-sm ms-auto" id="copyAttractionEmailBtn2">
+                    <i class="fas fa-copy me-1"></i>
+                    Copy to Clipboard
                 </button>
             </div>
         </div>
@@ -28770,6 +29794,10 @@ function showToast(message, type = 'info') {
     z-index: 1070 !important;
 }
 
+#hotelMailPreviewModal, #restaurantMailPreviewModal, #attractionMailPreviewModal {
+    z-index: 1060 !important;
+}
+
 /* File item hover effects */
 .border.rounded-3.p-3.mb-3.bg-light:hover {
     background-color: #ffffff !important;
@@ -28824,6 +29852,13 @@ input[type="file"].form-control:focus {
 
 #filePreviewModal + .modal-backdrop {
     z-index: 1065 !important;
+}
+
+/* Ensure mail preview modals backdrop is above the main modal */
+#hotelMailPreviewModal.show + .modal-backdrop,
+#restaurantMailPreviewModal.show + .modal-backdrop,
+#attractionMailPreviewModal.show + .modal-backdrop {
+    z-index: 1055 !important;
 }
 
 /* Pulse animation for Save Changes button */
