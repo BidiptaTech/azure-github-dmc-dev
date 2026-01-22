@@ -2054,230 +2054,30 @@
                                                 </div>
                                                 <h6 class="fw-bold mb-0 text-dark">Restaurant Overview</h6>
                                             </div>
-                                            <div class="row">
-                                                <div class="col-md-4 mb-3">
-                                                    <small class="text-muted">Meal Price</small>
-                                                    <div class="fw-medium text-success">SGD {{ ceil($booking['mealPrice'] ?? 0) }}</div>
-                                                </div>
-                                                {{-- <div class="col-md-4 mb-3">
-                                                    <small class="text-muted">DMC ID</small>
-                                                    <span class="badge bg-secondary">{{ $booking['dmc_id'] ?? 'N/A' }}</span>
-                                                </div>
-                                                <div class="col-md-6 mb-3">
-                                                    <small class="text-muted">Price Types</small>
-                                                    <div>
-                                                        @if(isset($booking['priceTypes']) && is_array($booking['priceTypes']))
-                                                            @foreach($booking['priceTypes'] as $priceType)
-                                                                <span class="badge bg-outline-primary me-1">{{ strtoupper($priceType) }}</span>
-                                                            @endforeach
-                                                        @else
-                                                            <span class="text-muted">N/A</span>
-                                                        @endif
-                                                    </div>
-                                                </div> --}}
-                                            </div>
-                                        </div>
-
-                                        <!-- Menu & Meal Details -->
-                                        @if(isset($booking['MealDescription']) && is_array($booking['MealDescription']))
-                                        <div class="bg-white rounded p-3 shadow-sm mb-4">
-                                            <div class="d-flex align-items-center mb-3">
-                                                <div class="bg-success rounded-circle p-2 me-3">
-                                                    <i class="ri-restaurant-line text-white"></i>
-                                                </div>
-                                                <h6 class="fw-bold mb-0 text-dark">Menu Selection & Pricing</h6>
-                                            </div>
-                                            
-                                            @foreach($booking['MealDescription'] as $index => $meal)
-                                                <div class="card mb-4 shadow-lg" style="border: none; border-radius: 15px; overflow: hidden;">
-                                                    <!-- Item Header -->
-                                                    <div class="card-header border-0 p-0 position-relative" style="background: linear-gradient(135deg, #fd79a8 0%, #fdcb6e 100%); height: 120px;">
-                                                        <div class="position-absolute w-100 h-100 d-flex align-items-center justify-content-between p-4">
-                                                            <div class="text-white">
-                                                                <h5 class="mb-2 fw-bold">
-                                                                    <i class="ri-restaurant-2-line me-2"></i>{{ 'Menu Item' }}
-                                                                </h5>
-                                                                <div class="d-flex flex-wrap gap-2">
-                                                                    <span class="badge bg-opacity-20 text-white border border-white border-opacity-50 px-3 py-1">
-                                                                        <i class="ri-wine-glass-line me-1"></i>{{ $meal['category'] ?? 'Category' }}
-                                                                    </span>
-                                                                    <span class="badge bg-opacity-20 text-white border border-white border-opacity-50 px-3 py-1">
-                                                                        <i class="ri-leaf-line me-1"></i>{{ $meal['item_type'] ?? 'Type' }}
-                                                                    </span>
-                                                                </div>
-                                                            </div>
-                                                            <div class="text-end">
-                                                                <div class="bg-white bg-opacity-95 rounded-3 px-4 py-3 shadow">
-                                                                    <small class="text-muted d-block mb-1">Unit Price</small>
-                                                                    <div class="fs-4 fw-bold text-success">SGD {{ ceil($meal['price'] ?? 0) }}</div>
-                                                                </div>
-                                                            </div>
+                                            <div class="row align-items-center">
+                                                <div class="col-md-8">
+                                                    <div class="row g-3">
+                                                        <div class="col-md-6">
+                                                            <small class="text-muted d-block mb-1">Meal Price</small>
+                                                            <div class="fw-medium text-success fs-5">SGD {{ ceil($booking['mealPrice'] ?? 0) }}</div>
                                                         </div>
-                                                    </div>
-                                                    
-                                                    <!-- Item Details -->
-                                                    <div class="card-body p-4" style="background: linear-gradient(135deg, #f8f9fa 0%, #ffffff 100%);">
-                                                        <div class="row align-items-center mb-4">
-                                                            <!-- Quantity Section -->
-                                                            <div class="col-md-6">
-                                                                <div class="text-center p-4 rounded-3" style="background: linear-gradient(135deg, #e3f2fd 0%, #bbdefb 100%); border: 2px solid #2196f3;">
-                                                                    <div class="d-flex align-items-center justify-content-center mb-2">
-                                                                        <i class="ri-shopping-basket-line text-primary ri-24px me-2"></i>
-                                                                        <h6 class="fw-bold text-primary mb-0">Quantity Ordered</h6>
-                                                                    </div>
-                                                                    <div class="fs-1 fw-bold text-primary mb-1">{{ $meal['quantity'] ?? 1 }}</div>
-                                                                    <small class="text-muted">{{ ($meal['quantity'] ?? 1) == 1 ? 'item' : 'items' }}</small>
-                                                                </div>
-                                                            </div>
-                                                            
-                                                            <!-- Item Info -->
-                                                            <div class="col-md-6">
-                                                                <div class="bg-white rounded-3 p-4 shadow-sm border">
-                                                                    <div class="d-flex align-items-center mb-3">
-                                                                        <div class="bg-warning rounded-circle p-2 me-3">
-                                                                            <i class="ri-information-line text-white"></i>
-                                                                        </div>
-                                                                        <h6 class="fw-bold mb-0 text-dark">Item Details</h6>
-                                                                    </div>
-                                                                    <div class="row">
-                                                                        {{-- <div class="col-6 mb-2">
-                                                                            <small class="text-muted">Item ID</small>
-                                                                            <div class="fw-medium">#{{ $meal['meal_id'] ?? 'N/A' }}</div>
-                                                                        </div> --}}
-                                                                        <div class="col-6 mb-2">
-                                                                            <small class="text-muted">Category</small>
-                                                                            <div class="fw-medium">{{ $meal['category'] ?? 'N/A' }}</div>
-                                                                        </div>
-                                                                        <div class="col-12">
-                                                                            <small class="text-muted">Dietary Type</small>
-                                                                            <div>
-                                                                                <span class="badge bg-success">{{ $meal['item_type'] ?? 'Standard' }}</span>
-                                                                            </div>
-                                                                        </div>
-                                                                    </div>
-                                                                </div>
-                                                            </div>
-                                                        </div>
-
-                                                        <!-- Price Calculation -->
-                                                        <div class="bg-gradient-light rounded-3 p-4 border border-primary border-opacity-25">
-                                                            <div class="row align-items-center">
-                                                                <div class="col-md-7">
-                                                                    <div class="d-flex align-items-center mb-3">
-                                                                        <div class="bg-primary rounded-circle p-2 me-3">
-                                                                            <i class="ri-calculator-line text-white"></i>
-                                                                        </div>
-                                                                        <h6 class="fw-bold mb-0 text-dark">Price Calculation</h6>
-                                                                    </div>
-                                                                    <div class="d-flex align-items-center gap-3">
-                                                                        <div class="text-center">
-                                                                            <div class="fs-5 fw-bold text-success">SGD {{ ceil($meal['price'] ?? 0) }}</div>
-                                                                            <small class="text-muted">per item</small>
-                                                                        </div>
-                                                                        <div class="text-primary fs-3">×</div>
-                                                                        <div class="text-center">
-                                                                            <div class="fs-5 fw-bold text-primary">{{ $meal['quantity'] ?? 1 }}</div>
-                                                                            <small class="text-muted">{{ ($meal['quantity'] ?? 1) == 1 ? 'item' : 'items' }}</small>
-                                                                        </div>
-                                                                        <div class="text-primary fs-3">=</div>
-                                                                    </div>
-                                                                </div>
-                                                                <div class="col-md-5 text-end">
-                                                                    <div class="bg-white rounded-3 p-4 shadow border border-success border-opacity-50">
-                                                                        <small class="text-muted d-block mb-2">Item Subtotal</small>
-                                                                        <div class="fs-2 fw-bold text-success">
-                                                                            SGD {{ ceil(($meal['price'] ?? 0) * ($meal['quantity'] ?? 1)) }}
-                                                                        </div>
-                                                                    </div>
-                                                                </div>
-                                                            </div>
+                                                        <div class="col-md-6">
+                                                            <small class="text-muted d-block mb-1">Transfer Price</small>
+                                                            <div class="fw-medium text-info fs-5">SGD {{ ceil(isset($booking['transfer_options']['cost']) && $booking['transfer_options']['cost'] > 0 ? $booking['transfer_options']['cost'] : 0) }}</div>
                                                         </div>
                                                     </div>
                                                 </div>
-                                            @endforeach
-                                            
-                                            <!-- Total Summary -->
-                                            <div class="card shadow-lg mt-4" style="border: none; border-radius: 15px; overflow: hidden;">
-                                                <div class="card-header border-0" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); padding: 20px;">
-                                                    <div class="row align-items-center">
-                                                        <div class="col-md-8">
-                                                            <h5 class="mb-1 fw-bold text-white">
-                                                                <i class="ri-receipt-line me-2"></i>Order Summary
-                                                            </h5>
-                                                            <p class="mb-0 text-white opacity-75">
-                                                                {{ count($booking['MealDescription']) }} item(s) • {{ $booking['mealType'] ?? 'Meal' }} • {{ $booking['mealSpecificType'] ?? 'Menu' }}
-                                                            </p>
-                                                        </div>
-                                                        <div class="col-md-4 text-end">
-                                                            <div class="bg-white bg-opacity-95 rounded-3 px-4 py-3 shadow">
-                                                                <small class="text-muted d-block mb-1">Grand Total</small>
-                                                                <div class="fs-2 fw-bold text-success">SGD {{ ceil($booking['totalPrice'] ?? 0) }}</div>
-                                                            </div>
-                                                        </div>
-                                                    </div>
-                                                </div>
-                                                <div class="card-body" style="background: linear-gradient(135deg, #f8f9fa 0%, #ffffff 100%); padding: 20px;">
-                                                    <div class="row">
-                                                        <div class="col-md-4 text-center">
-                                                            <div class="p-3">
-                                                                <div class="bg-primary bg-opacity-10 rounded-circle mx-auto mb-2 d-flex align-items-center justify-content-center" style="width: 60px; height: 60px;">
-                                                                    <i class="ri-restaurant-2-line text-primary ri-24px"></i>
-                                                                </div>
-                                                                <h6 class="fw-bold text-dark">{{ $booking['restaurantName'] ?? 'Restaurant' }}</h6>
-                                                                <small class="text-muted">{{ $booking['mealType'] ?? 'Dining' }} Experience</small>
-                                                            </div>
-                                                        </div>
-                                                        <div class="col-md-4 text-center">
-                                                            <div class="p-3">
-                                                                <div class="bg-warning bg-opacity-10 rounded-circle mx-auto mb-2 d-flex align-items-center justify-content-center" style="width: 60px; height: 60px;">
-                                                                    <i class="ri-group-line text-warning ri-24px"></i>
-                                                                </div>
-                                                                <h6 class="fw-bold text-dark">{{ ($booking['adultCount'] ?? 0) + ($booking['childCount'] ?? 0) }} Guests</h6>
-                                                                <small class="text-muted">{{ $booking['adultCount'] ?? 0 }} Adults, {{ $booking['childCount'] ?? 0 }} Children</small>
-                                                            </div>
-                                                        </div>
-                                                        <div class="col-md-4 text-center">
-                                                            <div class="p-3">
-                                                                <div class="bg-success bg-opacity-10 rounded-circle mx-auto mb-2 d-flex align-items-center justify-content-center" style="width: 60px; height: 60px;">
-                                                                    <i class="ri-calendar-check-line text-success ri-24px"></i>
-                                                                </div>
-                                                                <h6 class="fw-bold text-dark">{{ \Carbon\Carbon::parse($booking['bookingDate'])->format('M d, Y') }}</h6>
-                                                                <small class="text-muted">{{ $booking['visitTime'] ?? 'Time TBD' }}</small>
-                                                            </div>
-                                                        </div>
-                                                    </div>
-                                                    
-                                                    <!-- Payment Breakdown -->
-                                                    <div class="mt-4 p-3 bg-light rounded-3">
-                                                        <div class="row align-items-center">
-                                                            <div class="col-md-6">
-                                                                <div class="d-flex align-items-center">
-                                                                    <i class="ri-money-dollar-circle-line text-success ri-24px me-2"></i>
-                                                                    <div>
-                                                                        <h6 class="fw-bold text-dark mb-0">Payment Summary</h6>
-                                                                        @php
-                                                                            $restaurantPrice = $booking['totalPrice'] ?? $booking['mealPrice'] ?? 0;
-                                                                            $transferPrice = isset($booking['transfer_options']['cost']) && $booking['transfer_options']['cost'] > 0 ? $booking['transfer_options']['cost'] : 0;
-                                                                            $restaurantGrandTotal = $restaurantPrice + $transferPrice;
-                                                                        @endphp
-                                                                        <small class="text-muted">Meal Price: SGD {{ ceil($restaurantPrice) }}</small>
-                                                                        @if($transferPrice > 0)
-                                                                            <br><small class="text-muted">Transfer: SGD {{ ceil($transferPrice) }}</small>
-                                                                        @endif
-                                                                    </div>
-                                                                </div>
-                                                            </div>
-                                                            <div class="col-md-6 text-end">
-                                                                <div class="fw-bold text-success fs-4">
-                                                                    Total: SGD {{ ceil($restaurantGrandTotal) }}
-                                                                </div>
-                                                            </div>
-                                                        </div>
-                                                    </div>
+                                                <div class="col-md-4 text-end">
+                                                    @php
+                                                        $restaurantPrice = $booking['totalPrice'] ?? $booking['mealPrice'] ?? 0;
+                                                        $transferPrice = isset($booking['transfer_options']['cost']) && $booking['transfer_options']['cost'] > 0 ? $booking['transfer_options']['cost'] : 0;
+                                                        $restaurantGrandTotal = $restaurantPrice + $transferPrice;
+                                                    @endphp
+                                                    <small class="text-muted d-block mb-1">Total Price</small>
+                                                    <div class="fw-bold text-success fs-4">SGD {{ ceil($restaurantGrandTotal) }}</div>
                                                 </div>
                                             </div>
                                         </div>
-                                        @endif
 
                                         <!-- Transfer Options -->
                                         @if(isset($booking['transfer_options']) && is_array($booking['transfer_options']) && isset($booking['transfer_options']['transfer_required']) && $booking['transfer_options']['transfer_required'] === true)
@@ -2355,6 +2155,8 @@
                                                 </div>
                                             </div>
                                         @endif
+
+
 
                                     </div>
                                 </div>
