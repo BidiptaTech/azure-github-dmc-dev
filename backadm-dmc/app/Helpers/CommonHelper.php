@@ -3169,6 +3169,8 @@ class CommonHelper
             'exit_port',
             'point_to_point',
             'hourly',
+            'travel_point',
+            'travel_hourly',
             'local_transport',
             'local_transfer',
             'port_transport',
@@ -3209,7 +3211,7 @@ class CommonHelper
             if ($transferOptions && !empty($transferOptions['type'])) {
                 $transferType = $transferOptions['type'];
             } else {
-                // For local_transfer, use the type field directly
+                // For travel_point, travel_hourly, local_transport, and local_transfer, use the type field directly
                 $transferType = $item['type'] ?? null;
             }
             
@@ -3305,7 +3307,7 @@ class CommonHelper
             $vehicleDetails = [
                 'name' => $vehiclesName,
                 'type' => $item['type'] ?? null,
-                'transfer_type' => $transferType,
+                'transfer_type' => $transferType ?? $item['type'] ?? null,
                 'vehicle_type' => $vehicleType,
                 'vehicle_type_seater' => $vehicleTypeSeater,
                 'vehicle_number' => $vehicleNumber ?: 'N/A',

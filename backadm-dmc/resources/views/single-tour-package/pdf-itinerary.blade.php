@@ -1942,7 +1942,8 @@
                                 $vehicleData = $card['vehicle'] ?? [];
                                 
                                 // Get Transfer Type and format it (remove underscores, capitalize words)
-                                $transferTypeRaw = $vehicleData['transfer_type'] ?? 'N/A';
+                                // Check transfer_type first, then fallback to type field
+                                $transferTypeRaw = $vehicleData['transfer_type'] ?? $vehicleData['type'] ?? 'N/A';
                                 if ($transferTypeRaw !== 'N/A' && strpos($transferTypeRaw, '_') !== false) {
                                     $transferType = ucwords(str_replace('_', ' ', $transferTypeRaw));
                                 } else {
