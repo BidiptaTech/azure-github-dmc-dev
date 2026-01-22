@@ -1,5 +1,5 @@
     @extends('layouts.layout')
-@section('title', 'Enquiry Pro')
+@section('title', 'Edit Tour Enquiry - {{ $tour->display_id ?? "" }}')
 @extends('layouts.datatablecss')
 @section('css')
 <style>
@@ -21918,74 +21918,47 @@
         
         // Only include standalone guides (not linked to attractions, transfers, hotels, meals, etc.)
         // Guides linked to services are embedded in their parent service's JSON via guide_options
-        return guideList.filter(guide => guide.isStandalone !== false).map(guide => {
-            // Handle languages - can be array or string
-            let languagesValue = guide.languages || [];
-            if (Array.isArray(languagesValue)) {
-                languagesValue = languagesValue.length > 0 ? languagesValue : [];
-            } else if (typeof languagesValue === 'string') {
-                languagesValue = languagesValue ? [languagesValue] : [];
-            }
-            
-            // Get tour activity
-            const tourActivityValue = guide.tourName || guide.tourActivity || `Guide Service - ${guide.name || guide.guideName || ''}`;
-            
-            return {
-                id: guide.id || `guide-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
-                Mode: "dmc",
-                dmc_Id: String(dmcId),
-                fullName: customerInfo.fullName,
-                email: customerInfo.email,
-                phone: customerInfo.phone,
-                countryCode: customerInfo.countryCode,
-                address1: customerInfo.address1,
-                address2: customerInfo.address2,
-                state: customerInfo.state,
-                zip: customerInfo.zip,
-                specialRequests: customerInfo.specialRequests,
-                guide_id: guide.guideId || guide.guide_id || 0,
-                guideId: guide.guideId || guide.guide_id || 0,
-                guide_name: guide.name || guide.guideName || guide.guide_name || "",
-                guideName: guide.name || guide.guideName || guide.guide_name || "",
-                tourActivity: tourActivityValue,
-                tour_activity: tourActivityValue,
-                image: guide.image || "",
-                entrytime: parseInt(guide.hours) || 12,
-                adults: parseInt(guide.adultsQty || guide.adults) || 0,
-                adultsQty: parseInt(guide.adultsQty || guide.adults) || 0,
-                children: parseInt(guide.childQty || guide.children) || 0,
-                childQty: parseInt(guide.childQty || guide.children) || 0,
-                hours: parseInt(guide.hours) || 12,
-                basePrice: parseFloat(guide.adultCost || guide.basePrice) || 0,
-                cost: parseFloat(guide.cost || guide.adultCost) || 0,
-                sell: parseFloat(guide.sell || guide.adultSell) || 0,
-                adultCost: parseFloat(guide.adultCost) || 0,
-                adult_cost: parseFloat(guide.adultCost) || 0,
-                adultSell: parseFloat(guide.adultSell) || 0,
-                adult_sell: parseFloat(guide.adultSell) || 0,
-                childCost: parseFloat(guide.childCost) || 0,
-                child_cost: parseFloat(guide.childCost) || 0,
-                childSell: parseFloat(guide.childSell) || 0,
-                child_sell: parseFloat(guide.childSell) || 0,
-                surcharge: 0,
-                totalPrice: parseFloat(guide.sell || guide.adultSell || 0), // Guide price is fixed, not multiplied by pax
-                pickupdate: normalizeDateToYYYYMMDD(guide.dateTime),
-                bookingDate: normalizeDateToYYYYMMDD(guide.dateTime),
-                date: normalizeDateToYYYYMMDD(guide.dateTime),
-                dateTime: guide.dateTime || normalizeDateToYYYYMMDD(guide.dateTime),
-                dayIndex: 1,
-                Tax: "7.00",
-                city: destination,
-                country: destination,
-                destination: destination,
-                languages: languagesValue,
-                language: Array.isArray(languagesValue) ? (languagesValue.length > 0 ? languagesValue[0] : 'English') : languagesValue,
-                experience: guide.experience || 0,
-                price: parseFloat(guide.adultSell) || 0,
-                booking_id: guide.booking_id || 0,
-                supplement: guide.supplement || false
-            };
-        });
+        return guideList.filter(guide => guide.isStandalone !== false).map(guide => ({
+            id: guide.id || `guide-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
+            Mode: "dmc",
+            dmc_Id: String(dmcId),
+            fullName: customerInfo.fullName,
+            email: customerInfo.email,
+            phone: customerInfo.phone,
+            countryCode: customerInfo.countryCode,
+            address1: customerInfo.address1,
+            address2: customerInfo.address2,
+            state: customerInfo.state,
+            zip: customerInfo.zip,
+            specialRequests: customerInfo.specialRequests,
+            guide_id: guide.guideId || 0,
+            guide_name: guide.name || guide.guideName || "",
+            tourActivity: guide.tourName || guide.tourActivity || `Guide Service - ${guide.name || guide.guideName || ''}`,
+            image: guide.image || "",
+            entrytime: parseInt(guide.hours) || 12,
+            adults: parseInt(guide.adultsQty) || 0,
+            children: parseInt(guide.childQty) || 0,
+            hours: parseInt(guide.hours) || 12,
+            basePrice: parseFloat(guide.adultCost) || 0,
+            cost: parseFloat(guide.cost || guide.adultCost) || 0,
+            sell: parseFloat(guide.sell || guide.adultSell) || 0,
+            adultCost: parseFloat(guide.adultCost) || 0,
+            adultSell: parseFloat(guide.adultSell) || 0,
+            childCost: parseFloat(guide.childCost) || 0,
+            childSell: parseFloat(guide.childSell) || 0,
+            surcharge: 0,
+            totalPrice: parseFloat(guide.sell || guide.adultSell || 0), // Guide price is fixed, not multiplied by pax
+            pickupdate: normalizeDateToYYYYMMDD(guide.dateTime),
+            bookingDate: normalizeDateToYYYYMMDD(guide.dateTime),
+            dayIndex: 1,
+            Tax: "7.00",
+            city: destination,
+            country: destination,
+            languages: guide.languages || [],
+            experience: 0,
+            price: parseFloat(guide.adultSell) || 0,
+            booking_id: 0
+        }));
     }
     
     // Transform transfer data to required local_transport format
