@@ -714,7 +714,7 @@ class SingleTourPackageController extends Controller
             $tour->child_ages = $request->child_ages ?? null;
             $tour->auto_cancel_date = $auto_cancel_date;
             $tour->taxes = !empty($taxArray) ? json_encode($taxArray) : null;
-            
+            $tour->created_by = Auth::user()->userId;
             // Store main guest data as JSON
             if ($request->has('mainguest') && $request->mainguest) {
                 try {
