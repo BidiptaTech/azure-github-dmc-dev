@@ -492,7 +492,10 @@
                                     <i class="ri-hotel-line fs-5 text-white" style="color: #ffffff !important;"></i>
                                 </div>
                                 <div>
-                                    <h6 class="mb-0 fw-bold text-white" style="color: #ffffff !important; font-size: 1.1rem;">Hotel Accommodations</h6>
+                                    <h6 class="mb-0 fw-bold text-white" style="color: #ffffff !important; font-size: 1.1rem;">
+                                        Hotel Accommodations
+                                        <span id="hotelHeaderSummary" class="fw-normal" style="font-size: 0.95rem; margin-left: 8px;"></span>
+                                    </h6>
                                     <small class="text-white-75" style="color: rgba(255, 255, 255, 0.85) !important; font-size: 0.85rem;">Manage hotel bookings and room configurations</small>
                                 </div>
                             </div>
@@ -6284,6 +6287,8 @@
                 existingChildAges = enquiry.child_ages;
             }
         }
+        // Reset last selected hotel reference
+        lastSelectedHotelId = null;
         console.log('Existing child ages:', existingChildAges);
         
         // Create dropdowns for each child
@@ -6809,6 +6814,7 @@ let selectedRestaurants = [];
 let selectedGuides = [];
 let tourNights = 0;
 let hotelData = [];
+let lastSelectedHotelId = null;
 
 // Helper function to get tour date for a specific day
 function getTourDateForDay(day) {
@@ -8335,6 +8341,9 @@ document.addEventListener('DOMContentLoaded', function() {
                     option.textContent = hotel.name;
                     option.setAttribute('data-type', 'Hotel');
                     option.setAttribute('data-hotel', JSON.stringify(hotel));
+                    if (hotel.zone_id) {
+                        option.setAttribute('data-zone-id', hotel.zone_id);
+                    }
                     hotelGroup.appendChild(option);
                 });
                 
@@ -8376,6 +8385,23 @@ document.addEventListener('DOMContentLoaded', function() {
             }
             
             pickupSelect.disabled = false;
+
+            // If user has selected a hotel previously, default pickup to that hotel (last one)
+            if (lastSelectedHotelId) {
+                let defaultValue = null;
+                Array.from(pickupSelect.options).forEach(opt => {
+                    if (opt.value === String(lastSelectedHotelId)) {
+                        defaultValue = opt.value;
+                    }
+                });
+
+                if (defaultValue) {
+                    pickupSelect.value = defaultValue;
+                    // Trigger change so pricing updates
+                    pickupSelect.dispatchEvent(new Event('change', { bubbles: true }));
+                }
+            }
+
             console.log(`Loaded pickup locations for attraction transfer in ${cityName}`);
         })
         .catch(error => {
@@ -8536,9 +8562,11 @@ document.addEventListener('DOMContentLoaded', function() {
         // Get selected values
         const vehicleId = vehicleSelect.value;
         const attractionId = attractionSelect.value;
-        const pickupLocationId = pickupLocationSelect.value;
         const pickupLocationOption = pickupLocationSelect.options[pickupLocationSelect.selectedIndex];
         const pickupLocationType = pickupLocationOption ? pickupLocationOption.getAttribute('data-type') : '';
+        // Prefer zone_id when available (zone-based pricing), otherwise fall back to raw value
+        const pickupLocationZoneId = pickupLocationOption ? pickupLocationOption.getAttribute('data-zone-id') : '';
+        const pickupLocationId = pickupLocationZoneId || pickupLocationSelect.value;
         const transferType = transferTypeSelect.value; // Private or Shared
         const transferWay = transferWaySelect.value; // One Way or Both Way
         const cityName = citySelect ? citySelect.value : '';
@@ -8941,9 +8969,11 @@ document.addEventListener('DOMContentLoaded', function() {
         // Get selected values
         const vehicleId = vehicleSelect.value;
         const restaurantId = restaurantSelect.value;
-        const pickupLocationId = pickupLocationSelect.value;
         const pickupLocationOption = pickupLocationSelect.options[pickupLocationSelect.selectedIndex];
         const pickupLocationType = pickupLocationOption ? pickupLocationOption.getAttribute('data-type') : '';
+        // Prefer zone_id when available (zone-based pricing), otherwise fall back to raw value
+        const pickupLocationZoneId = pickupLocationOption ? pickupLocationOption.getAttribute('data-zone-id') : '';
+        const pickupLocationId = pickupLocationZoneId || pickupLocationSelect.value;
         const transferType = transferTypeSelect.value; // Private or Shared
         const transferWay = transferWaySelect.value; // One Way or Both Way
         const cityName = citySelect ? citySelect.value : '';
@@ -9160,6 +9190,76 @@ document.addEventListener('DOMContentLoaded', function() {
         // Calculate and display total
         const grandTotal = restaurantTotal + transportTotal;
         totalDisplay.textContent = grandTotal.toFixed(2);
+
+        // Also refresh restaurant header summary (all restaurants)
+        if (typeof window.updateRestaurantSectionSummary === 'function') {
+            window.updateRestaurantSectionSummary(day);
+        }
+    }
+
+    // Overall restaurant section summary (names + total incl. transport)
+    window.updateRestaurantSectionSummary = function(day = 1) {
+        try {
+            const headerSpan = document.getElementById('restaurantHeaderSummary');
+            const container = document.getElementById(`day${day}_restaurants_container`);
+            if (!headerSpan || !container) return;
+
+            const items = container.querySelectorAll('.restaurant-item');
+            if (!items.length) {
+                headerSpan.textContent = '';
+                return;
+            }
+
+            const names = [];
+            let grandTotal = 0;
+
+            items.forEach(item => {
+                const idx = item.getAttribute('data-restaurant-index');
+                if (!idx) return;
+
+                const restaurantSelect = document.getElementById(`day${day}_restaurant_${idx}`);
+                const totalDisplay = document.getElementById(`day${day}_restaurant_${idx}_total_display`);
+
+                if (restaurantSelect && restaurantSelect.value) {
+                    const txt = restaurantSelect.options[restaurantSelect.selectedIndex].text;
+                    if (txt) names.push(txt);
+                }
+
+                if (totalDisplay && totalDisplay.textContent) {
+                    const match = totalDisplay.textContent.match(/([\d,.]+)/);
+                    if (match) {
+                        grandTotal += parseFloat(match[1].replace(/,/g, '')) || 0;
+                    }
+                }
+            });
+
+            if (!names.length || grandTotal === 0) {
+                headerSpan.textContent = '';
+                return;
+            }
+
+            const uniqueNames = [...new Set(names)];
+            let nameSummary = '';
+            if (uniqueNames.length === 1) {
+                nameSummary = uniqueNames[0];
+            } else if (uniqueNames.length === 2) {
+                nameSummary = `${uniqueNames[0]} & ${uniqueNames[1]}`;
+            } else if (uniqueNames.length === 3) {
+                nameSummary = `${uniqueNames[0]}, ${uniqueNames[1]} & ${uniqueNames[2]}`;
+            } else {
+                const remaining = uniqueNames.length - 2;
+                nameSummary = `${uniqueNames[0]}, ${uniqueNames[1]} + ${remaining} more`;
+            }
+
+            const formattedTotal = grandTotal.toLocaleString('en-US', {
+                minimumFractionDigits: 2,
+                maximumFractionDigits: 2
+            });
+
+            headerSpan.textContent = `– ${nameSummary} • SGD ${formattedTotal}`;
+        } catch (e) {
+            console.error('Error updating restaurant section summary:', e);
+        }
     }
     
     // ==================== END RESTAURANT TRANSFER PRICING FUNCTIONS ====================
@@ -9490,6 +9590,9 @@ document.addEventListener('DOMContentLoaded', function() {
                     option.textContent = hotel.name;
                     option.setAttribute('data-type', 'Hotel');
                     option.setAttribute('data-hotel', JSON.stringify(hotel));
+                    if (hotel.zone_id) {
+                        option.setAttribute('data-zone-id', hotel.zone_id);
+                    }
                     hotelGroup.appendChild(option);
                 });
                 
@@ -9531,6 +9634,23 @@ document.addEventListener('DOMContentLoaded', function() {
             }
             
             pickupSelect.disabled = false;
+
+            // If user has selected a hotel previously, default pickup to that hotel (last one)
+            if (lastSelectedHotelId) {
+                let defaultValue = null;
+                Array.from(pickupSelect.options).forEach(opt => {
+                    if (opt.value === String(lastSelectedHotelId)) {
+                        defaultValue = opt.value;
+                    }
+                });
+
+                if (defaultValue) {
+                    pickupSelect.value = defaultValue;
+                    // Trigger change so pricing updates
+                    pickupSelect.dispatchEvent(new Event('change', { bubbles: true }));
+                }
+            }
+
             console.log(`Loaded pickup locations for restaurant transfer in ${cityName}`);
         })
         .catch(error => {
@@ -12428,6 +12548,8 @@ document.addEventListener('DOMContentLoaded', function() {
         console.log('Price breakdown:', hotelData.priceBreakdown);
          
          selectedHotels.push(hotelData);
+         // Track last selected hotel id for defaulting pickup locations
+         lastSelectedHotelId = hotelData.id;
          displaySelectedHotels();
          
          // Update hotel_data JSON field
@@ -12821,7 +12943,7 @@ document.addEventListener('DOMContentLoaded', function() {
              container.innerHTML = hotelsHtml;
          }
          
-         // Update summary
+         // Update summary badges
          const totalHotelsEl = document.getElementById('totalHotels');
          if (totalHotelsEl) {
              totalHotelsEl.textContent = selectedHotels.length;
@@ -12830,6 +12952,39 @@ document.addEventListener('DOMContentLoaded', function() {
          const totalNightsEl = document.getElementById('totalNights');
          if (totalNightsEl) {
              totalNightsEl.textContent = totalNights + ' Nights';
+         }
+         
+         // Update hotel accordion header summary (first hotel name + total price)
+         const headerSummaryEl = document.getElementById('hotelHeaderSummary');
+         if (headerSummaryEl) {
+             if (selectedHotels.length === 0) {
+                 headerSummaryEl.textContent = '';
+             } else {
+                 // Build a concise list of hotel names
+                 let hotelNames = '';
+                 if (selectedHotels.length === 1) {
+                     hotelNames = selectedHotels[0].name;
+                 } else if (selectedHotels.length === 2) {
+                     hotelNames = `${selectedHotels[0].name} & ${selectedHotels[1].name}`;
+                 } else if (selectedHotels.length === 3) {
+                     hotelNames = `${selectedHotels[0].name}, ${selectedHotels[1].name} & ${selectedHotels[2].name}`;
+                 } else {
+                     const remaining = selectedHotels.length - 2;
+                     hotelNames = `${selectedHotels[0].name}, ${selectedHotels[1].name} + ${remaining} more`;
+                 }
+                 
+                 const totalPrice = selectedHotels.reduce((sum, h) => {
+                     const priceNum = parseFloat(h.price) || 0;
+                     return sum + priceNum;
+                 }, 0);
+                 
+                 const formattedPrice = totalPrice.toLocaleString('en-US', {
+                     minimumFractionDigits: 2,
+                     maximumFractionDigits: 2
+                 });
+                 
+                 headerSummaryEl.textContent = `– ${hotelNames} • SGD ${formattedPrice}`;
+             }
          }
     }
 
@@ -13425,10 +13580,13 @@ document.addEventListener('DOMContentLoaded', function() {
                                       <span class="service-icon me-3 d-flex align-items-center justify-content-center rounded-circle" style="width: 45px; height: 45px; background: linear-gradient(135deg, #a855f7 0%, #9333ea 100%); color: white;">
                                           <i class="ri-ticket-line fs-5"></i>
                                       </span>
-                                      <div>
-                                          <h6 class="mb-0 fw-bold text-dark">🎫 All Attraction Tickets</h6>
-                                          <small class="text-muted d-block">All attractions from all days in one place</small>
-                                      </div>
+                                     <div>
+                                         <h6 class="mb-0 fw-bold text-dark">
+                                             🎫 All Attraction Tickets
+                                             <span id="attractionHeaderSummary" class="fw-normal" style="font-size: 0.95rem; margin-left: 8px;"></span>
+                                         </h6>
+                                         <small class="text-muted d-block">All attractions from all days in one place</small>
+                                     </div>
                                   </div>
                                   <i class="ri-arrow-down-s-line ms-2 fs-5 transition-transform"></i>
                               </div>
@@ -13757,13 +13915,16 @@ document.addEventListener('DOMContentLoaded', function() {
                           <div class="card shadow-sm border-0 overflow-hidden">
                               <div class="card-header text-dark d-flex justify-content-between align-items-center" role="button" data-bs-toggle="collapse" data-bs-target="#allGuidesSection" aria-expanded="false" aria-controls="allGuidesSection" style="cursor: pointer; background: linear-gradient(135deg, #d1fae5 0%, #a7f3d0 100%); border: 1px solid #34d399; transition: all 0.3s ease;">
                                   <div class="d-flex align-items-center">
-                                      <span class="service-icon me-3 d-flex align-items-center justify-content-center rounded-circle" style="width: 45px; height: 45px; background: linear-gradient(135deg, #10b981 0%, #059669 100%); color: white;">
-                                          <i class="ri-user-star-line fs-5"></i>
-                                      </span>
-                                      <div>
-                                          <h6 class="mb-0 fw-bold text-dark">👤 All Tour Guide Services</h6>
-                                          <small class="text-muted d-block">All guides from all days in one place</small>
-                                      </div>
+                                     <span class="service-icon me-3 d-flex align-items-center justify-content-center rounded-circle" style="width: 45px; height: 45px; background: linear-gradient(135deg, #10b981 0%, #059669 100%); color: white;">
+                                         <i class="ri-user-star-line fs-5"></i>
+                                     </span>
+                                     <div>
+                                         <h6 class="mb-0 fw-bold text-dark">
+                                             👤 All Tour Guide Services
+                                             <span id="guideHeaderSummary" class="fw-normal" style="font-size: 0.95rem; margin-left: 8px;"></span>
+                                         </h6>
+                                         <small class="text-muted d-block">All guides from all days in one place</small>
+                                     </div>
                                   </div>
                                   <i class="ri-arrow-down-s-line ms-2 fs-5 transition-transform"></i>
                               </div>
@@ -13932,13 +14093,16 @@ document.addEventListener('DOMContentLoaded', function() {
                          <div class="card shadow-sm border-0 overflow-hidden">
                              <div class="card-header text-dark d-flex justify-content-between align-items-center" role="button" data-bs-toggle="collapse" data-bs-target="#restaurantServicesSection" aria-expanded="false" aria-controls="restaurantServicesSection" style="cursor: pointer; background: linear-gradient(135deg, #fef3c7 0%, #fde68a 100%); border: 1px solid #fbbf24; transition: all 0.3s ease;">
                                  <div class="d-flex align-items-center">
-                                     <span class="service-icon me-3 d-flex align-items-center justify-content-center rounded-circle" style="width: 45px; height: 45px; background: linear-gradient(135deg, #f59e0b 0%, #d97706 100%); color: white;">
-                                         <i class="ri-restaurant-2-line fs-5"></i>
-                                     </span>
-                                     <div>
-                                         <h6 class="mb-0 fw-bold text-dark">🍽️ All Restaurant Services</h6>
-                                         <small class="text-muted d-block">All restaurants from all days in one place</small>
-                                     </div>
+                                    <span class="service-icon me-3 d-flex align-items-center justify-content-center rounded-circle" style="width: 45px; height: 45px; background: linear-gradient(135deg, #f59e0b 0%, #d97706 100%); color: white;">
+                                        <i class="ri-restaurant-2-line fs-5"></i>
+                                    </span>
+                                    <div>
+                                        <h6 class="mb-0 fw-bold text-dark">
+                                            🍽️ All Restaurant Services
+                                            <span id="restaurantHeaderSummary" class="fw-normal" style="font-size: 0.95rem; margin-left: 8px;"></span>
+                                        </h6>
+                                        <small class="text-muted d-block">All restaurants from all days in one place</small>
+                                    </div>
                                  </div>
                                  <i class="ri-arrow-down-s-line ms-2 fs-5 transition-transform"></i>
                              </div>
@@ -13947,6 +14111,11 @@ document.addEventListener('DOMContentLoaded', function() {
                                      <div class="restaurants-container" id="day${day}_restaurants_container">
                                          <div class="card border-0 shadow-sm restaurant-item mb-4 overflow-hidden" data-restaurant-index="1" style="border-radius: 12px;">
                                              <div class="card-body bg-white p-4">
+                                                 <div class="d-flex justify-content-end mb-2">
+                                                     <button type="button" class="btn btn-sm btn-outline-secondary" onclick="copyRestaurant(${day}, 1)">
+                                                         <i class="ri-file-copy-line me-1"></i>Copy
+                                                     </button>
+                                                 </div>
                                                  <!-- Basic Information Section -->
                                                  <div class="mb-4">
                                                      <h6 class="text-primary fw-bold mb-3 d-flex align-items-center">
@@ -15238,6 +15407,84 @@ document.addEventListener('DOMContentLoaded', function() {
         }
         
         console.log(`Total price updated for day ${day}, index ${index}: Ticket: $${ticketPrice}, Guide: $${guidePrice}, Transport: $${transportPrice}, Total: $${totalPrice}`);
+
+        // After updating this attraction row, refresh header + section totals
+        if (typeof updateAttractionSectionSummary === 'function') {
+            updateAttractionSectionSummary(day);
+        }
+    }
+
+    // Overall attraction section summary (names + total incl. guide + vehicle)
+    window.updateAttractionSectionSummary = function(day = 1) {
+        try {
+            const headerSpan = document.getElementById('attractionHeaderSummary');
+            const container = document.getElementById(`day${day}_attractions_container`);
+            if (!container) {
+                if (headerSpan) headerSpan.textContent = '';
+                return;
+            }
+
+            const items = container.querySelectorAll('.attraction-item');
+            if (!items.length) {
+                if (headerSpan) headerSpan.textContent = '';
+                return;
+            }
+
+            const names = [];
+            let grandTotal = 0;
+
+            items.forEach(item => {
+                const idx = item.getAttribute('data-attraction-index');
+                if (!idx) return;
+
+                const attractionSelect = document.getElementById(`day${day}_attraction_${idx}`);
+                const totalDisplay = document.getElementById(`day${day}_attraction_${idx}_total_price_display`);
+
+                // Collect name
+                if (attractionSelect && attractionSelect.value) {
+                    const txt = attractionSelect.options[attractionSelect.selectedIndex].text;
+                    if (txt) names.push(txt);
+                }
+
+                // Collect total (ticket + guide + transport)
+                if (totalDisplay && totalDisplay.textContent) {
+                    const match = totalDisplay.textContent.match(/([\d,.]+)/);
+                    if (match) {
+                        grandTotal += parseFloat(match[1].replace(/,/g, '')) || 0;
+                    }
+                }
+            });
+
+            if (!headerSpan) return;
+
+            if (!names.length || grandTotal === 0) {
+                headerSpan.textContent = '';
+                return;
+            }
+
+            // Build compact names string
+            const uniqueNames = [...new Set(names)];
+            let nameSummary = '';
+            if (uniqueNames.length === 1) {
+                nameSummary = uniqueNames[0];
+            } else if (uniqueNames.length === 2) {
+                nameSummary = `${uniqueNames[0]} & ${uniqueNames[1]}`;
+            } else if (uniqueNames.length === 3) {
+                nameSummary = `${uniqueNames[0]}, ${uniqueNames[1]} & ${uniqueNames[2]}`;
+            } else {
+                const remaining = uniqueNames.length - 2;
+                nameSummary = `${uniqueNames[0]}, ${uniqueNames[1]} + ${remaining} more`;
+            }
+
+            const formattedTotal = grandTotal.toLocaleString('en-US', {
+                minimumFractionDigits: 2,
+                maximumFractionDigits: 2
+            });
+
+            headerSpan.textContent = `– ${nameSummary} • SGD ${formattedTotal}`;
+        } catch (e) {
+            console.error('Error updating attraction section summary:', e);
+        }
     }
     
     // Function to update transport pricing column
@@ -16918,6 +17165,146 @@ document.addEventListener('DOMContentLoaded', function() {
         }
     }
     
+    // Helper: wait for a select to have a specific option, then set and trigger change
+    function waitForSelectOption(selectId, value, callback, attempts = 20, delay = 150) {
+        const select = document.getElementById(selectId);
+        if (!select) return;
+        const hasOption = Array.from(select.options).some(opt => opt.value === value);
+        if (hasOption) {
+            select.value = value;
+            select.dispatchEvent(new Event('change', { bubbles: true }));
+            if (callback) callback();
+        } else if (attempts > 0) {
+            setTimeout(() => waitForSelectOption(selectId, value, callback, attempts - 1, delay), delay);
+        }
+    }
+
+    // Copy a restaurant block to a new one
+    window.copyRestaurant = function(day, index) {
+        const container = document.getElementById(`day${day}_restaurants_container`);
+        if (!container) return;
+
+        // Source field values
+        const cityVal = document.getElementById(`day${day}_restaurant_city_${index}`)?.value || '';
+        const restaurantVal = document.getElementById(`day${day}_restaurant_${index}`)?.value || '';
+        const mealTypeVal = document.getElementById(`day${day}_meal_type_${index}`)?.value || '';
+        const dishVal = document.getElementById(`day${day}_dish_${index}`)?.value || '';
+        const timeSlotVal = document.getElementById(`day${day}_time_slot_${index}`)?.value || '';
+        const transferReqVal = document.getElementById(`day${day}_restaurant_${index}_transfer_required` )?.value || 'No';
+        const transferTypeVal = document.getElementById(`day${day}_restaurant_${index}_transfer_type` )?.value || '';
+        const transferWayVal = document.getElementById(`day${day}_restaurant_${index}_transfer_way` )?.value || '';
+        const transferVehicleVal = document.getElementById(`day${day}_restaurant_${index}_transfer_vehicle` )?.value || '';
+        const transferPickupVal = document.getElementById(`day${day}_restaurant_${index}_transfer_pickup_location` )?.value || '';
+        const transferCostVal = document.getElementById(`day${day}_restaurant_${index}_transfer_cost` )?.value || '';
+
+        // Get guest information from source
+        const sourceGuestSummary = document.getElementById(`day${day}_restaurant_${index}_guest_summary`)?.textContent || '';
+        const sourceGuestBadges = document.querySelectorAll(`#day${day}_restaurant_${index}_guest_summary`).length > 0 
+            ? Array.from(document.querySelector(`#day${day}_restaurant_${index}_guest_summary`).closest('.guest-display')?.querySelectorAll('.guest-badges .badge') || []).map(b => b.textContent)
+            : ['1', '0', '0'];
+
+        // Create new restaurant card
+        addMoreRestaurants(day);
+        const newIndex = container.querySelectorAll('.restaurant-item').length;
+
+        // Copy guest information immediately
+        const newGuestSummary = document.getElementById(`day${day}_restaurant_${newIndex}_guest_summary`);
+        const newGuestBadges = newGuestSummary?.closest('.guest-display')?.querySelectorAll('.guest-badges .badge');
+        if (newGuestSummary && sourceGuestSummary) {
+            newGuestSummary.textContent = sourceGuestSummary;
+        }
+        if (newGuestBadges && newGuestBadges.length >= 3 && sourceGuestBadges.length >= 3) {
+            newGuestBadges[0].textContent = sourceGuestBadges[0] || '1';
+            newGuestBadges[1].textContent = sourceGuestBadges[1] || '0';
+            newGuestBadges[2].textContent = sourceGuestBadges[2] || '0';
+        }
+
+        // Apply city (will trigger loading restaurants)
+        if (cityVal) {
+            const citySelect = document.getElementById(`day${day}_restaurant_city_${newIndex}`);
+            if (citySelect) {
+                // Wait for city options to be available
+                const waitForCityOptions = (attempts = 20) => {
+                    const hasCityOption = Array.from(citySelect.options).some(opt => opt.value === cityVal);
+                    if (hasCityOption) {
+                        citySelect.value = cityVal;
+                        citySelect.dispatchEvent(new Event('change', { bubbles: true }));
+                        
+                        // Wait for restaurants to load after city change
+                        setTimeout(() => {
+                            waitForSelectOption(`day${day}_restaurant_${newIndex}`, restaurantVal, () => {
+                                // Restaurant selected, now load restaurant details
+                                if (restaurantVal && typeof loadRestaurantDetails === 'function') {
+                                    loadRestaurantDetails(day, restaurantVal, newIndex);
+                                    
+                                    // Wait for meal types to load, then set meal type
+                                    setTimeout(() => {
+                                        if (mealTypeVal) {
+                                            waitForSelectOption(`day${day}_meal_type_${newIndex}`, mealTypeVal, () => {
+                                                // Meal type set, wait for dishes to load
+                                                setTimeout(() => {
+                                                    if (dishVal) {
+                                                        waitForSelectOption(`day${day}_dish_${newIndex}`, dishVal);
+                                                    }
+                                                }, 500);
+                                            });
+                                        }
+                                        
+                                        // Time slot (independent of meal type)
+                                        if (timeSlotVal) {
+                                            setTimeout(() => {
+                                                waitForSelectOption(`day${day}_time_slot_${newIndex}`, timeSlotVal);
+                                            }, 500);
+                                        }
+                                    }, 500);
+                                }
+                                
+                                // Transfer required
+                                if (transferReqVal && transferReqVal !== 'No') {
+                                    setTimeout(() => {
+                                        const trReq = document.getElementById(`day${day}_restaurant_${newIndex}_transfer_required`);
+                                        if (trReq) {
+                                            trReq.value = transferReqVal;
+                                            trReq.dispatchEvent(new Event('change', { bubbles: true }));
+                                            
+                                            // Wait for transfer fields to show, then set transfer values
+                                            setTimeout(() => {
+                                                if (transferTypeVal) {
+                                                    waitForSelectOption(`day${day}_restaurant_${newIndex}_transfer_type`, transferTypeVal, () => {
+                                                        if (transferWayVal) {
+                                                            waitForSelectOption(`day${day}_restaurant_${newIndex}_transfer_way`, transferWayVal, () => {
+                                                                if (transferVehicleVal) {
+                                                                    waitForSelectOption(`day${day}_restaurant_${newIndex}_transfer_vehicle`, transferVehicleVal, () => {
+                                                                        if (transferPickupVal) {
+                                                                            waitForSelectOption(`day${day}_restaurant_${newIndex}_transfer_pickup_location`, transferPickupVal, () => {
+                                                                                const costField = document.getElementById(`day${day}_restaurant_${newIndex}_transfer_cost`);
+                                                                                if (costField && transferCostVal) {
+                                                                                    costField.value = transferCostVal;
+                                                                                    updateRestaurantTransportPricing(day, newIndex);
+                                                                                }
+                                                                            });
+                                                                        }
+                                                                    });
+                                                                }
+                                                            });
+                                                        }
+                                                    });
+                                                }
+                                            }, 300);
+                                        }
+                                    }, 300);
+                                }
+                            });
+                        }, 800);
+                    } else if (attempts > 0) {
+                        setTimeout(() => waitForCityOptions(attempts - 1), 100);
+                    }
+                };
+                waitForCityOptions();
+            }
+        }
+    }
+
     window.addMoreRestaurants = function(day) {
         const container = document.getElementById(`day${day}_restaurants_container`);
         const existingRestaurants = container.querySelectorAll('.restaurant-item');
@@ -16936,9 +17323,14 @@ document.addEventListener('DOMContentLoaded', function() {
                                 <small class="opacity-75">Select your dining experience</small>
                             </div>
                         </div>
-                        <button type="button" class="btn btn-sm btn-outline-danger" onclick="removeRestaurant(this, ${day}, ${newIndex})">
-                            <i class="ri-close-line"></i>
-                        </button>
+                        <div class="btn-group">
+                            <button type="button" class="btn btn-sm btn-outline-secondary" onclick="copyRestaurant(${day}, ${newIndex})" title="Copy this restaurant">
+                                <i class="ri-file-copy-line"></i>
+                            </button>
+                            <button type="button" class="btn btn-sm btn-outline-danger" onclick="removeRestaurant(this, ${day}, ${newIndex})" title="Remove this restaurant">
+                                <i class="ri-close-line"></i>
+                            </button>
+                        </div>
                     </div>
                 </div>
                 <div class="card-body bg-white">
@@ -17470,6 +17862,73 @@ document.addEventListener('DOMContentLoaded', function() {
             totalPackagePrice: totalPackagePrice.toFixed(2),
             finalTotalPrice: (totalPackagePrice + surcharge).toFixed(2)
         });
+
+        // After updating this guide row, refresh guide header summary
+        if (typeof window.updateGuideSectionSummary === 'function') {
+            window.updateGuideSectionSummary(day);
+        }
+    }
+
+    // Overall guide section summary (names + total guide price)
+    window.updateGuideSectionSummary = function(day = 1) {
+        try {
+            const headerSpan = document.getElementById('guideHeaderSummary');
+            const container = document.getElementById(`day${day}_guides_container`);
+            if (!headerSpan || !container) return;
+
+            const items = container.querySelectorAll('.guide-item');
+            if (!items.length) {
+                headerSpan.textContent = '';
+                return;
+            }
+
+            const names = [];
+            let grandTotal = 0;
+
+            items.forEach(item => {
+                const idx = item.getAttribute('data-guide-index');
+                if (!idx) return;
+
+                const guideSelect = document.getElementById(`day${day}_guide_${idx}`);
+                const totalField = document.getElementById(`day${day}_guide_${idx}_total_price`);
+
+                if (guideSelect && guideSelect.value) {
+                    const txt = guideSelect.options[guideSelect.selectedIndex].text;
+                    if (txt) names.push(txt);
+                }
+
+                if (totalField && totalField.value) {
+                    grandTotal += parseFloat(totalField.value) || 0;
+                }
+            });
+
+            if (!names.length || grandTotal === 0) {
+                headerSpan.textContent = '';
+                return;
+            }
+
+            const uniqueNames = [...new Set(names)];
+            let nameSummary = '';
+            if (uniqueNames.length === 1) {
+                nameSummary = uniqueNames[0];
+            } else if (uniqueNames.length === 2) {
+                nameSummary = `${uniqueNames[0]} & ${uniqueNames[1]}`;
+            } else if (uniqueNames.length === 3) {
+                nameSummary = `${uniqueNames[0]}, ${uniqueNames[1]} & ${uniqueNames[2]}`;
+            } else {
+                const remaining = uniqueNames.length - 2;
+                nameSummary = `${uniqueNames[0]}, ${uniqueNames[1]} + ${remaining} more`;
+            }
+
+            const formattedTotal = grandTotal.toLocaleString('en-US', {
+                minimumFractionDigits: 2,
+                maximumFractionDigits: 2
+            });
+
+            headerSpan.textContent = `– ${nameSummary} • SGD ${formattedTotal}`;
+        } catch (e) {
+            console.error('Error updating guide section summary:', e);
+        }
     }
     
     // Load guide details and setup pickup time
