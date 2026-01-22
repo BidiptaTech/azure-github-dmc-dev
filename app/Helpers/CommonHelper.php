@@ -1966,6 +1966,241 @@ class CommonHelper
     }
 
     /**
+     * Prepare email template data for a tour
+     * Returns an array with all data needed for the email template view
+     */
+    public static function prepareEmailTemplateData($tourId)
+    {
+        $tour = Tour::where('tour_id', $tourId)->first();
+        if (!$tour) {
+            return null;
+        }
+
+        $orders = Order::where('tour_id', $tourId)
+            ->where('status', 1)
+            ->orderBy('booking_id')
+            ->get();
+
+        $servicesByDate = self::groupServicesByDate($orders);
+        ksort($servicesByDate);
+
+        $servicesByType = self::groupServicesByType($orders, $tour);
+
+        // Fetch DMC user data for logo and company name
+        $dmcUser = null;
+        $dmcLogo = null;
+        $dmcCompanyName = null;
+        $dmcDetails = [
+            'name' => 'N/A',
+            'address' => 'N/A',
+            'city' => 'N/A',
+            'country' => 'N/A',
+            'email' => 'N/A',
+            'email2' => 'N/A',
+            'phone' => 'N/A',
+            'postal_pin' => 'N/A',
+            'company_name' => 'N/A',
+        ];
+        
+        if (!empty($tour->dmc_id)) {
+            $dmcUser = User::where('userId', $tour->dmc_id)->first();
+            if ($dmcUser) {
+                $logoUrl = $dmcUser->logo ?? null;
+                $dmcCompanyName = $dmcUser->company_name ?? null;
+                $dmc_name = $dmcUser->name ?? null;
+                // Populate DMC details
+                $dmcDetails = [
+                    'name' => $dmcUser->name ?? 'N/A',
+                    'address' => $dmcUser->address ?? 'N/A',
+                    'city' => $dmcUser->city ?? 'N/A',
+                    'country' => $dmcUser->user_country ?? $dmcUser->country ?? 'N/A',
+                    'email' => $dmcUser->email ?? 'N/A',
+                    'email2' => 'N/A',
+                    'phone' => ($dmcUser->country_code ? '+' . $dmcUser->country_code . ' ' : '') . ($dmcUser->phone ?? 'N/A'),
+                    'postal_pin' => 'N/A',
+                    'company_name' => $dmcUser->company_name ?? 'N/A',
+                ];
+                
+                // Convert logo URL to base64 for display
+                if (!empty($logoUrl)) {
+                    try {
+                        $mimeType = 'image/png';
+                        $urlPath = parse_url($logoUrl, PHP_URL_PATH);
+                        if ($urlPath) {
+                            $extension = strtolower(pathinfo($urlPath, PATHINFO_EXTENSION));
+                            $mimeMap = [
+                                'jpg' => 'image/jpeg',
+                                'jpeg' => 'image/jpeg',
+                                'png' => 'image/png',
+                                'gif' => 'image/gif',
+                                'webp' => 'image/webp',
+                                'svg' => 'image/svg+xml',
+                            ];
+                            $mimeType = $mimeMap[$extension] ?? 'image/png';
+                        }
+                        
+                        $response = Http::timeout(10)->get($logoUrl);
+                        if ($response->successful()) {
+                            $imageContent = $response->body();
+                            if (!empty($imageContent) && strlen($imageContent) > 100) {
+                                $contentType = $response->header('Content-Type');
+                                if ($contentType && strpos($contentType, 'image/') !== false) {
+                                    $mimeType = explode(';', $contentType)[0];
+                                }
+                                $base64 = base64_encode($imageContent);
+                                $dmcLogo = 'data:' . $mimeType . ';base64,' . $base64;
+                            }
+                        } else {
+                            $imageContent = @file_get_contents($logoUrl);
+                            if ($imageContent !== false && !empty($imageContent) && strlen($imageContent) > 100) {
+                                $base64 = base64_encode($imageContent);
+                                $dmcLogo = 'data:' . $mimeType . ';base64,' . $base64;
+                            }
+                        }
+                    } catch (\Exception $e) {
+                        Log::warning('Failed to fetch DMC logo for email', [
+                            'logo_url' => $logoUrl,
+                            'error' => $e->getMessage()
+                        ]);
+                    }
+                }
+            }
+        }
+
+        // Fetch Agent/Agency information
+        $agentDetails = [
+            'name' => 'N/A',
+            'address' => 'N/A',
+            'contact_person' => 'N/A',
+            'phone' => 'N/A',
+            'email' => 'N/A',
+        ];
+
+        if (!empty($tour->agent_id)) {
+            $agent = Agent::with('agency')->where('agent_id', $tour->agent_id)->first();
+            if ($agent) {
+                $agency = $agent->agency;
+                
+                $agentDetails = [
+                    'name' => ($agency && $agency->agency_name) ? $agency->agency_name : ($agent->name ?? 'N/A'),
+                    'address' => ($agency && $agency->address) ? $agency->address : 'N/A',
+                    'contact_person' => ($agency && $agency->contact_person) ? $agency->contact_person : ($agent->name ?? 'N/A'),
+                    'phone' => ($agency && $agency->phone) ? $agency->phone : ($agent->phone ?? 'N/A'),
+                    'email' => ($agency && $agency->email) ? $agency->email : ($agent->email ?? 'N/A'),
+                ];
+            }
+        }
+
+        // Proposal details
+        $proposalDetails = [
+            'proposal_date' => now()->format('d M Y'),
+            'proposal_validity' => 'N/A',
+            'proposal_sent_by' => $dmc_name ?? 'N/A',
+        ];
+
+        // Get booking and guest details from orders
+        $bookingDetails = [
+            'booking_id' => $tour->display_id ?? ('Tour #' . ($tour->tour_id ?? 'N/A')),
+            'lead_guest_name' => 'N/A',
+            'email' => 'N/A',
+            'phone' => 'N/A',
+            'address' => 'N/A',
+            'city' => 'N/A',
+            'postal_code' => 'N/A',
+            'no_of_adults' => (int)($tour->adult ?? 0),
+            'no_of_children' => (int)($tour->child ?? 0),
+            'no_of_infants' => (int)($tour->infant ?? 0),
+        ];
+
+        // Try to get guest information from first order
+        if ($orders->count() > 0) {
+            $firstOrder = $orders->first();
+            $orderData = $firstOrder->data;
+            if (is_string($orderData)) {
+                $orderData = json_decode($orderData, true);
+            }
+            
+            if (is_array($orderData) && !empty($orderData)) {
+                $firstItem = is_array($orderData[0]) ? $orderData[0] : $orderData;
+                
+                $bookingDetails['lead_guest_name'] = $firstItem['fullName'] ?? $firstItem['name'] ?? 'N/A';
+                $bookingDetails['email'] = $firstItem['email'] ?? 'N/A';
+                $bookingDetails['gender'] = $firstItem['gender'] ?? 'N/A';
+                $bookingDetails['passenger_type'] = $firstItem['passenger_type'] ?? 'N/A';
+                $bookingDetails['salutation'] = $firstItem['salutation'] ?? 'N/A';
+                $bookingDetails['phone'] = $firstItem['phone'] ?? 'N/A';
+                
+                $address1 = $firstItem['address1'] ?? '';
+                $address2 = $firstItem['address2'] ?? '';
+                if (!empty($address1) || !empty($address2)) {
+                    $bookingDetails['address'] = trim($address1 . ' ' . $address2);
+                }
+                
+                $bookingDetails['city'] = $firstItem['state'] ?? 'N/A';
+                $bookingDetails['postal_code'] = $firstItem['zip'] ?? 'N/A';
+            }
+        }
+
+        // Travel details
+        $travelDetails = [
+            'destination' => $tour->destination ?? $tour->tour_destination ?? 'N/A',
+            'travel_date_from' => $tour->check_in_time ? \Carbon\Carbon::parse($tour->check_in_time)->format('l- d/m/Y') : 'N/A',
+            'travel_date_to' => $tour->check_out_time ? \Carbon\Carbon::parse($tour->check_out_time)->format('l- d/m/Y') : 'N/A',
+            'duration' => 'N/A',
+        ];
+
+        // Calculate duration
+        if ($tour->check_in_time && $tour->check_out_time) {
+            try {
+                $checkIn = \Carbon\Carbon::parse($tour->check_in_time);
+                $checkOut = \Carbon\Carbon::parse($tour->check_out_time);
+                $duration = $checkIn->diffInDays($checkOut);
+                $travelDetails['duration'] = $duration . ' Day' . ($duration > 1 ? 's' : '');
+            } catch (\Exception $e) {
+                // Keep as N/A
+            }
+        }
+
+        // Calculate tour prices
+        $tourPrices = self::calculateTourPrices($tourId);
+        $hotelOptions = self::formatHotelsForPdf($orders, $tour, $tourPrices);
+        
+        // Fetch bank details from DMC user
+        $bankDetails = [];
+        if ($dmcUser && isset($dmcUser->bank_details)) {
+            $bankDetailsData = is_string($dmcUser->bank_details) ? json_decode($dmcUser->bank_details, true) : $dmcUser->bank_details;
+            if (is_array($bankDetailsData)) {
+                $bankDetails = $bankDetailsData;
+            }
+        }
+        
+        // Terms and conditions, exclusions, and payment terms
+        $termsAndConditions = '';
+        $exclusions = '';
+        $paymentTerms = [];
+        
+        return [
+            'tour' => $tour,
+            'servicesByDate' => $servicesByDate,
+            'servicesByType' => $servicesByType,
+            'generatedAt' => now(),
+            'dmcLogo' => $dmcLogo,
+            'dmcCompanyName' => $dmcCompanyName,
+            'dmcDetails' => $dmcDetails,
+            'agentDetails' => $agentDetails,
+            'proposalDetails' => $proposalDetails,
+            'bookingDetails' => $bookingDetails,
+            'travelDetails' => $travelDetails,
+            'tourPrices' => $tourPrices,
+            'hotelOptions' => $hotelOptions,
+            'bankDetails' => $bankDetails,
+            'termsAndConditions' => $termsAndConditions,
+            'exclusions' => $exclusions,
+            'paymentTerms' => $paymentTerms,
+        ];
+    }
+
+    /**
      * Calculate single sharing and double sharing prices for a tour
      * 
      * @param int|string $tourId - Can be tour_id (integer) or display_id (string like "DMC-ORD3107")
@@ -2934,6 +3169,8 @@ class CommonHelper
             'exit_port',
             'point_to_point',
             'hourly',
+            'travel_point',
+            'travel_hourly',
             'local_transport',
             'local_transfer',
             'port_transport',
@@ -2974,7 +3211,7 @@ class CommonHelper
             if ($transferOptions && !empty($transferOptions['type'])) {
                 $transferType = $transferOptions['type'];
             } else {
-                // For local_transfer, use the type field directly
+                // For travel_point, travel_hourly, local_transport, and local_transfer, use the type field directly
                 $transferType = $item['type'] ?? null;
             }
             
@@ -3070,7 +3307,7 @@ class CommonHelper
             $vehicleDetails = [
                 'name' => $vehiclesName,
                 'type' => $item['type'] ?? null,
-                'transfer_type' => $transferType,
+                'transfer_type' => $transferType ?? $item['type'] ?? null,
                 'vehicle_type' => $vehicleType,
                 'vehicle_type_seater' => $vehicleTypeSeater,
                 'vehicle_number' => $vehicleNumber ?: 'N/A',

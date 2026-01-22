@@ -305,6 +305,29 @@ Route::get('/clear', function () {
                 return redirect()->back()->with('error', 'Unable to generate itinerary PDF.');
             })->name('tour.itinerary.pdf');
 
+            Route::get('/tour/{encryptedTourId}/email-preview', function ($encryptedTourId) {
+                try {
+                    // Decrypt the tour ID
+                    $tourId = decrypt($encryptedTourId);
+                    
+                    $emailData = CommonHelper::prepareEmailTemplateData($tourId);
+                    
+                    if (!$emailData) {
+                        return redirect()->back()->with('error', 'Tour not found.');
+                    }
+                    
+                    return view('single-tour-package.email-details', $emailData);
+                } catch (\Illuminate\Contracts\Encryption\DecryptException $e) {
+                    \Log::error('Email preview decryption error: ' . $e->getMessage());
+                    return redirect()->back()->with('error', 'Invalid tour ID.');
+                } catch (\Exception $e) {
+                    \Log::error('Email preview error: ' . $e->getMessage(), [
+                        'trace' => $e->getTraceAsString()
+                    ]);
+                    return redirect()->back()->with('error', 'Unable to load email preview.');
+                }
+            })->name('tour.email.preview');
+
             // API routes for single tour packages (follow agent controller pattern)
             Route::get('/fetch-cities-by-country-single-tour', [SingleTourPackageController::class, 'fetchCitiesByCountry'])->name('fetch-cities-by-country-single-tour');
             Route::get('/fetch-ports-by-country-single-tour', [SingleTourPackageController::class, 'fetchPortsByCountry'])->name('fetch-ports-by-country-single-tour');

@@ -105,6 +105,7 @@ class BookingsController extends Controller
         if($user->role_id == 1 || $user->role_id == 2 || $user->role_id == 3 || $user->role_id == 4){
         $tours = Tour::where('tour_status', 'New Enquiry')
             ->leftJoin('agents', 'tours.agent_id', '=', 'agents.agent_id')
+                            ->leftJoin('users as created_by_user', 'tours.created_by', '=', 'created_by_user.userId')
                             ->select([
                     'tours.tour_id',
                     'tours.display_id',
@@ -129,8 +130,10 @@ class BookingsController extends Controller
                     'tours.updated_at',
                     'tours.auto_cancel_date',
                     'tours.agent_id',
+                    'tours.created_by',
                     'agents.name as agent_name',
-                    'agents.company_name as agent_company_name'
+                    'agents.company_name as agent_company_name',
+                    'created_by_user.name as created_by_name'
                     ])
                 ->orderBy('tours.created_at', 'desc')
                 ->get();
@@ -154,6 +157,7 @@ class BookingsController extends Controller
             $tours = Tour::where('tour_status', 'New Enquiry')
                 ->where('tours.dmc_id', $dmc_id)
                 ->leftJoin('agents', 'tours.agent_id', '=', 'agents.agent_id')
+                ->leftJoin('users as created_by_user', 'tours.created_by', '=', 'created_by_user.userId')
                 ->select([
                     'tours.tour_id',
                     'tours.display_id',
@@ -178,8 +182,10 @@ class BookingsController extends Controller
                     'tours.updated_at',
                     'tours.auto_cancel_date',
                     'tours.agent_id',
+                    'tours.created_by',
                     'agents.name as agent_name',
-                    'agents.company_name as agent_company_name'
+                    'agents.company_name as agent_company_name',
+                    'created_by_user.name as created_by_name'
                     ])
                 ->orderBy('tours.created_at', 'desc')
                 ->get();
@@ -453,6 +459,7 @@ class BookingsController extends Controller
         if($user->role_id == 1 || $user->role_id == 2 || $user->role_id == 3 || $user->role_id == 4){
             $tours = Tour::whereIn('tour_status', ['Prospect', 'Tentative'])
             ->leftJoin('agents', 'tours.agent_id', '=', 'agents.agent_id')
+            ->leftJoin('users as created_by_user', 'tours.created_by', '=', 'created_by_user.userId')
             ->leftJoin('enquiry_comments', function($join) {
                 $join->on('tours.tour_id', '=', 'enquiry_comments.tour_id')
                      ->whereRaw('enquiry_comments.enquiry_id = (
@@ -484,8 +491,10 @@ class BookingsController extends Controller
                 'tours.updated_at',
                 'tours.auto_cancel_date',
                 'tours.agent_id',
+                'tours.created_by',
                 'agents.name as agent_name',
                 'agents.company_name as agent_company_name',
+                'created_by_user.name as created_by_name',
                 'enquiry_comments.enquiry_id as enquiry_id',
                 'enquiry_comments.comment as enquiry_comment',
                 'enquiry_comments.amount as enquiry_comment_amount',
@@ -514,6 +523,7 @@ class BookingsController extends Controller
         if($dmc_id){
             $tours = Tour::whereIn('tour_status', ['Prospect', 'Tentative'])
                 ->leftJoin('agents', 'tours.agent_id', '=', 'agents.agent_id')
+                ->leftJoin('users as created_by_user', 'tours.created_by', '=', 'created_by_user.userId')
                 ->leftJoin('enquiry_comments', function($join) {
                     $join->on('tours.tour_id', '=', 'enquiry_comments.tour_id')
                          ->whereRaw('enquiry_comments.enquiry_id = (
@@ -545,8 +555,10 @@ class BookingsController extends Controller
                     'tours.updated_at',
                     'tours.auto_cancel_date',
                     'tours.agent_id',
+                    'tours.created_by',
                     'agents.name as agent_name',
                     'agents.company_name as agent_company_name',
+                    'created_by_user.name as created_by_name',
                     'enquiry_comments.enquiry_id as enquiry_id',
                     'enquiry_comments.comment as enquiry_comment',
                     'enquiry_comments.amount as enquiry_comment_amount',
@@ -956,6 +968,7 @@ class BookingsController extends Controller
                       ->orWhere('tour_status', 'LIKE', '%Cancel%');
             })
             ->leftJoin('agents', 'tours.agent_id', '=', 'agents.agent_id')
+            ->leftJoin('users as created_by_user', 'tours.created_by', '=', 'created_by_user.userId')
             ->select([
                 'tours.tour_id',
                 'tours.display_id',
@@ -980,8 +993,10 @@ class BookingsController extends Controller
                 'tours.updated_at',
                 'tours.auto_cancel_date',
                 'tours.agent_id',
+                'tours.created_by',
                 'agents.name as agent_name',
-                'agents.company_name as agent_company_name'
+                'agents.company_name as agent_company_name',
+                'created_by_user.name as created_by_name'
             ])
             ->orderBy('tours.created_at', 'desc')
             ->get();
@@ -1007,6 +1022,7 @@ class BookingsController extends Controller
             })
             ->where('tours.dmc_id', $dmc_id)
             ->leftJoin('agents', 'tours.agent_id', '=', 'agents.agent_id')
+            ->leftJoin('users as created_by_user', 'tours.created_by', '=', 'created_by_user.userId')
             ->select([
                 'tours.tour_id',
                 'tours.display_id',
@@ -1025,8 +1041,10 @@ class BookingsController extends Controller
                 'tours.updated_at',
                 'tours.auto_cancel_date',
                 'tours.agent_id',
+                'tours.created_by',
                 'agents.name as agent_name',
-                'agents.company_name as agent_company_name'
+                'agents.company_name as agent_company_name',
+                'created_by_user.name as created_by_name'
             ])
             ->orderBy('tours.created_at', 'desc')
             ->get();
@@ -1053,6 +1071,7 @@ class BookingsController extends Controller
             ])
             ->whereIn('tour_status', ['Refund - Pending', 'Refunded'])
             ->leftJoin('agents', 'tours.agent_id', '=', 'agents.agent_id')
+            ->leftJoin('users as created_by_user', 'tours.created_by', '=', 'created_by_user.userId')
             ->select([
                 'tours.tour_id',
                 'tours.unique_tour_id',
@@ -1078,8 +1097,10 @@ class BookingsController extends Controller
                 'tours.auto_cancel_date',
                 'tours.agent_id',
                 'tours.dmc_id',
+                'tours.created_by',
                 'agents.name as agent_name',
-                'agents.company_name as agent_company_name'
+                'agents.company_name as agent_company_name',
+                'created_by_user.name as created_by_name'
             ])
             ->orderBy('tours.created_at', 'desc')
             ->get();
@@ -1107,6 +1128,7 @@ class BookingsController extends Controller
             ->whereIn('tour_status', ['Refund - Pending', 'Refunded'])
             ->where('tours.dmc_id', $dmc_id)
             ->leftJoin('agents', 'tours.agent_id', '=', 'agents.agent_id')
+            ->leftJoin('users as created_by_user', 'tours.created_by', '=', 'created_by_user.userId')
             ->select([
                 'tours.tour_id',
                 'tours.unique_tour_id',
@@ -1132,8 +1154,10 @@ class BookingsController extends Controller
                 'tours.auto_cancel_date',
                 'tours.agent_id',
                 'tours.dmc_id',
+                'tours.created_by',
                 'agents.name as agent_name',
-                'agents.company_name as agent_company_name'
+                'agents.company_name as agent_company_name',
+                'created_by_user.name as created_by_name'
             ])
             ->orderBy('tours.created_at', 'desc')
             ->get();
