@@ -13025,16 +13025,24 @@ document.addEventListener('DOMContentLoaded', function() {
                       <div class="accordion-item border-0 mb-4">
                           <div class="card shadow-sm border-0 overflow-hidden">
                               <div class="card-header text-dark d-flex justify-content-between align-items-center" role="button" data-bs-toggle="collapse" data-bs-target="#arrivalTransportSection" aria-expanded="false" aria-controls="arrivalTransportSection" style="cursor: pointer; background: linear-gradient(135deg, #dbeafe 0%, #bfdbfe 100%); border: 1px solid #60a5fa; transition: all 0.3s ease;">
-                                  <div class="d-flex align-items-center">
+                                  <div class="d-flex align-items-center flex-grow-1">
                                       <span class="service-icon me-3 d-flex align-items-center justify-content-center rounded-circle" style="width: 45px; height: 45px; background: linear-gradient(135deg, #3b82f6 0%, #2563eb 100%); color: white;">
                                           <i class="ri-login-circle-line fs-5"></i>
                                       </span>
-                                      <div>
+                                      <div class="flex-grow-1">
                                           <h6 class="mb-0 fw-bold text-dark">🚌 Arrival Transport Services</h6>
-                                          <small class="text-muted d-block">Edit entry port transfers</small>
+                                          <small class="text-muted d-block">
+                                              <span id="day${day}_arrival_vehicle_name" style="font-weight: 600; color: #3b82f6;">No vehicle selected</span>
+                                          </small>
                                       </div>
                                   </div>
-                                  <i class="ri-arrow-down-s-line ms-2 fs-5 transition-transform"></i>
+                                  <div class="d-flex align-items-center ms-3">
+                                      <div class="text-end me-3">
+                                          <div class="fw-bold text-dark" style="font-size: 1.1rem;" id="day${day}_arrival_total_price">$0.00</div>
+                                          <small class="text-muted" style="font-size: 0.75rem;">Total Price</small>
+                                      </div>
+                                      <i class="ri-arrow-down-s-line fs-5 transition-transform"></i>
+                                  </div>
                               </div>
                               <div id="arrivalTransportSection" class="collapse">
                                   <div class="card-body bg-light p-4">
@@ -13297,16 +13305,24 @@ document.addEventListener('DOMContentLoaded', function() {
                       <div class="accordion-item border-0 mb-4">
                           <div class="card shadow-sm border-0 overflow-hidden">
                               <div class="card-header text-dark d-flex justify-content-between align-items-center" role="button" data-bs-toggle="collapse" data-bs-target="#departureTransportSection" aria-expanded="false" aria-controls="departureTransportSection" style="cursor: pointer; background: linear-gradient(135deg, #dbeafe 0%, #bfdbfe 100%); border: 1px solid #60a5fa; transition: all 0.3s ease;">
-                                  <div class="d-flex align-items-center">
+                                  <div class="d-flex align-items-center flex-grow-1">
                                       <span class="service-icon me-3 d-flex align-items-center justify-content-center rounded-circle" style="width: 45px; height: 45px; background: linear-gradient(135deg, #3b82f6 0%, #2563eb 100%); color: white;">
                                           <i class="ri-logout-circle-line fs-5"></i>
                                       </span>
-                                      <div>
+                                      <div class="flex-grow-1">
                                           <h6 class="mb-0 fw-bold text-dark">✈️ Departure Transport Services</h6>
-                                          <small class="text-muted d-block">Edit exit port transfers</small>
+                                          <small class="text-muted d-block">
+                                              <span id="day${day}_departure_vehicle_name" style="font-weight: 600; color: #3b82f6;">No vehicle selected</span>
+                                          </small>
                                       </div>
                                   </div>
-                                  <i class="ri-arrow-down-s-line ms-2 fs-5 transition-transform"></i>
+                                  <div class="d-flex align-items-center ms-3">
+                                      <div class="text-end me-3">
+                                          <div class="fw-bold text-dark" style="font-size: 1.1rem;" id="day${day}_departure_total_price">$0.00</div>
+                                          <small class="text-muted" style="font-size: 0.75rem;">Total Price</small>
+                                      </div>
+                                      <i class="ri-arrow-down-s-line fs-5 transition-transform"></i>
+                                  </div>
                               </div>
                               <div id="departureTransportSection" class="collapse">
                                   <div class="card-body bg-light p-4">
@@ -14377,16 +14393,24 @@ document.addEventListener('DOMContentLoaded', function() {
                      <div class="accordion-item border-0 mb-4">
                          <div class="card shadow-sm border-0 overflow-hidden">
                              <div class="card-header text-dark d-flex justify-content-between align-items-center" role="button" data-bs-toggle="collapse" data-bs-target="#otherTransportSection" aria-expanded="false" aria-controls="otherTransportSection" style="cursor: pointer; background: linear-gradient(135deg, #ccfbf1 0%, #99f6e4 100%); border: 1px solid #5eead4; transition: all 0.3s ease;">
-                                 <div class="d-flex align-items-center">
+                                 <div class="d-flex align-items-center flex-grow-1">
                                      <span class="service-icon me-3 d-flex align-items-center justify-content-center rounded-circle" style="width: 45px; height: 45px; background: linear-gradient(135deg, #14b8a6 0%, #0d9488 100%); color: white;">
                                          <i class="ri-car-line fs-5"></i>
                                      </span>
-                                     <div>
+                                     <div class="flex-grow-1">
                                          <h6 class="mb-0 fw-bold text-dark">🚗 Other Transport Services</h6>
-                                         <small class="text-muted d-block">Local transfers and other transport services from all days</small>
+                                         <small class="text-muted d-block">
+                                             <span id="day${day}_other_transport_vehicle_name" style="font-weight: 600; color: #14b8a6;">No vehicle selected</span>
+                                         </small>
                                      </div>
                                  </div>
-                                 <i class="ri-arrow-down-s-line ms-2 fs-5 transition-transform"></i>
+                                 <div class="d-flex align-items-center ms-3">
+                                     <div class="text-end me-3">
+                                         <div class="fw-bold text-dark" style="font-size: 1.1rem;" id="day${day}_other_transport_total_price">$0.00</div>
+                                         <small class="text-muted" style="font-size: 0.75rem;">Total Price</small>
+                                     </div>
+                                     <i class="ri-arrow-down-s-line fs-5 transition-transform"></i>
+                                 </div>
                              </div>
                              <div id="otherTransportSection" class="collapse">
                                  <div class="card-body bg-light p-4">
@@ -19249,6 +19273,8 @@ document.addEventListener('DOMContentLoaded', function() {
      window.removeTransport = function(button, day, index) {
          const transportItem = button.closest('.transport-item');
          transportItem.remove();
+         // Update other transport header after removal
+         updateOtherTransportHeader(day);
          showNotification(`Transport Booking #${index} removed from Day ${day}`, 'info');
      };
      
@@ -19567,6 +19593,8 @@ document.addEventListener('DOMContentLoaded', function() {
          const portItem = button.closest('.entry-port-item');
          portItem.remove();
          showNotification(`Entry Port Vehicle #${index} removed from Day ${day}`, 'info');
+         // Update arrival header after removal
+         updateArrivalHeader(day);
      };
 
      
@@ -19890,6 +19918,8 @@ document.addEventListener('DOMContentLoaded', function() {
          const portItem = button.closest('.exit-port-item');
          portItem.remove();
          showNotification(`Exit Port Vehicle #${index} removed from Day ${day}`, 'info');
+         // Update departure header after removal
+         updateDepartureHeader(day);
      };
 
      
@@ -23937,6 +23967,21 @@ function loadDropoffZones(day, section) {
         console.log(`- Total Price: $${totalPrice.toFixed(2)}`);
         console.log(`- Guest Count: ${totalGuests}`);
         
+        // Update arrival header if this is an entry section
+        if (section.startsWith('entry')) {
+            updateArrivalHeader(day);
+        }
+        
+        // Update departure header if this is an exit section
+        if (section.startsWith('exit')) {
+            updateDepartureHeader(day);
+        }
+        
+        // Update other transport header if this is a transport section
+        if (section.startsWith('transport')) {
+            updateOtherTransportHeader(day);
+        }
+        
     } else {
         priceDisplay.style.display = 'none';
         console.log('No pricing information available for the selected vehicle and service type');
@@ -23964,6 +24009,21 @@ function loadDropoffZones(day, section) {
         if (basePriceField) basePriceField.value = '0';
         if (totalPriceField) totalPriceField.value = '0';
         if (guestCountField) guestCountField.value = '0';
+        
+        // Update arrival header if this is an entry section
+        if (section.startsWith('entry')) {
+            updateArrivalHeader(day);
+        }
+        
+        // Update departure header if this is an exit section
+        if (section.startsWith('exit')) {
+            updateDepartureHeader(day);
+        }
+        
+        // Update other transport header if this is a transport section
+        if (section.startsWith('transport')) {
+            updateOtherTransportHeader(day);
+        }
     }
 }
 
@@ -24069,6 +24129,11 @@ window.updateCustomPricing = function(day, section) {
         
         console.log(`Custom pricing updated for day ${day}, section ${section}: SGD ${customPrice.toFixed(2)}`);
         
+        // Update other transport header after custom pricing change
+        if (section.startsWith('transport')) {
+            updateOtherTransportHeader(day);
+        }
+        
     } else {
         // Hide price display if no custom price
         priceDisplay.style.display = 'none';
@@ -24090,6 +24155,11 @@ window.updateCustomPricing = function(day, section) {
         if (basePriceField) basePriceField.value = '0';
         if (totalPriceField) totalPriceField.value = '0';
         if (guestCountField) guestCountField.value = '0';
+        
+        // Update other transport header after custom pricing change
+        if (section.startsWith('transport')) {
+            updateOtherTransportHeader(day);
+        }
     }
 }
 
@@ -24234,6 +24304,342 @@ window.updateEntryPortCustomPricing = function(day, section) {
         if (totalPriceField) totalPriceField.value = '0';
         if (guestCountField) guestCountField.value = '0';
     }
+    
+    // Update arrival header after custom pricing change
+    if (section.startsWith('entry')) {
+        updateArrivalHeader(day);
+    }
+}
+
+// Update arrival section header with vehicle name and total price
+window.updateArrivalHeader = function(day) {
+    const arrivalSection = document.getElementById(`day${day}`)?.querySelector('#arrivalTransportSection');
+    if (!arrivalSection) return;
+    
+    const entryPortsContainer = arrivalSection.querySelector('.entry-ports-container');
+    if (!entryPortsContainer) {
+        // If container doesn't exist, check for entry port items directly in the section
+        const entryPortItems = arrivalSection.querySelectorAll('.entry-port-item');
+        if (entryPortItems.length === 0) {
+            // Check for the main entry_0 vehicle select
+            const mainVehicleSelect = document.getElementById(`day${day}_entry_0_vehicle_id`);
+            const mainTotalPrice = document.getElementById(`day${day}_entry_0_total_price`);
+            
+            let vehicleName = 'No vehicle selected';
+            let totalPrice = 0;
+            
+            if (mainVehicleSelect && mainVehicleSelect.value) {
+                const selectedOption = mainVehicleSelect.options[mainVehicleSelect.selectedIndex];
+                if (selectedOption && selectedOption.value) {
+                    let name = selectedOption.textContent || '';
+                    if (name && name.includes('(')) {
+                        name = name.split('(')[0].trim();
+                    }
+                    name = name.trim();
+                    if (name && name !== 'Choose vehicle' && name !== 'Select Vehicle' && name !== 'Choose your vehicle') {
+                        vehicleName = name;
+                    }
+                }
+            }
+            
+            if (mainTotalPrice) {
+                totalPrice = parseFloat(mainTotalPrice.value) || 0;
+            }
+            
+            const arrivalVehicleNameEl = document.getElementById(`day${day}_arrival_vehicle_name`);
+            const arrivalTotalPriceEl = document.getElementById(`day${day}_arrival_total_price`);
+            
+            if (arrivalVehicleNameEl) {
+                arrivalVehicleNameEl.textContent = vehicleName;
+                arrivalVehicleNameEl.style.color = vehicleName !== 'No vehicle selected' ? '#3b82f6' : '#6c757d';
+            }
+            
+            if (arrivalTotalPriceEl) {
+                arrivalTotalPriceEl.textContent = `$${totalPrice.toFixed(2)}`;
+            }
+            return;
+        }
+    }
+    
+    const entryPortItems = entryPortsContainer ? entryPortsContainer.querySelectorAll('.entry-port-item') : arrivalSection.querySelectorAll('.entry-port-item');
+    let totalArrivalPrice = 0;
+    let vehicleNames = [];
+    
+    // Also check for the main entry_0 vehicle
+    const mainVehicleSelect = document.getElementById(`day${day}_entry_0_vehicle_id`);
+    const mainTotalPrice = document.getElementById(`day${day}_entry_0_total_price`);
+    
+    if (mainVehicleSelect && mainVehicleSelect.value) {
+        const selectedOption = mainVehicleSelect.options[mainVehicleSelect.selectedIndex];
+        if (selectedOption && selectedOption.value) {
+            let vehicleName = selectedOption.textContent || '';
+            if (vehicleName && vehicleName.includes('(')) {
+                vehicleName = vehicleName.split('(')[0].trim();
+            }
+            vehicleName = vehicleName.trim();
+            if (vehicleName && vehicleName !== 'Choose vehicle' && vehicleName !== 'Select Vehicle' && vehicleName !== 'Choose your vehicle' && !vehicleNames.includes(vehicleName)) {
+                vehicleNames.push(vehicleName);
+            }
+        }
+    }
+    
+    if (mainTotalPrice) {
+        const price = parseFloat(mainTotalPrice.value) || 0;
+        totalArrivalPrice += price;
+    }
+    
+    entryPortItems.forEach((item) => {
+        // Find vehicle select within this item (handles entry_1, entry_2, etc.)
+        const vehicleSelect = item.querySelector('select.vehicle-select[id*="entry_"][id*="_vehicle_id"]');
+        // Find total price field within this item
+        const totalPriceField = item.querySelector('input[id*="entry_"][id*="_total_price"]');
+        
+        if (vehicleSelect && vehicleSelect.value) {
+            const selectedOption = vehicleSelect.options[vehicleSelect.selectedIndex];
+            if (selectedOption && selectedOption.value) {
+                // Get vehicle name from option text
+                let vehicleName = selectedOption.textContent || '';
+                // Extract vehicle name from text (format: "Vehicle Name (Type) - X seats")
+                // Take everything before the first '(' if it exists
+                if (vehicleName && vehicleName.includes('(')) {
+                    vehicleName = vehicleName.split('(')[0].trim();
+                }
+                // Clean up the text
+                vehicleName = vehicleName.trim();
+                if (vehicleName && vehicleName !== 'Choose vehicle' && vehicleName !== 'Select Vehicle' && vehicleName !== 'Choose your vehicle' && !vehicleNames.includes(vehicleName)) {
+                    vehicleNames.push(vehicleName);
+                }
+            }
+        }
+        
+        if (totalPriceField) {
+            const price = parseFloat(totalPriceField.value) || 0;
+            totalArrivalPrice += price;
+        }
+    });
+    
+    // Update arrival header
+    const arrivalVehicleNameEl = document.getElementById(`day${day}_arrival_vehicle_name`);
+    const arrivalTotalPriceEl = document.getElementById(`day${day}_arrival_total_price`);
+    
+    if (arrivalVehicleNameEl) {
+        if (vehicleNames.length > 0) {
+            arrivalVehicleNameEl.textContent = vehicleNames.length === 1 ? vehicleNames[0] : `${vehicleNames.length} vehicles selected`;
+            arrivalVehicleNameEl.style.color = '#3b82f6';
+        } else {
+            arrivalVehicleNameEl.textContent = 'No vehicle selected';
+            arrivalVehicleNameEl.style.color = '#6c757d';
+        }
+    }
+    
+    if (arrivalTotalPriceEl) {
+        arrivalTotalPriceEl.textContent = `$${totalArrivalPrice.toFixed(2)}`;
+    }
+}
+
+// Update departure section header with vehicle name and total price
+window.updateDepartureHeader = function(day) {
+    const departureSection = document.getElementById(`day${day}`)?.querySelector('#departureTransportSection');
+    if (!departureSection) return;
+    
+    const exitPortsContainer = departureSection.querySelector('.exit-ports-container');
+    if (!exitPortsContainer) {
+        // If container doesn't exist, check for exit port items directly in the section
+        const exitPortItems = departureSection.querySelectorAll('.exit-port-item');
+        if (exitPortItems.length === 0) {
+            // Check for the main exit_0 vehicle select
+            const mainVehicleSelect = document.getElementById(`day${day}_exit_0_vehicle_id`);
+            const mainTotalPrice = document.getElementById(`day${day}_exit_0_total_price`);
+            
+            let vehicleName = 'No vehicle selected';
+            let totalPrice = 0;
+            
+            if (mainVehicleSelect && mainVehicleSelect.value) {
+                const selectedOption = mainVehicleSelect.options[mainVehicleSelect.selectedIndex];
+                if (selectedOption && selectedOption.value) {
+                    let name = selectedOption.textContent || '';
+                    if (name && name.includes('(')) {
+                        name = name.split('(')[0].trim();
+                    }
+                    name = name.trim();
+                    if (name && name !== 'Choose vehicle' && name !== 'Select Vehicle' && name !== 'Choose your vehicle') {
+                        vehicleName = name;
+                    }
+                }
+            }
+            
+            if (mainTotalPrice) {
+                totalPrice = parseFloat(mainTotalPrice.value) || 0;
+            }
+            
+            const departureVehicleNameEl = document.getElementById(`day${day}_departure_vehicle_name`);
+            const departureTotalPriceEl = document.getElementById(`day${day}_departure_total_price`);
+            
+            if (departureVehicleNameEl) {
+                departureVehicleNameEl.textContent = vehicleName;
+                departureVehicleNameEl.style.color = vehicleName !== 'No vehicle selected' ? '#3b82f6' : '#6c757d';
+            }
+            
+            if (departureTotalPriceEl) {
+                departureTotalPriceEl.textContent = `$${totalPrice.toFixed(2)}`;
+            }
+            return;
+        }
+    }
+    
+    const exitPortItems = exitPortsContainer ? exitPortsContainer.querySelectorAll('.exit-port-item') : departureSection.querySelectorAll('.exit-port-item');
+    let totalDeparturePrice = 0;
+    let vehicleNames = [];
+    
+    // Also check for the main exit_0 vehicle
+    const mainVehicleSelect = document.getElementById(`day${day}_exit_0_vehicle_id`);
+    const mainTotalPrice = document.getElementById(`day${day}_exit_0_total_price`);
+    
+    if (mainVehicleSelect && mainVehicleSelect.value) {
+        const selectedOption = mainVehicleSelect.options[mainVehicleSelect.selectedIndex];
+        if (selectedOption && selectedOption.value) {
+            let vehicleName = selectedOption.textContent || '';
+            if (vehicleName && vehicleName.includes('(')) {
+                vehicleName = vehicleName.split('(')[0].trim();
+            }
+            vehicleName = vehicleName.trim();
+            if (vehicleName && vehicleName !== 'Choose vehicle' && vehicleName !== 'Select Vehicle' && vehicleName !== 'Choose your vehicle' && !vehicleNames.includes(vehicleName)) {
+                vehicleNames.push(vehicleName);
+            }
+        }
+    }
+    
+    if (mainTotalPrice) {
+        const price = parseFloat(mainTotalPrice.value) || 0;
+        totalDeparturePrice += price;
+    }
+    
+    exitPortItems.forEach((item) => {
+        // Find vehicle select within this item (handles exit_1, exit_2, etc.)
+        const vehicleSelect = item.querySelector('select.vehicle-select[id*="exit_"][id*="_vehicle_id"]');
+        // Find total price field within this item
+        const totalPriceField = item.querySelector('input[id*="exit_"][id*="_total_price"]');
+        
+        if (vehicleSelect && vehicleSelect.value) {
+            const selectedOption = vehicleSelect.options[vehicleSelect.selectedIndex];
+            if (selectedOption && selectedOption.value) {
+                // Get vehicle name from option text
+                let vehicleName = selectedOption.textContent || '';
+                // Extract vehicle name from text (format: "Vehicle Name (Type) - X seats")
+                // Take everything before the first '(' if it exists
+                if (vehicleName && vehicleName.includes('(')) {
+                    vehicleName = vehicleName.split('(')[0].trim();
+                }
+                // Clean up the text
+                vehicleName = vehicleName.trim();
+                if (vehicleName && vehicleName !== 'Choose vehicle' && vehicleName !== 'Select Vehicle' && vehicleName !== 'Choose your vehicle' && !vehicleNames.includes(vehicleName)) {
+                    vehicleNames.push(vehicleName);
+                }
+            }
+        }
+        
+        if (totalPriceField) {
+            const price = parseFloat(totalPriceField.value) || 0;
+            totalDeparturePrice += price;
+        }
+    });
+    
+    // Update departure header
+    const departureVehicleNameEl = document.getElementById(`day${day}_departure_vehicle_name`);
+    const departureTotalPriceEl = document.getElementById(`day${day}_departure_total_price`);
+    
+    if (departureVehicleNameEl) {
+        if (vehicleNames.length > 0) {
+            departureVehicleNameEl.textContent = vehicleNames.length === 1 ? vehicleNames[0] : `${vehicleNames.length} vehicles selected`;
+            departureVehicleNameEl.style.color = '#3b82f6';
+        } else {
+            departureVehicleNameEl.textContent = 'No vehicle selected';
+            departureVehicleNameEl.style.color = '#6c757d';
+        }
+    }
+    
+    if (departureTotalPriceEl) {
+        departureTotalPriceEl.textContent = `$${totalDeparturePrice.toFixed(2)}`;
+    }
+}
+
+// Update other transport section header with vehicle name and total price
+window.updateOtherTransportHeader = function(day) {
+    let totalTransportPrice = 0;
+    let vehicleNames = [];
+    
+    // Check for main transport vehicle (transport_0 or just transport)
+    const mainVehicleSelect = document.getElementById(`day${day}_transport_vehicle_id`);
+    const mainTotalPrice = document.getElementById(`day${day}_transport_total_price`);
+    
+    if (mainVehicleSelect && mainVehicleSelect.value) {
+        const selectedOption = mainVehicleSelect.options[mainVehicleSelect.selectedIndex];
+        if (selectedOption && selectedOption.value) {
+            let vehicleName = selectedOption.textContent || '';
+            if (vehicleName && vehicleName.includes('(')) {
+                vehicleName = vehicleName.split('(')[0].trim();
+            }
+            vehicleName = vehicleName.trim();
+            if (vehicleName && vehicleName !== 'Choose vehicle' && vehicleName !== 'Select Vehicle' && vehicleName !== 'Choose your vehicle' && !vehicleNames.includes(vehicleName)) {
+                vehicleNames.push(vehicleName);
+            }
+        }
+    }
+    
+    if (mainTotalPrice) {
+        const price = parseFloat(mainTotalPrice.value) || 0;
+        totalTransportPrice += price;
+    }
+    
+    // Check for additional transport items (transport_1, transport_2, etc.)
+    const transportsContainer = document.getElementById(`day${day}_transports_container`);
+    if (transportsContainer) {
+        const transportItems = transportsContainer.querySelectorAll('.transport-item');
+        transportItems.forEach((item) => {
+            const transportIndex = item.getAttribute('data-transport-index');
+            if (transportIndex) {
+                const vehicleSelect = item.querySelector(`select[name="day${day}_transport_${transportIndex}_vehicle_id"]`);
+                const totalPriceField = item.querySelector(`input[id="day${day}_transport_${transportIndex}_total_price"]`);
+                
+                if (vehicleSelect && vehicleSelect.value) {
+                    const selectedOption = vehicleSelect.options[vehicleSelect.selectedIndex];
+                    if (selectedOption && selectedOption.value) {
+                        let vehicleName = selectedOption.textContent || '';
+                        if (vehicleName && vehicleName.includes('(')) {
+                            vehicleName = vehicleName.split('(')[0].trim();
+                        }
+                        vehicleName = vehicleName.trim();
+                        if (vehicleName && vehicleName !== 'Choose vehicle' && vehicleName !== 'Select Vehicle' && vehicleName !== 'Choose your vehicle' && !vehicleNames.includes(vehicleName)) {
+                            vehicleNames.push(vehicleName);
+                        }
+                    }
+                }
+                
+                if (totalPriceField) {
+                    const price = parseFloat(totalPriceField.value) || 0;
+                    totalTransportPrice += price;
+                }
+            }
+        });
+    }
+    
+    // Update other transport header
+    const otherTransportVehicleNameEl = document.getElementById(`day${day}_other_transport_vehicle_name`);
+    const otherTransportTotalPriceEl = document.getElementById(`day${day}_other_transport_total_price`);
+    
+    if (otherTransportVehicleNameEl) {
+        if (vehicleNames.length > 0) {
+            otherTransportVehicleNameEl.textContent = vehicleNames.length === 1 ? vehicleNames[0] : `${vehicleNames.length} vehicles selected`;
+            otherTransportVehicleNameEl.style.color = '#14b8a6';
+        } else {
+            otherTransportVehicleNameEl.textContent = 'No vehicle selected';
+            otherTransportVehicleNameEl.style.color = '#6c757d';
+        }
+    }
+    
+    if (otherTransportTotalPriceEl) {
+        otherTransportTotalPriceEl.textContent = `$${totalTransportPrice.toFixed(2)}`;
+    }
 }
 
 // Update exit port custom pricing function (Zone = 0)
@@ -24285,6 +24691,11 @@ window.updateExitPortCustomPricing = function(day, section) {
         
         console.log(`Exit port custom pricing updated for day ${day}, section ${section}: SGD ${customPrice.toFixed(2)}`);
         
+        // Update departure header after custom pricing change
+        if (section.startsWith('exit')) {
+            updateDepartureHeader(day);
+        }
+        
     } else {
         // Hide price display if no custom price
         priceDisplay.style.display = 'none';
@@ -24296,6 +24707,11 @@ window.updateExitPortCustomPricing = function(day, section) {
         if (basePriceField) basePriceField.value = '0';
         if (totalPriceField) totalPriceField.value = '0';
         if (guestCountField) guestCountField.value = '0';
+        
+        // Update departure header after custom pricing change
+        if (section.startsWith('exit')) {
+            updateDepartureHeader(day);
+        }
     }
 }
 
