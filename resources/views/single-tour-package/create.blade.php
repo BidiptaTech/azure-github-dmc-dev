@@ -344,28 +344,38 @@
             <!-- Main Form Card - All in One Row -->
             <div class="row mb-4">
                 <div class="col-12">
-                    <div class="card shadow-sm border-0" style="background: #ffffff; border-radius: 12px; overflow: hidden;">
-                        <div class="card-header text-white" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); border: none; padding: 1.25rem 1.75rem;">
-                            <div class="d-flex align-items-center justify-content-between flex-wrap">
-                                <h6 class="mb-0 fw-bold d-flex align-items-center text-white" style="font-size: 1.1rem; letter-spacing: -0.01em; color: #ffffff !important;">
-                                    <i class="ri-settings-3-line me-2 fs-5 text-white" style="color: #ffffff !important;"></i>
-                                    <span style="color: #ffffff !important;">Tour Package Configuration</span>
-                                </h6>
-                                
-                                <div class="tour-type-wrapper mt-2 mt-md-0" style="min-width: 200px;">
-                                    <div class="tour-toggle">
-                                        <input type="radio" name="tour_type" id="fit" value="FIT" checked>
-                                        <label for="fit">FIT</label>
-                                
-                                        <input type="radio" name="tour_type" id="group" value="GROUP">
-                                        <label for="group">GROUP</label>
-                                
-                                        <span class="slider"></span>
+                    <div class="accordion-item border-0">
+                        <div class="card shadow-sm border-0" style="background: #ffffff; border-radius: 12px; overflow: hidden;">
+                            <div class="card-header text-white d-flex justify-content-between align-items-center" role="button" data-bs-toggle="collapse" data-bs-target="#tourPackageConfigurationSection" aria-expanded="true" aria-controls="tourPackageConfigurationSection" style="cursor: pointer; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); border: none; padding: 1.25rem 1.75rem; transition: all 0.3s ease;">
+                                <div class="d-flex align-items-center flex-grow-1">
+                                    <div style="width: 40px; height: 40px; background: rgba(255, 255, 255, 0.2); border-radius: 10px; display: flex; align-items-center; justify-content: center; margin-right: 12px;">
+                                        <i class="ri-settings-3-line fs-5 text-white" style="color: #ffffff !important;"></i>
+                                    </div>
+                                    <div>
+                                        <h6 class="mb-0 fw-bold text-white" style="font-size: 1.1rem; letter-spacing: -0.01em; color: #ffffff !important;">
+                                            Tour Package Configuration
+                                        </h6>
+                                        <small class="text-white-75" style="color: rgba(255, 255, 255, 0.85) !important; font-size: 0.85rem;">Configure tour type and package details</small>
                                     </div>
                                 </div>
+                                
+                                <div class="d-flex align-items-center ms-3">
+                                    <div class="tour-type-wrapper" style="min-width: 200px;">
+                                        <div class="tour-toggle">
+                                            <input type="radio" name="tour_type" id="fit" value="FIT" checked>
+                                            <label for="fit">FIT</label>
+                                    
+                                            <input type="radio" name="tour_type" id="group" value="GROUP">
+                                            <label for="group">GROUP</label>
+                                    
+                                            <span class="slider"></span>
+                                        </div>
+                                    </div>
+                                    <i class="ri-arrow-up-s-line ms-3 fs-5 text-white transition-transform" style="color: #ffffff !important;"></i>
+                                </div>
                             </div>
-                        </div>
-                        <div class="card-body" style="background: #ffffff; padding: 1.75rem;">
+                            <div id="tourPackageConfigurationSection" class="collapse show">
+                                <div class="card-body" style="background: #ffffff; padding: 1.75rem;">
                             <div class="row g-3">
                                 <!-- Country Selection -->
                                 <div class="col-md-2">
@@ -475,6 +485,8 @@
 
                                 
 
+                            </div>
+                                </div>
                             </div>
                         </div>
                     </div>
@@ -13678,6 +13690,7 @@ document.addEventListener('DOMContentLoaded', function() {
                                          <select class="form-select" style="height: 36px; border-radius: 6px; border: 1px solid #dee2e6; font-size: 0.8rem; padding: 0.375rem 0.75rem; line-height: 1.4; overflow: hidden; text-overflow: ellipsis;" name="day${day}_attraction_1_ticket" id="day${day}_attraction_1_ticket" onchange="updateAttractionPricing(${day}, 1)">
                                              <option value="">Select Ticket</option>
                                          </select>
+                                         <small class="text-muted d-block mt-1" style="font-size: 0.75rem;">Price grid updates when you choose a ticket</small>
                                      </div>
                                      <div class="col-md-4">
                                          <label class="form-label fw-semibold mb-1" style="color: #495057; font-size: 0.8rem;">
@@ -15937,9 +15950,10 @@ document.addEventListener('DOMContentLoaded', function() {
                             <input type="hidden" id="day${day}_attraction_${newIndex}_guide_surcharge" name="day${day}_attraction_${newIndex}_guide_surcharge" value="0">
                             <input type="hidden" id="day${day}_attraction_${newIndex}_guide_total_price" name="day${day}_attraction_${newIndex}_guide_total_price" value="0">
                         </div>
-                    </div>
-                    
-                    <!-- Attraction Price Display with 3 columns -->
+                    </div>  
+                </div> 
+            </div>
+            <!-- Attraction Price Display with 3 columns -->
                     <div class="col-12 mt-3">
                         <div id="day${day}_attraction_${newIndex}_price_display" class="card shadow-sm border-0" style="display: none; background: #ffffff; border-radius: 12px; overflow: hidden;">
                             <div class="card-header text-white" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); border: none; padding: 1rem 1.25rem;">
@@ -16040,9 +16054,6 @@ document.addEventListener('DOMContentLoaded', function() {
                             </div>
                         </div>
                     </div>
-                    
-                </div>
-            </div>
         `;
         
         container.insertAdjacentHTML('beforeend', newAttractionHTML);
@@ -21611,6 +21622,46 @@ function loadExitPortsForCity(cityName) {
         // Enable the pickup dropdown
         pickupSelect.disabled = false;
         
+        // Automatically select the last selected hotel if available
+        if (typeof selectedHotels !== 'undefined' && selectedHotels && selectedHotels.length > 0) {
+            // Get the last hotel from selectedHotels array
+            const lastHotel = selectedHotels[selectedHotels.length - 1];
+            const lastHotelId = lastHotel.id || lastHotel.hotel_unique_id;
+            const lastHotelName = lastHotel.name;
+            
+            console.log('Attempting to auto-select last hotel for departure pickup:', {
+                hotelId: lastHotelId,
+                hotelName: lastHotelName,
+                city: cityName
+            });
+            
+            // Check if the hotel exists in the dropdown
+            const hotelOption = Array.from(pickupSelect.options).find(opt => {
+                return opt.value === String(lastHotelId) || opt.value === lastHotelId;
+            });
+            
+            if (hotelOption) {
+                pickupSelect.value = hotelOption.value;
+                // Trigger change event to update any dependent fields
+                pickupSelect.dispatchEvent(new Event('change', { bubbles: true }));
+                console.log('Successfully auto-selected last hotel for departure pickup:', lastHotelName);
+            } else {
+                console.log('Last hotel not found in exit port pickup dropdown for city:', cityName);
+            }
+        } else if (lastSelectedHotelId) {
+            // Fallback to lastSelectedHotelId if selectedHotels is not available
+            console.log('Using lastSelectedHotelId for auto-selection:', lastSelectedHotelId);
+            const hotelOption = Array.from(pickupSelect.options).find(opt => {
+                return opt.value === String(lastSelectedHotelId) || opt.value === lastSelectedHotelId;
+            });
+            
+            if (hotelOption) {
+                pickupSelect.value = hotelOption.value;
+                pickupSelect.dispatchEvent(new Event('change', { bubbles: true }));
+                console.log('Successfully auto-selected last hotel using lastSelectedHotelId');
+            }
+        }
+        
         // Re-evaluate search button state after loading locations
         enableSearchButton(1, 'exit');
     })
@@ -21827,6 +21878,26 @@ function populateExitPortFields(day) {
             
             if (pickupInput) {
                 pickupInput.addEventListener('input', () => enableSearchButton(day, 'exit'));
+                
+                // Automatically set pickup location to last selected hotel
+                if (typeof selectedHotels !== 'undefined' && selectedHotels && selectedHotels.length > 0) {
+                    const lastHotel = selectedHotels[selectedHotels.length - 1];
+                    const lastHotelName = lastHotel.name;
+                    if (lastHotelName && !pickupInput.value) {
+                        pickupInput.value = lastHotelName;
+                        console.log('Auto-filled exit pickup location with last hotel:', lastHotelName);
+                        // Trigger input event to update search button state
+                        pickupInput.dispatchEvent(new Event('input', { bubbles: true }));
+                    }
+                } else if (lastSelectedHotelId && typeof hotelData !== 'undefined' && hotelData.length > 0) {
+                    // Fallback: find hotel by lastSelectedHotelId
+                    const lastHotel = hotelData.find(h => h.hotel_unique_id == lastSelectedHotelId);
+                    if (lastHotel && lastHotel.name && !pickupInput.value) {
+                        pickupInput.value = lastHotel.name;
+                        console.log('Auto-filled exit pickup location with last hotel (fallback):', lastHotel.name);
+                        pickupInput.dispatchEvent(new Event('input', { bubbles: true }));
+                    }
+                }
             }
             if (dropoffInput) {
                 dropoffInput.addEventListener('input', () => enableSearchButton(day, 'exit'));
@@ -21889,6 +21960,12 @@ function populateExitPortFields(day) {
             
             if (citySelect) {
                 citySelect.addEventListener('change', () => enableSearchButton(day, 'exit'));
+                
+                // If city is already selected, trigger loadExitPortsForCity to populate and auto-select hotel
+                if (citySelect.value) {
+                    console.log('City already selected for exit port, loading locations and auto-selecting hotel...');
+                    loadExitPortsForCity(citySelect.value);
+                }
             }
             if (pickupSelect) {
                 pickupSelect.addEventListener('change', () => enableSearchButton(day, 'exit'));
@@ -23543,6 +23620,12 @@ function loadDropoffZones(day, section) {
             if (guestCountField) guestCountField.value = totalGuests;
             
             console.log(`Point-to-point service pricing: Custom price $${customPrice} for ${totalGuests} passengers`);
+            
+            // Update other transport header for point-to-point services
+            if (section.startsWith('transport')) {
+                updateOtherTransportHeader(day);
+            }
+            
             return;
         } else {
             // Custom price not entered yet
@@ -23587,6 +23670,32 @@ function loadDropoffZones(day, section) {
                     </div>
                 </div>
             `;
+            
+            // Clear hidden fields when custom price is not entered
+            let basePriceField, totalPriceField, guestCountField;
+            
+            if (section.startsWith('transport')) {
+                if (section === 'transport') {
+                    basePriceField = document.getElementById(`day${day}_transport_base_price`);
+                    totalPriceField = document.getElementById(`day${day}_transport_total_price`);
+                    guestCountField = document.getElementById(`day${day}_transport_guest_count`);
+                } else {
+                    const transportIndex = section.split('_')[1];
+                    basePriceField = document.getElementById(`day${day}_transport_${transportIndex}_base_price`);
+                    totalPriceField = document.getElementById(`day${day}_transport_${transportIndex}_total_price`);
+                    guestCountField = document.getElementById(`day${day}_transport_${transportIndex}_guest_count`);
+                }
+            }
+            
+            if (basePriceField) basePriceField.value = '0';
+            if (totalPriceField) totalPriceField.value = '0';
+            if (guestCountField) guestCountField.value = '0';
+            
+            // Update other transport header even when custom price is not entered (to reset price to $0.00)
+            if (section.startsWith('transport')) {
+                updateOtherTransportHeader(day);
+            }
+            
             return;
         }
     }
