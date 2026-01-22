@@ -3141,7 +3141,9 @@ $(document).ready(function() {
                     _token: "{{ csrf_token() }}",
                     vehicle_id: vehicleId,
                     from_zone_id: fromZone,
-                    to_zone_id: toZone
+                    to_zone_id: toZone,
+                    from_zone_type: fromType,
+                    to_zone_type: toType
                 },
                 success: function(response) {
                     // Remove loading indicator

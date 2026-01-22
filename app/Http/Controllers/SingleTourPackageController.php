@@ -714,7 +714,7 @@ class SingleTourPackageController extends Controller
             $tour->child_ages = $request->child_ages ?? null;
             $tour->auto_cancel_date = $auto_cancel_date;
             $tour->taxes = !empty($taxArray) ? json_encode($taxArray) : null;
-            
+            $tour->created_by = Auth::user()->userId;
             // Store main guest data as JSON
             if ($request->has('mainguest') && $request->mainguest) {
                 try {
@@ -1875,7 +1875,7 @@ class SingleTourPackageController extends Controller
                 ->where('created_by', $dmcId) // Filter by DMC ID
                 ->select('room_id', 'room_type', 'weekday_price', 'weekend_price', 'double_weekday_price', 'double_weekend_price', 
                         'breakfast', 'breakfast_type', 'breakfast_price', 'lunch', 'lunch_type', 'lunch_price', 'dinner', 'dinner_type', 'dinner_price',
-                        'breakfast_included', 'dimension', 'features', 'master_image', 'created_by')
+                        'breakfast_included', 'dimension', 'features', 'master_image', 'created_by', 'rooms_only')
                 ->orderBy('room_type')
                 ->get();
             // If no rooms found with created_by, try alternative field names
@@ -1891,7 +1891,7 @@ class SingleTourPackageController extends Controller
                     })
                     ->select('room_id', 'room_type', 'weekday_price', 'weekend_price', 'double_weekday_price', 'double_weekend_price', 
                             'breakfast', 'breakfast_type','breakfast_price','lunch', 'lunch_type', 'lunch_price', 'dinner', 'dinner_type', 'dinner_price',
-                            'breakfast_included', 'dimension', 'features', 'master_image', 'created_by', 'dmc_id',)
+                            'breakfast_included', 'dimension', 'features', 'master_image', 'created_by', 'dmc_id', 'rooms_only')
                     ->orderBy('room_type')
                     ->get();
                 
