@@ -13015,10 +13015,35 @@ document.addEventListener('DOMContentLoaded', function() {
                  }
                  
                 const totalPrice = selectedHotels.reduce((sum, h) => {
-                    const priceNum = parseFloat(h.price) || 0;
-                    const numRooms = parseInt(h.numberOfRooms) || 1;
-                    // Multiply price by number of rooms to get total price
-                    return sum + (priceNum * numRooms);
+                    // Calculate room cost
+                    const roomCost = (parseFloat(h.price) || 0) * (parseInt(h.numberOfRooms) || 1);
+                    
+                    // Calculate meal costs based on meal plan, guest count, and number of rooms
+                    let mealCost = 0;
+                    if (typeof window.calculateCorrectMealCosts === 'function') {
+                        mealCost = window.calculateCorrectMealCosts(h.mealPlan, h.totalNights || 1, h.selectedPersons || 1, 0, h.mealPrices, h.numberOfRooms || 1);
+                    } else {
+                        // Fallback calculation if function not available
+                        const totalGuests = h.selectedPersons || 1;
+                        if (h.mealPrices && typeof h.mealPrices === 'object') {
+                            if (h.mealPlan && (h.mealPlan.includes('breakfast') || h.mealPlan.includes('bf'))) {
+                                mealCost += (parseFloat(h.mealPrices.breakfast_price) || 0) * totalGuests * (h.totalNights || 1) * (h.numberOfRooms || 1);
+                            }
+                            if (h.mealPlan && h.mealPlan.includes('lunch')) {
+                                mealCost += (parseFloat(h.mealPrices.lunch_price) || 0) * totalGuests * (h.totalNights || 1) * (h.numberOfRooms || 1);
+                            }
+                            if (h.mealPlan && h.mealPlan.includes('dinner')) {
+                                mealCost += (parseFloat(h.mealPrices.dinner_price) || 0) * totalGuests * (h.totalNights || 1) * (h.numberOfRooms || 1);
+                            }
+                        }
+                    }
+                    
+                    // Calculate extra bed cost
+                    const extraBedCost = (h.extraBedPrice && h.extraBedPrice > 0 && h.selectedPersons > h.maxOccupancy) ? 
+                        h.extraBedPrice * (h.selectedPersons - h.maxOccupancy) * (h.numberOfRooms || 1) * (h.totalNights || 1) : 0;
+                    
+                    // Total price includes room cost + meal cost + extra bed cost
+                    return sum + roomCost + mealCost + extraBedCost;
                 }, 0);
                  
                  const formattedPrice = totalPrice.toLocaleString('en-US', {

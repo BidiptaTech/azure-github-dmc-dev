@@ -636,7 +636,7 @@
                 <div class="card border-0 shadow-sm">
                     <div class="card-header text-white" style="background: linear-gradient(135deg, #4facfe 0%, #00c9ff 100%);">
                         <div class="d-flex align-items-center">
-                            <i class="ri-map-pin-line me-3 fs-4"></i>
+                            <!-- <i class="ri-map-pin-line me-3 fs-4"></i> -->
                             <div>
                                 <h4 class="mb-1 text-white">Edit Tour Services</h4>
                                 <p class="mb-0 opacity-75">Manage and add services to existing tour: <strong>{{ $tour->display_id ?? 'N/A' }}</strong></p>
@@ -2872,7 +2872,7 @@
                                     </div> <!-- end allGuidesSection collapse -->
                                 </div>
                             </div>
-                            
+
                             <!-- All Restaurant Services Section (Unified) -->
                             <div class="service-section mb-3">
                                 <div>
