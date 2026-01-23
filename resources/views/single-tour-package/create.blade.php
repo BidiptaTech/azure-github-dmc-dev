@@ -2197,6 +2197,8 @@
                                         }
                                     }
                                     
+                                    const transferPickupTime = document.getElementById(`day${day}_attraction_${index}_transfer_pickup_time`)?.value || '';
+                                    
                                     transferOptions = {
                                         transfer_required: true,
                                         type: transferType,
@@ -2205,7 +2207,8 @@
                                         vehicle_details: vehicleDetails,
                                         cost: transferCost,
                                         pickup_location_id: transferPickupLocation,
-                                        pickup_location_name: pickupLocationName
+                                        pickup_location_name: pickupLocationName,
+                                        pickup_time: transferPickupTime
                                     };
                                 }
                                 
@@ -2596,6 +2599,8 @@
                                         }
                                     }
                                     
+                                    const transferPickupTime = document.getElementById(`day${day}_restaurant_${index}_transfer_pickup_time`)?.value || '';
+                                    
                                     transferOptions = {
                                         transfer_required: true,
                                         type: transferType,
@@ -2604,7 +2609,8 @@
                                         vehicle_details: vehicleDetails,
                                         cost: transferCost,
                                         pickup_location_id: transferPickupLocation,
-                                        pickup_location_name: pickupLocationName
+                                        pickup_location_name: pickupLocationName,
+                                        pickup_time: transferPickupTime
                                     };
                                 }
                                 
@@ -3069,7 +3075,9 @@
                                 
                                 if (vehicleSelect?.value && serviceTypeSelect?.value && dropoffField?.value) {
                                     const vehicle = vehicleSelect.options[vehicleSelect.selectedIndex];
-                                    const adultCount = parseInt(document.getElementById('adult_count')?.value || 0);
+                                    // Use transport_passengers field if available, otherwise fallback to adult_count
+                                    const passengersField = document.getElementById(`day${day}_transport_passengers`);
+                                    const adultCount = passengersField ? parseInt(passengersField.value || 1) : parseInt(document.getElementById('adult_count')?.value || 1);
                                     const childCount = parseInt(document.getElementById('child_count')?.value || 0);
                                     const totalPrice = parseFloat(document.getElementById(`day${day}_${section}${fieldSuffix}_total_price`)?.value || 0);
                                     
@@ -3104,7 +3112,7 @@
                                         vehicles_name: vehicle.text,
                                         type: serviceTypeSelect.value || "Private",
                                         travel_type: "travel_point",
-                                        adults: parseInt(adultCount) || 0,
+                                        adults: parseInt(adultCount) || 1,
                                         children: parseInt(childCount) || 0,
                                         specialRequests: customerData.specialRequests || null,
                                         image: vehicle.dataset.image || null,
@@ -3157,7 +3165,9 @@
                                 
                                 if (vehicleSelect?.value && serviceTypeSelect?.value) {
                                     const vehicle = vehicleSelect.options[vehicleSelect.selectedIndex];
-                                    const adultCount = parseInt(document.getElementById('adult_count')?.value || 0);
+                                    // Use transport_passengers field if available, otherwise fallback to adult_count
+                                    const passengersField = document.getElementById(`day${day}_transport_passengers`);
+                                    const adultCount = passengersField ? parseInt(passengersField.value || 1) : parseInt(document.getElementById('adult_count')?.value || 1);
                                     const childCount = parseInt(document.getElementById('child_count')?.value || 0);
                                     const totalPrice = parseFloat(document.getElementById(`day${day}_${section}${fieldSuffix}_total_price`)?.value || 0);
                                     
@@ -3192,7 +3202,7 @@
                                         vehicles_name: vehicle.text,
                                         type: serviceTypeSelect.value || "Private",
                                         travel_type: "travel_hourly",
-                                        adults: parseInt(adultCount) || 0,
+                                        adults: parseInt(adultCount) || 1,
                                         children: parseInt(childCount) || 0,
                                         specialRequests: customerData.specialRequests || null,
                                         image: vehicle.dataset.image || null,
@@ -3270,7 +3280,9 @@
                                     const pickupZone = field.options[field.selectedIndex];
                                     const dropoffZone = dropoffField.options[dropoffField.selectedIndex];
                                     const vehicle = vehicleSelect.options[vehicleSelect.selectedIndex];
-                                    const adultCount = parseInt(document.getElementById('adults')?.value || 0);
+                                    // Use transport_passengers field if available, otherwise fallback to adults
+                                    const passengersField = document.getElementById(`day${day}_transport_passengers`);
+                                    const adultCount = passengersField ? parseInt(passengersField.value || 1) : parseInt(document.getElementById('adults')?.value || 1);
                                     const childCount = parseInt(document.getElementById('children')?.value || 0);
                                     
                                     // Handle total price field for both static and dynamic
@@ -13665,7 +13677,7 @@ document.addEventListener('DOMContentLoaded', function() {
                                              <option value="">Select city first</option>
                                          </select>
                                      </div>
-                                                                         <div class="col-md-3">
+                                    <div class="col-md-3">
                                         <label class="form-label fw-semibold">Select Guests</label>
                                         <div class="guest-selector">
                                             <div class="guest-display p-2 border rounded bg-light">
@@ -13783,6 +13795,62 @@ document.addEventListener('DOMContentLoaded', function() {
                                                      <i class="ri-money-dollar-circle-line me-1"></i>Cost
                                                  </label>
                                                  <input type="number" class="form-control" onwheel="event.preventDefault(); return false;" style="height: 36px; border-radius: 6px; border: 1px solid #dee2e6; font-size: 0.85rem;" name="day${day}_attraction_1_transfer_cost" id="day${day}_attraction_1_transfer_cost" min="0" step="1" placeholder="0.00" onchange="updateAttractionTransportPricing(${day}, 1)" oninput="updateAttractionTransportPricing(${day}, 1)">
+                                             </div>
+                                             <div class="col-md-3">
+                                                 <label class="form-label fw-semibold mb-1" style="color: #495057; font-size: 0.8rem;">
+                                                     <i class="ri-time-line me-1"></i>Pickup Time (24hr)
+                                                 </label>
+                                                 <select class="form-select" style="height: 36px; border-radius: 6px; border: 1px solid #dee2e6; font-size: 0.8rem; padding: 0.375rem 0.75rem; line-height: 1.4; overflow: hidden; text-overflow: ellipsis;" name="day${day}_attraction_1_transfer_pickup_time" id="day${day}_attraction_1_transfer_pickup_time">
+                                                     <option value="">Select Pickup Time</option>
+                                                     <option value="00:00">00:00</option>
+                                                     <option value="00:30">00:30</option>
+                                                     <option value="01:00">01:00</option>
+                                                     <option value="01:30">01:30</option>
+                                                     <option value="02:00">02:00</option>
+                                                     <option value="02:30">02:30</option>
+                                                     <option value="03:00">03:00</option>
+                                                     <option value="03:30">03:30</option>
+                                                     <option value="04:00">04:00</option>
+                                                     <option value="04:30">04:30</option>
+                                                     <option value="05:00">05:00</option>
+                                                     <option value="05:30">05:30</option>
+                                                     <option value="06:00">06:00</option>
+                                                     <option value="06:30">06:30</option>
+                                                     <option value="07:00">07:00</option>
+                                                     <option value="07:30">07:30</option>
+                                                     <option value="08:00">08:00</option>
+                                                     <option value="08:30">08:30</option>
+                                                     <option value="09:00">09:00</option>
+                                                     <option value="09:30">09:30</option>
+                                                     <option value="10:00">10:00</option>
+                                                     <option value="10:30">10:30</option>
+                                                     <option value="11:00">11:00</option>
+                                                     <option value="11:30">11:30</option>
+                                                     <option value="12:00">12:00</option>
+                                                     <option value="12:30">12:30</option>
+                                                     <option value="13:00">13:00</option>
+                                                     <option value="13:30">13:30</option>
+                                                     <option value="14:00">14:00</option>
+                                                     <option value="14:30">14:30</option>
+                                                     <option value="15:00">15:00</option>
+                                                     <option value="15:30">15:30</option>
+                                                     <option value="16:00">16:00</option>
+                                                     <option value="16:30">16:30</option>
+                                                     <option value="17:00">17:00</option>
+                                                     <option value="17:30">17:30</option>
+                                                     <option value="18:00">18:00</option>
+                                                     <option value="18:30">18:30</option>
+                                                     <option value="19:00">19:00</option>
+                                                     <option value="19:30">19:30</option>
+                                                     <option value="20:00">20:00</option>
+                                                     <option value="20:30">20:30</option>
+                                                     <option value="21:00">21:00</option>
+                                                     <option value="21:30">21:30</option>
+                                                     <option value="22:00">22:00</option>
+                                                     <option value="22:30">22:30</option>
+                                                     <option value="23:00">23:00</option>
+                                                     <option value="23:30">23:30</option>
+                                                 </select>
                                              </div>
                                          </div>
                                      </div>
@@ -14339,6 +14407,65 @@ document.addEventListener('DOMContentLoaded', function() {
                                                                  </label>
                                                                  <input type="number" class="form-control" onwheel="event.preventDefault(); return false;" style="height: 36px; border-radius: 6px; border: 1px solid #dee2e6; font-size: 0.8rem; padding: 0.375rem 0.75rem;" name="day${day}_restaurant_1_transfer_cost" id="day${day}_restaurant_1_transfer_cost" min="0" step="1" placeholder="0.00" onchange="updateRestaurantTransportPricing(${day}, 1)" oninput="updateRestaurantTransportPricing(${day}, 1)">
                                                              </div>
+                                                             <div class="col-md-3">
+                                                                 <label class="form-label fw-semibold mb-1" style="color: #495057; font-size: 0.8rem;">
+                                                                     <i class="ri-time-line me-1"></i>Pickup Time (24hr)
+                                                                 </label>
+                                                                 <select class="form-select" style="height: 36px; border-radius: 6px; border: 1px solid #dee2e6; font-size: 0.8rem; padding: 0.375rem 0.75rem; line-height: 1.4; overflow: hidden; text-overflow: ellipsis;" name="day${day}_restaurant_1_transfer_pickup_time" id="day${day}_restaurant_1_transfer_pickup_time">
+                                                                     <option value="">Select Pickup Time</option>
+                                                                     <option value="00:00">00:00</option>
+                                                                     <option value="00:30">00:30</option>
+                                                                     <option value="01:00">01:00</option>
+                                                                     <option value="01:30">01:30</option>
+                                                                     <option value="02:00">02:00</option>
+                                                                     <option value="02:30">02:30</option>
+                                                                     <option value="03:00">03:00</option>
+                                                                     <option value="03:30">03:30</option>
+                                                                     <option value="04:00">04:00</option>
+                                                                     <option value="04:30">04:30</option>
+                                                                     <option value="05:00">05:00</option>
+                                                                     <option value="05:30">05:30</option>
+                                                                     <option value="06:00">06:00</option>
+                                                                     <option value="06:30">06:30</option>
+                                                                     <option value="07:00">07:00</option>
+                                                                     <option value="07:30">07:30</option>
+                                                                     <option value="08:00">08:00</option>
+                                                                     <option value="08:30">08:30</option>
+                                                                     <option value="09:00">09:00</option>
+                                                                     <option value="09:30">09:30</option>
+                                                                     <option value="10:00">10:00</option>
+                                                                     <option value="10:30">10:30</option>
+                                                                     <option value="11:00">11:00</option>
+                                                                     <option value="11:30">11:30</option>
+                                                                     <option value="12:00">12:00</option>
+                                                                     <option value="12:30">12:30</option>
+                                                                     <option value="13:00">13:00</option>
+                                                                     <option value="13:30">13:30</option>
+                                                                     <option value="14:00">14:00</option>
+                                                                     <option value="14:30">14:30</option>
+                                                                     <option value="15:00">15:00</option>
+                                                                     <option value="15:30">15:30</option>
+                                                                     <option value="16:00">16:00</option>
+                                                                     <option value="16:30">16:30</option>
+                                                                     <option value="17:00">17:00</option>
+                                                                     <option value="17:30">17:30</option>
+                                                                     <option value="18:00">18:00</option>
+                                                                     <option value="18:30">18:30</option>
+                                                                     <option value="19:00">19:00</option>
+                                                                     <option value="19:30">19:30</option>
+                                                                     <option value="20:00">20:00</option>
+                                                                     <option value="20:30">20:30</option>
+                                                                     <option value="21:00">21:00</option>
+                                                                     <option value="21:30">21:30</option>
+                                                                     <option value="22:00">22:00</option>
+                                                                     <option value="22:30">22:30</option>
+                                                                     <option value="23:00">23:00</option>
+                                                                     <option value="23:30">23:30</option>
+                                                                 </select>
+                                                                 <small class="form-text text-muted mt-1" style="font-size: 0.75rem;">
+                                                                     <i class="ri-information-line me-1"></i>24-hour format (HH:mm)
+                                                                 </small>
+                                                             </div>
                                                          </div>
                                                      </div>
                                                  </div>
@@ -14742,10 +14869,10 @@ document.addEventListener('DOMContentLoaded', function() {
                                         </div>
                                     </div>
 
-                                    <!-- Vehicle + Service Type in one row -->
+                                    <!-- Vehicle + Service Type + Passengers in one row -->
                                     <div class="col-12">
                                         <div class="row g-3">
-                                            <div class="col-md-4">
+                                            <div class="col-md-3">
                                                 <label class="form-label fw-semibold">Vehicle</label>
                                                 <select class="form-select vehicle-select" style="height: 42px; font-size: 0.735rem;" 
                                                         id="day${day}_transport_vehicle_id"
@@ -14755,7 +14882,7 @@ document.addEventListener('DOMContentLoaded', function() {
                                                 </select>
                                             </div>
 
-                                            <div class="col-md-4">
+                                            <div class="col-md-3">
                                                 <label class="form-label fw-semibold">Service Type</label>
                                                 <select class="form-select" style="height: 42px; font-size: 0.735rem;" 
                                                         id="day${day}_transport_service_type"
@@ -14766,8 +14893,26 @@ document.addEventListener('DOMContentLoaded', function() {
                                                     <option value="Private">Private</option>
                                                 </select>
                                             </div>
+                                            
+                                            <div class="col-md-3">
+                                                <label class="form-label fw-semibold">Number of Passengers</label>
+                                                <div class="input-group shadow-sm">
+                                                    <span class="input-group-text" style="background: linear-gradient(135deg, #3b82f6 0%, #2563eb 100%); color: white; border: 1px solid #3b82f6; height: 42px; font-size: 0.735rem;">
+                                                        <i class="ri-user-line"></i>
+                                                    </span>
+                                                    <input type="number" class="form-control" id="day${day}_transport_passengers" name="day${day}_transport_passengers" min="1" max="50" value="1" 
+                                                        oninput="validatePassengerCapacity(${day}, 'transport'); updatePricing(${day}, 'transport'); updateTransportDataField();"
+                                                        onchange="validatePassengerCapacity(${day}, 'transport'); updatePricing(${day}, 'transport'); updateTransportDataField();" 
+                                                        onwheel="event.preventDefault(); return false;"
+                                                        style="border: 1px solid #e5e7eb; height: 42px; font-size: 0.735rem;">
+                                                </div>
+                                                <small class="form-text text-muted mt-1">
+                                                    <i class="ri-information-line me-1"></i>Enter number of passengers (adults)
+                                                </small>
+                                            </div>
+                                            
                                               <!-- Price Field for Point to Point -->
-                                        <div class="col-md-4 point-to-point-price-field" id="day${day}_transport_price_field" style="display: none;">
+                                        <div class="col-md-3 point-to-point-price-field" id="day${day}_transport_price_field" style="display: none;">
                                           
                                                 <div class="form-group">
                                                     <label class="form-label fw-semibold">Price <span class="text-danger">*</span></label>
@@ -15928,6 +16073,65 @@ document.addEventListener('DOMContentLoaded', function() {
                                         <i class="ri-money-dollar-circle-line me-1"></i>Cost
                                     </label>
                                     <input type="number" class="form-control" style="height: 36px; border-radius: 6px; border: 1px solid #dee2e6; font-size: 0.85rem;" name="day${day}_attraction_${newIndex}_transfer_cost" id="day${day}_attraction_${newIndex}_transfer_cost" min="0" step="0.01" placeholder="0.00" onchange="updateAttractionTransportPricing(${day}, ${newIndex})" oninput="updateAttractionTransportPricing(${day}, ${newIndex})">
+                                </div>
+                                <div class="col-md-3">
+                                    <label class="form-label fw-semibold mb-1" style="color: #495057; font-size: 0.8rem;">
+                                        <i class="ri-time-line me-1"></i>Pickup Time (24hr)
+                                    </label>
+                                    <select class="form-select" style="height: 36px; border-radius: 6px; border: 1px solid #dee2e6; font-size: 0.8rem; padding: 0.375rem 0.75rem; line-height: 1.4; overflow: hidden; text-overflow: ellipsis;" name="day${day}_attraction_${newIndex}_transfer_pickup_time" id="day${day}_attraction_${newIndex}_transfer_pickup_time">
+                                        <option value="">Select Pickup Time</option>
+                                        <option value="00:00">00:00</option>
+                                        <option value="00:30">00:30</option>
+                                        <option value="01:00">01:00</option>
+                                        <option value="01:30">01:30</option>
+                                        <option value="02:00">02:00</option>
+                                        <option value="02:30">02:30</option>
+                                        <option value="03:00">03:00</option>
+                                        <option value="03:30">03:30</option>
+                                        <option value="04:00">04:00</option>
+                                        <option value="04:30">04:30</option>
+                                        <option value="05:00">05:00</option>
+                                        <option value="05:30">05:30</option>
+                                        <option value="06:00">06:00</option>
+                                        <option value="06:30">06:30</option>
+                                        <option value="07:00">07:00</option>
+                                        <option value="07:30">07:30</option>
+                                        <option value="08:00">08:00</option>
+                                        <option value="08:30">08:30</option>
+                                        <option value="09:00">09:00</option>
+                                        <option value="09:30">09:30</option>
+                                        <option value="10:00">10:00</option>
+                                        <option value="10:30">10:30</option>
+                                        <option value="11:00">11:00</option>
+                                        <option value="11:30">11:30</option>
+                                        <option value="12:00">12:00</option>
+                                        <option value="12:30">12:30</option>
+                                        <option value="13:00">13:00</option>
+                                        <option value="13:30">13:30</option>
+                                        <option value="14:00">14:00</option>
+                                        <option value="14:30">14:30</option>
+                                        <option value="15:00">15:00</option>
+                                        <option value="15:30">15:30</option>
+                                        <option value="16:00">16:00</option>
+                                        <option value="16:30">16:30</option>
+                                        <option value="17:00">17:00</option>
+                                        <option value="17:30">17:30</option>
+                                        <option value="18:00">18:00</option>
+                                        <option value="18:30">18:30</option>
+                                        <option value="19:00">19:00</option>
+                                        <option value="19:30">19:30</option>
+                                        <option value="20:00">20:00</option>
+                                        <option value="20:30">20:30</option>
+                                        <option value="21:00">21:00</option>
+                                        <option value="21:30">21:30</option>
+                                        <option value="22:00">22:00</option>
+                                        <option value="22:30">22:30</option>
+                                        <option value="23:00">23:00</option>
+                                        <option value="23:30">23:30</option>
+                                    </select>
+                                    <small class="form-text text-muted mt-1" style="font-size: 0.75rem;">
+                                        <i class="ri-information-line me-1"></i>24-hour format (HH:mm)
+                                    </small>
                                 </div>
                             </div>
                         </div>
@@ -17589,6 +17793,65 @@ document.addEventListener('DOMContentLoaded', function() {
                                         <i class="ri-money-dollar-circle-line me-1"></i>Transfer Cost
                                     </label>
                                     <input type="number" class="form-control" style="height: 36px; border-radius: 6px; border: 1px solid #dee2e6; font-size: 0.8rem; padding: 0.375rem 0.75rem;" name="day${day}_restaurant_${newIndex}_transfer_cost" id="day${day}_restaurant_${newIndex}_transfer_cost" min="0" step="0.01" placeholder="0.00" onchange="updateRestaurantTransportPricing(${day}, ${newIndex})" oninput="updateRestaurantTransportPricing(${day}, ${newIndex})">
+                                </div>
+                                <div class="col-md-3">
+                                    <label class="form-label fw-semibold mb-1" style="color: #495057; font-size: 0.8rem;">
+                                        <i class="ri-time-line me-1"></i>Pickup Time (24hr)
+                                    </label>
+                                    <select class="form-select" style="height: 36px; border-radius: 6px; border: 1px solid #dee2e6; font-size: 0.8rem; padding: 0.375rem 0.75rem; line-height: 1.4; overflow: hidden; text-overflow: ellipsis;" name="day${day}_restaurant_${newIndex}_transfer_pickup_time" id="day${day}_restaurant_${newIndex}_transfer_pickup_time">
+                                        <option value="">Select Pickup Time</option>
+                                        <option value="00:00">00:00</option>
+                                        <option value="00:30">00:30</option>
+                                        <option value="01:00">01:00</option>
+                                        <option value="01:30">01:30</option>
+                                        <option value="02:00">02:00</option>
+                                        <option value="02:30">02:30</option>
+                                        <option value="03:00">03:00</option>
+                                        <option value="03:30">03:30</option>
+                                        <option value="04:00">04:00</option>
+                                        <option value="04:30">04:30</option>
+                                        <option value="05:00">05:00</option>
+                                        <option value="05:30">05:30</option>
+                                        <option value="06:00">06:00</option>
+                                        <option value="06:30">06:30</option>
+                                        <option value="07:00">07:00</option>
+                                        <option value="07:30">07:30</option>
+                                        <option value="08:00">08:00</option>
+                                        <option value="08:30">08:30</option>
+                                        <option value="09:00">09:00</option>
+                                        <option value="09:30">09:30</option>
+                                        <option value="10:00">10:00</option>
+                                        <option value="10:30">10:30</option>
+                                        <option value="11:00">11:00</option>
+                                        <option value="11:30">11:30</option>
+                                        <option value="12:00">12:00</option>
+                                        <option value="12:30">12:30</option>
+                                        <option value="13:00">13:00</option>
+                                        <option value="13:30">13:30</option>
+                                        <option value="14:00">14:00</option>
+                                        <option value="14:30">14:30</option>
+                                        <option value="15:00">15:00</option>
+                                        <option value="15:30">15:30</option>
+                                        <option value="16:00">16:00</option>
+                                        <option value="16:30">16:30</option>
+                                        <option value="17:00">17:00</option>
+                                        <option value="17:30">17:30</option>
+                                        <option value="18:00">18:00</option>
+                                        <option value="18:30">18:30</option>
+                                        <option value="19:00">19:00</option>
+                                        <option value="19:30">19:30</option>
+                                        <option value="20:00">20:00</option>
+                                        <option value="20:30">20:30</option>
+                                        <option value="21:00">21:00</option>
+                                        <option value="21:30">21:30</option>
+                                        <option value="22:00">22:00</option>
+                                        <option value="22:30">22:30</option>
+                                        <option value="23:00">23:00</option>
+                                        <option value="23:30">23:30</option>
+                                    </select>
+                                    <small class="form-text text-muted mt-1" style="font-size: 0.75rem;">
+                                        <i class="ri-information-line me-1"></i>24-hour format (HH:mm)
+                                    </small>
                                 </div>
                             </div>
                         </div>
