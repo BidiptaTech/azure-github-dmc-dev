@@ -636,7 +636,7 @@
                 <div class="card border-0 shadow-sm">
                     <div class="card-header text-white" style="background: linear-gradient(135deg, #4facfe 0%, #00c9ff 100%);">
                         <div class="d-flex align-items-center">
-                            <i class="ri-map-pin-line me-3 fs-4"></i>
+                            <!-- <i class="ri-map-pin-line me-3 fs-4"></i> -->
                             <div>
                                 <h4 class="mb-1 text-white">Edit Tour Services</h4>
                                 <p class="mb-0 opacity-75">Manage and add services to existing tour: <strong>{{ $tour->display_id ?? 'N/A' }}</strong></p>
@@ -857,7 +857,7 @@
                                 <small class="text-muted">Manage hotel bookings and room configurations</small>
                             </div>
                         </div>
-                        <i class="ri-arrow-up-s-line ms-2 fs-5"></i>
+                        <i class="ri-arrow-down-s-line ms-2 fs-5"></i>
                     </div>
                     <div id="hotelAccommodationsSection" class="collapse show">
                     <div class="card-body mt-3">
@@ -1083,12 +1083,12 @@
                                         </div> -->
                                         <div class="row g-3">
                                             <div class="col-md-6">
-                                                <label class="form-label fw-semibold">Location</label>
-                                                <input type="text" class="form-control" style="height: 38px;" value="{{ $hotelDetails['location'] ?? '' }}" placeholder="City / Area" disabled>
+                                                <label class="form-label fw-semibold text-muted mb-2"><i class="ri-map-pin-line me-1 text-primary"></i>Location</label>
+                                                <input type="text" class="form-control border-2" style="height: 35px;" value="{{ $hotelDetails['location'] ?? '' }}" placeholder="City / Area" disabled>
                                                 <input type="hidden" name="hotel_location" value="{{ $hotelDetails['location'] ?? '' }}">
                                             </div>
                                             <div class="col-md-6">
-                                                <label class="form-label fw-semibold">Hotel Name</label>
+                                                <label class="form-label fw-semibold text-muted mb-2"><i class="ri-hotel-line me-1 text-info"></i>Hotel Name</label>
                                                 @php
                                                     $currentLocation = $hotelDetails['location'] ?? '';
                                                     $currentHotelName = $hotelDetails['hotel_name'] ?? '';
@@ -1106,7 +1106,7 @@
                                                         return $hotelCity === $locationLower || $hotelAddress === $locationLower;
                                                     });
                                                 @endphp
-                                                <select class="form-select" name="hotel_name" id="hotel_name_{{ $hotelOrder->booking_id }}" onchange="updateHotelId_{{ $hotelOrder->booking_id }}(this.value)" required>
+                                                <select class="form-select border-2" style="height: 35px;" name="hotel_name" id="hotel_name_{{ $hotelOrder->booking_id }}" onchange="updateHotelId_{{ $hotelOrder->booking_id }}(this.value)" required>
                                                     <option value="">Select Hotel</option>
                                                     @foreach($locationFilteredHotels as $hotel)
                                                         <option value="{{ $hotel->name }}" 
@@ -1772,21 +1772,21 @@
                                                     });
                                                 </script>
                                             </div>
-                                            <div class="col-md-3" sty>
-                                                <label class="form-label fw-semibold">Check-in Date</label>
-                                                <input type="date" class="form-control" style="height: 38px;" name="check_in_date" value="{{ $checkInValue }}" required onchange="updateHotelPrice_{{ $hotelOrder->booking_id }}(true);">
+                                            <div class="col-md-3">
+                                                <label class="form-label fw-semibold text-muted mb-2"><i class="ri-calendar-check-line me-1 text-primary"></i>Check-in Date</label>
+                                                <input type="date" class="form-control border-2" style="height: 35px;" name="check_in_date" value="{{ $checkInValue }}" required onchange="updateHotelPrice_{{ $hotelOrder->booking_id }}(true);">
                                             </div>
                                             <div class="col-md-3">
-                                                <label class="form-label fw-semibold">Check-out Date</label>
-                                                <input type="date" class="form-control" style="height: 38px;" name="check_out_date" value="{{ $checkOutValue }}" required onchange="updateHotelPrice_{{ $hotelOrder->booking_id }}(true);">
+                                                <label class="form-label fw-semibold text-muted mb-2"><i class="ri-calendar-close-line me-1 text-danger"></i>Check-out Date</label>
+                                                <input type="date" class="form-control border-2" style="height: 35px;" name="check_out_date" value="{{ $checkOutValue }}" required onchange="updateHotelPrice_{{ $hotelOrder->booking_id }}(true);">
                                             </div>
                                             <div class="col-md-3">
-                                                <label class="form-label fw-semibold">Number of Rooms</label>
-                                                <input type="number" class="form-control" style="height: 38px;" name="number_of_rooms" id="number_of_rooms_{{ $hotelOrder->booking_id }}" value="{{ $numberOfRooms }}" min="1" placeholder="e.g. 1" onchange="updateHotelPrice_{{ $hotelOrder->booking_id }}(true);">
+                                                <label class="form-label fw-semibold text-muted mb-2"><i class="ri-door-open-line me-1 text-info"></i>Number of Rooms</label>
+                                                <input type="number" class="form-control border-2" style="height: 35px;" name="number_of_rooms" id="number_of_rooms_{{ $hotelOrder->booking_id }}" value="{{ $numberOfRooms }}" min="1" placeholder="e.g. 1" onchange="updateHotelPrice_{{ $hotelOrder->booking_id }}(true);">
                                             </div>
                                             <div class="col-md-3">
-                                                <label class="form-label fw-semibold">Room Type</label>
-                                                <select class="form-select" name="room_type" id="room_type_{{ $hotelOrder->booking_id }}" onchange="loadBedTypesForRoom_{{ $hotelOrder->booking_id }}(this.value); updateHotelPrice_{{ $hotelOrder->booking_id }}(true);">
+                                                <label class="form-label fw-semibold text-muted mb-2"><i class="ri-home-4-line me-1 text-secondary"></i>Room Type</label>
+                                                <select class="form-select border-2" style="height: 35px;" name="room_type" id="room_type_{{ $hotelOrder->booking_id }}" onchange="loadBedTypesForRoom_{{ $hotelOrder->booking_id }}(this.value); updateHotelPrice_{{ $hotelOrder->booking_id }}(true);">
                                                     <option value="">Select Room Type</option>
                                                     @if($roomType)
                                                         <option value="{{ $roomType }}" selected>{{ $roomType }}</option>
@@ -1794,8 +1794,8 @@
                                                 </select>
                                             </div>
                                             <div class="col-md-3">
-                                                <label class="form-label fw-semibold">Bed Type</label>
-                                                <select class="form-select" name="bed_type" id="bed_type_{{ $hotelOrder->booking_id }}" onchange="onBedTypeChange_{{ $hotelOrder->booking_id }}(this.value)">
+                                                <label class="form-label fw-semibold text-muted mb-2"><i class="ri-bed-line me-1 text-warning"></i>Bed Type</label>
+                                                <select class="form-select border-2" style="height: 35px;" name="bed_type" id="bed_type_{{ $hotelOrder->booking_id }}" onchange="onBedTypeChange_{{ $hotelOrder->booking_id }}(this.value)">
                                                     <option value="">Select Bed Type</option>
                                                     @if($bedType)
                                                         <option value="{{ $bedType }}" selected>{{ $bedType }}</option>
@@ -1803,8 +1803,8 @@
                                                 </select>
                                             </div>
                                             <div class="col-md-3">
-                                                <label class="form-label fw-semibold">Meal Plan</label>
-                                                <select class="form-select" name="meal_plan" id="meal_plan_{{ $hotelOrder->booking_id }}">
+                                                <label class="form-label fw-semibold text-muted mb-2"><i class="ri-restaurant-line me-1 text-success"></i>Meal Plan</label>
+                                                <select class="form-select border-2" style="height: 35px;" name="meal_plan" id="meal_plan_{{ $hotelOrder->booking_id }}">
                                                     <option value="">Select Meal Plan</option>
                                                     @if($mealPlan)
                                                         <option value="{{ $mealPlan }}" selected>{{ $mealPlan }}</option>
@@ -1812,26 +1812,26 @@
                                                 </select>
                                             </div>
                                             <div class="col-md-3">
-                                                <label class="form-label fw-semibold">Number of Persons (Pax)</label>
-                                                <input type="number" class="form-control" style="height: 38px;" name="number_of_persons" id="number_of_persons_{{ $hotelOrder->booking_id }}" value="{{ $numberOfPersons }}" min="1" placeholder="e.g. 2" onchange="updatePaxInfo_{{ $hotelOrder->booking_id }}(this.value); updateHotelPrice_{{ $hotelOrder->booking_id }}(true);">
-                                                <small class="text-muted" id="pax_info_{{ $hotelOrder->booking_id }}"></small>
+                                                <label class="form-label fw-semibold text-muted mb-2"><i class="ri-user-line me-1 text-secondary"></i>Number of Persons (Pax)</label>
+                                                <input type="number" class="form-control border-2" style="height: 35px;" name="number_of_persons" id="number_of_persons_{{ $hotelOrder->booking_id }}" value="{{ $numberOfPersons }}" min="1" placeholder="e.g. 2" onchange="updatePaxInfo_{{ $hotelOrder->booking_id }}(this.value); updateHotelPrice_{{ $hotelOrder->booking_id }}(true);">
+                                                <small class="text-muted d-block mt-1" id="pax_info_{{ $hotelOrder->booking_id }}"></small>
                                             </div>
                                             <div class="col-md-3">
-                                                <label class="form-label fw-semibold">
+                                                <label class="form-label fw-semibold text-muted mb-2">
                                                     <i class="ri-money-dollar-circle-line me-1 text-success"></i>Total Price
                                                 </label>
                                                 <div class="input-group">
-                                                    <span class="input-group-text" style="height:35px; line-height: 35px;">$</span>
-                                                    <input type="number" class="form-control" name="total_price" style="height: 35px;" id="total_price_{{ $hotelOrder->booking_id }}" step="0.01" min="0" value="{{ number_format((float)$totalPrice, 2, '.', '') }}" placeholder="0.00" data-manual-edit="false">
+                                                    <span class="input-group-text border-2" style="height: 35px; line-height: 35px;">$</span>
+                                                    <input type="number" class="form-control border-2" name="total_price" style="height: 35px;" id="total_price_{{ $hotelOrder->booking_id }}" step="0.01" min="0" value="{{ number_format((float)$totalPrice, 2, '.', '') }}" placeholder="0.00" data-manual-edit="false">
                                                 </div>
-                                                <small class="text-muted d-block mt-1" style="font-size: 0.7rem; line-height: 1.7; word-wrap: break-word;">Price per room & rooms</small>
+                                                <small class="text-muted d-block mt-2" style="font-size: 0.7rem; line-height: 1.7; word-wrap: break-word;">Price per room & rooms</small>
                                             </div>
                                         </div>
-                                        <div class="d-flex justify-content-end align-items-center gap-3 mt-4">
+                                        <div class="d-flex justify-content-end align-items-center gap-3 mt-3">
                                             <div class="text-muted small" id="hotel_feedback_{{ $hotelOrder->booking_id }}"></div>
-                                            <button type="button" class="btn btn-sm btn-primary d-flex align-items-center gap-2" onclick="updateExistingHotel(event, {{ $hotelOrder->booking_id }})">
+                                            <button type="button" class="btn btn-primary d-flex align-items-center gap-2" style="height: 35px; padding: 0 10px;" onclick="updateExistingHotel(event, {{ $hotelOrder->booking_id }})">
                                                 <span class="spinner-border spinner-border-sm d-none" id="hotel_spinner_{{ $hotelOrder->booking_id }}"></span>
-                                                <span> Save Changes </span>
+                                                <span>Save Changes</span>
                                             </button>
                                         </div>
                                     </div>
@@ -1883,7 +1883,7 @@
             <div class="row mb-4">
                 <div class="col-12">
                     <div>
-                        <div class="card-header text-dark d-flex justify-content-between align-items-center" role="button" data-bs-toggle="collapse" data-bs-target="#arrivalTransportSection" aria-expanded="false" aria-controls="arrivalTransportSection" style="cursor: pointer; background: linear-gradient(135deg, #dbeafe 0%, #bfdbfe 100%); border: 1px solid #60a5fa; transition: all 0.3s ease;">
+                        <div class="card-header text-dark d-flex justify-content-between align-items-center" role="button" data-bs-toggle="collapse" data-bs-target="#arrivalTransportSection" aria-expanded="false" aria-controls="arrivalTransportSection" style="cursor: pointer; background: linear-gradient(135deg, #dbeafe 0%, #bfdbfe 100%); border: 1px solid #60a5fa; border-radius: 8px 8px 0 0; transition: all 0.3s ease;">
                             <div class="d-flex align-items-center">
                                 <span class="service-icon me-3">
                                     <i class="ri-login-circle-line fs-4"></i>
@@ -1924,10 +1924,10 @@
                                                 </button>
                                             </div>
                                         </div>
-                                        <div class="row g-3 align-items-end">
-                                            <div class="col-md-4">
-                                                <label class="form-label fw-semibold text-muted mb-1"><i class="ri-map-pin-line me-1 text-success"></i>City</label>
-                                                <select class="form-select border-2" name="city">
+                                        <div class="row g-3">
+                                            <div class="col-md-3">
+                                                <label class="form-label fw-semibold text-muted mb-2"><i class="ri-map-pin-line me-1 text-success"></i>City</label>
+                                                <select class="form-select border-2" style="height: 35px;" name="city">
                                                     <option value="">Select city</option>
                                                     @foreach($cities as $city)
                                                         <option value="{{ $city->name }}" {{ $city->name == $cityValue ? 'selected' : '' }}>{{ $city->name }}</option>
@@ -1937,9 +1937,9 @@
                                                     @endif
                                                 </select>
                                             </div>
-                                            <div class="col-md-4">
-                                                <label class="form-label fw-semibold text-muted mb-1"><i class="ri-map-pin-line me-1 text-success"></i>Pick Up Location</label>
-                                                <select class="form-select border-2" name="pickup_location">
+                                            <div class="col-md-3">
+                                                <label class="form-label fw-semibold text-muted mb-2"><i class="ri-map-pin-line me-1 text-success"></i>Pick Up Location</label>
+                                                <select class="form-select border-2" style="height: 35px;" name="pickup_location">
                                                     <option value="">Select pickup port</option>
                                                     @foreach($ports as $port)
                                                         <option value="{{ $port->port_name }}" {{ $port->port_name == $pickupLocation ? 'selected' : '' }}>
@@ -1951,9 +1951,9 @@
                                                     @endif
                                                 </select>
                                             </div>
-                                            <div class="col-md-4">
-                                                <label class="form-label fw-semibold text-muted mb-1"><i class="ri-map-pin-line me-1 text-danger"></i>Drop Off Location</label>
-                                                <select class="form-select border-2" name="dropoff_location">
+                                            <div class="col-md-3">
+                                                <label class="form-label fw-semibold text-muted mb-2"><i class="ri-map-pin-line me-1 text-danger"></i>Drop Off Location</label>
+                                                <select class="form-select border-2" style="height: 35px;" name="dropoff_location">
                                                     <option value="">Select dropoff</option>
                                                     @foreach($hotels as $hotel)
                                                         <option value="{{ $hotel->name }}" {{ $hotel->name == $dropoffLocation ? 'selected' : '' }}>
@@ -1966,16 +1966,16 @@
                                                 </select>
                                             </div>
                                             <div class="col-md-3">
-                                                <label class="form-label fw-semibold text-muted mb-1"><i class="ri-time-line me-1 text-warning"></i>Pick Up Time</label>
+                                                <label class="form-label fw-semibold text-muted mb-2"><i class="ri-time-line me-1 text-warning"></i>Pick Up Time</label>
                                                 @php
                                                     $time24 = $pickupTime ? date('H:i', strtotime($pickupTime)) : '';
                                                 @endphp
-                                                <input type="time" class="form-control border-2" style="height: 38px;" name="pickup_time" value="{{ $time24 }}" required>
+                                                <input type="time" class="form-control border-2" style="height: 35px;" name="pickup_time" value="{{ $time24 }}" required>
                                             </div>
                                             <div class="col-md-4">
-                                                <label class="form-label fw-semibold text-muted mb-1"><i class="ri-car-line me-1 text-info"></i>Vehicle</label>
+                                                <label class="form-label fw-semibold text-muted mb-2"><i class="ri-car-line me-1 text-info"></i>Vehicle</label>
                                                 @php $vehicleMatched = false; @endphp
-                                                <select class="form-select border-2" name="vehicle_name">
+                                                <select class="form-select border-2" style="height: 35px;" name="vehicle_name">
                                                     <option value="">{{ $vehicleName ? 'Select vehicle' : 'Select vehicle' }}</option>
                                                     @foreach($availableVehicles as $vehicleOption)
                                                         @php
@@ -1995,23 +1995,22 @@
                                                     @endif
                                                 </select>
                                             </div>
-                                            <div class="col-md-3">
-                                                <label class="form-label fw-semibold text-muted mb-1">Service Type</label>
-                                                <select class="form-select border-2" name="vehicle_type">
+                                            <div class="col-md-4">
+                                                <label class="form-label fw-semibold text-muted mb-2"><i class="ri-user-settings-line me-1 text-secondary"></i>Service Type</label>
+                                                <select class="form-select border-2" style="height: 35px;" name="vehicle_type">
                                                     <option value="">Select type</option>
                                                     <option value="Private" {{ strtolower($vehicleType) === 'private' ? 'selected' : '' }}>Private</option>
                                                     <option value="Shared" {{ strtolower($vehicleType) === 'shared' ? 'selected' : '' }}>Shared</option>
                                                 </select>
                                             </div>
-                                            
-                                            <div class="col-md-2">
-                                                <label class="form-label fw-semibold text-muted mb-1"><i class="ri-money-dollar-circle-line me-1 text-success"></i>Total Price</label>
-                                                <input type="number" class="form-control border-2" style="height: 38px;" name="total_price" step="0.01" min="0" value="{{ number_format((float)($transportData['totalPrice'] ?? $transportData['price'] ?? 0), 2, '.', '') }}" placeholder="0.00" readonly>
+                                            <div class="col-md-4">
+                                                <label class="form-label fw-semibold text-muted mb-2"><i class="ri-money-dollar-circle-line me-1 text-success"></i>Total Price</label>
+                                                <input type="number" class="form-control border-2" style="height: 35px;" name="total_price" step="0.01" min="0" value="{{ number_format((float)($transportData['totalPrice'] ?? $transportData['price'] ?? 0), 2, '.', '') }}" placeholder="0.00" readonly>
                                             </div>
                                         </div>
                                         <div class="d-flex justify-content-end align-items-center gap-3 mt-3">
                                             <div class="text-muted small" id="transport_feedback_{{ $order->booking_id }}_entry_port"></div>
-                                            <button type="submit" class="btn btn-sm btn-primary d-flex align-items-center gap-2">
+                                            <button type="submit" class="btn btn-primary d-flex align-items-center gap-2" style="height: 35px; padding: 0 10px;">
                                                 <span class="spinner-border spinner-border-sm d-none" id="transport_spinner_{{ $order->booking_id }}_entry_port"></span>
                                                 <span>Save Changes</span>
                                             </button>
@@ -2115,890 +2114,6 @@
                                 @endif
                             @endforeach
                             
-                            <!-- All Restaurant Services Section (Unified) -->
-                            <div class="service-section mb-3">
-                                <div>
-                                    <div class="card-header text-dark d-flex justify-content-between align-items-center" role="button" data-bs-toggle="collapse" data-bs-target="#restaurantServicesSection" aria-expanded="false" aria-controls="restaurantServicesSection" style="cursor: pointer; background: linear-gradient(135deg, #fef3c7 0%, #fde68a 100%); border: 1px solid #fbbf24; transition: all 0.3s ease;">
-                                        <div class="d-flex align-items-center">
-                                            <span class="service-icon me-3">
-                                                <i class="ri-restaurant-2-line fs-4"></i>
-                                            </span>
-                                            <div>
-                                                <h6 class="mb-0 fw-bold">🍽️ All Restaurant Services</h6>
-                                                <small class="text-muted">All restaurants from all days in one place</small>
-                                            </div>
-                                        </div>
-                                        <i class="ri-arrow-down-s-line ms-2 fs-5"></i>
-                                    </div>
-                                    <div id="restaurantServicesSection" class="collapse">
-                                    <div class="card-body mt-3">
-                                        @if(count($allRestaurants) > 0)
-                                        @foreach($allRestaurants as $index => $order)
-                                        @php
-                                            $restaurantData = $order->processed_data;
-                                            $payload = [];
-                                            if (is_array($restaurantData)) {
-                                                $payload = isset($restaurantData[0]) ? $restaurantData[0] : $restaurantData;
-                                            }
-                                            $restaurantName = $payload['restaurantName'] ?? 'N/A';
-                                            $bookingDate = $payload['bookingDate'] ?? '';
-                                            $mealType = $payload['mealType'] ?? '';
-                                            $mealSpecificType = $payload['mealSpecificType'] ?? '';
-                                            $timeSlot = $payload['visitTime'] ?? '';
-                                            $adultCount = $payload['adultCount'] ?? 0;
-                                            $childCount = $payload['childCount'] ?? 0;
-                                            $totalPrice = $payload['totalPrice'] ?? 0;
-                                            $mealDescription = $payload['MealDescription'] ?? null;
-                                            $restaurantNotes = $payload['notes'] ?? '';
-
-                                            if ($totalPrice <= 0 && is_array($mealDescription)) {
-                                                $calculatedTotal = 0;
-                                                foreach ($mealDescription as $meal) {
-                                                    $mealPrice = $meal['price'] ?? 0;
-                                                    $quantity = $meal['quantity'] ?? 1;
-                                                    $calculatedTotal += $mealPrice * $quantity;
-                                                }
-                                                if ($calculatedTotal > 0) {
-                                                    $totalPrice = $calculatedTotal;
-                                                }
-                                            }
-                                            
-                                            // Extract transport options
-                                            $transferOptions = $payload['transfer_options'] ?? [];
-                                            $transferRequired = isset($transferOptions['transfer_required']) && $transferOptions['transfer_required'] === true;
-                                            $transportType = $transferOptions['type'] ?? '';
-                                            
-                                            // Get vehicle name from vehicle_details or vehicle_id/vehicle_name
-                                            $vehicleDetails = $transferOptions['vehicle_details'] ?? [];
-                                            $transportVehicle = $vehicleDetails['vehicle_name'] ?? $transferOptions['vehicle_name'] ?? $transferOptions['vehicle_id'] ?? '';
-                                            $transportVehicleId = $transferOptions['vehicle_id'] ?? '';
-                                            
-                                            // Get destination from pickup_location_name or destination
-                                            $transportDestination = $transferOptions['pickup_location_name'] ?? $transferOptions['destination'] ?? '';
-                                            $transportDestinationId = $transferOptions['pickup_location_id'] ?? '';
-                                            
-                                            $transportSeats = $vehicleDetails['seating_capacity'] ?? $transferOptions['seats'] ?? '';
-                                            $transportPassengers = $transferOptions['passengers'] ?? '';
-                                            $transportPrice = $transferOptions['cost'] ?? $transferOptions['price'] ?? 0;
-                                            $transportWay = $transferOptions['way'] ?? 'One Way';
-                                            $transportReturn = ($transportWay === 'Two Way');
-                                        @endphp
-                                        <form class="service-item mb-3 p-3 border rounded shadow-sm bg-white restaurant-edit-form" data-update-url="{{ route('edit-tour.update-restaurant', $order->booking_id) }}" onsubmit="updateExistingRestaurant(event, {{ $order->booking_id }})">
-                                            @csrf
-                                            <input type="hidden" name="type" value="restaurant">
-                                            <div class="d-flex justify-content-between align-items-center mb-3">
-                                                <h6 class="mb-0 fw-bold text-success"><i class="ri-restaurant-line me-2"></i>Restaurant Booking #{{ $index + 1 }}</h6>
-                                                <div class="d-flex gap-2">
-                                                    <button type="button" class="btn btn-sm btn-outline-danger" onclick="removeRestaurantService({{ $order->booking_id }})">
-                                                        <i class="ri-delete-bin-line"></i> Remove
-                                                    </button>
-                                                </div>
-                                            </div>
-                                            
-                                            <div class="row g-3">
-                                                <div class="col-md-6">
-                                                    <label class="form-label fw-semibold text-muted mb-1"><i class="ri-restaurant-line me-1 text-primary"></i>Restaurant Name</label>
-                                                    <select class="form-select border-2" name="restaurant_name" id="restaurant_name_{{ $order->booking_id }}" onchange="loadRestaurantMealsForEdit({{ $order->booking_id }})" required>
-                                                        <option value="">Select Restaurant</option>
-                                                        @php
-                                                            $tourCountry = $tour->destination ?? '';
-                                                            $filteredRestaurants = collect($restaurants ?? [])->filter(function($restaurant) use ($tourCountry) {
-                                                                // Check if restaurant has country field directly
-                                                                if (isset($restaurant->country) && $restaurant->country == $tourCountry) {
-                                                                    return true;
-                                                                }
-                                                                // If no country filter available, include all restaurants
-                                                                return empty($tourCountry);
-                                                            });
-                                                        @endphp
-                                                        @foreach($filteredRestaurants as $restaurant)
-                                                            <option value="{{ $restaurant->name }}" {{ $restaurantName == $restaurant->name ? 'selected' : '' }} 
-                                                                data-restaurant-id="{{ $restaurant->restaurant_id ?? '' }}"
-                                                                data-restaurant-data="{{ json_encode($restaurant) }}">
-                                                                {{ $restaurant->name }}
-                                                                @if(isset($restaurant->city))
-                                                                    - {{ $restaurant->city }}
-                                                                @endif
-                                                                @if(isset($restaurant->cuisine))
-                                                                    ({{ $restaurant->cuisine }})
-                                                                @endif
-                                                            </option>
-                                                        @endforeach
-                                                        @if($restaurantName && !$filteredRestaurants->pluck('name')->contains($restaurantName))
-                                                            <option value="{{ $restaurantName }}" selected>{{ $restaurantName }}</option>
-                                                        @endif
-                                                    </select>
-                                                </div>
-                                                <div class="col-md-3">
-                                                    <label class="form-label fw-semibold text-muted mb-1"><i class="ri-cup-line me-1 text-warning"></i>Meal Type</label>
-                                                    <select class="form-select border-2" name="meal_type" id="meal_type_{{ $order->booking_id }}" onchange="loadDishTypesForEdit({{ $order->booking_id }})" required>
-                                                        <option value="">Select Restaurant First</option>
-                                                        @if($mealType)
-                                                            <option value="{{ $mealType }}" selected>{{ $mealType }}</option>
-                                                        @endif
-                                                    </select>
-                                                    <input type="hidden" id="current_meal_type_{{ $order->booking_id }}" value="{{ $mealType }}">
-                                                </div>
-                                                <div class="col-md-3">
-                                                    <label class="form-label fw-semibold text-muted mb-1"><i class="ri-cup-line me-1 text-info"></i>Dish Type</label>
-                                                    <select class="form-select border-2" name="meal_specific_type" id="meal_specific_type_{{ $order->booking_id }}" required>
-                                                        <option value="">Select Meal Type First</option>
-                                                        @if($mealSpecificType)
-                                                            <option value="{{ $mealSpecificType }}" selected>{{ $mealSpecificType }}</option>
-                                                        @endif
-                                                    </select>
-                                                    <input type="hidden" id="current_dish_type_{{ $order->booking_id }}" value="{{ $mealSpecificType }}">
-                                                </div>
-                                                <div class="col-md-3">
-                                                    <label class="form-label fw-semibold text-muted mb-1"><i class="ri-calendar-line me-1 text-primary"></i>Booking Date</label>
-                                                    <input type="date" class="form-control border-2" style="height: 38px;" name="booking_date" id="booking_date_{{ $order->booking_id }}" value="{{ $bookingDate }}" required>
-                                                </div>
-                                                <div class="col-md-3">
-                                                    <label class="form-label fw-semibold text-muted mb-1"><i class="ri-time-line me-1 text-warning"></i>Time Slot</label>
-                                                    <input type="text" class="form-control border-2" style="height: 38px;" name="time_slot" value="{{ $timeSlot }}" placeholder="e.g. 07:00 AM">
-                                                    <small class="text-muted">Available time slots</small>
-                                                </div>
-                                                <div class="col-md-2">
-                                                    <label class="form-label fw-semibold text-muted mb-1"><i class="ri-user-line me-1 text-secondary"></i>Adults</label>
-                                                    <input type="number" class="form-control border-2 restaurant-guest-input" style="height: 38px;" name="adult_count" id="restaurant_adult_count_{{ $order->booking_id }}" min="0" value="{{ $adultCount }}" data-booking-id="{{ $order->booking_id }}" data-tour-max="{{ ($tour->adult ?? 0) + ($tour->child ?? 0) }}" required>
-                                                </div>
-                                                <div class="col-md-2">
-                                                    <label class="form-label fw-semibold text-muted mb-1"><i class="ri-user-smile-line me-1 text-secondary"></i>Children</label>
-                                                    <input type="number" class="form-control border-2 restaurant-guest-input" style="height: 38px;" name="child_count" id="restaurant_child_count_{{ $order->booking_id }}" min="0" value="{{ $childCount }}" data-booking-id="{{ $order->booking_id }}" data-tour-max="{{ ($tour->adult ?? 0) + ($tour->child ?? 0) }}" required>
-                                                </div>
-                                                <div class="col-md-2">
-                                                    <label class="form-label fw-semibold text-muted mb-1"><i class="ri-money-dollar-circle-line me-1 text-success"></i>Total Price</label>
-                                                    <input type="number" class="form-control border-2" style="height: 38px;" name="total_price" id="restaurant_total_price_{{ $order->booking_id }}" step="0.01" min="0" value="{{ number_format((float)$totalPrice, 2, '.', '') }}" placeholder="0.00" readonly>
-                                                </div>
-                                            </div>
-                                            
-                                            <!-- Transport for this restaurant -->
-                                            <div class="border rounded-3 p-3 bg-light mb-3">
-                                            <div class="row g-2 align-items-center">
-                                                <div class="col-md-4">
-                                                    <label class="form-label fw-semibold d-block mb-2">Need transport for this restaurants?</label>
-                                                    <div class="d-flex align-items-center gap-2">
-                                                        <span class="text-muted small toggle-label" id="restaurant_transport_no_{{ $order->booking_id }}">No</span>
-                                                        <label class="toggle-switch" for="need_restaurant_transport_{{ $order->booking_id }}">
-                                                            <input type="checkbox" class="toggle-switch-input" name="need_restaurant_transport_{{ $order->booking_id }}" id="need_restaurant_transport_{{ $order->booking_id }}" value="yes" autocomplete="off" {{ $transferRequired ? 'checked' : '' }}>
-                                                            <span class="toggle-switch-slider"></span>
-                                                        </label>
-                                                        <span class="text-muted small toggle-label" id="restaurant_transport_yes_{{ $order->booking_id }}">Yes</span>
-                                                    </div>
-                                                </div>
-                                            </div>
-                                            <div id="restaurant_transport_details_{{ $order->booking_id }}" class="border rounded-3 p-3 bg-white mt-2 {{ $transferRequired ? '' : 'd-none' }}">
-                                                @php
-                                                    $transportVehicles = $vehicles ?? collect();
-                                                    $tourCountry = $tour->destination ?? '';
-                                                    $filteredVehicles = $transportVehicles;
-                                                    if ($tourCountry) {
-                                                        $filteredVehicles = $transportVehicles->filter(function($vehicle) use ($tourCountry) {
-                                                            $vehicleCountry = strtolower(trim($vehicle->country ?? $vehicle->service_country ?? ''));
-                                                            return $vehicleCountry === strtolower(trim($tourCountry));
-                                                        });
-                                                        if ($filteredVehicles->isEmpty()) {
-                                                            $filteredVehicles = $transportVehicles;
-                                                        }
-                                                    }
-                                                @endphp
-                                                <div class="row g-3">
-                                                    <!-- First Row: Transport Type, Vehicle, Destination -->
-                                                    <div class="col-md-3">
-                                                        <label class="form-label fw-semibold">Transport Type</label>
-                                                        <select class="form-select" name="restaurant_transport_type_{{ $order->booking_id }}">
-                                                            <option value="">Select type</option>
-                                                            <option value="shared" {{ $transportType === 'shared' || $transportType === 'Shared' ? 'selected' : '' }}>Shared</option>
-                                                            <option value="private" {{ $transportType === 'private' || $transportType === 'Private' ? 'selected' : '' }}>Private</option>
-                                                        </select>
-                                                    </div>
-                                                    
-                                                    <div class="col-md-3">
-                                                        <label class="form-label fw-semibold">Destination</label>
-                                                        @php
-                                                            $destHotels = $hotels ?? collect();
-                                                            $destAttractions = $attractions ?? collect();
-                                                            $destRestaurants = $restaurants ?? collect();
-                                                        @endphp
-                                                        <select class="form-select restaurant-transport-destination-select" name="restaurant_transport_destination_{{ $order->booking_id }}" id="restaurant_transport_destination_{{ $order->booking_id }}" data-booking-id="{{ $order->booking_id }}">
-                                                            <option value="">Search & select destination</option>
-                                                            <optgroup label="Hotels">
-                                                                @foreach($destHotels as $h)
-                                                                    <option value="{{ $h->name ?? '' }}" 
-                                                                            data-destination-id="{{ $h->hotel_unique_id ?? '' }}" 
-                                                                            data-destination-type="hotel" 
-                                                                            {{ ($transportDestination === ($h->name ?? '')) ? 'selected' : '' }}>
-                                                                        {{ $h->name ?? '' }}
-                                                                    </option>
-                                                                @endforeach
-                                                            </optgroup>
-                                                            <optgroup label="Attractions">
-                                                                @foreach($destAttractions as $a)
-                                                                    <option value="{{ $a->name ?? '' }}" 
-                                                                            data-destination-id="{{ $a->attraction_id ?? '' }}" 
-                                                                            data-destination-type="attraction" 
-                                                                            {{ ($transportDestination === ($a->name ?? '')) ? 'selected' : '' }}>
-                                                                        {{ $a->name ?? '' }}
-                                                                    </option>
-                                                                @endforeach
-                                                            </optgroup>
-                                                            <optgroup label="Restaurants">
-                                                                @foreach($destRestaurants as $r)
-                                                                    <option value="{{ $r->name ?? '' }}" 
-                                                                            data-destination-id="{{ $r->restaurant_id ?? '' }}" 
-                                                                            data-destination-type="restaurant" 
-                                                                            {{ ($transportDestination === ($r->name ?? '')) ? 'selected' : '' }}>
-                                                                        {{ $r->name ?? '' }}
-                                                                    </option>
-                                                                @endforeach
-                                                            </optgroup>
-                                                        </select>
-                                                    </div>
-                                                    <div class="col-md-3">
-                                                        <label class="form-label fw-semibold">Vehicle (by country)</label>
-                                                        <select class="form-select restaurant-transport-vehicle-select" name="restaurant_transport_vehicle_{{ $order->booking_id }}" id="restaurant_transport_vehicle_{{ $order->booking_id }}" data-booking-id="{{ $order->booking_id }}">
-                                                            <option value="">{{ $transportDestination ? 'Select vehicle' : 'Select destination first' }}</option>
-                                                            @if($transportDestination)
-                                                                @if($filteredVehicles && count($filteredVehicles) > 0)
-                                                                    @foreach($filteredVehicles as $vehicle)
-                                                                        @php
-                                                                            $vehicleName = $vehicle->vehicle_name ?? $vehicle->vehicle_id ?? 'Vehicle';
-                                                                            $vehicleId = $vehicle->vehicle_id ?? '';
-                                                                            $vehicleType = $vehicle->vehicle_type ?? '';
-                                                                            $seatingCapacity = $vehicle->seating_capacity ?? '';
-                                                                            // Match by vehicle_id for proper mapping
-                                                                            $isSelected = ($transportVehicleId == $vehicleId || 
-                                                                                           $transportVehicleId == (string)$vehicleId ||
-                                                                                           ($transportVehicle && ($transportVehicle == $vehicleId || $transportVehicle == (string)$vehicleId)));
-                                                                        @endphp
-                                                                        <option value="{{ $vehicleId }}" data-vehicle-id="{{ $vehicleId }}" data-vehicle-name="{{ $vehicleName }}" data-seating-capacity="{{ $seatingCapacity }}" {{ $isSelected ? 'selected' : '' }}>
-                                                                            {{ $vehicleName }}
-                                                                            @if($isSelected)
-                                                                                ({{ $vehicleName }})
-                                                                            @endif
-                                                                            @if($seatingCapacity)
-                                                                                - {{ $seatingCapacity }} seats
-                                                                            @endif
-                                                                        </option>
-                                                                    @endforeach
-                                                                @endif
-                                                            @endif
-                                                        </select>
-                                                        <script>
-                                                            // Ensure selected vehicle is displayed and Select2 is initialized
-                                                            $(document).ready(function() {
-                                                                const vehicleSelect = $('#restaurant_transport_vehicle_{{ $order->booking_id }}');
-                                                                
-                                                                // Set selected value if exists
-                                                                const selectedOption = vehicleSelect.find('option[selected]');
-                                                                if (selectedOption.length) {
-                                                                    const selectedValue = selectedOption.attr('value');
-                                                                    if (selectedValue) {
-                                                                        vehicleSelect.val(selectedValue);
-                                                                    }
-                                                                }
-                                                                
-                                                                // Initialize Select2 if not already initialized
-                                                                if (!vehicleSelect.data('select2') && !vehicleSelect.attr('data-no-select2')) {
-                                                                    if (window.initializeAllSelect2) {
-                                                                        setTimeout(function() {
-                                                                            window.initializeAllSelect2(vehicleSelect.parent());
-                                                                        }, 200);
-                                                                    }
-                                                                }
-                                                            });
-                                                        </script>
-                                                    </div>
-                                                
-                                                    <div class="col-md-3">
-                                                        <label class="form-label fw-semibold">Estimated Price</label>
-                                                        <div class="input-group">
-                                                            <span class="input-group-text">{{ $tour->currency ?? '$' }}</span>
-                                                            <input type="number" min="0" step="0.01" class="form-control" name="restaurant_transport_price_{{ $order->booking_id }}" id="restaurant_transport_price_{{ $order->booking_id }}" placeholder="0.00" value="{{ number_format((float)$transportPrice, 2, '.', '') }}" data-original-price="{{ $transportReturn ? number_format((float)$transportPrice / 2, 2, '.', '') : number_format((float)$transportPrice, 2, '.', '') }}">
-                                                        </div>
-                                                        <small class="text-muted">Optional, can be adjusted later.</small>
-                                                        <div class="form-check mt-2">
-                                                            <input class="form-check-input restaurant-transport-return-checkbox" type="checkbox" name="restaurant_transport_return_{{ $order->booking_id }}" id="restaurant_transport_return_{{ $order->booking_id }}" data-booking-id="{{ $order->booking_id }}" {{ $transportReturn ? 'checked' : '' }}>
-                                                            <label class="form-check-label fw-semibold" for="restaurant_transport_return_{{ $order->booking_id }}">
-                                                                Return
-                                                            </label>
-                                                        </div>
-                                                    </div>
-                                                </div>
-                                            </div>
-                                                
-                                            </div>
-                                            <div class="d-flex justify-content-end align-items-center gap-3 mt-3">
-                                                <div class="text-muted small" id="restaurant_feedback_{{ $order->booking_id }}"></div>
-                                                <button type="submit" class="btn btn-sm btn-primary d-flex align-items-center gap-2">
-                                                    <span class="spinner-border spinner-border-sm d-none" id="restaurant_spinner_{{ $order->booking_id }}"></span>
-                                                    <span>Save Changes</span>
-                                                </button>
-                                            </div>
-                                        </form>
-                                        @endforeach
-                                        @else
-                                        <div class="text-center py-5 text-muted">
-                                            <i class="ri-restaurant-2-line fs-1 mb-3" style="color: #cbd5e1;"></i>
-                                            <p class="mb-4">No restaurant bookings yet</p>
-                                        </div>
-                                        @endif
-                                    </div>
-                                    <div class="card-footer bg-light">
-                                        <div class="text-center py-3">
-                                            <button type="button" class="btn btn-gradient-primary btn-lg shadow-sm px-5 py-3" onclick="addRestaurantService()" style="
-                                                background: linear-gradient(135deg, #43e97b 0%, #38f9d7 100%);
-                                                border: none;
-                                                color: white;
-                                                font-weight: 600;
-                                                letter-spacing: 0.5px;
-                                                transition: all 0.3s ease;
-                                                border-radius: 8px;
-                                                box-shadow: 0 4px 15px rgba(67, 233, 123, 0.4);
-                                            " onmouseover="this.style.transform='translateY(-2px)'; this.style.boxShadow='0 6px 20px rgba(67, 233, 123, 0.6)';" onmouseout="this.style.transform='translateY(0)'; this.style.boxShadow='0 4px 15px rgba(67, 233, 123, 0.4)';">
-                                                <i class="ri-add-circle-line me-2" style="font-size: 1.2em;"></i>{{ count($allRestaurants) > 0 ? 'Add More Restaurants' : 'Add Restaurant' }}
-                                            </button>
-                                        </div>
-                                    </div>
-                                    </div> <!-- end restaurantServicesSection collapse -->
-                                </div>
-                            </div>
-                            
-                            <!-- Other Transport Services Section (Unified) -->
-                            <div class="service-section mb-3">
-                                <div>
-                                    <div class="card-header text-dark d-flex justify-content-between align-items-center" role="button" data-bs-toggle="collapse" data-bs-target="#otherTransportSection" aria-expanded="false" aria-controls="otherTransportSection" style="cursor: pointer; background: linear-gradient(135deg, #ccfbf1 0%, #99f6e4 100%); border: 1px solid #5eead4; transition: all 0.3s ease;">
-                                        <div class="d-flex align-items-center">
-                                            <span class="service-icon me-3">
-                                                <i class="ri-car-line fs-4"></i>
-                                            </span>
-                                            <div>
-                                                <h6 class="mb-0 fw-bold">🚗 Other Transport Services</h6>
-                                                <small class="text-muted">Local transfers and other transport services from all days</small>
-                                            </div>
-                                        </div>
-                                        <i class="ri-arrow-down-s-line ms-2 fs-5"></i>
-                                    </div>
-                                    <div id="otherTransportSection" class="collapse">
-                                    <div class="card-body mt-3">
-                                        @if(count($allTransportHourly) > 0)
-                                            @foreach($allTransportHourly as $index => $order)
-                                                @php
-                                                    $transportData = is_array($order->processed_data) ? $order->processed_data : json_decode($order->processed_data, true);
-                                                    if (isset($transportData[0])) {
-                                                        $transportData = $transportData[0];
-                                                    }
-                                                    $pickupLocation = $transportData['entrypickup'] ?? $transportData['pickupLocation'] ?? '';
-                                                    $dropoffLocation = $transportData['entrydropoff'] ?? $transportData['dropoffLocation'] ?? '';
-                                                    $pickupTime = $transportData['entrytime'] ?? '';
-                                                    $pickupTimeValue = $pickupTime ? date('H:i', strtotime($pickupTime)) : '';
-                                                    $pickupDateRaw = $transportData['pickupdate'] ?? $transportData['bookingDate'] ?? '';
-                                                    $pickupDate = '';
-                                                    if ($pickupDateRaw) {
-                                                        try {
-                                                            $pickupDate = \Carbon\Carbon::parse($pickupDateRaw)->format('Y-m-d');
-                                                        } catch (\Exception $exception) {
-                                                            $pickupDate = $pickupDateRaw;
-                                                        }
-                                                    }
-                                                    $vehicleName = $transportData['vehicles_name'] ?? '';
-                                                    $vehicleType = $transportData['type'] ?? '';
-                                                    $selectedHours = $transportData['selectedHours'] ?? $transportData['hours'] ?? '';
-                                                    $totalPrice = $transportData['totalPrice'] ?? $transportData['price'] ?? 0;
-                                                    $adultCount = $transportData['adultCount'] ?? $transportData['adults'] ?? 0;
-                                                    $childCount = $transportData['childCount'] ?? $transportData['children'] ?? 0;
-                                                    $notes = $transportData['notes'] ?? $transportData['specialRequests'] ?? '';
-                                                    $availableVehicles = $vehicles ?? collect();
-                                                @endphp
-                                                <form class="service-item mb-3 p-3 border rounded shadow-sm bg-white transport-edit-form" data-form-type="travel_hourly" data-update-url="{{ route('edit-tour.update-transport', $order->booking_id) }}" onsubmit="updateExistingTransport(event, {{ $order->booking_id }})">
-                                                    @csrf
-                                                    <input type="hidden" name="type" value="travel_hourly">
-                                                    <div class="d-flex justify-content-between align-items-center mb-3">
-                                                        <h6 class="mb-0 fw-bold text-warning"><i class="ri-time-line me-2"></i>Hourly Transport #{{ $index + 1 }}</h6>
-                                                        <div class="d-flex gap-2">
-                                                            <button type="button" class="btn btn-sm btn-outline-danger" onclick="removeTransportService({{ $order->booking_id }})">
-                                                                <i class="ri-delete-bin-line"></i> Remove
-                                                            </button>
-                                                        </div>
-                                                    </div>
-                                                    <div class="row g-3">
-                                                        <div class="col-md-4">
-                                                            <label class="form-label fw-semibold text-muted mb-1"><i class="ri-map-pin-line me-1 text-primary"></i>Pickup Location</label>
-                                                            <div class="position-relative">
-                                                                <input type="text" class="form-control border-2 google-maps-autocomplete" style="height: 38px;" name="pickup_location" value="{{ $pickupLocation }}" placeholder="Search pickup location" style="padding-left: 45px;" required>
-                                                                <i class="ri-map-pin-line position-absolute text-primary" style="left: 15px; top: 50%; transform: translateY(-50%); z-index: 5;"></i>
-                                                            </div>
-                                                            <input type="hidden" name="pickup_latitude" value="{{ $transportData['pickup_latitude'] ?? '' }}">
-                                                            <input type="hidden" name="pickup_longitude" value="{{ $transportData['pickup_longitude'] ?? '' }}">
-                                                        </div>
-                                                        <div class="col-md-2">
-                                                            <label class="form-label fw-semibold text-muted mb-1"><i class="ri-calendar-line me-1 text-secondary"></i>Pickup Date</label>
-                                                            <input type="date" class="form-control border-2" name="pickup_date" value="{{ $pickupDate }}">
-                                                        </div>
-                                                        <div class="col-md-2">
-                                                            <label class="form-label fw-semibold text-muted mb-1"><i class="ri-time-line me-1 text-warning"></i>Pickup Time</label>
-                                                            <input type="time" class="form-control border-2" name="pickup_time" value="{{ $pickupTimeValue }}" required>
-                                                        </div>
-                                                        <div class="col-md-4">
-                                                            <label class="form-label fw-semibold text-muted mb-1"><i class="ri-car-line me-1 text-info"></i>Vehicle</label>
-                                                            @php $vehicleMatched = false; @endphp
-                                                            <select class="form-select border-2 js-hourly-vehicle-select" name="vehicle_name" id="hourly_vehicle_name_{{ $order->booking_id }}">
-                                                                <option value="">{{ $vehicleName ? 'Select vehicle' : 'Select vehicle' }}</option>
-                                                                @foreach($availableVehicles as $vehicleOption)
-                                                                    @php
-                                                                        $vehicleDisplayName = $vehicleOption->vehicle_name ?? $vehicleOption->vehicle_id;
-                                                                        $isSelected = false;
-                                                                        if ($vehicleDisplayName) {
-                                                                            $isSelected = strcasecmp($vehicleDisplayName, $vehicleName ?? '') === 0;
-                                                                        }
-                                                                        $vehicleMatched = $vehicleMatched || $isSelected;
-                                                                    @endphp
-                                                                    <option value="{{ $vehicleDisplayName }}"
-                                                                        data-vehicle-id="{{ $vehicleOption->vehicle_id }}"
-                                                                        data-vehicle-name="{{ $vehicleDisplayName }}"
-                                                                        data-vehicle-type="{{ $vehicleOption->vehicle_type ?? '' }}">
-                                                                        {{ $vehicleDisplayName }}
-                                                                        @if(!empty($vehicleOption->vehicle_type))
-                                                                            ({{ $vehicleOption->vehicle_type }})
-                                                                        @endif
-                                                                    </option>
-                                                                @endforeach
-                                                                @if($vehicleName && !$vehicleMatched)
-                                                                    <option value="{{ $vehicleName }}" selected>{{ $vehicleName }}</option>
-                                                                @endif
-                                                            </select>
-                                                        </div>
-                                                        <div class="col-md-3">
-                                                            <label class="form-label fw-semibold text-muted mb-1"><i class="ri-user-settings-line me-1 text-secondary"></i>Service Type</label>
-                                                            <select class="form-select border-2" name="vehicle_type">
-                                                                <option value="">Select type</option>
-                                                                <option value="Private" {{ strtolower($vehicleType) === 'private' ? 'selected' : '' }}>Private</option>
-                                                                <option value="Shared" {{ strtolower($vehicleType) === 'shared' ? 'selected' : '' }}>Shared</option>
-                                                            </select>
-                                                        </div>
-                                                        <div class="col-md-2">
-                                                            <label class="form-label fw-semibold text-muted mb-1"><i class="ri-hourglass-line me-1 text-info"></i>Hours</label>
-                                                            <input type="number" class="form-control border-2" name="selected_hours" min="1" value="{{ $selectedHours }}" placeholder="e.g. 4">
-                                                        </div>
-                                                    </div>
-                                                    <div class="d-flex justify-content-end align-items-center gap-3 mt-3">
-                                                        <div class="text-muted small" id="transport_feedback_{{ $order->booking_id }}_travel_hourly"></div>
-                                                        <button type="submit" class="btn btn-sm btn-primary d-flex align-items-center gap-2">
-                                                            <span class="spinner-border spinner-border-sm d-none" id="transport_spinner_{{ $order->booking_id }}_travel_hourly"></span>
-                                                            <span>Save Changes</span>
-                                                        </button>
-                                                    </div>
-                                                </form>
-                                            @endforeach
-                                        @endif
-
-                                        @if(count($allTransportPoint) > 0)
-                                            @foreach($allTransportPoint as $index => $order)
-                                                @php
-                                                    $transportData = is_array($order->processed_data) ? $order->processed_data : json_decode($order->processed_data, true);
-                                                    if (isset($transportData[0])) {
-                                                        $transportData = $transportData[0];
-                                                    }
-                                                    $pickupLocation = $transportData['entrypickup'] ?? $transportData['pickupLocation'] ?? '';
-                                                    $dropoffLocation = $transportData['entrydropoff'] ?? $transportData['dropoffLocation'] ?? '';
-                                                    $pickupTime = $transportData['entrytime'] ?? '';
-                                                    $pickupTimeValue = $pickupTime ? date('H:i', strtotime($pickupTime)) : '';
-                                                    $pickupDateRaw = $transportData['pickupdate'] ?? $transportData['bookingDate'] ?? '';
-                                                    $pickupDate = '';
-                                                    if ($pickupDateRaw) {
-                                                        try {
-                                                            $pickupDate = \Carbon\Carbon::parse($pickupDateRaw)->format('Y-m-d');
-                                                        } catch (\Exception $exception) {
-                                                            $pickupDate = $pickupDateRaw;
-                                                        }
-                                                    }
-                                                    $vehicleName = $transportData['vehicles_name'] ?? '';
-                                                    $vehicleType = $transportData['type'] ?? '';
-                                                    $totalPrice = $transportData['totalPrice'] ?? $transportData['price'] ?? 0;
-                                                    $adultCount = $transportData['adultCount'] ?? $transportData['adults'] ?? 0;
-                                                    $childCount = $transportData['childCount'] ?? $transportData['children'] ?? 0;
-                                                    $distance = $transportData['distance'] ?? 0;
-                                                    $notes = $transportData['notes'] ?? $transportData['specialRequests'] ?? '';
-                                                    $pickupLatitude = $transportData['pickup_latitude'] ?? $transportData['pickup_lat'] ?? '';
-                                                    $pickupLongitude = $transportData['pickup_longitude'] ?? $transportData['pickup_lng'] ?? '';
-                                                    $dropoffLatitude = $transportData['dropoff_latitude'] ?? $transportData['dropoff_lat'] ?? '';
-                                                    $dropoffLongitude = $transportData['dropoff_longitude'] ?? $transportData['dropoff_lng'] ?? '';
-                                                    $pickupPlaceId = $transportData['pickup_place_id'] ?? '';
-                                                    $dropoffPlaceId = $transportData['dropoff_place_id'] ?? '';
-                                                    $availableVehicles = $vehicles ?? collect();
-                                                @endphp
-                                                <form class="service-item mb-3 p-3 border rounded shadow-sm bg-white transport-edit-form" data-form-type="travel_point" data-update-url="{{ route('edit-tour.update-transport', $order->booking_id) }}" onsubmit="updateExistingTransport(event, {{ $order->booking_id }})">
-                                                    @csrf
-                                                    <input type="hidden" name="type" value="travel_point">
-                                                    <div class="d-flex justify-content-between align-items-center mb-3">
-                                                        <h6 class="mb-0 fw-bold text-info"><i class="ri-map-pin-2-line me-2"></i>Point-to-Point Transport #{{ $index + 1 }}</h6>
-                                                        <div class="d-flex gap-2">
-                                                            <button type="button" class="btn btn-sm btn-outline-danger" onclick="removeTransportService({{ $order->booking_id }})">
-                                                                <i class="ri-delete-bin-line"></i> Remove
-                                                            </button>
-                                                        </div>
-                                                    </div>
-                                                    <div class="row g-3">
-                                                        <div class="col-md-4">
-                                                            <label class="form-label fw-semibold text-muted mb-1"><i class="ri-map-pin-line me-1 text-primary"></i>Pickup Location</label>
-                                                            <div class="position-relative">
-                                                                <input 
-                                                                    type="text" 
-                                                                    class="form-control border-2 google-maps-autocomplete"
-                                                                    style="height: 38px;"
-                                                                    id="point_pickup_location_{{ $order->booking_id }}"
-                                                                    name="pickup_location" 
-                                                                    value="{{ $pickupLocation }}" 
-                                                                    placeholder="Search pickup location" 
-                                                                    style="padding-left: 45px;" 
-                                                                    required>
-                                                                <!-- <i class="ri-map-pin-line position-absolute text-primary" style="left: 15px; top: 50%; transform: translateY(-50%); z-index: 5;"></i> -->
-                                                                <input type="hidden" name="pickup_latitude" id="point_pickup_lat_{{ $order->booking_id }}" value="{{ $pickupLatitude }}">
-                                                                <input type="hidden" name="pickup_longitude" id="point_pickup_lng_{{ $order->booking_id }}" value="{{ $pickupLongitude }}">
-                                                                <input type="hidden" name="pickup_place_id" id="point_pickup_place_id_{{ $order->booking_id }}" value="{{ $pickupPlaceId }}">
-                                                            </div>
-                                                        </div>
-                                                        <div class="col-md-4">
-                                                            <label class="form-label fw-semibold text-muted mb-1"><i class="ri-map-pin-2-line me-1 text-success"></i>Dropoff Location</label>
-                                                            <div class="position-relative">
-                                                                <input 
-                                                                    type="text" 
-                                                                    class="form-control border-2 google-maps-autocomplete"
-                                                                    style="height: 38px;"
-                                                                    id="point_dropoff_location_{{ $order->booking_id }}"
-                                                                    name="dropoff_location" 
-                                                                    value="{{ $dropoffLocation }}" 
-                                                                    placeholder="Search dropoff location" 
-                                                                    style="padding-left: 45px;" 
-                                                                    required>
-                                                                <!-- <i class="ri-map-pin-2-line position-absolute text-success" style="left: 15px; top: 50%; transform: translateY(-50%); z-index: 5;"></i> -->
-                                                                <input type="hidden" name="dropoff_latitude" id="point_dropoff_lat_{{ $order->booking_id }}" value="{{ $dropoffLatitude }}">
-                                                                <input type="hidden" name="dropoff_longitude" id="point_dropoff_lng_{{ $order->booking_id }}" value="{{ $dropoffLongitude }}">
-                                                                <input type="hidden" name="dropoff_place_id" id="point_dropoff_place_id_{{ $order->booking_id }}" value="{{ $dropoffPlaceId }}">
-                                                            </div>
-                                                        </div>
-                                                        <div class="col-md-2">
-                                                            <label class="form-label fw-semibold text-muted mb-1"><i class="ri-calendar-line me-1 text-secondary"></i>Pickup Date</label>
-                                                            <input type="date" class="form-control border-2" style="height: 38px;" name="pickup_date" value="{{ $pickupDate }}">
-                                                        </div>
-                                                        <div class="col-md-2">
-                                                            <label class="form-label fw-semibold text-muted mb-1"><i class="ri-time-line me-1 text-warning"></i>Pickup Time</label>
-                                                            <input type="time" class="form-control border-2" style="height: 38px;" name="pickup_time" value="{{ $pickupTimeValue }}" required>
-                                                        </div>
-                                                        <div class="col-md-4">
-                                                            <label class="form-label fw-semibold text-muted mb-1"><i class="ri-car-line me-1 text-info"></i>Vehicle Name</label>
-                                                            @php $vehicleMatched = false; @endphp
-                                                            <select class="form-select border-2" name="vehicle_name">
-                                                                <option value="">{{ $vehicleName ? 'Select vehicle' : 'Select vehicle' }}</option>
-                                                                @foreach($availableVehicles as $vehicleOption)
-                                                                    @php
-                                                                        $vehicleDisplayName = $vehicleOption->vehicle_name ?? $vehicleOption->vehicle_id;
-                                                                        $isSelected = $vehicleDisplayName && strcasecmp($vehicleDisplayName, $vehicleName ?? '') === 0;
-                                                                        $vehicleMatched = $vehicleMatched || $isSelected;
-                                                                    @endphp
-                                                                    <option value="{{ $vehicleDisplayName }}" {{ $isSelected ? 'selected' : '' }}>
-                                                                        {{ $vehicleDisplayName }}
-                                                                        @if(!empty($vehicleOption->vehicle_type))
-                                                                            ({{ $vehicleOption->vehicle_type }})
-                                                                        @endif
-                                                                    </option>
-                                                                @endforeach
-                                                                @if($vehicleName && !$vehicleMatched)
-                                                                    <option value="{{ $vehicleName }}" selected>{{ $vehicleName }}</option>
-                                                                @endif
-                                                            </select>
-                                                        </div>
-                                                        <div class="col-md-3">
-                                                            <label class="form-label fw-semibold text-muted mb-1"><i class="ri-user-settings-line me-1 text-secondary"></i>Service Type</label>
-                                                            <select class="form-select border-2" name="vehicle_type">
-                                                                <option value="">Select type</option>
-                                                                <option value="Private" {{ strtolower($vehicleType) === 'private' ? 'selected' : '' }}>Private</option>
-                                                                <option value="Shared" {{ strtolower($vehicleType) === 'shared' ? 'selected' : '' }}>Shared</option>
-                                                            </select>
-                                                        </div>
-                                                        <!-- <div class="col-md-2">
-                                                            <label class="form-label fw-semibold text-muted mb-1"><i class="ri-roadster-line me-1 text-info"></i>Distance (km)</label>
-                                                            <input type="number" class="form-control border-2" name="distance" step="0.01" min="0" value="{{ $distance }}" placeholder="0">
-                                                        </div> -->
-                                                        <div class="col-md-3">
-                                                            <label class="form-label fw-semibold text-muted mb-1"><i class="ri-money-dollar-circle-line me-1 text-success"></i>Total Price</label>
-                                                            <input type="number" class="form-control border-2" style="height: 38px;" name="total_price" step="0.01" min="0" value="{{ number_format((float) $totalPrice, 2, '.', '') }}" placeholder="0.00">
-                                                        </div>
-                                                    </div>
-                                                    <div class="d-flex justify-content-end align-items-center gap-3 mt-3">
-                                                        <div class="text-muted small" id="transport_feedback_{{ $order->booking_id }}_travel_point"></div>
-                                                        <button type="submit" class="btn btn-sm btn-primary d-flex align-items-center gap-2">
-                                                            <span class="spinner-border spinner-border-sm d-none" id="transport_spinner_{{ $order->booking_id }}_travel_point"></span>
-                                                            <span>Save Changes</span>
-                                                        </button>
-                                                    </div>
-                                                </form>
-                                            @endforeach
-                                        @endif
-
-                                        @if(count($allLocalTransport) > 0)
-                                            @foreach($allLocalTransport as $index => $order)
-                                                @php
-                                                    $transportData = is_array($order->processed_data) ? $order->processed_data : json_decode($order->processed_data, true);
-                                                    if (isset($transportData[0])) {
-                                                        $transportData = $transportData[0];
-                                                    }
-                                                    $pickupLocation = $transportData['entrypickup'] ?? $transportData['pickupLocation'] ?? '';
-                                                    $dropoffLocation = $transportData['entrydropoff'] ?? $transportData['dropoffLocation'] ?? '';
-                                                    $pickupTime = $transportData['entrytime'] ?? $transportData['time'] ?? '';
-                                                    $pickupTimeValue = $pickupTime ? date('H:i', strtotime($pickupTime)) : '';
-                                                    $pickupDateRaw = $transportData['pickupdate'] ?? $transportData['bookingDate'] ?? '';
-                                                    $pickupDate = '';
-                                                    if ($pickupDateRaw) {
-                                                        try {
-                                                            $pickupDate = \Carbon\Carbon::parse($pickupDateRaw)->format('Y-m-d');
-                                                        } catch (\Exception $exception) {
-                                                            $pickupDate = $pickupDateRaw;
-                                                        }
-                                                    }
-                                                    $vehicleName = $transportData['vehicles_name'] ?? '';
-                                                    $vehicleId = $transportData['vehicles_id'] ?? $transportData['vehicle_id'] ?? '';
-                                                    $vehicleType = $transportData['type'] ?? '';
-                                                    $totalPrice = $transportData['totalPrice'] ?? $transportData['price'] ?? 0;
-                                                    $adultCount = $transportData['adultCount'] ?? $transportData['adults'] ?? 0;
-                                                    $childCount = $transportData['childCount'] ?? $transportData['children'] ?? 0;
-                                                    $notes = $transportData['notes'] ?? $transportData['specialRequests'] ?? '';
-                                                    $pickupZoneId = $transportData['pickup_zone_id'] ?? $transportData['pickupZoneId'] ?? '';
-                                                    $dropoffZoneId = $transportData['dropoff_zone_id'] ?? $transportData['dropoffZoneId'] ?? '';
-                                                    $pickupLocationType = $transportData['pickup_location_type'] ?? '';
-                                                    $dropoffLocationType = $transportData['dropoff_location_type'] ?? '';
-                                                    $availablePorts = $ports ?? collect();
-                                                    $availableHotels = $hotels ?? collect();
-                                                    $availableAttractions = $attractions ?? collect();
-                                                    $availableRestaurants = $restaurants ?? collect();
-                                                    $availableVehicles = $vehicles ?? collect();
-                                                @endphp
-                                                <form
-                                                    class="service-item mb-3 p-3 border rounded shadow-sm bg-white transport-edit-form"
-                                                    data-form-type="local_transport"
-                                                    data-update-url="{{ route('edit-tour.update-transport', $order->booking_id) }}"
-                                                    data-booking-id="{{ $order->booking_id }}"
-                                                    data-fetch-url="{{ route('fetch-vehicles-by-zones') }}"
-                                                    data-zone-status="{{ $UserDmc->zone_on ?? 0 }}"
-                                                    data-city="{{ $tour->city ?? $tour->destination ?? '' }}"
-                                                    data-initial-vehicle-id="{{ $vehicleId }}"
-                                                    data-initial-vehicle-name="{{ $vehicleName }}"
-                                                    data-initial-service-type="{{ $vehicleType }}"
-                                                    data-initial-total-price="{{ number_format((float) $totalPrice, 2, '.', '') }}"
-                                                    data-initial-private-price="{{ $transportData['private_price'] ?? $transportData['price'] ?? $totalPrice }}"
-                                                    data-initial-shared-price="{{ $transportData['shared_price'] ?? '' }}"
-                                                    data-initial-vehicle-sharable="{{ $transportData['sharable'] ?? $transportData['sharable_option'] ?? '' }}"
-                                                    onsubmit="updateExistingTransport(event, {{ $order->booking_id }})">
-                                                    @csrf
-                                                    <input type="hidden" name="type" value="local_transport">
-                                                    <input type="hidden" name="pickup_location_reference" id="pickup_location_reference_{{ $order->booking_id }}" value="{{ $pickupZoneId }}">
-                                                    <input type="hidden" name="pickup_location_type" id="pickup_location_type_{{ $order->booking_id }}" value="{{ $pickupLocationType }}">
-                                                    <input type="hidden" name="dropoff_location_reference" id="dropoff_location_reference_{{ $order->booking_id }}" value="{{ $dropoffZoneId }}">
-                                                    <input type="hidden" name="dropoff_location_type" id="dropoff_location_type_{{ $order->booking_id }}" value="{{ $dropoffLocationType }}">
-                                                    <input type="hidden" name="vehicle_id" id="vehicle_id_{{ $order->booking_id }}" value="{{ $vehicleId }}">
-                                                    <div class="d-flex justify-content-between align-items-center mb-3">
-                                                        <h6 class="mb-0 fw-bold text-secondary"><i class="ri-taxi-line me-2"></i>Local Transport #{{ $index + 1 }}</h6>
-                                                        <div class="d-flex gap-2">
-                                                            <button type="button" class="btn btn-sm btn-outline-danger" onclick="removeTransportService({{ $order->booking_id }})">
-                                                                <i class="ri-delete-bin-line"></i> Remove
-                                                            </button>
-                                                        </div>
-                                                    </div>
-                                                    <div class="row g-3">
-                                                        <div class="col-md-4">
-                                                            <label class="form-label fw-semibold text-muted mb-1"><i class="ri-map-pin-line me-1 text-primary"></i>Pickup Zone/Location</label>
-                                                            @php $pickupMatched = false; @endphp
-                                                            <select class="form-select border-2 js-local-pickup-select" name="pickup_location" id="pickup_location_{{ $order->booking_id }}" data-booking-id="{{ $order->booking_id }}" required>
-                                                                <option value="">{{ $pickupLocation ? 'Select pickup location' : 'Select pickup location' }}</option>
-                                                                <optgroup label="Ports">
-                                                                    @foreach($availablePorts as $port)
-                                                                        @php $isSelected = strcasecmp($port->port_name ?? '', $pickupLocation ?? '') === 0; $pickupMatched = $pickupMatched || $isSelected; @endphp
-                                                                        <option value="{{ $port->port_name }}" data-location-type="Port" data-location-id="{{ $port->port_id }}" {{ $isSelected ? 'selected' : '' }}>
-                                                                            {{ $port->port_name }}
-                                                                        </option>
-                                                                    @endforeach
-                                                                </optgroup>
-                                                                <optgroup label="Hotels">
-                                                                    @foreach($availableHotels as $hotelOption)
-                                                                        @php $isSelected = strcasecmp($hotelOption->name ?? '', $pickupLocation ?? '') === 0; $pickupMatched = $pickupMatched || $isSelected; @endphp
-                                                                        <option value="{{ $hotelOption->name }}" data-location-type="Hotel" data-location-id="{{ $hotelOption->hotel_unique_id }}" {{ $isSelected ? 'selected' : '' }}>
-                                                                            {{ $hotelOption->name }}
-                                                                        </option>
-                                                                    @endforeach
-                                                                </optgroup>
-                                                                <optgroup label="Attractions">
-                                                                    @foreach($availableAttractions as $attractionOption)
-                                                                        @php $isSelected = strcasecmp($attractionOption->name ?? '', $pickupLocation ?? '') === 0; $pickupMatched = $pickupMatched || $isSelected; @endphp
-                                                                        <option value="{{ $attractionOption->name }}" data-location-type="Attraction" data-location-id="{{ $attractionOption->attraction_id }}" {{ $isSelected ? 'selected' : '' }}>
-                                                                            {{ $attractionOption->name }}
-                                                                        </option>
-                                                                    @endforeach
-                                                                </optgroup>
-                                                                <optgroup label="Restaurants">
-                                                                    @foreach($availableRestaurants as $restaurantOption)
-                                                                        @php $isSelected = strcasecmp($restaurantOption->name ?? '', $pickupLocation ?? '') === 0; $pickupMatched = $pickupMatched || $isSelected; @endphp
-                                                                        <option value="{{ $restaurantOption->name }}" data-location-type="Restaurant" data-location-id="{{ $restaurantOption->restaurant_id }}" {{ $isSelected ? 'selected' : '' }}>
-                                                                            {{ $restaurantOption->name }}
-                                                                        </option>
-                                                                    @endforeach
-                                                                </optgroup>
-                                                                @if($pickupLocation && !$pickupMatched)
-                                                                    <option value="{{ $pickupLocation }}" selected
-                                                                        data-location-id="{{ $pickupZoneId }}"
-                                                                        data-location-type="{{ $pickupLocationType }}">
-                                                                        {{ $pickupLocation }}
-                                                                    </option>
-                                                                @endif
-                                                            </select>
-                                                        </div>
-                                                        <div class="col-md-4">
-                                                            <label class="form-label fw-semibold text-muted mb-1"><i class="ri-map-pin-2-line me-1 text-success"></i>Dropoff Zone/Location</label>
-                                                            @php $dropoffMatched = false; @endphp
-                                                            <select class="form-select border-2 js-local-dropoff-select" name="dropoff_location" id="dropoff_location_{{ $order->booking_id }}" data-booking-id="{{ $order->booking_id }}" required>
-                                                                <option value="">{{ $dropoffLocation ? 'Select dropoff location' : 'Select dropoff location' }}</option>
-                                                                <optgroup label="Ports">
-                                                                    @foreach($availablePorts as $port)
-                                                                        @php $isSelected = strcasecmp($port->port_name ?? '', $dropoffLocation ?? '') === 0; $dropoffMatched = $dropoffMatched || $isSelected; @endphp
-                                                                        <option value="{{ $port->port_name }}" data-location-type="Port" data-location-id="{{ $port->port_id }}" {{ $isSelected ? 'selected' : '' }}>
-                                                                            {{ $port->port_name }}
-                                                                        </option>
-                                                                    @endforeach
-                                                                </optgroup>
-                                                                <optgroup label="Hotels">
-                                                                    @foreach($availableHotels as $hotelOption)
-                                                                        @php $isSelected = strcasecmp($hotelOption->name ?? '', $dropoffLocation ?? '') === 0; $dropoffMatched = $dropoffMatched || $isSelected; @endphp
-                                                                        <option value="{{ $hotelOption->name }}" data-location-type="Hotel" data-location-id="{{ $hotelOption->hotel_unique_id }}" {{ $isSelected ? 'selected' : '' }}>
-                                                                            {{ $hotelOption->name }}
-                                                                        </option>
-                                                                    @endforeach
-                                                                </optgroup>
-                                                                <optgroup label="Attractions">
-                                                                    @foreach($availableAttractions as $attractionOption)
-                                                                        @php $isSelected = strcasecmp($attractionOption->name ?? '', $dropoffLocation ?? '') === 0; $dropoffMatched = $dropoffMatched || $isSelected; @endphp
-                                                                        <option value="{{ $attractionOption->name }}" data-location-type="Attraction" data-location-id="{{ $attractionOption->attraction_id }}" {{ $isSelected ? 'selected' : '' }}>
-                                                                            {{ $attractionOption->name }}
-                                                                        </option>
-                                                                    @endforeach
-                                                                </optgroup>
-                                                                <optgroup label="Restaurants">
-                                                                    @foreach($availableRestaurants as $restaurantOption)
-                                                                        @php $isSelected = strcasecmp($restaurantOption->name ?? '', $dropoffLocation ?? '') === 0; $dropoffMatched = $dropoffMatched || $isSelected; @endphp
-                                                                        <option value="{{ $restaurantOption->name }}" data-location-type="Restaurant" data-location-id="{{ $restaurantOption->restaurant_id }}" {{ $isSelected ? 'selected' : '' }}>
-                                                                            {{ $restaurantOption->name }}
-                                                                        </option>
-                                                                    @endforeach
-                                                                </optgroup>
-                                                                @if($dropoffLocation && !$dropoffMatched)
-                                                                    <option value="{{ $dropoffLocation }}" selected
-                                                                        data-location-id="{{ $dropoffZoneId }}"
-                                                                        data-location-type="{{ $dropoffLocationType }}">
-                                                                        {{ $dropoffLocation }}
-                                                                    </option>
-                                                                @endif
-                                                            </select>
-                                                        </div>
-                                                        <div class="col-md-2">
-                                                            <label class="form-label fw-semibold text-muted mb-1"><i class="ri-calendar-line me-1 text-secondary"></i>Pickup Date</label>
-                                                            <input type="date" class="form-control border-2" name="pickup_date" value="{{ $pickupDate }}">
-                                                        </div>
-                                                        <div class="col-md-2">
-                                                            <label class="form-label fw-semibold text-muted mb-1"><i class="ri-time-line me-1 text-warning"></i>Pickup Time</label>
-                                                            <input type="time" class="form-control border-2" name="pickup_time" value="{{ $pickupTimeValue }}" required>
-                                                        </div>
-                                                        <div class="col-md-4">
-                                                            <label class="form-label fw-semibold text-muted mb-1"><i class="ri-car-line me-1 text-info"></i>Vehicle Name</label>
-                                                            @php $vehicleMatched = false; @endphp
-                                                            <select class="form-select border-2 js-local-vehicle-select" name="vehicle_name" id="vehicle_name_{{ $order->booking_id }}" data-booking-id="{{ $order->booking_id }}">
-                                                                <option value="">{{ $vehicleName ? 'Select vehicle' : 'Select vehicle' }}</option>
-                                                                @foreach($availableVehicles as $vehicleOption)
-                                                                    @php
-                                                                        $vehicleDisplayName = $vehicleOption->vehicle_name ?? $vehicleOption->vehicle_id;
-                                                                        $isSelected = false;
-                                                                        if ($vehicleDisplayName) {
-                                                                            $isSelected = strcasecmp($vehicleDisplayName, $vehicleName ?? '') === 0;
-                                                                        }
-                                                                        if (!$isSelected && $vehicleId) {
-                                                                            $isSelected = (string)$vehicleId === (string)($vehicleOption->vehicle_id ?? '');
-                                                                        }
-                                                                        $vehicleMatched = $vehicleMatched || $isSelected;
-                                                                    @endphp
-                                                                    <option value="{{ $vehicleDisplayName }}"
-                                                                        data-vehicle-id="{{ $vehicleOption->vehicle_id }}"
-                                                                        data-vehicle-name="{{ $vehicleDisplayName }}"
-                                                                        data-vehicle-type="{{ $vehicleOption->vehicle_type }}"
-                                                                        data-seating-capacity="{{ $vehicleOption->seating_capacity ?? '' }}"
-                                                                        data-private-price="{{ $vehicleOption->private_price ?? '' }}"
-                                                                        data-shared-price="{{ $vehicleOption->shared_price ?? '' }}"
-                                                                        data-cost-per-hour="{{ $vehicleOption->cost_per_hour ?? '' }}"
-                                                                        data-sharable-cost-per-hour="{{ $vehicleOption->sharable_cost_per_hour ?? '' }}"
-                                                                        data-sharable="{{ $vehicleOption->sharable ?? '' }}"
-                                                                        data-service-type="{{ $vehicleOption->service_type ?? '' }}"
-                                                                        data-vehicle='@json($vehicleOption)'
-                                                                        {{ $isSelected ? 'selected' : '' }}>
-                                                                        {{ $vehicleDisplayName }}
-                                                                        @if(!empty($vehicleOption->vehicle_type))
-                                                                            ({{ $vehicleOption->vehicle_type }})
-                                                                        @endif
-                                                                    </option>
-                                                                @endforeach
-                                                                @if($vehicleName && !$vehicleMatched)
-                                                                    <option value="{{ $vehicleName }}" selected
-                                                                        data-vehicle-id="{{ $vehicleId }}"
-                                                                        data-vehicle-name="{{ $vehicleName }}"
-                                                                        data-vehicle-type="{{ $vehicleType }}"
-                                                                        data-seating-capacity="{{ $transportData['seating_capacity'] ?? '' }}"
-                                                                        data-private-price="{{ $transportData['price'] ?? $totalPrice }}"
-                                                                        data-shared-price="{{ $transportData['shared_price'] ?? '' }}"
-                                                                        data-cost-per-hour="{{ $transportData['cost_per_hour'] ?? '' }}"
-                                                                        data-sharable-cost-per-hour="{{ $transportData['sharable_cost_per_hour'] ?? '' }}"
-                                                                        data-sharable="{{ $transportData['sharable'] ?? '' }}"
-                                                                        data-service-type="{{ $transportData['service_type'] ?? '' }}"
-                                                                        data-vehicle='@json($transportData)'>
-                                                                        {{ $vehicleName }}
-                                                                    </option>
-                                                                @endif
-                                                            </select>
-                                                        </div>
-                                                        <div class="col-md-3">
-                                                            <label class="form-label fw-semibold text-muted mb-1"><i class="ri-user-settings-line me-1 text-secondary"></i>Service Type</label>
-                                                            <select class="form-select border-2 js-local-service-type" name="vehicle_type" id="vehicle_type_{{ $order->booking_id }}" data-booking-id="{{ $order->booking_id }}">
-                                                                <option value="">Select type</option>
-                                                                <option value="Private" {{ strtolower($vehicleType) === 'private' ? 'selected' : '' }}>Private</option>
-                                                                <option value="Shared" {{ strtolower($vehicleType) === 'shared' ? 'selected' : '' }}>Shared</option>
-                                                            </select>
-                                                        </div>
-                                                    </div>
-                                                    <div class="d-flex justify-content-end align-items-center gap-3 mt-3">
-                                                        <div class="text-muted small" id="transport_feedback_{{ $order->booking_id }}_local_transport"></div>
-                                                        <button type="submit" class="btn btn-sm btn-primary d-flex align-items-center gap-2">
-                                                            <span class="spinner-border spinner-border-sm d-none" id="transport_spinner_{{ $order->booking_id }}_local_transport"></span>
-                                                            <span>Save Changes</span>
-                                                        </button>
-                                                    </div>
-                                                </form>
-                                            @endforeach
-                                        @endif
-                                    </div>
-                                    <div class="card-footer bg-light">
-                                        <div class="text-center py-3">
-                                            <button type="button" class="btn btn-gradient-primary btn-lg shadow-sm px-5 py-3" onclick="addMoreTransportService()" style="
-                                                background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-                                                border: none;
-                                                color: white;
-                                                font-weight: 600;
-                                                letter-spacing: 0.5px;
-                                                transition: all 0.3s ease;
-                                                border-radius: 8px;
-                                                box-shadow: 0 4px 15px rgba(102, 126, 234, 0.4);
-                                            " onmouseover="this.style.transform='translateY(-2px)'; this.style.boxShadow='0 6px 20px rgba(102, 126, 234, 0.6)';" onmouseout="this.style.transform='translateY(0)'; this.style.boxShadow='0 4px 15px rgba(102, 126, 234, 0.4)';">
-                                                <i class="ri-add-circle-line me-2" style="font-size: 1.2em;"></i>Add More Transport Service
-                                            </button>
-                                        </div>
-                                    </div>
-                                    </div>
-                                </div>
-                            </div>
-                            
                             <!-- All Attractions Section (Unified) -->
                             <div class="service-section mb-3">
                                 <div>
@@ -3097,9 +2212,9 @@
                                         
                                         
                                             <div class="row g-3">
-                                                <div class="col-md-5">
-                                                    <label class="form-label fw-semibold text-muted mb-1"><i class="ri-map-pin-line me-1 text-primary"></i>Attraction Name</label>
-                                                    <select class="form-select border-2" name="attraction_name" id="attraction_name_{{ $order->booking_id }}" onchange="populateTicketFromAttraction(this, 'ticket_name_{{ $order->booking_id }}')" required>
+                                                <div class="col-md-4">
+                                                    <label class="form-label fw-semibold text-muted mb-2"><i class="ri-map-pin-line me-1 text-primary"></i>Attraction Name</label>
+                                                    <select class="form-select border-2" style="height: 35px;" name="attraction_name" id="attraction_name_{{ $order->booking_id }}" onchange="populateTicketFromAttraction(this, 'ticket_name_{{ $order->booking_id }}')" required>
                                                         <option value="">Select Attraction</option>
                                                         @php
                                                             $tourCountry = $tour->destination ?? '';
@@ -3128,22 +2243,22 @@
                                                     </select>
                                                 </div>
                                                 <div class="col-md-4">
-                                                    <label class="form-label fw-semibold text-muted mb-1"><i class="ri-ticket-line me-1 text-info"></i>Ticket</label>
-                                                    <select class="form-select border-2" name="ticket_name" id="ticket_name_{{ $order->booking_id }}" required>
+                                                    <label class="form-label fw-semibold text-muted mb-2"><i class="ri-ticket-line me-1 text-info"></i>Ticket</label>
+                                                    <select class="form-select border-2" style="height: 35px;" name="ticket_name" id="ticket_name_{{ $order->booking_id }}" required>
                                                         <option value="">Select Ticket</option>
                                                         @if($ticket && $ticket != 'N/A')
                                                             <option value="{{ $ticket }}" selected>{{ $ticket }}</option>
                                                         @endif
                                                     </select>
-                                                    <small class="text-muted">Select an attraction to see available tickets</small>
-                                                </div>
-                                                <div class="col-md-3">
-                                                    <label class="form-label fw-semibold text-muted mb-1"><i class="ri-calendar-line me-1 text-primary"></i>Booking Date</label>
-                                                    <input type="date" class="form-control border-2" style="height: 38px;" name="booking_date" id="booking_date_{{ $order->booking_id }}" value="{{ $bookingDate }}" required>
+                                                    <small class="text-muted d-block mt-1">Select an attraction to see available tickets</small>
                                                 </div>
                                                 <div class="col-md-2">
-                                                    <label class="form-label fw-semibold text-muted mb-1"><i class="ri-time-line me-1 text-warning"></i>Time Slot</label>
-                                                    <select class="form-select border-2" name="visit_time" id="visit_time_{{ $order->booking_id }}" required>
+                                                    <label class="form-label fw-semibold text-muted mb-2"><i class="ri-calendar-line me-1 text-primary"></i>Booking Date</label>
+                                                    <input type="date" class="form-control border-2" style="height: 35px;" name="booking_date" id="booking_date_{{ $order->booking_id }}" value="{{ $bookingDate }}" required>
+                                                </div>
+                                                <div class="col-md-2">
+                                                    <label class="form-label fw-semibold text-muted mb-2"><i class="ri-time-line me-1 text-warning"></i>Time Slot</label>
+                                                    <select class="form-select border-2" style="height: 35px;" name="visit_time" id="visit_time_{{ $order->booking_id }}" required>
                                                         <option value="">Select Time Slot</option>
                                                         @php
                                                             // Find the selected attraction to populate time slots from database
@@ -3258,30 +2373,30 @@
                                                             }
                                                         @endphp
                                                     </select>
-                                                    <small class="text-muted">Available time slots from database</small>
+                                                    <small class="text-muted d-block mt-1">Available time slots from database</small>
                                                 </div>
                                                 
                                                 <div class="col-md-2">
-                                                    <label class="form-label fw-semibold text-muted mb-1"><i class="ri-user-line me-1 text-secondary"></i>Adults</label>
-                                                    <input type="number" class="form-control border-2 attraction-guest-input" style="height: 38px;" name="adult_count" id="attraction_adult_count_{{ $order->booking_id }}" min="0" value="{{ $adultCount }}" data-booking-id="{{ $order->booking_id }}" data-tour-max="{{ ($tour->adult ?? 0) + ($tour->child ?? 0) }}" required>
+                                                    <label class="form-label fw-semibold text-muted mb-2"><i class="ri-user-line me-1 text-secondary"></i>Adults</label>
+                                                    <input type="number" class="form-control border-2 attraction-guest-input" style="height: 35px;" name="adult_count" id="attraction_adult_count_{{ $order->booking_id }}" min="0" value="{{ $adultCount }}" data-booking-id="{{ $order->booking_id }}" data-tour-max="{{ ($tour->adult ?? 0) + ($tour->child ?? 0) }}" required>
                                                 </div>
                                                 <div class="col-md-2">
-                                                    <label class="form-label fw-semibold text-muted mb-1"><i class="ri-user-smile-line me-1 text-secondary"></i>Children</label>
-                                                    <input type="number" class="form-control border-2 attraction-guest-input" style="height: 38px;" name="child_count" id="attraction_child_count_{{ $order->booking_id }}" min="0" value="{{ $childCount }}" data-booking-id="{{ $order->booking_id }}" data-tour-max="{{ ($tour->adult ?? 0) + ($tour->child ?? 0) }}" required>
+                                                    <label class="form-label fw-semibold text-muted mb-2"><i class="ri-user-smile-line me-1 text-secondary"></i>Children</label>
+                                                    <input type="number" class="form-control border-2 attraction-guest-input" style="height: 35px;" name="child_count" id="attraction_child_count_{{ $order->booking_id }}" min="0" value="{{ $childCount }}" data-booking-id="{{ $order->booking_id }}" data-tour-max="{{ ($tour->adult ?? 0) + ($tour->child ?? 0) }}" required>
                                                 </div>
                                                 <div class="col-md-2">
-                                                    <label class="form-label fw-semibold text-muted mb-1"><i class="ri-user-heart-line me-1 text-secondary"></i>Seniors</label>
-                                                    <input type="number" class="form-control border-2 attraction-guest-input" style="height: 38px;" name="senior_count" id="attraction_senior_count_{{ $order->booking_id }}" min="0" value="{{ $seniorCount }}" data-booking-id="{{ $order->booking_id }}" data-tour-max="{{ ($tour->adult ?? 0) + ($tour->child ?? 0) }}" required>
+                                                    <label class="form-label fw-semibold text-muted mb-2"><i class="ri-user-heart-line me-1 text-secondary"></i>Seniors</label>
+                                                    <input type="number" class="form-control border-2 attraction-guest-input" style="height: 35px;" name="senior_count" id="attraction_senior_count_{{ $order->booking_id }}" min="0" value="{{ $seniorCount }}" data-booking-id="{{ $order->booking_id }}" data-tour-max="{{ ($tour->adult ?? 0) + ($tour->child ?? 0) }}" required>
                                                 </div>
                                                 
                                                 <!-- Additional Pax Details -->
                                                 <div class="col-md-2">
-                                                    <label class="form-label fw-semibold text-muted mb-1"><i class="ri-user-heart-line me-1 text-warning"></i>Infants</label>
-                                                    <input type="number" class="form-control border-2 attraction-guest-input" style="height: 38px;" name="infants" id="attraction_infants_{{ $order->booking_id }}" min="0" value="{{ $infantsCount }}" data-booking-id="{{ $order->booking_id }}" data-tour-max="{{ ($tour->adult ?? 0) + ($tour->child ?? 0) }}">
+                                                    <label class="form-label fw-semibold text-muted mb-2"><i class="ri-user-heart-line me-1 text-warning"></i>Infants</label>
+                                                    <input type="number" class="form-control border-2 attraction-guest-input" style="height: 35px;" name="infants" id="attraction_infants_{{ $order->booking_id }}" min="0" value="{{ $infantsCount }}" data-booking-id="{{ $order->booking_id }}" data-tour-max="{{ ($tour->adult ?? 0) + ($tour->child ?? 0) }}">
                                                 </div>
                                                 <div class="col-md-2">
-                                                    <label class="form-label fw-semibold text-muted mb-1"><i class="ri-money-dollar-circle-line me-1 text-success"></i>Total Price</label>
-                                                    <input type="number" class="form-control border-2" style="height: 38px;" name="total_price" id="attraction_total_price_{{ $order->booking_id }}" step="0.01" min="0" value="{{ number_format((float)$totalPrice, 2, '.', '') }}" placeholder="0.00" readonly>
+                                                    <label class="form-label fw-semibold text-muted mb-2"><i class="ri-money-dollar-circle-line me-1 text-success"></i>Total Price</label>
+                                                    <input type="number" class="form-control border-2" style="height: 35px;" name="total_price" id="attraction_total_price_{{ $order->booking_id }}" step="0.01" min="0" value="{{ number_format((float)$totalPrice, 2, '.', '') }}" placeholder="0.00" readonly>
                                                 </div>
                                             </div>
                                             <!-- Transport for this attraction -->
@@ -3317,8 +2432,8 @@
                                                 <div class="row g-3">
                                                     <!-- First Row: Transport Type, Vehicle, Destination -->
                                                     <div class="col-md-3">
-                                                        <label class="form-label fw-semibold">Transport Type</label>
-                                                        <select class="form-select" name="attraction_transport_type_{{ $order->booking_id }}">
+                                                        <label class="form-label fw-semibold text-muted mb-2">Transport Type</label>
+                                                        <select class="form-select border-2" style="height: 35px;" name="attraction_transport_type_{{ $order->booking_id }}">
                                                             <option value="">Select type</option>
                                                             <option value="shared" {{ $transportType === 'shared' || $transportType === 'Shared' ? 'selected' : '' }}>Shared</option>
                                                             <option value="private" {{ $transportType === 'private' || $transportType === 'Private' ? 'selected' : '' }}>Private</option>
@@ -3326,13 +2441,13 @@
                                                     </div>
                                                     
                                                     <div class="col-md-3">
-                                                        <label class="form-label fw-semibold">Destination</label>
+                                                        <label class="form-label fw-semibold text-muted mb-2">Destination</label>
                                                         @php
                                                             $destHotels = $hotels ?? collect();
                                                             $destAttractions = $attractions ?? collect();
                                                             $destRestaurants = $restaurants ?? collect();
                                                         @endphp
-                                                        <select class="form-select attraction-transport-destination-select" name="attraction_transport_destination_{{ $order->booking_id }}" id="attraction_transport_destination_{{ $order->booking_id }}" data-booking-id="{{ $order->booking_id }}">
+                                                        <select class="form-select border-2 attraction-transport-destination-select" style="height: 35px;" name="attraction_transport_destination_{{ $order->booking_id }}" id="attraction_transport_destination_{{ $order->booking_id }}" data-booking-id="{{ $order->booking_id }}">
                                                             <option value="">Search & select destination</option>
                                                             <optgroup label="Hotels">
                                                                 @foreach($destHotels as $h)
@@ -3367,8 +2482,8 @@
                                                         </select>
                                                     </div>
                                                     <div class="col-md-3">
-                                                        <label class="form-label fw-semibold">Vehicle (by country)</label>
-                                                        <select class="form-select attraction-transport-vehicle-select" name="attraction_transport_vehicle_{{ $order->booking_id }}" id="attraction_transport_vehicle_{{ $order->booking_id }}" data-booking-id="{{ $order->booking_id }}">
+                                                        <label class="form-label fw-semibold text-muted mb-2">Vehicle (by country)</label>
+                                                        <select class="form-select border-2 attraction-transport-vehicle-select" style="height: 35px;" name="attraction_transport_vehicle_{{ $order->booking_id }}" id="attraction_transport_vehicle_{{ $order->booking_id }}" data-booking-id="{{ $order->booking_id }}">
                                                             
                                                         <option value="">{{ $transportDestination ? 'Select vehicle' : 'Select destination first' }}</option>
                                                             @if($transportDestination)
@@ -3429,12 +2544,12 @@
                                                         <small class="text-danger d-none" id="attraction_passenger_error_{{ $order->booking_id }}">Passengers cannot exceed total pax or vehicle capacity</small>
                                                     </div> -->
                                                     <div class="col-md-3">
-                                                        <label class="form-label fw-semibold">Estimated Price</label>
+                                                        <label class="form-label fw-semibold text-muted mb-2">Estimated Price</label>
                                                         <div class="input-group">
-                                                            <span class="input-group-text">{{ $tour->currency ?? '$' }}</span>
-                                                            <input type="number" min="0" step="0.01" class="form-control" name="attraction_transport_price_{{ $order->booking_id }}" id="attraction_transport_price_{{ $order->booking_id }}" placeholder="0.00" value="{{ number_format((float)$transportPrice, 2, '.', '') }}" data-original-price="{{ $transportReturn ? number_format((float)$transportPrice / 2, 2, '.', '') : number_format((float)$transportPrice, 2, '.', '') }}">
+                                                            <span class="input-group-text" style="height: 35px;">{{ $tour->currency ?? '$' }}</span>
+                                                            <input type="number" min="0" step="0.01" class="form-control border-2" style="height: 35px;" name="attraction_transport_price_{{ $order->booking_id }}" id="attraction_transport_price_{{ $order->booking_id }}" placeholder="0.00" value="{{ number_format((float)$transportPrice, 2, '.', '') }}" data-original-price="{{ $transportReturn ? number_format((float)$transportPrice / 2, 2, '.', '') : number_format((float)$transportPrice, 2, '.', '') }}">
                                                         </div>
-                                                        <small class="text-muted">Optional, can be adjusted later.</small>
+                                                        <small class="text-muted d-block mt-2">Optional, can be adjusted later.</small>
                                                         <div class="form-check mt-2">
                                                             <input class="form-check-input attraction-transport-return-checkbox" type="checkbox" name="attraction_transport_return_{{ $order->booking_id }}" id="attraction_transport_return_{{ $order->booking_id }}" data-booking-id="{{ $order->booking_id }}" {{ $transportReturn ? 'checked' : '' }}>
                                                             <label class="form-check-label fw-semibold" for="attraction_transport_return_{{ $order->booking_id }}">
@@ -3551,7 +2666,7 @@
                                         </div>
                                             <div class="d-flex justify-content-end align-items-center gap-3 mt-3">
                                                 <div class="text-muted small" id="attraction_feedback_{{ $order->booking_id }}"></div>
-                                                <button type="submit" class="btn btn-sm btn-primary d-flex align-items-center gap-2">
+                                                <button type="submit" class="btn btn-primary d-flex align-items-center gap-2" style="height: 35px; padding: 0 10px;">
                                                     <span class="spinner-border spinner-border-sm d-none" id="attraction_spinner_{{ $order->booking_id }}"></span>
                                                     <span>Save Changes</span>
                                                 </button>
@@ -3656,8 +2771,8 @@
                                             </div>
                                             <div class="row g-3">
                                                 <div class="col-md-4">
-                                                    <label class="form-label fw-semibold text-muted mb-1"><i class="ri-user-star-line me-1 text-primary"></i>Guide Name</label>
-                                                    <select class="form-select border-2" name="guide_name" id="guide_name_{{ $order->booking_id }}" required>
+                                                    <label class="form-label fw-semibold text-muted mb-2"><i class="ri-user-star-line me-1 text-primary"></i>Guide Name</label>
+                                                    <select class="form-select border-2" style="height: 35px;" name="guide_name" id="guide_name_{{ $order->booking_id }}" required>
                                                         <option value="">Select Guide</option>
                                                         @php
                                                             $tourCountry = $tour->destination ?? '';
@@ -3699,32 +2814,32 @@
                                                         @endif
                                                     </select>
                                                 </div>
-                                                <div class="col-md-3">
-                                                    <label class="form-label fw-semibold text-muted mb-1"><i class="ri-calendar-line me-1 text-primary"></i>Pickup Date</label>
-                                                    <input type="date" class="form-control border-2" style="height: 38px;" name="pickup_date" id="pickup_date_{{ $order->booking_id }}" value="{{ $pickupDate }}" required>
+                                                <div class="col-md-4">
+                                                    <label class="form-label fw-semibold text-muted mb-2"><i class="ri-calendar-line me-1 text-primary"></i>Pickup Date</label>
+                                                    <input type="date" class="form-control border-2" style="height: 35px;" name="pickup_date" id="pickup_date_{{ $order->booking_id }}" value="{{ $pickupDate }}" required>
                                                 </div>
-                                                <div class="col-md-3">
-                                                    <label class="form-label fw-semibold text-muted mb-1"><i class="ri-time-line me-1 text-info"></i>Entry Pickup Time</label>
-                                                    <select class="form-select border-2" name="pickup_time" id="guide_pickup_time_{{ $order->booking_id }}" required>
+                                                <div class="col-md-4">
+                                                    <label class="form-label fw-semibold text-muted mb-2"><i class="ri-time-line me-1 text-info"></i>Entry Pickup Time</label>
+                                                    <select class="form-select border-2" style="height: 35px;" name="pickup_time" id="guide_pickup_time_{{ $order->booking_id }}" required>
                                                         <option value="">Select Guide First</option>
                                                         @if($pickupTimeAMPM)
                                                             <option value="{{ $pickupTimeAMPM }}" selected>{{ $pickupTimeAMPM }}</option>
                                                         @endif
                                                     </select>
-                                                    <small class="text-muted">Available times from selected guide</small>
+                                                    <small class="text-muted d-block mt-1">Available times from selected guide</small>
                                                 </div>
-                                                <div class="col-md-3">
-                                                    <label class="form-label fw-semibold text-muted mb-1"><i class="ri-time-line me-1 text-warning"></i>Package (Hours)</label>
-                                                    <input type="text" class="form-control border-2" style="height: 38px;" name="package_hours" value="{{ $packageHours }}" placeholder="e.g. 4">
+                                                <div class="col-md-6">
+                                                    <label class="form-label fw-semibold text-muted mb-2"><i class="ri-hourglass-line me-1 text-warning"></i>Package (Hours)</label>
+                                                    <input type="text" class="form-control border-2" style="height: 35px;" name="package_hours" value="{{ $packageHours }}" placeholder="e.g. 4">
                                                 </div>
-                                                <div class="col-md-3">
-                                                    <label class="form-label fw-semibold text-muted mb-1"><i class="ri-money-dollar-circle-line me-1 text-success"></i>Total Price</label>
-                                                    <input type="number" class="form-control border-2" style="height: 38px;" name="total_price" id="guide_total_price_{{ $order->booking_id }}" step="0.01" min="0" value="{{ number_format((float)$totalPrice, 2, '.', '') }}" placeholder="0.00" readonly>
+                                                <div class="col-md-6">
+                                                    <label class="form-label fw-semibold text-muted mb-2"><i class="ri-money-dollar-circle-line me-1 text-success"></i>Total Price</label>
+                                                    <input type="number" class="form-control border-2" style="height: 35px;" name="total_price" id="guide_total_price_{{ $order->booking_id }}" step="0.01" min="0" value="{{ number_format((float)$totalPrice, 2, '.', '') }}" placeholder="0.00" readonly>
                                                 </div>
                                             </div>
-                                            <div class="d-flex justify-content-end align-items-center">
+                                            <div class="d-flex justify-content-end align-items-center gap-3 mt-3">
                                                 <div class="text-muted small" id="guide_feedback_{{ $order->booking_id }}"></div>
-                                                <button type="submit" class="btn btn-sm btn-primary d-flex align-items-center gap-2">
+                                                <button type="submit" class="btn btn-primary d-flex align-items-center gap-2" style="height: 35px; padding: 0 10px;">
                                                     <span class="spinner-border spinner-border-sm d-none" id="guide_spinner_{{ $order->booking_id }}"></span>
                                                     <span>Save Changes</span>
                                                 </button>
@@ -3757,6 +2872,891 @@
                                     </div> <!-- end allGuidesSection collapse -->
                                 </div>
                             </div>
+
+                            <!-- All Restaurant Services Section (Unified) -->
+                            <div class="service-section mb-3">
+                                <div>
+                                    <div class="card-header text-dark d-flex justify-content-between align-items-center" role="button" data-bs-toggle="collapse" data-bs-target="#restaurantServicesSection" aria-expanded="false" aria-controls="restaurantServicesSection" style="cursor: pointer; background: linear-gradient(135deg, #fef3c7 0%, #fde68a 100%); border: 1px solid #fbbf24; transition: all 0.3s ease;">
+                                        <div class="d-flex align-items-center">
+                                            <span class="service-icon me-3">
+                                                <i class="ri-restaurant-2-line fs-4"></i>
+                                            </span>
+                                            <div>
+                                                <h6 class="mb-0 fw-bold">🍽️ All Restaurant Services</h6>
+                                                <small class="text-muted">All restaurants from all days in one place</small>
+                                            </div>
+                                        </div>
+                                        <i class="ri-arrow-down-s-line ms-2 fs-5"></i>
+                                    </div>
+                                    <div id="restaurantServicesSection" class="collapse">
+                                    <div class="card-body mt-3">
+                                        @if(count($allRestaurants) > 0)
+                                        @foreach($allRestaurants as $index => $order)
+                                        @php
+                                            $restaurantData = $order->processed_data;
+                                            $payload = [];
+                                            if (is_array($restaurantData)) {
+                                                $payload = isset($restaurantData[0]) ? $restaurantData[0] : $restaurantData;
+                                            }
+                                            $restaurantName = $payload['restaurantName'] ?? 'N/A';
+                                            $bookingDate = $payload['bookingDate'] ?? '';
+                                            $mealType = $payload['mealType'] ?? '';
+                                            $mealSpecificType = $payload['mealSpecificType'] ?? '';
+                                            $timeSlot = $payload['visitTime'] ?? '';
+                                            $adultCount = $payload['adultCount'] ?? 0;
+                                            $childCount = $payload['childCount'] ?? 0;
+                                            $totalPrice = $payload['totalPrice'] ?? 0;
+                                            $mealDescription = $payload['MealDescription'] ?? null;
+                                            $restaurantNotes = $payload['notes'] ?? '';
+
+                                            if ($totalPrice <= 0 && is_array($mealDescription)) {
+                                                $calculatedTotal = 0;
+                                                foreach ($mealDescription as $meal) {
+                                                    $mealPrice = $meal['price'] ?? 0;
+                                                    $quantity = $meal['quantity'] ?? 1;
+                                                    $calculatedTotal += $mealPrice * $quantity;
+                                                }
+                                                if ($calculatedTotal > 0) {
+                                                    $totalPrice = $calculatedTotal;
+                                                }
+                                            }
+                                            
+                                            // Extract transport options
+                                            $transferOptions = $payload['transfer_options'] ?? [];
+                                            $transferRequired = isset($transferOptions['transfer_required']) && $transferOptions['transfer_required'] === true;
+                                            $transportType = $transferOptions['type'] ?? '';
+                                            
+                                            // Get vehicle name from vehicle_details or vehicle_id/vehicle_name
+                                            $vehicleDetails = $transferOptions['vehicle_details'] ?? [];
+                                            $transportVehicle = $vehicleDetails['vehicle_name'] ?? $transferOptions['vehicle_name'] ?? $transferOptions['vehicle_id'] ?? '';
+                                            $transportVehicleId = $transferOptions['vehicle_id'] ?? '';
+                                            
+                                            // Get destination from pickup_location_name or destination
+                                            $transportDestination = $transferOptions['pickup_location_name'] ?? $transferOptions['destination'] ?? '';
+                                            $transportDestinationId = $transferOptions['pickup_location_id'] ?? '';
+                                            
+                                            $transportSeats = $vehicleDetails['seating_capacity'] ?? $transferOptions['seats'] ?? '';
+                                            $transportPassengers = $transferOptions['passengers'] ?? '';
+                                            $transportPrice = $transferOptions['cost'] ?? $transferOptions['price'] ?? 0;
+                                            $transportWay = $transferOptions['way'] ?? 'One Way';
+                                            $transportReturn = ($transportWay === 'Two Way');
+                                        @endphp
+                                        <form class="service-item mb-3 p-3 border rounded shadow-sm bg-white restaurant-edit-form" data-update-url="{{ route('edit-tour.update-restaurant', $order->booking_id) }}" onsubmit="updateExistingRestaurant(event, {{ $order->booking_id }})">
+                                            @csrf
+                                            <input type="hidden" name="type" value="restaurant">
+                                            <div class="d-flex justify-content-between align-items-center mb-3">
+                                                <h6 class="mb-0 fw-bold text-success"><i class="ri-restaurant-line me-2"></i>Restaurant Booking #{{ $index + 1 }}</h6>
+                                                <div class="d-flex gap-2">
+                                                    <button type="button" class="btn btn-sm btn-outline-danger" onclick="removeRestaurantService({{ $order->booking_id }})">
+                                                        <i class="ri-delete-bin-line"></i> Remove
+                                                    </button>
+                                                </div>
+                                            </div>
+                                            
+                                            <div class="row g-3">
+                                                <div class="col-md-4">
+                                                    <label class="form-label fw-semibold text-muted mb-2"><i class="ri-restaurant-line me-1 text-primary"></i>Restaurant Name</label>
+                                                    <select class="form-select border-2" style="height: 35px;" name="restaurant_name" id="restaurant_name_{{ $order->booking_id }}" onchange="loadRestaurantMealsForEdit({{ $order->booking_id }})" required>
+                                                        <option value="">Select Restaurant</option>
+                                                        @php
+                                                            $tourCountry = $tour->destination ?? '';
+                                                            $filteredRestaurants = collect($restaurants ?? [])->filter(function($restaurant) use ($tourCountry) {
+                                                                // Check if restaurant has country field directly
+                                                                if (isset($restaurant->country) && $restaurant->country == $tourCountry) {
+                                                                    return true;
+                                                                }
+                                                                // If no country filter available, include all restaurants
+                                                                return empty($tourCountry);
+                                                            });
+                                                        @endphp
+                                                        @foreach($filteredRestaurants as $restaurant)
+                                                            <option value="{{ $restaurant->name }}" {{ $restaurantName == $restaurant->name ? 'selected' : '' }} 
+                                                                data-restaurant-id="{{ $restaurant->restaurant_id ?? '' }}"
+                                                                data-restaurant-data="{{ json_encode($restaurant) }}">
+                                                                {{ $restaurant->name }}
+                                                                @if(isset($restaurant->city))
+                                                                    - {{ $restaurant->city }}
+                                                                @endif
+                                                                @if(isset($restaurant->cuisine))
+                                                                    ({{ $restaurant->cuisine }})
+                                                                @endif
+                                                            </option>
+                                                        @endforeach
+                                                        @if($restaurantName && !$filteredRestaurants->pluck('name')->contains($restaurantName))
+                                                            <option value="{{ $restaurantName }}" selected>{{ $restaurantName }}</option>
+                                                        @endif
+                                                    </select>
+                                                </div>
+                                                <div class="col-md-4">
+                                                    <label class="form-label fw-semibold text-muted mb-2"><i class="ri-cup-line me-1 text-warning"></i>Meal Type</label>
+                                                    <select class="form-select border-2" style="height: 35px;" name="meal_type" id="meal_type_{{ $order->booking_id }}" onchange="loadDishTypesForEdit({{ $order->booking_id }})" required>
+                                                        <option value="">Select Restaurant First</option>
+                                                        @if($mealType)
+                                                            <option value="{{ $mealType }}" selected>{{ $mealType }}</option>
+                                                        @endif
+                                                    </select>
+                                                    <input type="hidden" id="current_meal_type_{{ $order->booking_id }}" value="{{ $mealType }}">
+                                                </div>
+                                                <div class="col-md-4">
+                                                    <label class="form-label fw-semibold text-muted mb-2"><i class="ri-cup-line me-1 text-info"></i>Dish Type</label>
+                                                    <select class="form-select border-2" style="height: 35px;" name="meal_specific_type" id="meal_specific_type_{{ $order->booking_id }}" required>
+                                                        <option value="">Select Meal Type First</option>
+                                                        @if($mealSpecificType)
+                                                            <option value="{{ $mealSpecificType }}" selected>{{ $mealSpecificType }}</option>
+                                                        @endif
+                                                    </select>
+                                                    <input type="hidden" id="current_dish_type_{{ $order->booking_id }}" value="{{ $mealSpecificType }}">
+                                                </div>
+                                                <div class="col-md-3">
+                                                    <label class="form-label fw-semibold text-muted mb-2"><i class="ri-calendar-line me-1 text-primary"></i>Booking Date</label>
+                                                    <input type="date" class="form-control border-2" style="height: 35px;" name="booking_date" id="booking_date_{{ $order->booking_id }}" value="{{ $bookingDate }}" required>
+                                                </div>
+                                                <div class="col-md-3">
+                                                    <label class="form-label fw-semibold text-muted mb-2"><i class="ri-time-line me-1 text-warning"></i>Time Slot</label>
+                                                    <input type="text" class="form-control border-2" style="height: 35px;" name="time_slot" value="{{ $timeSlot }}" placeholder="e.g. 07:00 AM">
+                                                    <small class="text-muted d-block mt-1">Available time slots</small>
+                                                </div>
+                                                <div class="col-md-3">
+                                                    <label class="form-label fw-semibold text-muted mb-2"><i class="ri-user-line me-1 text-secondary"></i>Adults</label>
+                                                    <input type="number" class="form-control border-2 restaurant-guest-input" style="height: 35px;" name="adult_count" id="restaurant_adult_count_{{ $order->booking_id }}" min="0" value="{{ $adultCount }}" data-booking-id="{{ $order->booking_id }}" data-tour-max="{{ ($tour->adult ?? 0) + ($tour->child ?? 0) }}" required>
+                                                </div>
+                                                <div class="col-md-3">
+                                                    <label class="form-label fw-semibold text-muted mb-2"><i class="ri-user-smile-line me-1 text-secondary"></i>Children</label>
+                                                    <input type="number" class="form-control border-2 restaurant-guest-input" style="height: 35px;" name="child_count" id="restaurant_child_count_{{ $order->booking_id }}" min="0" value="{{ $childCount }}" data-booking-id="{{ $order->booking_id }}" data-tour-max="{{ ($tour->adult ?? 0) + ($tour->child ?? 0) }}" required>
+                                                </div>
+                                                <div class="col-md-3">
+                                                    <label class="form-label fw-semibold text-muted mb-2"><i class="ri-money-dollar-circle-line me-1 text-success"></i>Total Price</label>
+                                                    <input type="number" class="form-control border-2" style="height: 35px;" name="total_price" id="restaurant_total_price_{{ $order->booking_id }}" step="0.01" min="0" value="{{ number_format((float)$totalPrice, 2, '.', '') }}" placeholder="0.00" readonly>
+                                                </div>
+                                            </div>
+                                            
+                                            <!-- Transport for this restaurant -->
+                                            <div class="border rounded-3 p-3 bg-light mb-3">
+                                            <div class="row g-2 align-items-center">
+                                                <div class="col-md-4">
+                                                    <label class="form-label fw-semibold d-block mb-2">Need transport for this restaurants?</label>
+                                                    <div class="d-flex align-items-center gap-2">
+                                                        <span class="text-muted small toggle-label" id="restaurant_transport_no_{{ $order->booking_id }}">No</span>
+                                                        <label class="toggle-switch" for="need_restaurant_transport_{{ $order->booking_id }}">
+                                                            <input type="checkbox" class="toggle-switch-input" name="need_restaurant_transport_{{ $order->booking_id }}" id="need_restaurant_transport_{{ $order->booking_id }}" value="yes" autocomplete="off" {{ $transferRequired ? 'checked' : '' }}>
+                                                            <span class="toggle-switch-slider"></span>
+                                                        </label>
+                                                        <span class="text-muted small toggle-label" id="restaurant_transport_yes_{{ $order->booking_id }}">Yes</span>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                            <div id="restaurant_transport_details_{{ $order->booking_id }}" class="border rounded-3 p-3 bg-white mt-2 {{ $transferRequired ? '' : 'd-none' }}">
+                                                @php
+                                                    $transportVehicles = $vehicles ?? collect();
+                                                    $tourCountry = $tour->destination ?? '';
+                                                    $filteredVehicles = $transportVehicles;
+                                                    if ($tourCountry) {
+                                                        $filteredVehicles = $transportVehicles->filter(function($vehicle) use ($tourCountry) {
+                                                            $vehicleCountry = strtolower(trim($vehicle->country ?? $vehicle->service_country ?? ''));
+                                                            return $vehicleCountry === strtolower(trim($tourCountry));
+                                                        });
+                                                        if ($filteredVehicles->isEmpty()) {
+                                                            $filteredVehicles = $transportVehicles;
+                                                        }
+                                                    }
+                                                @endphp
+                                                <div class="row g-3">
+                                                    <!-- First Row: Transport Type, Vehicle, Destination -->
+                                                    <div class="col-md-3">
+                                                        <label class="form-label fw-semibold text-muted mb-2">Transport Type</label>
+                                                        <select class="form-select border-2" style="height: 35px;" name="restaurant_transport_type_{{ $order->booking_id }}">
+                                                            <option value="">Select type</option>
+                                                            <option value="shared" {{ $transportType === 'shared' || $transportType === 'Shared' ? 'selected' : '' }}>Shared</option>
+                                                            <option value="private" {{ $transportType === 'private' || $transportType === 'Private' ? 'selected' : '' }}>Private</option>
+                                                        </select>
+                                                    </div>
+                                                    
+                                                    <div class="col-md-3">
+                                                        <label class="form-label fw-semibold text-muted mb-2">Destination</label>
+                                                        @php
+                                                            $destHotels = $hotels ?? collect();
+                                                            $destAttractions = $attractions ?? collect();
+                                                            $destRestaurants = $restaurants ?? collect();
+                                                        @endphp
+                                                        <select class="form-select border-2 restaurant-transport-destination-select" style="height: 35px;" name="restaurant_transport_destination_{{ $order->booking_id }}" id="restaurant_transport_destination_{{ $order->booking_id }}" data-booking-id="{{ $order->booking_id }}">
+                                                            <option value="">Search & select destination</option>
+                                                            <optgroup label="Hotels">
+                                                                @foreach($destHotels as $h)
+                                                                    <option value="{{ $h->name ?? '' }}" 
+                                                                            data-destination-id="{{ $h->hotel_unique_id ?? '' }}" 
+                                                                            data-destination-type="hotel" 
+                                                                            {{ ($transportDestination === ($h->name ?? '')) ? 'selected' : '' }}>
+                                                                        {{ $h->name ?? '' }}
+                                                                    </option>
+                                                                @endforeach
+                                                            </optgroup>
+                                                            <optgroup label="Attractions">
+                                                                @foreach($destAttractions as $a)
+                                                                    <option value="{{ $a->name ?? '' }}" 
+                                                                            data-destination-id="{{ $a->attraction_id ?? '' }}" 
+                                                                            data-destination-type="attraction" 
+                                                                            {{ ($transportDestination === ($a->name ?? '')) ? 'selected' : '' }}>
+                                                                        {{ $a->name ?? '' }}
+                                                                    </option>
+                                                                @endforeach
+                                                            </optgroup>
+                                                            <optgroup label="Restaurants">
+                                                                @foreach($destRestaurants as $r)
+                                                                    <option value="{{ $r->name ?? '' }}" 
+                                                                            data-destination-id="{{ $r->restaurant_id ?? '' }}" 
+                                                                            data-destination-type="restaurant" 
+                                                                            {{ ($transportDestination === ($r->name ?? '')) ? 'selected' : '' }}>
+                                                                        {{ $r->name ?? '' }}
+                                                                    </option>
+                                                                @endforeach
+                                                            </optgroup>
+                                                        </select>
+                                                    </div>
+                                                    <div class="col-md-3">
+                                                        <label class="form-label fw-semibold text-muted mb-2">Vehicle (by country)</label>
+                                                        <select class="form-select border-2 restaurant-transport-vehicle-select" style="height: 35px;" name="restaurant_transport_vehicle_{{ $order->booking_id }}" id="restaurant_transport_vehicle_{{ $order->booking_id }}" data-booking-id="{{ $order->booking_id }}">
+                                                            <option value="">{{ $transportDestination ? 'Select vehicle' : 'Select destination first' }}</option>
+                                                            @if($transportDestination)
+                                                                @if($filteredVehicles && count($filteredVehicles) > 0)
+                                                                    @foreach($filteredVehicles as $vehicle)
+                                                                        @php
+                                                                            $vehicleName = $vehicle->vehicle_name ?? $vehicle->vehicle_id ?? 'Vehicle';
+                                                                            $vehicleId = $vehicle->vehicle_id ?? '';
+                                                                            $vehicleType = $vehicle->vehicle_type ?? '';
+                                                                            $seatingCapacity = $vehicle->seating_capacity ?? '';
+                                                                            // Match by vehicle_id for proper mapping
+                                                                            $isSelected = ($transportVehicleId == $vehicleId || 
+                                                                                           $transportVehicleId == (string)$vehicleId ||
+                                                                                           ($transportVehicle && ($transportVehicle == $vehicleId || $transportVehicle == (string)$vehicleId)));
+                                                                        @endphp
+                                                                        <option value="{{ $vehicleId }}" data-vehicle-id="{{ $vehicleId }}" data-vehicle-name="{{ $vehicleName }}" data-seating-capacity="{{ $seatingCapacity }}" {{ $isSelected ? 'selected' : '' }}>
+                                                                            {{ $vehicleName }}
+                                                                            @if($isSelected)
+                                                                                ({{ $vehicleName }})
+                                                                            @endif
+                                                                            @if($seatingCapacity)
+                                                                                - {{ $seatingCapacity }} seats
+                                                                            @endif
+                                                                        </option>
+                                                                    @endforeach
+                                                                @endif
+                                                            @endif
+                                                        </select>
+                                                        <script>
+                                                            // Ensure selected vehicle is displayed and Select2 is initialized
+                                                            $(document).ready(function() {
+                                                                const vehicleSelect = $('#restaurant_transport_vehicle_{{ $order->booking_id }}');
+                                                                
+                                                                // Set selected value if exists
+                                                                const selectedOption = vehicleSelect.find('option[selected]');
+                                                                if (selectedOption.length) {
+                                                                    const selectedValue = selectedOption.attr('value');
+                                                                    if (selectedValue) {
+                                                                        vehicleSelect.val(selectedValue);
+                                                                    }
+                                                                }
+                                                                
+                                                                // Initialize Select2 if not already initialized
+                                                                if (!vehicleSelect.data('select2') && !vehicleSelect.attr('data-no-select2')) {
+                                                                    if (window.initializeAllSelect2) {
+                                                                        setTimeout(function() {
+                                                                            window.initializeAllSelect2(vehicleSelect.parent());
+                                                                        }, 200);
+                                                                    }
+                                                                }
+                                                            });
+                                                        </script>
+                                                    </div>
+                                                
+                                                    <div class="col-md-3">
+                                                        <label class="form-label fw-semibold text-muted mb-2">Estimated Price</label>
+                                                        <div class="input-group">
+                                                            <span class="input-group-text" style="height: 35px;">{{ $tour->currency ?? '$' }}</span>
+                                                            <input type="number" min="0" step="0.01" class="form-control border-2" style="height: 35px;" name="restaurant_transport_price_{{ $order->booking_id }}" id="restaurant_transport_price_{{ $order->booking_id }}" placeholder="0.00" value="{{ number_format((float)$transportPrice, 2, '.', '') }}" data-original-price="{{ $transportReturn ? number_format((float)$transportPrice / 2, 2, '.', '') : number_format((float)$transportPrice, 2, '.', '') }}">
+                                                        </div>
+                                                        <small class="text-muted d-block mt-2">Optional, can be adjusted later.</small>
+                                                        <div class="form-check mt-2">
+                                                            <input class="form-check-input restaurant-transport-return-checkbox" type="checkbox" name="restaurant_transport_return_{{ $order->booking_id }}" id="restaurant_transport_return_{{ $order->booking_id }}" data-booking-id="{{ $order->booking_id }}" {{ $transportReturn ? 'checked' : '' }}>
+                                                            <label class="form-check-label fw-semibold" for="restaurant_transport_return_{{ $order->booking_id }}">
+                                                                Return
+                                                            </label>
+                                                        </div>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                                
+                                            </div>
+                                            <div class="d-flex justify-content-end align-items-center gap-3 mt-3">
+                                                <div class="text-muted small" id="restaurant_feedback_{{ $order->booking_id }}"></div>
+                                                <button type="submit" class="btn btn-primary d-flex align-items-center gap-2" style="height: 35px; padding: 0 10px;">
+                                                    <span class="spinner-border spinner-border-sm d-none" id="restaurant_spinner_{{ $order->booking_id }}"></span>
+                                                    <span>Save Changes</span>
+                                                </button>
+                                            </div>
+                                        </form>
+                                        @endforeach
+                                        @else
+                                        <div class="text-center py-5 text-muted">
+                                            <i class="ri-restaurant-2-line fs-1 mb-3" style="color: #cbd5e1;"></i>
+                                            <p class="mb-4">No restaurant bookings yet</p>
+                                        </div>
+                                        @endif
+                                    </div>
+                                    <div class="card-footer bg-light">
+                                        <div class="text-center py-3">
+                                            <button type="button" class="btn btn-gradient-primary btn-lg shadow-sm px-5 py-3" onclick="addRestaurantService()" style="
+                                                background: linear-gradient(135deg, #43e97b 0%, #38f9d7 100%);
+                                                border: none;
+                                                color: white;
+                                                font-weight: 600;
+                                                letter-spacing: 0.5px;
+                                                transition: all 0.3s ease;
+                                                border-radius: 8px;
+                                                box-shadow: 0 4px 15px rgba(67, 233, 123, 0.4);
+                                            " onmouseover="this.style.transform='translateY(-2px)'; this.style.boxShadow='0 6px 20px rgba(67, 233, 123, 0.6)';" onmouseout="this.style.transform='translateY(0)'; this.style.boxShadow='0 4px 15px rgba(67, 233, 123, 0.4)';">
+                                                <i class="ri-add-circle-line me-2" style="font-size: 1.2em;"></i>{{ count($allRestaurants) > 0 ? 'Add More Restaurants' : 'Add Restaurant' }}
+                                            </button>
+                                        </div>
+                                    </div>
+                                    </div> <!-- end restaurantServicesSection collapse -->
+                                </div>
+                            </div>
+                            
+                            <!-- Other Transport Services Section (Unified) -->
+                            <div class="service-section mb-3">
+                                <div>
+                                    <div class="card-header text-dark d-flex justify-content-between align-items-center" role="button" data-bs-toggle="collapse" data-bs-target="#otherTransportSection" aria-expanded="false" aria-controls="otherTransportSection" style="cursor: pointer; background: linear-gradient(135deg, #ccfbf1 0%, #99f6e4 100%); border: 1px solid #5eead4; transition: all 0.3s ease;">
+                                        <div class="d-flex align-items-center">
+                                            <span class="service-icon me-3">
+                                                <i class="ri-car-line fs-4"></i>
+                                            </span>
+                                            <div>
+                                                <h6 class="mb-0 fw-bold">🚗 Other Transport Services</h6>
+                                                <small class="text-muted">Local transfers and other transport services from all days</small>
+                                            </div>
+                                        </div>
+                                        <i class="ri-arrow-down-s-line ms-2 fs-5"></i>
+                                    </div>
+                                    <div id="otherTransportSection" class="collapse">
+                                    <div class="card-body mt-3">
+                                        @if(count($allTransportHourly) > 0)
+                                            @foreach($allTransportHourly as $index => $order)
+                                                @php
+                                                    $transportData = is_array($order->processed_data) ? $order->processed_data : json_decode($order->processed_data, true);
+                                                    if (isset($transportData[0])) {
+                                                        $transportData = $transportData[0];
+                                                    }
+                                                    $pickupLocation = $transportData['entrypickup'] ?? $transportData['pickupLocation'] ?? '';
+                                                    $dropoffLocation = $transportData['entrydropoff'] ?? $transportData['dropoffLocation'] ?? '';
+                                                    $pickupTime = $transportData['entrytime'] ?? '';
+                                                    $pickupTimeValue = $pickupTime ? date('H:i', strtotime($pickupTime)) : '';
+                                                    $pickupDateRaw = $transportData['pickupdate'] ?? $transportData['bookingDate'] ?? '';
+                                                    $pickupDate = '';
+                                                    if ($pickupDateRaw) {
+                                                        try {
+                                                            $pickupDate = \Carbon\Carbon::parse($pickupDateRaw)->format('Y-m-d');
+                                                        } catch (\Exception $exception) {
+                                                            $pickupDate = $pickupDateRaw;
+                                                        }
+                                                    }
+                                                    $vehicleName = $transportData['vehicles_name'] ?? '';
+                                                    $vehicleType = $transportData['type'] ?? '';
+                                                    $selectedHours = $transportData['selectedHours'] ?? $transportData['hours'] ?? '';
+                                                    $totalPrice = $transportData['totalPrice'] ?? $transportData['price'] ?? 0;
+                                                    $adultCount = $transportData['adultCount'] ?? $transportData['adults'] ?? 0;
+                                                    $childCount = $transportData['childCount'] ?? $transportData['children'] ?? 0;
+                                                    $notes = $transportData['notes'] ?? $transportData['specialRequests'] ?? '';
+                                                    $availableVehicles = $vehicles ?? collect();
+                                                @endphp
+                                                <form class="service-item mb-3 p-3 border rounded shadow-sm bg-white transport-edit-form" data-form-type="travel_hourly" data-update-url="{{ route('edit-tour.update-transport', $order->booking_id) }}" onsubmit="updateExistingTransport(event, {{ $order->booking_id }})">
+                                                    @csrf
+                                                    <input type="hidden" name="type" value="travel_hourly">
+                                                    <div class="d-flex justify-content-between align-items-center mb-3">
+                                                        <h6 class="mb-0 fw-bold text-warning"><i class="ri-time-line me-2"></i>Hourly Transport #{{ $index + 1 }}</h6>
+                                                        <div class="d-flex gap-2">
+                                                            <button type="button" class="btn btn-sm btn-outline-danger" onclick="removeTransportService({{ $order->booking_id }})">
+                                                                <i class="ri-delete-bin-line"></i> Remove
+                                                            </button>
+                                                        </div>
+                                                    </div>
+                                                    <div class="row g-3">
+                                                        <div class="col-md-4">
+                                                            <label class="form-label fw-semibold text-muted mb-2"><i class="ri-map-pin-line me-1 text-primary"></i>Pickup Location</label>
+                                                            <div class="position-relative">
+                                                                <input type="text" class="form-control border-2 google-maps-autocomplete" style="height: 42px; padding-left: 45px;" name="pickup_location" value="{{ $pickupLocation }}" placeholder="Search pickup location" required>
+                                                            </div>
+                                                            <input type="hidden" name="pickup_latitude" value="{{ $transportData['pickup_latitude'] ?? '' }}">
+                                                            <input type="hidden" name="pickup_longitude" value="{{ $transportData['pickup_longitude'] ?? '' }}">
+                                                        </div>
+                                                        <div class="col-md-4">
+                                                            <label class="form-label fw-semibold text-muted mb-2"><i class="ri-calendar-line me-1 text-secondary"></i>Pickup Date</label>
+                                                            <input type="date" class="form-control border-2" style="height: 42px;" name="pickup_date" value="{{ $pickupDate }}">
+                                                        </div>
+                                                        <div class="col-md-4">
+                                                            <label class="form-label fw-semibold text-muted mb-2"><i class="ri-time-line me-1 text-warning"></i>Pickup Time</label>
+                                                            <input type="time" class="form-control border-2" style="height: 42px;" name="pickup_time" value="{{ $pickupTimeValue }}" required>
+                                                        </div>
+                                                        <div class="col-md-4">
+                                                            <label class="form-label fw-semibold text-muted mb-2"><i class="ri-car-line me-1 text-info"></i>Vehicle</label>
+                                                            @php $vehicleMatched = false; @endphp
+                                                            <select class="form-select border-2 js-hourly-vehicle-select" style="height: 42px;" name="vehicle_name" id="hourly_vehicle_name_{{ $order->booking_id }}">
+                                                                <option value="">{{ $vehicleName ? 'Select vehicle' : 'Select vehicle' }}</option>
+                                                                @foreach($availableVehicles as $vehicleOption)
+                                                                    @php
+                                                                        $vehicleDisplayName = $vehicleOption->vehicle_name ?? $vehicleOption->vehicle_id;
+                                                                        $isSelected = false;
+                                                                        if ($vehicleDisplayName) {
+                                                                            $isSelected = strcasecmp($vehicleDisplayName, $vehicleName ?? '') === 0;
+                                                                        }
+                                                                        $vehicleMatched = $vehicleMatched || $isSelected;
+                                                                    @endphp
+                                                                    <option value="{{ $vehicleDisplayName }}"
+                                                                        data-vehicle-id="{{ $vehicleOption->vehicle_id }}"
+                                                                        data-vehicle-name="{{ $vehicleDisplayName }}"
+                                                                        data-vehicle-type="{{ $vehicleOption->vehicle_type ?? '' }}">
+                                                                        {{ $vehicleDisplayName }}
+                                                                        @if(!empty($vehicleOption->vehicle_type))
+                                                                            ({{ $vehicleOption->vehicle_type }})
+                                                                        @endif
+                                                                    </option>
+                                                                @endforeach
+                                                                @if($vehicleName && !$vehicleMatched)
+                                                                    <option value="{{ $vehicleName }}" selected>{{ $vehicleName }}</option>
+                                                                @endif
+                                                            </select>
+                                                        </div>
+                                                        <div class="col-md-4">
+                                                            <label class="form-label fw-semibold text-muted mb-2"><i class="ri-user-settings-line me-1 text-secondary"></i>Service Type</label>
+                                                            <select class="form-select border-2" style="height: 42px;" name="vehicle_type">
+                                                                <option value="">Select type</option>
+                                                                <option value="Private" {{ strtolower($vehicleType) === 'private' ? 'selected' : '' }}>Private</option>
+                                                                <option value="Shared" {{ strtolower($vehicleType) === 'shared' ? 'selected' : '' }}>Shared</option>
+                                                            </select>
+                                                        </div>
+                                                        <div class="col-md-4">
+                                                            <label class="form-label fw-semibold text-muted mb-2"><i class="ri-hourglass-line me-1 text-info"></i>Hours</label>
+                                                            <input type="number" class="form-control border-2" style="height: 42px;" name="selected_hours" min="1" value="{{ $selectedHours }}" placeholder="e.g. 4">
+                                                        </div>
+                                                    </div>
+                                                    <div class="d-flex justify-content-end align-items-center gap-3 mt-3">
+                                                        <div class="text-muted small" id="transport_feedback_{{ $order->booking_id }}_travel_hourly"></div>
+                                                        <button type="submit" class="btn btn-primary d-flex align-items-center gap-2" style="height: 35px; padding: 0 10px;">
+                                                            <span class="spinner-border spinner-border-sm d-none" id="transport_spinner_{{ $order->booking_id }}_travel_hourly"></span>
+                                                            <span>Save Changes</span>
+                                                        </button>
+                                                    </div>
+                                                </form>
+                                            @endforeach
+                                        @endif
+
+                                        @if(count($allTransportPoint) > 0)
+                                            @foreach($allTransportPoint as $index => $order)
+                                                @php
+                                                    $transportData = is_array($order->processed_data) ? $order->processed_data : json_decode($order->processed_data, true);
+                                                    if (isset($transportData[0])) {
+                                                        $transportData = $transportData[0];
+                                                    }
+                                                    $pickupLocation = $transportData['entrypickup'] ?? $transportData['pickupLocation'] ?? '';
+                                                    $dropoffLocation = $transportData['entrydropoff'] ?? $transportData['dropoffLocation'] ?? '';
+                                                    $pickupTime = $transportData['entrytime'] ?? '';
+                                                    $pickupTimeValue = $pickupTime ? date('H:i', strtotime($pickupTime)) : '';
+                                                    $pickupDateRaw = $transportData['pickupdate'] ?? $transportData['bookingDate'] ?? '';
+                                                    $pickupDate = '';
+                                                    if ($pickupDateRaw) {
+                                                        try {
+                                                            $pickupDate = \Carbon\Carbon::parse($pickupDateRaw)->format('Y-m-d');
+                                                        } catch (\Exception $exception) {
+                                                            $pickupDate = $pickupDateRaw;
+                                                        }
+                                                    }
+                                                    $vehicleName = $transportData['vehicles_name'] ?? '';
+                                                    $vehicleType = $transportData['type'] ?? '';
+                                                    $totalPrice = $transportData['totalPrice'] ?? $transportData['price'] ?? 0;
+                                                    $adultCount = $transportData['adultCount'] ?? $transportData['adults'] ?? 0;
+                                                    $childCount = $transportData['childCount'] ?? $transportData['children'] ?? 0;
+                                                    $distance = $transportData['distance'] ?? 0;
+                                                    $notes = $transportData['notes'] ?? $transportData['specialRequests'] ?? '';
+                                                    $pickupLatitude = $transportData['pickup_latitude'] ?? $transportData['pickup_lat'] ?? '';
+                                                    $pickupLongitude = $transportData['pickup_longitude'] ?? $transportData['pickup_lng'] ?? '';
+                                                    $dropoffLatitude = $transportData['dropoff_latitude'] ?? $transportData['dropoff_lat'] ?? '';
+                                                    $dropoffLongitude = $transportData['dropoff_longitude'] ?? $transportData['dropoff_lng'] ?? '';
+                                                    $pickupPlaceId = $transportData['pickup_place_id'] ?? '';
+                                                    $dropoffPlaceId = $transportData['dropoff_place_id'] ?? '';
+                                                    $availableVehicles = $vehicles ?? collect();
+                                                @endphp
+                                                <form class="service-item mb-3 p-3 border rounded shadow-sm bg-white transport-edit-form" data-form-type="travel_point" data-update-url="{{ route('edit-tour.update-transport', $order->booking_id) }}" onsubmit="updateExistingTransport(event, {{ $order->booking_id }})">
+                                                    @csrf
+                                                    <input type="hidden" name="type" value="travel_point">
+                                                    <div class="d-flex justify-content-between align-items-center mb-3">
+                                                        <h6 class="mb-0 fw-bold text-info"><i class="ri-map-pin-2-line me-2"></i>Point-to-Point Transport #{{ $index + 1 }}</h6>
+                                                        <div class="d-flex gap-2">
+                                                            <button type="button" class="btn btn-sm btn-outline-danger" onclick="removeTransportService({{ $order->booking_id }})">
+                                                                <i class="ri-delete-bin-line"></i> Remove
+                                                            </button>
+                                                        </div>
+                                                    </div>
+                                                    <div class="row g-3">
+                                                        <div class="col-md-4">
+                                                            <label class="form-label fw-semibold text-muted mb-2"><i class="ri-map-pin-line me-1 text-primary"></i>Pickup Location</label>
+                                                            <div class="position-relative">
+                                                                <input 
+                                                                    type="text" 
+                                                                    class="form-control border-2 google-maps-autocomplete"
+                                                                    style="height: 35px; padding-left: 45px;"
+                                                                    id="point_pickup_location_{{ $order->booking_id }}"
+                                                                    name="pickup_location" 
+                                                                    value="{{ $pickupLocation }}" 
+                                                                    placeholder="Search pickup location" 
+                                                                    required>
+                                                                <!-- <i class="ri-map-pin-line position-absolute text-primary" style="left: 15px; top: 50%; transform: translateY(-50%); z-index: 5;"></i> -->
+                                                                <input type="hidden" name="pickup_latitude" id="point_pickup_lat_{{ $order->booking_id }}" value="{{ $pickupLatitude }}">
+                                                                <input type="hidden" name="pickup_longitude" id="point_pickup_lng_{{ $order->booking_id }}" value="{{ $pickupLongitude }}">
+                                                                <input type="hidden" name="pickup_place_id" id="point_pickup_place_id_{{ $order->booking_id }}" value="{{ $pickupPlaceId }}">
+                                                            </div>
+                                                        </div>
+                                                        <div class="col-md-4">
+                                                            <label class="form-label fw-semibold text-muted mb-2"><i class="ri-map-pin-2-line me-1 text-success"></i>Dropoff Location</label>
+                                                            <div class="position-relative">
+                                                                <input 
+                                                                    type="text" 
+                                                                    class="form-control border-2 google-maps-autocomplete"
+                                                                    style="height: 35px; padding-left: 45px;"
+                                                                    id="point_dropoff_location_{{ $order->booking_id }}"
+                                                                    name="dropoff_location" 
+                                                                    value="{{ $dropoffLocation }}" 
+                                                                    placeholder="Search dropoff location" 
+                                                                    required>
+                                                                <!-- <i class="ri-map-pin-2-line position-absolute text-success" style="left: 15px; top: 50%; transform: translateY(-50%); z-index: 5;"></i> -->
+                                                                <input type="hidden" name="dropoff_latitude" id="point_dropoff_lat_{{ $order->booking_id }}" value="{{ $dropoffLatitude }}">
+                                                                <input type="hidden" name="dropoff_longitude" id="point_dropoff_lng_{{ $order->booking_id }}" value="{{ $dropoffLongitude }}">
+                                                                <input type="hidden" name="dropoff_place_id" id="point_dropoff_place_id_{{ $order->booking_id }}" value="{{ $dropoffPlaceId }}">
+                                                            </div>
+                                                        </div>
+                                                        <div class="col-md-2">
+                                                            <label class="form-label fw-semibold text-muted mb-2"><i class="ri-calendar-line me-1 text-secondary"></i>Pickup Date</label>
+                                                            <input type="date" class="form-control border-2" style="height: 35px;" name="pickup_date" value="{{ $pickupDate }}">
+                                                        </div>
+                                                        <div class="col-md-2">
+                                                            <label class="form-label fw-semibold text-muted mb-2"><i class="ri-time-line me-1 text-warning"></i>Pickup Time</label>
+                                                            <input type="time" class="form-control border-2" style="height: 35px;" name="pickup_time" value="{{ $pickupTimeValue }}" required>
+                                                        </div>
+                                                        <div class="col-md-4">
+                                                            <label class="form-label fw-semibold text-muted mb-2"><i class="ri-car-line me-1 text-info"></i>Vehicle Name</label>
+                                                            @php $vehicleMatched = false; @endphp
+                                                            <select class="form-select border-2" style="height: 35px;" name="vehicle_name">
+                                                                <option value="">{{ $vehicleName ? 'Select vehicle' : 'Select vehicle' }}</option>
+                                                                @foreach($availableVehicles as $vehicleOption)
+                                                                    @php
+                                                                        $vehicleDisplayName = $vehicleOption->vehicle_name ?? $vehicleOption->vehicle_id;
+                                                                        $isSelected = $vehicleDisplayName && strcasecmp($vehicleDisplayName, $vehicleName ?? '') === 0;
+                                                                        $vehicleMatched = $vehicleMatched || $isSelected;
+                                                                    @endphp
+                                                                    <option value="{{ $vehicleDisplayName }}" {{ $isSelected ? 'selected' : '' }}>
+                                                                        {{ $vehicleDisplayName }}
+                                                                        @if(!empty($vehicleOption->vehicle_type))
+                                                                            ({{ $vehicleOption->vehicle_type }})
+                                                                        @endif
+                                                                    </option>
+                                                                @endforeach
+                                                                @if($vehicleName && !$vehicleMatched)
+                                                                    <option value="{{ $vehicleName }}" selected>{{ $vehicleName }}</option>
+                                                                @endif
+                                                            </select>
+                                                        </div>
+                                                        <div class="col-md-4">
+                                                            <label class="form-label fw-semibold text-muted mb-2"><i class="ri-user-settings-line me-1 text-secondary"></i>Service Type</label>
+                                                            <select class="form-select border-2" style="height: 35px;" name="vehicle_type">
+                                                                <option value="">Select type</option>
+                                                                <option value="Private" {{ strtolower($vehicleType) === 'private' ? 'selected' : '' }}>Private</option>
+                                                                <option value="Shared" {{ strtolower($vehicleType) === 'shared' ? 'selected' : '' }}>Shared</option>
+                                                            </select>
+                                                        </div>
+                                                        <!-- <div class="col-md-2">
+                                                            <label class="form-label fw-semibold text-muted mb-1"><i class="ri-roadster-line me-1 text-info"></i>Distance (km)</label>
+                                                            <input type="number" class="form-control border-2" name="distance" step="0.01" min="0" value="{{ $distance }}" placeholder="0">
+                                                        </div> -->
+                                                        <div class="col-md-4">
+                                                            <label class="form-label fw-semibold text-muted mb-2"><i class="ri-money-dollar-circle-line me-1 text-success"></i>Total Price</label>
+                                                            <input type="number" class="form-control border-2" style="height: 35px;" name="total_price" step="0.01" min="0" value="{{ number_format((float) $totalPrice, 2, '.', '') }}" placeholder="0.00">
+                                                        </div>
+                                                    </div>
+                                                    <div class="d-flex justify-content-end align-items-center gap-3 mt-3">
+                                                        <div class="text-muted small" id="transport_feedback_{{ $order->booking_id }}_travel_point"></div>
+                                                        <button type="submit" class="btn btn-primary d-flex align-items-center gap-2" style="height: 35px; padding: 0 10px;">
+                                                            <span class="spinner-border spinner-border-sm d-none" id="transport_spinner_{{ $order->booking_id }}_travel_point"></span>
+                                                            <span>Save Changes</span>
+                                                        </button>
+                                                    </div>
+                                                </form>
+                                            @endforeach
+                                        @endif
+
+                                        @if(count($allLocalTransport) > 0)
+                                            @foreach($allLocalTransport as $index => $order)
+                                                @php
+                                                    $transportData = is_array($order->processed_data) ? $order->processed_data : json_decode($order->processed_data, true);
+                                                    if (isset($transportData[0])) {
+                                                        $transportData = $transportData[0];
+                                                    }
+                                                    $pickupLocation = $transportData['entrypickup'] ?? $transportData['pickupLocation'] ?? '';
+                                                    $dropoffLocation = $transportData['entrydropoff'] ?? $transportData['dropoffLocation'] ?? '';
+                                                    $pickupTime = $transportData['entrytime'] ?? $transportData['time'] ?? '';
+                                                    $pickupTimeValue = $pickupTime ? date('H:i', strtotime($pickupTime)) : '';
+                                                    $pickupDateRaw = $transportData['pickupdate'] ?? $transportData['bookingDate'] ?? '';
+                                                    $pickupDate = '';
+                                                    if ($pickupDateRaw) {
+                                                        try {
+                                                            $pickupDate = \Carbon\Carbon::parse($pickupDateRaw)->format('Y-m-d');
+                                                        } catch (\Exception $exception) {
+                                                            $pickupDate = $pickupDateRaw;
+                                                        }
+                                                    }
+                                                    $vehicleName = $transportData['vehicles_name'] ?? '';
+                                                    $vehicleId = $transportData['vehicles_id'] ?? $transportData['vehicle_id'] ?? '';
+                                                    $vehicleType = $transportData['type'] ?? '';
+                                                    $totalPrice = $transportData['totalPrice'] ?? $transportData['price'] ?? 0;
+                                                    $adultCount = $transportData['adultCount'] ?? $transportData['adults'] ?? 0;
+                                                    $childCount = $transportData['childCount'] ?? $transportData['children'] ?? 0;
+                                                    $notes = $transportData['notes'] ?? $transportData['specialRequests'] ?? '';
+                                                    $pickupZoneId = $transportData['pickup_zone_id'] ?? $transportData['pickupZoneId'] ?? '';
+                                                    $dropoffZoneId = $transportData['dropoff_zone_id'] ?? $transportData['dropoffZoneId'] ?? '';
+                                                    $pickupLocationType = $transportData['pickup_location_type'] ?? '';
+                                                    $dropoffLocationType = $transportData['dropoff_location_type'] ?? '';
+                                                    $availablePorts = $ports ?? collect();
+                                                    $availableHotels = $hotels ?? collect();
+                                                    $availableAttractions = $attractions ?? collect();
+                                                    $availableRestaurants = $restaurants ?? collect();
+                                                    $availableVehicles = $vehicles ?? collect();
+                                                @endphp
+                                                <form
+                                                    class="service-item mb-3 p-3 border rounded shadow-sm bg-white transport-edit-form"
+                                                    data-form-type="local_transport"
+                                                    data-update-url="{{ route('edit-tour.update-transport', $order->booking_id) }}"
+                                                    data-booking-id="{{ $order->booking_id }}"
+                                                    data-fetch-url="{{ route('fetch-vehicles-by-zones') }}"
+                                                    data-zone-status="{{ $UserDmc->zone_on ?? 0 }}"
+                                                    data-city="{{ $tour->city ?? $tour->destination ?? '' }}"
+                                                    data-initial-vehicle-id="{{ $vehicleId }}"
+                                                    data-initial-vehicle-name="{{ $vehicleName }}"
+                                                    data-initial-service-type="{{ $vehicleType }}"
+                                                    data-initial-total-price="{{ number_format((float) $totalPrice, 2, '.', '') }}"
+                                                    data-initial-private-price="{{ $transportData['private_price'] ?? $transportData['price'] ?? $totalPrice }}"
+                                                    data-initial-shared-price="{{ $transportData['shared_price'] ?? '' }}"
+                                                    data-initial-vehicle-sharable="{{ $transportData['sharable'] ?? $transportData['sharable_option'] ?? '' }}"
+                                                    onsubmit="updateExistingTransport(event, {{ $order->booking_id }})">
+                                                    @csrf
+                                                    <input type="hidden" name="type" value="local_transport">
+                                                    <input type="hidden" name="pickup_location_reference" id="pickup_location_reference_{{ $order->booking_id }}" value="{{ $pickupZoneId }}">
+                                                    <input type="hidden" name="pickup_location_type" id="pickup_location_type_{{ $order->booking_id }}" value="{{ $pickupLocationType }}">
+                                                    <input type="hidden" name="dropoff_location_reference" id="dropoff_location_reference_{{ $order->booking_id }}" value="{{ $dropoffZoneId }}">
+                                                    <input type="hidden" name="dropoff_location_type" id="dropoff_location_type_{{ $order->booking_id }}" value="{{ $dropoffLocationType }}">
+                                                    <input type="hidden" name="vehicle_id" id="vehicle_id_{{ $order->booking_id }}" value="{{ $vehicleId }}">
+                                                    <div class="d-flex justify-content-between align-items-center mb-3">
+                                                        <h6 class="mb-0 fw-bold text-secondary"><i class="ri-taxi-line me-2"></i>Local Transport #{{ $index + 1 }}</h6>
+                                                        <div class="d-flex gap-2">
+                                                            <button type="button" class="btn btn-sm btn-outline-danger" onclick="removeTransportService({{ $order->booking_id }})">
+                                                                <i class="ri-delete-bin-line"></i> Remove
+                                                            </button>
+                                                        </div>
+                                                    </div>
+                                                    <div class="row g-3">
+                                                        <div class="col-md-4">
+                                                            <label class="form-label fw-semibold text-muted mb-2"><i class="ri-map-pin-line me-1 text-primary"></i>Pickup Zone/Location</label>
+                                                            @php $pickupMatched = false; @endphp
+                                                            <select class="form-select border-2 js-local-pickup-select" style="height: 35px;" name="pickup_location" id="pickup_location_{{ $order->booking_id }}" data-booking-id="{{ $order->booking_id }}" required>
+                                                                <option value="">{{ $pickupLocation ? 'Select pickup location' : 'Select pickup location' }}</option>
+                                                                <optgroup label="Ports">
+                                                                    @foreach($availablePorts as $port)
+                                                                        @php $isSelected = strcasecmp($port->port_name ?? '', $pickupLocation ?? '') === 0; $pickupMatched = $pickupMatched || $isSelected; @endphp
+                                                                        <option value="{{ $port->port_name }}" data-location-type="Port" data-location-id="{{ $port->port_id }}" {{ $isSelected ? 'selected' : '' }}>
+                                                                            {{ $port->port_name }}
+                                                                        </option>
+                                                                    @endforeach
+                                                                </optgroup>
+                                                                <optgroup label="Hotels">
+                                                                    @foreach($availableHotels as $hotelOption)
+                                                                        @php $isSelected = strcasecmp($hotelOption->name ?? '', $pickupLocation ?? '') === 0; $pickupMatched = $pickupMatched || $isSelected; @endphp
+                                                                        <option value="{{ $hotelOption->name }}" data-location-type="Hotel" data-location-id="{{ $hotelOption->hotel_unique_id }}" {{ $isSelected ? 'selected' : '' }}>
+                                                                            {{ $hotelOption->name }}
+                                                                        </option>
+                                                                    @endforeach
+                                                                </optgroup>
+                                                                <optgroup label="Attractions">
+                                                                    @foreach($availableAttractions as $attractionOption)
+                                                                        @php $isSelected = strcasecmp($attractionOption->name ?? '', $pickupLocation ?? '') === 0; $pickupMatched = $pickupMatched || $isSelected; @endphp
+                                                                        <option value="{{ $attractionOption->name }}" data-location-type="Attraction" data-location-id="{{ $attractionOption->attraction_id }}" {{ $isSelected ? 'selected' : '' }}>
+                                                                            {{ $attractionOption->name }}
+                                                                        </option>
+                                                                    @endforeach
+                                                                </optgroup>
+                                                                <optgroup label="Restaurants">
+                                                                    @foreach($availableRestaurants as $restaurantOption)
+                                                                        @php $isSelected = strcasecmp($restaurantOption->name ?? '', $pickupLocation ?? '') === 0; $pickupMatched = $pickupMatched || $isSelected; @endphp
+                                                                        <option value="{{ $restaurantOption->name }}" data-location-type="Restaurant" data-location-id="{{ $restaurantOption->restaurant_id }}" {{ $isSelected ? 'selected' : '' }}>
+                                                                            {{ $restaurantOption->name }}
+                                                                        </option>
+                                                                    @endforeach
+                                                                </optgroup>
+                                                                @if($pickupLocation && !$pickupMatched)
+                                                                    <option value="{{ $pickupLocation }}" selected
+                                                                        data-location-id="{{ $pickupZoneId }}"
+                                                                        data-location-type="{{ $pickupLocationType }}">
+                                                                        {{ $pickupLocation }}
+                                                                    </option>
+                                                                @endif
+                                                            </select>
+                                                        </div>
+                                                        <div class="col-md-4">
+                                                            <label class="form-label fw-semibold text-muted mb-2"><i class="ri-map-pin-2-line me-1 text-success"></i>Dropoff Zone/Location</label>
+                                                            @php $dropoffMatched = false; @endphp
+                                                            <select class="form-select border-2 js-local-dropoff-select" style="height: 35px;" name="dropoff_location" id="dropoff_location_{{ $order->booking_id }}" data-booking-id="{{ $order->booking_id }}" required>
+                                                                <option value="">{{ $dropoffLocation ? 'Select dropoff location' : 'Select dropoff location' }}</option>
+                                                                <optgroup label="Ports">
+                                                                    @foreach($availablePorts as $port)
+                                                                        @php $isSelected = strcasecmp($port->port_name ?? '', $dropoffLocation ?? '') === 0; $dropoffMatched = $dropoffMatched || $isSelected; @endphp
+                                                                        <option value="{{ $port->port_name }}" data-location-type="Port" data-location-id="{{ $port->port_id }}" {{ $isSelected ? 'selected' : '' }}>
+                                                                            {{ $port->port_name }}
+                                                                        </option>
+                                                                    @endforeach
+                                                                </optgroup>
+                                                                <optgroup label="Hotels">
+                                                                    @foreach($availableHotels as $hotelOption)
+                                                                        @php $isSelected = strcasecmp($hotelOption->name ?? '', $dropoffLocation ?? '') === 0; $dropoffMatched = $dropoffMatched || $isSelected; @endphp
+                                                                        <option value="{{ $hotelOption->name }}" data-location-type="Hotel" data-location-id="{{ $hotelOption->hotel_unique_id }}" {{ $isSelected ? 'selected' : '' }}>
+                                                                            {{ $hotelOption->name }}
+                                                                        </option>
+                                                                    @endforeach
+                                                                </optgroup>
+                                                                <optgroup label="Attractions">
+                                                                    @foreach($availableAttractions as $attractionOption)
+                                                                        @php $isSelected = strcasecmp($attractionOption->name ?? '', $dropoffLocation ?? '') === 0; $dropoffMatched = $dropoffMatched || $isSelected; @endphp
+                                                                        <option value="{{ $attractionOption->name }}" data-location-type="Attraction" data-location-id="{{ $attractionOption->attraction_id }}" {{ $isSelected ? 'selected' : '' }}>
+                                                                            {{ $attractionOption->name }}
+                                                                        </option>
+                                                                    @endforeach
+                                                                </optgroup>
+                                                                <optgroup label="Restaurants">
+                                                                    @foreach($availableRestaurants as $restaurantOption)
+                                                                        @php $isSelected = strcasecmp($restaurantOption->name ?? '', $dropoffLocation ?? '') === 0; $dropoffMatched = $dropoffMatched || $isSelected; @endphp
+                                                                        <option value="{{ $restaurantOption->name }}" data-location-type="Restaurant" data-location-id="{{ $restaurantOption->restaurant_id }}" {{ $isSelected ? 'selected' : '' }}>
+                                                                            {{ $restaurantOption->name }}
+                                                                        </option>
+                                                                    @endforeach
+                                                                </optgroup>
+                                                                @if($dropoffLocation && !$dropoffMatched)
+                                                                    <option value="{{ $dropoffLocation }}" selected
+                                                                        data-location-id="{{ $dropoffZoneId }}"
+                                                                        data-location-type="{{ $dropoffLocationType }}">
+                                                                        {{ $dropoffLocation }}
+                                                                    </option>
+                                                                @endif
+                                                            </select>
+                                                        </div>
+                                                        <div class="col-md-2">
+                                                            <label class="form-label fw-semibold text-muted mb-2"><i class="ri-calendar-line me-1 text-secondary"></i>Pickup Date</label>
+                                                            <input type="date" class="form-control border-2" style="height: 35px;" name="pickup_date" value="{{ $pickupDate }}">
+                                                        </div>
+                                                        <div class="col-md-2">
+                                                            <label class="form-label fw-semibold text-muted mb-2"><i class="ri-time-line me-1 text-warning"></i>Pickup Time</label>
+                                                            <input type="time" class="form-control border-2" style="height: 35px;" name="pickup_time" value="{{ $pickupTimeValue }}" required>
+                                                        </div>
+                                                        <div class="col-md-4">
+                                                            <label class="form-label fw-semibold text-muted mb-2"><i class="ri-car-line me-1 text-info"></i>Vehicle Name</label>
+                                                            @php $vehicleMatched = false; @endphp
+                                                            <select class="form-select border-2 js-local-vehicle-select" style="height: 35px;" name="vehicle_name" id="vehicle_name_{{ $order->booking_id }}" data-booking-id="{{ $order->booking_id }}">
+                                                                <option value="">{{ $vehicleName ? 'Select vehicle' : 'Select vehicle' }}</option>
+                                                                @foreach($availableVehicles as $vehicleOption)
+                                                                    @php
+                                                                        $vehicleDisplayName = $vehicleOption->vehicle_name ?? $vehicleOption->vehicle_id;
+                                                                        $isSelected = false;
+                                                                        if ($vehicleDisplayName) {
+                                                                            $isSelected = strcasecmp($vehicleDisplayName, $vehicleName ?? '') === 0;
+                                                                        }
+                                                                        if (!$isSelected && $vehicleId) {
+                                                                            $isSelected = (string)$vehicleId === (string)($vehicleOption->vehicle_id ?? '');
+                                                                        }
+                                                                        $vehicleMatched = $vehicleMatched || $isSelected;
+                                                                    @endphp
+                                                                    <option value="{{ $vehicleDisplayName }}"
+                                                                        data-vehicle-id="{{ $vehicleOption->vehicle_id }}"
+                                                                        data-vehicle-name="{{ $vehicleDisplayName }}"
+                                                                        data-vehicle-type="{{ $vehicleOption->vehicle_type }}"
+                                                                        data-seating-capacity="{{ $vehicleOption->seating_capacity ?? '' }}"
+                                                                        data-private-price="{{ $vehicleOption->private_price ?? '' }}"
+                                                                        data-shared-price="{{ $vehicleOption->shared_price ?? '' }}"
+                                                                        data-cost-per-hour="{{ $vehicleOption->cost_per_hour ?? '' }}"
+                                                                        data-sharable-cost-per-hour="{{ $vehicleOption->sharable_cost_per_hour ?? '' }}"
+                                                                        data-sharable="{{ $vehicleOption->sharable ?? '' }}"
+                                                                        data-service-type="{{ $vehicleOption->service_type ?? '' }}"
+                                                                        data-vehicle='@json($vehicleOption)'
+                                                                        {{ $isSelected ? 'selected' : '' }}>
+                                                                        {{ $vehicleDisplayName }}
+                                                                        @if(!empty($vehicleOption->vehicle_type))
+                                                                            ({{ $vehicleOption->vehicle_type }})
+                                                                        @endif
+                                                                    </option>
+                                                                @endforeach
+                                                                @if($vehicleName && !$vehicleMatched)
+                                                                    <option value="{{ $vehicleName }}" selected
+                                                                        data-vehicle-id="{{ $vehicleId }}"
+                                                                        data-vehicle-name="{{ $vehicleName }}"
+                                                                        data-vehicle-type="{{ $vehicleType }}"
+                                                                        data-seating-capacity="{{ $transportData['seating_capacity'] ?? '' }}"
+                                                                        data-private-price="{{ $transportData['price'] ?? $totalPrice }}"
+                                                                        data-shared-price="{{ $transportData['shared_price'] ?? '' }}"
+                                                                        data-cost-per-hour="{{ $transportData['cost_per_hour'] ?? '' }}"
+                                                                        data-sharable-cost-per-hour="{{ $transportData['sharable_cost_per_hour'] ?? '' }}"
+                                                                        data-sharable="{{ $transportData['sharable'] ?? '' }}"
+                                                                        data-service-type="{{ $transportData['service_type'] ?? '' }}"
+                                                                        data-vehicle='@json($transportData)'>
+                                                                        {{ $vehicleName }}
+                                                                    </option>
+                                                                @endif
+                                                            </select>
+                                                        </div>
+                                                        <div class="col-md-4">
+                                                            <label class="form-label fw-semibold text-muted mb-2"><i class="ri-user-settings-line me-1 text-secondary"></i>Service Type</label>
+                                                            <select class="form-select border-2 js-local-service-type" style="height: 35px;" name="vehicle_type" id="vehicle_type_{{ $order->booking_id }}" data-booking-id="{{ $order->booking_id }}">
+                                                                <option value="">Select type</option>
+                                                                <option value="Private" {{ strtolower($vehicleType) === 'private' ? 'selected' : '' }}>Private</option>
+                                                                <option value="Shared" {{ strtolower($vehicleType) === 'shared' ? 'selected' : '' }}>Shared</option>
+                                                            </select>
+                                                        </div>
+                                                    </div>
+                                                    <div class="d-flex justify-content-end align-items-center gap-3 mt-3">
+                                                        <div class="text-muted small" id="transport_feedback_{{ $order->booking_id }}_local_transport"></div>
+                                                        <button type="submit" class="btn btn-primary d-flex align-items-center gap-2" style="height: 35px; padding: 0 10px;">
+                                                            <span class="spinner-border spinner-border-sm d-none" id="transport_spinner_{{ $order->booking_id }}_local_transport"></span>
+                                                            <span>Save Changes</span>
+                                                        </button>
+                                                    </div>
+                                                </form>
+                                            @endforeach
+                                        @endif
+                                    </div>
+                                    <div class="card-footer bg-light">
+                                        <div class="text-center py-3">
+                                            <button type="button" class="btn btn-gradient-primary btn-lg shadow-sm px-5 py-3" onclick="addMoreTransportService()" style="
+                                                background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+                                                border: none;
+                                                color: white;
+                                                font-weight: 600;
+                                                letter-spacing: 0.5px;
+                                                transition: all 0.3s ease;
+                                                border-radius: 8px;
+                                                box-shadow: 0 4px 15px rgba(102, 126, 234, 0.4);
+                                            " onmouseover="this.style.transform='translateY(-2px)'; this.style.boxShadow='0 6px 20px rgba(102, 126, 234, 0.6)';" onmouseout="this.style.transform='translateY(0)'; this.style.boxShadow='0 4px 15px rgba(102, 126, 234, 0.4)';">
+                                                <i class="ri-add-circle-line me-2" style="font-size: 1.2em;"></i>Add More Transport Service
+                                            </button>
+                                        </div>
+                                    </div>
+                                    </div>
+                                </div>
+                            </div>
+                            
+                            
+
+                            
 
                             <!-- Departure Transport Services Section -->
                             <div class="service-section mb-3">
@@ -3796,17 +3796,17 @@
                                                     @csrf
                                                     <input type="hidden" name="type" value="exit_port">
                                                     <div class="d-flex justify-content-between align-items-center mb-3">
-                                                        <h6 class="mb-0 fw-bold text-danger"><i class="ri-logout-circle-line me-2"></i>Departure Transfer #{{ $index + 1 }}</h6>
+                                                        <h6 class="mb-0 fw-bold text-danger"></i>Departure Transfer #{{ $index + 1 }}</h6>
                                                         <div class="d-flex gap-2">
                                                             <button type="button" class="btn btn-sm btn-outline-danger" onclick="removeTransportService({{ $order->booking_id }})">
                                                                 <i class="ri-delete-bin-line"></i> Remove
                                                             </button>
                                                         </div>
                                                     </div>
-                                                    <div class="row g-3 align-items-end">
+                                                    <div class="row g-3">
                                                         <div class="col-md-3">
-                                                            <label class="form-label fw-semibold text-muted mb-1"><i class="ri-map-pin-line me-1 text-success"></i>City</label>
-                                                            <select class="form-select border-2" name="city">
+                                                            <label class="form-label fw-semibold text-muted mb-2"><i class="ri-map-pin-line me-1 text-success"></i>City</label>
+                                                            <select class="form-select border-2" style="height: 35px;" name="city">
                                                                 <option value="">Select city</option>
                                                                 @foreach($cities as $city)
                                                                     <option value="{{ $city->name }}" {{ $city->name == $cityValue ? 'selected' : '' }}>{{ $city->name }}</option>
@@ -3817,8 +3817,8 @@
                                                             </select>
                                                         </div>
                                                         <div class="col-md-3">
-                                                            <label class="form-label fw-semibold text-muted mb-1"><i class="ri-map-pin-line me-1 text-success"></i>Pick Up Location</label>
-                                                            <select class="form-select border-2 departure-pickup-location" name="pickup_location" data-booking-id="{{ $order->booking_id }}" onchange="updateDepartureVehicles({{ $order->booking_id }})">
+                                                            <label class="form-label fw-semibold text-muted mb-2"><i class="ri-map-pin-line me-1 text-success"></i>Pick Up Location</label>
+                                                            <select class="form-select border-2 departure-pickup-location" style="height: 35px;" name="pickup_location" data-booking-id="{{ $order->booking_id }}" onchange="updateDepartureVehicles({{ $order->booking_id }})">
                                                                 <option value="">Select pickup location</option>
                                                                 @if(isset($hotels))
                                                                     @foreach($hotels as $hotel)
@@ -3848,8 +3848,8 @@
                                                             </select>
                                                         </div>
                                                         <div class="col-md-3">
-                                                            <label class="form-label fw-semibold text-muted mb-1"><i class="ri-map-pin-line me-1 text-danger"></i>Drop Off Location</label>
-                                                            <select class="form-select border-2 departure-dropoff-location" name="dropoff_location" data-booking-id="{{ $order->booking_id }}" onchange="updateDepartureVehicles({{ $order->booking_id }})">
+                                                            <label class="form-label fw-semibold text-muted mb-2"><i class="ri-map-pin-line me-1 text-danger"></i>Drop Off Location</label>
+                                                            <select class="form-select border-2 departure-dropoff-location" style="height: 35px;" name="dropoff_location" data-booking-id="{{ $order->booking_id }}" onchange="updateDepartureVehicles({{ $order->booking_id }})">
                                                                 <option value="">Select dropoff port</option>
                                                                 @foreach($ports as $port)
                                                                     <option value="{{ $port->port_name }}" 
@@ -3865,8 +3865,8 @@
                                                                 @endif
                                                             </select>
                                                         </div>
-                                                        <div class="col-md-2">
-                                                            <label class="form-label fw-semibold text-muted mb-1"><i class="ri-time-line me-1 text-warning"></i>Departure Time</label>
+                                                        <div class="col-md-3">
+                                                            <label class="form-label fw-semibold text-muted mb-2"><i class="ri-time-line me-1 text-warning"></i>Departure Time</label>
                                                             @php
                                                                 $departureTimeAMPM = '';
                                                                 if ($pickupTime) {
@@ -3883,7 +3883,7 @@
                                                                     }
                                                                 }
                                                             @endphp
-                                                            <select class="form-select border-2" name="pickup_time" id="departure_time_{{ $order->booking_id }}" required>
+                                                            <select class="form-select border-2" style="height: 35px;" name="pickup_time" id="departure_time_{{ $order->booking_id }}" required>
                                                                 <option value="">Select Time</option>
                                                                 @php
                                                                     // Generate time slots from 12:00 AM to 11:30 PM in 30-minute intervals
@@ -3900,10 +3900,10 @@
                                                                 @endforeach
                                                             </select>
                                                         </div>
-                                                        <div class="col-md-3">
-                                                            <label class="form-label fw-semibold text-muted mb-1"><i class="ri-car-line me-1 text-info"></i>Vehicle</label>
+                                                        <div class="col-md-4">
+                                                            <label class="form-label fw-semibold text-muted mb-2"><i class="ri-car-line me-1 text-info"></i>Vehicle</label>
                                                             @php $vehicleMatched = false; @endphp
-                                                            <select class="form-select border-2 departure-vehicle-select" name="vehicle_name" id="departure_vehicle_{{ $order->booking_id }}" data-booking-id="{{ $order->booking_id }}" onchange="updateDepartureServiceType({{ $order->booking_id }})"> 
+                                                            <select class="form-select border-2 departure-vehicle-select" style="height: 35px;" name="vehicle_name" id="departure_vehicle_{{ $order->booking_id }}" data-booking-id="{{ $order->booking_id }}" onchange="updateDepartureServiceType({{ $order->booking_id }})"> 
                                                                 <option value="">{{ $vehicleName ? 'Select vehicle' : 'Select vehicle' }}</option>
                                                                 @foreach($availableVehicles as $vehicleOption)
                                                                     @php
@@ -3928,17 +3928,17 @@
                                                                 @endif
                                                             </select>
                                                         </div>
-                                                        <div class="col-md-2">
-                                                            <label class="form-label fw-semibold text-muted mb-1">Service Type</label>
-                                                            <select class="form-select border-2 departure-service-type" name="vehicle_type" id="departure_service_type_{{ $order->booking_id }}" data-booking-id="{{ $order->booking_id }}" onchange="updateDeparturePrice({{ $order->booking_id }})">
+                                                        <div class="col-md-4">
+                                                            <label class="form-label fw-semibold text-muted mb-2"><i class="ri-user-settings-line me-1 text-secondary"></i>Service Type</label>
+                                                            <select class="form-select border-2 departure-service-type" style="height: 35px;" name="vehicle_type" id="departure_service_type_{{ $order->booking_id }}" data-booking-id="{{ $order->booking_id }}" onchange="updateDeparturePrice({{ $order->booking_id }})">
                                                                 <option value="">Select type</option>
                                                                 <option value="Private" {{ strtolower($vehicleType) === 'private' ? 'selected' : '' }}>Private</option>
                                                                 <option value="Shared" {{ strtolower($vehicleType) === 'shared' ? 'selected' : '' }}>Shared</option>
                                                             </select>
                                                         </div>
-                                                        <div class="col-md-2">
-                                                            <label class="form-label fw-semibold text-muted mb-1"><i class="ri-money-dollar-circle-line me-1 text-success"></i>Total Price</label>
-                                                            <input type="number" class="form-control border-2 departure-total-price" style="height: 38px;" name="total_price" id="departure_price_{{ $order->booking_id }}" step="0.01" min="0" value="{{ number_format((float)$totalPrice, 2, '.', '') }}" placeholder="0.00" readonly>
+                                                        <div class="col-md-4">
+                                                            <label class="form-label fw-semibold text-muted mb-2"><i class="ri-money-dollar-circle-line me-1 text-success"></i>Total Price</label>
+                                                            <input type="number" class="form-control border-2 departure-total-price" style="height: 35px;" name="total_price" id="departure_price_{{ $order->booking_id }}" step="0.01" min="0" value="{{ number_format((float)$totalPrice, 2, '.', '') }}" placeholder="0.00" readonly>
                                                         </div>
                                                         <!-- <div class="col-md-2">
                                                             <label class="form-label fw-semibold text-muted mb-1">Passengers</label>
@@ -3947,7 +3947,7 @@
                                                     </div>
                                                     <div class="d-flex justify-content-end align-items-center gap-3 mt-3">
                                                         <div class="text-muted small" id="transport_feedback_{{ $order->booking_id }}_exit_port"></div>
-                                                        <button type="submit" class="btn btn-sm btn-primary d-flex align-items-center gap-2">
+                                                        <button type="submit" class="btn btn-primary d-flex align-items-center gap-2" style="height: 35px; padding: 0 10px;">
                                                             <span class="spinner-border spinner-border-sm d-none" id="transport_spinner_{{ $order->booking_id }}_exit_port"></span>
                                                             <span>Save Changes</span>
                                                         </button>
@@ -3961,10 +3961,19 @@
                                         </div>
                                         @endif
                                     </div>
-                                    <div class="card-footer bg-light border-0 pt-2 pb-3">
-                                        <div class="text-end">
-                                            <button type="button" class="btn btn-sm btn-outline-primary" onclick="addDepartureService()">
-                                                <i class="ri-add-line me-1"></i>{{ isset($dayOrdersByType['exit_port']) && count($dayOrdersByType['exit_port']) > 0 ? 'Add More Departure Services' : 'Add Departure Service' }}
+                                    <div class="card-footer bg-light">
+                                        <div class="text-center py-3">
+                                            <button type="button" class="btn btn-gradient-primary btn-lg shadow-sm px-5 py-3" onclick="addDepartureService()" style="
+                                                background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%);
+                                                border: none;
+                                                color: white;
+                                                font-weight: 600;
+                                                letter-spacing: 0.5px;
+                                                transition: all 0.3s ease;
+                                                border-radius: 8px;
+                                                box-shadow: 0 4px 15px rgba(79, 172, 254, 0.4);
+                                            " onmouseover="this.style.transform='translateY(-2px)'; this.style.boxShadow='0 6px 20px rgba(79, 172, 254, 0.6)';" onmouseout="this.style.transform='translateY(0)'; this.style.boxShadow='0 4px 15px rgba(79, 172, 254, 0.4)';">
+                                                <i class="ri-add-circle-line me-2" style="font-size: 1.2em;"></i>{{ isset($dayOrdersByType['exit_port']) && count($dayOrdersByType['exit_port']) > 0 ? 'Add More Departure Services' : 'Add Departure Service' }}
                                             </button>
                                         </div>
                                     </div>
@@ -4032,7 +4041,7 @@
                                         <!-- Additional Guests Accordion Item -->
                                         <div class="accordion-item border-0 shadow-sm">
                                             <h2 class="accordion-header" id="additionalGuestsHeading" style=margin-top:10px>
-                                                <button class="accordion-button collapsed fw-bold text-white" type="button" data-bs-toggle="collapse" data-bs-target="#additionalGuestsCollapse" aria-expanded="false" aria-controls="additionalGuestsCollapse" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);">
+                                                <button class="accordion-button collapsed fw-bold text-white" type="button" data-bs-toggle="collapse" data-bs-target="#additionalGuestsCollapse" aria-expanded="false" aria-controls="additionalGuestsCollapse" style="background: linear-gradient(135deg, #4facfe 0%, #00c9ff 100%);">
                                                     <i class="ri-group-line me-2"></i>Additional Guest(s) 
                                                     <span class="badge bg-light text-dark ms-2" id="additionalGuestsCount">{{ !empty($additionalGuests) ? count($additionalGuests) : 0 }}</span>
                                                 </button>
@@ -4086,7 +4095,7 @@
                                                     
                                                     <!-- Add More Guest Button -->
                                                     <div class="mt-3 pt-3 border-top">
-                                                        <button type="button" class="btn btn-success d-flex align-items-center gap-2" onclick="addNewGuest()" id="addGuestBtn">
+                                                        <button type="button" class="btn btn-info d-flex align-items-center gap-2" onclick="addNewGuest()" id="addGuestBtn">
                                                             <i class="ri-user-add-line"></i>
                                                             <span>Add More Guest</span>
                                                         </button>
@@ -4104,7 +4113,7 @@
 
                                     <!-- Save Changes Button -->
                                     <div class="d-flex justify-content-end mt-4 pt-3">
-                                        <button type="button" class="btn btn-primary d-flex align-items-center gap-2 shadow-sm" onclick="updateGuestInformation(event)" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); border: none;">
+                                        <button type="button" class="btn btn-primary d-flex align-items-center gap-2 shadow-sm" onclick="updateGuestInformation(event)" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); border: none; height: 35px; padding: 0 10px;">
                                             <span class="spinner-border spinner-border-sm d-none" id="guest_info_spinner"></span>
                                             <i class="ri-save-3-line"></i>
                                             <span>Save Guest Changes</span>
@@ -4286,7 +4295,7 @@
                 <div class="d-flex align-items-center">
                     <div style="width: 32px; height: 32px; background: rgba(255, 255, 255, 0.2); border-radius: 8px; display: flex; align-items: center; justify-content: center; margin-right: 8px;">
                         <i class="ri-user-star-line" style="font-size: 1rem; color: #ffffff;"></i>
-                    </div>
+            </div>
                     <h6 class="modal-title mb-0 fw-bold" id="guideSelectionModalLabel" style="font-size: 0.95rem; letter-spacing: -0.01em; color: #ffffff;">
                         Select Tour Guide
                     </h6>
@@ -4316,13 +4325,13 @@
                         <div class="col-12 col-md-4">
                             <label class="form-label fw-semibold mb-1" style="color: #495057; font-size: 0.75rem;">
                                 <i class="ri-map-pin-line me-1" style="color: #fda085;"></i>City
-                            </label>
+                                </label>
                             <select class="form-select modern-select" id="modal_guide_city_select" name="city" onchange="loadGuidesForCity(this.value, this.dataset.country)" style="height: 36px; font-size: 0.8rem;">
-                                <option value="">Select city</option>
-                                @foreach($cities as $city)
-                                <option value="{{ $city->name }}" data-city="{{ json_encode($city) }}" data-country="{{ $city->country }}">{{ $city->name }}</option>
-                                @endforeach
-                            </select>
+                                        <option value="">Select city</option>
+                                        @foreach($cities as $city)
+                                        <option value="{{ $city->name }}" data-city="{{ json_encode($city) }}" data-country="{{ $city->country }}">{{ $city->name }}</option>
+                                        @endforeach
+                                    </select>
                         </div>
                         <!-- Guide Selection -->
                         <div class="col-12 col-md-8">
@@ -4377,21 +4386,21 @@
                         <!-- Guide Details Display -->
                         <div class="col-12 mt-2" id="guide_details_container" style="display: none;">
                             <div class="card border-0" style="background: #f8f9fa; border-radius: 8px; padding: 0.75rem;">
-                                <div class="row align-items-center">
-                                    <div class="col-md-2">
+                                    <div class="row align-items-center">
+                                        <div class="col-md-2">
                                         <img id="selected_guide_image" src="" alt="Guide" class="rounded-circle" style="width: 60px; height: 60px; object-fit: cover; border: 2px solid #e9ecef;">
-                                    </div>
-                                    <div class="col-md-7">
+                                        </div>
+                                        <div class="col-md-7">
                                         <h6 id="selected_guide_name" class="mb-1 fw-bold" style="color: #495057; font-size: 0.9rem;"></h6>
                                         <p id="selected_guide_specialty" class="mb-1 text-muted" style="font-size: 0.75rem;"></p>
                                         <p id="selected_guide_experience" class="mb-0 text-muted" style="font-size: 0.75rem;"></p>
-                                    </div>
-                                    <div class="col-md-3 text-end">
-                                        <div class="guide-rating mb-1">
-                                            <i class="ri-star-fill text-warning"></i>
-                                            <span id="selected_guide_rating" class="fw-semibold" style="font-size: 0.85rem;"></span>
                                         </div>
-                                        <div class="guide-rate">
+                                        <div class="col-md-3 text-end">
+                                            <div class="guide-rating mb-1">
+                                                <i class="ri-star-fill text-warning"></i>
+                                            <span id="selected_guide_rating" class="fw-semibold" style="font-size: 0.85rem;"></span>
+                                            </div>
+                                            <div class="guide-rate">
                                             <span id="selected_guide_rate" class="fw-bold" style="color: #fda085; font-size: 0.9rem;"></span>
                                         </div>
                                     </div>
@@ -4997,10 +5006,12 @@
                                             <small class="text-danger d-none" id="modal_restaurant_passenger_error">Passengers cannot exceed total pax or vehicle capacity</small>
                                         </div> -->
                                         <div class="col-md-3">
-                                            <label class="form-label fw-semibold" style="color: #495057; font-size: 0.75rem;">Transport Price</label>
+                                            <label class="form-label fw-semibold mb-1" style="color: #495057; font-size: 0.75rem;">Transport Price</label>
                                             <div class="input-group" style="height: 36px;">
-                                                <span class="input-group-text" style="background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%); color: #ffffff; border: none; font-size: 0.8rem; font-weight: 600;">{{ $tour->currency ?? '$' }}</span>
-                                                <input type="number" min="0" step="0.01" class="form-control modern-input" name="modal_restaurant_transport_price" id="modal_restaurant_transport_price" placeholder="0.00" data-original-price="" data-zone-mapped="false" style="height: 36px; font-size: 0.8rem; border-left: none;">
+                                                <span class="input-group-text bg-white border border-end-0 text-muted fw-semibold" style="font-size: 0.8rem;  height: 36px;">
+                                                    {{ $tour->currency ?? '$' }}
+                                                </span>
+                                                <input type="number" min="0" step="0.01" class="form-control border border-start-0" name="modal_restaurant_transport_price" id="modal_restaurant_transport_price" placeholder="0.00" data-original-price="" data-zone-mapped="false" style="font-size: 0.8rem; height: 36px; font-weight: 500;">
                                             </div>
                                             <small class="text-muted" id="modal_restaurant_transport_price_hint" style="font-size: 0.7rem; margin-top: 0.2rem; display: block;">Select vehicle to see price</small>
                                             <div class="form-check mt-2">
@@ -5298,7 +5309,7 @@
 
 <!-- Attraction Selection Modal -->
 <div class="modal fade" id="attractionSelectionModal" tabindex="-1" aria-labelledby="attractionSelectionModalLabel" aria-hidden="true">
-    <div class="modal-dialog modal-dialog-centered modal-xl">
+    <div class="modal-dialog modal-dialog-centered modal-lg">
         <div class="modal-content border-0" style="border-radius: 12px; overflow: hidden; box-shadow: 0 10px 40px rgba(0,0,0,0.15);">
             <div class="modal-header text-white border-0" style="background: linear-gradient(135deg, #fa709a 0%, #fee140 100%); padding: 0.75rem 1rem;">
                 <div class="d-flex align-items-center">
@@ -5360,20 +5371,20 @@
                     <div class="row mb-2" id="attraction_details_container" style="display: none;">
                         <div class="col-12">
                             <div class="card border-0" style="background: #f8f9fa; border-radius: 8px; padding: 0.75rem;">
-                                <div class="row align-items-center">
-                                    <div class="col-auto">
+                                    <div class="row align-items-center">
+                                        <div class="col-auto">
                                         <img id="selected_attraction_image" src="" alt="Attraction" class="rounded" style="width: 60px; height: 60px; object-fit: cover; border: 2px solid #e9ecef;">
-                                    </div>
-                                    <div class="col">
+                                        </div>
+                                        <div class="col">
                                         <h6 id="selected_attraction_name" class="mb-1 fw-bold" style="color: #495057; font-size: 0.9rem;"></h6>
                                         <p id="selected_attraction_category" class="mb-1 text-muted" style="font-size: 0.75rem;"></p>
-                                        <p id="selected_attraction_location" class="mb-0 text-muted" style="font-size: 0.7rem;"></p>
-                                    </div>
-                                    <div class="col-auto text-end">
-                                        <div class="attraction-rating mb-1">
-                                            <span id="selected_attraction_rating" class="fw-semibold" style="font-size: 0.85rem;"></span>
+                                            <p id="selected_attraction_location" class="mb-0 text-muted" style="font-size: 0.7rem;"></p>
                                         </div>
-                                        <div class="attraction-price-range">
+                                        <div class="col-auto text-end">
+                                            <div class="attraction-rating mb-1">
+                                            <span id="selected_attraction_rating" class="fw-semibold" style="font-size: 0.85rem;"></span>
+                                            </div>
+                                            <div class="attraction-price-range">
                                             <span id="selected_attraction_price_range" class="fw-bold" style="color: #fa709a; font-size: 0.9rem;"></span>
                                         </div>
                                     </div>
@@ -5393,8 +5404,8 @@
                                         <div class="guest-info">
                                             <span id="modal_attraction_guest_summary" class="text-muted" style="font-size: 0.7rem;">
                                                 1 adults (1 male, 0 female), 0 children - 0 infants
-                                            </span>
-                                        </div>
+                                                </span>
+                                            </div>
                                         <button type="button" class="btn btn-sm btn-outline-primary p-1" onclick="openAttractionGuestSelector()" style="height: 28px; width: 28px; padding: 0; display: flex; align-items: center; justify-content: center;">
                                             <i class="ri-edit-line" style="font-size: 0.75rem;"></i>
                                         </button>
@@ -5660,10 +5671,12 @@
                                             <small class="text-danger d-none" id="modal_attraction_passenger_error">Passengers cannot exceed total pax or vehicle capacity</small>
                                         </div> -->
                                         <div class="col-md-3">
-                                            <label class="form-label fw-semibold" style="color: #495057; font-size: 0.75rem;">Transport Price</label>
+                                            <label class="form-label fw-semibold mb-1" style="color: #495057; font-size: 0.75rem;">Transport Price</label>
                                             <div class="input-group" style="height: 36px;">
-                                                <span class="input-group-text" style="background: linear-gradient(135deg, #fa709a 0%, #fee140 100%); color: #ffffff; border: none; font-size: 0.8rem; font-weight: 600;">{{ $tour->currency ?? '$' }}</span>
-                                                <input type="number" min="0" step="0.01" class="form-control modern-input" name="modal_attraction_transport_price" id="modal_attraction_transport_price" placeholder="0.00" data-original-price="" style="height: 36px; font-size: 0.8rem; border-left: none;" readonly>
+                                                <span class="input-group-text bg-white border border-end-0 text-muted fw-semibold" style="font-size: 0.8rem; height: 36px;">
+                                                    {{ $tour->currency ?? '$' }}
+                                                </span>
+                                                <input type="number" min="0" step="0.01" class="form-control border border-start-0" name="modal_attraction_transport_price" id="modal_attraction_transport_price" placeholder="0.00" data-original-price="" style="font-size: 0.8rem; height: 36px; font-weight: 500;" readonly>
                                             </div>
                                             <small class="text-muted" id="modal_attraction_transport_price_hint" style="font-size: 0.7rem; margin-top: 0.2rem; display: block;">Select vehicle to see price</small>
                                             <div class="form-check mt-2">
@@ -5698,15 +5711,16 @@
                                 </div>
                             </div>
                         </div>
-                    </div>
-                </form>
-            </div>
-            <div class="modal-footer border-0" style="padding: 0.75rem 1rem; background: #f8f9fa;">
+                        <div class="modal-footer border-0" style="padding: 0.75rem 1rem; background: #f8f9fa;">
                 <button type="button" class="btn btn-secondary btn-sm" data-bs-dismiss="modal" style="font-size: 0.8rem; padding: 0.4rem 0.8rem;">Cancel</button>
                 <button type="button" class="btn btn-primary btn-sm" id="confirm_attraction_btn" disabled style="background: linear-gradient(135deg, #fa709a 0%, #fee140 100%); border: none; font-size: 0.8rem; padding: 0.4rem 0.8rem; box-shadow: 0 2px 8px rgba(250, 112, 154, 0.3);">
                     <i class="ri-check-line me-1"></i>Confirm
                 </button>
             </div>
+                    </div>
+                </form>
+            </div>
+          
         </div>
     </div>
 </div>
@@ -5734,7 +5748,7 @@
                                     <h6 class="mb-0 fw-semibold d-flex align-items-center" style="color: #495057; font-size: 0.875rem;">
                                         <i class="ri-user-line me-2" style="color: #fa709a; font-size: 0.9rem;"></i>Adults
                                     </h6>
-                                </div>
+                            </div>
                                 <div class="card-body" style="padding: 1rem 0.875rem;">
                                     <!-- Male -->
                                     <div class="guest-counter mb-3">
@@ -5760,7 +5774,7 @@
                                                 <i class="ri-add-line" style="font-size: 0.9rem;"></i>
                                             </button>
                                         </div>
-                                    </div>
+                        </div>
 
                                     <!-- Female -->
                                     <div class="guest-counter">
@@ -5785,8 +5799,8 @@
                                             <button type="button" class="btn" onclick="incrementAttractionCount('attraction_modal_female_count')" style="width: 36px; height: 36px; border-radius: 6px; border: 1px solid #dee2e6; background: #ffffff; color: #495057; display: flex; align-items: center; justify-content: center; transition: all 0.2s; padding: 0;">
                                                 <i class="ri-add-line" style="font-size: 0.9rem;"></i>
                                             </button>
-                                        </div>
-                                    </div>
+                            </div>
+                        </div>
 
                                     <!-- Pax Display -->
                                     <div class="mt-3 pt-3" style="border-top: 1px solid #e9ecef;">
@@ -5819,7 +5833,7 @@
                                     <h6 class="mb-0 fw-semibold d-flex align-items-center" style="color: #495057; font-size: 0.875rem;">
                                         <i class="ri-user-smile-line me-2" style="color: #fa709a; font-size: 0.9rem;"></i>Children & Infants
                                     </h6>
-                                </div>
+                            </div>
                                 <div class="card-body" style="padding: 1rem 0.875rem;">
                                     <!-- Children -->
                                     <div class="guest-counter mb-3">
@@ -5845,7 +5859,7 @@
                                             <button type="button" class="btn" onclick="incrementAttractionCount('attraction_modal_children')" style="width: 36px; height: 36px; border-radius: 6px; border: 1px solid #dee2e6; background: #ffffff; color: #495057; display: flex; align-items: center; justify-content: center; transition: all 0.2s; padding: 0;">
                                                 <i class="ri-add-line" style="font-size: 0.9rem;"></i>
                                             </button>
-                                        </div>
+                        </div>
 
                                         <!-- Child Ages Section -->
                                         <div id="attraction_modal_child_ages_container" class="mt-3" style="display: none;">
@@ -5854,8 +5868,8 @@
                                             </label>
                                             <input type="text" class="form-control" id="attraction_modal_child_ages" name="attraction_modal_child_ages" placeholder="e.g., 5,8,12" disabled style="font-size: 0.85rem; height: 36px;">
                                             <small class="text-muted d-block mt-1" style="font-size: 0.7rem;">Comma separated ages (only if children > 0)</small>
-                                        </div>
-                                    </div>
+                            </div>
+                        </div>
 
                                     <!-- Infants -->
                                     <div class="guest-counter">
@@ -6069,13 +6083,15 @@
                                         <!-- Manual Price Input (Available for both Zone On and Point-to-Point) -->
                                         @if(isset($UserDmc->zone_on) && $UserDmc->zone_on == 0)
                                         <div class="col-md-3" id="transport_manual_price_field_container" style="display: none;">
-                                            <label class="form-label fw-semibold" style="color: #495057; font-size: 0.75rem;">
+                                            <label class="form-label fw-semibold mb-1" style="color: #495057; font-size: 0.75rem;">
                                                 <i class="ri-money-dollar-circle-line me-1" style="color: #10b981;"></i>Manual Price (Optional)
                                             </label>
                                             <div class="input-group" style="height: 36px;">
-                                                <span class="input-group-text" style="background: linear-gradient(135deg, #10b981 0%, #059669 100%); color: #ffffff; border: none; font-size: 0.8rem; font-weight: 600;">{{ $tour->currency ?? '$' }}</span>
+                                                <span class="input-group-text bg-white border border-end-0 text-muted fw-semibold" style="font-size: 0.8rem; height: 36px;">
+                                                    {{ $tour->currency ?? '$' }}
+                                                </span>
                                                 <input type="number" 
-                                                       class="form-control modern-input" 
+                                                       class="form-control border border-start-0" 
                                                        id="modal_transport_manual_price" 
                                                        name="manual_price" 
                                                        step="0.01" 
@@ -6083,7 +6099,7 @@
                                                        placeholder="0.00"
                                                        onchange="updatePricing()"
                                                        oninput="updatePricing()"
-                                                       style="height: 36px; font-size: 0.8rem; border-left: none;">
+                                                       style="font-size: 0.8rem; height: 36px; font-weight: 500;">
                                             </div>
                                             <small class="text-muted" style="font-size: 0.7rem; margin-top: 0.2rem; display: block;">
                                                 <i class="ri-information-line me-1"></i>
@@ -6174,7 +6190,7 @@
                         <i class="ri-taxi-line" style="font-size: 1rem; color: #ffffff;"></i>
                     </div>
                     <h6 class="modal-title mb-0 fw-bold" id="localTransferSelectionModalLabel" style="font-size: 0.95rem; letter-spacing: -0.01em; color: #ffffff;">
-                        Local Transfer Service Selection
+                        Point To Point Service Selection
                     </h6>
                 </div>
                 <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close" style="opacity: 0.9; font-size: 0.75rem;"></button>
@@ -6191,7 +6207,7 @@
                     <div class="card border-0 mb-3" style="background: #f8f9fa; border-radius: 8px; padding: 0.75rem;">
                         <div class="d-flex gap-3 flex-wrap">
                             <div class="form-check">
-                                <input class="form-check-input transport-service-type" type="radio" name="service_type_selection" id="local_transfer_service_type_point" value="point_to_point" onchange="handleLocalTransferServiceTypeChange('point_to_point')">
+                                <input class="form-check-input transport-service-type" type="radio" name="service_type_selection" id="local_transfer_service_type_point" value="point_to_point" onchange="handleLocalTransferServiceTypeChange('point_to_point')" checked>
                                 <label class="form-check-label fw-semibold" for="local_transfer_service_type_point" style="font-size: 0.8rem; color: #495057;">
                                     <i class="ri-route-line me-1" style="color: #667eea;"></i>Point To Point
                                 </label>
@@ -6204,7 +6220,7 @@
                             </div>
                             @if(isset($dmcUser->zone_on) && $dmcUser->zone_on != 0)
                             <div class="form-check">
-                                <input class="form-check-input transport-service-type" type="radio" name="service_type_selection" id="local_transfer_service_type_local" value="local_transfer" onchange="handleLocalTransferServiceTypeChange('local_transfer')" checked>
+                                <input class="form-check-input transport-service-type" type="radio" name="service_type_selection" id="local_transfer_service_type_local" value="local_transfer" onchange="handleLocalTransferServiceTypeChange('local_transfer')">
                                 <label class="form-check-label fw-semibold" for="local_transfer_service_type_local" style="font-size: 0.8rem; color: #10b981;">
                                     <i class="ri-car-line me-1"></i>Local Transfer
                                 </label>
@@ -6541,9 +6557,11 @@
                                                 <i class="ri-money-dollar-circle-line me-1" style="color: #10b981;"></i>Manual Price (Optional)
                                             </label>
                                             <div class="input-group" style="height: 36px;">
-                                                <span class="input-group-text" style="background: linear-gradient(135deg, #10b981 0%, #059669 100%); color: white; border: none; font-weight: 600; font-size: 0.8rem;">$</span>
+                                                <span class="input-group-text bg-white border border-end-0 text-muted fw-semibold" style="font-size: 0.8rem; height: 36px;">
+                                                    {{ $tour->currency ?? '$' }}
+                                                </span>
                                                 <input type="number" 
-                                                       class="form-control modern-input border-0" 
+                                                       class="form-control border border-start-0" 
                                                        id="local_transfer_manual_price" 
                                                        name="manual_price" 
                                                        step="0.01" 
@@ -6551,7 +6569,7 @@
                                                        placeholder="0.00"
                                                        onchange="updateLocalTransferPricing()"
                                                        oninput="updateLocalTransferPricing()"
-                                                       style="height: 36px; font-size: 0.8rem;">
+                                                       style="font-size: 0.8rem; height: 36px; font-weight: 500;">
                                             </div>
                                             <small class="text-muted" style="font-size: 0.65rem; display: block; margin-top: 0.2rem;">
                                                 <i class="ri-information-line me-1"></i>
@@ -6607,8 +6625,8 @@
                 <button type="button" class="btn" data-bs-dismiss="modal" style="height: 36px; border-radius: 8px; border: 1px solid #dee2e6; background: #ffffff; color: #495057; padding: 0.375rem 1rem; font-weight: 500; font-size: 0.8rem; transition: all 0.2s;">
                     Cancel
                 </button>
-                <button type="button" class="btn text-white" onclick="confirmSelectedLocalTransferService()" style="height: 36px; border-radius: 8px; background: linear-gradient(135deg, #06b6d4 0%, #0891b2 100%); border: none; padding: 0.375rem 1rem; font-weight: 500; font-size: 0.8rem; transition: all 0.2s; box-shadow: 0 2px 6px rgba(6, 182, 212, 0.3);">
-                    <i class="ri-check-line me-1"></i>Confirm Local Transfer Selection
+                <button type="button" class="btn text-white" id="confirmLocalTransferBtn" onclick="confirmSelectedLocalTransferService()" style="height: 36px; border-radius: 8px; background: linear-gradient(135deg, #06b6d4 0%, #0891b2 100%); border: none; padding: 0.375rem 1rem; font-weight: 500; font-size: 0.8rem; transition: all 0.2s; box-shadow: 0 2px 6px rgba(6, 182, 212, 0.3);">
+                    <i class="ri-check-line me-1"></i><span id="confirmLocalTransferBtnText">Confirm Point To Point Selection</span>
                 </button>
             </div>
         </div>
@@ -6785,22 +6803,25 @@
                                 <!-- Manual Price Input (Available for both Zone On and Point-to-Point) -->
                                 @if(isset($UserDmc->zone_on) && $UserDmc->zone_on == 0)
                                 <div class="col-md-4" id="dropoff_transport_manual_price_field_container" style="display: none;">
-                                    <label class="form-label fw-semibold">
+                                    <label class="form-label fw-semibold mb-1" style="color: #495057; font-size: 0.75rem;">
                                         <i class="ri-money-dollar-circle-line text-success me-1"></i>Manual Price (Optional)
                                     </label>
-                                    <div class="input-group">
-                                        <span class="input-group-text">$</span>
+                                    <div class="input-group" style="height: 36px;">
+                                        <span class="input-group-text bg-white border border-end-0 text-muted fw-semibold" style="font-size: 0.8rem; height: 36px;">
+                                            {{ $tour->currency ?? '$' }}
+                                        </span>
                                         <input type="number" 
-                                               class="form-control" 
+                                               class="form-control border border-start-0" 
                                                id="modal_dropoff_transport_manual_price" 
                                                name="manual_price" 
                                                step="0.01" 
                                                min="0" 
                                                placeholder="0.00"
                                                onchange="updateDropoffPricing()"
-                                               oninput="updateDropoffPricing()">
+                                               oninput="updateDropoffPricing()"
+                                               style="font-size: 0.8rem; height: 36px; font-weight: 500;">
                                     </div>
-                                    <small class="form-text text-muted">
+                                    <small class="form-text text-muted" style="font-size: 0.7rem; margin-top: 0.2rem; display: block;">
                                         <i class="ri-information-line me-1"></i>
                                         Override vehicle price with custom amount
                                     </small>
@@ -6855,10 +6876,13 @@
     </div>
 </div>
 <!-- Extra div close tag -->
-<!-- </div>
 </div>
 </div>
-</div> -->
+</div>
+</div>
+</div>
+</div>
+</div>
 <!-- End of Dropoff Transport Selection Modal -->
 
 @endsection
@@ -10538,6 +10562,34 @@
         const localTransferModal = new bootstrap.Modal(document.getElementById('localTransferSelectionModal'));
         localTransferModal.show();
         
+        // Set default modal title to "Point To Point Service Selection" if no serviceType is provided
+        const modalTitle = document.getElementById('localTransferSelectionModalLabel');
+        const confirmButtonText = document.getElementById('confirmLocalTransferBtnText');
+        if (modalTitle && !serviceType) {
+            modalTitle.textContent = 'Point To Point Service Selection';
+            if (confirmButtonText) {
+                confirmButtonText.textContent = 'Confirm Point To Point Selection';
+            }
+        } else if (modalTitle && serviceType) {
+            // Set title based on provided serviceType
+            if (serviceType === 'travel_hourly' || serviceType === 'hourly') {
+                modalTitle.textContent = 'Hourly Service Selection';
+                if (confirmButtonText) {
+                    confirmButtonText.textContent = 'Confirm Hourly Selection';
+                }
+            } else if (serviceType === 'travel_point' || serviceType === 'point_to_point') {
+                modalTitle.textContent = 'Point To Point Service Selection';
+                if (confirmButtonText) {
+                    confirmButtonText.textContent = 'Confirm Point To Point Selection';
+                }
+            } else if (serviceType === 'local_transport' || serviceType === 'local_transfer') {
+                modalTitle.textContent = 'Local Transfer Service Selection';
+                if (confirmButtonText) {
+                    confirmButtonText.textContent = 'Confirm Local Transfer Selection';
+                }
+            }
+        }
+        
         // Set hidden fields
         document.getElementById('local_transfer_tour_id').value = tourId;
         document.getElementById('local_transfer_country').value = country;
@@ -10746,14 +10798,25 @@
         
         // Local transfer search button is handled by onclick attribute
         
-        // Set default service type to 'local_transfer'
-        const localTransferServiceType = document.getElementById('local_transfer_service_type_local');
-        if (localTransferServiceType) {
-            localTransferServiceType.checked = true;
-            handleLocalTransferServiceTypeChange('local_transfer');
+        // Set default service type to 'point_to_point'
+        const pointToPointRadio = document.getElementById('local_transfer_service_type_point');
+        if (pointToPointRadio) {
+            pointToPointRadio.checked = true;
+            handleLocalTransferServiceTypeChange('point_to_point');
         } else {
-            // If local transfer radio doesn't exist, set default to point_to_point
-            window.currentLocalTransferServiceType = 'point_to_point';
+            // Fallback: check if local transfer radio exists
+            const localTransferServiceType = document.getElementById('local_transfer_service_type_local');
+            if (localTransferServiceType) {
+                localTransferServiceType.checked = true;
+                handleLocalTransferServiceTypeChange('local_transfer');
+            } else {
+                // If neither exists, set default to point_to_point
+                window.currentLocalTransferServiceType = 'point_to_point';
+                const modalTitle = document.getElementById('localTransferSelectionModalLabel');
+                if (modalTitle) {
+                    modalTitle.textContent = 'Point To Point Service Selection';
+                }
+            }
         }
         
         // Initialize Google Maps autocomplete for the modal
@@ -11031,6 +11094,30 @@
         // Store the current service type for service type options filtering
         window.currentLocalTransferServiceType = serviceType;
         console.log('Service type changed to:', serviceType);
+        
+        // Update modal title based on service type
+        const modalTitle = document.getElementById('localTransferSelectionModalLabel');
+        if (modalTitle) {
+            if (serviceType === 'point_to_point') {
+                modalTitle.textContent = 'Point To Point Service Selection';
+            } else if (serviceType === 'hourly') {
+                modalTitle.textContent = 'Hourly Service Selection';
+            } else if (serviceType === 'local_transfer') {
+                modalTitle.textContent = 'Local Transfer Service Selection';
+            }
+        }
+        
+        // Update button text based on service type
+        const confirmButtonText = document.getElementById('confirmLocalTransferBtnText');
+        if (confirmButtonText) {
+            if (serviceType === 'point_to_point') {
+                confirmButtonText.textContent = 'Confirm Point To Point Selection';
+            } else if (serviceType === 'hourly') {
+                confirmButtonText.textContent = 'Confirm Hourly Selection';
+            } else if (serviceType === 'local_transfer') {
+                confirmButtonText.textContent = 'Confirm Local Transfer Selection';
+            }
+        }
         
         // Hide vehicle results section when switching service types
         const vehicleResultsSection = document.getElementById('local_transfer_vehicle_results');

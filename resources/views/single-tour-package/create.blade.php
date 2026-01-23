@@ -310,28 +310,26 @@
     --}}
     <div class="content-wrapper">
     <div class="container-xxl flex-grow-1 container-p-y">
-        
         <!-- Header Section -->
         <div class="row mb-4">
             <div class="col-12">
-                <div class="card border-0 shadow-sm" style="background: #ffffff; border-radius: 12px; overflow: hidden;">
-                    <div class="card-header text-white" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); border: none; padding: 1.75rem 2rem;">
-                        <div class="d-flex align-items-center justify-content-between flex-wrap">
-                            <div class="d-flex align-items-center">
-                                <div class="icon-wrapper me-3" style="width: 56px; height: 56px; background: rgba(255, 255, 255, 0.2); border-radius: 12px; display: flex; align-items: center; justify-content: center;">
-                                    <i class="ri-map-pin-line fs-3 text-white"></i>
-                                </div>
+                <div class="accordion-item border-0">
+                    <div class="card shadow-sm border-0" style="background: #ffffff; border-radius: 12px; overflow: hidden;">
+                        <div class="card-header text-white d-flex justify-content-between align-items-center" style="background: linear-gradient(135deg, #4facfe 0%, #00c9ff 100%); border: none; padding: 1.25rem 1.75rem; transition: all 0.3s ease;">
+                            <div class="d-flex align-items-center flex-grow-1">
+                                <!-- <div style="width: 40px; height: 40px; background: rgba(255, 255, 255, 0.2); border-radius: 10px; display: flex; align-items: center; justify-content: center; margin-right: 12px;">
+                                    <i class="ri-map-pin-line fs-5 text-white" style="color: #ffffff !important;"></i>
+                                </div> -->
                                 <div>
-                                    <h4 class="mb-1 text-white fw-bold" style="font-size: 1.5rem; letter-spacing: -0.02em;">Create Single Tour Package</h4>
-                                    <p class="mb-0 text-white-75" style="color: rgba(255, 255, 255, 0.85); font-size: 0.9rem;">Design personalized tour experiences for your clients</p>
+                                    <h6 class="mb-0 fw-bold text-white" style="font-size: 1.1rem; letter-spacing: -0.01em; color: #ffffff !important;">
+                                        Create Single Tour Package
+                                    </h6>
+                                    <small class="text-white-75" style="color: rgba(255, 255, 255, 0.85) !important; font-size: 0.85rem;">Design personalized tour experiences for your clients</small>
                                 </div>
                             </div>
-
                         </div>
-                        
                     </div>
                 </div>
-                
             </div>
         </div>
 
@@ -344,28 +342,38 @@
             <!-- Main Form Card - All in One Row -->
             <div class="row mb-4">
                 <div class="col-12">
-                    <div class="card shadow-sm border-0" style="background: #ffffff; border-radius: 12px; overflow: hidden;">
-                        <div class="card-header text-white" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); border: none; padding: 1.25rem 1.75rem;">
-                            <div class="d-flex align-items-center justify-content-between flex-wrap">
-                                <h6 class="mb-0 fw-bold d-flex align-items-center text-white" style="font-size: 1.1rem; letter-spacing: -0.01em; color: #ffffff !important;">
-                                    <i class="ri-settings-3-line me-2 fs-5 text-white" style="color: #ffffff !important;"></i>
-                                    <span style="color: #ffffff !important;">Tour Package Configuration</span>
-                                </h6>
-                                
-                                <div class="tour-type-wrapper mt-2 mt-md-0" style="min-width: 200px;">
-                                    <div class="tour-toggle">
-                                        <input type="radio" name="tour_type" id="fit" value="FIT" checked>
-                                        <label for="fit">FIT</label>
-                                
-                                        <input type="radio" name="tour_type" id="group" value="GROUP">
-                                        <label for="group">GROUP</label>
-                                
-                                        <span class="slider"></span>
+                    <div class="accordion-item border-0">
+                        <div class="card shadow-sm border-0" style="background: #ffffff; border-radius: 12px; overflow: hidden;">
+                            <div class="card-header text-white d-flex justify-content-between align-items-center" role="button" data-bs-toggle="collapse" data-bs-target="#tourPackageConfigurationSection" aria-expanded="true" aria-controls="tourPackageConfigurationSection" style="cursor: pointer; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); border: none; padding: 1.25rem 1.75rem; transition: all 0.3s ease;">
+                                <div class="d-flex align-items-center flex-grow-1">
+                                    <div style="width: 40px; height: 40px; background: rgba(255, 255, 255, 0.2); border-radius: 10px; display: flex; align-items: center; justify-content: center; margin-right: 12px; flex-shrink: 0;">
+                                        <i class="ri-settings-3-line fs-5 text-white" style="color: #ffffff !important; display: flex; align-items: center;"></i>
+                                    </div>
+                                    <div>
+                                        <h6 class="mb-0 fw-bold text-white" style="font-size: 1.1rem; letter-spacing: -0.01em; color: #ffffff !important;">
+                                            Tour Package Configuration
+                                        </h6>
+                                        <small class="text-white-75" style="color: rgba(255, 255, 255, 0.85) !important; font-size: 0.85rem;">Configure tour type and package details</small>
                                     </div>
                                 </div>
+                                
+                                <div class="d-flex align-items-center ms-3">
+                                    <div class="tour-type-wrapper" style="min-width: 200px;">
+                                        <div class="tour-toggle">
+                                            <input type="radio" name="tour_type" id="fit" value="FIT" checked>
+                                            <label for="fit">FIT</label>
+                                    
+                                            <input type="radio" name="tour_type" id="group" value="GROUP">
+                                            <label for="group">GROUP</label>
+                                    
+                                            <span class="slider"></span>
+                                        </div>
+                                    </div>
+                                    <i class="ri-arrow-up-s-line ms-3 fs-5 text-white transition-transform" style="color: #ffffff !important;"></i>
+                                </div>
                             </div>
-                        </div>
-                        <div class="card-body" style="background: #ffffff; padding: 1.75rem;">
+                            <div id="tourPackageConfigurationSection" class="collapse show">
+                                <div class="card-body" style="background: #ffffff; padding: 1.75rem;">
                             <div class="row g-3">
                                 <!-- Country Selection -->
                                 <div class="col-md-2">
@@ -476,6 +484,8 @@
                                 
 
                             </div>
+                                </div>
+                            </div>
                         </div>
                     </div>
                 </div>
@@ -486,23 +496,23 @@
             <div class="accordion mb-4" id="servicesAccordion">
                 <div class="accordion-item border-0">
                     <div class="card shadow-sm border-0">
-                        <div class="card-header text-white d-flex justify-content-between align-items-center" role="button" data-bs-toggle="collapse" data-bs-target="#hotelAccommodationsSection" aria-expanded="true" aria-controls="hotelAccommodationsSection" style="cursor: pointer; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); border: none; padding: 1.25rem 1.75rem;">
+                        <div class="card-header text-dark d-flex justify-content-between align-items-center" role="button" data-bs-toggle="collapse" data-bs-target="#hotelAccommodationsSection" aria-expanded="true" aria-controls="hotelAccommodationsSection" style="cursor: pointer; background: #e9ecef; border: 1px solid #dee2e6; padding: 0.875rem 1.25rem;">
                             <div class="d-flex align-items-center">
-                                <div style="width: 40px; height: 40px; background: rgba(255, 255, 255, 0.2); border-radius: 10px; display: flex; align-items: center; justify-content: center; margin-right: 12px;">
-                                    <i class="ri-hotel-line fs-5 text-white" style="color: #ffffff !important;"></i>
+                                <div style="width: 35px; height: 35px; background: rgba(108, 117, 125, 0.15); border-radius: 8px; display: flex; align-items: center; justify-content: center; margin-right: 10px;">
+                                    <i class="ri-hotel-line" style="color: #6c757d; font-size: 1rem;"></i>
                                 </div>
                                 <div>
-                                    <h6 class="mb-0 fw-bold text-white" style="color: #ffffff !important; font-size: 1.1rem;">
+                                    <h6 class="mb-0 fw-semibold text-dark" style="color: #212529 !important; font-size: 0.85rem;">
                                         Hotel Accommodations
-                                        <span id="hotelHeaderSummary" class="fw-normal" style="font-size: 0.95rem; margin-left: 8px;"></span>
+                                        <span id="hotelHeaderSummary" class="fw-normal" style="font-size: 0.8rem; margin-left: 6px;"></span>
                                     </h6>
-                                    <small class="text-white-75" style="color: rgba(255, 255, 255, 0.85) !important; font-size: 0.85rem;">Manage hotel bookings and room configurations</small>
+                                    <small class="text-muted" style="color: #6c757d !important; font-size: 0.75rem;">Manage hotel bookings and room configurations</small>
                                 </div>
                             </div>
                             <div class="d-flex align-items-center">
-                                <span class="badge me-2" style="background: rgba(255, 255, 255, 0.2); color: #ffffff; border-radius: 6px; font-size: 0.8rem; padding: 0.375rem 0.75rem;" id="tourDates">Aug 03 - Aug 07, 2025</span>
-                                <span class="badge me-2" style="background: rgba(255, 255, 255, 0.2); color: #ffffff; border-radius: 6px; font-size: 0.8rem; padding: 0.375rem 0.75rem;" id="hotelNights">4 Nights Selected</span>
-                                <i class="ri-arrow-up-s-line ms-2 fs-5 text-white" style="color: #ffffff !important;"></i>
+                                <span class="badge me-2" style="background: rgba(108, 117, 125, 0.15); color: #495057; border-radius: 4px; font-size: 0.7rem; padding: 0.25rem 0.5rem;" id="tourDates">Aug 03 - Aug 07, 2025</span>
+                                <span class="badge me-2" style="background: rgba(108, 117, 125, 0.15); color: #495057; border-radius: 4px; font-size: 0.7rem; padding: 0.25rem 0.5rem;" id="hotelNights">4 Nights Selected</span>
+                                <i class="ri-arrow-up-s-line ms-2" style="color: #6c757d !important; font-size: 0.9rem;"></i>
                             </div>
                         </div>
                         <div id="hotelAccommodationsSection" class="collapse show">
@@ -736,7 +746,7 @@
             <div class="row mb-4" id="transportSection">
                 <div class="col-12">
                     <div class="card shadow-sm border-0">
-                        <div class="card-header bg-gradient-primary text-white">
+                        <div class="card-header bg-gradient-primary text-white" style="display: none;">
                             <div class="d-flex justify-content-between align-items-center">
                                 <h6 class="mb-0 fw-bold">
                                     <i class="ri-car-line me-2"></i>Transports and Other Services
@@ -747,7 +757,6 @@
                         <div class="card-body p-0">
                             <div class="accordion" id="servicesAccordionInner">
                                 <div id="dailyServicesContainer">
-                                    <!-- Daily services will be populated by JavaScript -->
                                 </div>
                             </div>
                         </div>
@@ -836,17 +845,17 @@
             <div class="accordion mb-4" id="customerAccordion">
                 <div class="accordion-item border-0">
                     <div class="card shadow-sm border-0">
-                        <div class="card-header text-white d-flex justify-content-between align-items-center" role="button" data-bs-toggle="collapse" data-bs-target="#customerInformationSection" aria-expanded="false" aria-controls="customerInformationSection" style="cursor: pointer; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); border: none; padding: 1.25rem 1.75rem;">
+                        <div class="card-header text-white d-flex justify-content-between align-items-center" role="button" data-bs-toggle="collapse" data-bs-target="#customerInformationSection" aria-expanded="false" aria-controls="customerInformationSection" style="cursor: pointer; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); border: none; padding: 0.875rem 1.25rem;">
                             <div class="d-flex align-items-center">
-                                <div style="width: 40px; height: 40px; background: rgba(255, 255, 255, 0.2); border-radius: 10px; display: flex; align-items: center; justify-content: center; margin-right: 12px;">
-                                    <i class="ri-user-line fs-5 text-white" style="color: #ffffff !important;"></i>
+                                <div style="width: 35px; height: 35px; background: rgba(255, 255, 255, 0.2); border-radius: 8px; display: flex; align-items: center; justify-content: center; margin-right: 10px;">
+                                    <i class="ri-user-line text-white" style="color: #ffffff !important; font-size: 1rem;"></i>
                                 </div>
                                 <div>
-                                    <h6 class="mb-0 fw-bold text-white" style="color: #ffffff !important; font-size: 1.1rem;">Lead Guest information</h6>
-                                    <small class="text-white-75" style="color: rgba(255, 255, 255, 0.85) !important; font-size: 0.85rem;">Manage customer details and contact information</small>
+                                    <h6 class="mb-0 fw-semibold text-white" style="color: #ffffff !important; font-size: 0.85rem;">Lead Guest information</h6>
+                                    <small class="text-white-75" style="color: rgba(255, 255, 255, 0.85) !important; font-size: 0.75rem;">Manage customer details and contact information</small>
                                 </div>
                             </div>
-                            <i class="ri-arrow-down-s-line ms-2 fs-5 text-white" style="color: #ffffff !important;"></i>
+                            <i class="ri-arrow-down-s-line ms-2 text-white" style="color: #ffffff !important; font-size: 0.9rem;"></i>
                         </div>
                         <div id="customerInformationSection" class="collapse">
                             <div class="card-body" style="background: #ffffff; padding: 0.75rem 1rem;">
@@ -898,19 +907,19 @@
             <div class="accordion mb-4" id="additionalGuestsAccordion">
                 <div class="accordion-item border-0">
                     <div class="card shadow-sm border-0">
-                        <div class="card-header text-white d-flex justify-content-between align-items-center" role="button" data-bs-toggle="collapse" data-bs-target="#additionalGuestsSection" aria-expanded="true" aria-controls="additionalGuestsSection" style="cursor: pointer; background: linear-gradient(135deg, #0dcaf0 0%, #0d6efd 100%); border: none; padding: 1.25rem 1.75rem;">
+                        <div class="card-header text-white d-flex justify-content-between align-items-center" role="button" data-bs-toggle="collapse" data-bs-target="#additionalGuestsSection" aria-expanded="true" aria-controls="additionalGuestsSection" style="cursor: pointer; background: linear-gradient(135deg, #0dcaf0 0%, #0d6efd 100%); border: none; padding: 0.875rem 1.25rem;">
                             <div class="d-flex align-items-center">
-                                <div style="width: 40px; height: 40px; background: rgba(255, 255, 255, 0.2); border-radius: 10px; display: flex; align-items: center; justify-content: center; margin-right: 12px;">
-                                    <i class="ri-group-line fs-5 text-white" style="color: #ffffff !important;"></i>
+                                <div style="width: 35px; height: 35px; background: rgba(255, 255, 255, 0.2); border-radius: 8px; display: flex; align-items: center; justify-content: center; margin-right: 10px;">
+                                    <i class="ri-group-line text-white" style="color: #ffffff !important; font-size: 1rem;"></i>
                                 </div>
                                 <div>
-                                    <h6 class="mb-0 fw-bold text-white" style="color: #ffffff !important; font-size: 1.1rem;">Additional Guest(s)</h6>
-                                    <small class="text-white-75" style="color: rgba(255, 255, 255, 0.85) !important; font-size: 0.85rem;">
+                                    <h6 class="mb-0 fw-semibold text-white" style="color: #ffffff !important; font-size: 0.85rem;">Additional Guest(s)</h6>
+                                    <small class="text-white-75" style="color: rgba(255, 255, 255, 0.85) !important; font-size: 0.75rem;">
                                         Add guest details up to the tour pax (Adults + Children)
                                     </small>
                                 </div>
                             </div>
-                            <i class="ri-arrow-up-s-line ms-2 fs-5 text-white" style="color: #ffffff !important;"></i>
+                            <i class="ri-arrow-up-s-line ms-2 text-white" style="color: #ffffff !important; font-size: 0.9rem;"></i>
                         </div>
                         <div id="additionalGuestsSection" class="collapse show">
                             <div class="card-body" style="background: #ffffff; padding: 1.25rem;">
@@ -2188,6 +2197,8 @@
                                         }
                                     }
                                     
+                                    const transferPickupTime = document.getElementById(`day${day}_attraction_${index}_transfer_pickup_time`)?.value || '';
+                                    
                                     transferOptions = {
                                         transfer_required: true,
                                         type: transferType,
@@ -2196,7 +2207,8 @@
                                         vehicle_details: vehicleDetails,
                                         cost: transferCost,
                                         pickup_location_id: transferPickupLocation,
-                                        pickup_location_name: pickupLocationName
+                                        pickup_location_name: pickupLocationName,
+                                        pickup_time: transferPickupTime
                                     };
                                 }
                                 
@@ -2587,6 +2599,8 @@
                                         }
                                     }
                                     
+                                    const transferPickupTime = document.getElementById(`day${day}_restaurant_${index}_transfer_pickup_time`)?.value || '';
+                                    
                                     transferOptions = {
                                         transfer_required: true,
                                         type: transferType,
@@ -2595,7 +2609,8 @@
                                         vehicle_details: vehicleDetails,
                                         cost: transferCost,
                                         pickup_location_id: transferPickupLocation,
-                                        pickup_location_name: pickupLocationName
+                                        pickup_location_name: pickupLocationName,
+                                        pickup_time: transferPickupTime
                                     };
                                 }
                                 
@@ -3060,7 +3075,9 @@
                                 
                                 if (vehicleSelect?.value && serviceTypeSelect?.value && dropoffField?.value) {
                                     const vehicle = vehicleSelect.options[vehicleSelect.selectedIndex];
-                                    const adultCount = parseInt(document.getElementById('adult_count')?.value || 0);
+                                    // Use transport_passengers field if available, otherwise fallback to adult_count
+                                    const passengersField = document.getElementById(`day${day}_transport_passengers`);
+                                    const adultCount = passengersField ? parseInt(passengersField.value || 1) : parseInt(document.getElementById('adult_count')?.value || 1);
                                     const childCount = parseInt(document.getElementById('child_count')?.value || 0);
                                     const totalPrice = parseFloat(document.getElementById(`day${day}_${section}${fieldSuffix}_total_price`)?.value || 0);
                                     
@@ -3095,7 +3112,7 @@
                                         vehicles_name: vehicle.text,
                                         type: serviceTypeSelect.value || "Private",
                                         travel_type: "travel_point",
-                                        adults: parseInt(adultCount) || 0,
+                                        adults: parseInt(adultCount) || 1,
                                         children: parseInt(childCount) || 0,
                                         specialRequests: customerData.specialRequests || null,
                                         image: vehicle.dataset.image || null,
@@ -3148,7 +3165,9 @@
                                 
                                 if (vehicleSelect?.value && serviceTypeSelect?.value) {
                                     const vehicle = vehicleSelect.options[vehicleSelect.selectedIndex];
-                                    const adultCount = parseInt(document.getElementById('adult_count')?.value || 0);
+                                    // Use transport_passengers field if available, otherwise fallback to adult_count
+                                    const passengersField = document.getElementById(`day${day}_transport_passengers`);
+                                    const adultCount = passengersField ? parseInt(passengersField.value || 1) : parseInt(document.getElementById('adult_count')?.value || 1);
                                     const childCount = parseInt(document.getElementById('child_count')?.value || 0);
                                     const totalPrice = parseFloat(document.getElementById(`day${day}_${section}${fieldSuffix}_total_price`)?.value || 0);
                                     
@@ -3183,7 +3202,7 @@
                                         vehicles_name: vehicle.text,
                                         type: serviceTypeSelect.value || "Private",
                                         travel_type: "travel_hourly",
-                                        adults: parseInt(adultCount) || 0,
+                                        adults: parseInt(adultCount) || 1,
                                         children: parseInt(childCount) || 0,
                                         specialRequests: customerData.specialRequests || null,
                                         image: vehicle.dataset.image || null,
@@ -3261,7 +3280,9 @@
                                     const pickupZone = field.options[field.selectedIndex];
                                     const dropoffZone = dropoffField.options[dropoffField.selectedIndex];
                                     const vehicle = vehicleSelect.options[vehicleSelect.selectedIndex];
-                                    const adultCount = parseInt(document.getElementById('adults')?.value || 0);
+                                    // Use transport_passengers field if available, otherwise fallback to adults
+                                    const passengersField = document.getElementById(`day${day}_transport_passengers`);
+                                    const adultCount = passengersField ? parseInt(passengersField.value || 1) : parseInt(document.getElementById('adults')?.value || 1);
                                     const childCount = parseInt(document.getElementById('children')?.value || 0);
                                     
                                     // Handle total price field for both static and dynamic
@@ -9235,6 +9256,11 @@ document.addEventListener('DOMContentLoaded', function() {
 
             if (!names.length || grandTotal === 0) {
                 headerSpan.textContent = '';
+                // Update right side price display to 0
+                const restaurantTotalPriceEl = document.getElementById('restaurantTotalPrice');
+                if (restaurantTotalPriceEl) {
+                    restaurantTotalPriceEl.textContent = 'SGD 0.00';
+                }
                 return;
             }
 
@@ -9256,7 +9282,14 @@ document.addEventListener('DOMContentLoaded', function() {
                 maximumFractionDigits: 2
             });
 
-            headerSpan.textContent = `– ${nameSummary} • SGD ${formattedTotal}`;
+            // Only show names in header, price is shown on right side
+            headerSpan.textContent = `– ${nameSummary}`;
+            
+            // Update right side price display
+            const restaurantTotalPriceEl = document.getElementById('restaurantTotalPrice');
+            if (restaurantTotalPriceEl) {
+                restaurantTotalPriceEl.textContent = `SGD ${formattedTotal}`;
+            }
         } catch (e) {
             console.error('Error updating restaurant section summary:', e);
         }
@@ -12982,10 +13015,35 @@ document.addEventListener('DOMContentLoaded', function() {
                  }
                  
                 const totalPrice = selectedHotels.reduce((sum, h) => {
-                    const priceNum = parseFloat(h.price) || 0;
-                    const numRooms = parseInt(h.numberOfRooms) || 1;
-                    // Multiply price by number of rooms to get total price
-                    return sum + (priceNum * numRooms);
+                    // Calculate room cost
+                    const roomCost = (parseFloat(h.price) || 0) * (parseInt(h.numberOfRooms) || 1);
+                    
+                    // Calculate meal costs based on meal plan, guest count, and number of rooms
+                    let mealCost = 0;
+                    if (typeof window.calculateCorrectMealCosts === 'function') {
+                        mealCost = window.calculateCorrectMealCosts(h.mealPlan, h.totalNights || 1, h.selectedPersons || 1, 0, h.mealPrices, h.numberOfRooms || 1);
+                    } else {
+                        // Fallback calculation if function not available
+                        const totalGuests = h.selectedPersons || 1;
+                        if (h.mealPrices && typeof h.mealPrices === 'object') {
+                            if (h.mealPlan && (h.mealPlan.includes('breakfast') || h.mealPlan.includes('bf'))) {
+                                mealCost += (parseFloat(h.mealPrices.breakfast_price) || 0) * totalGuests * (h.totalNights || 1) * (h.numberOfRooms || 1);
+                            }
+                            if (h.mealPlan && h.mealPlan.includes('lunch')) {
+                                mealCost += (parseFloat(h.mealPrices.lunch_price) || 0) * totalGuests * (h.totalNights || 1) * (h.numberOfRooms || 1);
+                            }
+                            if (h.mealPlan && h.mealPlan.includes('dinner')) {
+                                mealCost += (parseFloat(h.mealPrices.dinner_price) || 0) * totalGuests * (h.totalNights || 1) * (h.numberOfRooms || 1);
+                            }
+                        }
+                    }
+                    
+                    // Calculate extra bed cost
+                    const extraBedCost = (h.extraBedPrice && h.extraBedPrice > 0 && h.selectedPersons > h.maxOccupancy) ? 
+                        h.extraBedPrice * (h.selectedPersons - h.maxOccupancy) * (h.numberOfRooms || 1) * (h.totalNights || 1) : 0;
+                    
+                    // Total price includes room cost + meal cost + extra bed cost
+                    return sum + roomCost + mealCost + extraBedCost;
                 }, 0);
                  
                  const formattedPrice = totalPrice.toLocaleString('en-US', {
@@ -13033,25 +13091,25 @@ document.addEventListener('DOMContentLoaded', function() {
             if (day === 1) {
                 servicesHTML += `
                       <div class="accordion-item border-0 mb-4">
-                          <div class="card shadow-sm border-0 overflow-hidden">
-                              <div class="card-header text-dark d-flex justify-content-between align-items-center" role="button" data-bs-toggle="collapse" data-bs-target="#arrivalTransportSection" aria-expanded="false" aria-controls="arrivalTransportSection" style="cursor: pointer; background: linear-gradient(135deg, #dbeafe 0%, #bfdbfe 100%); border: 1px solid #60a5fa; transition: all 0.3s ease;">
+                          <div class="card shadow-sm border-0">
+                              <div class="card-header text-dark d-flex justify-content-between align-items-center" role="button" data-bs-toggle="collapse" data-bs-target="#arrivalTransportSection" aria-expanded="false" aria-controls="arrivalTransportSection" style="cursor: pointer; background: linear-gradient(135deg, #dbeafe 0%, #bfdbfe 100%); border: 1px solid #60a5fa; padding: 0.875rem 1.25rem; transition: all 0.3s ease;">
                                   <div class="d-flex align-items-center flex-grow-1">
-                                      <span class="service-icon me-3 d-flex align-items-center justify-content-center rounded-circle" style="width: 45px; height: 45px; background: linear-gradient(135deg, #3b82f6 0%, #2563eb 100%); color: white;">
-                                          <i class="ri-login-circle-line fs-5"></i>
+                                      <span class="service-icon me-3 d-flex align-items-center justify-content-center rounded-circle" style="width: 35px; height: 35px; background: linear-gradient(135deg, #3b82f6 0%, #2563eb 100%); color: white;">
+                                          <i class="ri-login-circle-line" style="font-size: 1rem;"></i>
                                       </span>
                                       <div class="flex-grow-1">
-                                          <h6 class="mb-0 fw-bold text-dark">🚌 Arrival Transport Services</h6>
-                                          <small class="text-muted d-block">
-                                              <span id="day${day}_arrival_vehicle_name" style="font-weight: 600; color: #3b82f6;">No vehicle selected</span>
+                                          <h6 class="mb-0 fw-semibold text-dark" style="font-size: 0.85rem;">🚌 Arrival Transport Services</h6>
+                                          <small class="text-muted d-block" style="font-size: 0.75rem;">
+                                              <span id="day${day}_arrival_vehicle_name" style="font-weight: 500; color: #3b82f6;">No vehicle selected</span>
                                           </small>
                                       </div>
                                   </div>
                                   <div class="d-flex align-items-center ms-3">
                                       <div class="text-end me-3">
-                                          <div class="fw-bold text-dark" style="font-size: 1.1rem;" id="day${day}_arrival_total_price">$0.00</div>
-                                          <small class="text-muted" style="font-size: 0.75rem;">Total Price</small>
+                                          <div class="fw-semibold text-dark" style="font-size: 0.85rem;" id="day${day}_arrival_total_price">SGD 0.00</div>
+                                          <small class="text-muted" style="font-size: 0.7rem;">Total Price</small>
                                       </div>
-                                      <i class="ri-arrow-down-s-line fs-5 transition-transform"></i>
+                                      <i class="ri-arrow-down-s-line transition-transform" style="color: #3b82f6; font-size: 0.9rem;"></i>
                                   </div>
                               </div>
                               <div id="arrivalTransportSection" class="collapse">
@@ -13313,25 +13371,25 @@ document.addEventListener('DOMContentLoaded', function() {
               if (day === totalDays && totalDays > 1) {
                                    servicesHTML += `
                       <div class="accordion-item border-0 mb-4">
-                          <div class="card shadow-sm border-0 overflow-hidden">
-                              <div class="card-header text-dark d-flex justify-content-between align-items-center" role="button" data-bs-toggle="collapse" data-bs-target="#departureTransportSection" aria-expanded="false" aria-controls="departureTransportSection" style="cursor: pointer; background: linear-gradient(135deg, #dbeafe 0%, #bfdbfe 100%); border: 1px solid #60a5fa; transition: all 0.3s ease;">
+                          <div class="card shadow-sm border-0 ">
+                              <div class="card-header text-dark d-flex justify-content-between align-items-center" role="button" data-bs-toggle="collapse" data-bs-target="#departureTransportSection" aria-expanded="false" aria-controls="departureTransportSection" style="cursor: pointer; background: linear-gradient(135deg, #dbeafe 0%, #bfdbfe 100%); border: 1px solid #60a5fa; padding: 0.875rem 1.25rem; transition: all 0.3s ease;">
                                   <div class="d-flex align-items-center flex-grow-1">
-                                      <span class="service-icon me-3 d-flex align-items-center justify-content-center rounded-circle" style="width: 45px; height: 45px; background: linear-gradient(135deg, #3b82f6 0%, #2563eb 100%); color: white;">
-                                          <i class="ri-logout-circle-line fs-5"></i>
+                                      <span class="service-icon me-3 d-flex align-items-center justify-content-center rounded-circle" style="width: 35px; height: 35px; background: linear-gradient(135deg, #3b82f6 0%, #2563eb 100%); color: white;">
+                                          <i class="ri-logout-circle-line" style="font-size: 1rem;"></i>
                                       </span>
                                       <div class="flex-grow-1">
-                                          <h6 class="mb-0 fw-bold text-dark">✈️ Departure Transport Services</h6>
-                                          <small class="text-muted d-block">
-                                              <span id="day${day}_departure_vehicle_name" style="font-weight: 600; color: #3b82f6;">No vehicle selected</span>
+                                          <h6 class="mb-0 fw-semibold text-dark" style="font-size: 0.85rem;">✈️ Departure Transport Services</h6>
+                                          <small class="text-muted d-block" style="font-size: 0.75rem;">
+                                              <span id="day${day}_departure_vehicle_name" style="font-weight: 500; color: #3b82f6;">No vehicle selected</span>
                                           </small>
                                       </div>
                                   </div>
                                   <div class="d-flex align-items-center ms-3">
                                       <div class="text-end me-3">
-                                          <div class="fw-bold text-dark" style="font-size: 1.1rem;" id="day${day}_departure_total_price">$0.00</div>
-                                          <small class="text-muted" style="font-size: 0.75rem;">Total Price</small>
+                                          <div class="fw-semibold text-dark" style="font-size: 0.85rem;" id="day${day}_departure_total_price">SGD 0.00</div>
+                                          <small class="text-muted" style="font-size: 0.7rem;">Total Price</small>
                                       </div>
-                                      <i class="ri-arrow-down-s-line fs-5 transition-transform"></i>
+                                      <i class="ri-arrow-down-s-line transition-transform" style="color: #3b82f6; font-size: 0.9rem;"></i>
                                   </div>
                               </div>
                               <div id="departureTransportSection" class="collapse">
@@ -13600,21 +13658,27 @@ document.addEventListener('DOMContentLoaded', function() {
                   <div class="services-container">
                       <!-- Attraction Tickets -->
                       <div class="accordion-item border-0 mb-4">
-                          <div class="card shadow-sm border-0 overflow-hidden">
-                              <div class="card-header text-dark d-flex justify-content-between align-items-center" role="button" data-bs-toggle="collapse" data-bs-target="#allAttractionsSection" aria-expanded="false" aria-controls="allAttractionsSection" style="cursor: pointer; background: linear-gradient(135deg, #f3e8ff 0%, #e9d5ff 100%); border: 1px solid #c084fc; transition: all 0.3s ease;">
+                          <div class="card shadow-sm border-0 ">
+                              <div class="card-header text-dark d-flex justify-content-between align-items-center" role="button" data-bs-toggle="collapse" data-bs-target="#allAttractionsSection" aria-expanded="false" aria-controls="allAttractionsSection" style="cursor: pointer; background: linear-gradient(135deg, #f3e8ff 0%, #e9d5ff 100%); border: 1px solid #c084fc; padding: 0.875rem 1.25rem; transition: all 0.3s ease;">
                                   <div class="d-flex align-items-center">
-                                      <span class="service-icon me-3 d-flex align-items-center justify-content-center rounded-circle" style="width: 45px; height: 45px; background: linear-gradient(135deg, #a855f7 0%, #9333ea 100%); color: white;">
-                                          <i class="ri-ticket-line fs-5"></i>
+                                      <span class="service-icon me-3 d-flex align-items-center justify-content-center rounded-circle" style="width: 35px; height: 35px; background: linear-gradient(135deg, #a855f7 0%, #9333ea 100%); color: white;">
+                                          <i class="ri-ticket-line" style="font-size: 1rem;"></i>
                                       </span>
                                      <div>
-                                         <h6 class="mb-0 fw-bold text-dark">
+                                         <h6 class="mb-0 fw-semibold text-dark" style="font-size: 0.85rem;">
                                              🎫 All Attraction Tickets
-                                             <span id="attractionHeaderSummary" class="fw-normal" style="font-size: 0.95rem; margin-left: 8px;"></span>
+                                             <span id="attractionHeaderSummary" class="fw-normal" style="font-size: 0.8rem; margin-left: 6px;"></span>
                                          </h6>
-                                         <small class="text-muted d-block">All attractions from all days in one place</small>
+                                         <small class="text-muted d-block" style="font-size: 0.75rem;">All attractions from all days in one place</small>
                                      </div>
                                   </div>
-                                  <i class="ri-arrow-down-s-line ms-2 fs-5 transition-transform"></i>
+                                  <div class="d-flex align-items-center ms-3">
+                                      <div class="text-end me-3">
+                                          <div class="fw-semibold text-dark" style="font-size: 0.85rem;" id="attractionTotalPrice">SGD 0.00</div>
+                                          <small class="text-muted" style="font-size: 0.7rem;">Total Price</small>
+                                      </div>
+                                      <i class="ri-arrow-down-s-line transition-transform" style="color: #a855f7; font-size: 0.9rem;"></i>
+                                  </div>
                               </div>
                               <div id="allAttractionsSection" class="collapse">
                                   <div class="card-body bg-light p-4">
@@ -13638,7 +13702,7 @@ document.addEventListener('DOMContentLoaded', function() {
                                              <option value="">Select city first</option>
                                          </select>
                                      </div>
-                                                                         <div class="col-md-3">
+                                    <div class="col-md-3">
                                         <label class="form-label fw-semibold">Select Guests</label>
                                         <div class="guest-selector">
                                             <div class="guest-display p-2 border rounded bg-light">
@@ -13678,6 +13742,7 @@ document.addEventListener('DOMContentLoaded', function() {
                                          <select class="form-select" style="height: 36px; border-radius: 6px; border: 1px solid #dee2e6; font-size: 0.8rem; padding: 0.375rem 0.75rem; line-height: 1.4; overflow: hidden; text-overflow: ellipsis;" name="day${day}_attraction_1_ticket" id="day${day}_attraction_1_ticket" onchange="updateAttractionPricing(${day}, 1)">
                                              <option value="">Select Ticket</option>
                                          </select>
+                                         <small class="text-muted d-block mt-1" style="font-size: 0.75rem;">Price grid updates when you choose a ticket</small>
                                      </div>
                                      <div class="col-md-4">
                                          <label class="form-label fw-semibold mb-1" style="color: #495057; font-size: 0.8rem;">
@@ -13755,6 +13820,62 @@ document.addEventListener('DOMContentLoaded', function() {
                                                      <i class="ri-money-dollar-circle-line me-1"></i>Cost
                                                  </label>
                                                  <input type="number" class="form-control" onwheel="event.preventDefault(); return false;" style="height: 36px; border-radius: 6px; border: 1px solid #dee2e6; font-size: 0.85rem;" name="day${day}_attraction_1_transfer_cost" id="day${day}_attraction_1_transfer_cost" min="0" step="1" placeholder="0.00" onchange="updateAttractionTransportPricing(${day}, 1)" oninput="updateAttractionTransportPricing(${day}, 1)">
+                                             </div>
+                                             <div class="col-md-3">
+                                                 <label class="form-label fw-semibold mb-1" style="color: #495057; font-size: 0.8rem;">
+                                                     <i class="ri-time-line me-1"></i>Pickup Time (24hr)
+                                                 </label>
+                                                 <select class="form-select" style="height: 36px; border-radius: 6px; border: 1px solid #dee2e6; font-size: 0.8rem; padding: 0.375rem 0.75rem; line-height: 1.4; overflow: hidden; text-overflow: ellipsis;" name="day${day}_attraction_1_transfer_pickup_time" id="day${day}_attraction_1_transfer_pickup_time">
+                                                     <option value="">Select Pickup Time</option>
+                                                     <option value="00:00">00:00</option>
+                                                     <option value="00:30">00:30</option>
+                                                     <option value="01:00">01:00</option>
+                                                     <option value="01:30">01:30</option>
+                                                     <option value="02:00">02:00</option>
+                                                     <option value="02:30">02:30</option>
+                                                     <option value="03:00">03:00</option>
+                                                     <option value="03:30">03:30</option>
+                                                     <option value="04:00">04:00</option>
+                                                     <option value="04:30">04:30</option>
+                                                     <option value="05:00">05:00</option>
+                                                     <option value="05:30">05:30</option>
+                                                     <option value="06:00">06:00</option>
+                                                     <option value="06:30">06:30</option>
+                                                     <option value="07:00">07:00</option>
+                                                     <option value="07:30">07:30</option>
+                                                     <option value="08:00">08:00</option>
+                                                     <option value="08:30">08:30</option>
+                                                     <option value="09:00">09:00</option>
+                                                     <option value="09:30">09:30</option>
+                                                     <option value="10:00">10:00</option>
+                                                     <option value="10:30">10:30</option>
+                                                     <option value="11:00">11:00</option>
+                                                     <option value="11:30">11:30</option>
+                                                     <option value="12:00">12:00</option>
+                                                     <option value="12:30">12:30</option>
+                                                     <option value="13:00">13:00</option>
+                                                     <option value="13:30">13:30</option>
+                                                     <option value="14:00">14:00</option>
+                                                     <option value="14:30">14:30</option>
+                                                     <option value="15:00">15:00</option>
+                                                     <option value="15:30">15:30</option>
+                                                     <option value="16:00">16:00</option>
+                                                     <option value="16:30">16:30</option>
+                                                     <option value="17:00">17:00</option>
+                                                     <option value="17:30">17:30</option>
+                                                     <option value="18:00">18:00</option>
+                                                     <option value="18:30">18:30</option>
+                                                     <option value="19:00">19:00</option>
+                                                     <option value="19:30">19:30</option>
+                                                     <option value="20:00">20:00</option>
+                                                     <option value="20:30">20:30</option>
+                                                     <option value="21:00">21:00</option>
+                                                     <option value="21:30">21:30</option>
+                                                     <option value="22:00">22:00</option>
+                                                     <option value="22:30">22:30</option>
+                                                     <option value="23:00">23:00</option>
+                                                     <option value="23:30">23:30</option>
+                                                 </select>
                                              </div>
                                          </div>
                                      </div>
@@ -13938,21 +14059,27 @@ document.addEventListener('DOMContentLoaded', function() {
                      
                     <!-- Tour Guide Services -->
                       <div class="accordion-item border-0 mb-4">
-                          <div class="card shadow-sm border-0 overflow-hidden">
-                              <div class="card-header text-dark d-flex justify-content-between align-items-center" role="button" data-bs-toggle="collapse" data-bs-target="#allGuidesSection" aria-expanded="false" aria-controls="allGuidesSection" style="cursor: pointer; background: linear-gradient(135deg, #d1fae5 0%, #a7f3d0 100%); border: 1px solid #34d399; transition: all 0.3s ease;">
+                          <div class="card shadow-sm border-0 ">
+                              <div class="card-header text-dark d-flex justify-content-between align-items-center" role="button" data-bs-toggle="collapse" data-bs-target="#allGuidesSection" aria-expanded="false" aria-controls="allGuidesSection" style="cursor: pointer; background: linear-gradient(135deg, #d1fae5 0%, #a7f3d0 100%); border: 1px solid #34d399; padding: 0.875rem 1.25rem; transition: all 0.3s ease;">
                                   <div class="d-flex align-items-center">
-                                     <span class="service-icon me-3 d-flex align-items-center justify-content-center rounded-circle" style="width: 45px; height: 45px; background: linear-gradient(135deg, #10b981 0%, #059669 100%); color: white;">
-                                         <i class="ri-user-star-line fs-5"></i>
+                                     <span class="service-icon me-3 d-flex align-items-center justify-content-center rounded-circle" style="width: 35px; height: 35px; background: linear-gradient(135deg, #10b981 0%, #059669 100%); color: white;">
+                                         <i class="ri-user-star-line" style="font-size: 1rem;"></i>
                                      </span>
                                      <div>
-                                         <h6 class="mb-0 fw-bold text-dark">
+                                         <h6 class="mb-0 fw-semibold text-dark" style="font-size: 0.85rem;">
                                              👤 All Tour Guide Services
-                                             <span id="guideHeaderSummary" class="fw-normal" style="font-size: 0.95rem; margin-left: 8px;"></span>
+                                             <span id="guideHeaderSummary" class="fw-normal" style="font-size: 0.8rem; margin-left: 6px;"></span>
                                          </h6>
-                                         <small class="text-muted d-block">All guides from all days in one place</small>
+                                         <small class="text-muted d-block" style="font-size: 0.75rem;">All guides from all days in one place</small>
                                      </div>
                                   </div>
-                                  <i class="ri-arrow-down-s-line ms-2 fs-5 transition-transform"></i>
+                                  <div class="d-flex align-items-center ms-3">
+                                      <div class="text-end me-3">
+                                          <div class="fw-semibold text-dark" style="font-size: 0.85rem;" id="guideTotalPrice">SGD 0.00</div>
+                                          <small class="text-muted" style="font-size: 0.7rem;">Total Price</small>
+                                      </div>
+                                      <i class="ri-arrow-down-s-line transition-transform" style="color: #10b981; font-size: 0.9rem;"></i>
+                                  </div>
                               </div>
                               <div id="allGuidesSection" class="collapse">
                                   <div class="card-body bg-light p-4">
@@ -14116,21 +14243,27 @@ document.addEventListener('DOMContentLoaded', function() {
                      
                      <!-- Restaurant Services -->
                      <div class="accordion-item border-0 mb-4">
-                         <div class="card shadow-sm border-0 overflow-hidden">
-                             <div class="card-header text-dark d-flex justify-content-between align-items-center" role="button" data-bs-toggle="collapse" data-bs-target="#restaurantServicesSection" aria-expanded="false" aria-controls="restaurantServicesSection" style="cursor: pointer; background: linear-gradient(135deg, #fef3c7 0%, #fde68a 100%); border: 1px solid #fbbf24; transition: all 0.3s ease;">
+                         <div class="card shadow-sm border-0">
+                             <div class="card-header text-dark d-flex justify-content-between align-items-center" role="button" data-bs-toggle="collapse" data-bs-target="#restaurantServicesSection" aria-expanded="false" aria-controls="restaurantServicesSection" style="cursor: pointer; background: linear-gradient(135deg, #fef3c7 0%, #fde68a 100%); border: 1px solid #fbbf24; padding: 0.875rem 1.25rem; transition: all 0.3s ease;">
                                  <div class="d-flex align-items-center">
-                                    <span class="service-icon me-3 d-flex align-items-center justify-content-center rounded-circle" style="width: 45px; height: 45px; background: linear-gradient(135deg, #f59e0b 0%, #d97706 100%); color: white;">
-                                        <i class="ri-restaurant-2-line fs-5"></i>
+                                    <span class="service-icon me-3 d-flex align-items-center justify-content-center rounded-circle" style="width: 35px; height: 35px; background: linear-gradient(135deg, #f59e0b 0%, #d97706 100%); color: white;">
+                                        <i class="ri-restaurant-2-line" style="font-size: 1rem;"></i>
                                     </span>
                                     <div>
-                                        <h6 class="mb-0 fw-bold text-dark">
+                                        <h6 class="mb-0 fw-semibold text-dark" style="font-size: 0.85rem;">
                                             🍽️ All Restaurant Services
-                                            <span id="restaurantHeaderSummary" class="fw-normal" style="font-size: 0.95rem; margin-left: 8px;"></span>
+                                            <span id="restaurantHeaderSummary" class="fw-normal" style="font-size: 0.8rem; margin-left: 6px;"></span>
                                         </h6>
-                                        <small class="text-muted d-block">All restaurants from all days in one place</small>
+                                        <small class="text-muted d-block" style="font-size: 0.75rem;">All restaurants from all days in one place</small>
                                     </div>
                                  </div>
-                                 <i class="ri-arrow-down-s-line ms-2 fs-5 transition-transform"></i>
+                                 <div class="d-flex align-items-center ms-3">
+                                     <div class="text-end me-3">
+                                         <div class="fw-semibold text-dark" style="font-size: 0.85rem;" id="restaurantTotalPrice">SGD 0.00</div>
+                                         <small class="text-muted" style="font-size: 0.7rem;">Total Price</small>
+                                     </div>
+                                     <i class="ri-arrow-down-s-line transition-transform" style="color: #f59e0b; font-size: 0.9rem;"></i>
+                                 </div>
                              </div>
                              <div id="restaurantServicesSection" class="collapse">
                                  <div class="card-body bg-light p-4">
@@ -14299,6 +14432,65 @@ document.addEventListener('DOMContentLoaded', function() {
                                                                  </label>
                                                                  <input type="number" class="form-control" onwheel="event.preventDefault(); return false;" style="height: 36px; border-radius: 6px; border: 1px solid #dee2e6; font-size: 0.8rem; padding: 0.375rem 0.75rem;" name="day${day}_restaurant_1_transfer_cost" id="day${day}_restaurant_1_transfer_cost" min="0" step="1" placeholder="0.00" onchange="updateRestaurantTransportPricing(${day}, 1)" oninput="updateRestaurantTransportPricing(${day}, 1)">
                                                              </div>
+                                                             <div class="col-md-3">
+                                                                 <label class="form-label fw-semibold mb-1" style="color: #495057; font-size: 0.8rem;">
+                                                                     <i class="ri-time-line me-1"></i>Pickup Time (24hr)
+                                                                 </label>
+                                                                 <select class="form-select" style="height: 36px; border-radius: 6px; border: 1px solid #dee2e6; font-size: 0.8rem; padding: 0.375rem 0.75rem; line-height: 1.4; overflow: hidden; text-overflow: ellipsis;" name="day${day}_restaurant_1_transfer_pickup_time" id="day${day}_restaurant_1_transfer_pickup_time">
+                                                                     <option value="">Select Pickup Time</option>
+                                                                     <option value="00:00">00:00</option>
+                                                                     <option value="00:30">00:30</option>
+                                                                     <option value="01:00">01:00</option>
+                                                                     <option value="01:30">01:30</option>
+                                                                     <option value="02:00">02:00</option>
+                                                                     <option value="02:30">02:30</option>
+                                                                     <option value="03:00">03:00</option>
+                                                                     <option value="03:30">03:30</option>
+                                                                     <option value="04:00">04:00</option>
+                                                                     <option value="04:30">04:30</option>
+                                                                     <option value="05:00">05:00</option>
+                                                                     <option value="05:30">05:30</option>
+                                                                     <option value="06:00">06:00</option>
+                                                                     <option value="06:30">06:30</option>
+                                                                     <option value="07:00">07:00</option>
+                                                                     <option value="07:30">07:30</option>
+                                                                     <option value="08:00">08:00</option>
+                                                                     <option value="08:30">08:30</option>
+                                                                     <option value="09:00">09:00</option>
+                                                                     <option value="09:30">09:30</option>
+                                                                     <option value="10:00">10:00</option>
+                                                                     <option value="10:30">10:30</option>
+                                                                     <option value="11:00">11:00</option>
+                                                                     <option value="11:30">11:30</option>
+                                                                     <option value="12:00">12:00</option>
+                                                                     <option value="12:30">12:30</option>
+                                                                     <option value="13:00">13:00</option>
+                                                                     <option value="13:30">13:30</option>
+                                                                     <option value="14:00">14:00</option>
+                                                                     <option value="14:30">14:30</option>
+                                                                     <option value="15:00">15:00</option>
+                                                                     <option value="15:30">15:30</option>
+                                                                     <option value="16:00">16:00</option>
+                                                                     <option value="16:30">16:30</option>
+                                                                     <option value="17:00">17:00</option>
+                                                                     <option value="17:30">17:30</option>
+                                                                     <option value="18:00">18:00</option>
+                                                                     <option value="18:30">18:30</option>
+                                                                     <option value="19:00">19:00</option>
+                                                                     <option value="19:30">19:30</option>
+                                                                     <option value="20:00">20:00</option>
+                                                                     <option value="20:30">20:30</option>
+                                                                     <option value="21:00">21:00</option>
+                                                                     <option value="21:30">21:30</option>
+                                                                     <option value="22:00">22:00</option>
+                                                                     <option value="22:30">22:30</option>
+                                                                     <option value="23:00">23:00</option>
+                                                                     <option value="23:30">23:30</option>
+                                                                 </select>
+                                                                 <small class="form-text text-muted mt-1" style="font-size: 0.75rem;">
+                                                                     <i class="ri-information-line me-1"></i>24-hour format (HH:mm)
+                                                                 </small>
+                                                             </div>
                                                          </div>
                                                      </div>
                                                  </div>
@@ -14401,25 +14593,25 @@ document.addEventListener('DOMContentLoaded', function() {
                      
                      <!-- Other Transport Services -->
                      <div class="accordion-item border-0 mb-4">
-                         <div class="card shadow-sm border-0 overflow-hidden">
-                             <div class="card-header text-dark d-flex justify-content-between align-items-center" role="button" data-bs-toggle="collapse" data-bs-target="#otherTransportSection" aria-expanded="false" aria-controls="otherTransportSection" style="cursor: pointer; background: linear-gradient(135deg, #ccfbf1 0%, #99f6e4 100%); border: 1px solid #5eead4; transition: all 0.3s ease;">
+                         <div class="card shadow-sm border-0">
+                             <div class="card-header text-dark d-flex justify-content-between align-items-center" role="button" data-bs-toggle="collapse" data-bs-target="#otherTransportSection" aria-expanded="false" aria-controls="otherTransportSection" style="cursor: pointer; background: linear-gradient(135deg, #ccfbf1 0%, #99f6e4 100%); border: 1px solid #5eead4; padding: 0.875rem 1.25rem; transition: all 0.3s ease;">
                                  <div class="d-flex align-items-center flex-grow-1">
-                                     <span class="service-icon me-3 d-flex align-items-center justify-content-center rounded-circle" style="width: 45px; height: 45px; background: linear-gradient(135deg, #14b8a6 0%, #0d9488 100%); color: white;">
-                                         <i class="ri-car-line fs-5"></i>
+                                     <span class="service-icon me-3 d-flex align-items-center justify-content-center rounded-circle" style="width: 35px; height: 35px; background: linear-gradient(135deg, #14b8a6 0%, #0d9488 100%); color: white;">
+                                         <i class="ri-car-line" style="font-size: 1rem;"></i>
                                      </span>
                                      <div class="flex-grow-1">
-                                         <h6 class="mb-0 fw-bold text-dark">🚗 Other Transport Services</h6>
-                                         <small class="text-muted d-block">
-                                             <span id="day${day}_other_transport_vehicle_name" style="font-weight: 600; color: #14b8a6;">No vehicle selected</span>
+                                         <h6 class="mb-0 fw-semibold text-dark" style="font-size: 0.85rem;">🚗 Other Transport Services</h6>
+                                         <small class="text-muted d-block" style="font-size: 0.75rem;">
+                                             <span id="day${day}_other_transport_vehicle_name" style="font-weight: 500; color: #14b8a6;">No vehicle selected</span>
                                          </small>
                                      </div>
                                  </div>
                                  <div class="d-flex align-items-center ms-3">
                                      <div class="text-end me-3">
-                                         <div class="fw-bold text-dark" style="font-size: 1.1rem;" id="day${day}_other_transport_total_price">$0.00</div>
-                                         <small class="text-muted" style="font-size: 0.75rem;">Total Price</small>
+                                         <div class="fw-semibold text-dark" style="font-size: 0.85rem;" id="day${day}_other_transport_total_price">SGD 0.00</div>
+                                         <small class="text-muted" style="font-size: 0.7rem;">Total Price</small>
                                      </div>
-                                     <i class="ri-arrow-down-s-line fs-5 transition-transform"></i>
+                                     <i class="ri-arrow-down-s-line transition-transform" style="color: #14b8a6; font-size: 0.9rem;"></i>
                                  </div>
                              </div>
                              <div id="otherTransportSection" class="collapse">
@@ -14702,10 +14894,10 @@ document.addEventListener('DOMContentLoaded', function() {
                                         </div>
                                     </div>
 
-                                    <!-- Vehicle + Service Type in one row -->
+                                    <!-- Vehicle + Service Type + Passengers in one row -->
                                     <div class="col-12">
                                         <div class="row g-3">
-                                            <div class="col-md-4">
+                                            <div class="col-md-3">
                                                 <label class="form-label fw-semibold">Vehicle</label>
                                                 <select class="form-select vehicle-select" style="height: 42px; font-size: 0.735rem;" 
                                                         id="day${day}_transport_vehicle_id"
@@ -14715,7 +14907,7 @@ document.addEventListener('DOMContentLoaded', function() {
                                                 </select>
                                             </div>
 
-                                            <div class="col-md-4">
+                                            <div class="col-md-3">
                                                 <label class="form-label fw-semibold">Service Type</label>
                                                 <select class="form-select" style="height: 42px; font-size: 0.735rem;" 
                                                         id="day${day}_transport_service_type"
@@ -14726,8 +14918,26 @@ document.addEventListener('DOMContentLoaded', function() {
                                                     <option value="Private">Private</option>
                                                 </select>
                                             </div>
+                                            
+                                            <div class="col-md-3">
+                                                <label class="form-label fw-semibold">Number of Passengers</label>
+                                                <div class="input-group shadow-sm">
+                                                    <span class="input-group-text" style="background: linear-gradient(135deg, #3b82f6 0%, #2563eb 100%); color: white; border: 1px solid #3b82f6; height: 42px; font-size: 0.735rem;">
+                                                        <i class="ri-user-line"></i>
+                                                    </span>
+                                                    <input type="number" class="form-control" id="day${day}_transport_passengers" name="day${day}_transport_passengers" min="1" max="50" value="1" 
+                                                        oninput="validatePassengerCapacity(${day}, 'transport'); updatePricing(${day}, 'transport'); updateTransportDataField();"
+                                                        onchange="validatePassengerCapacity(${day}, 'transport'); updatePricing(${day}, 'transport'); updateTransportDataField();" 
+                                                        onwheel="event.preventDefault(); return false;"
+                                                        style="border: 1px solid #e5e7eb; height: 42px; font-size: 0.735rem;">
+                                                </div>
+                                                <small class="form-text text-muted mt-1">
+                                                    <i class="ri-information-line me-1"></i>Enter number of passengers (adults)
+                                                </small>
+                                            </div>
+                                            
                                               <!-- Price Field for Point to Point -->
-                                        <div class="col-md-4 point-to-point-price-field" id="day${day}_transport_price_field" style="display: none;">
+                                        <div class="col-md-3 point-to-point-price-field" id="day${day}_transport_price_field" style="display: none;">
                                           
                                                 <div class="form-group">
                                                     <label class="form-label fw-semibold">Price <span class="text-danger">*</span></label>
@@ -15493,6 +15703,11 @@ document.addEventListener('DOMContentLoaded', function() {
 
             if (!names.length || grandTotal === 0) {
                 headerSpan.textContent = '';
+                // Update right side price display to 0
+                const attractionTotalPriceEl = document.getElementById('attractionTotalPrice');
+                if (attractionTotalPriceEl) {
+                    attractionTotalPriceEl.textContent = 'SGD 0.00';
+                }
                 return;
             }
 
@@ -15515,7 +15730,14 @@ document.addEventListener('DOMContentLoaded', function() {
                 maximumFractionDigits: 2
             });
 
-            headerSpan.textContent = `– ${nameSummary} • SGD ${formattedTotal}`;
+            // Only show names in header, price is shown on right side
+            headerSpan.textContent = `– ${nameSummary}`;
+            
+            // Update right side price display
+            const attractionTotalPriceEl = document.getElementById('attractionTotalPrice');
+            if (attractionTotalPriceEl) {
+                attractionTotalPriceEl.textContent = `SGD ${formattedTotal}`;
+            }
         } catch (e) {
             console.error('Error updating attraction section summary:', e);
         }
@@ -15877,6 +16099,65 @@ document.addEventListener('DOMContentLoaded', function() {
                                     </label>
                                     <input type="number" class="form-control" style="height: 36px; border-radius: 6px; border: 1px solid #dee2e6; font-size: 0.85rem;" name="day${day}_attraction_${newIndex}_transfer_cost" id="day${day}_attraction_${newIndex}_transfer_cost" min="0" step="0.01" placeholder="0.00" onchange="updateAttractionTransportPricing(${day}, ${newIndex})" oninput="updateAttractionTransportPricing(${day}, ${newIndex})">
                                 </div>
+                                <div class="col-md-3">
+                                    <label class="form-label fw-semibold mb-1" style="color: #495057; font-size: 0.8rem;">
+                                        <i class="ri-time-line me-1"></i>Pickup Time (24hr)
+                                    </label>
+                                    <select class="form-select" style="height: 36px; border-radius: 6px; border: 1px solid #dee2e6; font-size: 0.8rem; padding: 0.375rem 0.75rem; line-height: 1.4; overflow: hidden; text-overflow: ellipsis;" name="day${day}_attraction_${newIndex}_transfer_pickup_time" id="day${day}_attraction_${newIndex}_transfer_pickup_time">
+                                        <option value="">Select Pickup Time</option>
+                                        <option value="00:00">00:00</option>
+                                        <option value="00:30">00:30</option>
+                                        <option value="01:00">01:00</option>
+                                        <option value="01:30">01:30</option>
+                                        <option value="02:00">02:00</option>
+                                        <option value="02:30">02:30</option>
+                                        <option value="03:00">03:00</option>
+                                        <option value="03:30">03:30</option>
+                                        <option value="04:00">04:00</option>
+                                        <option value="04:30">04:30</option>
+                                        <option value="05:00">05:00</option>
+                                        <option value="05:30">05:30</option>
+                                        <option value="06:00">06:00</option>
+                                        <option value="06:30">06:30</option>
+                                        <option value="07:00">07:00</option>
+                                        <option value="07:30">07:30</option>
+                                        <option value="08:00">08:00</option>
+                                        <option value="08:30">08:30</option>
+                                        <option value="09:00">09:00</option>
+                                        <option value="09:30">09:30</option>
+                                        <option value="10:00">10:00</option>
+                                        <option value="10:30">10:30</option>
+                                        <option value="11:00">11:00</option>
+                                        <option value="11:30">11:30</option>
+                                        <option value="12:00">12:00</option>
+                                        <option value="12:30">12:30</option>
+                                        <option value="13:00">13:00</option>
+                                        <option value="13:30">13:30</option>
+                                        <option value="14:00">14:00</option>
+                                        <option value="14:30">14:30</option>
+                                        <option value="15:00">15:00</option>
+                                        <option value="15:30">15:30</option>
+                                        <option value="16:00">16:00</option>
+                                        <option value="16:30">16:30</option>
+                                        <option value="17:00">17:00</option>
+                                        <option value="17:30">17:30</option>
+                                        <option value="18:00">18:00</option>
+                                        <option value="18:30">18:30</option>
+                                        <option value="19:00">19:00</option>
+                                        <option value="19:30">19:30</option>
+                                        <option value="20:00">20:00</option>
+                                        <option value="20:30">20:30</option>
+                                        <option value="21:00">21:00</option>
+                                        <option value="21:30">21:30</option>
+                                        <option value="22:00">22:00</option>
+                                        <option value="22:30">22:30</option>
+                                        <option value="23:00">23:00</option>
+                                        <option value="23:30">23:30</option>
+                                    </select>
+                                    <small class="form-text text-muted mt-1" style="font-size: 0.75rem;">
+                                        <i class="ri-information-line me-1"></i>24-hour format (HH:mm)
+                                    </small>
+                                </div>
                             </div>
                         </div>
                     </div>
@@ -15937,9 +16218,10 @@ document.addEventListener('DOMContentLoaded', function() {
                             <input type="hidden" id="day${day}_attraction_${newIndex}_guide_surcharge" name="day${day}_attraction_${newIndex}_guide_surcharge" value="0">
                             <input type="hidden" id="day${day}_attraction_${newIndex}_guide_total_price" name="day${day}_attraction_${newIndex}_guide_total_price" value="0">
                         </div>
-                    </div>
-                    
-                    <!-- Attraction Price Display with 3 columns -->
+                    </div>  
+                </div> 
+            </div>
+            <!-- Attraction Price Display with 3 columns -->
                     <div class="col-12 mt-3">
                         <div id="day${day}_attraction_${newIndex}_price_display" class="card shadow-sm border-0" style="display: none; background: #ffffff; border-radius: 12px; overflow: hidden;">
                             <div class="card-header text-white" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); border: none; padding: 1rem 1.25rem;">
@@ -16040,9 +16322,6 @@ document.addEventListener('DOMContentLoaded', function() {
                             </div>
                         </div>
                     </div>
-                    
-                </div>
-            </div>
         `;
         
         container.insertAdjacentHTML('beforeend', newAttractionHTML);
@@ -17020,16 +17299,22 @@ document.addEventListener('DOMContentLoaded', function() {
                         if (meal.type == 2) icon = '📋 ';
                         
                         option.textContent = `${icon}${meal.display_name || meal.name}`;
+                        option.dataset.type = meal.type || 1; // 1 = buffet, 2 = set menu
                         option.dataset.adultPrice = meal.adult_price || 0;
                         option.dataset.childPrice = meal.child_price || 0;
+                        option.dataset.price = meal.price || 0; // Price field for set menu
                         
                         // Debug logging
                         console.log('Meal data:', {
                             name: meal.name,
+                            type: meal.type,
                             adult_price: meal.adult_price,
                             child_price: meal.child_price,
+                            price: meal.price,
+                            dataset_type: option.dataset.type,
                             dataset_adultPrice: option.dataset.adultPrice,
-                            dataset_childPrice: option.dataset.childPrice
+                            dataset_childPrice: option.dataset.childPrice,
+                            dataset_price: option.dataset.price
                         });
                         
                         dishSelect.appendChild(option);
@@ -17122,15 +17407,22 @@ document.addEventListener('DOMContentLoaded', function() {
             return;
         }
         
+        // Get meal type from the selected dish option (1 = buffet, 2 = set menu)
+        const mealType = parseInt(selectedDish.dataset.type) || 1;
+        
         // Get pricing data from the selected dish option
         let adultPrice = parseFloat(selectedDish.dataset.adultPrice) || 0;
         let childPrice = parseFloat(selectedDish.dataset.childPrice) || 0;
+        let setMenuPrice = parseFloat(selectedDish.dataset.price) || 0; // Price field for set menu
         
         console.log('Dish pricing data:', { 
+            mealType,
             adultPrice, 
             childPrice,
+            setMenuPrice,
             rawAdultPrice: selectedDish.dataset.adultPrice,
             rawChildPrice: selectedDish.dataset.childPrice,
+            rawPrice: selectedDish.dataset.price,
             selectedDish: selectedDish
         });
         
@@ -17150,37 +17442,60 @@ document.addEventListener('DOMContentLoaded', function() {
         
         console.log('Guest counts:', { adults, children });
         
-        if (adults > 0 || children > 0) {
-            const adultTotal = adults * adultPrice;
-            const childTotal = children * childPrice;
-            const totalPrice = adultTotal + childTotal;
+        let totalPrice = 0;
+        let pricingHTML = '';
+        
+        // Check if it's a set menu (type = 2)
+        if (mealType === 2) {
+            // For set menu, use the price field directly
+            totalPrice = setMenuPrice;
             
             priceDisplay.style.display = 'block';
             if (pricingDetailsDisplay) {
-                pricingDetailsDisplay.innerHTML = `
+                pricingHTML = `
                     <div><strong>Restaurant Selected: ${selectedRestaurant.text}</strong></div>
                     <div><strong>Dish: ${selectedDish.text}</strong></div>
-                    ${adults > 0 ? `<div>${adults} Adults × $${adultPrice.toFixed(2)} = $${adultTotal.toFixed(2)}</div>` : ''}
-                    ${children > 0 ? `<div>${children} Children × $${childPrice.toFixed(2)} = $${childTotal.toFixed(2)}</div>` : ''}
+                    <div>Set Menu Price: $${setMenuPrice.toFixed(2)}</div>
                     <div class="mt-2"><strong class="text-success">$${totalPrice.toFixed(2)}</strong></div>
                 `;
+                pricingDetailsDisplay.innerHTML = pricingHTML;
             }
-            
-            // Update hidden total price field
-            const totalPriceField = document.getElementById(`day${day}_restaurant_${index}_total_price`);
-            if (totalPriceField) {
-                totalPriceField.value = totalPrice.toFixed(2);
-            }
-            
-            // Update total display (restaurant + transport)
-            updateRestaurantTotalDisplay(day, index);
-            
-            console.log(`Restaurant pricing updated for day ${day}, index ${index}: Total: $${totalPrice}`);
         } else {
-            priceDisplay.style.display = 'none';
-            // Update total display even when no pricing
-            updateRestaurantTotalDisplay(day, index);
+            // For buffet (type = 1), calculate based on adults and children
+            if (adults > 0 || children > 0) {
+                const adultTotal = adults * adultPrice;
+                const childTotal = children * childPrice;
+                totalPrice = adultTotal + childTotal;
+                
+                priceDisplay.style.display = 'block';
+                if (pricingDetailsDisplay) {
+                    pricingHTML = `
+                        <div><strong>Restaurant Selected: ${selectedRestaurant.text}</strong></div>
+                        <div><strong>Dish: ${selectedDish.text}</strong></div>
+                        ${adults > 0 ? `<div>${adults} Adults × $${adultPrice.toFixed(2)} = $${adultTotal.toFixed(2)}</div>` : ''}
+                        ${children > 0 ? `<div>${children} Children × $${childPrice.toFixed(2)} = $${childTotal.toFixed(2)}</div>` : ''}
+                        <div class="mt-2"><strong class="text-success">$${totalPrice.toFixed(2)}</strong></div>
+                    `;
+                    pricingDetailsDisplay.innerHTML = pricingHTML;
+                }
+            } else {
+                priceDisplay.style.display = 'none';
+                // Update total display even when no pricing
+                updateRestaurantTotalDisplay(day, index);
+                return;
+            }
         }
+        
+        // Update hidden total price field
+        const totalPriceField = document.getElementById(`day${day}_restaurant_${index}_total_price`);
+        if (totalPriceField) {
+            totalPriceField.value = totalPrice.toFixed(2);
+        }
+        
+        // Update total display (restaurant + transport)
+        updateRestaurantTotalDisplay(day, index);
+        
+        console.log(`Restaurant pricing updated for day ${day}, index ${index}: Total: $${totalPrice} (Type: ${mealType === 2 ? 'Set Menu' : 'Buffet'})`);
     }
     
     // Toggle between dish display modes (buttons/dropdown)
@@ -17503,6 +17818,65 @@ document.addEventListener('DOMContentLoaded', function() {
                                         <i class="ri-money-dollar-circle-line me-1"></i>Transfer Cost
                                     </label>
                                     <input type="number" class="form-control" style="height: 36px; border-radius: 6px; border: 1px solid #dee2e6; font-size: 0.8rem; padding: 0.375rem 0.75rem;" name="day${day}_restaurant_${newIndex}_transfer_cost" id="day${day}_restaurant_${newIndex}_transfer_cost" min="0" step="0.01" placeholder="0.00" onchange="updateRestaurantTransportPricing(${day}, ${newIndex})" oninput="updateRestaurantTransportPricing(${day}, ${newIndex})">
+                                </div>
+                                <div class="col-md-3">
+                                    <label class="form-label fw-semibold mb-1" style="color: #495057; font-size: 0.8rem;">
+                                        <i class="ri-time-line me-1"></i>Pickup Time (24hr)
+                                    </label>
+                                    <select class="form-select" style="height: 36px; border-radius: 6px; border: 1px solid #dee2e6; font-size: 0.8rem; padding: 0.375rem 0.75rem; line-height: 1.4; overflow: hidden; text-overflow: ellipsis;" name="day${day}_restaurant_${newIndex}_transfer_pickup_time" id="day${day}_restaurant_${newIndex}_transfer_pickup_time">
+                                        <option value="">Select Pickup Time</option>
+                                        <option value="00:00">00:00</option>
+                                        <option value="00:30">00:30</option>
+                                        <option value="01:00">01:00</option>
+                                        <option value="01:30">01:30</option>
+                                        <option value="02:00">02:00</option>
+                                        <option value="02:30">02:30</option>
+                                        <option value="03:00">03:00</option>
+                                        <option value="03:30">03:30</option>
+                                        <option value="04:00">04:00</option>
+                                        <option value="04:30">04:30</option>
+                                        <option value="05:00">05:00</option>
+                                        <option value="05:30">05:30</option>
+                                        <option value="06:00">06:00</option>
+                                        <option value="06:30">06:30</option>
+                                        <option value="07:00">07:00</option>
+                                        <option value="07:30">07:30</option>
+                                        <option value="08:00">08:00</option>
+                                        <option value="08:30">08:30</option>
+                                        <option value="09:00">09:00</option>
+                                        <option value="09:30">09:30</option>
+                                        <option value="10:00">10:00</option>
+                                        <option value="10:30">10:30</option>
+                                        <option value="11:00">11:00</option>
+                                        <option value="11:30">11:30</option>
+                                        <option value="12:00">12:00</option>
+                                        <option value="12:30">12:30</option>
+                                        <option value="13:00">13:00</option>
+                                        <option value="13:30">13:30</option>
+                                        <option value="14:00">14:00</option>
+                                        <option value="14:30">14:30</option>
+                                        <option value="15:00">15:00</option>
+                                        <option value="15:30">15:30</option>
+                                        <option value="16:00">16:00</option>
+                                        <option value="16:30">16:30</option>
+                                        <option value="17:00">17:00</option>
+                                        <option value="17:30">17:30</option>
+                                        <option value="18:00">18:00</option>
+                                        <option value="18:30">18:30</option>
+                                        <option value="19:00">19:00</option>
+                                        <option value="19:30">19:30</option>
+                                        <option value="20:00">20:00</option>
+                                        <option value="20:30">20:30</option>
+                                        <option value="21:00">21:00</option>
+                                        <option value="21:30">21:30</option>
+                                        <option value="22:00">22:00</option>
+                                        <option value="22:30">22:30</option>
+                                        <option value="23:00">23:00</option>
+                                        <option value="23:30">23:30</option>
+                                    </select>
+                                    <small class="form-text text-muted mt-1" style="font-size: 0.75rem;">
+                                        <i class="ri-information-line me-1"></i>24-hour format (HH:mm)
+                                    </small>
                                 </div>
                             </div>
                         </div>
@@ -17938,6 +18312,11 @@ document.addEventListener('DOMContentLoaded', function() {
 
             if (!names.length || grandTotal === 0) {
                 headerSpan.textContent = '';
+                // Update right side price display to 0
+                const guideTotalPriceEl = document.getElementById('guideTotalPrice');
+                if (guideTotalPriceEl) {
+                    guideTotalPriceEl.textContent = 'SGD 0.00';
+                }
                 return;
             }
 
@@ -17959,7 +18338,14 @@ document.addEventListener('DOMContentLoaded', function() {
                 maximumFractionDigits: 2
             });
 
-            headerSpan.textContent = `– ${nameSummary} • SGD ${formattedTotal}`;
+            // Only show names in header, price is shown on right side
+            headerSpan.textContent = `– ${nameSummary}`;
+            
+            // Update right side price display
+            const guideTotalPriceEl = document.getElementById('guideTotalPrice');
+            if (guideTotalPriceEl) {
+                guideTotalPriceEl.textContent = `SGD ${formattedTotal}`;
+            }
         } catch (e) {
             console.error('Error updating guide section summary:', e);
         }
@@ -21439,8 +21825,38 @@ function loadPortsForCity(cityName) {
             console.log(`Added ${ports.length} ports to entry dropoff location`);
         }
         
-        // Add Hotels
-        if (hotelsData.success && hotelsData.hotels && hotelsData.hotels.length > 0) {
+        // Add Hotels - Use selectedHotels instead of API hotels
+        if (typeof selectedHotels !== 'undefined' && Array.isArray(selectedHotels) && selectedHotels.length > 0) {
+            const hotelGroup = document.createElement('optgroup');
+            hotelGroup.label = 'Hotels';
+            
+            selectedHotels.forEach(hotel => {
+                const option = document.createElement('option');
+                const hotelId = hotel.id || hotel.hotel_unique_id;
+                option.value = hotelId;
+                option.textContent = hotel.name;
+                option.setAttribute('data-type', 'Hotel');
+                option.setAttribute('data-hotel', JSON.stringify(hotel));
+                hotelGroup.appendChild(option);
+            });
+            
+            dropoffSelect.appendChild(hotelGroup);
+            console.log(`Added ${selectedHotels.length} selected hotels to entry dropoff`);
+            
+            // Auto-select the last hotel that was added
+            const lastHotel = selectedHotels[selectedHotels.length - 1];
+            const lastHotelId = lastHotel.id || lastHotel.hotel_unique_id;
+            const lastHotelOption = Array.from(dropoffSelect.options).find(opt => {
+                return opt.value === String(lastHotelId) || opt.value === lastHotelId;
+            });
+            
+            if (lastHotelOption) {
+                dropoffSelect.value = lastHotelOption.value;
+                dropoffSelect.dispatchEvent(new Event('change', { bubbles: true }));
+                console.log('Auto-selected last hotel for entry dropoff:', lastHotel.name);
+            }
+        } else if (hotelsData.success && hotelsData.hotels && hotelsData.hotels.length > 0) {
+            // Fallback: use hotels from API if no selectedHotels are available
             const hotelGroup = document.createElement('optgroup');
             hotelGroup.label = 'Hotels';
             
@@ -21454,7 +21870,7 @@ function loadPortsForCity(cityName) {
             });
             
             dropoffSelect.appendChild(hotelGroup);
-            console.log(`Added ${hotelsData.hotels.length} hotels`);
+            console.log(`Added ${hotelsData.hotels.length} hotels from API (fallback)`);
         }
         
         // Add Attractions
@@ -21610,6 +22026,46 @@ function loadExitPortsForCity(cityName) {
         console.log('Successfully loaded all exit port pickup locations for city:', cityName);
         // Enable the pickup dropdown
         pickupSelect.disabled = false;
+        
+        // Automatically select the last selected hotel if available
+        if (typeof selectedHotels !== 'undefined' && selectedHotels && selectedHotels.length > 0) {
+            // Get the last hotel from selectedHotels array
+            const lastHotel = selectedHotels[selectedHotels.length - 1];
+            const lastHotelId = lastHotel.id || lastHotel.hotel_unique_id;
+            const lastHotelName = lastHotel.name;
+            
+            console.log('Attempting to auto-select last hotel for departure pickup:', {
+                hotelId: lastHotelId,
+                hotelName: lastHotelName,
+                city: cityName
+            });
+            
+            // Check if the hotel exists in the dropdown
+            const hotelOption = Array.from(pickupSelect.options).find(opt => {
+                return opt.value === String(lastHotelId) || opt.value === lastHotelId;
+            });
+            
+            if (hotelOption) {
+                pickupSelect.value = hotelOption.value;
+                // Trigger change event to update any dependent fields
+                pickupSelect.dispatchEvent(new Event('change', { bubbles: true }));
+                console.log('Successfully auto-selected last hotel for departure pickup:', lastHotelName);
+            } else {
+                console.log('Last hotel not found in exit port pickup dropdown for city:', cityName);
+            }
+        } else if (lastSelectedHotelId) {
+            // Fallback to lastSelectedHotelId if selectedHotels is not available
+            console.log('Using lastSelectedHotelId for auto-selection:', lastSelectedHotelId);
+            const hotelOption = Array.from(pickupSelect.options).find(opt => {
+                return opt.value === String(lastSelectedHotelId) || opt.value === lastSelectedHotelId;
+            });
+            
+            if (hotelOption) {
+                pickupSelect.value = hotelOption.value;
+                pickupSelect.dispatchEvent(new Event('change', { bubbles: true }));
+                console.log('Successfully auto-selected last hotel using lastSelectedHotelId');
+            }
+        }
         
         // Re-evaluate search button state after loading locations
         enableSearchButton(1, 'exit');
@@ -21827,6 +22283,26 @@ function populateExitPortFields(day) {
             
             if (pickupInput) {
                 pickupInput.addEventListener('input', () => enableSearchButton(day, 'exit'));
+                
+                // Automatically set pickup location to last selected hotel
+                if (typeof selectedHotels !== 'undefined' && selectedHotels && selectedHotels.length > 0) {
+                    const lastHotel = selectedHotels[selectedHotels.length - 1];
+                    const lastHotelName = lastHotel.name;
+                    if (lastHotelName && !pickupInput.value) {
+                        pickupInput.value = lastHotelName;
+                        console.log('Auto-filled exit pickup location with last hotel:', lastHotelName);
+                        // Trigger input event to update search button state
+                        pickupInput.dispatchEvent(new Event('input', { bubbles: true }));
+                    }
+                } else if (lastSelectedHotelId && typeof hotelData !== 'undefined' && hotelData.length > 0) {
+                    // Fallback: find hotel by lastSelectedHotelId
+                    const lastHotel = hotelData.find(h => h.hotel_unique_id == lastSelectedHotelId);
+                    if (lastHotel && lastHotel.name && !pickupInput.value) {
+                        pickupInput.value = lastHotel.name;
+                        console.log('Auto-filled exit pickup location with last hotel (fallback):', lastHotel.name);
+                        pickupInput.dispatchEvent(new Event('input', { bubbles: true }));
+                    }
+                }
             }
             if (dropoffInput) {
                 dropoffInput.addEventListener('input', () => enableSearchButton(day, 'exit'));
@@ -21889,6 +22365,12 @@ function populateExitPortFields(day) {
             
             if (citySelect) {
                 citySelect.addEventListener('change', () => enableSearchButton(day, 'exit'));
+                
+                // If city is already selected, trigger loadExitPortsForCity to populate and auto-select hotel
+                if (citySelect.value) {
+                    console.log('City already selected for exit port, loading locations and auto-selecting hotel...');
+                    loadExitPortsForCity(citySelect.value);
+                }
             }
             if (pickupSelect) {
                 pickupSelect.addEventListener('change', () => enableSearchButton(day, 'exit'));
@@ -22640,6 +23122,58 @@ function loadDropoffZones(day, section) {
             if (hasStaticOptions) {
                 // Already has static options (hotels, attractions, restaurants), just enable it
                 console.log('Entry port dropoff already has static options, enabling...');
+                
+                // Replace hotels with selectedHotels if available
+                if (typeof selectedHotels !== 'undefined' && Array.isArray(selectedHotels) && selectedHotels.length > 0) {
+                    // Remove existing hotel optgroup
+                    const existingHotelGroup = dropoffZoneSelect.querySelector('optgroup[label="Hotels"]');
+                    if (existingHotelGroup) {
+                        existingHotelGroup.remove();
+                    }
+                    
+                    // Add new hotel optgroup with selectedHotels
+                    const hotelGroup = document.createElement('optgroup');
+                    hotelGroup.label = 'Hotels';
+                    
+                    selectedHotels.forEach(hotel => {
+                        const option = document.createElement('option');
+                        const hotelId = hotel.id || hotel.hotel_unique_id;
+                        option.value = hotelId;
+                        option.textContent = hotel.name;
+                        option.setAttribute('data-type', 'Hotel');
+                        option.setAttribute('data-hotel', JSON.stringify(hotel));
+                        hotelGroup.appendChild(option);
+                    });
+                    
+                    // Insert hotel group after ports if ports exist, otherwise at the beginning
+                    const portGroup = dropoffZoneSelect.querySelector('optgroup[label="Ports"]');
+                    if (portGroup) {
+                        dropoffZoneSelect.insertBefore(hotelGroup, portGroup.nextSibling);
+                    } else {
+                        const firstOption = dropoffZoneSelect.querySelector('option[value=""]');
+                        if (firstOption && firstOption.nextSibling) {
+                            dropoffZoneSelect.insertBefore(hotelGroup, firstOption.nextSibling);
+                        } else {
+                            dropoffZoneSelect.appendChild(hotelGroup);
+                        }
+                    }
+                    
+                    console.log(`Replaced hotels with ${selectedHotels.length} selected hotels`);
+                    
+                    // Auto-select the last hotel
+                    const lastHotel = selectedHotels[selectedHotels.length - 1];
+                    const lastHotelId = lastHotel.id || lastHotel.hotel_unique_id;
+                    const lastHotelOption = Array.from(dropoffZoneSelect.options).find(opt => {
+                        return opt.value === String(lastHotelId) || opt.value === lastHotelId;
+                    });
+                    
+                    if (lastHotelOption) {
+                        dropoffZoneSelect.value = lastHotelOption.value;
+                        dropoffZoneSelect.dispatchEvent(new Event('change', { bubbles: true }));
+                        console.log('Auto-selected last hotel for entry dropoff:', lastHotel.name);
+                    }
+                }
+                
                 dropoffZoneSelect.disabled = false;
                 
                 // Update the first option text
@@ -23543,6 +24077,12 @@ function loadDropoffZones(day, section) {
             if (guestCountField) guestCountField.value = totalGuests;
             
             console.log(`Point-to-point service pricing: Custom price $${customPrice} for ${totalGuests} passengers`);
+            
+            // Update other transport header for point-to-point services
+            if (section.startsWith('transport')) {
+                updateOtherTransportHeader(day);
+            }
+            
             return;
         } else {
             // Custom price not entered yet
@@ -23587,6 +24127,32 @@ function loadDropoffZones(day, section) {
                     </div>
                 </div>
             `;
+            
+            // Clear hidden fields when custom price is not entered
+            let basePriceField, totalPriceField, guestCountField;
+            
+            if (section.startsWith('transport')) {
+                if (section === 'transport') {
+                    basePriceField = document.getElementById(`day${day}_transport_base_price`);
+                    totalPriceField = document.getElementById(`day${day}_transport_total_price`);
+                    guestCountField = document.getElementById(`day${day}_transport_guest_count`);
+                } else {
+                    const transportIndex = section.split('_')[1];
+                    basePriceField = document.getElementById(`day${day}_transport_${transportIndex}_base_price`);
+                    totalPriceField = document.getElementById(`day${day}_transport_${transportIndex}_total_price`);
+                    guestCountField = document.getElementById(`day${day}_transport_${transportIndex}_guest_count`);
+                }
+            }
+            
+            if (basePriceField) basePriceField.value = '0';
+            if (totalPriceField) totalPriceField.value = '0';
+            if (guestCountField) guestCountField.value = '0';
+            
+            // Update other transport header even when custom price is not entered (to reset price to $0.00)
+            if (section.startsWith('transport')) {
+                updateOtherTransportHeader(day);
+            }
+            
             return;
         }
     }
@@ -24365,7 +24931,7 @@ window.updateArrivalHeader = function(day) {
             }
             
             if (arrivalTotalPriceEl) {
-                arrivalTotalPriceEl.textContent = `$${totalPrice.toFixed(2)}`;
+                arrivalTotalPriceEl.textContent = `SGD ${totalPrice.toFixed(2)}`;
             }
             return;
         }
@@ -24443,7 +25009,7 @@ window.updateArrivalHeader = function(day) {
     }
     
     if (arrivalTotalPriceEl) {
-        arrivalTotalPriceEl.textContent = `$${totalArrivalPrice.toFixed(2)}`;
+        arrivalTotalPriceEl.textContent = `SGD ${totalArrivalPrice.toFixed(2)}`;
     }
 }
 
@@ -24491,7 +25057,7 @@ window.updateDepartureHeader = function(day) {
             }
             
             if (departureTotalPriceEl) {
-                departureTotalPriceEl.textContent = `$${totalPrice.toFixed(2)}`;
+                departureTotalPriceEl.textContent = `SGD ${totalPrice.toFixed(2)}`;
             }
             return;
         }
@@ -24569,7 +25135,7 @@ window.updateDepartureHeader = function(day) {
     }
     
     if (departureTotalPriceEl) {
-        departureTotalPriceEl.textContent = `$${totalDeparturePrice.toFixed(2)}`;
+        departureTotalPriceEl.textContent = `SGD ${totalDeparturePrice.toFixed(2)}`;
     }
 }
 
@@ -24648,7 +25214,7 @@ window.updateOtherTransportHeader = function(day) {
     }
     
     if (otherTransportTotalPriceEl) {
-        otherTransportTotalPriceEl.textContent = `$${totalTransportPrice.toFixed(2)}`;
+        otherTransportTotalPriceEl.textContent = `SGD ${totalTransportPrice.toFixed(2)}`;
     }
 }
 
@@ -25957,15 +26523,44 @@ window.saveService = function(day, type) {
                          console.log('Zone-assigned locations fetched (new interface):', data.locations.length);
                          dropoffZoneSelect.innerHTML = '<option value="">Select dropoff location</option>';
                          
-                         data.locations.forEach(location => {
-                             const option = document.createElement('option');
-                             option.value = location.id;
-                             option.textContent = `${location.name} (${location.type}) - ${location.location}`;
-                             option.dataset.type = location.type;
-                             option.dataset.latitude = location.latitude || '';
-                             option.dataset.longitude = location.longitude || '';
-                             dropoffZoneSelect.appendChild(option);
-                         });
+                         // Add Hotels from selectedHotels instead of API locations
+                         if (typeof selectedHotels !== 'undefined' && Array.isArray(selectedHotels) && selectedHotels.length > 0) {
+                             selectedHotels.forEach(hotel => {
+                                 const option = document.createElement('option');
+                                 const hotelId = hotel.id || hotel.hotel_unique_id;
+                                 option.value = hotelId;
+                                 option.textContent = `${hotel.name} (hotel)`;
+                                 option.dataset.type = 'hotel';
+                                 option.setAttribute('data-hotel', JSON.stringify(hotel));
+                                 dropoffZoneSelect.appendChild(option);
+                             });
+                             
+                             console.log(`Added ${selectedHotels.length} selected hotels to entry dropoff (new interface)`);
+                             
+                             // Auto-select the last hotel
+                             const lastHotel = selectedHotels[selectedHotels.length - 1];
+                             const lastHotelId = lastHotel.id || lastHotel.hotel_unique_id;
+                             const lastHotelOption = Array.from(dropoffZoneSelect.options).find(opt => {
+                                 return opt.value === String(lastHotelId) || opt.value === lastHotelId;
+                             });
+                             
+                             if (lastHotelOption) {
+                                 dropoffZoneSelect.value = lastHotelOption.value;
+                                 dropoffZoneSelect.dispatchEvent(new Event('change', { bubbles: true }));
+                                 console.log('Auto-selected last hotel for entry dropoff (new interface):', lastHotel.name);
+                             }
+                         } else {
+                             // Fallback: use locations from API if no selectedHotels
+                             data.locations.forEach(location => {
+                                 const option = document.createElement('option');
+                                 option.value = location.id;
+                                 option.textContent = `${location.name} (${location.type}) - ${location.location}`;
+                                 option.dataset.type = location.type;
+                                 option.dataset.latitude = location.latitude || '';
+                                 option.dataset.longitude = location.longitude || '';
+                                 dropoffZoneSelect.appendChild(option);
+                             });
+                         }
                          
                          dropoffZoneSelect.disabled = false;
                      } else {

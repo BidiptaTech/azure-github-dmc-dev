@@ -344,6 +344,7 @@
                             <th>Destination</th>
                             <th>Guests</th>
                             <th>Agent</th>
+                            <th>Created By</th>
                             <th>Services</th>
                             <th>Travel Dates</th>
                             <th>Payment Details</th>
@@ -499,6 +500,11 @@
                                         <i class="fas fa-building me-1"></i>
                                         {{ $tour->agent_company_name ?? 'N/A' }}
                                     </small>
+                                </div>
+                            </td>
+                            <td>
+                                <div class="d-flex flex-column">
+                                    <span class="fw-medium">{{ $tour->created_by_name ?? 'N/A' }}</span>
                                 </div>
                             </td>
                             <td>
@@ -3338,7 +3344,7 @@
                                         <th class="text-center" style="width: 12%; min-width: 100px;">Transaction ID</th>
                                         <th class="text-center" style="width: 10%; min-width: 80px;">Remarks</th>
                                         <th class="text-center" style="width: 8%; min-width: 70px;">Status</th>
-                                        @if(auth()->user()->role_id == 36 || auth()->user()->role_id == 126 || auth()->user()->role_id == 127 || auth()->user()->role_id == 128 || auth()->user()->role_id == 129 || auth()->user()->role_id == 130 || auth()->user()->role_id == 131 || auth()->user()->role_id == 133 || auth()->user()->role_id == 134 || auth()->user()->role_id == 135 || auth()->user()->role_id == 136 || auth()->user()->role_id == 137 || auth()->user()->role_id == 138)
+                                        @if(auth()->user()->role_id == 36 || 33 || 37 || 38 || auth()->user()->role_id == 126 || auth()->user()->role_id == 127 || auth()->user()->role_id == 128 || auth()->user()->role_id == 129 || auth()->user()->role_id == 130 || auth()->user()->role_id == 131 || auth()->user()->role_id == 133 || auth()->user()->role_id == 134 || auth()->user()->role_id == 135 || auth()->user()->role_id == 136 || auth()->user()->role_id == 137 || auth()->user()->role_id == 138)
                                             <th class="text-center" style="width: 8%; min-width: 80px;">Actions</th>
                                         @endif
                                     </tr>
@@ -3381,7 +3387,7 @@
                                                 @endif
                                             </td>
                                             @php
-                                                $financeRoles = [36, 126, 127, 128, 129, 130, 131, 133, 134, 135, 136, 137, 138];
+                                                $financeRoles = [36, 33, 37, 38, 126, 127, 128, 129, 130, 131, 133, 134, 135, 136, 137, 138];
                                             @endphp
                                             @if(in_array(auth()->user()->role_id, $financeRoles))
                                                 <td class="text-center py-2">
@@ -4036,9 +4042,10 @@ function filterTable() {
         const tourDetails = row.cells[1]?.textContent.toLowerCase() || '';
         const destination = row.cells[3]?.querySelector('.fw-medium')?.textContent || '';
         const agent = row.cells[5]?.querySelector('.fw-medium')?.textContent || '';
-        const status = row.cells[9]?.querySelector('.badge')?.textContent.toLowerCase() || '';
-        const travelDates = row.cells[7]?.textContent.toLowerCase() || '';
-        const paymentBadges = row.cells[8]?.querySelectorAll('.badge') || [];
+        const createdBy = row.cells[6]?.querySelector('.fw-medium')?.textContent || '';
+        const status = row.cells[10]?.querySelector('.badge')?.textContent.toLowerCase() || '';
+        const travelDates = row.cells[8]?.textContent.toLowerCase() || '';
+        const paymentBadges = row.cells[9]?.querySelectorAll('.badge') || [];
         const createdAt = row.getAttribute('data-created-at');
         const updatedAt = row.getAttribute('data-updated-at');
         
@@ -4074,7 +4081,11 @@ function filterTable() {
             show = false;
         }
         
-        if (searchTerm && !tourDetails.includes(searchTerm)) {
+        if (searchTerm && 
+            !tourDetails.includes(searchTerm) && 
+            !destination.toLowerCase().includes(searchTerm) && 
+            !agent.toLowerCase().includes(searchTerm) &&
+            !createdBy.toLowerCase().includes(searchTerm)) {
             show = false;
         }
         
