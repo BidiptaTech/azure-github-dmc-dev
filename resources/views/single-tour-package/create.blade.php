@@ -411,32 +411,40 @@
                                         <i class="ri-group-line me-1"></i>Guests
                                     </label>
                                     <div class="guest-selector">
-                                        <div class="guest-display border rounded" style="min-height: 40px; padding: 0.5rem; background: #f8f9fa; border: 1px solid #dee2e6 !important; border-radius: 8px; {{ $enquiry ? 'cursor:not-allowed;opacity:0.8;' : '' }}">
-                                            <div class="d-flex align-items-center justify-content-between">
-                                                <div class="guest-info">
-                                                    <span id="mainGuestSummary" class="text-muted small" style="font-size: 0.85rem; color: #6c757d;">
+                                        <div class="guest-display border rounded d-flex align-items-start justify-content-between" style="min-height: 34px; padding: 0.3rem 0.75rem; background: #f8f9fa; border: 1px solid #dee2e6 !important; border-radius: 8px; {{ $enquiry ? 'cursor:not-allowed;opacity:0.8;' : '' }}">
+                                            <div class="guest-info d-flex flex-column gap-1" style="flex: 1;">
+                                                <span id="mainGuestSummary" class="d-flex flex-column gap-1" style="font-size: 0.8rem;">
+                                                    <span class="d-flex align-items-center gap-1">
                                                         @if($enquiry)
-                                                            {{ $enquiry->adult ?? 1 }} adults ({{ $enquiry->male_count ?? 0 }} male, {{ $enquiry->female_count ?? 0 }} female), {{ $enquiry->child ?? 0 }} children - {{ $enquiry->infant ?? 0 }} infants
+                                                            <span class="badge d-flex align-items-center gap-1" style="background: #667eea; border-radius: 4px; font-size: 0.7rem; padding: 0.2rem 0.4rem;" title="Adults"><i class="ri-group-line" style="font-size: 0.75rem;"></i><span>{{ $enquiry->adult ?? 1 }} Adults</span></span>
+                                                            <span class="badge d-flex align-items-center gap-1" style="background: #667eea; border-radius: 4px; font-size: 0.7rem; padding: 0.2rem 0.4rem; opacity: 0.8;" title="Male"><i class="ri-men-line" style="font-size: 0.75rem;"></i><span>{{ $enquiry->male_count ?? 0 }}</span></span>
+                                                            <span class="badge d-flex align-items-center gap-1" style="background: #667eea; border-radius: 4px; font-size: 0.7rem; padding: 0.2rem 0.4rem; opacity: 0.8;" title="Female"><i class="ri-women-line" style="font-size: 0.75rem;"></i><span>{{ $enquiry->female_count ?? 0 }}</span></span>
                                                         @else
-                                                            1 adults (0 male, 0 female), 0 children - 0 infants
+                                                            <span class="badge d-flex align-items-center gap-1" style="background: #667eea; border-radius: 4px; font-size: 0.7rem; padding: 0.2rem 0.4rem;" title="Adults"><i class="ri-group-line" style="font-size: 0.75rem;"></i><span>1 Adults</span></span>
+                                                            <span class="badge d-flex align-items-center gap-1" style="background: #667eea; border-radius: 4px; font-size: 0.7rem; padding: 0.2rem 0.4rem; opacity: 0.8;" title="Male"><i class="ri-men-line" style="font-size: 0.75rem;"></i><span>0</span></span>
+                                                            <span class="badge d-flex align-items-center gap-1" style="background: #667eea; border-radius: 4px; font-size: 0.7rem; padding: 0.2rem 0.4rem; opacity: 0.8;" title="Female"><i class="ri-women-line" style="font-size: 0.75rem;"></i><span>0</span></span>
                                                         @endif
                                                     </span>
-                                                </div>
-                                                @if(!$enquiry)
-                                                <button type="button" class="btn btn-sm btn-outline-primary" onclick="openMainGuestSelector()" style="border-radius: 6px; padding: 0.25rem 0.5rem;">
-                                                    <i class="ri-edit-line"></i>
-                                                </button>
-                                                @else
-                                                <span class="text-muted small">
-                                                    <i class="ri-lock-line"></i>
+                                                    <span class="d-flex align-items-center gap-1">
+                                                        @if($enquiry)
+                                                            <span class="badge d-flex align-items-center gap-1" style="background: #28a745; border-radius: 4px; font-size: 0.7rem; padding: 0.2rem 0.4rem;" title="Children"><i class="ri-user-smile-line" style="font-size: 0.75rem;"></i><span>{{ $enquiry->child ?? 0 }}</span></span>
+                                                            <span class="badge d-flex align-items-center gap-1" style="background: #ffc107; color: #000; border-radius: 4px; font-size: 0.7rem; padding: 0.2rem 0.4rem;" title="Infants"><i class="ri-user-heart-line" style="font-size: 0.75rem;"></i><span>{{ $enquiry->infant ?? 0 }}</span></span>
+                                                        @else
+                                                            <span class="badge d-flex align-items-center gap-1" style="background: #28a745; border-radius: 4px; font-size: 0.7rem; padding: 0.2rem 0.4rem;" title="Children"><i class="ri-user-smile-line" style="font-size: 0.75rem;"></i><span>0</span></span>
+                                                            <span class="badge d-flex align-items-center gap-1" style="background: #ffc107; color: #000; border-radius: 4px; font-size: 0.7rem; padding: 0.2rem 0.4rem;" title="Infants"><i class="ri-user-heart-line" style="font-size: 0.75rem;"></i><span>0</span></span>
+                                                        @endif
+                                                    </span>
                                                 </span>
-                                                @endif
-                                    </div>
-                                            <div class="guest-badges mt-1">
-                                                <span class="badge" style="background: #667eea; border-radius: 6px; font-size: 0.75rem;">{{ $enquiry ? ($enquiry->adult ?? 1) : 1 }}</span>
-                                                <span class="badge" style="background: #28a745; border-radius: 6px; font-size: 0.75rem;">{{ $enquiry ? ($enquiry->child ?? 0) : 0 }}</span>
-                                                <span class="badge" style="background: #ffc107; color: #000; border-radius: 6px; font-size: 0.75rem;">{{ $enquiry ? ($enquiry->infant ?? 0) : 0 }}</span>
                                             </div>
+                                            @if(!$enquiry)
+                                            <button type="button" class="btn btn-sm btn-outline-primary" onclick="openMainGuestSelector()" style="border-radius: 6px; padding: 0.25rem 0.5rem; margin-left: 0.5rem; flex-shrink: 0;">
+                                                <i class="ri-edit-line"></i>
+                                            </button>
+                                            @else
+                                            <span class="text-muted small" style="margin-left: 0.5rem; flex-shrink: 0;">
+                                                <i class="ri-lock-line"></i>
+                                            </span>
+                                            @endif
                                         </div>
                                     </div>
 
@@ -4260,13 +4268,44 @@
                 function parseGuestSummary(summaryText) {
                     console.log('Parsing guest summary:', summaryText);
                     
-                    const adultMatch = summaryText.match(/(\d+)\s+adults/);
-                    const maleMatch = summaryText.match(/(\d+)\s+male/);
-                    const femaleMatch = summaryText.match(/(\d+)\s+female/);
-                    const childMatch = summaryText.match(/(\d+)\s+children/);
-                    const infantMatch = summaryText.match(/(\d+)\s+infants/);
+                    // Handle both old text format and new HTML format
+                    // For HTML format, extract text content first
+                    let textToParse = summaryText;
+                    if (typeof summaryText === 'string' && summaryText.includes('<')) {
+                        // Create a temporary element to extract text
+                        const tempDiv = document.createElement('div');
+                        tempDiv.innerHTML = summaryText;
+                        textToParse = tempDiv.textContent || tempDiv.innerText || '';
+                    }
                     
-                    const adults = adultMatch ? parseInt(adultMatch[1]) : 0;
+                    const adultMatch = textToParse.match(/(\d+)\s+Adults/i) || textToParse.match(/(\d+)\s+adults/i);
+                    const maleMatch = textToParse.match(/(\d+)\s+male/i);
+                    const femaleMatch = textToParse.match(/(\d+)\s+female/i);
+                    const childMatch = textToParse.match(/(\d+)\s+children/i);
+                    const infantMatch = textToParse.match(/(\d+)\s+infants/i);
+                    
+                    // If no matches found, try to extract from badge spans directly
+                    let adults = adultMatch ? parseInt(adultMatch[1]) : 0;
+                    let male = maleMatch ? parseInt(maleMatch[1]) : 0;
+                    let female = femaleMatch ? parseInt(femaleMatch[1]) : 0;
+                    let children = childMatch ? parseInt(childMatch[1]) : 0;
+                    let infants = infantMatch ? parseInt(infantMatch[1]) : 0;
+                    
+                    // If parsing from HTML, try to get values from badge spans
+                    if (typeof summaryText === 'string' && summaryText.includes('<span')) {
+                        const tempDiv = document.createElement('div');
+                        tempDiv.innerHTML = summaryText;
+                        const badges = tempDiv.querySelectorAll('.badge span:last-child');
+                        if (badges.length >= 5) {
+                            // Format: Adults badge, Male badge, Female badge, Children badge, Infants badge
+                            const adultsText = badges[0].textContent.trim();
+                            adults = parseInt(adultsText.match(/\d+/)?.[0] || '0');
+                            male = parseInt(badges[1].textContent.trim() || '0');
+                            female = parseInt(badges[2].textContent.trim() || '0');
+                            children = parseInt(badges[3].textContent.trim() || '0');
+                            infants = parseInt(badges[4].textContent.trim() || '0');
+                        }
+                    }
                     
                     // For now, assume seniors are part of adults (this can be enhanced later with age-based logic)
                     // In a real implementation, you might want to add a senior age input field
@@ -4275,10 +4314,10 @@
                     
                     const result = {
                         adults: regularAdults,
-                        male: maleMatch ? parseInt(maleMatch[1]) : 0,
-                        female: femaleMatch ? parseInt(femaleMatch[1]) : 0,
-                        children: childMatch ? parseInt(childMatch[1]) : 0,
-                        infants: infantMatch ? parseInt(infantMatch[1]) : 0,
+                        male: male,
+                        female: female,
+                        children: children,
+                        infants: infants,
                         seniors: seniors
                     };
                     
@@ -6375,29 +6414,22 @@
         if (infantsInput) infantsInput.value = infants;
         if (childAgesInput) childAgesInput.value = JSON.stringify(childAges);
         
-        // Update summary display with child ages
+        // Update summary display with badges
         const guestSummary = document.getElementById('mainGuestSummary');
         console.log('Guest summary element:', guestSummary);
         
         if (guestSummary) {
-            let summaryText = `${adults} adults (${male} male, ${female} female), ${children} children`;
-            if (children > 0 && childAges.length > 0) {
-                summaryText += ` (ages: ${childAges.join(', ')})`;
-            }
-            summaryText += ` - ${infants} infants`;
-            guestSummary.textContent = summaryText;
-            console.log('Updated guest summary text');
-        }
-        
-        // Update badges
-        const badgeContainer = guestSummary.closest('.guest-display').querySelector('.guest-badges');
-        if (badgeContainer) {
-            const badges = badgeContainer.querySelectorAll('.badge');
-            if (badges.length >= 3) {
-                badges[0].textContent = adults; // Total adults
-                badges[1].textContent = children; // Children
-                badges[2].textContent = infants; // Infants
-            }
+            let summaryHTML = `<span class="d-flex align-items-center gap-1">`;
+            summaryHTML += `<span class="badge d-flex align-items-center gap-1" style="background: #667eea; border-radius: 4px; font-size: 0.7rem; padding: 0.2rem 0.4rem;" title="Adults"><i class="ri-group-line" style="font-size: 0.75rem;"></i><span>${adults} Adults</span></span>`;
+            summaryHTML += ` <span class="badge d-flex align-items-center gap-1" style="background: #667eea; border-radius: 4px; font-size: 0.7rem; padding: 0.2rem 0.4rem; opacity: 0.8;" title="Male"><i class="ri-men-line" style="font-size: 0.75rem;"></i><span>${male}</span></span>`;
+            summaryHTML += ` <span class="badge d-flex align-items-center gap-1" style="background: #667eea; border-radius: 4px; font-size: 0.7rem; padding: 0.2rem 0.4rem; opacity: 0.8;" title="Female"><i class="ri-women-line" style="font-size: 0.75rem;"></i><span>${female}</span></span>`;
+            summaryHTML += `</span>`;
+            summaryHTML += `<span class="d-flex align-items-center gap-1">`;
+            summaryHTML += ` <span class="badge d-flex align-items-center gap-1" style="background: #28a745; border-radius: 4px; font-size: 0.7rem; padding: 0.2rem 0.4rem;" title="Children"><i class="ri-user-smile-line" style="font-size: 0.75rem;"></i><span>${children}</span></span>`;
+            summaryHTML += ` <span class="badge d-flex align-items-center gap-1" style="background: #ffc107; color: #000; border-radius: 4px; font-size: 0.7rem; padding: 0.2rem 0.4rem;" title="Infants"><i class="ri-user-heart-line" style="font-size: 0.75rem;"></i><span>${infants}</span></span>`;
+            summaryHTML += `</span>`;
+            guestSummary.innerHTML = summaryHTML;
+            console.log('Updated guest summary with badges');
         }
         
          // Refresh meal plans if a hotel is already selected
@@ -6429,24 +6461,22 @@
          allGuestSummaries.forEach(summaryElement => {
              const summaryId = summaryElement.id;
              
-             // Skip main guest summary
-             if (summaryId === 'mainGuestSummary' || summaryId === 'guestSummary') {
-                 return;
-             }
-             
-             // Update summary text
-             summaryElement.textContent = `${adults} adults (${male} male, ${female} female), ${children} children -${infants} infants`;
-             
-             // Update badges
-             const serviceContainer = summaryElement.closest('.guest-display');
-             if (serviceContainer) {
-                 const badges = serviceContainer.querySelectorAll('.guest-badges .badge');
-                 if (badges.length >= 3) {
-                     badges[0].textContent = adults; // Total adults
-                     badges[1].textContent = children; // Children
-                     badges[2].textContent = infants; // Infants
-                 }
-             }
+            // Skip main guest summary
+            if (summaryId === 'mainGuestSummary' || summaryId === 'guestSummary') {
+                return;
+            }
+            
+            // Update summary with new icon-based format
+            let summaryHTML = `<span class="d-flex align-items-center gap-1">`;
+            summaryHTML += `<span class="badge d-flex align-items-center gap-1" style="background: #667eea; border-radius: 4px; font-size: 0.7rem; padding: 0.2rem 0.4rem;" title="Adults"><i class="ri-group-line" style="font-size: 0.75rem;"></i><span>${adults} Adults</span></span>`;
+            summaryHTML += ` <span class="badge d-flex align-items-center gap-1" style="background: #667eea; border-radius: 4px; font-size: 0.7rem; padding: 0.2rem 0.4rem; opacity: 0.8;" title="Male"><i class="ri-men-line" style="font-size: 0.75rem;"></i><span>${male}</span></span>`;
+            summaryHTML += ` <span class="badge d-flex align-items-center gap-1" style="background: #667eea; border-radius: 4px; font-size: 0.7rem; padding: 0.2rem 0.4rem; opacity: 0.8;" title="Female"><i class="ri-women-line" style="font-size: 0.75rem;"></i><span>${female}</span></span>`;
+            summaryHTML += `</span>`;
+            summaryHTML += `<span class="d-flex align-items-center gap-1">`;
+            summaryHTML += ` <span class="badge d-flex align-items-center gap-1" style="background: #28a745; border-radius: 4px; font-size: 0.7rem; padding: 0.2rem 0.4rem;" title="Children"><i class="ri-user-smile-line" style="font-size: 0.75rem;"></i><span>${children}</span></span>`;
+            summaryHTML += ` <span class="badge d-flex align-items-center gap-1" style="background: #ffc107; color: #000; border-radius: 4px; font-size: 0.7rem; padding: 0.2rem 0.4rem;" title="Infants"><i class="ri-user-heart-line" style="font-size: 0.75rem;"></i><span>${infants}</span></span>`;
+            summaryHTML += `</span>`;
+            summaryElement.innerHTML = summaryHTML;
              
              // Update attraction pricing if this is an attraction service
              if (summaryId.includes('attraction')) {
@@ -13680,22 +13710,23 @@ document.addEventListener('DOMContentLoaded', function() {
                                     <div class="col-md-3">
                                         <label class="form-label fw-semibold">Select Guests</label>
                                         <div class="guest-selector">
-                                            <div class="guest-display p-2 border rounded bg-light">
-                                                <div class="d-flex align-items-center justify-content-between">
-                                                    <div class="guest-info">
-                                                        <span id="day${day}_attraction_1_guest_summary" class="text-muted small">
-                                                            ${mainAdults} adults (${mainMale} male, ${mainFemale} female), ${mainChildren} children - ${mainInfants} infants
+                                            <div class="guest-display border rounded d-flex align-items-start justify-content-between" style="min-height: 34px; padding: 0.3rem 0.75rem; background: #f8f9fa; border: 1px solid #dee2e6 !important; border-radius: 8px;">
+                                                <div class="guest-info d-flex flex-column gap-1" style="flex: 1;">
+                                                    <span id="day${day}_attraction_1_guest_summary" class="d-flex flex-column gap-1" style="font-size: 0.8rem;">
+                                                        <span class="d-flex align-items-center gap-1">
+                                                            <span class="badge d-flex align-items-center gap-1" style="background: #667eea; border-radius: 4px; font-size: 0.7rem; padding: 0.2rem 0.4rem;" title="Adults"><i class="ri-group-line" style="font-size: 0.75rem;"></i><span>${mainAdults} Adults</span></span>
+                                                            <span class="badge d-flex align-items-center gap-1" style="background: #667eea; border-radius: 4px; font-size: 0.7rem; padding: 0.2rem 0.4rem; opacity: 0.8;" title="Male"><i class="ri-men-line" style="font-size: 0.75rem;"></i><span>${mainMale}</span></span>
+                                                            <span class="badge d-flex align-items-center gap-1" style="background: #667eea; border-radius: 4px; font-size: 0.7rem; padding: 0.2rem 0.4rem; opacity: 0.8;" title="Female"><i class="ri-women-line" style="font-size: 0.75rem;"></i><span>${mainFemale}</span></span>
                                                         </span>
-                                                    </div>
-                                                    <button type="button" class="btn btn-sm btn-outline-primary" onclick="openGuestSelector('day${day}_attraction_1')">
-                                                        <i class="ri-edit-line"></i>
-                                                    </button>
+                                                        <span class="d-flex align-items-center gap-1">
+                                                            <span class="badge d-flex align-items-center gap-1" style="background: #28a745; border-radius: 4px; font-size: 0.7rem; padding: 0.2rem 0.4rem;" title="Children"><i class="ri-user-smile-line" style="font-size: 0.75rem;"></i><span>${mainChildren}</span></span>
+                                                            <span class="badge d-flex align-items-center gap-1" style="background: #ffc107; color: #000; border-radius: 4px; font-size: 0.7rem; padding: 0.2rem 0.4rem;" title="Infants"><i class="ri-user-heart-line" style="font-size: 0.75rem;"></i><span>${mainInfants}</span></span>
+                                                        </span>
+                                                    </span>
                                                 </div>
-                                                <div class="guest-badges mt-1">
-                                                    <span class="badge bg-primary">${mainAdults}</span>
-                                                    <span class="badge bg-success">${mainChildren}</span>
-                                                    <span class="badge bg-warning text-dark">${mainInfants}</span>
-                                                </div>
+                                                <button type="button" class="btn btn-sm btn-outline-primary" onclick="openGuestSelector('day${day}_attraction_1')" style="border-radius: 6px; padding: 0.25rem 0.5rem; margin-left: 0.5rem; flex-shrink: 0;">
+                                                    <i class="ri-edit-line"></i>
+                                                </button>
                                             </div>
                                         </div>
                                     </div>
@@ -14078,28 +14109,29 @@ document.addEventListener('DOMContentLoaded', function() {
                                              <option value="">Select city first</option>
                                          </select>
                                      </div>
-                                     <div class="col-md-3">
-                                         <label class="form-label fw-semibold">Select Guests</label>
-                                         <div class="guest-selector">
-                                             <div class="guest-display p-2 border rounded bg-light">
-                                                 <div class="d-flex align-items-center justify-content-between">
-                                                     <div class="guest-info">
-                                                         <span id="day${day}_guide_1_guest_summary" class="text-muted small">
-                                                             1 adults (1 male, 0 female), 0 children - 0 infants
-                                                         </span>
-                                                     </div>
-                                                     <button type="button" class="btn btn-sm btn-outline-primary" onclick="openGuestSelector('day${day}_guide_1')">
-                                                         <i class="ri-edit-line"></i>
-                                                     </button>
-                                                 </div>
-                                                 <div class="guest-badges mt-1">
-                                                     <span class="badge bg-primary">1</span>
-                                                     <span class="badge bg-success">0</span>
-                                                     <span class="badge bg-warning text-dark">0</span>
-                                                 </div>
-                                             </div>
-                                         </div>
-                                     </div>
+                                    <div class="col-md-3">
+                                        <label class="form-label fw-semibold">Select Guests</label>
+                                        <div class="guest-selector">
+                                            <div class="guest-display border rounded d-flex align-items-start justify-content-between" style="min-height: 34px; padding: 0.3rem 0.75rem; background: #f8f9fa; border: 1px solid #dee2e6 !important; border-radius: 8px;">
+                                                <div class="guest-info d-flex flex-column gap-1" style="flex: 1;">
+                                                    <span id="day${day}_guide_1_guest_summary" class="d-flex flex-column gap-1" style="font-size: 0.8rem;">
+                                                        <span class="d-flex align-items-center gap-1">
+                                                            <span class="badge d-flex align-items-center gap-1" style="background: #667eea; border-radius: 4px; font-size: 0.7rem; padding: 0.2rem 0.4rem;" title="Adults"><i class="ri-group-line" style="font-size: 0.75rem;"></i><span>1 Adults</span></span>
+                                                            <span class="badge d-flex align-items-center gap-1" style="background: #667eea; border-radius: 4px; font-size: 0.7rem; padding: 0.2rem 0.4rem; opacity: 0.8;" title="Male"><i class="ri-men-line" style="font-size: 0.75rem;"></i><span>1</span></span>
+                                                            <span class="badge d-flex align-items-center gap-1" style="background: #667eea; border-radius: 4px; font-size: 0.7rem; padding: 0.2rem 0.4rem; opacity: 0.8;" title="Female"><i class="ri-women-line" style="font-size: 0.75rem;"></i><span>0</span></span>
+                                                        </span>
+                                                        <span class="d-flex align-items-center gap-1">
+                                                            <span class="badge d-flex align-items-center gap-1" style="background: #28a745; border-radius: 4px; font-size: 0.7rem; padding: 0.2rem 0.4rem;" title="Children"><i class="ri-user-smile-line" style="font-size: 0.75rem;"></i><span>0</span></span>
+                                                            <span class="badge d-flex align-items-center gap-1" style="background: #ffc107; color: #000; border-radius: 4px; font-size: 0.7rem; padding: 0.2rem 0.4rem;" title="Infants"><i class="ri-user-heart-line" style="font-size: 0.75rem;"></i><span>0</span></span>
+                                                        </span>
+                                                    </span>
+                                                </div>
+                                                <button type="button" class="btn btn-sm btn-outline-primary" onclick="openGuestSelector('day${day}_guide_1')" style="border-radius: 6px; padding: 0.25rem 0.5rem; margin-left: 0.5rem; flex-shrink: 0;">
+                                                    <i class="ri-edit-line"></i>
+                                                </button>
+                                            </div>
+                                        </div>
+                                    </div>
                                     <div class="col-md-2">
                                         <label class="form-label fw-semibold">Pickup Time</label>
                                         <div id="day${day}_guide_1_pickup_time_options">
@@ -14278,22 +14310,23 @@ document.addEventListener('DOMContentLoaded', function() {
                                                                  <i class="ri-group-line me-1 text-primary"></i>Select Guests
                                                              </label>
                                                              <div class="guest-selector">
-                                                                 <div class="guest-display p-3 border rounded shadow-sm" style="background: linear-gradient(135deg, #f8fafc 0%, #f1f5f9 100%); border: 1px solid #e2e8f0 !important;">
-                                                                     <div class="d-flex align-items-center justify-content-between mb-2">
-                                                                         <div class="guest-info">
-                                                                             <span id="day${day}_restaurant_1_guest_summary" class="text-dark small fw-medium">
-                                                                                 1 adults (1 male, 0 female), 0 children - 0 infants
+                                                                 <div class="guest-display border rounded d-flex align-items-start justify-content-between" style="min-height: 34px; padding: 0.3rem 0.75rem; background: #f8f9fa; border: 1px solid #dee2e6 !important; border-radius: 8px;">
+                                                                     <div class="guest-info d-flex flex-column gap-1" style="flex: 1;">
+                                                                         <span id="day${day}_restaurant_1_guest_summary" class="d-flex flex-column gap-1" style="font-size: 0.8rem;">
+                                                                             <span class="d-flex align-items-center gap-1">
+                                                                                 <span class="badge d-flex align-items-center gap-1" style="background: #667eea; border-radius: 4px; font-size: 0.7rem; padding: 0.2rem 0.4rem;" title="Adults"><i class="ri-group-line" style="font-size: 0.75rem;"></i><span>1 Adults</span></span>
+                                                                                 <span class="badge d-flex align-items-center gap-1" style="background: #667eea; border-radius: 4px; font-size: 0.7rem; padding: 0.2rem 0.4rem; opacity: 0.8;" title="Male"><i class="ri-men-line" style="font-size: 0.75rem;"></i><span>1</span></span>
+                                                                                 <span class="badge d-flex align-items-center gap-1" style="background: #667eea; border-radius: 4px; font-size: 0.7rem; padding: 0.2rem 0.4rem; opacity: 0.8;" title="Female"><i class="ri-women-line" style="font-size: 0.75rem;"></i><span>0</span></span>
                                                                              </span>
-                                                                         </div>
-                                                                         <button type="button" class="btn btn-sm btn-primary rounded-pill px-3" onclick="openGuestSelector('day${day}_restaurant_1')" style="background: linear-gradient(135deg, #3b82f6 0%, #2563eb 100%); border: none;">
-                                                                             <i class="ri-edit-line me-1"></i>Edit
-                                                                         </button>
+                                                                             <span class="d-flex align-items-center gap-1">
+                                                                                 <span class="badge d-flex align-items-center gap-1" style="background: #28a745; border-radius: 4px; font-size: 0.7rem; padding: 0.2rem 0.4rem;" title="Children"><i class="ri-user-smile-line" style="font-size: 0.75rem;"></i><span>0</span></span>
+                                                                                 <span class="badge d-flex align-items-center gap-1" style="background: #ffc107; color: #000; border-radius: 4px; font-size: 0.7rem; padding: 0.2rem 0.4rem;" title="Infants"><i class="ri-user-heart-line" style="font-size: 0.75rem;"></i><span>0</span></span>
+                                                                             </span>
+                                                                         </span>
                                                                      </div>
-                                                                     <div class="guest-badges d-flex gap-2">
-                                                                         <span class="badge rounded-pill px-3 py-1" style="background: linear-gradient(135deg, #3b82f6 0%, #2563eb 100%);">Adults: 1</span>
-                                                                         <span class="badge rounded-pill px-3 py-1" style="background: linear-gradient(135deg, #10b981 0%, #059669 100%);">Children: 0</span>
-                                                                         <span class="badge rounded-pill px-3 py-1" style="background: linear-gradient(135deg, #f59e0b 0%, #d97706 100%);">Infants: 0</span>
-                                                                     </div>
+                                                                     <button type="button" class="btn btn-sm btn-outline-primary" onclick="openGuestSelector('day${day}_restaurant_1')" style="border-radius: 6px; padding: 0.25rem 0.5rem; margin-left: 0.5rem; flex-shrink: 0;">
+                                                                         <i class="ri-edit-line"></i>
+                                                                     </button>
                                                                  </div>
                                                              </div>
                                                              
@@ -15961,22 +15994,23 @@ document.addEventListener('DOMContentLoaded', function() {
                         <div class="col-md-3">
                             <label class="form-label fw-semibold">Select Guests</label>
                             <div class="guest-selector">
-                                <div class="guest-display p-2 border rounded bg-light">
-                                    <div class="d-flex align-items-center justify-content-between">
-                                        <div class="guest-info">
-                                            <span id="day${day}_attraction_${newIndex}_guest_summary" class="text-muted small">
-                                                1 adults (1 male, 0 female), 0 children - 0 infants
+                                <div class="guest-display border rounded d-flex align-items-start justify-content-between" style="min-height: 34px; padding: 0.3rem 0.75rem; background: #f8f9fa; border: 1px solid #dee2e6 !important; border-radius: 8px;">
+                                    <div class="guest-info d-flex flex-column gap-1" style="flex: 1;">
+                                        <span id="day${day}_attraction_${newIndex}_guest_summary" class="d-flex flex-column gap-1" style="font-size: 0.8rem;">
+                                            <span class="d-flex align-items-center gap-1">
+                                                <span class="badge d-flex align-items-center gap-1" style="background: #667eea; border-radius: 4px; font-size: 0.7rem; padding: 0.2rem 0.4rem;" title="Adults"><i class="ri-group-line" style="font-size: 0.75rem;"></i><span>1 Adults</span></span>
+                                                <span class="badge d-flex align-items-center gap-1" style="background: #667eea; border-radius: 4px; font-size: 0.7rem; padding: 0.2rem 0.4rem; opacity: 0.8;" title="Male"><i class="ri-men-line" style="font-size: 0.75rem;"></i><span>1</span></span>
+                                                <span class="badge d-flex align-items-center gap-1" style="background: #667eea; border-radius: 4px; font-size: 0.7rem; padding: 0.2rem 0.4rem; opacity: 0.8;" title="Female"><i class="ri-women-line" style="font-size: 0.75rem;"></i><span>0</span></span>
                                             </span>
-                                        </div>
-                                        <button type="button" class="btn btn-sm btn-outline-primary" onclick="openGuestSelector('day${day}_attraction_${newIndex}')">
-                                            <i class="ri-edit-line"></i>
-                                        </button>
+                                            <span class="d-flex align-items-center gap-1">
+                                                <span class="badge d-flex align-items-center gap-1" style="background: #28a745; border-radius: 4px; font-size: 0.7rem; padding: 0.2rem 0.4rem;" title="Children"><i class="ri-user-smile-line" style="font-size: 0.75rem;"></i><span>0</span></span>
+                                                <span class="badge d-flex align-items-center gap-1" style="background: #ffc107; color: #000; border-radius: 4px; font-size: 0.7rem; padding: 0.2rem 0.4rem;" title="Infants"><i class="ri-user-heart-line" style="font-size: 0.75rem;"></i><span>0</span></span>
+                                            </span>
+                                        </span>
                                     </div>
-                                    <div class="guest-badges mt-1">
-                                        <span class="badge bg-primary">1</span>
-                                        <span class="badge bg-success">0</span>
-                                        <span class="badge bg-warning text-dark">0</span>
-                                    </div>
+                                    <button type="button" class="btn btn-sm btn-outline-primary" onclick="openGuestSelector('day${day}_attraction_${newIndex}')" style="border-radius: 6px; padding: 0.25rem 0.5rem; margin-left: 0.5rem; flex-shrink: 0;">
+                                        <i class="ri-edit-line"></i>
+                                    </button>
                                 </div>
                             </div>
                         </div>
@@ -17677,22 +17711,23 @@ document.addEventListener('DOMContentLoaded', function() {
                         <div class="col-md-3">
                             <label class="form-label fw-semibold">Select Guests</label>
                             <div class="guest-selector">
-                                <div class="guest-display p-2 border rounded bg-light">
-                                    <div class="d-flex align-items-center justify-content-between">
-                                        <div class="guest-info">
-                                            <span id="day${day}_restaurant_${newIndex}_guest_summary" class="text-muted small">
-                                                1 adults (1 male, 0 female), 0 children - 0 infants
+                                <div class="guest-display border rounded d-flex align-items-start justify-content-between" style="min-height: 34px; padding: 0.3rem 0.75rem; background: #f8f9fa; border: 1px solid #dee2e6 !important; border-radius: 8px;">
+                                    <div class="guest-info d-flex flex-column gap-1" style="flex: 1;">
+                                        <span id="day${day}_restaurant_${newIndex}_guest_summary" class="d-flex flex-column gap-1" style="font-size: 0.8rem;">
+                                            <span class="d-flex align-items-center gap-1">
+                                                <span class="badge d-flex align-items-center gap-1" style="background: #667eea; border-radius: 4px; font-size: 0.7rem; padding: 0.2rem 0.4rem;" title="Adults"><i class="ri-group-line" style="font-size: 0.75rem;"></i><span>1 Adults</span></span>
+                                                <span class="badge d-flex align-items-center gap-1" style="background: #667eea; border-radius: 4px; font-size: 0.7rem; padding: 0.2rem 0.4rem; opacity: 0.8;" title="Male"><i class="ri-men-line" style="font-size: 0.75rem;"></i><span>1</span></span>
+                                                <span class="badge d-flex align-items-center gap-1" style="background: #667eea; border-radius: 4px; font-size: 0.7rem; padding: 0.2rem 0.4rem; opacity: 0.8;" title="Female"><i class="ri-women-line" style="font-size: 0.75rem;"></i><span>0</span></span>
                                             </span>
-                                        </div>
-                                        <button type="button" class="btn btn-sm btn-outline-primary" onclick="openGuestSelector('day${day}_restaurant_${newIndex}')">
-                                            <i class="ri-edit-line"></i>
-                                        </button>
+                                            <span class="d-flex align-items-center gap-1">
+                                                <span class="badge d-flex align-items-center gap-1" style="background: #28a745; border-radius: 4px; font-size: 0.7rem; padding: 0.2rem 0.4rem;" title="Children"><i class="ri-user-smile-line" style="font-size: 0.75rem;"></i><span>0</span></span>
+                                                <span class="badge d-flex align-items-center gap-1" style="background: #ffc107; color: #000; border-radius: 4px; font-size: 0.7rem; padding: 0.2rem 0.4rem;" title="Infants"><i class="ri-user-heart-line" style="font-size: 0.75rem;"></i><span>0</span></span>
+                                            </span>
+                                        </span>
                                     </div>
-                                    <div class="guest-badges mt-1">
-                                        <span class="badge bg-primary">1</span>
-                                        <span class="badge bg-success">0</span>
-                                        <span class="badge bg-warning text-dark">0</span>
-                                    </div>
+                                    <button type="button" class="btn btn-sm btn-outline-primary" onclick="openGuestSelector('day${day}_restaurant_${newIndex}')" style="border-radius: 6px; padding: 0.25rem 0.5rem; margin-left: 0.5rem; flex-shrink: 0;">
+                                        <i class="ri-edit-line"></i>
+                                    </button>
                                 </div>
                             </div>
                             
@@ -18589,22 +18624,23 @@ document.addEventListener('DOMContentLoaded', function() {
                         <div class="col-md-3">
                             <label class="form-label fw-semibold">Select Guests</label>
                             <div class="guest-selector">
-                                <div class="guest-display p-2 border rounded bg-light">
-                                    <div class="d-flex align-items-center justify-content-between">
-                                        <div class="guest-info">
-                                            <span id="day${day}_guide_${newIndex}_guest_summary" class="text-muted small">
-                                                1 adults (1 male, 0 female), 0 children - 0 infants
+                                <div class="guest-display border rounded d-flex align-items-start justify-content-between" style="min-height: 34px; padding: 0.3rem 0.75rem; background: #f8f9fa; border: 1px solid #dee2e6 !important; border-radius: 8px;">
+                                    <div class="guest-info d-flex flex-column gap-1" style="flex: 1;">
+                                        <span id="day${day}_guide_${newIndex}_guest_summary" class="d-flex flex-column gap-1" style="font-size: 0.8rem;">
+                                            <span class="d-flex align-items-center gap-1">
+                                                <span class="badge d-flex align-items-center gap-1" style="background: #667eea; border-radius: 4px; font-size: 0.7rem; padding: 0.2rem 0.4rem;" title="Adults"><i class="ri-group-line" style="font-size: 0.75rem;"></i><span>1 Adults</span></span>
+                                                <span class="badge d-flex align-items-center gap-1" style="background: #667eea; border-radius: 4px; font-size: 0.7rem; padding: 0.2rem 0.4rem; opacity: 0.8;" title="Male"><i class="ri-men-line" style="font-size: 0.75rem;"></i><span>1</span></span>
+                                                <span class="badge d-flex align-items-center gap-1" style="background: #667eea; border-radius: 4px; font-size: 0.7rem; padding: 0.2rem 0.4rem; opacity: 0.8;" title="Female"><i class="ri-women-line" style="font-size: 0.75rem;"></i><span>0</span></span>
                                             </span>
-                                        </div>
-                                        <button type="button" class="btn btn-sm btn-outline-primary" onclick="openGuestSelector('day${day}_guide_${newIndex}')">
-                                            <i class="ri-edit-line"></i>
-                                        </button>
+                                            <span class="d-flex align-items-center gap-1">
+                                                <span class="badge d-flex align-items-center gap-1" style="background: #28a745; border-radius: 4px; font-size: 0.7rem; padding: 0.2rem 0.4rem;" title="Children"><i class="ri-user-smile-line" style="font-size: 0.75rem;"></i><span>0</span></span>
+                                                <span class="badge d-flex align-items-center gap-1" style="background: #ffc107; color: #000; border-radius: 4px; font-size: 0.7rem; padding: 0.2rem 0.4rem;" title="Infants"><i class="ri-user-heart-line" style="font-size: 0.75rem;"></i><span>0</span></span>
+                                            </span>
+                                        </span>
                                     </div>
-                                    <div class="guest-badges mt-1">
-                                        <span class="badge bg-primary">1</span>
-                                        <span class="badge bg-success">0</span>
-                                        <span class="badge bg-warning text-dark">0</span>
-                                    </div>
+                                    <button type="button" class="btn btn-sm btn-outline-primary" onclick="openGuestSelector('day${day}_guide_${newIndex}')" style="border-radius: 6px; padding: 0.25rem 0.5rem; margin-left: 0.5rem; flex-shrink: 0;">
+                                        <i class="ri-edit-line"></i>
+                                    </button>
                                 </div>
                             </div>
                         </div>
@@ -20592,21 +20628,23 @@ document.addEventListener('DOMContentLoaded', function() {
          const adults = male + female;
          const total = adults + children + infants;
          
-         // Update the service guest summary text
+         // Update the service guest summary with new icon-based format
          const summaryElement = document.getElementById(serviceId + '_guest_summary');
          if (summaryElement) {
-             summaryElement.textContent = `${adults} adults (${male} male, ${female} female), ${children} children - ${infants} infants`;
-         }
-         
-         // Update the badges for this specific service
-         const serviceContainer = summaryElement.closest('.guest-display');
-         if (serviceContainer) {
-             const badges = serviceContainer.querySelectorAll('.guest-badges .badge');
-             if (badges.length >= 3) {
-                 badges[0].textContent = adults; // Total adults
-                 badges[1].textContent = children; // Children
-                 badges[2].textContent = infants; // Infants
-             }
+             // Ensure the summary element has the correct structure
+             summaryElement.className = 'd-flex flex-column gap-1';
+             summaryElement.style.fontSize = '0.8rem';
+             
+             let summaryHTML = `<span class="d-flex align-items-center gap-1">`;
+             summaryHTML += `<span class="badge d-flex align-items-center gap-1" style="background: #667eea; border-radius: 4px; font-size: 0.7rem; padding: 0.2rem 0.4rem;" title="Adults"><i class="ri-group-line" style="font-size: 0.75rem;"></i><span>${adults} Adults</span></span>`;
+             summaryHTML += ` <span class="badge d-flex align-items-center gap-1" style="background: #667eea; border-radius: 4px; font-size: 0.7rem; padding: 0.2rem 0.4rem; opacity: 0.8;" title="Male"><i class="ri-men-line" style="font-size: 0.75rem;"></i><span>${male}</span></span>`;
+             summaryHTML += ` <span class="badge d-flex align-items-center gap-1" style="background: #667eea; border-radius: 4px; font-size: 0.7rem; padding: 0.2rem 0.4rem; opacity: 0.8;" title="Female"><i class="ri-women-line" style="font-size: 0.75rem;"></i><span>${female}</span></span>`;
+             summaryHTML += `</span>`;
+             summaryHTML += `<span class="d-flex align-items-center gap-1">`;
+             summaryHTML += ` <span class="badge d-flex align-items-center gap-1" style="background: #28a745; border-radius: 4px; font-size: 0.7rem; padding: 0.2rem 0.4rem;" title="Children"><i class="ri-user-smile-line" style="font-size: 0.75rem;"></i><span>${children}</span></span>`;
+             summaryHTML += ` <span class="badge d-flex align-items-center gap-1" style="background: #ffc107; color: #000; border-radius: 4px; font-size: 0.7rem; padding: 0.2rem 0.4rem;" title="Infants"><i class="ri-user-heart-line" style="font-size: 0.75rem;"></i><span>${infants}</span></span>`;
+             summaryHTML += `</span>`;
+             summaryElement.innerHTML = summaryHTML;
          }
          
          // Close modal
@@ -20660,18 +20698,16 @@ document.addEventListener('DOMContentLoaded', function() {
         
         const guestSummary = document.getElementById('mainGuestSummary');
         if (guestSummary) {
-            guestSummary.textContent = `${adults} adults (${male} male, ${female} female), ${children} children - ${infants} infants`;
-        }
-        
-        // Update badges
-        const badgeContainer = guestSummary?.closest('.guest-display')?.querySelector('.guest-badges');
-        if (badgeContainer) {
-            const badges = badgeContainer.querySelectorAll('.badge');
-            if (badges.length >= 3) {
-                badges[0].textContent = adults; // Total adults
-                badges[1].textContent = children; // Children
-                badges[2].textContent = infants; // Infants
-            }
+            let summaryHTML = `<span class="d-flex align-items-center gap-1">`;
+            summaryHTML += `<span class="badge d-flex align-items-center gap-1" style="background: #667eea; border-radius: 4px; font-size: 0.7rem; padding: 0.2rem 0.4rem;" title="Adults"><i class="ri-group-line" style="font-size: 0.75rem;"></i><span>${adults} Adults</span></span>`;
+            summaryHTML += ` <span class="badge d-flex align-items-center gap-1" style="background: #667eea; border-radius: 4px; font-size: 0.7rem; padding: 0.2rem 0.4rem; opacity: 0.8;" title="Male"><i class="ri-men-line" style="font-size: 0.75rem;"></i><span>${male}</span></span>`;
+            summaryHTML += ` <span class="badge d-flex align-items-center gap-1" style="background: #667eea; border-radius: 4px; font-size: 0.7rem; padding: 0.2rem 0.4rem; opacity: 0.8;" title="Female"><i class="ri-women-line" style="font-size: 0.75rem;"></i><span>${female}</span></span>`;
+            summaryHTML += `</span>`;
+            summaryHTML += `<span class="d-flex align-items-center gap-1">`;
+            summaryHTML += ` <span class="badge d-flex align-items-center gap-1" style="background: #28a745; border-radius: 4px; font-size: 0.7rem; padding: 0.2rem 0.4rem;" title="Children"><i class="ri-user-smile-line" style="font-size: 0.75rem;"></i><span>${children}</span></span>`;
+            summaryHTML += ` <span class="badge d-flex align-items-center gap-1" style="background: #ffc107; color: #000; border-radius: 4px; font-size: 0.7rem; padding: 0.2rem 0.4rem;" title="Infants"><i class="ri-user-heart-line" style="font-size: 0.75rem;"></i><span>${infants}</span></span>`;
+            summaryHTML += `</span>`;
+            guestSummary.innerHTML = summaryHTML;
         }
         
         // Refresh meal plans if a hotel is already selected
