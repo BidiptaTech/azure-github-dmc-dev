@@ -1326,114 +1326,15 @@ class EnquiryFormPro extends Controller
                         'service_date' => $accommodation['checkIn'] ?? null
                     ];
                     
-                    // AUTO-CREATE LOCAL TRANSPORT IF TRANSFER IS OPTED
+                    // DISABLED: AUTO-CREATE LOCAL TRANSPORT IF TRANSFER IS OPTED
+                    // Note: Hotel-linked transfers are now handled through the transfers array (section 4)
+                    // This prevents duplicates - the transfers array contains the correct data
+                    // The auto-created transfer was the first (wrong) one, the transfers array has the second (correct) one
+                    /*
                     if (isset($accommodation['transfer_options']) && !empty($accommodation['transfer_options']) && ($accommodation['transfer_options']['transfer_required'] ?? false)) {
-                        $transferOptions = $accommodation['transfer_options'];
-                        $bookingDates = $accommodation['bookingDate'] ?? [];
-                        $transferDate = is_array($bookingDates) && count($bookingDates) > 0 ? $bookingDates[0] : date('Y-m-d');
-                        
-                        // Create unique transfer identifier
-                        $transferIdentifier = md5(
-                            ($transferOptions['pickup_location_name'] ?? '') . 
-                            ($accommodation['hotelDetails']['hotel_name'] ?? '') . 
-                            $transferDate . 
-                            '11:00 AM'
-                        );
-                        
-                        // Only create transfer if not already created
-                        if (!in_array($transferIdentifier, $createdTransferIds)) {
-                            $createdTransferIds[] = $transferIdentifier;
-                            
-                            \Log::info('Auto-creating local_transport for hotel', ['hotel_booking_id' => $bookingId]);
-                            
-                            // Get vehicle details from database
-                            $vehicleDetails = $this->getVehicleDetails($transferOptions['vehicle_id'] ?? null);
-                            
-                            // Normalize transfer type
-                            $transferType = $this->normalizeTransferType($transferOptions['type'] ?? 'Private');
-                            
-                            // Extract zone_id from hotel's zone_assignments
-                            $dropoffZoneId = '';
-                            $hotelUniqueId = $accommodation['hotelDetails']['hotel_id'] ?? $accommodation['hotel_unique_id'] ?? null;
-                            if ($hotelUniqueId && $dmcId) {
-                                $hotel = Hotel::where('hotel_unique_id', $hotelUniqueId)->first();
-                                if ($hotel) {
-                                    $dropoffZoneId = $hotel->getZoneForDmc($dmcId) ?? '';
-                                    \Log::info('Extracted zone_id from hotel zone_assignments', [
-                                        'hotel_unique_id' => $hotelUniqueId,
-                                        'dmc_id' => $dmcId,
-                                        'zone_id' => $dropoffZoneId
-                                    ]);
-                                }
-                            }
-                        
-                        $localTransportData = [
-                            'tour_id' => $tourId,
-                            'bookingDate' => $transferDate,
-                            'vehicle_id' => $vehicleDetails['vehicle_id'] ?? ($transferOptions['vehicle_id'] ?? ''),
-                            'vehicles_name' => $vehicleDetails['vehicles_name'] ?? '',
-                            'vehicle_type' => $vehicleDetails['vehicle_type'] ?? '',
-                            'vehicle_model' => $vehicleDetails['vehicle_model'] ?? '',
-                            'model_year' => $vehicleDetails['model_year'] ?? '',
-                            'seating_capacity' => $vehicleDetails['seating_capacity'] ?? 0,
-                            'dmc_id' => (string) ($request->user()->created_by ?? $dmcId ?? ''),
-                            'image' => $vehicleDetails['image'] ?? '',
-                            'Mode' => 'dmc',
-                            'type' => $transferType,
-                            'entrypickup' => $transferOptions['pickup_location_name'] ?? '',
-                            'entrydropoff' => $transferOptions['destination_name'] ?? $accommodation['hotelDetails']['hotel_name'] ?? '',
-                            'PickupPlaceid' => '',
-                            'DropoffPlaceid' => (string) $dropoffZoneId,
-                            'pickupdate' => $transferDate,
-                            'entrytime' => '11:00 AM',
-                            'adults' => (string) ($accommodation['rooms'][0]['beds'][0]['head_count'] ?? 2),
-                            'children' => '0',
-                            'totalPrice' => (string) ($transferOptions['cost'] ?? 0),
-                            'to_zone_id' => (string) $dropoffZoneId,
-                            'from_zone_id' => '',
-                            'city' => $accommodation['hotelDetails']['location'] ?? 'Singapore',
-                            'country' => $accommodation['hotelDetails']['location'] ?? 'Singapore',
-                            'fullName' => $accommodation['fullName'] ?? 'Guest User',
-                            'email' => $accommodation['email'] ?? 'guest@example.com',
-                            'phone' => $accommodation['phone'] ?? '0000000000',
-                            'countryCode' => $accommodation['countryCode'] ?? '65',
-                            'address1' => $accommodation['address1'] ?? '',
-                            'address2' => $accommodation['address2'] ?? '',
-                            'state' => $accommodation['state'] ?? '',
-                            'zip' => $accommodation['zip'] ?? '',
-                            'specialRequests' => $accommodation['specialRequests'] ?? '',
-                            'userInfo' => [
-                                'fullName' => $accommodation['fullName'] ?? 'Guest User',
-                                'email' => $accommodation['email'] ?? 'guest@example.com',
-                                'phone' => $accommodation['phone'] ?? '0000000000',
-                                'countryCode' => $accommodation['countryCode'] ?? '65',
-                                'address1' => $accommodation['address1'] ?? ''
-                            ],
-                            'bookingType' => 'enquiry',
-                            'linked_to_hotel' => $bookingId
-                        ];
-                        
-                        $transportBookingId = $this->generateBookingId();
-                        Order::create([
-                            'booking_id' => $transportBookingId,
-                            'agent_id' => $request->agent_id,
-                            'tour_id' => $tourId,
-                            'data' => [$localTransportData],
-                            'type' => 'local_transport',
-                            'bookingType' => $bookingType,
-                            'discount' => $discountValue,
-                            'discount_type' => $discountType,
-                            'markup_percentage' => $markupValue,
-                            'markup_type' => $markupType,
-                            'status' => 1,
-                        ]);
-                        
-                            $createdOrders[] = ['type' => 'local_transport', 'booking_id' => $transportBookingId, 'linked_to' => 'hotel'];
-                            \Log::info('Local transport created for hotel', ['transport_booking_id' => $transportBookingId, 'linked_to_hotel' => $bookingId]);
-                        } else {
-                            \Log::info('Skipped duplicate local_transport for hotel', ['transfer_identifier' => $transferIdentifier]);
-                        }
+                        // Auto-create logic disabled - transfers are handled via transfers array
                     }
+                    */
                 }
             }
             
@@ -1894,6 +1795,38 @@ class EnquiryFormPro extends Controller
                     // Normalize transfer type
                     if (!empty($transfer['type'])) {
                         $transfer['type'] = $this->normalizeTransferType($transfer['type']);
+                    }
+                    
+                    // CRITICAL FIX: Validate and sanitize zone IDs - only use integer zone IDs, not Place IDs
+                    // Helper function to check if a value is a valid zone ID (integer) or a Place ID (contains dot)
+                    $isValidZoneId = function($value) {
+                        if (empty($value) || $value === '') return false;
+                        // If it contains a dot, it's likely a Google Place ID, not a zone ID
+                        if (strpos((string)$value, '.') !== false) return false;
+                        // Check if it's a valid integer
+                        return ctype_digit((string)$value) || (is_numeric($value) && (int)$value == $value);
+                    };
+                    
+                    // Sanitize from_zone_id - only keep if it's a valid integer zone ID
+                    if (isset($transfer['from_zone_id']) && !empty($transfer['from_zone_id'])) {
+                        if (!$isValidZoneId($transfer['from_zone_id'])) {
+                            // If it's a Place ID, clear from_zone_id but keep PickupPlaceid
+                            if (empty($transfer['PickupPlaceid'])) {
+                                $transfer['PickupPlaceid'] = $transfer['from_zone_id'];
+                            }
+                            $transfer['from_zone_id'] = '';
+                        }
+                    }
+                    
+                    // Sanitize to_zone_id - only keep if it's a valid integer zone ID
+                    if (isset($transfer['to_zone_id']) && !empty($transfer['to_zone_id'])) {
+                        if (!$isValidZoneId($transfer['to_zone_id'])) {
+                            // If it's a Place ID, clear to_zone_id but keep DropoffPlaceid
+                            if (empty($transfer['DropoffPlaceid'])) {
+                                $transfer['DropoffPlaceid'] = $transfer['to_zone_id'];
+                            }
+                            $transfer['to_zone_id'] = '';
+                        }
                     }
                     
                     $bookingId = $this->generateBookingId();
@@ -2818,6 +2751,38 @@ class EnquiryFormPro extends Controller
                     // Normalize transfer type
                     if (!empty($transfer['type'])) {
                         $transfer['type'] = $this->normalizeTransferType($transfer['type']);
+                    }
+                    
+                    // CRITICAL FIX: Validate and sanitize zone IDs - only use integer zone IDs, not Place IDs
+                    // Helper function to check if a value is a valid zone ID (integer) or a Place ID (contains dot)
+                    $isValidZoneId = function($value) {
+                        if (empty($value) || $value === '') return false;
+                        // If it contains a dot, it's likely a Google Place ID, not a zone ID
+                        if (strpos((string)$value, '.') !== false) return false;
+                        // Check if it's a valid integer
+                        return ctype_digit((string)$value) || (is_numeric($value) && (int)$value == $value);
+                    };
+                    
+                    // Sanitize from_zone_id - only keep if it's a valid integer zone ID
+                    if (isset($transfer['from_zone_id']) && !empty($transfer['from_zone_id'])) {
+                        if (!$isValidZoneId($transfer['from_zone_id'])) {
+                            // If it's a Place ID, clear from_zone_id but keep PickupPlaceid
+                            if (empty($transfer['PickupPlaceid'])) {
+                                $transfer['PickupPlaceid'] = $transfer['from_zone_id'];
+                            }
+                            $transfer['from_zone_id'] = '';
+                        }
+                    }
+                    
+                    // Sanitize to_zone_id - only keep if it's a valid integer zone ID
+                    if (isset($transfer['to_zone_id']) && !empty($transfer['to_zone_id'])) {
+                        if (!$isValidZoneId($transfer['to_zone_id'])) {
+                            // If it's a Place ID, clear to_zone_id but keep DropoffPlaceid
+                            if (empty($transfer['DropoffPlaceid'])) {
+                                $transfer['DropoffPlaceid'] = $transfer['to_zone_id'];
+                            }
+                            $transfer['to_zone_id'] = '';
+                        }
                     }
                     
                     $transfer['tour_id'] = $tour_id;
