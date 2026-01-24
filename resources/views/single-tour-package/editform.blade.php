@@ -752,10 +752,9 @@
                                         <i class="ri-group-line me-1" style="color: #667eea;"></i>Guests
                                     </label>
                                     <div class="guest-selector">
-                                        <div class="guest-display" style="background: linear-gradient(135deg, #ffffff 0%, #f8f9fa 100%); border: 1px solid #e9ecef; border-radius: 10px; padding: 0.75rem; box-shadow: 0 2px 8px rgba(0,0,0,0.06); transition: all 0.3s ease;">
-                                            <!-- Guest Summary Text -->
-                                            <div class="guest-info mb-2">
-                                                <span id="tour_guest_summary" class="text-muted" style="font-size: 0.75rem; color: #6c757d; line-height: 1.4; display: block;">
+                                        <div class="guest-display border rounded d-flex align-items-start justify-content-between" style="min-height: 34px; padding: 0.3rem 0.75rem; background: #f8f9fa; border: 1px solid #dee2e6 !important; border-radius: 8px;">
+                                            <div class="guest-info d-flex flex-column gap-1" style="flex: 1;">
+                                                <span id="tour_guest_summary" class="d-flex flex-column gap-1" style="font-size: 0.8rem;">
                                                     @php
                                                         $adultCount = $tour->adult ?? 1;
                                                         $childCount = $tour->child ?? 0;
@@ -763,29 +762,19 @@
                                                         $maleCount = isset($tour->male_count) ? $tour->male_count : $adultCount;
                                                         $femaleCount = isset($tour->female_count) ? $tour->female_count : 0;
                                                     @endphp
-                                                    {{ $adultCount }} adults ({{ $maleCount }} male, {{ $femaleCount }} female), {{ $childCount }} children, {{ $infantCount }} infants
+                                                    <span class="d-flex align-items-center gap-1">
+                                                        <span class="badge d-flex align-items-center gap-1" style="background: #667eea; border-radius: 4px; font-size: 0.7rem; padding: 0.2rem 0.4rem;" title="Adults"><i class="ri-group-line" style="font-size: 0.75rem;"></i><span>{{ $adultCount }} Adults</span></span>
+                                                        <span class="badge d-flex align-items-center gap-1" style="background: #667eea; border-radius: 4px; font-size: 0.7rem; padding: 0.2rem 0.4rem; opacity: 0.8;" title="Male"><i class="ri-men-line" style="font-size: 0.75rem;"></i><span>{{ $maleCount }}</span></span>
+                                                        <span class="badge d-flex align-items-center gap-1" style="background: #667eea; border-radius: 4px; font-size: 0.7rem; padding: 0.2rem 0.4rem; opacity: 0.8;" title="Female"><i class="ri-women-line" style="font-size: 0.75rem;"></i><span>{{ $femaleCount }}</span></span>
+                                                    </span>
+                                                    <span class="d-flex align-items-center gap-1">
+                                                        <span class="badge d-flex align-items-center gap-1" style="background: #28a745; border-radius: 4px; font-size: 0.7rem; padding: 0.2rem 0.4rem;" title="Children"><i class="ri-user-smile-line" style="font-size: 0.75rem;"></i><span>{{ $childCount }}</span></span>
+                                                        <span class="badge d-flex align-items-center gap-1" style="background: #ffc107; color: #000; border-radius: 4px; font-size: 0.7rem; padding: 0.2rem 0.4rem;" title="Infants"><i class="ri-user-heart-line" style="font-size: 0.75rem;"></i><span>{{ $infantCount }}</span></span>
+                                                    </span>
                                                 </span>
                                             </div>
-                                            
-                                            <!-- Guest Count Badges -->
-                                            <div class="guest-badges d-flex flex-wrap gap-2 mb-2">
-                                                <div class="badge-item" style="display: flex; align-items: center; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; padding: 0.35rem 0.65rem; border-radius: 6px; font-size: 0.7rem; font-weight: 600; box-shadow: 0 2px 6px rgba(102, 126, 234, 0.3);">
-                                                    <i class="ri-user-line me-1" style="font-size: 0.8rem;"></i>
-                                                    <span id="guest-badge-adults">{{ $adultCount }}</span>
-                                                </div>
-                                                <div class="badge-item" style="display: flex; align-items: center; background: linear-gradient(135deg, #10b981 0%, #059669 100%); color: white; padding: 0.35rem 0.65rem; border-radius: 6px; font-size: 0.7rem; font-weight: 600; box-shadow: 0 2px 6px rgba(16, 185, 129, 0.3);">
-                                                    <i class="ri-user-smile-line me-1" style="font-size: 0.8rem;"></i>
-                                                    <span id="guest-badge-children">{{ $childCount }}</span>
-                                                </div>
-                                                <div class="badge-item" style="display: flex; align-items: center; background: linear-gradient(135deg, #f59e0b 0%, #d97706 100%); color: white; padding: 0.35rem 0.65rem; border-radius: 6px; font-size: 0.7rem; font-weight: 600; box-shadow: 0 2px 6px rgba(245, 158, 11, 0.3);">
-                                                    <i class="ri-user-heart-line me-1" style="font-size: 0.8rem;"></i>
-                                                    <span id="guest-badge-infants">{{ $infantCount }}</span>
-                                                </div>
-                                            </div>
-                                            
-                                            <!-- Select Button -->
-                                            <button type="button" class="btn w-100" onclick="openTourGuestSelector()" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; border: none; border-radius: 8px; padding: 0.4rem 0.875rem; font-weight: 500; font-size: 0.8rem; transition: all 0.3s ease; box-shadow: 0 2px 8px rgba(102, 126, 234, 0.25);">
-                                                <i class="ri-edit-line me-2"></i>Select Guests
+                                            <button type="button" class="btn btn-sm btn-outline-primary" onclick="openTourGuestSelector()" style="border-radius: 6px; padding: 0.25rem 0.5rem; margin-left: 0.5rem; flex-shrink: 0;">
+                                                <i class="ri-edit-line"></i>
                                             </button>
                                         </div>
                                     </div>
@@ -3984,126 +3973,142 @@
                             <!-- Combined Guest Information Section (Lead Guest + Additional Guests in same grid) -->
                             <div class="row mb-4">
                                 <div class="col-12">
-                                    <div class="accordion" id="guestInformationAccordion">
-                                        <!-- Lead Guest Accordion Item -->
-                                        @if(isset($customer_info) && !empty($customer_info))
-                                        <div class="accordion-item border-0 shadow-sm mb-3">
-                                            <h2 class="accordion-header" id="leadGuestHeading">
-                                                <button class="accordion-button collapsed fw-bold text-white" type="button" data-bs-toggle="collapse" data-bs-target="#leadGuestCollapse" aria-expanded="false" aria-controls="leadGuestCollapse" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);">
-                                                    <i class="ri-user-star-line me-2"></i>Lead Guest
-                                                </button>
-                                            </h2>
-                                            <div id="leadGuestCollapse"  style="margin-top: 10px class="accordion-collapse collapse" aria-labelledby="leadGuestHeading" data-bs-parent="#guestInformationAccordion">
-                                                <div class="accordion-body" style="background: linear-gradient(to bottom, #f8f9ff 0%, #ffffff 100%);">
-                                                    <div class="row g-3">
-                                                        <div class="col-md-6">
-                                                            <label class="form-label fw-semibold">Full Name</label>
-                                                            <input type="text" class="form-control" id="customerFullName" name="customer_full_name" placeholder="Enter full name" value="{{ $customer_info['fullName'] ?? '' }}">
+                                    <!-- Customer Information Section -->
+                                    @if(isset($customer_info) && !empty($customer_info))
+                                    <div class="accordion mb-4" id="customerAccordion">
+                                        <div class="accordion-item border-0">
+                                            <div class="card shadow-sm border-0">
+                                                <div class="card-header text-white d-flex justify-content-between align-items-center" role="button" data-bs-toggle="collapse" data-bs-target="#customerInformationSection" aria-expanded="false" aria-controls="customerInformationSection" style="cursor: pointer; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); border: none; padding: 0.875rem 1.25rem;">
+                                                    <div class="d-flex align-items-center">
+                                                        <div style="width: 35px; height: 35px; background: rgba(255, 255, 255, 0.2); border-radius: 8px; display: flex; align-items: center; justify-content: center; margin-right: 10px;">
+                                                            <i class="ri-user-line text-white" style="color: #ffffff !important; font-size: 1rem;"></i>
                                                         </div>
-                                                        <div class="col-md-6">
-                                                            <label class="form-label fw-semibold">Email</label>
-                                                            <input type="email" class="form-control" id="customerEmail" name="customer_email" placeholder="Enter email" value="{{ $customer_info['email'] ?? '' }}">
+                                                        <div>
+                                                            <h6 class="mb-0 fw-semibold text-white" style="color: #ffffff !important; font-size: 0.85rem;">Lead Guest information</h6>
+                                                            <small class="text-white-75" style="color: rgba(255, 255, 255, 0.85) !important; font-size: 0.75rem;">Manage customer details and contact information</small>
                                                         </div>
-                                                        <div class="col-md-3">
-                                                            <label class="form-label fw-semibold">Country Code</label>
-                                                            <input type="text" class="form-control" id="customerCountryCode" name="customer_country_code" placeholder="e.g. +91" value="{{ $customer_info['countryCode'] ?? '' }}">
+                                                    </div>
+                                                    <i class="ri-arrow-down-s-line ms-2 text-white" style="color: #ffffff !important; font-size: 0.9rem;"></i>
+                                                </div>
+                                                <div id="customerInformationSection" class="collapse">
+                                                    <div class="card-body" style="background: #ffffff; padding: 0.75rem 1rem;">
+                                                        <div class="row g-2">
+                                                            <div class="col-md-3">
+                                                                <label class="form-label mb-1" style="font-size: 0.8rem;">Full Name</label>
+                                                                <input type="text" class="form-control form-control-sm" id="customerFullName" name="customer_full_name" placeholder="Enter full name" value="{{ $customer_info['fullName'] ?? '' }}" style="font-size: 0.85rem;">
+                                                            </div>
+                                                            <div class="col-md-3">
+                                                                <label class="form-label mb-1" style="font-size: 0.8rem;">Email</label>
+                                                                <input type="email" class="form-control form-control-sm" id="customerEmail" name="customer_email" placeholder="Enter email" value="{{ $customer_info['email'] ?? '' }}" style="font-size: 0.85rem;">
+                                                            </div>
+                                                            <div class="col-md-2">
+                                                                <label class="form-label mb-1" style="font-size: 0.8rem;">Country Code</label>
+                                                                <input type="text" class="form-control form-control-sm" id="customerCountryCode" name="customer_country_code" placeholder="e.g. +91" value="{{ $customer_info['countryCode'] ?? '' }}" style="font-size: 0.85rem;">
+                                                            </div>
+                                                            <div class="col-md-4">
+                                                                <label class="form-label mb-1" style="font-size: 0.8rem;">Phone Number</label>
+                                                                <input type="tel" class="form-control form-control-sm" id="customerPhone" name="customer_phone" placeholder="Enter phone number" value="{{ $customer_info['phone'] ?? '' }}" style="font-size: 0.85rem;">
+                                                            </div>
+                                                            <div class="col-md-3">
+                                                                <label class="form-label mb-1" style="font-size: 0.8rem;">Address Line 1</label>
+                                                                <input type="text" class="form-control form-control-sm" id="customerAddress1" name="customer_address1" placeholder="Enter address line 1" value="{{ $customer_info['address1'] ?? '' }}" style="font-size: 0.85rem;">
+                                                            </div>
+                                                            <div class="col-md-3">
+                                                                <label class="form-label mb-1" style="font-size: 0.8rem;">Address Line 2</label>
+                                                                <input type="text" class="form-control form-control-sm" id="customerAddress2" name="customer_address2" placeholder="Enter address line 2" value="{{ $customer_info['address2'] ?? '' }}" style="font-size: 0.85rem;">
+                                                            </div>
+                                                            <div class="col-md-3">
+                                                                <label class="form-label mb-1" style="font-size: 0.8rem;">State</label>
+                                                                <input type="text" class="form-control form-control-sm" id="customerState" name="customer_state" placeholder="Enter state" value="{{ $customer_info['state'] ?? '' }}" style="font-size: 0.85rem;">
+                                                            </div>
+                                                            <div class="col-md-3">
+                                                                <label class="form-label mb-1" style="font-size: 0.8rem;">ZIP Code</label>
+                                                                <input type="text" class="form-control form-control-sm" id="customerZip" name="customer_zip" placeholder="Enter ZIP code" value="{{ $customer_info['zip'] ?? '' }}" style="font-size: 0.85rem;">
+                                                            </div>
+                                                            <div class="col-md-6">
+                                                                <label class="form-label mb-1" style="font-size: 0.8rem;">Special Requests</label>
+                                                                <textarea class="form-control form-control-sm" id="customerSpecialRequests" name="customer_special_requests" rows="2" placeholder="Enter any special requests or notes" style="font-size: 0.85rem;">{{ $customer_info['specialRequests'] ?? '' }}</textarea>
+                                                            </div>
                                                         </div>
-                                                        <div class="col-md-9">
-                                                            <label class="form-label fw-semibold">Phone Number</label>
-                                                            <input type="tel" class="form-control" id="customerPhone" name="customer_phone" placeholder="Enter phone number" value="{{ $customer_info['phone'] ?? '' }}">
-                                                        </div>
-                                                        <div class="col-12">
-                                                            <label class="form-label fw-semibold">Address Line 1</label>
-                                                            <input type="text" class="form-control" id="customerAddress1" name="customer_address1" placeholder="Enter address line 1" value="{{ $customer_info['address1'] ?? '' }}">
-                                                        </div>
-                                                        <div class="col-12">
-                                                            <label class="form-label fw-semibold">Address Line 2</label>
-                                                            <input type="text" class="form-control" id="customerAddress2" name="customer_address2" placeholder="Enter address line 2" value="{{ $customer_info['address2'] ?? '' }}">
-                                                        </div>
-                                                        <div class="col-md-6">
-                                                            <label class="form-label fw-semibold">State</label>
-                                                            <input type="text" class="form-control" id="customerState" name="customer_state" placeholder="Enter state" value="{{ $customer_info['state'] ?? '' }}">
-                                                        </div>
-                                                        <div class="col-md-6">
-                                                            <label class="form-label fw-semibold">ZIP Code</label>
-                                                            <input type="text" class="form-control" id="customerZip" name="customer_zip" placeholder="Enter ZIP code" value="{{ $customer_info['zip'] ?? '' }}">
-                                                        </div>
-                                                        <div class="col-12">
-                                                            <label class="form-label fw-semibold">Special Requests</label>
-                                                            <textarea class="form-control" id="customerSpecialRequests" name="customer_special_requests" rows="3" placeholder="Enter any special requests or notes">{{ $customer_info['specialRequests'] ?? '' }}</textarea>
-                                                        </div>  
                                                     </div>
                                                 </div>
                                             </div>
                                         </div>
-                                        @endif
+                                    </div>
+                                    @endif
 
-                                        <!-- Additional Guests Accordion Item -->
-                                        <div class="accordion-item border-0 shadow-sm">
-                                            <h2 class="accordion-header" id="additionalGuestsHeading" style=margin-top:10px>
-                                                <button class="accordion-button collapsed fw-bold text-white" type="button" data-bs-toggle="collapse" data-bs-target="#additionalGuestsCollapse" aria-expanded="false" aria-controls="additionalGuestsCollapse" style="background: linear-gradient(135deg, #4facfe 0%, #00c9ff 100%);">
-                                                    <i class="ri-group-line me-2"></i>Additional Guest(s) 
-                                                    <span class="badge bg-light text-dark ms-2" id="additionalGuestsCount">{{ !empty($additionalGuests) ? count($additionalGuests) : 0 }}</span>
-                                                </button>
-                                            </h2>
-                                            <div id="additionalGuestsCollapse" class="accordion-collapse collapse" aria-labelledby="additionalGuestsHeading" data-bs-parent="#guestInformationAccordion">
-                                                <div class="accordion-body">
-                                                    <div id="additionalGuestsContainer">
-                                                        @if(!empty($additionalGuests))
-                                                            @foreach($additionalGuests as $index => $guest)
-                                                                <div class="card mb-3 border shadow-sm guest-card" data-guest-index="{{ $index }}">
-                                                                    <div class="card-header bg-light d-flex justify-content-between align-items-center">
-                                                                        <h6 class="mb-0 fw-semibold">
-                                                                            <i class="ri-user-line me-2"></i>Guest {{ $index + 1 }}
-                                                                        </h6>
-                                                                        <button type="button" class="btn btn-sm btn-danger remove-guest-btn" onclick="removeGuest(this)" data-guest-index="{{ $index }}" title="Remove Guest">
-                                                                            <i class="ri-delete-bin-line"></i> Remove
-                                                                        </button>
-                                                                    </div>
-                                                                    <div class="card-body" style="margin-top:10px">
-                                                                        <div class="row g-3">
-                                                                            <div class="col-md-3">
-                                                                                <label class="form-label fw-semibold">Salutation</label>
-                                                                                <input type="text" class="form-control guest-salutation" name="additional_guests[{{ $index }}][salutation]" value="{{ $guest['salutation'] ?? '' }}" placeholder="Mr/Mrs/Ms">
-                                                                            </div>
-                                                                            <div class="col-md-3">
-                                                                                <label class="form-label fw-semibold">Name</label>
-                                                                                <input type="text" class="form-control guest-name" name="additional_guests[{{ $index }}][name]" value="{{ $guest['name'] ?? '' }}" placeholder="Enter full name">
-                                                                            </div>
-                                                                            <div class="col-md-3">
-                                                                                <label class="form-label fw-semibold">Passport No.</label>
-                                                                                <input type="text" class="form-control guest-passport-no" name="additional_guests[{{ $index }}][passport_no]" value="{{ $guest['passport_no'] ?? '' }}" placeholder="Enter passport number">
-                                                                            </div>
-                                                                            <div class="col-md-3">
-                                                                                <label class="form-label fw-semibold">Passport Expiry</label>
-                                                                                <input type="date" class="form-control guest-passport-exp" name="additional_guests[{{ $index }}][passport_exp]" value="{{ $guest['passport_exp'] ?? '' }}">
-                                                                            </div>
-                                                                            <div class="col-md-4">
-                                                                                <label class="form-label fw-semibold">Contact No.</label>
-                                                                                <input type="text" class="form-control guest-contact-no" name="additional_guests[{{ $index }}][contact_no]" value="{{ $guest['contact_no'] ?? '' }}" placeholder="Enter contact number">
+                                    <!-- Additional Guests Section -->
+                                    <div class="accordion mb-4" id="additionalGuestsAccordion">
+                                        <div class="accordion-item border-0">
+                                            <div class="card shadow-sm border-0">
+                                                <div class="card-header text-white d-flex justify-content-between align-items-center" role="button" data-bs-toggle="collapse" data-bs-target="#additionalGuestsSection" aria-expanded="true" aria-controls="additionalGuestsSection" style="cursor: pointer; background: linear-gradient(135deg, #0dcaf0 0%, #0d6efd 100%); border: none; padding: 0.875rem 1.25rem;">
+                                                    <div class="d-flex align-items-center">
+                                                        <div style="width: 35px; height: 35px; background: rgba(255, 255, 255, 0.2); border-radius: 8px; display: flex; align-items: center; justify-content: center; margin-right: 10px;">
+                                                            <i class="ri-group-line text-white" style="color: #ffffff !important; font-size: 1rem;"></i>
+                                                        </div>
+                                                        <div>
+                                                            <h6 class="mb-0 fw-semibold text-white" style="color: #ffffff !important; font-size: 0.85rem;">Additional Guest(s)</h6>
+                                                            <small class="text-white-75" style="color: rgba(255, 255, 255, 0.85) !important; font-size: 0.75rem;">
+                                                                Add guest details up to the tour pax (Adults + Children)
+                                                            </small>
+                                                        </div>
+                                                    </div>
+                                                    <i class="ri-arrow-up-s-line ms-2 text-white" style="color: #ffffff !important; font-size: 0.9rem;"></i>
+                                                </div>
+                                                <div id="additionalGuestsSection" class="collapse show">
+                                                    <div class="card-body" style="background: #ffffff; padding: 1.25rem;">
+                                                        <div class="mb-3 text-end">
+                                                            <button type="button" class="btn btn-sm btn-light" id="addGuestBtn" onclick="addNewGuest()" style="font-size: 0.8rem; font-weight: 600; box-shadow: 0 2px 4px rgba(0,0,0,0.1);">
+                                                                <i class="ri-add-line me-1"></i>Add Guest
+                                                            </button>
+                                                        </div>
+                                                        <div id="additionalGuestsContainer">
+                                                            @if(!empty($additionalGuests))
+                                                                @foreach($additionalGuests as $index => $guest)
+                                                                    <div class="card mb-3 border shadow-sm guest-card" data-guest-index="{{ $index }}">
+                                                                        <div class="card-header bg-light d-flex justify-content-between align-items-center">
+                                                                            <h6 class="mb-0 fw-semibold">
+                                                                                <i class="ri-user-line me-2"></i>Guest {{ $index + 1 }}
+                                                                            </h6>
+                                                                            <button type="button" class="btn btn-sm btn-danger remove-guest-btn" onclick="removeGuest(this)" data-guest-index="{{ $index }}" title="Remove Guest">
+                                                                                <i class="ri-delete-bin-line"></i> Remove
+                                                                            </button>
+                                                                        </div>
+                                                                        <div class="card-body" style="margin-top:10px">
+                                                                            <div class="row g-3">
+                                                                                <div class="col-md-3">
+                                                                                    <label class="form-label fw-semibold">Salutation</label>
+                                                                                    <input type="text" class="form-control guest-salutation" name="additional_guests[{{ $index }}][salutation]" value="{{ $guest['salutation'] ?? '' }}" placeholder="Mr/Mrs/Ms">
+                                                                                </div>
+                                                                                <div class="col-md-3">
+                                                                                    <label class="form-label fw-semibold">Name</label>
+                                                                                    <input type="text" class="form-control guest-name" name="additional_guests[{{ $index }}][name]" value="{{ $guest['name'] ?? '' }}" placeholder="Enter full name">
+                                                                                </div>
+                                                                                <div class="col-md-3">
+                                                                                    <label class="form-label fw-semibold">Passport No.</label>
+                                                                                    <input type="text" class="form-control guest-passport-no" name="additional_guests[{{ $index }}][passport_no]" value="{{ $guest['passport_no'] ?? '' }}" placeholder="Enter passport number">
+                                                                                </div>
+                                                                                <div class="col-md-3">
+                                                                                    <label class="form-label fw-semibold">Passport Expiry</label>
+                                                                                    <input type="date" class="form-control guest-passport-exp" name="additional_guests[{{ $index }}][passport_exp]" value="{{ $guest['passport_exp'] ?? '' }}">
+                                                                                </div>
+                                                                                <div class="col-md-4">
+                                                                                    <label class="form-label fw-semibold">Contact No.</label>
+                                                                                    <input type="text" class="form-control guest-contact-no" name="additional_guests[{{ $index }}][contact_no]" value="{{ $guest['contact_no'] ?? '' }}" placeholder="Enter contact number">
+                                                                                </div>
                                                                             </div>
                                                                         </div>
                                                                     </div>
+                                                                @endforeach
+                                                            @else
+                                                                <div class="text-muted small mb-3 p-3 bg-light rounded">
+                                                                    <i class="ri-information-line me-2"></i>No additional guest information has been added for this tour.
                                                                 </div>
-                                                            @endforeach
-                                                        @else
-                                                            <div class="text-muted small mb-3 p-3 bg-light rounded">
-                                                                <i class="ri-information-line me-2"></i>No additional guest information has been added for this tour.
-                                                            </div>
-                                                        @endif
-                                                    </div>
-                                                    
-                                                    <!-- Add More Guest Button -->
-                                                    <div class="mt-3 pt-3 border-top">
-                                                        <button type="button" class="btn btn-info d-flex align-items-center gap-2" onclick="addNewGuest()" id="addGuestBtn">
-                                                            <i class="ri-user-add-line"></i>
-                                                            <span>Add More Guest</span>
-                                                        </button>
-                                                        <small class="text-muted d-block mt-2">
-                                                            <span id="guestLimitInfo">Total guests (including lead guest): <strong id="currentGuestCount">{{ isset($customer_info) && !empty($customer_info) ? 1 : 0 }}{{ !empty($additionalGuests) ? ' + ' . count($additionalGuests) : '' }}</strong> / <strong id="maxPax">{{ ($tour->adult ?? 0) + ($tour->child ?? 0) }}</strong> (Total Pax)</span>
-                                                        </small>
-                                                        <div class="text-danger small d-none mt-2" id="guestLimitError">
-                                                            <i class="ri-error-warning-line me-1"></i>Cannot add more guests. Total guests cannot exceed total pax.
+                                                            @endif
+                                                        </div>
+                                                        <div class="mt-3 small" id="guestLimitInfo" style="padding: 10px; background: #e7f3ff; border-radius: 6px; border: 1px solid #b3d9ff;">
+                                                            <i class="ri-information-line me-1"></i>
+                                                            Maximum <span id="maxAdditionalGuests">0</span> additional guest(s) can be added based on total pax (Adults + Children): <span id="totalPaxCount">{{ ($tour->adult ?? 0) + ($tour->child ?? 0) }}</span>
                                                         </div>
                                                     </div>
                                                 </div>
@@ -4141,14 +4146,19 @@
                                 
                                 // Function to add new guest
                                 function addNewGuest() {
-                                    if (!canAddMoreGuests()) {
-                                        document.getElementById('guestLimitError').classList.remove('d-none');
-                                        document.getElementById('addGuestBtn').disabled = true;
+                                    const hasLeadGuest = {{ isset($customer_info) && !empty($customer_info) ? 1 : 0 }};
+                                    const maxAdditionalGuests = Math.max(0, totalPax - hasLeadGuest);
+                                    const currentCount = document.querySelectorAll('.guest-card').length;
+                                    
+                                    if (maxAdditionalGuests === 0) {
+                                        alert('Total pax (Adults + Children) is 0. Please set pax before adding additional guests.');
                                         return;
                                     }
                                     
-                                    document.getElementById('guestLimitError').classList.add('d-none');
-                                    document.getElementById('addGuestBtn').disabled = false;
+                                    if (currentCount >= maxAdditionalGuests) {
+                                        alert('Maximum number of additional guests reached. Maximum allowed: ' + maxAdditionalGuests);
+                                        return;
+                                    }
                                     
                                     const container = document.getElementById('additionalGuestsContainer');
                                     
@@ -4234,44 +4244,33 @@
                                 function updateGuestCount() {
                                     const guestCards = document.querySelectorAll('.guest-card');
                                     const count = guestCards.length;
-                                    const currentTotal = getCurrentGuestCount();
-                                    
-                                    // Update badge
-                                    const badge = document.getElementById('additionalGuestsCount');
-                                    if (badge) {
-                                        badge.textContent = count;
-                                        if (count === 0) {
-                                            badge.classList.add('bg-secondary');
-                                            badge.classList.remove('bg-light', 'text-dark');
-                                        } else {
-                                            badge.classList.remove('bg-secondary');
-                                            badge.classList.add('bg-light', 'text-dark');
-                                        }
-                                    }
-                                    
-                                    // Update guest count info
-                                    const countInfo = document.getElementById('currentGuestCount');
                                     const hasLeadGuest = {{ isset($customer_info) && !empty($customer_info) ? 1 : 0 }};
-                                    if (countInfo) {
-                                        if (hasLeadGuest && count > 0) {
-                                            countInfo.textContent = hasLeadGuest + ' + ' + count;
-                                        } else if (hasLeadGuest) {
-                                            countInfo.textContent = hasLeadGuest;
-                                        } else {
-                                            countInfo.textContent = count;
-                                        }
+                                    
+                                    // Calculate max additional guests (total pax - lead guest if exists)
+                                    const maxAdditionalGuests = Math.max(0, totalPax - hasLeadGuest);
+                                    
+                                    // Update max additional guests and total pax count
+                                    const maxGuestsSpan = document.getElementById('maxAdditionalGuests');
+                                    const totalPaxSpan = document.getElementById('totalPaxCount');
+                                    
+                                    if (maxGuestsSpan) {
+                                        maxGuestsSpan.textContent = maxAdditionalGuests;
+                                    }
+                                    if (totalPaxSpan) {
+                                        totalPaxSpan.textContent = totalPax;
                                     }
                                     
                                     // Update add button state
                                     const addBtn = document.getElementById('addGuestBtn');
-                                    const errorMsg = document.getElementById('guestLimitError');
                                     
-                                    if (currentTotal >= totalPax) {
-                                        if (addBtn) addBtn.disabled = true;
-                                        if (errorMsg) errorMsg.classList.remove('d-none');
-                                    } else {
-                                        if (addBtn) addBtn.disabled = false;
-                                        if (errorMsg) errorMsg.classList.add('d-none');
+                                    if (addBtn) {
+                                        if (count >= maxAdditionalGuests || maxAdditionalGuests === 0) {
+                                            addBtn.disabled = true;
+                                            addBtn.classList.add('disabled');
+                                        } else {
+                                            addBtn.disabled = false;
+                                            addBtn.classList.remove('disabled');
+                                        }
                                     }
                                 }
                                 
@@ -4806,7 +4805,7 @@
                             </select>
                         </div>
                         <!-- Restaurant Selection -->
-                        <div class="col-12 col-md-8">
+                        <div class="col-12 col-md-4">
                             <label for="modal_restaurant_select" class="form-label fw-semibold mb-1" style="color: #495057; font-size: 0.75rem;">
                                 <i class="ri-restaurant-2-line me-1" style="color: #f5576c;"></i>Restaurant
                             </label>
@@ -4822,22 +4821,23 @@
                         <div class="col-12 col-md-4">
                             <label class="form-label fw-semibold mb-1" style="color: #495057; font-size: 0.75rem;">Guests</label>
                             <div class="guest-selector">
-                                <div class="guest-display rounded" style="background: #f8f9fa; border: 1px solid #e9ecef; padding: 0.5rem;">
-                                    <div class="d-flex align-items-center justify-content-between mb-1">
-                                        <div class="guest-info">
-                                            <span id="modal_restaurant_guest_summary" class="text-muted" style="font-size: 0.7rem;">
-                                                1 adults (1 male, 0 female), 0 children -0 infants
+                                <div class="guest-display border rounded d-flex align-items-start justify-content-between" style="min-height: 34px; padding: 0.3rem 0.75rem; background: #f8f9fa; border: 1px solid #dee2e6 !important; border-radius: 8px;">
+                                    <div class="guest-info d-flex flex-column gap-1" style="flex: 1;">
+                                        <span id="modal_restaurant_guest_summary" class="d-flex flex-column gap-1" style="font-size: 0.8rem;">
+                                            <span class="d-flex align-items-center gap-1">
+                                                <span class="badge d-flex align-items-center gap-1" style="background: #667eea; border-radius: 4px; font-size: 0.7rem; padding: 0.2rem 0.4rem;" title="Adults"><i class="ri-group-line" style="font-size: 0.75rem;"></i><span>1 Adults</span></span>
+                                                <span class="badge d-flex align-items-center gap-1" style="background: #667eea; border-radius: 4px; font-size: 0.7rem; padding: 0.2rem 0.4rem; opacity: 0.8;" title="Male"><i class="ri-men-line" style="font-size: 0.75rem;"></i><span>1</span></span>
+                                                <span class="badge d-flex align-items-center gap-1" style="background: #667eea; border-radius: 4px; font-size: 0.7rem; padding: 0.2rem 0.4rem; opacity: 0.8;" title="Female"><i class="ri-women-line" style="font-size: 0.75rem;"></i><span>0</span></span>
                                             </span>
-                                        </div>
-                                        <button type="button" class="btn btn-sm btn-outline-primary p-1" onclick="openModalGuestSelector()" style="height: 28px; width: 28px; padding: 0; display: flex; align-items: center; justify-content: center;">
-                                            <i class="ri-edit-line" style="font-size: 0.75rem;"></i>
-                                        </button>
+                                            <span class="d-flex align-items-center gap-1">
+                                                <span class="badge d-flex align-items-center gap-1" style="background: #28a745; border-radius: 4px; font-size: 0.7rem; padding: 0.2rem 0.4rem;" title="Children"><i class="ri-user-smile-line" style="font-size: 0.75rem;"></i><span>0</span></span>
+                                                <span class="badge d-flex align-items-center gap-1" style="background: #ffc107; color: #000; border-radius: 4px; font-size: 0.7rem; padding: 0.2rem 0.4rem;" title="Infants"><i class="ri-user-heart-line" style="font-size: 0.75rem;"></i><span>0</span></span>
+                                            </span>
+                                        </span>
                                     </div>
-                                    <div class="guest-badges d-flex gap-1">
-                                        <span class="badge" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); font-size: 0.65rem; padding: 0.2rem 0.4rem;">1</span>
-                                        <span class="badge" style="background: linear-gradient(135deg, #11998e 0%, #38ef7d 100%); font-size: 0.65rem; padding: 0.2rem 0.4rem;">0</span>
-                                        <span class="badge" style="background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%); font-size: 0.65rem; padding: 0.2rem 0.4rem;">0</span>
-                                    </div>
+                                    <button type="button" class="btn btn-sm btn-outline-primary" onclick="openModalGuestSelector()" style="border-radius: 6px; padding: 0.25rem 0.5rem; margin-left: 0.5rem; flex-shrink: 0;">
+                                        <i class="ri-edit-line"></i>
+                                    </button>
                                 </div>
                             </div>
                             
@@ -4848,7 +4848,7 @@
                         </div>
 
                         <!-- Dining Date Selection -->
-                        <div class="col-12 col-md-4">
+                        <div class="col-12 col-md-3">
                             <label for="modal_restaurant_dining_date" class="form-label fw-semibold mb-1" style="color: #495057; font-size: 0.75rem;">
                                 <i class="ri-calendar-line me-1" style="color: #f5576c;"></i>Dining Date
                             </label>
@@ -4856,7 +4856,7 @@
                         </div>
 
                         <!-- Meal Type Selection -->
-                        <div class="col-12 col-md-4">
+                        <div class="col-12 col-md-3">
                             <label for="modal_restaurant_meal_type" class="form-label fw-semibold mb-1" style="color: #495057; font-size: 0.75rem;">
                                 <i class="ri-time-line me-1" style="color: #f5576c;"></i>Meal Type
                             </label>
@@ -4867,7 +4867,7 @@
                         </div>
 
                         <!-- Select Dish -->
-                        <div class="col-12 col-md-6">
+                        <div class="col-12 col-md-3">
                             <label for="modal_restaurant_dish" class="form-label fw-semibold mb-1" style="color: #495057; font-size: 0.75rem;">Dish</label>
                             <select class="form-select modern-select" name="modal_restaurant_dish" id="modal_restaurant_dish" data-no-select2="true" style="height: 36px; font-size: 0.8rem;">
                                 <option value="">Select Dish</option>
@@ -4875,7 +4875,7 @@
                         </div>
 
                         <!-- Time Slot -->
-                        <div class="col-12 col-md-6">
+                        <div class="col-12 col-md-3">
                             <label for="modal_restaurant_time_slot" class="form-label fw-semibold mb-1" style="color: #495057; font-size: 0.75rem;">Time Slot</label>
                             <select class="form-select modern-select" name="modal_restaurant_time_slot" id="modal_restaurant_time_slot" data-no-select2="true" style="height: 36px; font-size: 0.8rem;">
                                 <option value="">Select Time Slot</option>
@@ -5226,81 +5226,188 @@
 
 <!-- Guest Selector Modal for Restaurant -->
 <div class="modal fade" id="modalGuestSelectorModal" tabindex="-1" aria-labelledby="modalGuestSelectorModalLabel" aria-hidden="true">
-    <div class="modal-dialog">
-        <div class="modal-content">
-            <div class="modal-header bg-primary text-white">
-                <h5 class="modal-title" id="modalGuestSelectorModalLabel">
-                    <i class="ri-group-line me-2"></i>Select Guests for Restaurant
+    <div class="modal-dialog modal-md modal-dialog-centered">
+        <div class="modal-content" style="border: none; border-radius: 10px; overflow: hidden; box-shadow: 0 10px 40px rgba(0,0,0,0.15);">
+            <div class="modal-header text-white" style="background: linear-gradient(135deg, #fa709a 0%, #fee140 100%); border: none; padding: 1rem 1.25rem;">
+                <h5 class="modal-title fw-bold d-flex align-items-center mb-0 text-white" id="modalGuestSelectorModalLabel" style="font-size: 1.1rem; letter-spacing: -0.01em; color: #ffffff !important;">
+                    <div style="width: 32px; height: 32px; background: rgba(255, 255, 255, 0.2); border-radius: 8px; display: flex; align-items: center; justify-content: center; margin-right: 10px;">
+                        <i class="ri-group-line text-white" style="font-size: 1rem; color: #ffffff !important;"></i>
+                    </div>
+                    <span style="color: #ffffff !important;">Select Guests for Restaurant</span>
                 </h5>
-                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close" style="opacity: 0.9; font-size: 0.75rem;"></button>
             </div>
-            <div class="modal-body">
-                <form id="modalGuestSelectorForm">
+            <div class="modal-body" style="padding: 1.25rem; background: #ffffff;">
+                <form id="modalGuestSelectorForm" onsubmit="return false;">
                     <div class="row g-3">
-                        <!-- Pax -->
+                        <!-- Adults Section -->
                         <div class="col-md-6">
-                            <label for="modal_pax" class="form-label fw-semibold">Pax</label>
-                            <div class="input-group">
-                                
-                                <input type="number" class="form-control text-center" id="modal_pax" name="modal_pax" value="1" min="1" data-tour-max="{{ ($tour->adult ?? 0) + ($tour->child ?? 0) }}" readonly>
-                                
+                            <div class="card" style="border: 1px solid #e9ecef; border-radius: 8px; box-shadow: 0 2px 6px rgba(0,0,0,0.04); height: 100%;">
+                                <div class="card-header" style="background: #f8f9fa; border: none; border-bottom: 1px solid #e9ecef; padding: 0.625rem 0.875rem; border-radius: 8px 8px 0 0;">
+                                    <h6 class="mb-0 fw-semibold d-flex align-items-center" style="color: #495057; font-size: 0.875rem;">
+                                        <i class="ri-user-line me-2" style="color: #fa709a; font-size: 0.9rem;"></i>Adults
+                                    </h6>
                             </div>
-                            <small class="text-muted">Total persons (adults + children) - Max: {{ ($tour->adult ?? 0) + ($tour->child ?? 0) }}</small>
+                                <div class="card-body" style="padding: 1rem 0.875rem;">
+                                    <!-- Male -->
+                                    <div class="guest-counter mb-3">
+                                        <label class="form-label fw-semibold mb-2 d-block" style="color: #495057; font-size: 0.85rem;">
+                                            <i class="ri-user-3-line me-1" style="color: #fa709a; font-size: 0.9rem;"></i>Male
+                                        </label>
+                                        <div class="d-flex align-items-center justify-content-center">
+                                            <button type="button" class="btn" onclick="decrementCount('modal_male_count')" style="width: 36px; height: 36px; border-radius: 6px; border: 1px solid #dee2e6; background: #ffffff; color: #495057; display: flex; align-items: center; justify-content: center; transition: all 0.2s; padding: 0;">
+                                                <i class="ri-subtract-line" style="font-size: 0.9rem;"></i>
+                                            </button>
+                                            <input
+                                                type="number"
+                                                class="form-control text-center mx-3 fw-bold"
+                                                id="modal_male_count"
+                                                name="modal_male_count"
+                                                value="1"
+                                                min="0"
+                                                data-tour-max="{{ ($tour->adult ?? 0) + ($tour->child ?? 0) }}"
+                                                readonly
+                                                style="font-size: 1.5rem; color: #212529; min-width: 48px; height: 36px; border: none; background-color: transparent; box-shadow: none;"
+                                            >
+                                            <button type="button" class="btn" onclick="incrementCount('modal_male_count')" style="width: 36px; height: 36px; border-radius: 6px; border: 1px solid #dee2e6; background: #ffffff; color: #495057; display: flex; align-items: center; justify-content: center; transition: all 0.2s; padding: 0;">
+                                                <i class="ri-add-line" style="font-size: 0.9rem;"></i>
+                                            </button>
+                                        </div>
                         </div>
 
-                        <!-- Children -->
-                        <div class="col-md-6">
-                            <label for="modal_children" class="form-label fw-semibold">Children</label>
-                            <div class="input-group">
-                                <button type="button" class="btn btn-outline-secondary" onclick="decrementCount('modal_children')">-</button>
-                                <input type="number" class="form-control text-center" id="modal_children" name="modal_children" value="0" min="0" data-tour-max="{{ ($tour->adult ?? 0) + ($tour->child ?? 0) }}">
-                                <button type="button" class="btn btn-outline-secondary" onclick="incrementCount('modal_children')">+</button>
+                                    <!-- Female -->
+                                    <div class="guest-counter">
+                                        <label class="form-label fw-semibold mb-2 d-block" style="color: #495057; font-size: 0.85rem;">
+                                            <i class="ri-user-4-line me-1" style="color: #fa709a; font-size: 0.9rem;"></i>Female
+                                        </label>
+                                        <div class="d-flex align-items-center justify-content-center">
+                                            <button type="button" class="btn" onclick="decrementCount('modal_female_count')" style="width: 36px; height: 36px; border-radius: 6px; border: 1px solid #dee2e6; background: #ffffff; color: #495057; display: flex; align-items: center; justify-content: center; transition: all 0.2s; padding: 0;">
+                                                <i class="ri-subtract-line" style="font-size: 0.9rem;"></i>
+                                            </button>
+                                            <input
+                                                type="number"
+                                                class="form-control text-center mx-3 fw-bold"
+                                                id="modal_female_count"
+                                                name="modal_female_count"
+                                                value="0"
+                                                min="0"
+                                                data-tour-max="{{ ($tour->adult ?? 0) + ($tour->child ?? 0) }}"
+                                                readonly
+                                                style="font-size: 1.5rem; color: #212529; min-width: 48px; height: 36px; border: none; background-color: transparent; box-shadow: none;"
+                                            >
+                                            <button type="button" class="btn" onclick="incrementCount('modal_female_count')" style="width: 36px; height: 36px; border-radius: 6px; border: 1px solid #dee2e6; background: #ffffff; color: #495057; display: flex; align-items: center; justify-content: center; transition: all 0.2s; padding: 0;">
+                                                <i class="ri-add-line" style="font-size: 0.9rem;"></i>
+                                            </button>
                             </div>
                         </div>
 
-                        <!-- Male Count -->
-                        <div class="col-md-6">
-                            <label for="modal_male_count" class="form-label fw-semibold">Male</label>
-                            <div class="input-group">
-                                <button type="button" class="btn btn-outline-secondary" onclick="decrementCount('modal_male_count')">-</button>
-                                <input type="number" class="form-control text-center" id="modal_male_count" name="modal_male_count" value="1" min="0" data-tour-max="{{ ($tour->adult ?? 0) + ($tour->child ?? 0) }}">
-                                <button type="button" class="btn btn-outline-secondary" onclick="incrementCount('modal_male_count')">+</button>
+                                    <!-- Pax Display -->
+                                    <div class="mt-3 pt-3" style="border-top: 1px solid #e9ecef;">
+                                        <label class="form-label fw-semibold mb-2 d-block" style="color: #495057; font-size: 0.85rem;">
+                                            <i class="ri-group-line me-1" style="color: #fa709a; font-size: 0.9rem;"></i>Total Pax
+                                        </label>
+                                        <div class="d-flex align-items-center justify-content-center">
+                                            <input
+                                                type="number"
+                                                class="form-control text-center fw-bold"
+                                                id="modal_pax"
+                                                name="modal_pax"
+                                                value="1"
+                                                min="1"
+                                                data-tour-max="{{ ($tour->adult ?? 0) + ($tour->child ?? 0) }}"
+                                                readonly
+                                                style="font-size: 1.2rem; color: #212529; max-width: 100px; height: 40px; border: 2px solid #fa709a; background-color: #fff5f7; box-shadow: none;"
+                                            >
+                                        </div>
+                                        <small class="text-muted d-block text-center mt-2" style="font-size: 0.75rem;">Max: {{ ($tour->adult ?? 0) + ($tour->child ?? 0) }}</small>
+                                    </div>
+                                </div>
                             </div>
                         </div>
 
-                        <!-- Female Count -->
+                        <!-- Children & Infants Section -->
                         <div class="col-md-6">
-                            <label for="modal_female_count" class="form-label fw-semibold">Female</label>
-                            <div class="input-group">
-                                <button type="button" class="btn btn-outline-secondary" onclick="decrementCount('modal_female_count')">-</button>
-                                <input type="number" class="form-control text-center" id="modal_female_count" name="modal_female_count" value="0" min="0" data-tour-max="{{ ($tour->adult ?? 0) + ($tour->child ?? 0) }}">
-                                <button type="button" class="btn btn-outline-secondary" onclick="incrementCount('modal_female_count')">+</button>
+                            <div class="card" style="border: 1px solid #e9ecef; border-radius: 8px; box-shadow: 0 2px 6px rgba(0,0,0,0.04); height: 100%;">
+                                <div class="card-header" style="background: #f8f9fa; border: none; border-bottom: 1px solid #e9ecef; padding: 0.625rem 0.875rem; border-radius: 8px 8px 0 0;">
+                                    <h6 class="mb-0 fw-semibold d-flex align-items-center" style="color: #495057; font-size: 0.875rem;">
+                                        <i class="ri-user-smile-line me-2" style="color: #fa709a; font-size: 0.9rem;"></i>Children & Infants
+                                    </h6>
+                            </div>
+                                <div class="card-body" style="padding: 1rem 0.875rem;">
+                                    <!-- Children -->
+                                    <div class="guest-counter mb-3">
+                                        <label class="form-label fw-semibold mb-2 d-block" style="color: #495057; font-size: 0.85rem;">
+                                            <i class="ri-user-smile-line me-1" style="color: #fa709a; font-size: 0.9rem;"></i>Children
+                                            <small class="text-muted d-block mt-1" style="font-size: 0.75rem; font-weight: normal;">Ages 1-17</small>
+                                        </label>
+                                        <div class="d-flex align-items-center justify-content-center">
+                                            <button type="button" class="btn" onclick="decrementCount('modal_children')" style="width: 36px; height: 36px; border-radius: 6px; border: 1px solid #dee2e6; background: #ffffff; color: #495057; display: flex; align-items: center; justify-content: center; transition: all 0.2s; padding: 0;">
+                                                <i class="ri-subtract-line" style="font-size: 0.9rem;"></i>
+                                            </button>
+                                            <input
+                                                type="number"
+                                                class="form-control text-center mx-3 fw-bold"
+                                                id="modal_children"
+                                                name="modal_children"
+                                                value="0"
+                                                min="0"
+                                                data-tour-max="{{ ($tour->adult ?? 0) + ($tour->child ?? 0) }}"
+                                                readonly
+                                                style="font-size: 1.5rem; color: #212529; min-width: 48px; height: 36px; border: none; background-color: transparent; box-shadow: none;"
+                                            >
+                                            <button type="button" class="btn" onclick="incrementCount('modal_children')" style="width: 36px; height: 36px; border-radius: 6px; border: 1px solid #dee2e6; background: #ffffff; color: #495057; display: flex; align-items: center; justify-content: center; transition: all 0.2s; padding: 0;">
+                                                <i class="ri-add-line" style="font-size: 0.9rem;"></i>
+                                            </button>
+                        </div>
+
+                                        <!-- Child Ages Section -->
+                                        <div id="modal_child_ages_container" class="mt-3" style="display: none;">
+                                            <label class="form-label fw-semibold mb-2 d-block" style="color: #495057; font-size: 0.8rem;">
+                                                <i class="ri-user-settings-line me-1" style="color: #fa709a; font-size: 0.85rem;"></i>Child Ages
+                                            </label>
+                                            <input type="text" class="form-control" id="modal_child_ages" name="modal_child_ages" placeholder="e.g., 5,8,12" disabled style="font-size: 0.85rem; height: 36px;">
+                                            <small class="text-muted d-block mt-1" style="font-size: 0.7rem;">Comma separated ages (only if children > 0)</small>
                             </div>
                         </div>
 
-                        <!-- Infants -->
-                        <div class="col-md-6">
-                            <label for="modal_infants" class="form-label fw-semibold">Infants</label>
-                            <div class="input-group">
-                                <button type="button" class="btn btn-outline-secondary" onclick="decrementCount('modal_infants')">-</button>
-                                <input type="number" class="form-control text-center" id="modal_infants" name="modal_infants" value="0" min="0" max="10">
-                                <button type="button" class="btn btn-outline-secondary" onclick="incrementCount('modal_infants')">+</button>
+                                    <!-- Infants -->
+                                    <div class="guest-counter">
+                                        <label class="form-label fw-semibold mb-2 d-block" style="color: #495057; font-size: 0.85rem;">
+                                            <i class="ri-user-heart-line me-1" style="color: #fa709a; font-size: 0.9rem;"></i>Infants
+                                            <small class="text-muted d-block mt-1" style="font-size: 0.75rem; font-weight: normal;">Under 1 year</small>
+                                        </label>
+                                        <div class="d-flex align-items-center justify-content-center">
+                                            <button type="button" class="btn" onclick="decrementCount('modal_infants')" style="width: 36px; height: 36px; border-radius: 6px; border: 1px solid #dee2e6; background: #ffffff; color: #495057; display: flex; align-items: center; justify-content: center; transition: all 0.2s; padding: 0;">
+                                                <i class="ri-subtract-line" style="font-size: 0.9rem;"></i>
+                                            </button>
+                                            <input
+                                                type="number"
+                                                class="form-control text-center mx-3 fw-bold"
+                                                id="modal_infants"
+                                                name="modal_infants"
+                                                value="0"
+                                                min="0"
+                                                max="10"
+                                                readonly
+                                                style="font-size: 1.5rem; color: #212529; min-width: 48px; height: 36px; border: none; background-color: transparent; box-shadow: none;"
+                                            >
+                                            <button type="button" class="btn" onclick="incrementCount('modal_infants')" style="width: 36px; height: 36px; border-radius: 6px; border: 1px solid #dee2e6; background: #ffffff; color: #495057; display: flex; align-items: center; justify-content: center; transition: all 0.2s; padding: 0;">
+                                                <i class="ri-add-line" style="font-size: 0.9rem;"></i>
+                                            </button>
+                                        </div>
+                                    </div>
+                                </div>
                             </div>
-                        </div>
-
-                        <!-- Child Ages -->
-                        <div class="col-md-6">
-                            <label for="modal_child_ages" class="form-label fw-semibold">Child Ages</label>
-                            <input type="text" class="form-control" id="modal_child_ages" name="modal_child_ages" placeholder="e.g., 5,8,12" disabled>
-                            <small class="text-muted">Comma separated ages (only if children > 0)</small>
                         </div>
                     </div>
                 </form>
             </div>
-            <div class="modal-footer">
-                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
-                <button type="button" class="btn btn-primary" onclick="confirmModalGuestSelection()">
-                    <i class="ri-check-line me-1"></i>Confirm Guest Selection
+            <div class="modal-footer" style="border-top: 1px solid #e9ecef; padding: 0.875rem 1.25rem; background: #f8f9fa;">
+                <button type="button" class="btn" data-bs-dismiss="modal" style="height: 36px; border-radius: 6px; border: 1px solid #dee2e6; background: #ffffff; color: #495057; padding: 0.375rem 1.25rem; font-weight: 500; font-size: 0.875rem; transition: all 0.2s;">
+                    Cancel
+                </button>
+                <button type="button" class="btn text-white" onclick="confirmModalGuestSelection()" style="height: 36px; border-radius: 6px; background: linear-gradient(135deg, #fa709a 0%, #fee140 100%); border: none; padding: 0.375rem 1.25rem; font-weight: 500; font-size: 0.875rem; transition: all 0.2s; box-shadow: 0 2px 6px rgba(250, 112, 154, 0.3);">
+                    <i class="ri-check-line me-1"></i>Apply Selection
                 </button>
             </div>
         </div>
@@ -5343,7 +5450,7 @@
                 <form id="attractionSelectionForm" onsubmit="return false;">
                     <!-- First Row: City and Attraction Name -->
                     <div class="row g-2 mb-2">
-                        <div class="col-12 col-md-6">
+                        <div class="col-12 col-md-4">
                             <label class="form-label fw-semibold mb-1" style="color: #495057; font-size: 0.75rem;">
                                 <i class="ri-map-pin-line me-1" style="color: #fa709a;"></i>City
                             </label>
@@ -5354,7 +5461,7 @@
                                 @endforeach
                             </select>
                         </div>
-                        <div class="col-12 col-md-6">
+                        <div class="col-12 col-md-4">
                             <label for="modal_attraction_select" class="form-label fw-semibold mb-1" style="color: #495057; font-size: 0.75rem;">
                                 <i class="ri-ticket-2-line me-1" style="color: #fa709a;"></i>Attraction
                             </label>
@@ -5364,6 +5471,34 @@
                             <small class="form-text text-muted" style="font-size: 0.7rem; margin-top: 0.2rem; display: block;">
                                 <span id="attraction_count">0</span> in <span id="modal_attraction_city"></span>
                             </small>
+                        </div>
+                        <div class="col-12 col-md-4">
+                            <label class="form-label fw-semibold mb-1" style="color: #495057; font-size: 0.75rem;">Guests</label>
+                            <div class="guest-selector">
+                                <div class="guest-display border rounded d-flex align-items-start justify-content-between" style="min-height: 34px; padding: 0.3rem 0.75rem; background: #f8f9fa; border: 1px solid #dee2e6 !important; border-radius: 8px;">
+                                    <div class="guest-info d-flex flex-column gap-1" style="flex: 1;">
+                                        <span id="modal_attraction_guest_summary" class="d-flex flex-column gap-1" style="font-size: 0.8rem;">
+                                            <span class="d-flex align-items-center gap-1">
+                                                <span class="badge d-flex align-items-center gap-1" style="background: #667eea; border-radius: 4px; font-size: 0.7rem; padding: 0.2rem 0.4rem;" title="Adults"><i class="ri-group-line" style="font-size: 0.75rem;"></i><span>1 Adults</span></span>
+                                                <span class="badge d-flex align-items-center gap-1" style="background: #667eea; border-radius: 4px; font-size: 0.7rem; padding: 0.2rem 0.4rem; opacity: 0.8;" title="Male"><i class="ri-men-line" style="font-size: 0.75rem;"></i><span>1</span></span>
+                                                <span class="badge d-flex align-items-center gap-1" style="background: #667eea; border-radius: 4px; font-size: 0.7rem; padding: 0.2rem 0.4rem; opacity: 0.8;" title="Female"><i class="ri-women-line" style="font-size: 0.75rem;"></i><span>0</span></span>
+                                            </span>
+                                            <span class="d-flex align-items-center gap-1">
+                                                <span class="badge d-flex align-items-center gap-1" style="background: #28a745; border-radius: 4px; font-size: 0.7rem; padding: 0.2rem 0.4rem;" title="Children"><i class="ri-user-smile-line" style="font-size: 0.75rem;"></i><span>0</span></span>
+                                                <span class="badge d-flex align-items-center gap-1" style="background: #ffc107; color: #000; border-radius: 4px; font-size: 0.7rem; padding: 0.2rem 0.4rem;" title="Infants"><i class="ri-user-heart-line" style="font-size: 0.75rem;"></i><span>0</span></span>
+                                            </span>
+                                        </span>
+                                    </div>
+                                    <button type="button" class="btn btn-sm btn-outline-primary" onclick="openAttractionGuestSelector()" style="border-radius: 6px; padding: 0.25rem 0.5rem; margin-left: 0.5rem; flex-shrink: 0;">
+                                        <i class="ri-edit-line"></i>
+                                    </button>
+                                </div>
+                            </div>
+                            
+                            <!-- Hidden fields for attraction pricing -->
+                            <input type="hidden" name="modal_attraction_total_price" id="modal_attraction_total_price" value="0">
+                            <input type="hidden" name="modal_attraction_ticket_id" id="modal_attraction_ticket_id" value="">
+                            <input type="hidden" name="modal_attraction_ticket_name" id="modal_attraction_ticket_name" value="">
                         </div>
                     </div>
 
@@ -5396,36 +5531,10 @@
                     <!-- Below: Guest Selector, Visit Date, Time Slot, Ticket -->
                     <div class="row g-2">
                         <!-- Guest Selector -->
-                        <div class="col-12 col-md-3">
-                            <label class="form-label fw-semibold mb-1" style="color: #495057; font-size: 0.75rem;">Guests</label>
-                            <div class="guest-selector">
-                                <div class="guest-display rounded" style="background: #f8f9fa; border: 1px solid #e9ecef; padding: 0.5rem;">
-                                    <div class="d-flex align-items-center justify-content-between mb-1">
-                                        <div class="guest-info">
-                                            <span id="modal_attraction_guest_summary" class="text-muted" style="font-size: 0.7rem;">
-                                                1 adults (1 male, 0 female), 0 children - 0 infants
-                                                </span>
-                                            </div>
-                                        <button type="button" class="btn btn-sm btn-outline-primary p-1" onclick="openAttractionGuestSelector()" style="height: 28px; width: 28px; padding: 0; display: flex; align-items: center; justify-content: center;">
-                                            <i class="ri-edit-line" style="font-size: 0.75rem;"></i>
-                                        </button>
-                                    </div>
-                                    <div class="guest-badges d-flex gap-1">
-                                        <span class="badge" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); font-size: 0.65rem; padding: 0.2rem 0.4rem;" id="modal_badge_adults">1</span>
-                                        <span class="badge" style="background: linear-gradient(135deg, #11998e 0%, #38ef7d 100%); font-size: 0.65rem; padding: 0.2rem 0.4rem;" id="modal_badge_children">0</span>
-                                        <span class="badge" style="background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%); font-size: 0.65rem; padding: 0.2rem 0.4rem;" id="modal_badge_infants">0</span>
-                                    </div>
-                                </div>
-                            </div>
-                            
-                            <!-- Hidden fields for attraction pricing -->
-                            <input type="hidden" name="modal_attraction_total_price" id="modal_attraction_total_price" value="0">
-                            <input type="hidden" name="modal_attraction_ticket_id" id="modal_attraction_ticket_id" value="">
-                            <input type="hidden" name="modal_attraction_ticket_name" id="modal_attraction_ticket_name" value="">
-                        </div>
+                       
 
                         <!-- Visit Date -->
-                        <div class="col-12 col-md-3">
+                        <div class="col-12 col-md-4">
                             <label for="modal_attraction_visit_date" class="form-label fw-semibold mb-1" style="color: #495057; font-size: 0.75rem;">
                                 <i class="ri-calendar-line me-1" style="color: #fa709a;"></i>Visit Date
                             </label>
@@ -5433,7 +5542,7 @@
                         </div>
 
                         <!-- Time Slot -->
-                        <div class="col-12 col-md-3">
+                        <div class="col-12 col-md-4">
                             <label for="modal_attraction_time_slot" class="form-label fw-semibold mb-1" style="color: #495057; font-size: 0.75rem;">
                                 <i class="ri-time-line me-1" style="color: #fa709a;"></i>Time Slot
                             </label>
@@ -5444,7 +5553,7 @@
                         </div>
 
                         <!-- Ticket Selection -->
-                        <div class="col-12 col-md-3">
+                        <div class="col-12 col-md-4">
                             <label for="modal_attraction_ticket" class="form-label fw-semibold mb-1" style="color: #495057; font-size: 0.75rem;">
                                 <i class="ri-ticket-2-line me-1" style="color: #fa709a;"></i>Ticket
                             </label>
@@ -10239,22 +10348,24 @@
         const maleCount = parseInt(guestData.male_count || '1') || 1;
         const femaleCount = parseInt(guestData.female_count || '0') || 0;
         
-        const summary = `${pax} pax (${adults} adults, ${children} children) - ${maleCount} male, ${femaleCount} female - ${infants} infants`;
-        
-        // Update summary
+        // Update summary with new icon-based format
         const summaryElement = document.getElementById('modal_attraction_guest_summary');
         if (summaryElement) {
-            summaryElement.textContent = summary;
+            // Ensure the summary element has the correct structure
+            summaryElement.className = 'd-flex flex-column gap-1';
+            summaryElement.style.fontSize = '0.8rem';
+            
+            let summaryHTML = `<span class="d-flex align-items-center gap-1">`;
+            summaryHTML += `<span class="badge d-flex align-items-center gap-1" style="background: #667eea; border-radius: 4px; font-size: 0.7rem; padding: 0.2rem 0.4rem;" title="Adults"><i class="ri-group-line" style="font-size: 0.75rem;"></i><span>${adults} Adults</span></span>`;
+            summaryHTML += ` <span class="badge d-flex align-items-center gap-1" style="background: #667eea; border-radius: 4px; font-size: 0.7rem; padding: 0.2rem 0.4rem; opacity: 0.8;" title="Male"><i class="ri-men-line" style="font-size: 0.75rem;"></i><span>${maleCount}</span></span>`;
+            summaryHTML += ` <span class="badge d-flex align-items-center gap-1" style="background: #667eea; border-radius: 4px; font-size: 0.7rem; padding: 0.2rem 0.4rem; opacity: 0.8;" title="Female"><i class="ri-women-line" style="font-size: 0.75rem;"></i><span>${femaleCount}</span></span>`;
+            summaryHTML += `</span>`;
+            summaryHTML += `<span class="d-flex align-items-center gap-1">`;
+            summaryHTML += ` <span class="badge d-flex align-items-center gap-1" style="background: #28a745; border-radius: 4px; font-size: 0.7rem; padding: 0.2rem 0.4rem;" title="Children"><i class="ri-user-smile-line" style="font-size: 0.75rem;"></i><span>${children}</span></span>`;
+            summaryHTML += ` <span class="badge d-flex align-items-center gap-1" style="background: #ffc107; color: #000; border-radius: 4px; font-size: 0.7rem; padding: 0.2rem 0.4rem;" title="Infants"><i class="ri-user-heart-line" style="font-size: 0.75rem;"></i><span>${infants}</span></span>`;
+            summaryHTML += `</span>`;
+            summaryElement.innerHTML = summaryHTML;
         }
-
-        // Update badges
-        const adultBadge = document.getElementById('modal_badge_adults');
-        const childBadge = document.getElementById('modal_badge_children');
-        const infantBadge = document.getElementById('modal_badge_infants');
-        
-        if (adultBadge) adultBadge.textContent = adults;
-        if (childBadge) childBadge.textContent = children;
-        if (infantBadge) infantBadge.textContent = infants;
     }
     
     function updateAttractionGuestSummary() {
@@ -10309,23 +10420,24 @@
             paxElem.value = pax;
         }
 
-        // Build summary string with safe values
-        const summary = `${pax} pax (${adults} adults, ${children} children) - ${maleCount} male, ${femaleCount} female - ${infants} infants`;
-        
-        // Update summary if element exists
+        // Update summary with new icon-based format
         const summaryElement = document.getElementById('modal_attraction_guest_summary');
         if (summaryElement) {
-            summaryElement.textContent = summary;
+            // Ensure the summary element has the correct structure
+            summaryElement.className = 'd-flex flex-column gap-1';
+            summaryElement.style.fontSize = '0.8rem';
+            
+            let summaryHTML = `<span class="d-flex align-items-center gap-1">`;
+            summaryHTML += `<span class="badge d-flex align-items-center gap-1" style="background: #667eea; border-radius: 4px; font-size: 0.7rem; padding: 0.2rem 0.4rem;" title="Adults"><i class="ri-group-line" style="font-size: 0.75rem;"></i><span>${adults} Adults</span></span>`;
+            summaryHTML += ` <span class="badge d-flex align-items-center gap-1" style="background: #667eea; border-radius: 4px; font-size: 0.7rem; padding: 0.2rem 0.4rem; opacity: 0.8;" title="Male"><i class="ri-men-line" style="font-size: 0.75rem;"></i><span>${maleCount}</span></span>`;
+            summaryHTML += ` <span class="badge d-flex align-items-center gap-1" style="background: #667eea; border-radius: 4px; font-size: 0.7rem; padding: 0.2rem 0.4rem; opacity: 0.8;" title="Female"><i class="ri-women-line" style="font-size: 0.75rem;"></i><span>${femaleCount}</span></span>`;
+            summaryHTML += `</span>`;
+            summaryHTML += `<span class="d-flex align-items-center gap-1">`;
+            summaryHTML += ` <span class="badge d-flex align-items-center gap-1" style="background: #28a745; border-radius: 4px; font-size: 0.7rem; padding: 0.2rem 0.4rem;" title="Children"><i class="ri-user-smile-line" style="font-size: 0.75rem;"></i><span>${children}</span></span>`;
+            summaryHTML += ` <span class="badge d-flex align-items-center gap-1" style="background: #ffc107; color: #000; border-radius: 4px; font-size: 0.7rem; padding: 0.2rem 0.4rem;" title="Infants"><i class="ri-user-heart-line" style="font-size: 0.75rem;"></i><span>${infants}</span></span>`;
+            summaryHTML += `</span>`;
+            summaryElement.innerHTML = summaryHTML;
         }
-
-        // Update badges with IDs
-        const adultBadge = document.getElementById('modal_badge_adults');
-        const childBadge = document.getElementById('modal_badge_children');
-        const infantBadge = document.getElementById('modal_badge_infants');
-        
-        if (adultBadge) adultBadge.textContent = adults;
-        if (childBadge) childBadge.textContent = children;
-        if (infantBadge) infantBadge.textContent = infants;
 
         // Enable/disable child ages field
         const childAgesField = document.getElementById('attraction_modal_child_ages');
@@ -17238,20 +17350,23 @@
         const infants = parseInt(document.getElementById('tour_infants_count').value) || 0;
         const adults = maleCount + femaleCount;
         
-        const summary = `${adults} adults (${maleCount} male, ${femaleCount} female), ${children} children, ${infants} infants`;
         const summaryElement = document.getElementById('tour_guest_summary');
         if (summaryElement) {
-            summaryElement.textContent = summary;
+            // Ensure the summary element has the correct structure
+            summaryElement.className = 'd-flex flex-column gap-1';
+            summaryElement.style.fontSize = '0.8rem';
+            
+            let summaryHTML = `<span class="d-flex align-items-center gap-1">`;
+            summaryHTML += `<span class="badge d-flex align-items-center gap-1" style="background: #667eea; border-radius: 4px; font-size: 0.7rem; padding: 0.2rem 0.4rem;" title="Adults"><i class="ri-group-line" style="font-size: 0.75rem;"></i><span>${adults} Adults</span></span>`;
+            summaryHTML += ` <span class="badge d-flex align-items-center gap-1" style="background: #667eea; border-radius: 4px; font-size: 0.7rem; padding: 0.2rem 0.4rem; opacity: 0.8;" title="Male"><i class="ri-men-line" style="font-size: 0.75rem;"></i><span>${maleCount}</span></span>`;
+            summaryHTML += ` <span class="badge d-flex align-items-center gap-1" style="background: #667eea; border-radius: 4px; font-size: 0.7rem; padding: 0.2rem 0.4rem; opacity: 0.8;" title="Female"><i class="ri-women-line" style="font-size: 0.75rem;"></i><span>${femaleCount}</span></span>`;
+            summaryHTML += `</span>`;
+            summaryHTML += `<span class="d-flex align-items-center gap-1">`;
+            summaryHTML += ` <span class="badge d-flex align-items-center gap-1" style="background: #28a745; border-radius: 4px; font-size: 0.7rem; padding: 0.2rem 0.4rem;" title="Children"><i class="ri-user-smile-line" style="font-size: 0.75rem;"></i><span>${children}</span></span>`;
+            summaryHTML += ` <span class="badge d-flex align-items-center gap-1" style="background: #ffc107; color: #000; border-radius: 4px; font-size: 0.7rem; padding: 0.2rem 0.4rem;" title="Infants"><i class="ri-user-heart-line" style="font-size: 0.75rem;"></i><span>${infants}</span></span>`;
+            summaryHTML += `</span>`;
+            summaryElement.innerHTML = summaryHTML;
         }
-        
-        // Update badge counts
-        const adultsBadge = document.getElementById('guest-badge-adults');
-        const childrenBadge = document.getElementById('guest-badge-children');
-        const infantsBadge = document.getElementById('guest-badge-infants');
-        
-        if (adultsBadge) adultsBadge.textContent = adults;
-        if (childrenBadge) childrenBadge.textContent = children;
-        if (infantsBadge) infantsBadge.textContent = infants;
     }
     
     function confirmTourGuestSelection() {
@@ -17468,26 +17583,46 @@
         const finalMaleCount = parseInt(maleCountElem?.value || '0') || 0;
         const finalFemaleCount = parseInt(femaleCountElem?.value || '0') || 0;
 
-        const summary = `${pax} pax (${finalAdults} adults, ${finalChildren} children) - ${finalMaleCount} male, ${finalFemaleCount} female -${infants} infants`;
-        
-        // Update summary if element exists
+        // Update summary with new icon-based format
         const summaryElement = document.getElementById('modal_restaurant_guest_summary');
         if (summaryElement) {
-            summaryElement.textContent = summary;
+            // Ensure the summary element has the correct structure
+            summaryElement.className = 'd-flex flex-column gap-1';
+            summaryElement.style.fontSize = '0.8rem';
+            
+            let summaryHTML = `<span class="d-flex align-items-center gap-1">`;
+            summaryHTML += `<span class="badge d-flex align-items-center gap-1" style="background: #667eea; border-radius: 4px; font-size: 0.7rem; padding: 0.2rem 0.4rem;" title="Adults"><i class="ri-group-line" style="font-size: 0.75rem;"></i><span>${finalAdults} Adults</span></span>`;
+            summaryHTML += ` <span class="badge d-flex align-items-center gap-1" style="background: #667eea; border-radius: 4px; font-size: 0.7rem; padding: 0.2rem 0.4rem; opacity: 0.8;" title="Male"><i class="ri-men-line" style="font-size: 0.75rem;"></i><span>${finalMaleCount}</span></span>`;
+            summaryHTML += ` <span class="badge d-flex align-items-center gap-1" style="background: #667eea; border-radius: 4px; font-size: 0.7rem; padding: 0.2rem 0.4rem; opacity: 0.8;" title="Female"><i class="ri-women-line" style="font-size: 0.75rem;"></i><span>${finalFemaleCount}</span></span>`;
+            summaryHTML += `</span>`;
+            summaryHTML += `<span class="d-flex align-items-center gap-1">`;
+            summaryHTML += ` <span class="badge d-flex align-items-center gap-1" style="background: #28a745; border-radius: 4px; font-size: 0.7rem; padding: 0.2rem 0.4rem;" title="Children"><i class="ri-user-smile-line" style="font-size: 0.75rem;"></i><span>${finalChildren}</span></span>`;
+            summaryHTML += ` <span class="badge d-flex align-items-center gap-1" style="background: #ffc107; color: #000; border-radius: 4px; font-size: 0.7rem; padding: 0.2rem 0.4rem;" title="Infants"><i class="ri-user-heart-line" style="font-size: 0.75rem;"></i><span>${infants}</span></span>`;
+            summaryHTML += `</span>`;
+            summaryElement.innerHTML = summaryHTML;
         }
 
-        // Update badges
-        const badges = document.querySelectorAll('.guest-badges .badge');
-        if (badges.length >= 3) {
-            badges[0].textContent = adults;
-            badges[1].textContent = children;
-            badges[2].textContent = infants;
-        }
-
-        // Enable/disable child ages field
+        // Show/hide and enable/disable child ages container and field
+        const childAgesContainer = document.getElementById('modal_child_ages_container');
         const childAgesField = document.getElementById('modal_child_ages');
-        if (childAgesField) {
-            if (children > 0) {
+        if (childAgesContainer) {
+            if (finalChildren > 0) {
+                childAgesContainer.style.display = 'block';
+                if (childAgesField) {
+                    childAgesField.disabled = false;
+                    childAgesField.required = true;
+                }
+            } else {
+                childAgesContainer.style.display = 'none';
+                if (childAgesField) {
+                    childAgesField.disabled = true;
+                    childAgesField.required = false;
+                    childAgesField.value = '';
+                }
+            }
+        } else if (childAgesField) {
+            // Fallback if container doesn't exist
+            if (finalChildren > 0) {
                 childAgesField.disabled = false;
                 childAgesField.required = true;
             } else {
@@ -17532,23 +17667,23 @@
         const femaleCount = parseInt(window.modalGuestData.female_count) || 0;
         const adults = parseInt(window.modalGuestData.adults) || (pax - children);
 
-        const summary = `${pax} pax (${adults} adults, ${children} children) - ${maleCount} male, ${femaleCount} female - ${infants} infants`;
-        
-        // Update summary if element exists
+        // Update summary with new icon-based format
         const summaryElement = document.getElementById('modal_restaurant_guest_summary');
         if (summaryElement) {
-            summaryElement.textContent = summary;
-        }
-
-        // Update badges in restaurant modal
-        const badgesContainer = document.querySelector('#restaurantSelectionModal .guest-badges');
-        if (badgesContainer) {
-            const badges = badgesContainer.querySelectorAll('.badge');
-            if (badges.length >= 3) {
-                badges[0].textContent = adults;
-                badges[1].textContent = children;
-                badges[2].textContent = infants;
-            }
+            // Ensure the summary element has the correct structure
+            summaryElement.className = 'd-flex flex-column gap-1';
+            summaryElement.style.fontSize = '0.8rem';
+            
+            let summaryHTML = `<span class="d-flex align-items-center gap-1">`;
+            summaryHTML += `<span class="badge d-flex align-items-center gap-1" style="background: #667eea; border-radius: 4px; font-size: 0.7rem; padding: 0.2rem 0.4rem;" title="Adults"><i class="ri-group-line" style="font-size: 0.75rem;"></i><span>${adults} Adults</span></span>`;
+            summaryHTML += ` <span class="badge d-flex align-items-center gap-1" style="background: #667eea; border-radius: 4px; font-size: 0.7rem; padding: 0.2rem 0.4rem; opacity: 0.8;" title="Male"><i class="ri-men-line" style="font-size: 0.75rem;"></i><span>${maleCount}</span></span>`;
+            summaryHTML += ` <span class="badge d-flex align-items-center gap-1" style="background: #667eea; border-radius: 4px; font-size: 0.7rem; padding: 0.2rem 0.4rem; opacity: 0.8;" title="Female"><i class="ri-women-line" style="font-size: 0.75rem;"></i><span>${femaleCount}</span></span>`;
+            summaryHTML += `</span>`;
+            summaryHTML += `<span class="d-flex align-items-center gap-1">`;
+            summaryHTML += ` <span class="badge d-flex align-items-center gap-1" style="background: #28a745; border-radius: 4px; font-size: 0.7rem; padding: 0.2rem 0.4rem;" title="Children"><i class="ri-user-smile-line" style="font-size: 0.75rem;"></i><span>${children}</span></span>`;
+            summaryHTML += ` <span class="badge d-flex align-items-center gap-1" style="background: #ffc107; color: #000; border-radius: 4px; font-size: 0.7rem; padding: 0.2rem 0.4rem;" title="Infants"><i class="ri-user-heart-line" style="font-size: 0.75rem;"></i><span>${infants}</span></span>`;
+            summaryHTML += `</span>`;
+            summaryElement.innerHTML = summaryHTML;
         }
     }
 
