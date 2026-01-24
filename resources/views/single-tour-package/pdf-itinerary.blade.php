@@ -1254,14 +1254,15 @@
             <tbody>
                 @php
                     $passengers = $bookingDetails['passengers'] ?? [];
+                    // If no passengers found, create a default entry from lead guest
                     if (empty($passengers) && !empty($leadGuestName)) {
-                        // Create a default passenger entry from lead guest
                         $passengers = [[
                             'salutation' => $bookingDetails['salutation'] ?? 'Mr',
                             'first_name' => $bookingDetails['lead_guest_name'] ?? '',
                             'passenger_type' => $bookingDetails['passenger_type'] ?? 'Adult',
                             'gender' => $bookingDetails['gender'] ?? 'M',
                             'mobile_phone' => $bookingDetails['phone'] ?? '—',
+                            'phone' => $bookingDetails['phone'] ?? '—',
                             'email' => $bookingDetails['email'] ?? '—'
                         ]];
                     }
@@ -1270,7 +1271,7 @@
                     @foreach($passengers as $passenger)
                         <tr>
                             <td>{{ $passenger['salutation'] ?? 'Mr' }}</td>
-                            <td>{{ $passenger['first_name'] ?? '—' }}</td>
+                            <td>{{ $passenger['first_name'] ?? ($passenger['name'] ?? '—') }}</td>
                             <td>{{ $passenger['passenger_type'] ?? 'Adult' }}</td>
                             <td>{{ $passenger['gender'] ?? 'M' }}</td>
                             <td>{{ $passenger['mobile_phone'] ?? ($passenger['phone'] ?? '—') }}</td>

@@ -2383,19 +2383,15 @@
                         {{-- <a href="{{ route('bookinglist.index') }}" class="btn-modern btn-secondary-modern">
                             <i class="fas fa-arrow-left"></i> Back to Bookings
                         </a> --}}
-                        <button id="downloadText" class="btn-modern btn-secondary-modern">
-                            <i class="fas fa-file-alt"></i> Download Itinerary
-                        </button>
+                        
                         <button id="downloadExcelFormat" class="btn-modern btn-secondary-modern">
                             <i class="fas fa-file-excel"></i> Download Excel Format
                         </button>
-                        <button id="downloadPdf" class="btn-modern btn-secondary-modern">
-                            <i class="fas fa-download"></i> Download PDF
-                        </button>
+                        
                         <button id="printItinerary" class="btn-modern btn-primary-modern">
                             <i class="fas fa-print"></i> Print Itinerary
                         </button>
-                    </div>        
+                    </div>
                 </div>
             </div>
             
@@ -3935,6 +3931,18 @@
                             ];
                         }
                         
+                        // Extract passengers from booking data if available
+                        if (isset($data['passengers']) && is_array($data['passengers']) && !empty($data['passengers'])) {
+                            if (!isset($pdfCustomerInfo['passengers'])) {
+                                $pdfCustomerInfo['passengers'] = [];
+                            }
+                            foreach ($data['passengers'] as $passenger) {
+                                if (is_array($passenger) && !empty($passenger)) {
+                                    $pdfCustomerInfo['passengers'][] = $passenger;
+                                }
+                            }
+                        }
+                        
                         $bookingTypeLower = strtolower($bookingType ?? '');
                         
                         // Process ALL service types including hotels - organize by date
@@ -4279,6 +4287,7 @@
         // Store extracted data in JavaScript variables (available globally)
         const pdfCustomerInfo = @json($pdfCustomerInfo ?? []);
         const pdfAllServices = @json($pdfAllServices ?? []);
+        const allPassengersFromTour = @json($allPassengers ?? []);
         console.log('pdfAllServices', pdfAllServices);
         const pdfDebugInfo = {
             itineraryCount: @json($pdfDebugItineraryCount ?? 0),
@@ -5645,22 +5654,39 @@
                 yPos = travelSummaryY + travelSummaryHeight + 8; // Increased padding after travel summary
                 
                 // Passenger Details Table - Matching Quotation Format
+                // First, try to get passengers from booking data
                 const passengerData = customerInfo.passengers || [];
                 const leadGuestName = customerInfo.fullName || customerInfo.name || '';
                 
-                // Create passenger array if not available
-                let passengers = passengerData;
-                if (!passengers || passengers.length === 0) {
-                    if (leadGuestName) {
-                        passengers = [{
-                            salutation: customerInfo.salutation || 'Mr',
-                            first_name: leadGuestName,
-                            passenger_type: customerInfo.passenger_type || 'Adult',
-                            gender: customerInfo.gender || 'M',
-                            mobile_phone: customerInfo.phone || '—',
-                            email: customerInfo.email || '—'
-                        }];
-                    }
+                // Start with passengers from tour (mainguest + additionalguest)
+                let passengers = [...(allPassengersFromTour || [])];
+                
+                // Merge with passengers from booking data (avoid duplicates)
+                if (passengerData && passengerData.length > 0) {
+                    passengerData.forEach(bookingPassenger => {
+                        // Check if this passenger already exists (by name and email)
+                        const exists = passengers.some(p => 
+                            (p.first_name || p.name) === (bookingPassenger.first_name || bookingPassenger.name) &&
+                            p.email === bookingPassenger.email
+                        );
+                        if (!exists) {
+                            passengers.push(bookingPassenger);
+                        }
+                    });
+                }
+                
+                // If still no passengers, create one from lead guest info
+                if (passengers.length === 0 && leadGuestName) {
+                    passengers = [{
+                        salutation: customerInfo.salutation || 'Mr',
+                        first_name: leadGuestName,
+                        name: leadGuestName,
+                        passenger_type: customerInfo.passenger_type || 'Adult',
+                        gender: customerInfo.gender || 'M',
+                        mobile_phone: customerInfo.phone || '—',
+                        phone: customerInfo.phone || '—',
+                        email: customerInfo.email || '—'
+                    }];
                 }
                 
                 if (passengers && passengers.length > 0) {

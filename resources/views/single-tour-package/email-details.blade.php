@@ -286,7 +286,9 @@ Email: {{ $bookingDetails['email'] ?? '—' }}
 
 HOTEL OPTIONS
 OPTION 1
-@if(!empty($hotelOptions) && count($hotelOptions) > 0)
+@if(empty($hotelOptions) || count($hotelOptions) == 0)
+No hotel services booked for this tour.
+@elseif(!empty($hotelOptions) && count($hotelOptions) > 0)
     @php
         $allHotels = $hotelOptions;
         $firstHotel = $allHotels[0] ?? null;
@@ -334,13 +336,12 @@ Supplemental Cost:
                     @php
                         $roomCategoryName = !empty($roomCategory['name']) ? $roomCategory['name'] : 'N/A';
                     @endphp
-{{ $hotel['hotel_name'] ?? 'N/A' }} - {{ $roomCategoryName }} - {{ $totalRooms }} {{ $totalRooms == 1 ? 'room' : 'rooms' }}:
-  Single: {{ is_numeric($roomCategory['single_price']) ? number_format($roomCategory['single_price'], 2) : '0.00' }}
-  Double: {{ is_numeric($roomCategory['double_price']) ? number_format($roomCategory['double_price'], 2) : '0.00' }}
-  Triple: {{ (is_numeric($roomCategory['triple_price']) && floatval($roomCategory['triple_price']) > 0) ? number_format($roomCategory['triple_price'], 2) : 'N/A' }}
-  Child: {{ (isset($roomCategory['child_price']) && is_numeric($roomCategory['child_price'])) ? number_format($roomCategory['child_price'], 2) : '0.00' }}
-  Infant: {{ number_format($infantPrice, 2) }}
-
+                    {{ $hotel['hotel_name'] ?? 'N/A' }} - {{ $roomCategoryName }} - {{ $totalRooms }} {{ $totalRooms == 1 ? 'room' : 'rooms' }}:
+                    Single: {{ is_numeric($roomCategory['single_price']) ? number_format($roomCategory['single_price'], 2) : '0.00' }}
+                    Double: {{ is_numeric($roomCategory['double_price']) ? number_format($roomCategory['double_price'], 2) : '0.00' }}
+                    Triple: {{ (is_numeric($roomCategory['triple_price']) && floatval($roomCategory['triple_price']) > 0) ? number_format($roomCategory['triple_price'], 2) : 'N/A' }}
+                    Child: {{ (isset($roomCategory['child_price']) && is_numeric($roomCategory['child_price'])) ? number_format($roomCategory['child_price'], 2) : '0.00' }}
+                    Infant: {{ number_format($infantPrice, 2) }}
                 @endforeach
             @endforeach
             @php
@@ -370,6 +371,7 @@ Supplemental Cost:
                 $optionSupplementalDouble = floatval($firstHotel['supplemental_cost']['double'] ?? 0);
                 $optionSupplementalTriple = floatval($firstHotel['supplemental_cost']['triple'] ?? 0);
                 $optionSupplementalChild = floatval($firstHotel['supplemental_cost']['child'] ?? 0);
+                $optionSupplementalInfant = floatval($firstHotel['supplemental_cost']['infant'] ?? $infantPrice);
                 $optionFinalTotalSingle = $optionFirstTotalSingle + $optionSupplementalSingle + $additionalHotelsTotalSingle;
                 $optionFinalTotalDouble = $optionFirstTotalDouble + $optionSupplementalDouble + $additionalHotelsTotalDouble;
                 $optionFinalTotalTriple = $optionFirstTotalTriple + $optionSupplementalTriple + $additionalHotelsTotalTriple;
@@ -387,35 +389,120 @@ Final Total:
     @endif
 @endif
 
-@if(empty($servicesByType))
-No quotation items have been confirmed for this tour.
-@else
-    @foreach($servicesByType as $type => $cards)
-        @php
+@php
+    // Define all possible service types
+    $allServiceTypes = [
+        'entry_port' => 'Arrival Services',
+        'exit_port' => 'Departure Services',
+        'attraction' => 'Attraction Services',
+        'attraction_package' => 'Attraction Services',
+        'restaurant' => 'Restaurant Services',
+        'guide' => 'Guide Services',
+        'travel_point' => 'Transfer Services',
+        'travel_hourly' => 'Transfer Services',
+        'local_transport' => 'Transfer Services',
+        'local_transfer' => 'Transfer Services',
+        'point_to_point' => 'Transfer Services',
+        'hourly' => 'Transfer Services',
+    ];
+    
+    // Normalize servicesByType keys
+    $normalizedServicesByType = [];
+    if (!empty($servicesByType) && is_array($servicesByType)) {
+        foreach ($servicesByType as $type => $cards) {
             $normalizedType = str_replace(' ', '_', strtolower($type));
-            if ($normalizedType === 'hotel') {
-                continue;
+            if ($normalizedType !== 'hotel') {
+                $normalizedServicesByType[$normalizedType] = $cards;
             }
-            $sectionLabel = ucwords(str_replace('_', ' ', $type));
-            if ($normalizedType === 'entry_port') {
-                $sectionLabel = 'Arrival Services';
-            } elseif ($normalizedType === 'exit_port') {
-                $sectionLabel = 'Departure Services';
-            } elseif ($normalizedType === 'attraction' || $normalizedType === 'attraction_package') {
-                $sectionLabel = 'Attraction Services';
-            } elseif ($normalizedType === 'restaurant') {
-                $sectionLabel = 'Restaurant Services';
-            } elseif ($normalizedType === 'guide') {
-                $sectionLabel = 'Guide Services';
-            } elseif (in_array($normalizedType, ['travel_point', 'travel_hourly', 'local_transport', 'local_transfer', 'point_to_point', 'hourly'])) {
-                $sectionLabel = 'Transfer Services';
-            } else {
-                $sectionLabel = ucwords(str_replace('_', ' ', $type)) . ' Services';
-            }
-        @endphp
+        }
+    }
+    
+    // Group by section label to avoid duplicates
+    $servicesBySection = [];
+    foreach ($normalizedServicesByType as $type => $cards) {
+        if ($type === 'entry_port') {
+            $sectionLabel = 'Arrival Services';
+        } elseif ($type === 'exit_port') {
+            $sectionLabel = 'Departure Services';
+        } elseif ($type === 'attraction' || $type === 'attraction_package') {
+            $sectionLabel = 'Attraction Services';
+        } elseif ($type === 'restaurant') {
+            $sectionLabel = 'Restaurant Services';
+        } elseif ($type === 'guide') {
+            $sectionLabel = 'Guide Services';
+        } elseif (in_array($type, ['travel_point', 'travel_hourly', 'local_transport', 'local_transfer', 'point_to_point', 'hourly'])) {
+            $sectionLabel = 'Transfer Services';
+        } else {
+            $sectionLabel = ucwords(str_replace('_', ' ', $type)) . ' Services';
+        }
+        
+        if (!isset($servicesBySection[$sectionLabel])) {
+            $servicesBySection[$sectionLabel] = [];
+        }
+        $servicesBySection[$sectionLabel] = array_merge($servicesBySection[$sectionLabel], $cards);
+    }
+    
+    // Define sections to show
+    $sectionsToShow = [
+        'Arrival Services' => 'entry_port',
+        'Departure Services' => 'exit_port',
+        'Attraction Services' => ['attraction', 'attraction_package'],
+        'Restaurant Services' => 'restaurant',
+        'Guide Services' => 'guide',
+        'Transfer Services' => ['travel_point', 'travel_hourly', 'local_transport', 'local_transfer', 'point_to_point', 'hourly'],
+    ];
+@endphp
+@foreach($sectionsToShow as $sectionLabel => $types)
+@php
+    $typesArray = is_array($types) ? $types : [$types];
+    $hasServices = false;
+    foreach ($typesArray as $type) {
+        if (isset($normalizedServicesByType[$type]) && !empty($normalizedServicesByType[$type])) {
+            $hasServices = true;
+            break;
+        }
+    }
+    $sectionCards = [];
+    foreach ($typesArray as $type) {
+        if (isset($normalizedServicesByType[$type]) && !empty($normalizedServicesByType[$type])) {
+            $sectionCards = array_merge($sectionCards, $normalizedServicesByType[$type]);
+        }
+    }
+@endphp
 {{ strtoupper($sectionLabel) }}
+@if(!$hasServices || empty($sectionCards))
+No {{ strtolower($sectionLabel) }} booked for this tour.
+
+@else
+    @foreach($sectionCards as $card)
+        @php
+            // Determine the type of this card
+            $cardType = null;
+            foreach ($typesArray as $type) {
+                if (isset($normalizedServicesByType[$type]) && in_array($card, $normalizedServicesByType[$type], true)) {
+                    $cardType = $type;
+                    break;
+                }
+            }
+            if (!$cardType) {
+                // Try to infer from card data
+                if (isset($card['vehicle']) || isset($card['entry_port_flight'])) {
+                    $cardType = 'entry_port';
+                } elseif (isset($card['exit_port_flight'])) {
+                    $cardType = 'exit_port';
+                } elseif (isset($card['attraction'])) {
+                    $cardType = 'attraction';
+                } elseif (isset($card['restaurant'])) {
+                    $cardType = 'restaurant';
+                } elseif (isset($card['guide'])) {
+                    $cardType = 'guide';
+                } elseif (isset($card['vehicle']) && !isset($card['entry_port_flight']) && !isset($card['exit_port_flight'])) {
+                    $cardType = 'travel_point'; // Default to transfer
+                }
+            }
+            $normalizedType = $cardType;
+        @endphp
 @if($normalizedType === 'entry_port')
-    @foreach($cards as $card)
         @php
             $pickup = '';
             $dropoff = '';
@@ -467,9 +554,7 @@ Flight Details:
   Destination Arrival Time: {{ $destinationArrivalTime }}
   Destination Arrival Terminal: {{ $destinationArrivalTerminal }}
 
-    @endforeach
 @elseif($normalizedType === 'exit_port')
-    @foreach($cards as $card)
         @php
             $pickup = '';
             $dropoff = '';
@@ -521,9 +606,7 @@ Flight Details:
   Destination Arrival Time: {{ $destinationArrivalTime }}
   Destination Arrival Terminal: {{ $destinationArrivalTerminal }}
 
-    @endforeach
 @elseif($normalizedType === 'attraction' || $normalizedType === 'attraction_package')
-    @foreach($cards as $card)
         @php
             $attractionData = $card['attraction'] ?? [];
             $attractionTiming = $attractionData['visit_time'] ?? 'N/A';
@@ -540,9 +623,7 @@ Attraction Timing: {{ $attractionTiming }}
 Transfer: {{ $transferRequired }}
 Transfer Type: {{ $transferType }}
 
-    @endforeach
 @elseif($normalizedType === 'restaurant')
-    @foreach($cards as $card)
         @php
             $restaurantData = $card['restaurant'] ?? [];
             $mealPlan = $restaurantData['meal_plan'] ?? 'N/A';
@@ -561,9 +642,7 @@ Meal Type: {{ $mealType }}
 Transfer: {{ $transferRequired }}
 Transfer Type: {{ $transferType }}
 
-    @endforeach
 @elseif($normalizedType === 'guide')
-    @foreach($cards as $card)
         @php
             $guideData = $card['guide'] ?? [];
             $guideName = $guideData['guide_name'] ?? $card['title'] ?? 'N/A';
@@ -574,12 +653,10 @@ Tour Guide Name: {{ $guideName }}
 Language Proficiency: {{ $languageProficiency }}
 Total Experience: {{ $totalExperience }}
 
-    @endforeach
 @elseif(in_array($normalizedType, ['travel_point', 'travel_hourly', 'local_transport', 'local_transfer', 'point_to_point', 'hourly']))
-    @foreach($cards as $card)
         @php
             $vehicleData = $card['vehicle'] ?? [];
-            $transferTypeRaw = $vehicleData['transfer_type'] ?? 'N/A';
+            $transferTypeRaw = $vehicleData['transfer_type'] ?? $vehicleData['type'] ?? 'N/A';
             if ($transferTypeRaw !== 'N/A' && strpos($transferTypeRaw, '_') !== false) {
                 $transferType = ucwords(str_replace('_', ' ', $transferTypeRaw));
             } else {
@@ -596,9 +673,7 @@ Vehicle No: {{ $vehicleNumber }}
 Vehicle Brand: {{ $vehicleBrand }}
 Max Passenger Capacity: {{ $maxPassengerCapacity }}
 
-    @endforeach
 @else
-    @foreach($cards as $card)
         @php
             $dateValue = '';
             $timeValue = '';
@@ -613,10 +688,10 @@ Time: {{ $timeValue ?: 'N/A' }}
 Location: {{ $card['subtitle'] ?? 'N/A' }}
 Details: {{ $card['notes'] ?? 'N/A' }}
 
-    @endforeach
 @endif
     @endforeach
 @endif
+@endforeach
 
 IMPORTANT NOTES
 *Please note that this is not a tour itinerary / schedule, a confirmed tour itinerary / schedule is only generated post confirmation of the tour and payment is completed.

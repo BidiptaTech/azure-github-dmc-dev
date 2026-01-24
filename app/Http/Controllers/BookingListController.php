@@ -1020,6 +1020,12 @@ class BookingListController extends Controller
         
         // Fetch all bookings for the specified tour
         $tour = Tour::where('tour_id', $tourId)->first();
+        
+        // If tour doesn't exist, redirect back
+        if (!$tour) {
+            return redirect()->back()->with('error', 'Tour not found.');
+        }
+        
         $user_dmc = null;
         if ($tour && $tour->dmc_id) {
             $user_dmc = User::select('name', 'email', 'phone', 'company_name','logo', 'country', 'city', 'address')->where('userId', $tour->dmc_id)->first();
@@ -1115,42 +1121,43 @@ class BookingListController extends Controller
         });
         }])->where('tour_id', $tourId)->first();
 
-        if (!$bookings->count()) {
-            return redirect()->back()->with('error', 'No itinerary found for this tour.');
-        }
-        
-        // Format the bookings data
-        $bookings = $this->formatBookings($bookings);
-        
-        // Group bookings by date for itinerary display
+        // Initialize itineraryByDate as empty array
         $itineraryByDate = [];
-        foreach ($bookings as $booking) {
-            $data = $booking->data_decoded;
-            
-            // Extract date from the booking data
-            $date = null;
-            if (isset($data[0]['bookingDate'])) {
-                if (is_array($data[0]['bookingDate'])) {
-                    $date = $data[0]['bookingDate'][0] ?? null;
-                } else {
-                    $date = $data[0]['bookingDate'] ?? null;
-                }
-            } elseif (isset($data[0]['pickupdate'])) {
-                $date = $data[0]['pickupdate'];
-            } elseif (isset($data[0]['exitpickupdate'])) {
-                $date = $data[0]['exitpickupdate'];
-            }
-            
-            if ($date) {
-                if (!isset($itineraryByDate[$date])) {
-                    $itineraryByDate[$date] = [];
-                }
-                $itineraryByDate[$date][] = $booking;
-            }
-        }
         
-        // Sort dates
-        ksort($itineraryByDate);
+        // Only process bookings if they exist
+        if ($bookings->count() > 0) {
+            // Format the bookings data
+            $bookings = $this->formatBookings($bookings);
+            
+            // Group bookings by date for itinerary display
+            foreach ($bookings as $booking) {
+                $data = $booking->data_decoded;
+                
+                // Extract date from the booking data
+                $date = null;
+                if (isset($data[0]['bookingDate'])) {
+                    if (is_array($data[0]['bookingDate'])) {
+                        $date = $data[0]['bookingDate'][0] ?? null;
+                    } else {
+                        $date = $data[0]['bookingDate'] ?? null;
+                    }
+                } elseif (isset($data[0]['pickupdate'])) {
+                    $date = $data[0]['pickupdate'];
+                } elseif (isset($data[0]['exitpickupdate'])) {
+                    $date = $data[0]['exitpickupdate'];
+                }
+                
+                if ($date) {
+                    if (!isset($itineraryByDate[$date])) {
+                        $itineraryByDate[$date] = [];
+                    }
+                    $itineraryByDate[$date][] = $booking;
+                }
+            }
+            
+            // Sort dates
+            ksort($itineraryByDate);
+        }
         
         // Get DMC price_hide setting based on user hierarchy
         $priceHide = 1; // Default to show prices
@@ -1165,13 +1172,106 @@ class BookingListController extends Controller
                 }
             }
         }
+        
+        // Extract passengers from tour's mainguest and additionalguest columns
+        $allPassengers = [];
+        
+        // Extract main guest from mainguest column
+        if (!empty($tour->mainguest)) {
+            try {
+                $mainguestData = is_string($tour->mainguest) ? json_decode($tour->mainguest, true) : $tour->mainguest;
+                if (is_array($mainguestData) && !empty($mainguestData)) {
+                    $mainGuest = [
+                        'salutation' => $mainguestData['salutation'] ?? 'Mr',
+                        'first_name' => $mainguestData['full_name'] ?? '',
+                        'name' => $mainguestData['full_name'] ?? '',
+                        'passenger_type' => $mainguestData['passenger_type'] ?? 'Adult',
+                        'gender' => $mainguestData['gender'] ?? 'M',
+                        'mobile_phone' => $mainguestData['phone'] ?? '',
+                        'phone' => $mainguestData['phone'] ?? '',
+                        'email' => $mainguestData['email'] ?? '',
+                    ];
+                    // Add country code to phone if available
+                    if (!empty($mainguestData['country_code']) && !empty($mainGuest['phone'])) {
+                        $mainGuest['mobile_phone'] = '+' . $mainguestData['country_code'] . ' ' . $mainGuest['phone'];
+                        $mainGuest['phone'] = '+' . $mainguestData['country_code'] . ' ' . $mainGuest['phone'];
+                    }
+                    $allPassengers[] = $mainGuest;
+                }
+            } catch (\Exception $e) {
+                \Log::warning('Failed to parse mainguest data from tour', [
+                    'tour_id' => $tourId,
+                    'error' => $e->getMessage()
+                ]);
+            }
+        }
+        
+        // Extract additional guests from additionalguest column
+        if (!empty($tour->additionalguest)) {
+            try {
+                $additionalGuestsData = is_string($tour->additionalguest) ? json_decode($tour->additionalguest, true) : $tour->additionalguest;
+                if (is_array($additionalGuestsData)) {
+                    // Check if it's an array of guests or a single guest object
+                    if (isset($additionalGuestsData[0]) && is_array($additionalGuestsData[0])) {
+                        // Array of guests
+                        foreach ($additionalGuestsData as $guestData) {
+                            if (is_array($guestData) && !empty($guestData)) {
+                                $additionalGuest = [
+                                    'salutation' => $guestData['salutation'] ?? 'Mr',
+                                    'first_name' => $guestData['full_name'] ?? $guestData['name'] ?? '',
+                                    'name' => $guestData['full_name'] ?? $guestData['name'] ?? '',
+                                    'passenger_type' => $guestData['passenger_type'] ?? 'Adult',
+                                    'gender' => $guestData['gender'] ?? 'M',
+                                    'mobile_phone' => $guestData['phone'] ?? '',
+                                    'phone' => $guestData['phone'] ?? '',
+                                    'email' => $guestData['email'] ?? '',
+                                ];
+                                // Add country code to phone if available
+                                if (!empty($guestData['country_code']) && !empty($additionalGuest['phone'])) {
+                                    $additionalGuest['mobile_phone'] = '+' . $guestData['country_code'] . ' ' . $additionalGuest['phone'];
+                                    $additionalGuest['phone'] = '+' . $guestData['country_code'] . ' ' . $additionalGuest['phone'];
+                                }
+                                $allPassengers[] = $additionalGuest;
+                            }
+                        }
+                    } else {
+                        // Single guest object
+                        if (is_array($additionalGuestsData) && !empty($additionalGuestsData)) {
+                            $additionalGuest = [
+                                'salutation' => $additionalGuestsData['salutation'] ?? 'Mr',
+                                'first_name' => $additionalGuestsData['full_name'] ?? $additionalGuestsData['name'] ?? '',
+                                'name' => $additionalGuestsData['full_name'] ?? $additionalGuestsData['name'] ?? '',
+                                'passenger_type' => $additionalGuestsData['passenger_type'] ?? 'Adult',
+                                'gender' => $additionalGuestsData['gender'] ?? 'M',
+                                'mobile_phone' => $additionalGuestsData['phone'] ?? '',
+                                'phone' => $additionalGuestsData['phone'] ?? '',
+                                'email' => $additionalGuestsData['email'] ?? '',
+                            ];
+                            // Add country code to phone if available
+                            if (!empty($additionalGuestsData['country_code']) && !empty($additionalGuest['phone'])) {
+                                $additionalGuest['mobile_phone'] = '+' . $additionalGuestsData['country_code'] . ' ' . $additionalGuest['phone'];
+                                $additionalGuest['phone'] = '+' . $additionalGuestsData['country_code'] . ' ' . $additionalGuest['phone'];
+                            }
+                            $allPassengers[] = $additionalGuest;
+                        }
+                    }
+                }
+            } catch (\Exception $e) {
+                \Log::warning('Failed to parse additionalguest data from tour', [
+                    'tour_id' => $tourId,
+                    'error' => $e->getMessage()
+                ]);
+            }
+        }
+        
         return view('bookingList.itinerary', [
             'tourId' => $tourId,
             'itineraryByDate' => $itineraryByDate,
             'tourDetails' => $tourDetails,
             'priceHide' => $priceHide,
             'user_dmc' => $user_dmc,
-            'agent_info' => $agent_info
+            'agent_info' => $agent_info,
+            'allPassengers' => $allPassengers
         ]);
     }
     

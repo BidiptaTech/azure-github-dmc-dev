@@ -636,7 +636,7 @@
                 <div class="card border-0 shadow-sm">
                     <div class="card-header text-white" style="background: linear-gradient(135deg, #4facfe 0%, #00c9ff 100%);">
                         <div class="d-flex align-items-center">
-                            <i class="ri-map-pin-line me-3 fs-4"></i>
+                            <!-- <i class="ri-map-pin-line me-3 fs-4"></i> -->
                             <div>
                                 <h4 class="mb-1 text-white">Edit Tour Services</h4>
                                 <p class="mb-0 opacity-75">Manage and add services to existing tour: <strong>{{ $tour->display_id ?? 'N/A' }}</strong></p>
@@ -2114,6 +2114,765 @@
                                 @endif
                             @endforeach
                             
+                            <!-- All Attractions Section (Unified) -->
+                            <div class="service-section mb-3">
+                                <div>
+                                    <div class="card-header text-dark d-flex justify-content-between align-items-center" role="button" data-bs-toggle="collapse" data-bs-target="#allAttractionsSection" aria-expanded="false" aria-controls="allAttractionsSection" style="cursor: pointer; background: linear-gradient(135deg, #f3e8ff 0%, #e9d5ff 100%); border: 1px solid #c084fc; transition: all 0.3s ease;">
+                                        <div class="d-flex align-items-center">
+                                            <span class="service-icon me-3">
+                                                <i class="ri-ticket-line fs-4"></i>
+                                            </span>
+                                            <div>
+                                                <h6 class="mb-0 fw-bold">🎫 All Attraction Tickets</h6>
+                                                <small class="text-muted">All attractions from all days in one place</small>
+                                            </div>
+                                        </div>
+                                        <i class="ri-arrow-down-s-line ms-2 fs-5"></i>
+                                    </div>
+                                    <div id="allAttractionsSection" class="collapse">
+                                    <div class="card-body mt-3">
+                                        @if(count($allAttractions) > 0)
+                                        @foreach($allAttractions as $index => $order)
+                                        @php
+                                            $attractionData = $order->processed_data;
+                                            $payload = [];
+                                            if (is_array($attractionData)) {
+                                                $payload = isset($attractionData[0]) ? $attractionData[0] : $attractionData;
+                                            }
+                                            $attractionName = $payload['AttractionName'] ?? 'N/A';
+                                            $bookingDate = $payload['bookingDate'] ?? '';
+                                            $timeSlot = $payload['visitTime'] ?? 'N/A';
+                                            $ticket = $payload['ticketName'] ?? 'N/A';
+                                            $adultCount = $payload['adultCount'] ?? 0;
+                                            $childCount = $payload['childCount'] ?? 0;
+                                            $seniorCount = $payload['seniorCount'] ?? 0;
+                                            $totalPrice = $payload['totalPrice'] ?? 0;
+                                            $attractionNotes = $payload['notes'] ?? '';
+                                            // Additional pax details
+                                            $maleCount = $order->male_count ?? 0;
+                                            $femaleCount = $order->female_count ?? 0;
+                                            $infantsCount = $order->infants ?? 0;
+                                            $totalPax = $adultCount + $childCount;
+                                            
+                                            // Extract transport options
+                                            $transferOptions = $payload['transfer_options'] ?? [];
+                                            $transferRequired = isset($transferOptions['transfer_required']) && $transferOptions['transfer_required'] === true;
+                                            $transportType = $transferOptions['type'] ?? '';
+                                            
+                                            // Get vehicle name from vehicle_details or vehicle_id/vehicle_name
+                                            $vehicleDetails = $transferOptions['vehicle_details'] ?? [];
+                                            $transportVehicle = $vehicleDetails['vehicle_name'] ?? $transferOptions['vehicle_name'] ?? $transferOptions['vehicle_id'] ?? '';
+                                            $transportVehicleId = $transferOptions['vehicle_id'] ?? '';
+                                            
+                                            // Get destination from pickup_location_name or destination
+                                            $transportDestination = $transferOptions['pickup_location_name'] ?? $transferOptions['destination'] ?? '';
+                                            $transportDestinationId = $transferOptions['pickup_location_id'] ?? '';
+                                            
+                                            $transportSeats = $vehicleDetails['seating_capacity'] ?? $transferOptions['seats'] ?? '';
+                                            $transportPassengers = $transferOptions['passengers'] ?? '';
+                                            $transportPrice = $transferOptions['cost'] ?? $transferOptions['price'] ?? 0;
+                                            $transportWay = $transferOptions['way'] ?? 'One Way';
+                                            $transportReturn = ($transportWay === 'Two Way');
+                                            
+                                            // Extract guide options
+                                            $guideOptions = $payload['guide_options'] ?? [];
+                                            $guideRequired = isset($guideOptions['guide_required']) && $guideOptions['guide_required'] === true;
+                                            $guideId = $guideOptions['guide_id'] ?? '';
+                                            $guideName = $guideOptions['guide_name'] ?? '';
+                                            
+                                            // Get language from guide_options first, then fallback to extracting from guide name
+                                            $guideLanguage = $guideOptions['language'] ?? '';
+                                            
+                                            // If language is not in guide_options, try to extract from guide name (e.g., "AB - English" -> "English")
+                                            if (empty($guideLanguage) && $guideName && strpos($guideName, '-') !== false) {
+                                                $parts = explode('-', $guideName);
+                                                if (count($parts) > 1) {
+                                                    $guideLanguage = trim(end($parts));
+                                                }
+                                            }
+                                            
+                                            $guidePickupTime = $guideOptions['pickup_time'] ?? '';
+                                            $guidePackageHours = $guideOptions['package_hours'] ?? '';
+                                            $guideBasePrice = $guideOptions['base_price'] ?? 0;
+                                            $guideHours = $guideOptions['hours'] ?? 0;
+                                            $guideSurcharge = $guideOptions['surcharge'] ?? 0;
+                                            $guideTotalPrice = $guideOptions['total_price'] ?? 0;
+                                        @endphp
+                                        <form class="service-item mb-3 p-3 border rounded shadow-sm bg-white attraction-edit-form" data-update-url="{{ route('edit-tour.update-attraction', $order->booking_id) }}" onsubmit="updateExistingAttraction(event, {{ $order->booking_id }})">
+                                            @csrf
+                                            <input type="hidden" name="type" value="attraction">
+                                            <div class="d-flex justify-content-between align-items-center mb-3">
+                                                <h6 class="mb-0 fw-bold text-danger"><i class="ri-ticket-line me-2"></i>Attraction Booking #{{ $index + 1 }}</h6>
+                                                <div class="d-flex gap-2">
+                                                    <button type="button" class="btn btn-sm btn-outline-danger" onclick="removeAttractionService({{ $order->booking_id }})">
+                                                        <i class="ri-delete-bin-line"></i> Remove
+                                                    </button>
+                                                </div>
+                                            </div>
+                                        
+                                        
+                                            <div class="row g-3">
+                                                <div class="col-md-4">
+                                                    <label class="form-label fw-semibold text-muted mb-2"><i class="ri-map-pin-line me-1 text-primary"></i>Attraction Name</label>
+                                                    <select class="form-select border-2" style="height: 35px;" name="attraction_name" id="attraction_name_{{ $order->booking_id }}" onchange="populateTicketFromAttraction(this, 'ticket_name_{{ $order->booking_id }}')" required>
+                                                        <option value="">Select Attraction</option>
+                                                        @php
+                                                            $tourCountry = $tour->destination ?? '';
+                                                            $filteredAttractions = collect($attractions ?? [])->filter(function($attraction) use ($tourCountry) {
+                                                                // Check if attraction has country field directly
+                                                                if (isset($attraction->country) && $attraction->country == $tourCountry) {
+                                                                    return true;
+                                                                }
+                                                                // If no country filter available, include all attractions
+                                                                return empty($tourCountry);
+                                                            });
+                                                        @endphp
+                                                        @foreach($filteredAttractions as $attraction)
+                                                            <option value="{{ $attraction->name }}" {{ $attractionName == $attraction->name ? 'selected' : '' }} 
+                                                                data-attraction-id="{{ $attraction->attraction_id ?? '' }}"
+                                                                data-attraction-data="{{ json_encode($attraction) }}">
+                                                                {{ $attraction->name }}
+                                                                @if(isset($attraction->location))
+                                                                    - {{ $attraction->location }}
+                                                                @endif
+                                                            </option>
+                                                        @endforeach
+                                                        @if($attractionName && !$filteredAttractions->pluck('name')->contains($attractionName))
+                                                            <option value="{{ $attractionName }}" selected>{{ $attractionName }}</option>
+                                                        @endif
+                                                    </select>
+                                                </div>
+                                                <div class="col-md-4">
+                                                    <label class="form-label fw-semibold text-muted mb-2"><i class="ri-ticket-line me-1 text-info"></i>Ticket</label>
+                                                    <select class="form-select border-2" style="height: 35px;" name="ticket_name" id="ticket_name_{{ $order->booking_id }}" required>
+                                                        <option value="">Select Ticket</option>
+                                                        @if($ticket && $ticket != 'N/A')
+                                                            <option value="{{ $ticket }}" selected>{{ $ticket }}</option>
+                                                        @endif
+                                                    </select>
+                                                    <small class="text-muted d-block mt-1">Select an attraction to see available tickets</small>
+                                                </div>
+                                                <div class="col-md-2">
+                                                    <label class="form-label fw-semibold text-muted mb-2"><i class="ri-calendar-line me-1 text-primary"></i>Booking Date</label>
+                                                    <input type="date" class="form-control border-2" style="height: 35px;" name="booking_date" id="booking_date_{{ $order->booking_id }}" value="{{ $bookingDate }}" required>
+                                                </div>
+                                                <div class="col-md-2">
+                                                    <label class="form-label fw-semibold text-muted mb-2"><i class="ri-time-line me-1 text-warning"></i>Time Slot</label>
+                                                    <select class="form-select border-2" style="height: 35px;" name="visit_time" id="visit_time_{{ $order->booking_id }}" required>
+                                                        <option value="">Select Time Slot</option>
+                                                        @php
+                                                            // Find the selected attraction to populate time slots from database
+                                                            $selectedAttraction = null;
+                                                            $timeSlotsFound = false;
+                                                            if ($attractionName) {
+                                                                $selectedAttraction = collect($filteredAttractions)->first(function($attraction) use ($attractionName) {
+                                                                    return $attraction->name == $attractionName;
+                                                                });
+                                                            }
+                                                        @endphp
+                                                        @if($selectedAttraction && isset($selectedAttraction->time_slots) && is_array($selectedAttraction->time_slots) && count($selectedAttraction->time_slots) > 0)
+                                                            @php $timeSlotsFound = true; @endphp
+                                                            @foreach($selectedAttraction->time_slots as $slotData)
+                                                                @php
+                                                                    $slotValue = $slotData['slot'] ?? ($slotData['open'] ?? '');
+                                                                    $slotText = $slotData['slot'] ?? ($slotData['open'] . (isset($slotData['close']) ? ' - ' . $slotData['close'] : ''));
+                                                                    $isSelected = ($slotValue == $timeSlot || $slotText == $timeSlot);
+                                                                @endphp
+                                                                <option value="{{ $slotValue }}" {{ $isSelected ? 'selected' : '' }}>
+                                                                    {{ $slotText }}
+                                                                </option>
+                                                            @endforeach
+                                                        @elseif($selectedAttraction && $selectedAttraction->open_time && $selectedAttraction->close_time)
+                                                            @php $timeSlotsFound = true; @endphp
+                                                            @php
+                                                                // Parse open_time from database (can be JSON array or string)
+                                                                $openTimes = [];
+                                                                if (is_array($selectedAttraction->open_time)) {
+                                                                    $openTimes = $selectedAttraction->open_time;
+                                                                } elseif (is_string($selectedAttraction->open_time)) {
+                                                                    $decoded = json_decode($selectedAttraction->open_time, true);
+                                                                    $openTimes = is_array($decoded) ? $decoded : [$selectedAttraction->open_time];
+                                                                }
+                                                                
+                                                                // Parse close_time from database (can be JSON array or string)
+                                                                $closeTimes = [];
+                                                                if (is_array($selectedAttraction->close_time)) {
+                                                                    $closeTimes = $selectedAttraction->close_time;
+                                                                } elseif (is_string($selectedAttraction->close_time)) {
+                                                                    $decoded = json_decode($selectedAttraction->close_time, true);
+                                                                    $closeTimes = is_array($decoded) ? $decoded : [$selectedAttraction->close_time];
+                                                                }
+                                                            @endphp
+                                                            @if(!empty($openTimes) && !empty($closeTimes))
+                                                                @foreach($openTimes as $index => $openTime)
+                                                                    @php
+                                                                        $closeTime = $closeTimes[$index] ?? ($closeTimes[0] ?? '');
+                                                                        if ($openTime && $closeTime) {
+                                                                            $slotValue = $openTime . ' - ' . $closeTime;
+                                                                            $isSelected = ($slotValue == $timeSlot || str_contains($slotValue, $timeSlot));
+                                                                    } else {
+                                                                        continue;
+                                                                    }
+                                                                    @endphp
+                                                                    <option value="{{ $slotValue }}" {{ $isSelected ? 'selected' : '' }}>
+                                                                        {{ $slotValue }}
+                                                                    </option>
+                                                                @endforeach
+                                                            @endif
+                                                        @endif
+                                                        @if(!$timeSlotsFound)
+                                                            <option value="" disabled>Select an attraction to see available time slots</option>
+                                                        @endif
+                                                        @php
+                                                            // Add current time slot as option if it doesn't match any existing options
+                                                            if ($timeSlot && $timeSlot != 'N/A') {
+                                                                $timeSlotExists = false;
+                                                                // Check if time slot already exists in options
+                                                                if ($selectedAttraction && isset($selectedAttraction->time_slots) && is_array($selectedAttraction->time_slots)) {
+                                                                    foreach($selectedAttraction->time_slots as $slotData) {
+                                                                        $slotValue = $slotData['slot'] ?? ($slotData['open'] ?? '');
+                                                                        $slotText = $slotData['slot'] ?? ($slotData['open'] . (isset($slotData['close']) ? ' - ' . $slotData['close'] : ''));
+                                                                        if ($slotValue == $timeSlot || $slotText == $timeSlot) {
+                                                                            $timeSlotExists = true;
+                                                                            break;
+                                                                        }
+                                                                    }
+                                                                } elseif ($selectedAttraction && $selectedAttraction->open_time && $selectedAttraction->close_time) {
+                                                                    // Parse open_time and close_time from database
+                                                                    $openTimes = [];
+                                                                    if (is_array($selectedAttraction->open_time)) {
+                                                                        $openTimes = $selectedAttraction->open_time;
+                                                                    } elseif (is_string($selectedAttraction->open_time)) {
+                                                                        $decoded = json_decode($selectedAttraction->open_time, true);
+                                                                        $openTimes = is_array($decoded) ? $decoded : [$selectedAttraction->open_time];
+                                                                    }
+                                                                    
+                                                                    $closeTimes = [];
+                                                                    if (is_array($selectedAttraction->close_time)) {
+                                                                        $closeTimes = $selectedAttraction->close_time;
+                                                                    } elseif (is_string($selectedAttraction->close_time)) {
+                                                                        $decoded = json_decode($selectedAttraction->close_time, true);
+                                                                        $closeTimes = is_array($decoded) ? $decoded : [$selectedAttraction->close_time];
+                                                                    }
+                                                                    
+                                                                    foreach($openTimes as $index => $openTime) {
+                                                                        $closeTime = $closeTimes[$index] ?? ($closeTimes[0] ?? '');
+                                                                        if ($openTime && $closeTime) {
+                                                                            $slotValue = $openTime . ' - ' . $closeTime;
+                                                                            if ($slotValue == $timeSlot || str_contains($slotValue, $timeSlot)) {
+                                                                                $timeSlotExists = true;
+                                                                                break;
+                                                                            }
+                                                                        }
+                                                                    }
+                                                                }
+                                                                // If current time slot doesn't exist in database options, add it to preserve the value
+                                                                if (!$timeSlotExists) {
+                                                                    echo '<option value="' . htmlspecialchars($timeSlot) . '" selected>' . htmlspecialchars($timeSlot) . '</option>';
+                                                                }
+                                                            }
+                                                        @endphp
+                                                    </select>
+                                                    <small class="text-muted d-block mt-1">Available time slots from database</small>
+                                                </div>
+                                                
+                                                <div class="col-md-2">
+                                                    <label class="form-label fw-semibold text-muted mb-2"><i class="ri-user-line me-1 text-secondary"></i>Adults</label>
+                                                    <input type="number" class="form-control border-2 attraction-guest-input" style="height: 35px;" name="adult_count" id="attraction_adult_count_{{ $order->booking_id }}" min="0" value="{{ $adultCount }}" data-booking-id="{{ $order->booking_id }}" data-tour-max="{{ ($tour->adult ?? 0) + ($tour->child ?? 0) }}" required>
+                                                </div>
+                                                <div class="col-md-2">
+                                                    <label class="form-label fw-semibold text-muted mb-2"><i class="ri-user-smile-line me-1 text-secondary"></i>Children</label>
+                                                    <input type="number" class="form-control border-2 attraction-guest-input" style="height: 35px;" name="child_count" id="attraction_child_count_{{ $order->booking_id }}" min="0" value="{{ $childCount }}" data-booking-id="{{ $order->booking_id }}" data-tour-max="{{ ($tour->adult ?? 0) + ($tour->child ?? 0) }}" required>
+                                                </div>
+                                                <div class="col-md-2">
+                                                    <label class="form-label fw-semibold text-muted mb-2"><i class="ri-user-heart-line me-1 text-secondary"></i>Seniors</label>
+                                                    <input type="number" class="form-control border-2 attraction-guest-input" style="height: 35px;" name="senior_count" id="attraction_senior_count_{{ $order->booking_id }}" min="0" value="{{ $seniorCount }}" data-booking-id="{{ $order->booking_id }}" data-tour-max="{{ ($tour->adult ?? 0) + ($tour->child ?? 0) }}" required>
+                                                </div>
+                                                
+                                                <!-- Additional Pax Details -->
+                                                <div class="col-md-2">
+                                                    <label class="form-label fw-semibold text-muted mb-2"><i class="ri-user-heart-line me-1 text-warning"></i>Infants</label>
+                                                    <input type="number" class="form-control border-2 attraction-guest-input" style="height: 35px;" name="infants" id="attraction_infants_{{ $order->booking_id }}" min="0" value="{{ $infantsCount }}" data-booking-id="{{ $order->booking_id }}" data-tour-max="{{ ($tour->adult ?? 0) + ($tour->child ?? 0) }}">
+                                                </div>
+                                                <div class="col-md-2">
+                                                    <label class="form-label fw-semibold text-muted mb-2"><i class="ri-money-dollar-circle-line me-1 text-success"></i>Total Price</label>
+                                                    <input type="number" class="form-control border-2" style="height: 35px;" name="total_price" id="attraction_total_price_{{ $order->booking_id }}" step="0.01" min="0" value="{{ number_format((float)$totalPrice, 2, '.', '') }}" placeholder="0.00" readonly>
+                                                </div>
+                                            </div>
+                                            <!-- Transport for this attraction -->
+                                        <div class="border rounded-3 p-3 bg-light mb-3">
+                                            <div class="row g-2 align-items-center">
+                                                <div class="col-md-4">
+                                                    <label class="form-label fw-semibold d-block mb-2">Need transport for this attraction?</label>
+                                                    <div class="d-flex align-items-center gap-2">
+                                                        <span class="text-muted small toggle-label" id="attraction_transport_no_{{ $order->booking_id }}">No</span>
+                                                        <label class="toggle-switch" for="need_attraction_transport_{{ $order->booking_id }}">
+                                                            <input type="checkbox" class="toggle-switch-input" name="need_attraction_transport_{{ $order->booking_id }}" id="need_attraction_transport_{{ $order->booking_id }}" value="yes" autocomplete="off" {{ $transferRequired ? 'checked' : '' }}>
+                                                            <span class="toggle-switch-slider"></span>
+                                                        </label>
+                                                        <span class="text-muted small toggle-label" id="attraction_transport_yes_{{ $order->booking_id }}">Yes</span>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                            <div id="attraction_transport_details_{{ $order->booking_id }}" class="border rounded-3 p-3 bg-white mt-2 {{ $transferRequired ? '' : 'd-none' }}">
+                                                @php
+                                                    $transportVehicles = $vehicles ?? collect();
+                                                    $tourCountry = $tour->destination ?? '';
+                                                    $filteredVehicles = $transportVehicles;
+                                                    if ($tourCountry) {
+                                                        $filteredVehicles = $transportVehicles->filter(function($vehicle) use ($tourCountry) {
+                                                            $vehicleCountry = strtolower(trim($vehicle->country ?? $vehicle->service_country ?? ''));
+                                                            return $vehicleCountry === strtolower(trim($tourCountry));
+                                                        });
+                                                        if ($filteredVehicles->isEmpty()) {
+                                                            $filteredVehicles = $transportVehicles;
+                                                        }
+                                                    }
+                                                @endphp
+                                                <div class="row g-3">
+                                                    <!-- First Row: Transport Type, Vehicle, Destination -->
+                                                    <div class="col-md-3">
+                                                        <label class="form-label fw-semibold text-muted mb-2">Transport Type</label>
+                                                        <select class="form-select border-2" style="height: 35px;" name="attraction_transport_type_{{ $order->booking_id }}">
+                                                            <option value="">Select type</option>
+                                                            <option value="shared" {{ $transportType === 'shared' || $transportType === 'Shared' ? 'selected' : '' }}>Shared</option>
+                                                            <option value="private" {{ $transportType === 'private' || $transportType === 'Private' ? 'selected' : '' }}>Private</option>
+                                                        </select>
+                                                    </div>
+                                                    
+                                                    <div class="col-md-3">
+                                                        <label class="form-label fw-semibold text-muted mb-2">Destination</label>
+                                                        @php
+                                                            $destHotels = $hotels ?? collect();
+                                                            $destAttractions = $attractions ?? collect();
+                                                            $destRestaurants = $restaurants ?? collect();
+                                                        @endphp
+                                                        <select class="form-select border-2 attraction-transport-destination-select" style="height: 35px;" name="attraction_transport_destination_{{ $order->booking_id }}" id="attraction_transport_destination_{{ $order->booking_id }}" data-booking-id="{{ $order->booking_id }}">
+                                                            <option value="">Search & select destination</option>
+                                                            <optgroup label="Hotels">
+                                                                @foreach($destHotels as $h)
+                                                                    <option value="{{ $h->name ?? '' }}" 
+                                                                            data-destination-id="{{ $h->hotel_unique_id ?? '' }}" 
+                                                                            data-destination-type="hotel" 
+                                                                            {{ ($transportDestination === ($h->name ?? '')) ? 'selected' : '' }}>
+                                                                        {{ $h->name ?? '' }}
+                                                                    </option>
+                                                                @endforeach
+                                                            </optgroup>
+                                                            <optgroup label="Attractions">
+                                                                @foreach($destAttractions as $a)
+                                                                    <option value="{{ $a->name ?? '' }}" 
+                                                                            data-destination-id="{{ $a->attraction_id ?? '' }}" 
+                                                                            data-destination-type="attraction" 
+                                                                            {{ ($transportDestination === ($a->name ?? '')) ? 'selected' : '' }}>
+                                                                        {{ $a->name ?? '' }}
+                                                                    </option>
+                                                                @endforeach
+                                                            </optgroup>
+                                                            <optgroup label="Restaurants">
+                                                                @foreach($destRestaurants as $r)
+                                                                    <option value="{{ $r->name ?? '' }}" 
+                                                                            data-destination-id="{{ $r->restaurant_id ?? '' }}" 
+                                                                            data-destination-type="restaurant" 
+                                                                            {{ ($transportDestination === ($r->name ?? '')) ? 'selected' : '' }}>
+                                                                        {{ $r->name ?? '' }}
+                                                                    </option>
+                                                                @endforeach
+                                                            </optgroup>
+                                                        </select>
+                                                    </div>
+                                                    <div class="col-md-3">
+                                                        <label class="form-label fw-semibold text-muted mb-2">Vehicle (by country)</label>
+                                                        <select class="form-select border-2 attraction-transport-vehicle-select" style="height: 35px;" name="attraction_transport_vehicle_{{ $order->booking_id }}" id="attraction_transport_vehicle_{{ $order->booking_id }}" data-booking-id="{{ $order->booking_id }}">
+                                                            
+                                                        <option value="">{{ $transportDestination ? 'Select vehicle' : 'Select destination first' }}</option>
+                                                            @if($transportDestination)
+                                                                @if($filteredVehicles && count($filteredVehicles) > 0)
+                                                                @foreach($filteredVehicles as $vehicle)
+                                                                @php
+                                                                $vehicleName = $vehicle->vehicle_name ?? $vehicle->vehicle_id ?? 'Vehicle';
+                                                                $vehicleId = $vehicle->vehicle_id ?? '';
+                                                                $vehicleType = $vehicle->vehicle_type ?? '';
+                                                                $seatingCapacity = $vehicle->seating_capacity ?? '';
+                                                                // Match by vehicle_id for proper mapping
+                                                                $isSelected = ($transportVehicleId == $vehicleId || 
+                                                                $transportVehicleId == (string)$vehicleId ||
+                                                                ($transportVehicle && ($transportVehicle == $vehicleId || $transportVehicle == (string)$vehicleId)));
+                                                                @endphp
+                                                                <option value="{{ $vehicleId }}" data-vehicle-id="{{ $vehicleId }}" data-vehicle-name="{{ $vehicleName }}" data-seating-capacity="{{ $seatingCapacity }}" {{ $isSelected ? 'selected' : '' }}>
+                                                                    {{ $vehicleName }}
+                                                                    @if($isSelected)
+                                                                        ({{ $vehicleId }})
+                                                                    @endif
+                                                                    @if($seatingCapacity)
+                                                                        - {{ $seatingCapacity }} seats
+                                                                    @endif
+                                                                </option>
+                                                                    @endforeach
+                                                                @endif
+                                                            @endif
+                                                        </select>
+                                                        <script>
+                                                            // Ensure selected vehicle is displayed in select box on page load
+                                                            $(document).ready(function() {
+                                                                const vehicleSelect = $('#attraction_transport_vehicle_{{ $order->booking_id }}');
+                                                                const selectedOption = vehicleSelect.find('option[selected]');
+                                                                if (selectedOption.length) {
+                                                                    const selectedValue = selectedOption.attr('value');
+                                                                    if (selectedValue) {
+                                                                        vehicleSelect.val(selectedValue);
+                                                                    }
+                                                                }
+                                                            });
+                                                        </script>
+                                                    </div>
+                                                <!-- </div>
+                                                <div class="row g-3 mt-2"> -->
+                                                    <!-- <div class="col-md-2">
+                                                        <label class="form-label fw-semibold">Seats</label>
+                                                        <input type="number" min="1" class="form-control" name="attraction_transport_seats_{{ $order->booking_id }}" id="attraction_transport_seats_{{ $order->booking_id }}" placeholder="0" value="{{ $transportSeats }}" readonly>
+                                                    </div>
+                                                    <div class="col-md-4">
+                                                        <label class="form-label fw-semibold">Passengers</label>
+                                                        <input type="number" min="1" class="form-control" name="attraction_transport_passengers_{{ $order->booking_id }}" id="attraction_transport_passengers_{{ $order->booking_id }}" placeholder="0" value="{{ $transportPassengers }}" data-booking-id="{{ $order->booking_id }}" data-transport-type="attraction">
+                                                        <div class="form-check mt-2">
+                                                            <input class="form-check-input attraction-transport-return-checkbox" type="checkbox" name="attraction_transport_return_{{ $order->booking_id }}" id="attraction_transport_return_{{ $order->booking_id }}" data-booking-id="{{ $order->booking_id }}" {{ $transportReturn ? 'checked' : '' }}>
+                                                            <label class="form-check-label fw-semibold" for="attraction_transport_return_{{ $order->booking_id }}">
+                                                                Return
+                                                            </label>
+                                                        </div>
+                                                        <small class="text-danger d-none" id="attraction_passenger_error_{{ $order->booking_id }}">Passengers cannot exceed total pax or vehicle capacity</small>
+                                                    </div> -->
+                                                    <div class="col-md-3">
+                                                        <label class="form-label fw-semibold text-muted mb-2">Estimated Price</label>
+                                                        <div class="input-group">
+                                                            <span class="input-group-text" style="height: 35px;">{{ $tour->currency ?? '$' }}</span>
+                                                            <input type="number" min="0" step="0.01" class="form-control border-2" style="height: 35px;" name="attraction_transport_price_{{ $order->booking_id }}" id="attraction_transport_price_{{ $order->booking_id }}" placeholder="0.00" value="{{ number_format((float)$transportPrice, 2, '.', '') }}" data-original-price="{{ $transportReturn ? number_format((float)$transportPrice / 2, 2, '.', '') : number_format((float)$transportPrice, 2, '.', '') }}">
+                                                        </div>
+                                                        <small class="text-muted d-block mt-2">Optional, can be adjusted later.</small>
+                                                        <div class="form-check mt-2">
+                                                            <input class="form-check-input attraction-transport-return-checkbox" type="checkbox" name="attraction_transport_return_{{ $order->booking_id }}" id="attraction_transport_return_{{ $order->booking_id }}" data-booking-id="{{ $order->booking_id }}" {{ $transportReturn ? 'checked' : '' }}>
+                                                            <label class="form-check-label fw-semibold" for="attraction_transport_return_{{ $order->booking_id }}">
+                                                                Return
+                                                            </label>
+                                                        </div>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        </div>
+                                        
+                                        <!-- Guide Section for this attraction -->
+                                        <div class="border rounded-3 p-3 bg-light mb-2 mt-2">
+                                            <div class="row g-2 align-items-center">
+                                                <div class="col-md-4">
+                                                    <label class="form-label fw-semibold d-block mb-2">Do you want a guide?</label>
+                                                    <div class="d-flex align-items-center gap-2">
+                                                        <span class="text-muted small toggle-label" id="attraction_guide_no_{{ $order->booking_id }}">No</span>
+                                                        <label class="toggle-switch" for="need_attraction_guide_{{ $order->booking_id }}">
+                                                            <input type="checkbox" class="toggle-switch-input" name="need_attraction_guide_{{ $order->booking_id }}" id="need_attraction_guide_{{ $order->booking_id }}" value="yes" autocomplete="off" {{ $guideRequired ? 'checked' : '' }}>
+                                                            <span class="toggle-switch-slider"></span>
+                                                        </label>
+                                                        <span class="text-muted small toggle-label" id="attraction_guide_yes_{{ $order->booking_id }}">Yes</span>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                            <div id="attraction_guide_details_{{ $order->booking_id }}" class="border rounded-3 p-3 bg-white mt-2 {{ $guideRequired ? '' : 'd-none' }}">
+                                                @php
+                                                    $availableGuides = $guides ?? collect();
+                                                    $tourCountry = $tour->destination ?? '';
+                                                    $filteredGuides = $availableGuides;
+                                                    if ($tourCountry) {
+                                                        $filteredGuides = $availableGuides->filter(function($guide) use ($tourCountry) {
+                                                            if (isset($guide->country) && $guide->country == $tourCountry) {
+                                                                return true;
+                                                            }
+                                                            if (isset($guide->city) && is_object($guide->city) && isset($guide->city->country)) {
+                                                                return $guide->city->country == $tourCountry;
+                                                            }
+                                                            return empty($tourCountry);
+                                                        });
+                                                    }
+                                                @endphp
+                                                <div class="row g-3">
+                                                    <div class="col-md-6">
+                                                        <label class="form-label small fw-semibold mb-1">Language</label>
+                                                        <select class="form-select form-select-sm" name="attraction_guide_language_{{ $order->booking_id }}" id="attraction_guide_language_{{ $order->booking_id }}" data-no-select2="true">
+                                                            <option value="">Select Language</option>
+                                                            @php
+                                                                $allLanguages = [];
+                                                                foreach($filteredGuides as $guide) {
+                                                                    if (isset($guide->languages) && is_iterable($guide->languages)) {
+                                                                        foreach ($guide->languages as $lang) {
+                                                                            if (is_object($lang) && isset($lang->language)) {
+                                                                                $allLanguages[] = $lang->language;
+                                                                            } elseif (is_array($lang) && isset($lang['language'])) {
+                                                                                $allLanguages[] = $lang['language'];
+                                                                            }
+                                                                        }
+                                                                    }
+                                                                }
+                                                                $uniqueLanguages = array_unique($allLanguages);
+                                                                sort($uniqueLanguages);
+                                                            @endphp
+                                                            @foreach($uniqueLanguages as $language)
+                                                                <option value="{{ $language }}" {{ $guideLanguage && strtolower(trim($guideLanguage)) === strtolower(trim($language)) ? 'selected' : '' }}>{{ $language }}</option>
+                                                            @endforeach
+                                                        </select>
+                                                    </div>
+                                                    <div class="col-md-6">
+                                                        <label class="form-label small fw-semibold mb-1">Guide</label>
+                                                        <select class="form-select form-select-sm" name="attraction_guide_name_{{ $order->booking_id }}" id="attraction_guide_name_{{ $order->booking_id }}" data-no-select2="true" data-initial-guide-id="{{ $guideId }}" data-initial-guide-name="{{ $guideName }}">
+                                                            <option value="">Select Language First</option>
+                                                            @if($guideName && $guideName != 'N/A')
+                                                                <option value="{{ $guideName }}" data-guide-id="{{ $guideId }}" selected>{{ $guideName }}</option>
+                                                            @endif
+                                                        </select>
+                                                    </div>
+                                                </div>
+                                                <div class="row g-3 mt-2">
+                                                    <div class="col-md-6">
+                                                        <label class="form-label small fw-semibold mb-1">Package (Hours)</label>
+                                                        <select class="form-select form-select-sm" name="attraction_guide_hours_{{ $order->booking_id }}" id="attraction_guide_hours_{{ $order->booking_id }}" data-no-select2="true">
+                                                            <option value="">Select Hours</option>
+                                                            <option value="1" {{ $guidePackageHours == '1' || $guideHours == 1 ? 'selected' : '' }}>1 Hour</option>
+                                                            <option value="2" {{ $guidePackageHours == '2' || $guideHours == 2 ? 'selected' : '' }}>2 Hours</option>
+                                                            <option value="3" {{ $guidePackageHours == '3' || $guideHours == 3 ? 'selected' : '' }}>3 Hours</option>
+                                                            <option value="4" {{ $guidePackageHours == '4' || $guideHours == 4 ? 'selected' : '' }}>4 Hours</option>
+                                                            <option value="5" {{ $guidePackageHours == '5' || $guideHours == 5 ? 'selected' : '' }}>5 Hours</option>
+                                                            <option value="6" {{ $guidePackageHours == '6' || $guideHours == 6 ? 'selected' : '' }}>6 Hours</option>
+                                                            <option value="7" {{ $guidePackageHours == '7' || $guideHours == 7 ? 'selected' : '' }}>7 Hours</option>
+                                                            <option value="8" {{ $guidePackageHours == '8' || $guideHours == 8 ? 'selected' : '' }}>8 Hours</option>
+                                                            <option value="9" {{ $guidePackageHours == '9' || $guideHours == 9 ? 'selected' : '' }}>9 Hours</option>
+                                                            <option value="10" {{ $guidePackageHours == '10' || $guideHours == 10 ? 'selected' : '' }}>10 Hours</option>
+                                                            <option value="11" {{ $guidePackageHours == '11' || $guideHours == 11 ? 'selected' : '' }}>11 Hours</option>
+                                                            <option value="12" {{ $guidePackageHours == '12' || $guideHours == 12 ? 'selected' : '' }}>12 Hours</option>
+                                                            <option value="custom" {{ ($guidePackageHours && !in_array($guidePackageHours, ['1','2','3','4','5','6','7','8','9','10','11','12'])) || ($guideHours && !in_array($guideHours, [1,2,3,4,5,6,7,8,9,10,11,12])) ? 'selected' : '' }}>Custom Hours</option>
+                                                        </select>
+                                                        <input type="number" min="1" class="form-control form-control-sm mt-2" name="attraction_guide_custom_hours_{{ $order->booking_id }}" id="attraction_guide_custom_hours_{{ $order->booking_id }}" placeholder="Enter custom hours" value="{{ ($guidePackageHours && !in_array($guidePackageHours, ['1','2','3','4','5','6','7','8','9','10','11','12'])) ? $guidePackageHours : (($guideHours && !in_array($guideHours, [1,2,3,4,5,6,7,8,9,10,11,12])) ? $guideHours : '') }}" style="display: {{ ($guidePackageHours && !in_array($guidePackageHours, ['1','2','3','4','5','6','7','8','9','10','11','12'])) || ($guideHours && !in_array($guideHours, [1,2,3,4,5,6,7,8,9,10,11,12])) ? 'block' : 'none' }};">
+                                                    </div>
+                                                    <div class="col-md-6">
+                                                        <label class="form-label small fw-semibold mb-1">Guide Price</label>
+                                                        <div class="position-relative">
+                                                            <span class="position-absolute" style="left: 10px; top: 50%; transform: translateY(-50%); z-index: 5; color: #6c757d; font-weight: 500;">{{ $tour->currency ?? '$' }}</span>
+                                                            <input type="number" min="0" step="0.01" class="form-control form-control-sm" name="attraction_guide_price_{{ $order->booking_id }}" id="attraction_guide_price_{{ $order->booking_id }}" placeholder="0.00" value="{{ $guideTotalPrice > 0 ? number_format((float)$guideTotalPrice, 2, '.', '') : '' }}" readonly style="padding-left: 30px;">
+                                                        </div>
+                                                        <small class="text-muted" style="font-size: 0.75rem; line-height: 1.2;">
+                                                            <span id="attraction_guide_price_breakdown_{{ $order->booking_id }}" style="display: none;"></span>
+                                                            <span id="attraction_guide_price_note_{{ $order->booking_id }}">Select guide and enter hours to see price</span>
+                                                        </small>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        </div>
+                                            <div class="d-flex justify-content-end align-items-center gap-3 mt-3">
+                                                <div class="text-muted small" id="attraction_feedback_{{ $order->booking_id }}"></div>
+                                                <button type="submit" class="btn btn-primary d-flex align-items-center gap-2" style="height: 35px; padding: 0 10px;">
+                                                    <span class="spinner-border spinner-border-sm d-none" id="attraction_spinner_{{ $order->booking_id }}"></span>
+                                                    <span>Save Changes</span>
+                                                </button>
+                                            </div>
+                                        </form>
+                                        @endforeach
+                                        @else
+                                        <div class="text-center py-5 text-muted">
+                                            <i class="ri-ticket-line fs-1 mb-3" style="color: #cbd5e1;"></i>
+                                            <p class="mb-4">No attraction bookings yet</p>
+                                        </div>
+                                        @endif
+                                    </div>
+                                    <div class="card-footer bg-light">
+                                        <div class="text-center py-3">
+                                            <button type="button" class="btn btn-gradient-primary btn-lg shadow-sm px-5 py-3" onclick="addAttractionService()" style="
+                                                background: linear-gradient(135deg, #fa709a 0%, #fee140 100%);
+                                                border: none;
+                                                color: white;
+                                                font-weight: 600;
+                                                letter-spacing: 0.5px;
+                                                transition: all 0.3s ease;
+                                                border-radius: 8px;
+                                                box-shadow: 0 4px 15px rgba(250, 112, 154, 0.4);
+                                            " onmouseover="this.style.transform='translateY(-2px)'; this.style.boxShadow='0 6px 20px rgba(250, 112, 154, 0.6)';" onmouseout="this.style.transform='translateY(0)'; this.style.boxShadow='0 4px 15px rgba(250, 112, 154, 0.4)';">
+                                                <i class="ri-add-circle-line me-2" style="font-size: 1.2em;"></i>{{ count($allAttractions) > 0 ? 'Add More Attractions' : 'Add Attraction' }}
+                                            </button>
+                                        </div>
+                                    </div>
+                                    </div> <!-- end allAttractionsSection collapse -->
+                                </div>
+                            </div>
+
+                            <!-- All Guides Section (Unified) -->
+                            <div class="service-section mb-3">
+                                <div >
+                                    <div class="card-header text-dark d-flex justify-content-between align-items-center" role="button" data-bs-toggle="collapse" data-bs-target="#allGuidesSection" aria-expanded="false" aria-controls="allGuidesSection" style="cursor: pointer; background: linear-gradient(135deg, #d1fae5 0%, #a7f3d0 100%); border: 1px solid #34d399; transition: all 0.3s ease;">
+                                        <div class="d-flex align-items-center">
+                                            <span class="service-icon me-3">
+                                                <i class="ri-user-star-line fs-4"></i>
+                                            </span>
+                                            <div>
+                                                <h6 class="mb-0 fw-bold">👤 All Tour Guide Services</h6>
+                                                <small class="text-muted">All guides from all days in one place</small>
+                                            </div>
+                                        </div>
+                                        <i class="ri-arrow-down-s-line ms-2 fs-5"></i>
+                                    </div>
+                                    <div id="allGuidesSection" class="collapse">
+                                    <div class="card-body mt-3">
+                                        @if(count($allGuides) > 0)
+                                        @foreach($allGuides as $index => $order)
+                                        @php
+                                            $guideData = $order->processed_data;
+                                            $payload = [];
+                                            if (is_array($guideData)) {
+                                                $payload = isset($guideData[0]) ? $guideData[0] : $guideData;
+                                            }
+                                            $guideName = $payload['guide_name'] ?? 'N/A';
+                                            $packageHours = $payload['hours'] ?? '';
+                                            // Use entrytime for time, not entrypickup (which contains location)
+                                            $pickupTime = $payload['entrytime'] ?? $payload['pickup_time'] ?? '';
+                                            $pickupDate = $payload['pickupdate'] ?? '';
+                                            $guestSummary = $payload['fullName'] ?? '';
+                                            $guideNotes = $payload['notes'] ?? '';
+                                            $totalPrice = $payload['totalPrice'] ?? $payload['price'] ?? 0;
+                                            
+                                            // Convert pickup time to AM/PM format for display
+                                            $pickupTimeAMPM = '';
+                                            if ($pickupTime) {
+                                                try {
+                                                    // Try parsing as 24-hour format first (H:i)
+                                                    $timeObj = \Carbon\Carbon::createFromFormat('H:i', $pickupTime);
+                                                    $pickupTimeAMPM = $timeObj->format('h:i A');
+                                                } catch (\Exception $e) {
+                                                    try {
+                                                        // Try parsing as 12-hour format (h:i A)
+                                                        $timeObj = \Carbon\Carbon::createFromFormat('h:i A', $pickupTime);
+                                                        $pickupTimeAMPM = $timeObj->format('h:i A');
+                                                    } catch (\Exception $e2) {
+                                                        try {
+                                                            // Try general parse
+                                                            $timeObj = \Carbon\Carbon::parse($pickupTime);
+                                                            $pickupTimeAMPM = $timeObj->format('h:i A');
+                                                        } catch (\Exception $e3) {
+                                                            $pickupTimeAMPM = $pickupTime; // Keep original if parsing fails
+                                                        }
+                                                    }
+                                                }
+                                            }
+                                        @endphp
+                                        <form class="service-item mb-3 p-3 border rounded shadow-sm bg-white guide-edit-form" data-update-url="{{ route('edit-tour.update-guide', $order->booking_id) }}" onsubmit="updateExistingGuide(event, {{ $order->booking_id }})">
+                                            @csrf
+                                            <input type="hidden" name="type" value="guide">
+                                            <div class="d-flex justify-content-between align-items-center mb-3">
+                                                <h6 class="mb-0 fw-bold text-info"><i class="ri-user-star-line me-2"></i>Tour Guide Booking #{{ $index + 1 }}</h6>
+                                                <div class="d-flex gap-2">
+                                                    <button type="button" class="btn btn-sm btn-outline-danger" onclick="removeGuideService({{ $order->booking_id }})">
+                                                        <i class="ri-delete-bin-line"></i> Remove
+                                                    </button>
+                                                </div>
+                                            </div>
+                                            <div class="row g-3">
+                                                <div class="col-md-4">
+                                                    <label class="form-label fw-semibold text-muted mb-2"><i class="ri-user-star-line me-1 text-primary"></i>Guide Name</label>
+                                                    <select class="form-select border-2" style="height: 35px;" name="guide_name" id="guide_name_{{ $order->booking_id }}" required>
+                                                        <option value="">Select Guide</option>
+                                                        @php
+                                                            $tourCountry = $tour->destination ?? '';
+                                                            $filteredGuides = collect($guides ?? [])->filter(function($guide) use ($tourCountry) {
+                                                                // Check if guide has country field directly
+                                                                if (isset($guide->country) && $guide->country == $tourCountry) {
+                                                                    return true;
+                                                                }
+                                                                // Check if guide has city relationship with country
+                                                                if (isset($guide->city) && is_object($guide->city) && isset($guide->city->country)) {
+                                                                    return $guide->city->country == $tourCountry;
+                                                                }
+                                                                // If no country filter available, include all guides
+                                                                return empty($tourCountry);
+                                                            });
+                                                        @endphp
+                                                        @foreach($filteredGuides as $guide)
+                                                            @php
+                                                                $guideLanguages = [];
+                                                                if (isset($guide->languages) && is_iterable($guide->languages)) {
+                                                                    foreach ($guide->languages as $lang) {
+                                                                        if (is_object($lang) && isset($lang->language)) {
+                                                                            $guideLanguages[] = $lang->language;
+                                                                        } elseif (is_array($lang) && isset($lang['language'])) {
+                                                                            $guideLanguages[] = $lang['language'];
+                                                                        }
+                                                                    }
+                                                                }
+                                                                $languagesText = !empty($guideLanguages) ? ' - ' . implode(', ', $guideLanguages) : '';
+                                                            @endphp
+                                                            <option value="{{ $guide->name }}" {{ $guideName == $guide->name ? 'selected' : '' }} 
+                                                                data-guide-id="{{ $guide->guide_id ?? '' }}"
+                                                                data-guide-data="{{ json_encode($guide) }}">
+                                                                {{ $guide->name }}{{ $languagesText }}
+                                                            </option>
+                                                        @endforeach
+                                                        @if($guideName && !$filteredGuides->pluck('name')->contains($guideName))
+                                                            <option value="{{ $guideName }}" selected>{{ $guideName }}</option>
+                                                        @endif
+                                                    </select>
+                                                </div>
+                                                <div class="col-md-4">
+                                                    <label class="form-label fw-semibold text-muted mb-2"><i class="ri-calendar-line me-1 text-primary"></i>Pickup Date</label>
+                                                    <input type="date" class="form-control border-2" style="height: 35px;" name="pickup_date" id="pickup_date_{{ $order->booking_id }}" value="{{ $pickupDate }}" required>
+                                                </div>
+                                                <div class="col-md-4">
+                                                    <label class="form-label fw-semibold text-muted mb-2"><i class="ri-time-line me-1 text-info"></i>Entry Pickup Time</label>
+                                                    <select class="form-select border-2" style="height: 35px;" name="pickup_time" id="guide_pickup_time_{{ $order->booking_id }}" required>
+                                                        <option value="">Select Guide First</option>
+                                                        @if($pickupTimeAMPM)
+                                                            <option value="{{ $pickupTimeAMPM }}" selected>{{ $pickupTimeAMPM }}</option>
+                                                        @endif
+                                                    </select>
+                                                    <small class="text-muted d-block mt-1">Available times from selected guide</small>
+                                                </div>
+                                                <div class="col-md-6">
+                                                    <label class="form-label fw-semibold text-muted mb-2"><i class="ri-hourglass-line me-1 text-warning"></i>Package (Hours)</label>
+                                                    <input type="text" class="form-control border-2" style="height: 35px;" name="package_hours" value="{{ $packageHours }}" placeholder="e.g. 4">
+                                                </div>
+                                                <div class="col-md-6">
+                                                    <label class="form-label fw-semibold text-muted mb-2"><i class="ri-money-dollar-circle-line me-1 text-success"></i>Total Price</label>
+                                                    <input type="number" class="form-control border-2" style="height: 35px;" name="total_price" id="guide_total_price_{{ $order->booking_id }}" step="0.01" min="0" value="{{ number_format((float)$totalPrice, 2, '.', '') }}" placeholder="0.00" readonly>
+                                                </div>
+                                            </div>
+                                            <div class="d-flex justify-content-end align-items-center gap-3 mt-3">
+                                                <div class="text-muted small" id="guide_feedback_{{ $order->booking_id }}"></div>
+                                                <button type="submit" class="btn btn-primary d-flex align-items-center gap-2" style="height: 35px; padding: 0 10px;">
+                                                    <span class="spinner-border spinner-border-sm d-none" id="guide_spinner_{{ $order->booking_id }}"></span>
+                                                    <span>Save Changes</span>
+                                                </button>
+                                            </div>
+                                        </form>
+                                        @endforeach
+                                        @else
+                                        <div class="text-center py-5 text-muted">
+                                            <i class="ri-user-star-line fs-1 mb-3" style="color: #cbd5e1;"></i>
+                                            <p class="mb-4">No guide bookings yet</p>
+                                        </div>
+                                        @endif
+                                    </div>
+                                    <div class="card-footer bg-light">
+                                        <div class="text-center py-3">
+                                            <button type="button" class="btn btn-gradient-primary btn-lg shadow-sm px-5 py-3" onclick="addGuideService()" style="
+                                                background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%);
+                                                border: none;
+                                                color: white;
+                                                font-weight: 600;
+                                                letter-spacing: 0.5px;
+                                                transition: all 0.3s ease;
+                                                border-radius: 8px;
+                                                box-shadow: 0 4px 15px rgba(79, 172, 254, 0.4);
+                                            " onmouseover="this.style.transform='translateY(-2px)'; this.style.boxShadow='0 6px 20px rgba(79, 172, 254, 0.6)';" onmouseout="this.style.transform='translateY(0)'; this.style.boxShadow='0 4px 15px rgba(79, 172, 254, 0.4)';">
+                                                <i class="ri-add-circle-line me-2" style="font-size: 1.2em;"></i>{{ count($allGuides) > 0 ? 'Add More Guides' : 'Add Guide' }}
+                                            </button>
+                                        </div>
+                                    </div>
+                                    </div> <!-- end allGuidesSection collapse -->
+                                </div>
+                            </div>
+
                             <!-- All Restaurant Services Section (Unified) -->
                             <div class="service-section mb-3">
                                 <div>
@@ -2995,764 +3754,9 @@
                                 </div>
                             </div>
                             
-                            <!-- All Attractions Section (Unified) -->
-                            <div class="service-section mb-3">
-                                <div>
-                                    <div class="card-header text-dark d-flex justify-content-between align-items-center" role="button" data-bs-toggle="collapse" data-bs-target="#allAttractionsSection" aria-expanded="false" aria-controls="allAttractionsSection" style="cursor: pointer; background: linear-gradient(135deg, #f3e8ff 0%, #e9d5ff 100%); border: 1px solid #c084fc; transition: all 0.3s ease;">
-                                        <div class="d-flex align-items-center">
-                                            <span class="service-icon me-3">
-                                                <i class="ri-ticket-line fs-4"></i>
-                                            </span>
-                                            <div>
-                                                <h6 class="mb-0 fw-bold">🎫 All Attraction Tickets</h6>
-                                                <small class="text-muted">All attractions from all days in one place</small>
-                                            </div>
-                                        </div>
-                                        <i class="ri-arrow-down-s-line ms-2 fs-5"></i>
-                                    </div>
-                                    <div id="allAttractionsSection" class="collapse">
-                                    <div class="card-body mt-3">
-                                        @if(count($allAttractions) > 0)
-                                        @foreach($allAttractions as $index => $order)
-                                        @php
-                                            $attractionData = $order->processed_data;
-                                            $payload = [];
-                                            if (is_array($attractionData)) {
-                                                $payload = isset($attractionData[0]) ? $attractionData[0] : $attractionData;
-                                            }
-                                            $attractionName = $payload['AttractionName'] ?? 'N/A';
-                                            $bookingDate = $payload['bookingDate'] ?? '';
-                                            $timeSlot = $payload['visitTime'] ?? 'N/A';
-                                            $ticket = $payload['ticketName'] ?? 'N/A';
-                                            $adultCount = $payload['adultCount'] ?? 0;
-                                            $childCount = $payload['childCount'] ?? 0;
-                                            $seniorCount = $payload['seniorCount'] ?? 0;
-                                            $totalPrice = $payload['totalPrice'] ?? 0;
-                                            $attractionNotes = $payload['notes'] ?? '';
-                                            // Additional pax details
-                                            $maleCount = $order->male_count ?? 0;
-                                            $femaleCount = $order->female_count ?? 0;
-                                            $infantsCount = $order->infants ?? 0;
-                                            $totalPax = $adultCount + $childCount;
-                                            
-                                            // Extract transport options
-                                            $transferOptions = $payload['transfer_options'] ?? [];
-                                            $transferRequired = isset($transferOptions['transfer_required']) && $transferOptions['transfer_required'] === true;
-                                            $transportType = $transferOptions['type'] ?? '';
-                                            
-                                            // Get vehicle name from vehicle_details or vehicle_id/vehicle_name
-                                            $vehicleDetails = $transferOptions['vehicle_details'] ?? [];
-                                            $transportVehicle = $vehicleDetails['vehicle_name'] ?? $transferOptions['vehicle_name'] ?? $transferOptions['vehicle_id'] ?? '';
-                                            $transportVehicleId = $transferOptions['vehicle_id'] ?? '';
-                                            
-                                            // Get destination from pickup_location_name or destination
-                                            $transportDestination = $transferOptions['pickup_location_name'] ?? $transferOptions['destination'] ?? '';
-                                            $transportDestinationId = $transferOptions['pickup_location_id'] ?? '';
-                                            
-                                            $transportSeats = $vehicleDetails['seating_capacity'] ?? $transferOptions['seats'] ?? '';
-                                            $transportPassengers = $transferOptions['passengers'] ?? '';
-                                            $transportPrice = $transferOptions['cost'] ?? $transferOptions['price'] ?? 0;
-                                            $transportWay = $transferOptions['way'] ?? 'One Way';
-                                            $transportReturn = ($transportWay === 'Two Way');
-                                            
-                                            // Extract guide options
-                                            $guideOptions = $payload['guide_options'] ?? [];
-                                            $guideRequired = isset($guideOptions['guide_required']) && $guideOptions['guide_required'] === true;
-                                            $guideId = $guideOptions['guide_id'] ?? '';
-                                            $guideName = $guideOptions['guide_name'] ?? '';
-                                            
-                                            // Get language from guide_options first, then fallback to extracting from guide name
-                                            $guideLanguage = $guideOptions['language'] ?? '';
-                                            
-                                            // If language is not in guide_options, try to extract from guide name (e.g., "AB - English" -> "English")
-                                            if (empty($guideLanguage) && $guideName && strpos($guideName, '-') !== false) {
-                                                $parts = explode('-', $guideName);
-                                                if (count($parts) > 1) {
-                                                    $guideLanguage = trim(end($parts));
-                                                }
-                                            }
-                                            
-                                            $guidePickupTime = $guideOptions['pickup_time'] ?? '';
-                                            $guidePackageHours = $guideOptions['package_hours'] ?? '';
-                                            $guideBasePrice = $guideOptions['base_price'] ?? 0;
-                                            $guideHours = $guideOptions['hours'] ?? 0;
-                                            $guideSurcharge = $guideOptions['surcharge'] ?? 0;
-                                            $guideTotalPrice = $guideOptions['total_price'] ?? 0;
-                                        @endphp
-                                        <form class="service-item mb-3 p-3 border rounded shadow-sm bg-white attraction-edit-form" data-update-url="{{ route('edit-tour.update-attraction', $order->booking_id) }}" onsubmit="updateExistingAttraction(event, {{ $order->booking_id }})">
-                                            @csrf
-                                            <input type="hidden" name="type" value="attraction">
-                                            <div class="d-flex justify-content-between align-items-center mb-3">
-                                                <h6 class="mb-0 fw-bold text-danger"><i class="ri-ticket-line me-2"></i>Attraction Booking #{{ $index + 1 }}</h6>
-                                                <div class="d-flex gap-2">
-                                                    <button type="button" class="btn btn-sm btn-outline-danger" onclick="removeAttractionService({{ $order->booking_id }})">
-                                                        <i class="ri-delete-bin-line"></i> Remove
-                                                    </button>
-                                                </div>
-                                            </div>
-                                        
-                                        
-                                            <div class="row g-3">
-                                                <div class="col-md-4">
-                                                    <label class="form-label fw-semibold text-muted mb-2"><i class="ri-map-pin-line me-1 text-primary"></i>Attraction Name</label>
-                                                    <select class="form-select border-2" style="height: 35px;" name="attraction_name" id="attraction_name_{{ $order->booking_id }}" onchange="populateTicketFromAttraction(this, 'ticket_name_{{ $order->booking_id }}')" required>
-                                                        <option value="">Select Attraction</option>
-                                                        @php
-                                                            $tourCountry = $tour->destination ?? '';
-                                                            $filteredAttractions = collect($attractions ?? [])->filter(function($attraction) use ($tourCountry) {
-                                                                // Check if attraction has country field directly
-                                                                if (isset($attraction->country) && $attraction->country == $tourCountry) {
-                                                                    return true;
-                                                                }
-                                                                // If no country filter available, include all attractions
-                                                                return empty($tourCountry);
-                                                            });
-                                                        @endphp
-                                                        @foreach($filteredAttractions as $attraction)
-                                                            <option value="{{ $attraction->name }}" {{ $attractionName == $attraction->name ? 'selected' : '' }} 
-                                                                data-attraction-id="{{ $attraction->attraction_id ?? '' }}"
-                                                                data-attraction-data="{{ json_encode($attraction) }}">
-                                                                {{ $attraction->name }}
-                                                                @if(isset($attraction->location))
-                                                                    - {{ $attraction->location }}
-                                                                @endif
-                                                            </option>
-                                                        @endforeach
-                                                        @if($attractionName && !$filteredAttractions->pluck('name')->contains($attractionName))
-                                                            <option value="{{ $attractionName }}" selected>{{ $attractionName }}</option>
-                                                        @endif
-                                                    </select>
-                                                </div>
-                                                <div class="col-md-4">
-                                                    <label class="form-label fw-semibold text-muted mb-2"><i class="ri-ticket-line me-1 text-info"></i>Ticket</label>
-                                                    <select class="form-select border-2" style="height: 35px;" name="ticket_name" id="ticket_name_{{ $order->booking_id }}" required>
-                                                        <option value="">Select Ticket</option>
-                                                        @if($ticket && $ticket != 'N/A')
-                                                            <option value="{{ $ticket }}" selected>{{ $ticket }}</option>
-                                                        @endif
-                                                    </select>
-                                                    <small class="text-muted d-block mt-1">Select an attraction to see available tickets</small>
-                                                </div>
-                                                <div class="col-md-2">
-                                                    <label class="form-label fw-semibold text-muted mb-2"><i class="ri-calendar-line me-1 text-primary"></i>Booking Date</label>
-                                                    <input type="date" class="form-control border-2" style="height: 35px;" name="booking_date" id="booking_date_{{ $order->booking_id }}" value="{{ $bookingDate }}" required>
-                                                </div>
-                                                <div class="col-md-2">
-                                                    <label class="form-label fw-semibold text-muted mb-2"><i class="ri-time-line me-1 text-warning"></i>Time Slot</label>
-                                                    <select class="form-select border-2" style="height: 35px;" name="visit_time" id="visit_time_{{ $order->booking_id }}" required>
-                                                        <option value="">Select Time Slot</option>
-                                                        @php
-                                                            // Find the selected attraction to populate time slots from database
-                                                            $selectedAttraction = null;
-                                                            $timeSlotsFound = false;
-                                                            if ($attractionName) {
-                                                                $selectedAttraction = collect($filteredAttractions)->first(function($attraction) use ($attractionName) {
-                                                                    return $attraction->name == $attractionName;
-                                                                });
-                                                            }
-                                                        @endphp
-                                                        @if($selectedAttraction && isset($selectedAttraction->time_slots) && is_array($selectedAttraction->time_slots) && count($selectedAttraction->time_slots) > 0)
-                                                            @php $timeSlotsFound = true; @endphp
-                                                            @foreach($selectedAttraction->time_slots as $slotData)
-                                                                @php
-                                                                    $slotValue = $slotData['slot'] ?? ($slotData['open'] ?? '');
-                                                                    $slotText = $slotData['slot'] ?? ($slotData['open'] . (isset($slotData['close']) ? ' - ' . $slotData['close'] : ''));
-                                                                    $isSelected = ($slotValue == $timeSlot || $slotText == $timeSlot);
-                                                                @endphp
-                                                                <option value="{{ $slotValue }}" {{ $isSelected ? 'selected' : '' }}>
-                                                                    {{ $slotText }}
-                                                                </option>
-                                                            @endforeach
-                                                        @elseif($selectedAttraction && $selectedAttraction->open_time && $selectedAttraction->close_time)
-                                                            @php $timeSlotsFound = true; @endphp
-                                                            @php
-                                                                // Parse open_time from database (can be JSON array or string)
-                                                                $openTimes = [];
-                                                                if (is_array($selectedAttraction->open_time)) {
-                                                                    $openTimes = $selectedAttraction->open_time;
-                                                                } elseif (is_string($selectedAttraction->open_time)) {
-                                                                    $decoded = json_decode($selectedAttraction->open_time, true);
-                                                                    $openTimes = is_array($decoded) ? $decoded : [$selectedAttraction->open_time];
-                                                                }
-                                                                
-                                                                // Parse close_time from database (can be JSON array or string)
-                                                                $closeTimes = [];
-                                                                if (is_array($selectedAttraction->close_time)) {
-                                                                    $closeTimes = $selectedAttraction->close_time;
-                                                                } elseif (is_string($selectedAttraction->close_time)) {
-                                                                    $decoded = json_decode($selectedAttraction->close_time, true);
-                                                                    $closeTimes = is_array($decoded) ? $decoded : [$selectedAttraction->close_time];
-                                                                }
-                                                            @endphp
-                                                            @if(!empty($openTimes) && !empty($closeTimes))
-                                                                @foreach($openTimes as $index => $openTime)
-                                                                    @php
-                                                                        $closeTime = $closeTimes[$index] ?? ($closeTimes[0] ?? '');
-                                                                        if ($openTime && $closeTime) {
-                                                                            $slotValue = $openTime . ' - ' . $closeTime;
-                                                                            $isSelected = ($slotValue == $timeSlot || str_contains($slotValue, $timeSlot));
-                                                                    } else {
-                                                                        continue;
-                                                                    }
-                                                                    @endphp
-                                                                    <option value="{{ $slotValue }}" {{ $isSelected ? 'selected' : '' }}>
-                                                                        {{ $slotValue }}
-                                                                    </option>
-                                                                @endforeach
-                                                            @endif
-                                                        @endif
-                                                        @if(!$timeSlotsFound)
-                                                            <option value="" disabled>Select an attraction to see available time slots</option>
-                                                        @endif
-                                                        @php
-                                                            // Add current time slot as option if it doesn't match any existing options
-                                                            if ($timeSlot && $timeSlot != 'N/A') {
-                                                                $timeSlotExists = false;
-                                                                // Check if time slot already exists in options
-                                                                if ($selectedAttraction && isset($selectedAttraction->time_slots) && is_array($selectedAttraction->time_slots)) {
-                                                                    foreach($selectedAttraction->time_slots as $slotData) {
-                                                                        $slotValue = $slotData['slot'] ?? ($slotData['open'] ?? '');
-                                                                        $slotText = $slotData['slot'] ?? ($slotData['open'] . (isset($slotData['close']) ? ' - ' . $slotData['close'] : ''));
-                                                                        if ($slotValue == $timeSlot || $slotText == $timeSlot) {
-                                                                            $timeSlotExists = true;
-                                                                            break;
-                                                                        }
-                                                                    }
-                                                                } elseif ($selectedAttraction && $selectedAttraction->open_time && $selectedAttraction->close_time) {
-                                                                    // Parse open_time and close_time from database
-                                                                    $openTimes = [];
-                                                                    if (is_array($selectedAttraction->open_time)) {
-                                                                        $openTimes = $selectedAttraction->open_time;
-                                                                    } elseif (is_string($selectedAttraction->open_time)) {
-                                                                        $decoded = json_decode($selectedAttraction->open_time, true);
-                                                                        $openTimes = is_array($decoded) ? $decoded : [$selectedAttraction->open_time];
-                                                                    }
-                                                                    
-                                                                    $closeTimes = [];
-                                                                    if (is_array($selectedAttraction->close_time)) {
-                                                                        $closeTimes = $selectedAttraction->close_time;
-                                                                    } elseif (is_string($selectedAttraction->close_time)) {
-                                                                        $decoded = json_decode($selectedAttraction->close_time, true);
-                                                                        $closeTimes = is_array($decoded) ? $decoded : [$selectedAttraction->close_time];
-                                                                    }
-                                                                    
-                                                                    foreach($openTimes as $index => $openTime) {
-                                                                        $closeTime = $closeTimes[$index] ?? ($closeTimes[0] ?? '');
-                                                                        if ($openTime && $closeTime) {
-                                                                            $slotValue = $openTime . ' - ' . $closeTime;
-                                                                            if ($slotValue == $timeSlot || str_contains($slotValue, $timeSlot)) {
-                                                                                $timeSlotExists = true;
-                                                                                break;
-                                                                            }
-                                                                        }
-                                                                    }
-                                                                }
-                                                                // If current time slot doesn't exist in database options, add it to preserve the value
-                                                                if (!$timeSlotExists) {
-                                                                    echo '<option value="' . htmlspecialchars($timeSlot) . '" selected>' . htmlspecialchars($timeSlot) . '</option>';
-                                                                }
-                                                            }
-                                                        @endphp
-                                                    </select>
-                                                    <small class="text-muted d-block mt-1">Available time slots from database</small>
-                                                </div>
-                                                
-                                                <div class="col-md-2">
-                                                    <label class="form-label fw-semibold text-muted mb-2"><i class="ri-user-line me-1 text-secondary"></i>Adults</label>
-                                                    <input type="number" class="form-control border-2 attraction-guest-input" style="height: 35px;" name="adult_count" id="attraction_adult_count_{{ $order->booking_id }}" min="0" value="{{ $adultCount }}" data-booking-id="{{ $order->booking_id }}" data-tour-max="{{ ($tour->adult ?? 0) + ($tour->child ?? 0) }}" required>
-                                                </div>
-                                                <div class="col-md-2">
-                                                    <label class="form-label fw-semibold text-muted mb-2"><i class="ri-user-smile-line me-1 text-secondary"></i>Children</label>
-                                                    <input type="number" class="form-control border-2 attraction-guest-input" style="height: 35px;" name="child_count" id="attraction_child_count_{{ $order->booking_id }}" min="0" value="{{ $childCount }}" data-booking-id="{{ $order->booking_id }}" data-tour-max="{{ ($tour->adult ?? 0) + ($tour->child ?? 0) }}" required>
-                                                </div>
-                                                <div class="col-md-2">
-                                                    <label class="form-label fw-semibold text-muted mb-2"><i class="ri-user-heart-line me-1 text-secondary"></i>Seniors</label>
-                                                    <input type="number" class="form-control border-2 attraction-guest-input" style="height: 35px;" name="senior_count" id="attraction_senior_count_{{ $order->booking_id }}" min="0" value="{{ $seniorCount }}" data-booking-id="{{ $order->booking_id }}" data-tour-max="{{ ($tour->adult ?? 0) + ($tour->child ?? 0) }}" required>
-                                                </div>
-                                                
-                                                <!-- Additional Pax Details -->
-                                                <div class="col-md-2">
-                                                    <label class="form-label fw-semibold text-muted mb-2"><i class="ri-user-heart-line me-1 text-warning"></i>Infants</label>
-                                                    <input type="number" class="form-control border-2 attraction-guest-input" style="height: 35px;" name="infants" id="attraction_infants_{{ $order->booking_id }}" min="0" value="{{ $infantsCount }}" data-booking-id="{{ $order->booking_id }}" data-tour-max="{{ ($tour->adult ?? 0) + ($tour->child ?? 0) }}">
-                                                </div>
-                                                <div class="col-md-2">
-                                                    <label class="form-label fw-semibold text-muted mb-2"><i class="ri-money-dollar-circle-line me-1 text-success"></i>Total Price</label>
-                                                    <input type="number" class="form-control border-2" style="height: 35px;" name="total_price" id="attraction_total_price_{{ $order->booking_id }}" step="0.01" min="0" value="{{ number_format((float)$totalPrice, 2, '.', '') }}" placeholder="0.00" readonly>
-                                                </div>
-                                            </div>
-                                            <!-- Transport for this attraction -->
-                                        <div class="border rounded-3 p-3 bg-light mb-3">
-                                            <div class="row g-2 align-items-center">
-                                                <div class="col-md-4">
-                                                    <label class="form-label fw-semibold d-block mb-2">Need transport for this attraction?</label>
-                                                    <div class="d-flex align-items-center gap-2">
-                                                        <span class="text-muted small toggle-label" id="attraction_transport_no_{{ $order->booking_id }}">No</span>
-                                                        <label class="toggle-switch" for="need_attraction_transport_{{ $order->booking_id }}">
-                                                            <input type="checkbox" class="toggle-switch-input" name="need_attraction_transport_{{ $order->booking_id }}" id="need_attraction_transport_{{ $order->booking_id }}" value="yes" autocomplete="off" {{ $transferRequired ? 'checked' : '' }}>
-                                                            <span class="toggle-switch-slider"></span>
-                                                        </label>
-                                                        <span class="text-muted small toggle-label" id="attraction_transport_yes_{{ $order->booking_id }}">Yes</span>
-                                                    </div>
-                                                </div>
-                                            </div>
-                                            <div id="attraction_transport_details_{{ $order->booking_id }}" class="border rounded-3 p-3 bg-white mt-2 {{ $transferRequired ? '' : 'd-none' }}">
-                                                @php
-                                                    $transportVehicles = $vehicles ?? collect();
-                                                    $tourCountry = $tour->destination ?? '';
-                                                    $filteredVehicles = $transportVehicles;
-                                                    if ($tourCountry) {
-                                                        $filteredVehicles = $transportVehicles->filter(function($vehicle) use ($tourCountry) {
-                                                            $vehicleCountry = strtolower(trim($vehicle->country ?? $vehicle->service_country ?? ''));
-                                                            return $vehicleCountry === strtolower(trim($tourCountry));
-                                                        });
-                                                        if ($filteredVehicles->isEmpty()) {
-                                                            $filteredVehicles = $transportVehicles;
-                                                        }
-                                                    }
-                                                @endphp
-                                                <div class="row g-3">
-                                                    <!-- First Row: Transport Type, Vehicle, Destination -->
-                                                    <div class="col-md-3">
-                                                        <label class="form-label fw-semibold text-muted mb-2">Transport Type</label>
-                                                        <select class="form-select border-2" style="height: 35px;" name="attraction_transport_type_{{ $order->booking_id }}">
-                                                            <option value="">Select type</option>
-                                                            <option value="shared" {{ $transportType === 'shared' || $transportType === 'Shared' ? 'selected' : '' }}>Shared</option>
-                                                            <option value="private" {{ $transportType === 'private' || $transportType === 'Private' ? 'selected' : '' }}>Private</option>
-                                                        </select>
-                                                    </div>
-                                                    
-                                                    <div class="col-md-3">
-                                                        <label class="form-label fw-semibold text-muted mb-2">Destination</label>
-                                                        @php
-                                                            $destHotels = $hotels ?? collect();
-                                                            $destAttractions = $attractions ?? collect();
-                                                            $destRestaurants = $restaurants ?? collect();
-                                                        @endphp
-                                                        <select class="form-select border-2 attraction-transport-destination-select" style="height: 35px;" name="attraction_transport_destination_{{ $order->booking_id }}" id="attraction_transport_destination_{{ $order->booking_id }}" data-booking-id="{{ $order->booking_id }}">
-                                                            <option value="">Search & select destination</option>
-                                                            <optgroup label="Hotels">
-                                                                @foreach($destHotels as $h)
-                                                                    <option value="{{ $h->name ?? '' }}" 
-                                                                            data-destination-id="{{ $h->hotel_unique_id ?? '' }}" 
-                                                                            data-destination-type="hotel" 
-                                                                            {{ ($transportDestination === ($h->name ?? '')) ? 'selected' : '' }}>
-                                                                        {{ $h->name ?? '' }}
-                                                                    </option>
-                                                                @endforeach
-                                                            </optgroup>
-                                                            <optgroup label="Attractions">
-                                                                @foreach($destAttractions as $a)
-                                                                    <option value="{{ $a->name ?? '' }}" 
-                                                                            data-destination-id="{{ $a->attraction_id ?? '' }}" 
-                                                                            data-destination-type="attraction" 
-                                                                            {{ ($transportDestination === ($a->name ?? '')) ? 'selected' : '' }}>
-                                                                        {{ $a->name ?? '' }}
-                                                                    </option>
-                                                                @endforeach
-                                                            </optgroup>
-                                                            <optgroup label="Restaurants">
-                                                                @foreach($destRestaurants as $r)
-                                                                    <option value="{{ $r->name ?? '' }}" 
-                                                                            data-destination-id="{{ $r->restaurant_id ?? '' }}" 
-                                                                            data-destination-type="restaurant" 
-                                                                            {{ ($transportDestination === ($r->name ?? '')) ? 'selected' : '' }}>
-                                                                        {{ $r->name ?? '' }}
-                                                                    </option>
-                                                                @endforeach
-                                                            </optgroup>
-                                                        </select>
-                                                    </div>
-                                                    <div class="col-md-3">
-                                                        <label class="form-label fw-semibold text-muted mb-2">Vehicle (by country)</label>
-                                                        <select class="form-select border-2 attraction-transport-vehicle-select" style="height: 35px;" name="attraction_transport_vehicle_{{ $order->booking_id }}" id="attraction_transport_vehicle_{{ $order->booking_id }}" data-booking-id="{{ $order->booking_id }}">
-                                                            
-                                                        <option value="">{{ $transportDestination ? 'Select vehicle' : 'Select destination first' }}</option>
-                                                            @if($transportDestination)
-                                                                @if($filteredVehicles && count($filteredVehicles) > 0)
-                                                                @foreach($filteredVehicles as $vehicle)
-                                                                @php
-                                                                $vehicleName = $vehicle->vehicle_name ?? $vehicle->vehicle_id ?? 'Vehicle';
-                                                                $vehicleId = $vehicle->vehicle_id ?? '';
-                                                                $vehicleType = $vehicle->vehicle_type ?? '';
-                                                                $seatingCapacity = $vehicle->seating_capacity ?? '';
-                                                                // Match by vehicle_id for proper mapping
-                                                                $isSelected = ($transportVehicleId == $vehicleId || 
-                                                                $transportVehicleId == (string)$vehicleId ||
-                                                                ($transportVehicle && ($transportVehicle == $vehicleId || $transportVehicle == (string)$vehicleId)));
-                                                                @endphp
-                                                                <option value="{{ $vehicleId }}" data-vehicle-id="{{ $vehicleId }}" data-vehicle-name="{{ $vehicleName }}" data-seating-capacity="{{ $seatingCapacity }}" {{ $isSelected ? 'selected' : '' }}>
-                                                                    {{ $vehicleName }}
-                                                                    @if($isSelected)
-                                                                        ({{ $vehicleId }})
-                                                                    @endif
-                                                                    @if($seatingCapacity)
-                                                                        - {{ $seatingCapacity }} seats
-                                                                    @endif
-                                                                </option>
-                                                                    @endforeach
-                                                                @endif
-                                                            @endif
-                                                        </select>
-                                                        <script>
-                                                            // Ensure selected vehicle is displayed in select box on page load
-                                                            $(document).ready(function() {
-                                                                const vehicleSelect = $('#attraction_transport_vehicle_{{ $order->booking_id }}');
-                                                                const selectedOption = vehicleSelect.find('option[selected]');
-                                                                if (selectedOption.length) {
-                                                                    const selectedValue = selectedOption.attr('value');
-                                                                    if (selectedValue) {
-                                                                        vehicleSelect.val(selectedValue);
-                                                                    }
-                                                                }
-                                                            });
-                                                        </script>
-                                                    </div>
-                                                <!-- </div>
-                                                <div class="row g-3 mt-2"> -->
-                                                    <!-- <div class="col-md-2">
-                                                        <label class="form-label fw-semibold">Seats</label>
-                                                        <input type="number" min="1" class="form-control" name="attraction_transport_seats_{{ $order->booking_id }}" id="attraction_transport_seats_{{ $order->booking_id }}" placeholder="0" value="{{ $transportSeats }}" readonly>
-                                                    </div>
-                                                    <div class="col-md-4">
-                                                        <label class="form-label fw-semibold">Passengers</label>
-                                                        <input type="number" min="1" class="form-control" name="attraction_transport_passengers_{{ $order->booking_id }}" id="attraction_transport_passengers_{{ $order->booking_id }}" placeholder="0" value="{{ $transportPassengers }}" data-booking-id="{{ $order->booking_id }}" data-transport-type="attraction">
-                                                        <div class="form-check mt-2">
-                                                            <input class="form-check-input attraction-transport-return-checkbox" type="checkbox" name="attraction_transport_return_{{ $order->booking_id }}" id="attraction_transport_return_{{ $order->booking_id }}" data-booking-id="{{ $order->booking_id }}" {{ $transportReturn ? 'checked' : '' }}>
-                                                            <label class="form-check-label fw-semibold" for="attraction_transport_return_{{ $order->booking_id }}">
-                                                                Return
-                                                            </label>
-                                                        </div>
-                                                        <small class="text-danger d-none" id="attraction_passenger_error_{{ $order->booking_id }}">Passengers cannot exceed total pax or vehicle capacity</small>
-                                                    </div> -->
-                                                    <div class="col-md-3">
-                                                        <label class="form-label fw-semibold text-muted mb-2">Estimated Price</label>
-                                                        <div class="input-group">
-                                                            <span class="input-group-text" style="height: 35px;">{{ $tour->currency ?? '$' }}</span>
-                                                            <input type="number" min="0" step="0.01" class="form-control border-2" style="height: 35px;" name="attraction_transport_price_{{ $order->booking_id }}" id="attraction_transport_price_{{ $order->booking_id }}" placeholder="0.00" value="{{ number_format((float)$transportPrice, 2, '.', '') }}" data-original-price="{{ $transportReturn ? number_format((float)$transportPrice / 2, 2, '.', '') : number_format((float)$transportPrice, 2, '.', '') }}">
-                                                        </div>
-                                                        <small class="text-muted d-block mt-2">Optional, can be adjusted later.</small>
-                                                        <div class="form-check mt-2">
-                                                            <input class="form-check-input attraction-transport-return-checkbox" type="checkbox" name="attraction_transport_return_{{ $order->booking_id }}" id="attraction_transport_return_{{ $order->booking_id }}" data-booking-id="{{ $order->booking_id }}" {{ $transportReturn ? 'checked' : '' }}>
-                                                            <label class="form-check-label fw-semibold" for="attraction_transport_return_{{ $order->booking_id }}">
-                                                                Return
-                                                            </label>
-                                                        </div>
-                                                    </div>
-                                                </div>
-                                            </div>
-                                        </div>
-                                        
-                                        <!-- Guide Section for this attraction -->
-                                        <div class="border rounded-3 p-3 bg-light mb-2 mt-2">
-                                            <div class="row g-2 align-items-center">
-                                                <div class="col-md-4">
-                                                    <label class="form-label fw-semibold d-block mb-2">Do you want a guide?</label>
-                                                    <div class="d-flex align-items-center gap-2">
-                                                        <span class="text-muted small toggle-label" id="attraction_guide_no_{{ $order->booking_id }}">No</span>
-                                                        <label class="toggle-switch" for="need_attraction_guide_{{ $order->booking_id }}">
-                                                            <input type="checkbox" class="toggle-switch-input" name="need_attraction_guide_{{ $order->booking_id }}" id="need_attraction_guide_{{ $order->booking_id }}" value="yes" autocomplete="off" {{ $guideRequired ? 'checked' : '' }}>
-                                                            <span class="toggle-switch-slider"></span>
-                                                        </label>
-                                                        <span class="text-muted small toggle-label" id="attraction_guide_yes_{{ $order->booking_id }}">Yes</span>
-                                                    </div>
-                                                </div>
-                                            </div>
-                                            <div id="attraction_guide_details_{{ $order->booking_id }}" class="border rounded-3 p-3 bg-white mt-2 {{ $guideRequired ? '' : 'd-none' }}">
-                                                @php
-                                                    $availableGuides = $guides ?? collect();
-                                                    $tourCountry = $tour->destination ?? '';
-                                                    $filteredGuides = $availableGuides;
-                                                    if ($tourCountry) {
-                                                        $filteredGuides = $availableGuides->filter(function($guide) use ($tourCountry) {
-                                                            if (isset($guide->country) && $guide->country == $tourCountry) {
-                                                                return true;
-                                                            }
-                                                            if (isset($guide->city) && is_object($guide->city) && isset($guide->city->country)) {
-                                                                return $guide->city->country == $tourCountry;
-                                                            }
-                                                            return empty($tourCountry);
-                                                        });
-                                                    }
-                                                @endphp
-                                                <div class="row g-3">
-                                                    <div class="col-md-6">
-                                                        <label class="form-label small fw-semibold mb-1">Language</label>
-                                                        <select class="form-select form-select-sm" name="attraction_guide_language_{{ $order->booking_id }}" id="attraction_guide_language_{{ $order->booking_id }}" data-no-select2="true">
-                                                            <option value="">Select Language</option>
-                                                            @php
-                                                                $allLanguages = [];
-                                                                foreach($filteredGuides as $guide) {
-                                                                    if (isset($guide->languages) && is_iterable($guide->languages)) {
-                                                                        foreach ($guide->languages as $lang) {
-                                                                            if (is_object($lang) && isset($lang->language)) {
-                                                                                $allLanguages[] = $lang->language;
-                                                                            } elseif (is_array($lang) && isset($lang['language'])) {
-                                                                                $allLanguages[] = $lang['language'];
-                                                                            }
-                                                                        }
-                                                                    }
-                                                                }
-                                                                $uniqueLanguages = array_unique($allLanguages);
-                                                                sort($uniqueLanguages);
-                                                            @endphp
-                                                            @foreach($uniqueLanguages as $language)
-                                                                <option value="{{ $language }}" {{ $guideLanguage && strtolower(trim($guideLanguage)) === strtolower(trim($language)) ? 'selected' : '' }}>{{ $language }}</option>
-                                                            @endforeach
-                                                        </select>
-                                                    </div>
-                                                    <div class="col-md-6">
-                                                        <label class="form-label small fw-semibold mb-1">Guide</label>
-                                                        <select class="form-select form-select-sm" name="attraction_guide_name_{{ $order->booking_id }}" id="attraction_guide_name_{{ $order->booking_id }}" data-no-select2="true" data-initial-guide-id="{{ $guideId }}" data-initial-guide-name="{{ $guideName }}">
-                                                            <option value="">Select Language First</option>
-                                                            @if($guideName && $guideName != 'N/A')
-                                                                <option value="{{ $guideName }}" data-guide-id="{{ $guideId }}" selected>{{ $guideName }}</option>
-                                                            @endif
-                                                        </select>
-                                                    </div>
-                                                </div>
-                                                <div class="row g-3 mt-2">
-                                                    <div class="col-md-6">
-                                                        <label class="form-label small fw-semibold mb-1">Package (Hours)</label>
-                                                        <select class="form-select form-select-sm" name="attraction_guide_hours_{{ $order->booking_id }}" id="attraction_guide_hours_{{ $order->booking_id }}" data-no-select2="true">
-                                                            <option value="">Select Hours</option>
-                                                            <option value="1" {{ $guidePackageHours == '1' || $guideHours == 1 ? 'selected' : '' }}>1 Hour</option>
-                                                            <option value="2" {{ $guidePackageHours == '2' || $guideHours == 2 ? 'selected' : '' }}>2 Hours</option>
-                                                            <option value="3" {{ $guidePackageHours == '3' || $guideHours == 3 ? 'selected' : '' }}>3 Hours</option>
-                                                            <option value="4" {{ $guidePackageHours == '4' || $guideHours == 4 ? 'selected' : '' }}>4 Hours</option>
-                                                            <option value="5" {{ $guidePackageHours == '5' || $guideHours == 5 ? 'selected' : '' }}>5 Hours</option>
-                                                            <option value="6" {{ $guidePackageHours == '6' || $guideHours == 6 ? 'selected' : '' }}>6 Hours</option>
-                                                            <option value="7" {{ $guidePackageHours == '7' || $guideHours == 7 ? 'selected' : '' }}>7 Hours</option>
-                                                            <option value="8" {{ $guidePackageHours == '8' || $guideHours == 8 ? 'selected' : '' }}>8 Hours</option>
-                                                            <option value="9" {{ $guidePackageHours == '9' || $guideHours == 9 ? 'selected' : '' }}>9 Hours</option>
-                                                            <option value="10" {{ $guidePackageHours == '10' || $guideHours == 10 ? 'selected' : '' }}>10 Hours</option>
-                                                            <option value="11" {{ $guidePackageHours == '11' || $guideHours == 11 ? 'selected' : '' }}>11 Hours</option>
-                                                            <option value="12" {{ $guidePackageHours == '12' || $guideHours == 12 ? 'selected' : '' }}>12 Hours</option>
-                                                            <option value="custom" {{ ($guidePackageHours && !in_array($guidePackageHours, ['1','2','3','4','5','6','7','8','9','10','11','12'])) || ($guideHours && !in_array($guideHours, [1,2,3,4,5,6,7,8,9,10,11,12])) ? 'selected' : '' }}>Custom Hours</option>
-                                                        </select>
-                                                        <input type="number" min="1" class="form-control form-control-sm mt-2" name="attraction_guide_custom_hours_{{ $order->booking_id }}" id="attraction_guide_custom_hours_{{ $order->booking_id }}" placeholder="Enter custom hours" value="{{ ($guidePackageHours && !in_array($guidePackageHours, ['1','2','3','4','5','6','7','8','9','10','11','12'])) ? $guidePackageHours : (($guideHours && !in_array($guideHours, [1,2,3,4,5,6,7,8,9,10,11,12])) ? $guideHours : '') }}" style="display: {{ ($guidePackageHours && !in_array($guidePackageHours, ['1','2','3','4','5','6','7','8','9','10','11','12'])) || ($guideHours && !in_array($guideHours, [1,2,3,4,5,6,7,8,9,10,11,12])) ? 'block' : 'none' }};">
-                                                    </div>
-                                                    <div class="col-md-6">
-                                                        <label class="form-label small fw-semibold mb-1">Guide Price</label>
-                                                        <div class="position-relative">
-                                                            <span class="position-absolute" style="left: 10px; top: 50%; transform: translateY(-50%); z-index: 5; color: #6c757d; font-weight: 500;">{{ $tour->currency ?? '$' }}</span>
-                                                            <input type="number" min="0" step="0.01" class="form-control form-control-sm" name="attraction_guide_price_{{ $order->booking_id }}" id="attraction_guide_price_{{ $order->booking_id }}" placeholder="0.00" value="{{ $guideTotalPrice > 0 ? number_format((float)$guideTotalPrice, 2, '.', '') : '' }}" readonly style="padding-left: 30px;">
-                                                        </div>
-                                                        <small class="text-muted" style="font-size: 0.75rem; line-height: 1.2;">
-                                                            <span id="attraction_guide_price_breakdown_{{ $order->booking_id }}" style="display: none;"></span>
-                                                            <span id="attraction_guide_price_note_{{ $order->booking_id }}">Select guide and enter hours to see price</span>
-                                                        </small>
-                                                    </div>
-                                                </div>
-                                            </div>
-                                        </div>
-                                            <div class="d-flex justify-content-end align-items-center gap-3 mt-3">
-                                                <div class="text-muted small" id="attraction_feedback_{{ $order->booking_id }}"></div>
-                                                <button type="submit" class="btn btn-primary d-flex align-items-center gap-2" style="height: 35px; padding: 0 10px;">
-                                                    <span class="spinner-border spinner-border-sm d-none" id="attraction_spinner_{{ $order->booking_id }}"></span>
-                                                    <span>Save Changes</span>
-                                                </button>
-                                            </div>
-                                        </form>
-                                        @endforeach
-                                        @else
-                                        <div class="text-center py-5 text-muted">
-                                            <i class="ri-ticket-line fs-1 mb-3" style="color: #cbd5e1;"></i>
-                                            <p class="mb-4">No attraction bookings yet</p>
-                                        </div>
-                                        @endif
-                                    </div>
-                                    <div class="card-footer bg-light">
-                                        <div class="text-center py-3">
-                                            <button type="button" class="btn btn-gradient-primary btn-lg shadow-sm px-5 py-3" onclick="addAttractionService()" style="
-                                                background: linear-gradient(135deg, #fa709a 0%, #fee140 100%);
-                                                border: none;
-                                                color: white;
-                                                font-weight: 600;
-                                                letter-spacing: 0.5px;
-                                                transition: all 0.3s ease;
-                                                border-radius: 8px;
-                                                box-shadow: 0 4px 15px rgba(250, 112, 154, 0.4);
-                                            " onmouseover="this.style.transform='translateY(-2px)'; this.style.boxShadow='0 6px 20px rgba(250, 112, 154, 0.6)';" onmouseout="this.style.transform='translateY(0)'; this.style.boxShadow='0 4px 15px rgba(250, 112, 154, 0.4)';">
-                                                <i class="ri-add-circle-line me-2" style="font-size: 1.2em;"></i>{{ count($allAttractions) > 0 ? 'Add More Attractions' : 'Add Attraction' }}
-                                            </button>
-                                        </div>
-                                    </div>
-                                    </div> <!-- end allAttractionsSection collapse -->
-                                </div>
-                            </div>
+                            
 
-                            <!-- All Guides Section (Unified) -->
-                            <div class="service-section mb-3">
-                                <div >
-                                    <div class="card-header text-dark d-flex justify-content-between align-items-center" role="button" data-bs-toggle="collapse" data-bs-target="#allGuidesSection" aria-expanded="false" aria-controls="allGuidesSection" style="cursor: pointer; background: linear-gradient(135deg, #d1fae5 0%, #a7f3d0 100%); border: 1px solid #34d399; transition: all 0.3s ease;">
-                                        <div class="d-flex align-items-center">
-                                            <span class="service-icon me-3">
-                                                <i class="ri-user-star-line fs-4"></i>
-                                            </span>
-                                            <div>
-                                                <h6 class="mb-0 fw-bold">👤 All Tour Guide Services</h6>
-                                                <small class="text-muted">All guides from all days in one place</small>
-                                            </div>
-                                        </div>
-                                        <i class="ri-arrow-down-s-line ms-2 fs-5"></i>
-                                    </div>
-                                    <div id="allGuidesSection" class="collapse">
-                                    <div class="card-body mt-3">
-                                        @if(count($allGuides) > 0)
-                                        @foreach($allGuides as $index => $order)
-                                        @php
-                                            $guideData = $order->processed_data;
-                                            $payload = [];
-                                            if (is_array($guideData)) {
-                                                $payload = isset($guideData[0]) ? $guideData[0] : $guideData;
-                                            }
-                                            $guideName = $payload['guide_name'] ?? 'N/A';
-                                            $packageHours = $payload['hours'] ?? '';
-                                            // Use entrytime for time, not entrypickup (which contains location)
-                                            $pickupTime = $payload['entrytime'] ?? $payload['pickup_time'] ?? '';
-                                            $pickupDate = $payload['pickupdate'] ?? '';
-                                            $guestSummary = $payload['fullName'] ?? '';
-                                            $guideNotes = $payload['notes'] ?? '';
-                                            $totalPrice = $payload['totalPrice'] ?? $payload['price'] ?? 0;
-                                            
-                                            // Convert pickup time to AM/PM format for display
-                                            $pickupTimeAMPM = '';
-                                            if ($pickupTime) {
-                                                try {
-                                                    // Try parsing as 24-hour format first (H:i)
-                                                    $timeObj = \Carbon\Carbon::createFromFormat('H:i', $pickupTime);
-                                                    $pickupTimeAMPM = $timeObj->format('h:i A');
-                                                } catch (\Exception $e) {
-                                                    try {
-                                                        // Try parsing as 12-hour format (h:i A)
-                                                        $timeObj = \Carbon\Carbon::createFromFormat('h:i A', $pickupTime);
-                                                        $pickupTimeAMPM = $timeObj->format('h:i A');
-                                                    } catch (\Exception $e2) {
-                                                        try {
-                                                            // Try general parse
-                                                            $timeObj = \Carbon\Carbon::parse($pickupTime);
-                                                            $pickupTimeAMPM = $timeObj->format('h:i A');
-                                                        } catch (\Exception $e3) {
-                                                            $pickupTimeAMPM = $pickupTime; // Keep original if parsing fails
-                                                        }
-                                                    }
-                                                }
-                                            }
-                                        @endphp
-                                        <form class="service-item mb-3 p-3 border rounded shadow-sm bg-white guide-edit-form" data-update-url="{{ route('edit-tour.update-guide', $order->booking_id) }}" onsubmit="updateExistingGuide(event, {{ $order->booking_id }})">
-                                            @csrf
-                                            <input type="hidden" name="type" value="guide">
-                                            <div class="d-flex justify-content-between align-items-center mb-3">
-                                                <h6 class="mb-0 fw-bold text-info"><i class="ri-user-star-line me-2"></i>Tour Guide Booking #{{ $index + 1 }}</h6>
-                                                <div class="d-flex gap-2">
-                                                    <button type="button" class="btn btn-sm btn-outline-danger" onclick="removeGuideService({{ $order->booking_id }})">
-                                                        <i class="ri-delete-bin-line"></i> Remove
-                                                    </button>
-                                                </div>
-                                            </div>
-                                            <div class="row g-3">
-                                                <div class="col-md-4">
-                                                    <label class="form-label fw-semibold text-muted mb-2"><i class="ri-user-star-line me-1 text-primary"></i>Guide Name</label>
-                                                    <select class="form-select border-2" style="height: 35px;" name="guide_name" id="guide_name_{{ $order->booking_id }}" required>
-                                                        <option value="">Select Guide</option>
-                                                        @php
-                                                            $tourCountry = $tour->destination ?? '';
-                                                            $filteredGuides = collect($guides ?? [])->filter(function($guide) use ($tourCountry) {
-                                                                // Check if guide has country field directly
-                                                                if (isset($guide->country) && $guide->country == $tourCountry) {
-                                                                    return true;
-                                                                }
-                                                                // Check if guide has city relationship with country
-                                                                if (isset($guide->city) && is_object($guide->city) && isset($guide->city->country)) {
-                                                                    return $guide->city->country == $tourCountry;
-                                                                }
-                                                                // If no country filter available, include all guides
-                                                                return empty($tourCountry);
-                                                            });
-                                                        @endphp
-                                                        @foreach($filteredGuides as $guide)
-                                                            @php
-                                                                $guideLanguages = [];
-                                                                if (isset($guide->languages) && is_iterable($guide->languages)) {
-                                                                    foreach ($guide->languages as $lang) {
-                                                                        if (is_object($lang) && isset($lang->language)) {
-                                                                            $guideLanguages[] = $lang->language;
-                                                                        } elseif (is_array($lang) && isset($lang['language'])) {
-                                                                            $guideLanguages[] = $lang['language'];
-                                                                        }
-                                                                    }
-                                                                }
-                                                                $languagesText = !empty($guideLanguages) ? ' - ' . implode(', ', $guideLanguages) : '';
-                                                            @endphp
-                                                            <option value="{{ $guide->name }}" {{ $guideName == $guide->name ? 'selected' : '' }} 
-                                                                data-guide-id="{{ $guide->guide_id ?? '' }}"
-                                                                data-guide-data="{{ json_encode($guide) }}">
-                                                                {{ $guide->name }}{{ $languagesText }}
-                                                            </option>
-                                                        @endforeach
-                                                        @if($guideName && !$filteredGuides->pluck('name')->contains($guideName))
-                                                            <option value="{{ $guideName }}" selected>{{ $guideName }}</option>
-                                                        @endif
-                                                    </select>
-                                                </div>
-                                                <div class="col-md-4">
-                                                    <label class="form-label fw-semibold text-muted mb-2"><i class="ri-calendar-line me-1 text-primary"></i>Pickup Date</label>
-                                                    <input type="date" class="form-control border-2" style="height: 35px;" name="pickup_date" id="pickup_date_{{ $order->booking_id }}" value="{{ $pickupDate }}" required>
-                                                </div>
-                                                <div class="col-md-4">
-                                                    <label class="form-label fw-semibold text-muted mb-2"><i class="ri-time-line me-1 text-info"></i>Entry Pickup Time</label>
-                                                    <select class="form-select border-2" style="height: 35px;" name="pickup_time" id="guide_pickup_time_{{ $order->booking_id }}" required>
-                                                        <option value="">Select Guide First</option>
-                                                        @if($pickupTimeAMPM)
-                                                            <option value="{{ $pickupTimeAMPM }}" selected>{{ $pickupTimeAMPM }}</option>
-                                                        @endif
-                                                    </select>
-                                                    <small class="text-muted d-block mt-1">Available times from selected guide</small>
-                                                </div>
-                                                <div class="col-md-6">
-                                                    <label class="form-label fw-semibold text-muted mb-2"><i class="ri-hourglass-line me-1 text-warning"></i>Package (Hours)</label>
-                                                    <input type="text" class="form-control border-2" style="height: 35px;" name="package_hours" value="{{ $packageHours }}" placeholder="e.g. 4">
-                                                </div>
-                                                <div class="col-md-6">
-                                                    <label class="form-label fw-semibold text-muted mb-2"><i class="ri-money-dollar-circle-line me-1 text-success"></i>Total Price</label>
-                                                    <input type="number" class="form-control border-2" style="height: 35px;" name="total_price" id="guide_total_price_{{ $order->booking_id }}" step="0.01" min="0" value="{{ number_format((float)$totalPrice, 2, '.', '') }}" placeholder="0.00" readonly>
-                                                </div>
-                                            </div>
-                                            <div class="d-flex justify-content-end align-items-center gap-3 mt-3">
-                                                <div class="text-muted small" id="guide_feedback_{{ $order->booking_id }}"></div>
-                                                <button type="submit" class="btn btn-primary d-flex align-items-center gap-2" style="height: 35px; padding: 0 10px;">
-                                                    <span class="spinner-border spinner-border-sm d-none" id="guide_spinner_{{ $order->booking_id }}"></span>
-                                                    <span>Save Changes</span>
-                                                </button>
-                                            </div>
-                                        </form>
-                                        @endforeach
-                                        @else
-                                        <div class="text-center py-5 text-muted">
-                                            <i class="ri-user-star-line fs-1 mb-3" style="color: #cbd5e1;"></i>
-                                            <p class="mb-4">No guide bookings yet</p>
-                                        </div>
-                                        @endif
-                                    </div>
-                                    <div class="card-footer bg-light">
-                                        <div class="text-center py-3">
-                                            <button type="button" class="btn btn-gradient-primary btn-lg shadow-sm px-5 py-3" onclick="addGuideService()" style="
-                                                background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%);
-                                                border: none;
-                                                color: white;
-                                                font-weight: 600;
-                                                letter-spacing: 0.5px;
-                                                transition: all 0.3s ease;
-                                                border-radius: 8px;
-                                                box-shadow: 0 4px 15px rgba(79, 172, 254, 0.4);
-                                            " onmouseover="this.style.transform='translateY(-2px)'; this.style.boxShadow='0 6px 20px rgba(79, 172, 254, 0.6)';" onmouseout="this.style.transform='translateY(0)'; this.style.boxShadow='0 4px 15px rgba(79, 172, 254, 0.4)';">
-                                                <i class="ri-add-circle-line me-2" style="font-size: 1.2em;"></i>{{ count($allGuides) > 0 ? 'Add More Guides' : 'Add Guide' }}
-                                            </button>
-                                        </div>
-                                    </div>
-                                    </div> <!-- end allGuidesSection collapse -->
-                                </div>
-                            </div>
+                            
 
                             <!-- Departure Transport Services Section -->
                             <div class="service-section mb-3">
