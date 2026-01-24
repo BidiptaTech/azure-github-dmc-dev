@@ -603,14 +603,30 @@ class JobSheetController extends Controller
                         
                         // Check if the order's vehicle belongs to the driver
                         if (isset($data['vehicles_id']) && in_array($data['vehicles_id'], $vehicles)) {
+                            // For exit_port orders, use exitpickup/exitdropoff instead of entrypickup/entrydropoff
+                            $pickupLocation = 'N/A';
+                            $dropoffLocation = 'N/A';
+                            $pickupDate = 'N/A';
+                            
+                            if ($order->type === 'exit_port') {
+                                
+                                $pickupLocation = $data['exitpickup'] ?? 'N/A';
+                                $dropoffLocation = $data['exitdropoff'] ?? 'N/A';
+                                $pickupDate = $data['exitpickupdate'] ?? ($data['pickupdate'] ?? ($data['bookingDate'] ?? 'N/A'));
+                            } else {
+                                $pickupLocation = $data['entrypickup'] ?? 'N/A';
+                                $dropoffLocation = $data['entrydropoff'] ?? 'N/A';
+                                $pickupDate = $data['pickupdate'] ?? ($data['bookingDate'] ?? 'N/A');
+                            }
+                            
                             // Extract required information
                             $scheduleItem = [
                                 'tour_id' => $order->tour_id ?? 'N/A',
                                 'type' => $order->type,
-                                'pickup_date' => $data['pickupdate'] ?? ($data['bookingDate'] ?? 'N/A'),
+                                'pickup_date' => $pickupDate,
                                 'pickup_time' => $data['entrytime'] ?? 'N/A',
-                                'pickup_location' => $data['entrypickup'] ?? 'N/A',
-                                'dropoff_location' => $data['entrydropoff'] ?? 'N/A',
+                                'pickup_location' => $pickupLocation,
+                                'dropoff_location' => $dropoffLocation,
                                 'status' => $order->status,
                                 'customer_name' => $data['fullName'] ?? 'N/A',
                                 'customer_phone' => $data['phone'] ?? 'N/A',
@@ -639,15 +655,30 @@ class JobSheetController extends Controller
                     
                     // Check if the order's vehicle belongs to the driver
                     if (isset($data['vehicles_id']) && in_array($data['vehicles_id'], $vehicles)) {
+                        // For exit_port orders, use exitpickup/exitdropoff instead of entrypickup/entrydropoff
+                        $pickupLocation = 'N/A';
+                        $dropoffLocation = 'N/A';
+                        $pickupDate = 'N/A';
+                        
+                        if ($order->type === 'exit_port') {
+                            $pickupLocation = $data['exitpickup'] ?? 'N/A';
+                            $dropoffLocation = $data['exitdropoff'] ?? 'N/A';
+                            $pickupDate = $data['exitpickupdate'] ?? ($data['pickupdate'] ?? ($data['bookingDate'] ?? 'N/A'));
+                        } else {
+                            $pickupLocation = $data['entrypickup'] ?? 'N/A';
+                            $dropoffLocation = $data['entrydropoff'] ?? 'N/A';
+                            $pickupDate = $data['pickupdate'] ?? ($data['bookingDate'] ?? 'N/A');
+                        }
+                        
                         // Extract required information
                         $scheduleItem = [
                             'tour_id' => $order->tour_id ?? 'N/A',
                             'order_id' => $order->id,
                             'type' => $order->type,
-                            'pickup_date' => $data['pickupdate'] ?? ($data['bookingDate'] ?? 'N/A'),
+                            'pickup_date' => $pickupDate,
                             'pickup_time' => $data['entrytime'] ?? 'N/A',
-                            'pickup_location' => $data['entrypickup'] ?? 'N/A',
-                            'dropoff_location' => $data['entrydropoff'] ?? 'N/A',
+                            'pickup_location' => $pickupLocation,
+                            'dropoff_location' => $dropoffLocation,
                             'status' => $order->status,
                             'customer_name' => $data['fullName'] ?? 'N/A',
                             'customer_phone' => $data['phone'] ?? 'N/A',
@@ -2516,10 +2547,31 @@ class JobSheetController extends Controller
                             $order->driver = $driverFromVehicle;
                         }
                         
-                        // Add zone information for pickup and dropoff
+                        // Add zone information and location properties for pickup and dropoff
                         if (is_array($orderData) && isset($orderData[0])) {
-                            $order->pickup_zone = $this->getZoneForLocation($dataItem['entrypickup'] ?? '', $dmcId);
-                            $order->dropoff_zone = $this->getZoneForLocation($dataItem['entrydropoff'] ?? '', $dmcId);
+                            // For exit_port orders, use exitpickup/exitdropoff instead of entrypickup/entrydropoff
+                            if ($order->type === 'exit_port') {
+                                $pickupLocation = $dataItem['exitpickup'] ?? '';
+                                $dropoffLocation = $dataItem['exitdropoff'] ?? '';
+                                // Normalize data structure for consistency
+                                $dataItem['entrypickup'] = $pickupLocation;
+                                $dataItem['entrydropoff'] = $dropoffLocation;
+                                // Set properties on order object
+                                $order->pickup_location = $pickupLocation;
+                                $order->dropoff_location = $dropoffLocation;
+                                $order->pickup_zone = $this->getZoneForLocation($pickupLocation, $dmcId);
+                                $order->dropoff_zone = $this->getZoneForLocation($dropoffLocation, $dmcId);
+                                // Update order data with normalized structure
+                                $order->data = [$dataItem];
+                            } else {
+                                $pickupLocation = $dataItem['entrypickup'] ?? '';
+                                $dropoffLocation = $dataItem['entrydropoff'] ?? '';
+                                // Set properties on order object
+                                $order->pickup_location = $pickupLocation;
+                                $order->dropoff_location = $dropoffLocation;
+                                $order->pickup_zone = $this->getZoneForLocation($pickupLocation, $dmcId);
+                                $order->dropoff_zone = $this->getZoneForLocation($dropoffLocation, $dmcId);
+                            }
                         }
                     }
                     // Handle attraction orders with transfer

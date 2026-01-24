@@ -462,6 +462,7 @@
                             <th>Guests</th>
                             <th>Manage Services</th>
                             <th>Agent</th>
+                            <th>Created By</th>
                             <th>Travel Dates</th>
                             <th>Payment Status</th>
                             <th>Confirmation Date</th>
@@ -875,6 +876,11 @@
                                         <i class="fas fa-building me-1"></i>
                                         {{ $tour->agent_company_name ?? 'N/A' }}
                                     </small>
+                                </div>
+                            </td>
+                            <td>
+                                <div class="d-flex flex-column">
+                                    <span class="fw-medium">{{ $tour->created_by_name ?? 'N/A' }}</span>
                                 </div>
                             </td>
                             <td>
@@ -3911,7 +3917,7 @@
                                         <th class="text-center" style="width: 12%; min-width: 100px;">Transaction ID</th>
                                         <th class="text-center" style="width: 10%; min-width: 80px;">Remarks</th>
                                         <th class="text-center" style="width: 8%; min-width: 70px;">Status</th>
-                                        @if(auth()->user()->role_id == 36 || auth()->user()->role_id == 126 || auth()->user()->role_id == 127 || auth()->user()->role_id == 128 || auth()->user()->role_id == 129 || auth()->user()->role_id == 130 || auth()->user()->role_id == 131 || auth()->user()->role_id == 133 || auth()->user()->role_id == 134 || auth()->user()->role_id == 135 || auth()->user()->role_id == 136 || auth()->user()->role_id == 137 || auth()->user()->role_id == 138)
+                                        @if(auth()->user()->role_id == 36|| auth()->user()->role_id == 33 || auth()->user()->role_id == 37 || auth()->user()->role_id == 38 || auth()->user()->role_id == 126 || auth()->user()->role_id == 127 || auth()->user()->role_id == 128 || auth()->user()->role_id == 129 || auth()->user()->role_id == 130 || auth()->user()->role_id == 131 || auth()->user()->role_id == 133 || auth()->user()->role_id == 134 || auth()->user()->role_id == 135 || auth()->user()->role_id == 136 || auth()->user()->role_id == 137 || auth()->user()->role_id == 138)
                                             <th class="text-center" style="width: 8%; min-width: 80px;">Actions</th>
                                         @endif
                                     </tr>
@@ -3954,7 +3960,7 @@
                                                 @endif
                                             </td>
                                             @php
-                                                $financeRoles = [36, 126, 127, 128, 129, 130, 131, 133, 134, 135, 136, 137, 138];
+                                                $financeRoles = [36, 33, 37, 38, 126, 127, 128, 129, 130, 131, 133, 134, 135, 136, 137, 138];
                                             @endphp
                                             @if(in_array(auth()->user()->role_id, $financeRoles))
                                                 <td class="text-center py-2">
@@ -23013,9 +23019,10 @@ window.filterTable = function() {
         const tourDetails = row.cells[1]?.textContent.toLowerCase() || '';
         const destination = row.cells[2]?.querySelector('.fw-medium')?.textContent || '';
         const agent = row.cells[5]?.querySelector('.fw-medium')?.textContent || '';
-        const status = row.cells[7]?.querySelector('.badge')?.textContent.toLowerCase() || '';
-        const travelDates = row.cells[6]?.textContent.toLowerCase() || '';
-        const confirmationDateText = row.cells[8]?.textContent || '';
+        const createdBy = row.cells[6]?.querySelector('.fw-medium')?.textContent || '';
+        const status = row.cells[8]?.querySelector('.badge')?.textContent.toLowerCase() || '';
+        const travelDates = row.cells[7]?.textContent.toLowerCase() || '';
+        const confirmationDateText = row.cells[9]?.textContent || '';
         const updatedAt = row.getAttribute('data-updated-at');
         const createdAtAttr = row.getAttribute('data-created-at');
         
@@ -23024,7 +23031,8 @@ window.filterTable = function() {
         if (searchTerm && 
             !tourDetails.includes(searchTerm) && 
             !destination.toLowerCase().includes(searchTerm) && 
-            !agent.toLowerCase().includes(searchTerm)) {
+            !agent.toLowerCase().includes(searchTerm) &&
+            !createdBy.toLowerCase().includes(searchTerm)) {
             show = false;
         }
         
@@ -26287,8 +26295,8 @@ window.showNotification = function(message, type = 'info') {
         // Get tour details from the table
         const tourDisplayId = tourRow.querySelector('.text-success')?.textContent || `Tour #${tourId}`;
         const destination = tourRow.querySelector('td:nth-child(3) .fw-medium')?.textContent || 'N/A';
-        const checkInDate = tourRow.querySelector('td:nth-child(7) small:first-child strong')?.nextSibling?.textContent?.trim() || 'N/A';
-        const checkOutDate = tourRow.querySelector('td:nth-child(7) small:nth-child(2) strong')?.nextSibling?.textContent?.trim() || 'N/A';
+        const checkInDate = tourRow.querySelector('td:nth-child(8) small:first-child strong')?.nextSibling?.textContent?.trim() || 'N/A';
+        const checkOutDate = tourRow.querySelector('td:nth-child(8) small:nth-child(2) strong')?.nextSibling?.textContent?.trim() || 'N/A';
         const agentName = tourRow.querySelector('td:nth-child(6) .fw-medium')?.textContent || 'N/A';
         
         // Hotel name will be fetched from the backend data, not from the table
@@ -26827,8 +26835,8 @@ window.showNotification = function(message, type = 'info') {
         // Get tour details from the table
         const tourDisplayId = tourRow.querySelector('.text-success')?.textContent || `Tour #${tourId}`;
         const destination = tourRow.querySelector('td:nth-child(3) .fw-medium')?.textContent || 'N/A';
-        const checkInDate = tourRow.querySelector('td:nth-child(7) small:first-child strong')?.nextSibling?.textContent?.trim() || 'N/A';
-        const checkOutDate = tourRow.querySelector('td:nth-child(7) small:nth-child(2) strong')?.nextSibling?.textContent?.trim() || 'N/A';
+        const checkInDate = tourRow.querySelector('td:nth-child(8) small:first-child strong')?.nextSibling?.textContent?.trim() || 'N/A';
+        const checkOutDate = tourRow.querySelector('td:nth-child(8) small:nth-child(2) strong')?.nextSibling?.textContent?.trim() || 'N/A';
         const agentName = tourRow.querySelector('td:nth-child(6) .fw-medium')?.textContent || 'N/A';
         
         // Generate email subject
@@ -27199,8 +27207,8 @@ window.showNotification = function(message, type = 'info') {
         // Get tour details from the table
         const tourDisplayId = tourRow.querySelector('.text-success')?.textContent || `Tour #${tourId}`;
         const destination = tourRow.querySelector('td:nth-child(3) .fw-medium')?.textContent || 'N/A';
-        const checkInDate = tourRow.querySelector('td:nth-child(7) small:first-child strong')?.nextSibling?.textContent?.trim() || 'N/A';
-        const checkOutDate = tourRow.querySelector('td:nth-child(7) small:nth-child(2) strong')?.nextSibling?.textContent?.trim() || 'N/A';
+        const checkInDate = tourRow.querySelector('td:nth-child(8) small:first-child strong')?.nextSibling?.textContent?.trim() || 'N/A';
+        const checkOutDate = tourRow.querySelector('td:nth-child(8) small:nth-child(2) strong')?.nextSibling?.textContent?.trim() || 'N/A';
         const agentName = tourRow.querySelector('td:nth-child(6) .fw-medium')?.textContent || 'N/A';
         
         // Generate email subject

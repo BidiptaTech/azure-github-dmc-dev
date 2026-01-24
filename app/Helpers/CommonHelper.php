@@ -1858,6 +1858,169 @@ class CommonHelper
                 $bookingDetails['postal_code'] = $firstItem['zip'] ?? 'N/A';
             }
         }
+        
+        // Initialize passengers array
+        $allPassengers = [];
+        
+        // Extract passengers from orders if available
+        if ($orders->count() > 0) {
+            foreach ($orders as $order) {
+                $orderData = $order->data;
+                if (is_string($orderData)) {
+                    $orderData = json_decode($orderData, true);
+                }
+                
+                if (is_array($orderData) && !empty($orderData)) {
+                    $orderItem = is_array($orderData[0]) ? $orderData[0] : $orderData;
+                    
+                    // Check if this order has passengers array
+                    if (isset($orderItem['passengers']) && is_array($orderItem['passengers'])) {
+                        foreach ($orderItem['passengers'] as $passenger) {
+                            if (is_array($passenger) && !empty($passenger)) {
+                                $allPassengers[] = $passenger;
+                            }
+                        }
+                    }
+                }
+            }
+        }
+        
+        // Extract main guest from mainguest column
+        if (!empty($tour->mainguest)) {
+            try {
+                $mainguestData = is_string($tour->mainguest) ? json_decode($tour->mainguest, true) : $tour->mainguest;
+                if (is_array($mainguestData) && !empty($mainguestData)) {
+                    // Map mainguest fields to bookingDetails (for lead guest info)
+                    if (($bookingDetails['lead_guest_name'] === 'N/A' || empty($bookingDetails['lead_guest_name'])) && !empty($mainguestData['full_name'])) {
+                        $bookingDetails['lead_guest_name'] = $mainguestData['full_name'];
+                    }
+                    if (empty($bookingDetails['email']) && !empty($mainguestData['email'])) {
+                        $bookingDetails['email'] = $mainguestData['email'];
+                    }
+                    if (empty($bookingDetails['phone']) && !empty($mainguestData['phone'])) {
+                        $phone = $mainguestData['phone'];
+                        // Add country code if available
+                        if (!empty($mainguestData['country_code'])) {
+                            $phone = '+' . $mainguestData['country_code'] . ' ' . $phone;
+                        }
+                        $bookingDetails['phone'] = $phone;
+                    }
+                    // Combine address1 and address2
+                    if (empty($bookingDetails['address'])) {
+                        $address1 = $mainguestData['address1'] ?? '';
+                        $address2 = $mainguestData['address2'] ?? '';
+                        if (!empty($address1) || !empty($address2)) {
+                            $bookingDetails['address'] = trim($address1 . ' ' . $address2);
+                        }
+                    }
+                    if (empty($bookingDetails['city']) && !empty($mainguestData['state'])) {
+                        $bookingDetails['city'] = $mainguestData['state'];
+                    }
+                    if (empty($bookingDetails['postal_code']) && !empty($mainguestData['zip'])) {
+                        $bookingDetails['postal_code'] = $mainguestData['zip'];
+                    }
+                    
+                    // Add main guest to passengers array
+                    $mainGuest = [
+                        'salutation' => $mainguestData['salutation'] ?? 'Mr',
+                        'first_name' => $mainguestData['full_name'] ?? '',
+                        'passenger_type' => $mainguestData['passenger_type'] ?? 'N/A',
+                        'gender' => $mainguestData['gender'] ?? 'N/A',
+                        'mobile_phone' => $mainguestData['phone'] ?? '',
+                        'phone' => $mainguestData['phone'] ?? '',
+                        'email' => $mainguestData['email'] ?? '',
+                    ];
+                    // Add country code to phone if available
+                    if (!empty($mainguestData['country_code']) && !empty($mainGuest['phone'])) {
+                        $formattedPhone = '+' . $mainguestData['country_code'] . ' ' . $mainGuest['phone'];
+                        $mainGuest['mobile_phone'] = $formattedPhone;
+                        $mainGuest['phone'] = $formattedPhone;
+                    }
+                    $allPassengers[] = $mainGuest;
+                }
+            } catch (\Exception $e) {
+                // If parsing fails, keep existing values
+                Log::warning('Failed to parse mainguest data from tour', [
+                    'tour_id' => $tourId,
+                    'error' => $e->getMessage()
+                ]);
+            }
+        }
+        
+        // Extract additional guests from additionalguest column
+        if (!empty($tour->additionalguest)) {
+            try {
+                $additionalGuestsData = is_string($tour->additionalguest) ? json_decode($tour->additionalguest, true) : $tour->additionalguest;
+                if (is_array($additionalGuestsData)) {
+                    // Check if it's an array of guests or a single guest object
+                    if (isset($additionalGuestsData[0]) && is_array($additionalGuestsData[0])) {
+                        // Array of guests
+                        foreach ($additionalGuestsData as $guestData) {
+                            if (is_array($guestData) && !empty($guestData)) {
+                                $additionalGuest = [
+                                    'salutation' => $guestData['salutation'] ?? 'Mr',
+                                    'first_name' => $guestData['full_name'] ?? $guestData['name'] ?? '',
+                                    'passenger_type' => $guestData['passenger_type'] ?? 'N/A',
+                                    'gender' => $guestData['gender'] ?? 'N/A',
+                                    'mobile_phone' => $guestData['phone'] ?? '',
+                                    'phone' => $guestData['phone'] ?? '',
+                                    'email' => $guestData['email'] ?? '',
+                                ];
+                                // Add country code to phone if available
+                                if (!empty($guestData['country_code']) && !empty($additionalGuest['phone'])) {
+                                    $formattedPhone = '+' . $guestData['country_code'] . ' ' . $additionalGuest['phone'];
+                                    $additionalGuest['mobile_phone'] = $formattedPhone;
+                                    $additionalGuest['phone'] = $formattedPhone;
+                                }
+                                $allPassengers[] = $additionalGuest;
+                            }
+                        }
+                    } else {
+                        // Single guest object
+                        if (is_array($additionalGuestsData) && !empty($additionalGuestsData)) {
+                            $additionalGuest = [
+                                'salutation' => $additionalGuestsData['salutation'] ?? 'Mr',
+                                'first_name' => $additionalGuestsData['full_name'] ?? $additionalGuestsData['name'] ?? '',
+                                'passenger_type' => $additionalGuestsData['passenger_type'] ?? 'N/A',
+                                'gender' => $additionalGuestsData['gender'] ?? 'N/A',
+                                'mobile_phone' => $additionalGuestsData['phone'] ?? '',
+                                'phone' => $additionalGuestsData['phone'] ?? '',
+                                'email' => $additionalGuestsData['email'] ?? '',
+                            ];
+                            // Add country code to phone if available
+                            if (!empty($additionalGuestsData['country_code']) && !empty($additionalGuest['phone'])) {
+                                $formattedPhone = '+' . $additionalGuestsData['country_code'] . ' ' . $additionalGuest['phone'];
+                                $additionalGuest['mobile_phone'] = $formattedPhone;
+                                $additionalGuest['phone'] = $formattedPhone;
+                            }
+                            $allPassengers[] = $additionalGuest;
+                        }
+                    }
+                }
+            } catch (\Exception $e) {
+                // If parsing fails, keep existing values
+                Log::warning('Failed to parse additionalguest data from tour', [
+                    'tour_id' => $tourId,
+                    'error' => $e->getMessage()
+                ]);
+            }
+        }
+        
+        // Remove duplicate passengers (by name and email)
+        $uniquePassengers = [];
+        $seenPassengers = [];
+        foreach ($allPassengers as $passenger) {
+            $key = strtolower(trim(($passenger['first_name'] ?? $passenger['name'] ?? '') . '|' . ($passenger['email'] ?? '')));
+            if (!isset($seenPassengers[$key])) {
+                $seenPassengers[$key] = true;
+                $uniquePassengers[] = $passenger;
+            }
+        }
+        
+        // Add passengers to bookingDetails
+        if (!empty($uniquePassengers)) {
+            $bookingDetails['passengers'] = $uniquePassengers;
+        }
 
         // Travel details
         $travelDetails = [
@@ -2140,6 +2303,48 @@ class CommonHelper
                 $bookingDetails['postal_code'] = $firstItem['zip'] ?? 'N/A';
             }
         }
+        
+        // If passenger details are still empty, try to get from tour's mainguest column
+        if (($bookingDetails['lead_guest_name'] === 'N/A' || empty($bookingDetails['lead_guest_name'])) && !empty($tour->mainguest)) {
+            try {
+                $mainguestData = is_string($tour->mainguest) ? json_decode($tour->mainguest, true) : $tour->mainguest;
+                if (is_array($mainguestData) && !empty($mainguestData)) {
+                    // Map mainguest fields to bookingDetails
+                    if (!empty($mainguestData['full_name'])) {
+                        $bookingDetails['lead_guest_name'] = $mainguestData['full_name'];
+                    }
+                    if (!empty($mainguestData['email'])) {
+                        $bookingDetails['email'] = $mainguestData['email'];
+                    }
+                    if (!empty($mainguestData['phone'])) {
+                        $phone = $mainguestData['phone'];
+                        // Add country code if available
+                        if (!empty($mainguestData['country_code'])) {
+                            $phone = '+' . $mainguestData['country_code'] . ' ' . $phone;
+                        }
+                        $bookingDetails['phone'] = $phone;
+                    }
+                    // Combine address1 and address2
+                    $address1 = $mainguestData['address1'] ?? '';
+                    $address2 = $mainguestData['address2'] ?? '';
+                    if (!empty($address1) || !empty($address2)) {
+                        $bookingDetails['address'] = trim($address1 . ' ' . $address2);
+                    }
+                    if (!empty($mainguestData['state'])) {
+                        $bookingDetails['city'] = $mainguestData['state'];
+                    }
+                    if (!empty($mainguestData['zip'])) {
+                        $bookingDetails['postal_code'] = $mainguestData['zip'];
+                    }
+                }
+            } catch (\Exception $e) {
+                // If parsing fails, keep existing values
+                Log::warning('Failed to parse mainguest data from tour', [
+                    'tour_id' => $tour->tour_id ?? null,
+                    'error' => $e->getMessage()
+                ]);
+            }
+        }
 
         // Travel details
         $travelDetails = [
@@ -2221,6 +2426,20 @@ class CommonHelper
             return [
                 'single_sharing' => 0,
                 'double_sharing' => 0,
+                'triple_sharing' => 0,
+                'baby_cot_sharing' => 0,
+                'segregated' => [
+                    'hotel' => ['single' => 0, 'double' => 0, 'triple' => 0, 'baby_cot' => 0],
+                    'attraction' => ['single' => 0, 'double' => 0],
+                    'restaurant' => ['single' => 0, 'double' => 0],
+                    'entry_port' => ['single' => 0, 'double' => 0],
+                    'exit_port' => ['single' => 0, 'double' => 0],
+                    'guide' => ['single' => 0, 'double' => 0],
+                    'travel_hourly' => ['single' => 0, 'double' => 0],
+                    'travel_point' => ['single' => 0, 'double' => 0],
+                    'local_transport' => ['single' => 0, 'double' => 0],
+                    'other' => ['single' => 0, 'double' => 0],
+                ],
             ];
         }
         // Use the actual tour_id from the found tour for querying orders
@@ -2232,6 +2451,7 @@ class CommonHelper
         $totalSingleSharing = 0;
         $totalDoubleSharing = 0;
         $totalTripleSharing = 0;
+        $babyCotPrice = 0; // Initialize to 0 instead of null
         
         // Segregated prices by service type
         $segregatedPrices = [
@@ -2262,7 +2482,6 @@ class CommonHelper
 
             $items = isset($rawData[0]) ? $rawData : [$rawData];
             $type = strtolower($order->type ?? '');
-            $babyCotPrice = null;
             foreach ($items as $item) {
                 if ($type === 'hotel') {
                     // Only process the first hotel, skip subsequent hotels
@@ -2820,7 +3039,7 @@ class CommonHelper
             'single_sharing' => ceil($totalSingleSharing),
             'double_sharing' => ceil($totalDoubleSharing),
             'triple_sharing' => ceil($totalTripleSharing),
-            'baby_cot_sharing' => ceil($babyCotPrice),
+            'baby_cot_sharing' => ceil($babyCotPrice ?? 0),
             'segregated' => $segregatedPricesRounded,
         ];
     }
