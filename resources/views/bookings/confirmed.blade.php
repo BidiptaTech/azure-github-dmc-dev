@@ -1372,7 +1372,7 @@
                                             </div>
                                             <div class="col-md-4 text-end">
                                                 <div class="bg-white rounded-pill px-3 py-2 d-inline-block">
-                                                    <span class="text-success fw-bold fs-5">SGD {{ number_format($booking['totalPrice'] ?? 0, 2) }}</span>
+                                                    <span class="text-success fw-bold fs-5">SGD {{ number_format((float)($booking['totalPrice'] ?? 0), 2) }}</span>
                                                 </div>
                                             </div>
                                         </div>
@@ -1587,7 +1587,7 @@
                                                                                             <div class="bg-light rounded p-2 mb-2">
                                                                                                 <div class="d-flex justify-content-between align-items-center">
                                                                                                     <span class="fw-medium">{{ $meal['type'] ?? 'Meal Plan' }}</span>
-                                                                                                    <span class="badge bg-success">SGD {{ number_format($meal['price'] ?? 0, 2) }}</span>
+                                                                                                    <span class="badge bg-success">SGD {{ number_format((float)($meal['price'] ?? 0), 2) }}</span>
                                                                                                 </div>
                                                                                             </div>
                                                                                         @endforeach
@@ -1629,7 +1629,7 @@
                                                         </div>
                                                         <div class="col-md-4 text-end">
                                                             <small class="text-muted d-block">Total Amount</small>
-                                                            <div class="fs-3 fw-bold text-white">SGD {{ number_format($booking['totalPrice'] ?? 0, 2) }}</div>
+                                                            <div class="fs-3 fw-bold text-white">SGD {{ number_format((float)($booking['totalPrice'] ?? 0), 2) }}</div>
                                                         </div>
                                                     </div>
                                                 </div>
@@ -1703,7 +1703,7 @@
                                                             <div class="mb-0">
                                                                 <small class="text-muted d-block">Transfer Cost</small>
                                                                 <div class="fs-5 fw-bold text-success">
-                                                                    <i class="ri-money-dollar-circle-line me-1"></i>SGD {{ number_format($booking['transfer_options']['cost'], 2) }}
+                                                                    <i class="ri-money-dollar-circle-line me-1"></i>SGD {{ number_format((float)($booking['transfer_options']['cost'] ?? 0), 2) }}
                                                                 </div>
                                                             </div>
                                                             @endif
@@ -2063,7 +2063,7 @@
                                             </div>
                                             <div class="col-md-4 text-end">
                                                 <div class="bg-white rounded-pill px-3 py-2 d-inline-block">
-                                                    <span class="text-success fw-bold fs-5">SGD {{ number_format($booking['totalPrice'] ?? 0, 2) }}</span>
+                                                    <span class="text-success fw-bold fs-5">SGD {{ number_format((float)($booking['totalPrice'] ?? 0), 2) }}</span>
                                                 </div>
                                             </div>
                                         </div>
@@ -2268,7 +2268,7 @@
                                                     </div>
                                                     <div class="col-md-4 text-end">
                                                         <small class="text-muted d-block">Total Amount</small>
-                                                        <div class="fs-3 fw-bold text-primary">SGD {{ number_format($booking['totalPrice'] ?? 0, 2) }}</div>
+                                                        <div class="fs-3 fw-bold text-primary">SGD {{ number_format((float)($booking['totalPrice'] ?? 0), 2) }}</div>
                                                     </div>
                                                 </div>
                                             </div>
@@ -2350,7 +2350,7 @@
                                                             <div class="mb-0">
                                                                 <small class="text-muted d-block">Transfer Cost</small>
                                                                 <div class="fs-5 fw-bold text-success">
-                                                                    <i class="ri-money-dollar-circle-line me-1"></i>SGD {{ number_format($booking['transfer_options']['cost'], 2) }}
+                                                                    <i class="ri-money-dollar-circle-line me-1"></i>SGD {{ number_format((float)($booking['transfer_options']['cost'] ?? 0), 2) }}
                                                                 </div>
                                                             </div>
                                                             @endif
@@ -2593,7 +2593,7 @@
                                             </div>
                                             <div class="col-md-4 text-end">
                                                 <span class="badge bg-white text-success px-3 py-2" style="font-size: 0.95rem;">
-                                                    SGD {{ number_format($booking['totalPrice'] ?? 0, 2) }}
+                                                    SGD {{ number_format((float)($booking['totalPrice'] ?? 0), 2) }}
                                                 </span>
                                             </div>
                                         </div>
@@ -2736,7 +2736,7 @@
                                                             </div>
                                                             <div class="col-md-4 text-end">
                                                                 <span class="badge bg-white text-success px-2 py-1" style="font-size: 0.8rem;">
-                                                                    SGD {{ number_format($meal['price'] ?? 0, 2) }}
+                                                                    SGD {{ number_format((float)($meal['price'] ?? 0), 2) }}
                                                                 </span>
                                                             </div>
                                                         </div>
@@ -2754,13 +2754,13 @@
                                                             <div class="col-md-4">
                                                                 <div class="bg-light rounded p-1 text-center">
                                                                     <small class="text-muted d-block" style="font-size: 0.65rem;">Unit Price</small>
-                                                                    <div class="fw-bold text-success" style="font-size: 0.9rem;">SGD {{ number_format($meal['price'] ?? 0, 2) }}</div>
+                                                                    <div class="fw-bold text-success" style="font-size: 0.9rem;">SGD {{ number_format((float)($meal['price'] ?? 0), 2) }}</div>
                                                                 </div>
                                                             </div>
                                                             <div class="col-md-4">
                                                                 <div class="bg-light rounded p-1 text-center" style="background: linear-gradient(135deg, rgba(253,121,168,0.1) 0%, rgba(253,203,110,0.1) 100%) !important;">
                                                                     <small class="text-muted d-block" style="font-size: 0.65rem;">Subtotal</small>
-                                                                    <div class="fw-bold" style="font-size: 1rem; color: #fd79a8;">SGD {{ number_format(($meal['price'] ?? 0) * ($meal['quantity'] ?? 1), 2) }}</div>
+                                                                    <div class="fw-bold" style="font-size: 1rem; color: #fd79a8;">SGD {{ number_format((float)(($meal['price'] ?? 0) * ($meal['quantity'] ?? 1)), 2) }}</div>
                                                                 </div>
                                                             </div>
                                                         </div>
@@ -2781,7 +2781,7 @@
                                                     </div>
                                                     <div class="text-end">
                                                         <small class="text-muted d-block" style="font-size: 0.7rem;">Grand Total</small>
-                                                        <div class="fw-bold" style="font-size: 1.2rem; color: #fd79a8;">SGD {{ number_format($booking['totalPrice'] ?? 0, 2) }}</div>
+                                                        <div class="fw-bold" style="font-size: 1.2rem; color: #fd79a8;">SGD {{ number_format((float)($booking['totalPrice'] ?? 0), 2) }}</div>
                                                     </div>
                                                 </div>
                                             </div>
@@ -2855,7 +2855,7 @@
                                                             <div class="mb-0">
                                                                 <small class="text-muted d-block">Transfer Cost</small>
                                                                 <div class="fs-5 fw-bold text-success">
-                                                                    <i class="ri-money-dollar-circle-line me-1"></i>SGD {{ number_format($booking['transfer_options']['cost'], 2) }}
+                                                                    <i class="ri-money-dollar-circle-line me-1"></i>SGD {{ number_format((float)($booking['transfer_options']['cost'] ?? 0), 2) }}
                                                                 </div>
                                                             </div>
                                                             @endif
@@ -3003,7 +3003,7 @@
                                             </div>
                                             <div class="col-md-4 text-end">
                                                 <span class="badge bg-white text-success px-2 py-1" style="font-size: 0.8rem;">
-                                                    SGD {{ number_format($booking['totalPrice'] ?? 0, 2) }}
+                                                    SGD {{ number_format((float)($booking['totalPrice'] ?? 0), 2) }}
                                                 </span>
                                             </div>
                                         </div>
@@ -3027,11 +3027,11 @@
                                                         </div>
                                                         <div class="col-6">
                                                             <small class="text-muted d-block" style="font-size: 0.65rem;">Base Price</small>
-                                                            <div class="fw-medium text-success" style="font-size: 0.75rem;">SGD {{ number_format($booking['basePrice'] ?? 0, 2) }}</div>
+                                                            <div class="fw-medium text-success" style="font-size: 0.75rem;">SGD {{ number_format((float)($booking['basePrice'] ?? 0), 2) }}</div>
                                                         </div>
                                                         <div class="col-6">
                                                             <small class="text-muted d-block" style="font-size: 0.65rem;">Surcharge</small>
-                                                            <div class="fw-medium text-warning" style="font-size: 0.75rem;">SGD {{ number_format($booking['surcharge'] ?? 0, 2) }}</div>
+                                                            <div class="fw-medium text-warning" style="font-size: 0.75rem;">SGD {{ number_format((float)($booking['surcharge'] ?? 0), 2) }}</div>
                                                         </div>
                                                     </div>
                                                 </div>
@@ -3130,19 +3130,19 @@
                                                 <div class="col-md-4">
                                                     <div class="text-center p-1 border rounded bg-white" style="border-color: #28a745 !important;">
                                                         <small class="text-muted d-block" style="font-size: 0.65rem;">Base Price</small>
-                                                        <div class="fw-bold text-success" style="font-size: 0.8rem;">SGD {{ number_format($booking['basePrice'] ?? 0, 2) }}</div>
+                                                        <div class="fw-bold text-success" style="font-size: 0.8rem;">SGD {{ number_format((float)($booking['basePrice'] ?? 0), 2) }}</div>
                                                     </div>
                                                 </div>
                                                 <div class="col-md-4">
                                                     <div class="text-center p-1 border rounded bg-white" style="border-color: #ffc107 !important;">
                                                         <small class="text-muted d-block" style="font-size: 0.65rem;">Surcharge</small>
-                                                        <div class="fw-bold text-warning" style="font-size: 0.8rem;">SGD {{ number_format($booking['surcharge'] ?? 0, 2) }}</div>
+                                                        <div class="fw-bold text-warning" style="font-size: 0.8rem;">SGD {{ number_format((float)($booking['surcharge'] ?? 0), 2) }}</div>
                                                     </div>
                                                 </div>
                                                 <div class="col-md-4">
                                                     <div class="text-center p-1 border rounded bg-white" style="border-color: #00cec9 !important; background: linear-gradient(135deg, rgba(0,206,201,0.1) 0%, rgba(85,163,255,0.1) 100%) !important;">
                                                         <small class="text-muted d-block" style="font-size: 0.65rem;">Total Amount</small>
-                                                        <div class="fw-bold" style="font-size: 0.9rem; color: #00cec9;">SGD {{ number_format($booking['totalPrice'] ?? 0, 2) }}</div>
+                                                        <div class="fw-bold" style="font-size: 0.9rem; color: #00cec9;">SGD {{ number_format((float)($booking['totalPrice'] ?? 0), 2) }}</div>
                                                     </div>
                                                 </div>
                                             </div>
@@ -3265,7 +3265,7 @@
                                             </div>
                                             <div class="col-md-4 text-end">
                                                 <span class="badge bg-white text-success px-2 py-1" style="font-size: 0.8rem;">
-                                                    SGD {{ number_format($booking['totalPrice'] ?? 0, 2) }}
+                                                    SGD {{ number_format((float)($booking['totalPrice'] ?? 0), 2) }}
                                                 </span>
                                             </div>
                                         </div>
@@ -3549,7 +3549,7 @@
                                             </div>
                                             <div class="col-md-4 text-end">
                                                 <span class="badge bg-white text-success px-2 py-1" style="font-size: 0.8rem;">
-                                                    SGD {{ number_format($booking['totalPrice'] ?? 0, 2) }}
+                                                    SGD {{ number_format((float)($booking['totalPrice'] ?? 0), 2) }}
                                                 </span>
                                             </div>
                                         </div>
@@ -3719,7 +3719,7 @@
                                                     <!-- Compact Pricing Details -->
                                                     <div class="bg-white rounded p-1 mt-1">
                                                         <small class="text-muted d-block mb-0" style="font-size: 0.65rem;">Total Price</small>
-                                                        <div class="fw-bold text-success" style="font-size: 0.9rem;">SGD {{ number_format($booking['totalPrice'] ?? 0, 2) }}</div>
+                                                        <div class="fw-bold text-success" style="font-size: 0.9rem;">SGD {{ number_format((float)($booking['totalPrice'] ?? 0), 2) }}</div>
                                         </div>
                                                     </div>
                                                 </div>
@@ -3927,10 +3927,10 @@
                                         <tr style="font-size: 0.8rem;">
                                             <td class="text-center py-2">{{ isset($payment['payment_date']) ? \Carbon\Carbon::parse($payment['payment_date'])->format('M d, Y') : 'N/A' }}</td>
                                             <td class="text-center py-2">{{ isset($payment['created_at']) ? \Carbon\Carbon::parse($payment['created_at'])->format('M d, Y') : 'N/A' }}</td>
-                                            <td class="text-center py-2 fw-bold text-success">{{ isset($payment['amount']) ? number_format($payment['amount'], 2) : '0.00' }}</td>
-                                            <td class="text-center py-2">{{ isset($payment['original_amount']) ? number_format($payment['original_amount'], 2) : number_format($payment['amount'] ?? 0, 2) }}</td>
+                                            <td class="text-center py-2 fw-bold text-success">{{ isset($payment['amount']) ? number_format((float)$payment['amount'], 2) : '0.00' }}</td>
+                                            <td class="text-center py-2">{{ isset($payment['original_amount']) ? number_format((float)$payment['original_amount'], 2) : number_format((float)($payment['amount'] ?? 0), 2) }}</td>
                                             <td class="text-center py-2">{{ $payment['currency'] ?? 'SGD' }}</td>
-                                            <td class="text-center py-2">{{ isset($payment['exchange_rate']) ? number_format($payment['exchange_rate'], 4) : '1.0000' }}</td>
+                                            <td class="text-center py-2">{{ isset($payment['exchange_rate']) ? number_format((float)$payment['exchange_rate'], 4) : '1.0000' }}</td>
                                             <td class="text-center py-2">
                                                 <span class="badge bg-light text-dark" style="font-size: 0.7rem;">{{ ucfirst($payment['payment_type'] ?? 'N/A') }}</span>
                                             </td>
@@ -4336,7 +4336,7 @@
                                             </div>
                                             <div class="col-md-4 text-end">
                                                 <span class="badge bg-white text-success px-2 py-1" style="font-size: 0.8rem;">
-                                                    SGD {{ number_format($booking['totalPrice'] ?? 0, 2) }}
+                                                    SGD {{ number_format((float)($booking['totalPrice'] ?? 0), 2) }}
                                                 </span>
                                         </div>
                                     </div>
