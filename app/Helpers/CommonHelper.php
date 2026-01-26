@@ -4001,7 +4001,6 @@ class CommonHelper
                 ];
             }
         }
-
         return $hotelOptions;
     }
 

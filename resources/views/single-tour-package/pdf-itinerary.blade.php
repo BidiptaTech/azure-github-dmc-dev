@@ -1342,33 +1342,11 @@
             <table class="hotel-option-table" style="width: 90%; border-collapse: collapse; border: 2px solid #000000; font-size: 11px; margin: 0 auto 20px auto; padding: 0;">
                 <!-- OPTION Header - Matching other services color scheme -->
                 <tr>
-                    <td class="hotel-option-label" style="background-color: #a0aec0; color: #2c3e50; text-align: center; font-weight: bold; font-size: 12px; padding: 8px; border: 1px solid #90a0b0; width: 40%;">Description / Label</td>
+                    <td class="hotel-option-label" style="background-color: #a0aec0; color: #2c3e50; text-align: center; font-weight: bold; font-size: 12px; padding: 8px; border: 1px solid #90a0b0; width: 40%;">Hotel</td>
                     <td class="hotel-option-header" style="background-color: #a0aec0; color: #2c3e50; text-align: center; font-weight: bold; font-size: 12px; padding: 8px; border: 1px solid #90a0b0; width: 60%;">
                         OPTION 1
                     </td>
                 </tr>
-                <!-- First Hotel Only -->
-                @if($firstHotel)
-                    @php
-                        // Calculate total room count for first hotel
-                        $totalRooms = 0;
-                        if (isset($firstHotel['no_of_rooms'])) {
-                            $totalRooms = (int)($firstHotel['no_of_rooms']['single'] ?? 0) + 
-                                         (int)($firstHotel['no_of_rooms']['double'] ?? 0) + 
-                                         (int)($firstHotel['no_of_rooms']['triple'] ?? 0);
-                        }
-                    @endphp
-                    <!-- Hotel Name with Room Count in brackets -->
-                    <tr>
-                        <td class="hotel-option-label" style="background: #ffffff; font-weight: bold; padding: 6px 8px; border: 1px solid #000000; color: #000000;">Hotel Name :</td>
-                        <td class="hotel-option-value" style="background: #ffffff; padding: 6px 8px; border: 1px solid #000000; color: #000000;">{{ $firstHotel['hotel_name'] ?? 'N/A' }} ({{ $totalRooms }} {{ $totalRooms == 1 ? 'room' : 'rooms' }})</td>
-                    </tr>
-                    <!-- Hotel Category -->
-                    <tr>
-                        <td class="hotel-option-label" style="background: #ffffff; font-weight: bold; padding: 6px 8px; border: 1px solid #000000; color: #000000;">Hotel Category :</td>
-                        <td class="hotel-option-value" style="background: #ffffff; padding: 6px 8px; border: 1px solid #000000; color: #000000;">{{ $firstHotel['hotel_category'] ?? 'N/A' }}</td>
-                    </tr>
-                @endif
                 <!-- Room Pricing Header - Nested structure inside OPTION 1 column -->
                 <tr>
                     <td class="hotel-option-label" style="background: #ffffff; padding: 6px 8px; border: 1px solid #90a0b0; color: #000000;"></td>
@@ -1384,33 +1362,43 @@
                         </table>
                     </td>
                 </tr>
-                <!-- Room Categories - Only first hotel's rooms -->
-                @if($firstHotel)
-                    @foreach($firstHotel['room_categories'] as $roomCategory)
+                <!-- All Hotels - Show all hotels one after another above supplement section -->
+                @foreach($allHotels as $hotel)
+                    @foreach($hotel['room_categories'] as $roomCategory)
+                        @php
+                            $roomCategoryName = !empty($roomCategory['name']) ? $roomCategory['name'] : 'N/A';
+                            $hotelName = $hotel['hotel_name'] ?? 'N/A';
+                        @endphp
                         <tr>
-                            <td class="hotel-option-value" style="background: #ffffff; padding: 6px 8px; border: 1px solid #000000; color: #000000; vertical-align: top;">{{ !empty($roomCategory['name']) ? $roomCategory['name'] : 'N/A' }}</td>
+                            <td class="hotel-option-value" style="background: #ffffff; padding: 6px 8px; border: 1px solid #000000; color: #000000; vertical-align: top;">{{ $hotelName }} - {{ $roomCategoryName }}</td>
                             <td style="background: #ffffff; padding: 0; border: 1px solid #000000; vertical-align: top;">
                                 <table style="width: 100%; border-collapse: collapse; margin: 0; padding: 0;">
                                     <tr>
-                                        <td class="hotel-option-value" style="background: #ffffff; padding: 6px 8px; border: 1px solid #000000; text-align: center; color: #000000; width: 20%; vertical-align: middle;">{{ is_numeric($roomCategory['single_price']) ? number_format($roomCategory['single_price'], 2) : '100.00' }}</td>
-                                        <td class="hotel-option-value" style="background: #ffffff; padding: 6px 8px; border: 1px solid #000000; text-align: center; color: #000000; width: 20%; vertical-align: middle;">{{ is_numeric($roomCategory['double_price']) ? number_format($roomCategory['double_price'], 2) : '150.00' }}</td>
-                                        <td class="hotel-option-value" style="background: #ffffff; padding: 6px 8px; border: 1px solid #000000; text-align: center; color: #000000; width: 20%; vertical-align: middle;">{{ (is_numeric($roomCategory['triple_price']) && floatval($roomCategory['triple_price']) > 0) ? number_format($roomCategory['triple_price'], 2) : 'N/A' }}</td>
-                                        <td class="hotel-option-value" style="background: #ffffff; padding: 6px 8px; border: 1px solid #000000; text-align: center; color: #000000; width: 20%; vertical-align: middle;">{{ (isset($roomCategory['child_price']) && is_numeric($roomCategory['child_price'])) ? number_format($roomCategory['child_price'], 2) : '0.00' }}</td>
-                                        <td class="hotel-option-value" style="background: #ffffff; padding: 6px 8px; border: 1px solid #000000; text-align: center; color: #000000; width: 20%; vertical-align: middle;">{{ number_format($infantPrice, 2) }}</td>
+                                        <td class="hotel-option-value" style="background: #ffffff; padding: 6px 8px; solid #000000; text-align: center; color: #000000; width: 20%; vertical-align: middle;">{{ is_numeric($roomCategory['single_price']) ? number_format($roomCategory['single_price'], 2) : '0.00' }}</td>
+                                        <td class="hotel-option-value" style="background: #ffffff; padding: 6px 8px; solid #000000; text-align: center; color: #000000; width: 20%; vertical-align: middle;">{{ is_numeric($roomCategory['double_price']) ? number_format($roomCategory['double_price'], 2) : '0.00' }}</td>
+                                        <td class="hotel-option-value" style="background: #ffffff; padding: 6px 8px; solid #000000; text-align: center; color: #000000; width: 20%; vertical-align: middle;">{{ (is_numeric($roomCategory['triple_price']) && floatval($roomCategory['triple_price']) > 0) ? number_format($roomCategory['triple_price'], 2) : 'N/A' }}</td>
+                                        <td class="hotel-option-value" style="background: #ffffff; padding: 6px 8px; solid #000000; text-align: center; color: #000000; width: 20%; vertical-align: middle;">{{ (isset($roomCategory['child_price']) && is_numeric($roomCategory['child_price'])) ? number_format($roomCategory['child_price'], 2) : '0.00' }}</td>
+                                        <td class="hotel-option-value" style="background: #ffffff; padding: 6px 8px; solid #000000; text-align: center; color: #000000; width: 20%; vertical-align: middle;">{{ number_format($infantPrice, 2) }}</td>
                                     </tr>
                                 </table>
                             </td>
                         </tr>
                     @endforeach
-                @endif
-                <!-- First Total - Only first hotel totals -->
+                @endforeach
+                <!-- First Total - All hotels totals -->
                 @php
-                    // Calculate totals for first hotel only
-                    $optionFirstTotalSingle = floatval($firstHotel['first_total']['single'] ?? 0);
-                    $optionFirstTotalDouble = floatval($firstHotel['first_total']['double'] ?? 0);
-                    $optionFirstTotalTriple = floatval($firstHotel['first_total']['triple'] ?? 0);
-                    $optionFirstTotalChild = floatval($firstHotel['first_total']['child'] ?? 0);
+                    // Calculate totals for all hotels
+                    $optionFirstTotalSingle = 0;
+                    $optionFirstTotalDouble = 0;
+                    $optionFirstTotalTriple = 0;
+                    $optionFirstTotalChild = 0;
                     $optionFirstTotalInfant = $infantPrice; // Use baby_cot price from tourPrices
+                    foreach($allHotels as $hotel) {
+                        $optionFirstTotalSingle += floatval($hotel['first_total']['single'] ?? 0);
+                        $optionFirstTotalDouble += floatval($hotel['first_total']['double'] ?? 0);
+                        $optionFirstTotalTriple += floatval($hotel['first_total']['triple'] ?? 0);
+                        $optionFirstTotalChild += floatval($hotel['first_total']['child'] ?? 0);
+                    }
                 @endphp
                 <tr>
                     <td class="hotel-total-row" style="background-color: #6c7a89; color: #ffffff; font-weight: bold; text-align: center; padding: 8px; border: 1px solid #5a6c7d;">Total :</td>
@@ -1427,7 +1415,7 @@
                     </td>
                 </tr>
                 <!-- Supplemental cost - Matching other services color scheme -->
-                <tr>
+                <!-- <tr>
                     <td class="hotel-supplemental-header" style="background-color: #a0aec0; color: #2c3e50; font-weight: bold; text-align: center; padding: 8px; border: 1px solid #90a0b0;">Supplemental cost :</td>
                     <td style="background: #ffffff; padding: 0; border: 1px solid #90a0b0;">
                         <table style="width: 100%; border-collapse: collapse; margin: 0; padding: 0;">
@@ -1440,70 +1428,43 @@
                             </tr>
                         </table>
                     </td>
-                </tr>
-                <!-- Supplemental cost rows - Additional hotels and supplemental costs -->
-                @php
-                    // Aggregate supplemental costs from first hotel
-                    $optionSupplementalSingle = floatval($firstHotel['supplemental_cost']['single'] ?? 0);
-                    $optionSupplementalDouble = floatval($firstHotel['supplemental_cost']['double'] ?? 0);
-                    $optionSupplementalTriple = floatval($firstHotel['supplemental_cost']['triple'] ?? 0);
-                    $optionSupplementalChild = floatval($firstHotel['supplemental_cost']['child'] ?? 0);
+                </tr> -->
+                <!-- Supplemental cost values - Aggregate from all hotels -->
+                <!-- @php
+                    // Aggregate supplemental costs from all hotels
+                    $optionSupplementalSingle = 0;
+                    $optionSupplementalDouble = 0;
+                    $optionSupplementalTriple = 0;
+                    $optionSupplementalChild = 0;
                     $optionSupplementalInfant = $infantPrice; // Use baby_cot price from tourPrices
-                @endphp
-                @if(count($additionalHotels) > 0)
-                    @foreach($additionalHotels as $hotel)
-                        @php
-                            $singleRooms = (int)($hotel['no_of_rooms']['single'] ?? 0);
-                            $doubleRooms = (int)($hotel['no_of_rooms']['double'] ?? 0);
-                            $tripleRooms = (int)($hotel['no_of_rooms']['triple'] ?? 0);
-                            $totalRooms = $singleRooms + $doubleRooms + $tripleRooms;
-                        @endphp
-                        @foreach($hotel['room_categories'] as $roomCategory)
-                            @php
-                                $roomCategoryName = !empty($roomCategory['name']) ? $roomCategory['name'] : 'N/A';
-                            @endphp
-                            <tr>
-                                <td class="hotel-option-value" style="background: #ffffff; padding: 6px 8px; border: 1px solid #000000; color: #000000; vertical-align: top;">{{ $hotel['hotel_name'] ?? 'N/A' }} - {{ $roomCategoryName }} - {{ $totalRooms }} {{ $totalRooms == 1 ? 'room' : 'rooms' }}</td>
-                                <td style="background: #ffffff; padding: 0; border: 1px solid #000000; vertical-align: top;">
-                                    <table style="width: 100%; border-collapse: collapse; margin: 0; padding: 0;">
-                                        <tr>
-                                            <td class="hotel-option-value" style="background: #ffffff; padding: 6px 8px; border: 1px solid #000000; text-align: center; color: #000000; width: 20%; vertical-align: middle;">{{ is_numeric($roomCategory['single_price']) ? number_format($roomCategory['single_price'], 2) : '0.00' }}</td>
-                                            <td class="hotel-option-value" style="background: #ffffff; padding: 6px 8px; border: 1px solid #000000; text-align: center; color: #000000; width: 20%; vertical-align: middle;">{{ is_numeric($roomCategory['double_price']) ? number_format($roomCategory['double_price'], 2) : '0.00' }}</td>
-                                            <td class="hotel-option-value" style="background: #ffffff; padding: 6px 8px; border: 1px solid #000000; text-align: center; color: #000000; width: 20%; vertical-align: middle;">{{ (is_numeric($roomCategory['triple_price']) && floatval($roomCategory['triple_price']) > 0) ? number_format($roomCategory['triple_price'], 2) : 'N/A' }}</td>
-                                            <td class="hotel-option-value" style="background: #ffffff; padding: 6px 8px; border: 1px solid #000000; text-align: center; color: #000000; width: 20%; vertical-align: middle;">{{ (isset($roomCategory['child_price']) && is_numeric($roomCategory['child_price'])) ? number_format($roomCategory['child_price'], 2) : '0.00' }}</td>
-                                            <td class="hotel-option-value" style="background: #ffffff; padding: 6px 8px; border: 1px solid #000000; text-align: center; color: #000000; width: 20%; vertical-align: middle;">{{ number_format($infantPrice, 2) }}</td>
-                                        </tr>
-                                    </table>
-                                </td>
-                            </tr>
-                        @endforeach
-                    @endforeach
-                @endif
-                <!-- Second Total (Final Total) - Including first hotel and additional hotels -->
-                @php
-                    // Calculate totals for additional hotels
-                    $additionalHotelsTotalSingle = 0;
-                    $additionalHotelsTotalDouble = 0;
-                    $additionalHotelsTotalTriple = 0;
-                    $additionalHotelsTotalChild = 0;
-                    $additionalHotelsTotalInfant = 0;
-                    foreach($additionalHotels as $hotel) {
-                        $additionalHotelsTotalSingle += floatval($hotel['first_total']['single'] ?? 0);
-                        $additionalHotelsTotalDouble += floatval($hotel['first_total']['double'] ?? 0);
-                        $additionalHotelsTotalTriple += floatval($hotel['first_total']['triple'] ?? 0);
-                        $additionalHotelsTotalChild += floatval($hotel['first_total']['child'] ?? 0);
-                        $additionalHotelsTotalInfant += floatval($hotel['first_total']['infant'] ?? 0);
-                        $additionalHotelsTotalSingle += floatval($hotel['supplemental_cost']['single'] ?? 0);
-                        $additionalHotelsTotalDouble += floatval($hotel['supplemental_cost']['double'] ?? 0);
-                        $additionalHotelsTotalTriple += floatval($hotel['supplemental_cost']['triple'] ?? 0);
-                        $additionalHotelsTotalChild += floatval($hotel['supplemental_cost']['child'] ?? 0);
-                        $additionalHotelsTotalInfant += floatval($hotel['supplemental_cost']['infant'] ?? 0);
+                    foreach($allHotels as $hotel) {
+                        $optionSupplementalSingle += floatval($hotel['supplemental_cost']['single'] ?? 0);
+                        $optionSupplementalDouble += floatval($hotel['supplemental_cost']['double'] ?? 0);
+                        $optionSupplementalTriple += floatval($hotel['supplemental_cost']['triple'] ?? 0);
+                        $optionSupplementalChild += floatval($hotel['supplemental_cost']['child'] ?? 0);
                     }
-                    $optionFinalTotalSingle = $optionFirstTotalSingle + $optionSupplementalSingle + $additionalHotelsTotalSingle;
-                    $optionFinalTotalDouble = $optionFirstTotalDouble + $optionSupplementalDouble + $additionalHotelsTotalDouble;
-                    $optionFinalTotalTriple = $optionFirstTotalTriple + $optionSupplementalTriple + $additionalHotelsTotalTriple;
-                    $optionFinalTotalChild = $optionFirstTotalChild + $optionSupplementalChild + $additionalHotelsTotalChild;
-                    $optionFinalTotalInfant = $optionFirstTotalInfant + $optionSupplementalInfant + $additionalHotelsTotalInfant;
+                @endphp
+                <tr>
+                    <td class="hotel-supplemental-cell" style="background-color: #a0aec0; color: #2c3e50; font-weight: bold; text-align: center; padding: 6px 8px; border: 1px solid #90a0b0;"></td>
+                    <td style="background: #ffffff; padding: 0; border: 1px solid #90a0b0;">
+                        <table style="width: 100%; border-collapse: collapse; margin: 0; padding: 0;">
+                            <tr>
+                                <td class="hotel-supplemental-cell" style="background-color: #a0aec0; color: #2c3e50; font-weight: bold; text-align: center; padding: 6px 8px; border: 1px solid #90a0b0; width: 20%;">{{ number_format($optionSupplementalSingle, 2) }}</td>
+                                <td class="hotel-supplemental-cell" style="background-color: #a0aec0; color: #2c3e50; font-weight: bold; text-align: center; padding: 6px 8px; border: 1px solid #90a0b0; width: 20%;">{{ number_format($optionSupplementalDouble, 2) }}</td>
+                                <td class="hotel-supplemental-cell" style="background-color: #a0aec0; color: #2c3e50; font-weight: bold; text-align: center; padding: 6px 8px; border: 1px solid #90a0b0; width: 20%;">{{ ($optionSupplementalTriple > 0) ? number_format($optionSupplementalTriple, 2) : 'N/A' }}</td>
+                                <td class="hotel-supplemental-cell" style="background-color: #a0aec0; color: #2c3e50; font-weight: bold; text-align: center; padding: 6px 8px; border: 1px solid #90a0b0; width: 20%;">{{ number_format($optionSupplementalChild, 2) }}</td>
+                                <td class="hotel-supplemental-cell" style="background-color: #a0aec0; color: #2c3e50; font-weight: bold; text-align: center; padding: 6px 8px; border: 1px solid #90a0b0; width: 20%;">{{ number_format($optionSupplementalInfant, 2) }}</td>
+                            </tr>
+                        </table>
+                    </td>
+                </tr> -->
+                <!-- Final Total - Including all hotels and supplemental costs -->
+                <!-- @php
+                    $optionFinalTotalSingle = $optionFirstTotalSingle + $optionSupplementalSingle;
+                    $optionFinalTotalDouble = $optionFirstTotalDouble + $optionSupplementalDouble;
+                    $optionFinalTotalTriple = $optionFirstTotalTriple + $optionSupplementalTriple;
+                    $optionFinalTotalChild = $optionFirstTotalChild + $optionSupplementalChild;
+                    $optionFinalTotalInfant = $optionFirstTotalInfant + $optionSupplementalInfant;
                 @endphp
                 <tr>
                     <td class="hotel-total-row" style="background-color: #6c7a89; color: #ffffff; font-weight: bold; text-align: center; padding: 8px; border: 1px solid #5a6c7d;">Total :</td>
@@ -1518,7 +1479,7 @@
                             </tr>
                         </table>
                     </td>
-                </tr>
+                </tr> -->
             </table>
         </div>
     @endif
@@ -2144,4 +2105,3 @@
             </div>
 </body>
 </html>
-
