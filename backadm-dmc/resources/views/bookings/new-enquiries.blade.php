@@ -864,10 +864,10 @@
                                        title="Audit Trail">
                                         <i class="ri-eye-line"></i>
                                     </a>
-                                    <a href="{{ route('tour.itinerary.pdf', ['tourId' => $tour->tour_id]) }}" 
+                                    <a href="{{ route('tour.itinerary.preview', ['encryptedTourId' => Crypt::encrypt($tour->tour_id)]) }}" 
                                        class="btn btn-outline-secondary btn-sm rounded-circle d-flex align-items-center justify-content-center" 
                                        style="width: 32px; height: 32px;"
-                                       title="Download Quotation"
+                                       title="Quotation Preview"
                                        target="_blank">
                                         <i class="ri-file-download-line"></i>
                                     </a>
