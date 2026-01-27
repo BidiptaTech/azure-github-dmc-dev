@@ -6,14 +6,21 @@ use App\Helpers\CommonHelper;
 use App\Models\Tour;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\Crypt;
 
 class QuotationController extends Controller
 {
     /**
      * Show itinerary / quotation preview with currency dropdown and embedded PDF.
      */
-    public function itineraryPreview($tourId, Request $request)
+    public function itineraryPreview($encryptedTourId, Request $request)
     {
+        try {
+            $tourId = Crypt::decrypt($encryptedTourId);
+        } catch (\Throwable $e) {
+            return redirect()->back()->with('error', 'Invalid tour reference.');
+        }
+
         $tour = Tour::where('tour_id', $tourId)->first();
         if (!$tour) {
             return redirect()->back()->with('error', 'Tour not found.');

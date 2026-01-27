@@ -298,7 +298,7 @@ Route::get('/clear', function () {
             });
             
             // Preview page for itinerary with currency selection and download button
-            Route::get('/tour/{tourId}/itinerary-preview', [\App\Http\Controllers\QuotationController::class, 'itineraryPreview'])
+            Route::get('/tour/{encryptedTourId}/itinerary-preview', [\App\Http\Controllers\QuotationController::class, 'itineraryPreview'])
                 ->name('tour.itinerary.preview');
 
             // PDF generation route (used by preview iframe and direct download)

@@ -267,6 +267,8 @@ class BookingsController extends Controller
         }
 
         if ($action === 'cancel') {
+            $oldStatus = $tour->tour_status;
+
             if ($activeEnquiry) {
                 $activeEnquiry->update(['status' => 3]);
             }
@@ -274,6 +276,13 @@ class BookingsController extends Controller
             $newStatus = $tour->tour_status === 'Definite'
                 ? 'Refund - Pending'
                 : 'Cancel - ' . $tour->tour_status;
+
+            // Track status change (e.g. New Enquiry -> Cancel - New Enquiry, Definite -> Refund - Pending)
+            \App\Helpers\CommonHelper::appendTourStatusTrack(
+                $tour,
+                $oldStatus,
+                $newStatus
+            );
 
             $tour->update(['tour_status' => $newStatus]);
 
@@ -288,6 +297,15 @@ class BookingsController extends Controller
             Order::where('tour_id', $tour->tour_id)->update(['bookingType' => 'booking']);
 
             if ($tour->tour_status !== 'Confirmed') {
+                $oldStatus = $tour->tour_status;
+
+                // Track status change (e.g. New Enquiry / Prospect / Tentative -> Confirmed)
+                \App\Helpers\CommonHelper::appendTourStatusTrack(
+                    $tour,
+                    $oldStatus,
+                    'Confirmed'
+                );
+
                 $tour->update(['tour_status' => 'Confirmed']);
             }
 
@@ -1209,9 +1227,19 @@ class BookingsController extends Controller
                 ], 404);
             }
 
-            // Update tour status to Refunded
+            // Update tour status to Refunded and track transition
+            $oldStatus = $tour->tour_status; // Should be 'Refund - Pending'
             $tour->tour_status = 'Refunded';
             $tour->updated_at = now();
+
+            // Append to track_details history: Refund - Pending -> Refunded
+            \App\Helpers\CommonHelper::appendTourStatusTrack(
+                $tour,
+                $oldStatus,
+                $tour->tour_status,
+                $tour->updated_at
+            );
+
             $tour->save();
 
             return response()->json([
@@ -1433,12 +1461,22 @@ class BookingsController extends Controller
                 ], 400);
             }
             
-            // Update tour status to Cancel
-            if($tour->tour_status == 'Definite'){
+            // Update tour status to Cancel (and track history)
+            $oldStatus = $tour->tour_status;
+
+            if ($tour->tour_status == 'Definite') {
                 $tour->tour_status = 'Refund - Pending';
-            }else{
-                $tour->tour_status = 'Cancel-'.$tour->tour_status;
+            } else {
+                $tour->tour_status = 'Cancel-' . $tour->tour_status;
             }
+
+            // Track status change, e.g. Definite -> Refund - Pending, or X -> Cancel-X
+            \App\Helpers\CommonHelper::appendTourStatusTrack(
+                $tour,
+                $oldStatus,
+                $tour->tour_status
+            );
+
             $tour->save();
             
             return response()->json([

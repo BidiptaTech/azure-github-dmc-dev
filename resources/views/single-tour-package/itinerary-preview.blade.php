@@ -11,7 +11,7 @@
                 </p>
             </div>
             <div class="col-md-4 text-md-right mt-3 mt-md-0">
-                <form method="GET" action="{{ route('tour.itinerary.preview', ['tourId' => $tour->tour_id]) }}" class="form-inline justify-content-md-end">
+                <form method="GET" action="{{ route('tour.itinerary.preview', ['encryptedTourId' => Crypt::encrypt($tour->tour_id)]) }}" class="form-inline justify-content-md-end">
                     <label for="currency" class="mr-2 font-weight-bold">Currency:</label>
                     <select name="currency" id="currency" class="form-control mr-2" onchange="this.form.submit()">
                         @foreach($availableCurrencies as $currency)

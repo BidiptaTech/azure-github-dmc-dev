@@ -11538,8 +11538,16 @@ document.addEventListener('DOMContentLoaded', function() {
                             let bedTypeText = bed.room_type || 'Standard Bed';
                             
                             // Add occupancy info if available
-                            if (bed.max_occupancy) {
-                                bedTypeText += ` - Max ${bed.max_occupancy} guests`;
+                            // When extra bed is available, max_occupancy from DB usually includes the extra bed capacity.
+                            // For display and selection we want:
+                            //   base room capacity (without extra bed) + explicit "+ Extra Bed" (1 pax).
+                            let baseMaxOccupancy = bed.max_occupancy;
+                            if (bed.max_occupancy && bed.extra_bed) {
+                                // Treat 1 of the occupancy slots as coming from the extra bed
+                                baseMaxOccupancy = Math.max(1, bed.max_occupancy - 1);
+                            }
+                            if (baseMaxOccupancy) {
+                                bedTypeText += ` - Max ${baseMaxOccupancy} guests`;
                             }
                             
                             // Add adult/child info if available
@@ -11570,7 +11578,8 @@ document.addEventListener('DOMContentLoaded', function() {
                             option.dataset.bedId = bed.bed_id;
                             option.dataset.roomId = bed.room_id;
                             option.dataset.bedType = bed.room_type || '';
-                            option.dataset.maxOccupancy = bed.max_occupancy || '';
+                            // Store base max occupancy (excluding the extra bed seat) for UI logic
+                            option.dataset.maxOccupancy = baseMaxOccupancy || '';
                             option.dataset.noOfRooms = bed.no_of_rooms || '';
                             option.dataset.extraBedPrice = bed.extra_bed_price || '';
                             option.dataset.babyCotPrice = bed.baby_cot_price || '';
