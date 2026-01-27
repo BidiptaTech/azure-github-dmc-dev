@@ -2536,6 +2536,8 @@ class CommonHelper
                     }
                     
                     // Check for direct totalPrice and head_count in JSON (e.g. from enquiry)
+                    // We only use this to override SINGLE price when exactly 1 person;
+                    // double/triple prices always come from room/hotel tables so they stay consistent.
                     $directTotalPrice = $item['totalPrice'] ?? $item['price'] ?? null;
 
                     if ($directTotalPrice !== null) {
@@ -2555,14 +2557,9 @@ class CommonHelper
                             $totalHeadCount = floatval($item['pax'] ?? $item['adults'] ?? $item['adultCount'] ?? 0);
                         }
 
-                        if ($totalHeadCount > 0) {
-                            $perPersonPrice = floatval($directTotalPrice) / $totalHeadCount;
-                            
-                            if ($totalHeadCount == 1) {
-                                $manualSinglePrice = $perPersonPrice;
-                            } else {
-                                $manualDoublePrice = $perPersonPrice;
-                            }
+                        if ($totalHeadCount == 1) {
+                            // For exactly one person, use enquiry total as single price override
+                            $manualSinglePrice = floatval($directTotalPrice);
                         }
                     }
                     
@@ -2573,19 +2570,20 @@ class CommonHelper
                     $doubleWeekendPrice = null;
 
 
-                    // Get prices from room data - first try to fetch from database using room_type and hotel_id
+                    // Get prices from room data - first try to fetch from database using room_id (preferred) and hotel_id
                     if (!empty($item['rooms']) && is_array($item['rooms'])) {
                         foreach ($item['rooms'] as $roomData) {
                             $roomtype = $roomData['room_type'] ?? $roomData['roomType'] ?? null;
+                            $roomIdFromJson = $roomData['room_id'] ?? $roomData['roomId'] ?? null;
                             
-                            // Try to fetch room from database first - must match both room_type and hotel_id
-                            if ($roomtype && $hotelId) {
+                            // Try to fetch room from database first - must match both room_id and hotel_id (more reliable than room_type)
+                            if ($roomIdFromJson && $hotelId) {
                                 try {
                                     // First try to get hotel_id from hotel_unique_id
                                     $hotel = Hotel::where('hotel_unique_id', $hotelId)->first();
                                     $dbHotelId = $hotel ? $hotel->hotel_unique_id : $hotelId;
                                     
-                                    $roomRecord = Room::where('room_type', $roomtype)
+                                    $roomRecord = Room::where('room_id', $roomIdFromJson)
                                         ->where('hotel_id', $dbHotelId)
                                         ->where('status', 1)
                                         ->first();
@@ -2597,6 +2595,7 @@ class CommonHelper
                                             $singleWeekendPrice = floatval($roomRecord->weekend_price);
                                         }
                                         if ($roomRecord->double_weekday_price !== null && $roomRecord->double_weekday_price !== '') {
+                                            // Double prices in DB are room prices; convert to per-head by dividing by 2
                                             $doubleWeekdayPrice = floatval($roomRecord->double_weekday_price) / 2;
                                         }
                                         if ($roomRecord->double_weekend_price !== null && $roomRecord->double_weekend_price !== '') {
@@ -2742,6 +2741,7 @@ class CommonHelper
                     $hotelSingleTotal = 0;
                     $hotelDoubleTotal = 0;
                     $hotelTripleTotal = 0;
+                    $extraBedTotal = 0; // total extra bed cost across all nights
                     
                     // Get extra bed price from beds table if available
                     $extraBedWeekdayPrice = null;
@@ -2772,7 +2772,7 @@ class CommonHelper
                                             ->where('is_active', 1)
                                             ->first();
                                         if ($bedRecord && $bedRecord->extra_bed_price !== null) {
-                                            // Extra bed price is typically the same for weekday and weekend
+                                            // Extra bed price is per extra bed (per night)
                                             $extraBedPrice = floatval($bedRecord->extra_bed_price);
                                             $extraBedWeekdayPrice = $extraBedPrice;
                                             $extraBedWeekendPrice = $extraBedPrice;
@@ -2849,11 +2849,11 @@ class CommonHelper
                                     if ($rate->event_type == 'Blackout Date') {
                                         // Blackout Date: Use rate->price (first priority)
                                         $ratePrice = floatval($rate->price ?? 0);
-                                        // For blackout, both single and double use the same price
+                                        // For blackout, single uses full price, double is per-head (price / 2)
                                         $rateSingleWeekdayPrice = $ratePrice;
                                         $rateSingleWeekendPrice = $ratePrice;
-                                        $rateDoubleWeekdayPrice = $ratePrice;
-                                        $rateDoubleWeekendPrice = $ratePrice;
+                                        $rateDoubleWeekdayPrice = $ratePrice / 2;
+                                        $rateDoubleWeekendPrice = $ratePrice / 2;
                                     } elseif ($rate->event_type == 'Season') {
                                         // Season: Use rate weekday/weekend prices (second priority)
                                         $rateSingleWeekdayPrice = $rate->weekday_price ? floatval($rate->weekday_price) : null;
@@ -2877,92 +2877,55 @@ class CommonHelper
                             }
                         }
                         
-                        // Determine which price to use based on priority
+                        // Determine per-night price ONLY from room/hotel data (ignore rates)
+                        // Single: weekday/weekend single prices
+                        // Double: weekday/weekend double prices (already stored per-head: double_* / 2 above)
                         $singlePriceToAdd = null;
                         $doublePriceToAdd = null;
-                        
-                        if ($rateEventType == 'Blackout Date' && $ratePrice !== null) {
-                            // Priority 1: Blackout Date
-                            $singlePriceToAdd = $ratePrice;
-                            $doublePriceToAdd = $ratePrice;
-                        } elseif ($rateEventType == 'Season') {
-                            // Priority 2: Season - use weekday/weekend from rate, fallback to room prices
-                            if ($isWeekend) {
-                                $singlePriceToAdd = $rateSingleWeekendPrice ?? $rateSingleWeekdayPrice ?? $singleWeekendPrice ?? $singleWeekdayPrice;
-                                $doublePriceToAdd = $rateDoubleWeekendPrice ?? $rateDoubleWeekdayPrice ?? $doubleWeekendPrice ?? $doubleWeekdayPrice;
-                            } else {
-                                $singlePriceToAdd = $rateSingleWeekdayPrice ?? $rateSingleWeekendPrice ?? $singleWeekdayPrice ?? $singleWeekendPrice;
-                                $doublePriceToAdd = $rateDoubleWeekdayPrice ?? $rateDoubleWeekendPrice ?? $doubleWeekdayPrice ?? $doubleWeekendPrice;
-                            }
-                        } elseif ($isWeekend) {
-                            // Priority 3: Weekend - use room weekend prices
+
+                        if ($isWeekend) {
                             $singlePriceToAdd = $singleWeekendPrice ?? $singleWeekdayPrice;
                             $doublePriceToAdd = $doubleWeekendPrice ?? $doubleWeekdayPrice;
                         } else {
-                            // Priority 4: Weekday - use room weekday prices
                             $singlePriceToAdd = $singleWeekdayPrice ?? $singleWeekendPrice;
                             $doublePriceToAdd = $doubleWeekdayPrice ?? $doubleWeekendPrice;
                         }
-                        
-                        // Add prices to totals
+
+                        // Add prices to totals (per night)
                         if ($singlePriceToAdd !== null) {
                             $hotelSingleTotal += $singlePriceToAdd;
                         }
                         if ($doublePriceToAdd !== null) {
                             $hotelDoubleTotal += $doublePriceToAdd;
                         }
-                        
-                        // Calculate triple sharing = double sharing + extra bed price (if available)
-                        // Note: Extra bed price is added for EACH night (multiplied by total nights)
-                        $triplePriceToAdd = null;
-                        if ($doublePriceToAdd !== null && $extraBedWeekdayPrice !== null) {
-                            // Use extra bed price based on weekday/weekend
+
+                        // Accumulate extra bed total per night (if available)
+                        if ($extraBedWeekdayPrice !== null) {
                             $extraBedPriceToAdd = $isWeekend 
                                 ? ($extraBedWeekendPrice ?? $extraBedWeekdayPrice) 
                                 : ($extraBedWeekdayPrice ?? $extraBedWeekendPrice);
-                            $triplePriceToAdd = $doublePriceToAdd + $extraBedPriceToAdd;
-                            $hotelTripleTotal += $triplePriceToAdd;
-                            
-                            Log::info('Triple sharing calculation for night', [
-                                'date' => $dateString,
-                                'double_price' => $doublePriceToAdd,
-                                'extra_bed_price' => $extraBedPriceToAdd,
-                                'triple_price_for_this_night' => $triplePriceToAdd,
-                                'triple_total_so_far' => $hotelTripleTotal,
-                            ]);
-                        }
-                        
-                        // Debug each night calculation
-                        Log::info('Night price calculation', [
-                            'date' => $dateString,
-                            'day_name' => $dayName,
-                            'is_weekend' => $isWeekend,
-                            'rate_event_type' => $rateEventType,
-                            'rate_price' => $ratePrice,
-                            'single_price_added' => $singlePriceToAdd,
-                            'double_price_added' => $doublePriceToAdd,
-                            'triple_price_added' => $triplePriceToAdd,
-                            'single_running_total' => $hotelSingleTotal,
-                            'double_running_total' => $hotelDoubleTotal,
-                            'triple_running_total' => $hotelTripleTotal,
-                        ]);
-                    }
-                    
-                    Log::info('Hotel total calculated', [
-                        'hotel_single_total' => $hotelSingleTotal,
-                        'hotel_double_total' => $hotelDoubleTotal,
-                        'hotel_triple_total' => $hotelTripleTotal,
-                        'total_nights' => count($bookingDates),
-                        'extra_bed_price_per_night' => $extraBedWeekdayPrice,
-                        'extra_bed_total' => $extraBedWeekdayPrice ? ($extraBedWeekdayPrice * count($bookingDates)) : 0,
-                    ]);
 
-                    // Override with manual prices if available (from directTotalPrice)
+                            if ($extraBedPriceToAdd !== null) {
+                                $extraBedTotal += $extraBedPriceToAdd;
+                            }
+                        }
+                    }
+
+                    // Simplified totals for hotel:
+                    // - single_sharing: sum of single prices across nights (with optional manual override for 1 pax)
+                    // - double_sharing: sum of per-head double prices across nights (always from room/hotel)
+                    // - triple_sharing (when extra bed present):
+                    //     (double_sharing_total * 2 + extra_bed_total) / 3
+                    //   where extra_bed_total = extra_bed_price_per_night * nights
+                    if ($extraBedTotal > 0) {
+                        $hotelTripleTotal = ($hotelDoubleTotal * 2 + $extraBedTotal) / 3;
+                    } else {
+                        $hotelTripleTotal = 0;
+                    }
+
+                    // Override with manual SINGLE price if available (from directTotalPrice for 1 pax)
                     if ($manualSinglePrice !== null) {
                         $hotelSingleTotal = $manualSinglePrice;
-                    }
-                    if ($manualDoublePrice !== null) {
-                        $hotelDoubleTotal = $manualDoublePrice;
                     }
 
                     $totalSingleSharing += $hotelSingleTotal;
