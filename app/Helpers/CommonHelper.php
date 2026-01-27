@@ -17,12 +17,14 @@ use App\Models\OperationalCountry;
 use App\Models\Agency;
 use App\Models\Rate;
 use App\Models\Jobsheet;
+use App\Models\BankDetail;
 use Carbon\Carbon;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
 use Illuminate\Support\Facades\Mail;
 use App\Mail\DmcMail;
 use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\Auth;
 use Barryvdh\DomPDF\Facade\Pdf;
 use MicrosoftAzure\Storage\Blob\BlobRestProxy;
 use League\Flysystem\Filesystem;
@@ -1663,13 +1665,26 @@ class CommonHelper
         }
     }
 
-    public static function downloadTourPdf($tourId)
+    public static function downloadTourPdf($tourId, $targetCurrency = null, $preview = false)
     {
         $tour = Tour::where('tour_id', $tourId)->first();
         if (!$tour) {
             return null;
         }
 
+        // Currency handling
+        // Base currency is what prices are stored in (default SGD as per requirement)
+        $baseCurrency = strtoupper($tour->currency ?? 'SGD');
+        $selectedCurrency = $targetCurrency ? strtoupper($targetCurrency) : $baseCurrency;
+        $exchangeRate = 1.0;
+
+        if ($selectedCurrency !== $baseCurrency) {
+            $rate = \App\Helpers\CurrencyHelper::getExchangeRate($baseCurrency, $selectedCurrency);
+            if ($rate && is_numeric($rate) && $rate > 0) {
+                $exchangeRate = (float) $rate;
+            }
+        }
+        
         $orders = Order::where('tour_id', $tourId)
             ->where('status', 1)
             ->orderBy('booking_id')
@@ -2046,19 +2061,67 @@ class CommonHelper
         $tourPrices = self::calculateTourPrices($tourId);
         // Format hotels for Excel-like display
         $hotelOptions = self::formatHotelsForPdf($orders, $tour, $tourPrices);
-        // Fetch bank details from DMC user
+        
+        // Get DMC ID - first try from tour, otherwise from current user
+        $dmcIdForBankDetails = null;
+        if (!empty($tour->dmc_id)) {
+            $dmcIdForBankDetails = $tour->dmc_id;
+        } else {
+            // Fallback to getting DMC ID from current user
+            $currentUser = Auth::user();
+            if ($currentUser) {
+                $dmcIdForBankDetails = self::getDmcId($currentUser);
+            }
+        }
+        
+        // Fetch bank details from bank_details table based on DMC ID
         $bankDetails = [];
-        if ($dmcUser && isset($dmcUser->bank_details)) {
+        $termsAndConditions = '';
+        $paymentTerms = [];
+        
+        if ($dmcIdForBankDetails) {
+            $bankDetailRecord = BankDetail::where('dmc_id', $dmcIdForBankDetails)
+                ->where('is_active', 1)
+                ->orderBy('created_at', 'desc')
+                ->first();
+            
+            if ($bankDetailRecord) {
+                // Extract bank details
+                $bankDetails = [
+                    'account_name' => $bankDetailRecord->account_name ?? '',
+                    'account_number' => $bankDetailRecord->account_number ?? '',
+                    'bank_address' => $bankDetailRecord->bank_address ?? '',
+                    'ifsc' => $bankDetailRecord->ifsc ?? '',
+                    'swift_bic_iban' => $bankDetailRecord->swift_bic_iban ?? '',
+                    'bank_code' => $bankDetailRecord->bank_code ?? '',
+                    'branch_code' => $bankDetailRecord->branch_code ?? '',
+                    'aba_routing' => $bankDetailRecord->aba_routing ?? '',
+                ];
+                
+                // Extract terms and conditions
+                $termsAndConditions = $bankDetailRecord->terms_and_conditions ?? '';
+                
+                // Extract payment terms (already cast as array in model)
+                $paymentTerms = $bankDetailRecord->payment_terms ?? [];
+                if (is_string($paymentTerms)) {
+                    $paymentTerms = json_decode($paymentTerms, true) ?? [];
+                }
+                if (!is_array($paymentTerms)) {
+                    $paymentTerms = [];
+                }
+            }
+        }
+        
+        // Fallback to DMC user bank_details if bank_details table record not found
+        if (empty($bankDetails) && $dmcUser && isset($dmcUser->bank_details)) {
             $bankDetailsData = is_string($dmcUser->bank_details) ? json_decode($dmcUser->bank_details, true) : $dmcUser->bank_details;
             if (is_array($bankDetailsData)) {
                 $bankDetails = $bankDetailsData;
             }
         }
         
-        // Terms and conditions, exclusions, and payment terms (can be extended to fetch from database)
-        $termsAndConditions = '';
+        // Exclusions (can be extended to fetch from database if needed)
         $exclusions = '';
-        $paymentTerms = [];
         
         try {
             // Configure DomPDF options to work without GD if possible
@@ -2080,13 +2143,20 @@ class CommonHelper
                 'termsAndConditions' => $termsAndConditions,
                 'exclusions' => $exclusions,
                 'paymentTerms' => $paymentTerms,
+                'baseCurrency' => $baseCurrency,
+                'selectedCurrency' => $selectedCurrency,
+                'exchangeRate' => $exchangeRate,
             ]);
             
             $pdf->setPaper('a4');
             $pdf->setOption('enable-php', false);
             $pdf->setOption('isHtml5ParserEnabled', true);
             $pdf->setOption('isRemoteEnabled', false);
-            
+
+            if ($preview) {
+                return $pdf->stream("tour-quotation.pdf");
+            }
+
             return $pdf->download("tour-quotation.pdf");
         } catch (\Exception $e) {
             // If GD is required and not available, try without logo
@@ -2113,13 +2183,20 @@ class CommonHelper
                     'bankDetails' => $bankDetails,
                     'termsAndConditions' => $termsAndConditions,
                     'paymentTerms' => $paymentTerms,
+                    'baseCurrency' => $baseCurrency,
+                    'selectedCurrency' => $selectedCurrency,
+                    'exchangeRate' => $exchangeRate,
                 ]);
                 
                 $pdf->setPaper('a4');
                 $pdf->setOption('enable-php', false);
                 $pdf->setOption('isHtml5ParserEnabled', true);
                 $pdf->setOption('isRemoteEnabled', false);
-                
+
+                if ($preview) {
+                    return $pdf->stream("tour-quotation.pdf");
+                }
+
                 return $pdf->download("tour-quotation.pdf");
             }
             
@@ -2370,19 +2447,66 @@ class CommonHelper
         $tourPrices = self::calculateTourPrices($tourId);
         $hotelOptions = self::formatHotelsForPdf($orders, $tour, $tourPrices);
         
-        // Fetch bank details from DMC user
+        // Get DMC ID - first try from tour, otherwise from current user
+        $dmcIdForBankDetails = null;
+        if (!empty($tour->dmc_id)) {
+            $dmcIdForBankDetails = $tour->dmc_id;
+        } else {
+            // Fallback to getting DMC ID from current user
+            $currentUser = Auth::user();
+            if ($currentUser) {
+                $dmcIdForBankDetails = self::getDmcId($currentUser);
+            }
+        }
+        
+        // Fetch bank details from bank_details table based on DMC ID
         $bankDetails = [];
-        if ($dmcUser && isset($dmcUser->bank_details)) {
+        $termsAndConditions = '';
+        $paymentTerms = [];
+        
+        if ($dmcIdForBankDetails) {
+            $bankDetailRecord = BankDetail::where('dmc_id', $dmcIdForBankDetails)
+                ->where('is_active', 1)
+                ->orderBy('created_at', 'desc')
+                ->first();
+            
+            if ($bankDetailRecord) {
+                // Extract bank details
+                $bankDetails = [
+                    'account_name' => $bankDetailRecord->account_name ?? '',
+                    'account_number' => $bankDetailRecord->account_number ?? '',
+                    'bank_address' => $bankDetailRecord->bank_address ?? '',
+                    'ifsc' => $bankDetailRecord->ifsc ?? '',
+                    'swift_bic_iban' => $bankDetailRecord->swift_bic_iban ?? '',
+                    'bank_code' => $bankDetailRecord->bank_code ?? '',
+                    'branch_code' => $bankDetailRecord->branch_code ?? '',
+                    'aba_routing' => $bankDetailRecord->aba_routing ?? '',
+                ];
+                
+                // Extract terms and conditions
+                $termsAndConditions = $bankDetailRecord->terms_and_conditions ?? '';
+                
+                // Extract payment terms (already cast as array in model)
+                $paymentTerms = $bankDetailRecord->payment_terms ?? [];
+                if (is_string($paymentTerms)) {
+                    $paymentTerms = json_decode($paymentTerms, true) ?? [];
+                }
+                if (!is_array($paymentTerms)) {
+                    $paymentTerms = [];
+                }
+            }
+        }
+        
+        // Fallback to DMC user bank_details if bank_details table record not found
+        if (empty($bankDetails) && $dmcUser && isset($dmcUser->bank_details)) {
             $bankDetailsData = is_string($dmcUser->bank_details) ? json_decode($dmcUser->bank_details, true) : $dmcUser->bank_details;
             if (is_array($bankDetailsData)) {
                 $bankDetails = $bankDetailsData;
             }
         }
         
-        // Terms and conditions, exclusions, and payment terms
-        $termsAndConditions = '';
+        // Exclusions (can be extended to fetch from database if needed)
         $exclusions = '';
-        $paymentTerms = [];
         
         return [
             'tour' => $tour,
@@ -3829,7 +3953,8 @@ class CommonHelper
     {
         $hotelOptions = [];
         $hotelIndex = 1;
-
+        
+        
         foreach ($orders as $order) {
             if (strtolower($order->type ?? '') !== 'hotel') {
                 continue;

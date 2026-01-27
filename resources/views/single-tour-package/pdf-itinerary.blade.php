@@ -706,13 +706,11 @@
         /* Modern Card-Based Panel Design - PDF-Compatible */
         .quotation-panels-container {
             display: table;
-            width: calc(100% + 20px);
+            width: 100%;
             border-collapse: separate;
             border-spacing: 10px;
-            margin-bottom: 15px;
+            margin: 0 0 15px 0;
             table-layout: fixed;
-            margin-left: -10px;
-            margin-right: -10px;
         }
         .quotation-panel-wrapper {
             display: table-cell;
@@ -892,7 +890,7 @@
             background: #ffffff;
             border: 1px solid #e0e0e0;
             border-radius: 8px 8px 0 0;
-            margin-bottom: 16px;
+            margin: 0 10px 16px 10px; /* equal left/right margin */
             overflow: hidden;
             box-shadow: 0 2px 6px rgba(0,0,0,0.08);
         }
@@ -950,15 +948,24 @@
             margin: 0 8px;
             font-size: 14px;
             vertical-align: middle;
-            color: #20b2aa;
+            color: #000000;
             font-weight: bold;
             font-family: Arial, sans-serif;
         }
         
+        .quotation-passenger-wrapper {
+            background: #ffffff;
+            border: 1px solid #e0e0e0;
+            border-radius: 8px 8px 0 0;
+            margin: 0 10px 0 10px; /* equal left/right margin */
+            overflow: hidden;
+            box-shadow: 0 2px 6px rgba(0,0,0,0.08);
+        }
+
         .quotation-passenger-table {
             width: 100%;
             border-collapse: collapse;
-            margin-top: 20px;
+            margin: 0;
             border: 1px solid #e0e0e0;
         }
         .quotation-passenger-table th {
@@ -1000,6 +1007,11 @@
         $checkIn = $tour->check_in_time ? \Carbon\Carbon::parse($tour->check_in_time)->format('d M Y') : '-';
         $checkOut = $tour->check_out_time ? \Carbon\Carbon::parse($tour->check_out_time)->format('d M Y') : '-';
         $totalServices = collect($servicesByType ?? [])->flatten(1)->count();
+
+        // Currency context
+        $baseCurrency = $baseCurrency ?? 'SGD';
+        $selectedCurrency = $selectedCurrency ?? $baseCurrency;
+        $exchangeRate = isset($exchangeRate) && is_numeric($exchangeRate) && $exchangeRate > 0 ? (float) $exchangeRate : 1.0;
     @endphp
 
     <!-- Quotation First Page (Matching Image Format) -->
@@ -1240,6 +1252,7 @@
         </div>
 
         <!-- Passenger Details Table -->
+        <div class="quotation-passenger-wrapper">
         <table class="quotation-passenger-table">
             <thead>
                 <tr>
@@ -1290,6 +1303,7 @@
                 @endif
             </tbody>
         </table>
+        </div>
     </div>
 
     <!-- Existing Content (Itinerary Details) -->
@@ -1335,7 +1349,7 @@
             // Get baby_cot price from tourPrices to use as infant price
             $infantPrice = 0;
             if (isset($tourPrices['segregated']['hotel']['baby_cot']) && is_numeric($tourPrices['segregated']['hotel']['baby_cot'])) {
-                $infantPrice = floatval($tourPrices['segregated']['hotel']['baby_cot']);
+                $infantPrice = floatval($tourPrices['segregated']['hotel']['baby_cot']) * $exchangeRate;
             }
         @endphp
         <div class="hotel-options-section" style="width: 100%; text-align: center;">
@@ -1374,11 +1388,11 @@
                             <td style="background: #ffffff; padding: 0; border: 1px solid #000000; vertical-align: top;">
                                 <table style="width: 100%; border-collapse: collapse; margin: 0; padding: 0;">
                                     <tr>
-                                        <td class="hotel-option-value" style="background: #ffffff; padding: 6px 8px; solid #000000; text-align: center; color: #000000; width: 20%; vertical-align: middle;">{{ is_numeric($roomCategory['single_price']) ? number_format($roomCategory['single_price'], 2) : '0.00' }}</td>
-                                        <td class="hotel-option-value" style="background: #ffffff; padding: 6px 8px; solid #000000; text-align: center; color: #000000; width: 20%; vertical-align: middle;">{{ is_numeric($roomCategory['double_price']) ? number_format($roomCategory['double_price'], 2) : '0.00' }}</td>
-                                        <td class="hotel-option-value" style="background: #ffffff; padding: 6px 8px; solid #000000; text-align: center; color: #000000; width: 20%; vertical-align: middle;">{{ (is_numeric($roomCategory['triple_price']) && floatval($roomCategory['triple_price']) > 0) ? number_format($roomCategory['triple_price'], 2) : 'N/A' }}</td>
-                                        <td class="hotel-option-value" style="background: #ffffff; padding: 6px 8px; solid #000000; text-align: center; color: #000000; width: 20%; vertical-align: middle;">{{ (isset($roomCategory['child_price']) && is_numeric($roomCategory['child_price'])) ? number_format($roomCategory['child_price'], 2) : '0.00' }}</td>
-                                        <td class="hotel-option-value" style="background: #ffffff; padding: 6px 8px; solid #000000; text-align: center; color: #000000; width: 20%; vertical-align: middle;">{{ number_format($infantPrice, 2) }}</td>
+                                        <td class="hotel-option-value" style="background: #ffffff; padding: 6px 8px; solid #000000; text-align: center; color: #000000; width: 20%; vertical-align: middle;">{{ is_numeric($roomCategory['single_price']) ? number_format(ceil($roomCategory['single_price'] * $exchangeRate), 0) : '0' }}</td>
+                                        <td class="hotel-option-value" style="background: #ffffff; padding: 6px 8px; solid #000000; text-align: center; color: #000000; width: 20%; vertical-align: middle;">{{ is_numeric($roomCategory['double_price']) ? number_format(ceil($roomCategory['double_price'] * $exchangeRate), 0) : '0' }}</td>
+                                        <td class="hotel-option-value" style="background: #ffffff; padding: 6px 8px; solid #000000; text-align: center; color: #000000; width: 20%; vertical-align: middle;">{{ (is_numeric($roomCategory['triple_price']) && floatval($roomCategory['triple_price']) > 0) ? number_format(ceil($roomCategory['triple_price'] * $exchangeRate), 0) : 'N/A' }}</td>
+                                        <td class="hotel-option-value" style="background: #ffffff; padding: 6px 8px; solid #000000; text-align: center; color: #000000; width: 20%; vertical-align: middle;">{{ (isset($roomCategory['child_price']) && is_numeric($roomCategory['child_price'])) ? number_format(ceil($roomCategory['child_price'] * $exchangeRate), 0) : '0' }}</td>
+                                        <td class="hotel-option-value" style="background: #ffffff; padding: 6px 8px; solid #000000; text-align: center; color: #000000; width: 20%; vertical-align: middle;">{{ number_format(ceil($infantPrice), 0) }}</td>
                                     </tr>
                                 </table>
                             </td>
@@ -1394,10 +1408,10 @@
                     $optionFirstTotalChild = 0;
                     $optionFirstTotalInfant = $infantPrice; // Use baby_cot price from tourPrices
                     foreach($allHotels as $hotel) {
-                        $optionFirstTotalSingle += floatval($hotel['first_total']['single'] ?? 0);
-                        $optionFirstTotalDouble += floatval($hotel['first_total']['double'] ?? 0);
-                        $optionFirstTotalTriple += floatval($hotel['first_total']['triple'] ?? 0);
-                        $optionFirstTotalChild += floatval($hotel['first_total']['child'] ?? 0);
+                        $optionFirstTotalSingle += floatval($hotel['first_total']['single'] ?? 0) * $exchangeRate;
+                        $optionFirstTotalDouble += floatval($hotel['first_total']['double'] ?? 0) * $exchangeRate;
+                        $optionFirstTotalTriple += floatval($hotel['first_total']['triple'] ?? 0) * $exchangeRate;
+                        $optionFirstTotalChild += floatval($hotel['first_total']['child'] ?? 0) * $exchangeRate;
                     }
                 @endphp
                 <tr>
@@ -1405,11 +1419,11 @@
                     <td style="background: #ffffff; padding: 0; border: 1px solid #5a6c7d;">
                         <table style="width: 100%; border-collapse: collapse; margin: 0; padding: 0;">
                             <tr>
-                                <td class="hotel-total-row" style="background-color: #6c7a89; color: #ffffff; font-weight: bold; text-align: center; padding: 8px; border: 1px solid #5a6c7d; width: 20%;">{{ number_format($optionFirstTotalSingle, 2) }}</td>
-                                <td class="hotel-total-row" style="background-color: #6c7a89; color: #ffffff; font-weight: bold; text-align: center; padding: 8px; border: 1px solid #5a6c7d; width: 20%;">{{ number_format($optionFirstTotalDouble, 2) }}</td>
-                                <td class="hotel-total-row" style="background-color: #6c7a89; color: #ffffff; font-weight: bold; text-align: center; padding: 8px; border: 1px solid #5a6c7d; width: 20%;">{{ ($optionFirstTotalTriple > 0) ? number_format($optionFirstTotalTriple, 2) : 'N/A' }}</td>
-                                <td class="hotel-total-row" style="background-color: #6c7a89; color: #ffffff; font-weight: bold; text-align: center; padding: 8px; border: 1px solid #5a6c7d; width: 20%;">{{ number_format($optionFirstTotalChild, 2) }}</td>
-                                <td class="hotel-total-row" style="background-color: #6c7a89; color: #ffffff; font-weight: bold; text-align: center; padding: 8px; border: 1px solid #5a6c7d; width: 20%;">{{ number_format($optionFirstTotalInfant, 2) }}</td>
+                                <td class="hotel-total-row" style="background-color: #6c7a89; color: #ffffff; font-weight: bold; text-align: center; padding: 8px; border: 1px solid #5a6c7d; width: 20%;">{{ number_format(ceil($optionFirstTotalSingle), 0) }}</td>
+                                <td class="hotel-total-row" style="background-color: #6c7a89; color: #ffffff; font-weight: bold; text-align: center; padding: 8px; border: 1px solid #5a6c7d; width: 20%;">{{ number_format(ceil($optionFirstTotalDouble), 0) }}</td>
+                                <td class="hotel-total-row" style="background-color: #6c7a89; color: #ffffff; font-weight: bold; text-align: center; padding: 8px; border: 1px solid #5a6c7d; width: 20%;">{{ ($optionFirstTotalTriple > 0) ? number_format(ceil($optionFirstTotalTriple), 0) : 'N/A' }}</td>
+                                <td class="hotel-total-row" style="background-color: #6c7a89; color: #ffffff; font-weight: bold; text-align: center; padding: 8px; border: 1px solid #5a6c7d; width: 20%;">{{ number_format(ceil($optionFirstTotalChild), 0) }}</td>
+                                <td class="hotel-total-row" style="background-color: #6c7a89; color: #ffffff; font-weight: bold; text-align: center; padding: 8px; border: 1px solid #5a6c7d; width: 20%;">{{ number_format(ceil($optionFirstTotalInfant), 0) }}</td>
                             </tr>
                         </table>
                     </td>
@@ -1449,11 +1463,11 @@
                     <td style="background: #ffffff; padding: 0; border: 1px solid #90a0b0;">
                         <table style="width: 100%; border-collapse: collapse; margin: 0; padding: 0;">
                             <tr>
-                                <td class="hotel-supplemental-cell" style="background-color: #a0aec0; color: #2c3e50; font-weight: bold; text-align: center; padding: 6px 8px; border: 1px solid #90a0b0; width: 20%;">{{ number_format($optionSupplementalSingle, 2) }}</td>
-                                <td class="hotel-supplemental-cell" style="background-color: #a0aec0; color: #2c3e50; font-weight: bold; text-align: center; padding: 6px 8px; border: 1px solid #90a0b0; width: 20%;">{{ number_format($optionSupplementalDouble, 2) }}</td>
-                                <td class="hotel-supplemental-cell" style="background-color: #a0aec0; color: #2c3e50; font-weight: bold; text-align: center; padding: 6px 8px; border: 1px solid #90a0b0; width: 20%;">{{ ($optionSupplementalTriple > 0) ? number_format($optionSupplementalTriple, 2) : 'N/A' }}</td>
-                                <td class="hotel-supplemental-cell" style="background-color: #a0aec0; color: #2c3e50; font-weight: bold; text-align: center; padding: 6px 8px; border: 1px solid #90a0b0; width: 20%;">{{ number_format($optionSupplementalChild, 2) }}</td>
-                                <td class="hotel-supplemental-cell" style="background-color: #a0aec0; color: #2c3e50; font-weight: bold; text-align: center; padding: 6px 8px; border: 1px solid #90a0b0; width: 20%;">{{ number_format($optionSupplementalInfant, 2) }}</td>
+                                <td class="hotel-supplemental-cell" style="background-color: #a0aec0; color: #2c3e50; font-weight: bold; text-align: center; padding: 6px 8px; border: 1px solid #90a0b0; width: 20%;">{{ number_format(ceil($optionSupplementalSingle), 0) }}</td>
+                                <td class="hotel-supplemental-cell" style="background-color: #a0aec0; color: #2c3e50; font-weight: bold; text-align: center; padding: 6px 8px; border: 1px solid #90a0b0; width: 20%;">{{ number_format(ceil($optionSupplementalDouble), 0) }}</td>
+                                <td class="hotel-supplemental-cell" style="background-color: #a0aec0; color: #2c3e50; font-weight: bold; text-align: center; padding: 6px 8px; border: 1px solid #90a0b0; width: 20%;">{{ ($optionSupplementalTriple > 0) ? number_format(ceil($optionSupplementalTriple), 0) : 'N/A' }}</td>
+                                <td class="hotel-supplemental-cell" style="background-color: #a0aec0; color: #2c3e50; font-weight: bold; text-align: center; padding: 6px 8px; border: 1px solid #90a0b0; width: 20%;">{{ number_format(ceil($optionSupplementalChild), 0) }}</td>
+                                <td class="hotel-supplemental-cell" style="background-color: #a0aec0; color: #2c3e50; font-weight: bold; text-align: center; padding: 6px 8px; border: 1px solid #90a0b0; width: 20%;">{{ number_format(ceil($optionSupplementalInfant), 0) }}</td>
                             </tr>
                         </table>
                     </td>
@@ -1471,11 +1485,11 @@
                     <td style="background: #ffffff; padding: 0; border: 1px solid #5a6c7d;">
                         <table style="width: 100%; border-collapse: collapse; margin: 0; padding: 0;">
                             <tr>
-                                <td class="hotel-total-row" style="background-color: #6c7a89; color: #ffffff; font-weight: bold; text-align: center; padding: 8px; border: 1px solid #5a6c7d; width: 20%;">{{ number_format($optionFinalTotalSingle, 2) }}</td>
-                                <td class="hotel-total-row" style="background-color: #6c7a89; color: #ffffff; font-weight: bold; text-align: center; padding: 8px; border: 1px solid #5a6c7d; width: 20%;">{{ number_format($optionFinalTotalDouble, 2) }}</td>
-                                <td class="hotel-total-row" style="background-color: #6c7a89; color: #ffffff; font-weight: bold; text-align: center; padding: 8px; border: 1px solid #5a6c7d; width: 20%;">{{ ($optionFinalTotalTriple > 0) ? number_format($optionFinalTotalTriple, 2) : 'N/A' }}</td>
-                                <td class="hotel-total-row" style="background-color: #6c7a89; color: #ffffff; font-weight: bold; text-align: center; padding: 8px; border: 1px solid #5a6c7d; width: 20%;">{{ number_format($optionFinalTotalChild, 2) }}</td>
-                                <td class="hotel-total-row" style="background-color: #6c7a89; color: #ffffff; font-weight: bold; text-align: center; padding: 8px; border: 1px solid #5a6c7d; width: 20%;">{{ number_format($optionFinalTotalInfant, 2) }}</td>
+                                <td class="hotel-total-row" style="background-color: #6c7a89; color: #ffffff; font-weight: bold; text-align: center; padding: 8px; border: 1px solid #5a6c7d; width: 20%;">{{ number_format(ceil($optionFinalTotalSingle), 0) }}</td>
+                                <td class="hotel-total-row" style="background-color: #6c7a89; color: #ffffff; font-weight: bold; text-align: center; padding: 8px; border: 1px solid #5a6c7d; width: 20%;">{{ number_format(ceil($optionFinalTotalDouble), 0) }}</td>
+                                <td class="hotel-total-row" style="background-color: #6c7a89; color: #ffffff; font-weight: bold; text-align: center; padding: 8px; border: 1px solid #5a6c7d; width: 20%;">{{ ($optionFinalTotalTriple > 0) ? number_format(ceil($optionFinalTotalTriple), 0) : 'N/A' }}</td>
+                                <td class="hotel-total-row" style="background-color: #6c7a89; color: #ffffff; font-weight: bold; text-align: center; padding: 8px; border: 1px solid #5a6c7d; width: 20%;">{{ number_format(ceil($optionFinalTotalChild), 0) }}</td>
+                                <td class="hotel-total-row" style="background-color: #6c7a89; color: #ffffff; font-weight: bold; text-align: center; padding: 8px; border: 1px solid #5a6c7d; width: 20%;">{{ number_format(ceil($optionFinalTotalInfant), 0) }}</td>
                             </tr>
                         </table>
                     </td>
@@ -1576,12 +1590,12 @@
                                 </th>
                             </tr>
                             <tr style="page-break-inside: avoid;">
-                                <th style="width: 16.67%;">Port Name :</th>
-                                <th style="width: 16.67%;">Transfer Type :</th>
-                                <th style="width: 16.67%;">Vehicle Type / Seater :</th>
-                                <th style="width: 16.67%;">Vehicle No :</th>
-                                <th style="width: 16.67%;">Vehicle Brand :</th>
-                                <th style="width: 16.67%;">Max Passenger capacity with luggage :</th>
+                                <th style="width: 16.67%;">Port Name</th>
+                                <th style="width: 16.67%;">Transfer Type</th>
+                                <th style="width: 16.67%;">Vehicle Type / Seater</th>
+                                <th style="width: 16.67%;">Vehicle No</th>
+                                <th style="width: 16.67%;">Vehicle Brand</th>
+                                <th style="width: 16.67%;">Max Passenger capacity with luggage</th>
                             </tr>
                         </thead>
                         <tbody>
@@ -1600,8 +1614,8 @@
                     <table style="width: 100%; border-collapse: collapse; margin: 0 0 10px 0; page-break-inside: auto;">
                         <thead>
                             <tr style="page-break-inside: avoid;">
-                                <th style="width: 16.67%;">Max Luggage capacity :</th>
-                                <th style="width: 16.67%;">Max Passenger Capacity without luggage :</th>
+                                <th style="width: 16.67%;">Max Luggage capacity</th>
+                                <th style="width: 16.67%;">Max Passenger Capacity without luggage</th>
                                 <th colspan="4" style="background-color: #ffffff;"></th>
                             </tr>
                         </thead>
@@ -1623,12 +1637,12 @@
                                 </th>
                             </tr>
                             <tr style="page-break-inside: avoid;">
-                                <th style="width: 16.67%;">Flight Name :</th>
-                                <th style="width: 16.67%;">Flight No. :</th>
-                                <th style="width: 16.67%;">Origin Departure Time :</th>
-                                <th style="width: 16.67%;">Origin Departure Terminal :</th>
-                                <th style="width: 16.67%;">Destination Arrival Time :</th>
-                                <th style="width: 16.67%;">Destination Arrival Terminal :</th>
+                                <th style="width: 16.67%;">Flight Name</th>
+                                <th style="width: 16.67%;">Flight No</th>
+                                <th style="width: 16.67%;">Origin Departure Time</th>
+                                <th style="width: 16.67%;">Origin Departure Terminal</th>
+                                <th style="width: 16.67%;">Destination Arrival Time</th>
+                                <th style="width: 16.67%;">Destination Arrival Terminal</th>
                             </tr>
                         </thead>
                         <tbody>
@@ -1704,12 +1718,12 @@
                                 </th>
                             </tr>
                             <tr style="page-break-inside: avoid;">
-                                <th style="width: 16.67%;">Port Name :</th>
-                                <th style="width: 16.67%;">Transfer Type :</th>
-                                <th style="width: 16.67%;">Vehicle Type / Seater :</th>
-                                <th style="width: 16.67%;">Vehicle No :</th>
-                                <th style="width: 16.67%;">Vehicle Brand :</th>
-                                <th style="width: 16.67%;">Max Passenger capacity with luggage :</th>
+                                <th style="width: 16.67%;">Port Name</th>
+                                <th style="width: 16.67%;">Transfer Type</th>
+                                <th style="width: 16.67%;">Vehicle Type / Seater</th>
+                                <th style="width: 16.67%;">Vehicle No</th>
+                                <th style="width: 16.67%;">Vehicle Brand</th>
+                                <th style="width: 16.67%;">Max Passenger capacity with luggage</th>
                             </tr>
                         </thead>
                         <tbody>
@@ -1728,8 +1742,8 @@
                     <table style="width: 100%; border-collapse: collapse; margin: 0 0 10px 0; page-break-inside: auto;">
                         <thead>
                             <tr style="page-break-inside: avoid;">
-                                <th style="width: 16.67%;">Max Luggage capacity :</th>
-                                <th style="width: 16.67%;">Max Passenger Capacity without luggage :</th>
+                                <th style="width: 16.67%;">Max Luggage capacity</th>
+                                <th style="width: 16.67%;">Max Passenger Capacity without luggage</th>
                                 <th colspan="4" style="background-color: #ffffff;"></th>
                             </tr>
                         </thead>
@@ -1751,12 +1765,12 @@
                                 </th>
                             </tr>
                             <tr style="page-break-inside: avoid;">
-                                <th style="width: 16.67%;">Flight Name :</th>
-                                <th style="width: 16.67%;">Flight No. :</th>
-                                <th style="width: 16.67%;">Origin Departure Time :</th>
-                                <th style="width: 16.67%;">Origin Departure Terminal :</th>
-                                <th style="width: 16.67%;">Destination Arrival Time :</th>
-                                <th style="width: 16.67%;">Destination Arrival Terminal :</th>
+                                <th style="width: 16.67%;">Flight Name</th>
+                                <th style="width: 16.67%;">Flight No.</th>
+                                <th style="width: 16.67%;">Origin Departure Time</th>
+                                <th style="width: 16.67%;">Origin Departure Terminal</th>
+                                <th style="width: 16.67%;">Destination Arrival Time</th>
+                                <th style="width: 16.67%;">Destination Arrival Terminal</th>
                             </tr>
                         </thead>
                         <tbody>

@@ -297,36 +297,13 @@ Route::get('/clear', function () {
                 ]);
             });
             
-            Route::get('/tour/{tourId}/download-itinerary', function ($tourId) {
-                try {
-                    // Verify tour exists first
-                    $tour = \App\Models\Tour::where('tour_id', $tourId)->first();
-                    if (!$tour) {
-                        return redirect()->back()->with('error', 'Tour not found.');
-                    }
-                    
-                    // Try to generate PDF, but handle exceptions gracefully
-                    try {
-                        $pdfResponse = CommonHelper::downloadTourPdf($tourId);
-                        if ($pdfResponse) {
-                            return $pdfResponse;
-                        }
-                    } catch (\Exception $e) {
-                        \Log::error('PDF generation error: ' . $e->getMessage(), [
-                            'tour_id' => $tourId,
-                            'trace' => $e->getTraceAsString()
-                        ]);
-                    }
-                    
-                    return redirect()->back()->with('error', 'Unable to generate itinerary PDF.');
-                } catch (\Exception $e) {
-                    \Log::error('PDF route error: ' . $e->getMessage(), [
-                        'tour_id' => $tourId,
-                        'trace' => $e->getTraceAsString()
-                    ]);
-                    return redirect()->back()->with('error', 'Unable to generate itinerary PDF.');
-                }
-            })->name('tour.itinerary.pdf');
+            // Preview page for itinerary with currency selection and download button
+            Route::get('/tour/{tourId}/itinerary-preview', [\App\Http\Controllers\QuotationController::class, 'itineraryPreview'])
+                ->name('tour.itinerary.preview');
+
+            // PDF generation route (used by preview iframe and direct download)
+            Route::get('/tour/{tourId}/download-itinerary', [\App\Http\Controllers\QuotationController::class, 'downloadItinerary'])
+                ->name('tour.itinerary.pdf');
 
             Route::get('/tour/{encryptedTourId}/email-preview', function ($encryptedTourId) {
                 try {
