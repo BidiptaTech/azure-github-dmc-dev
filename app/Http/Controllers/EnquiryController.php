@@ -144,6 +144,13 @@ class EnquiryController extends Controller
         $statusChanged = false;
         
         if($tourStatus == "New Enquiry"){
+            // Track status change New Enquiry -> Prospect
+            \App\Helpers\CommonHelper::appendTourStatusTrackById(
+                (int) $currentEnquiry->tour_id,
+                $tourStatus,
+                "Prospect"
+            );
+
             Tour::where('tour_id', $currentEnquiry->tour_id)->update([
                 'tour_status' => "Prospect",
             ]);
@@ -152,6 +159,13 @@ class EnquiryController extends Controller
             // Refresh the tour object to get updated status
             $tour = Tour::where('tour_id', $currentEnquiry->tour_id)->first();
         }elseif($tourStatus == "Prospect"){
+            // Track status change Prospect -> Tentative
+            \App\Helpers\CommonHelper::appendTourStatusTrackById(
+                (int) $currentEnquiry->tour_id,
+                $tourStatus,
+                "Tentative"
+            );
+
             Tour::where('tour_id', $currentEnquiry->tour_id)->update([
                 'tour_status' => "Tentative",
             ]);

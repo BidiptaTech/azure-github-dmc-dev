@@ -4263,4 +4263,103 @@ class CommonHelper
             'total_nights' => $totalNights,
         ];
     }
+
+    /**
+     * Append a status change record into a tour's track_details JSON column.
+     *
+     * Structure example:
+     * [
+     *   { "from": "New Enquiry", "to": "Prospect",  "date": "2026-01-20 10:15:00" },
+     *   { "from": "Prospect",    "to": "Confirmed", "date": "2026-01-22 14:30:00" }
+     * ]
+     *
+     * Behaviour:
+     * - If no history exists, an initial entry is created for the current status
+     *   (first status is usually "New Enquiry").
+     * - Then the transition (from -> to) is appended with the current time.
+     *
+     * @param \App\Models\Tour      $tour
+     * @param string                $fromStatus
+     * @param string                $toStatus
+     * @param \Carbon\Carbon|string|null $changedAt
+     * @return void
+     */
+    public static function appendTourStatusTrack(\App\Models\Tour $tour, string $fromStatus, string $toStatus, $changedAt = null): void
+    {
+        try {
+            // Do nothing if statuses are the same
+            if (trim($fromStatus) === trim($toStatus)) {
+                return;
+            }
+
+            $changedAt = $changedAt ?? now();
+            $changedAtString = $changedAt instanceof \Carbon\Carbon
+                ? $changedAt->format('Y-m-d H:i:s')
+                : (string) $changedAt;
+
+            $history = [];
+
+            if (!empty($tour->track_details)) {
+                $decoded = json_decode($tour->track_details, true);
+                if (is_array($decoded)) {
+                    $history = $decoded;
+                }
+            }
+
+            // If this is the first time we are tracking, add an initial record
+            if (empty($history)) {
+                $initialDate = $tour->created_at
+                    ? $tour->created_at->format('Y-m-d H:i:s')
+                    : $changedAtString;
+
+                $history[] = [
+                    'from' => null,
+                    'to'   => $fromStatus,
+                    'date' => $initialDate,
+                ];
+            }
+
+            $history[] = [
+                'from' => $fromStatus,
+                'to'   => $toStatus,
+                'date' => $changedAtString,
+            ];
+
+            $tour->track_details = json_encode($history);
+            $tour->save();
+        } catch (\Throwable $e) {
+            // Never break main flow because of tracking
+            \Log::error('Failed to append tour status track', [
+                'tour_id' => $tour->tour_id ?? null,
+                'from'    => $fromStatus,
+                'to'      => $toStatus,
+                'message' => $e->getMessage(),
+            ]);
+        }
+    }
+
+    /**
+     * Convenience wrapper: load tour by ID and append status track.
+     *
+     * @param int                   $tourId
+     * @param string                $fromStatus
+     * @param string                $toStatus
+     * @param \Carbon\Carbon|string|null $changedAt
+     * @return void
+     */
+    public static function appendTourStatusTrackById(int $tourId, string $fromStatus, string $toStatus, $changedAt = null): void
+    {
+        $tour = \App\Models\Tour::where('tour_id', $tourId)->first();
+
+        if (!$tour) {
+            \Log::warning('appendTourStatusTrackById: tour not found', [
+                'tour_id' => $tourId,
+                'from'    => $fromStatus,
+                'to'      => $toStatus,
+            ]);
+            return;
+        }
+
+        self::appendTourStatusTrack($tour, $fromStatus, $toStatus, $changedAt);
+    }
 }
