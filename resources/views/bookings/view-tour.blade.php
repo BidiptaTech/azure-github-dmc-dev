@@ -3,7 +3,7 @@
 @extends('layouts.datatablecss')
 
 @section('content')
-<div class="container-xxl flex-grow-1 container-p-y">
+<div class="container-xxl flex-grow-1 container-p-y tour-details-compact">
     <!-- Header -->
     <div class="d-flex justify-content-between align-items-center mb-4">
         <div>
@@ -35,7 +35,18 @@
             <div class="card mb-4">
                 <div class="card-header d-flex justify-content-between align-items-center">
                     <h5 class="mb-0">Tour Overview</h5>
-                    <span class="badge bg-{{ $tour->tour_status == 'Actual' ? 'success' : ($tour->tour_status == 'Confirmed' ? 'primary' : ($tour->tour_status == 'Definite' ? 'info' : 'warning')) }} fs-6">
+                    @php
+                        $overviewStatusClass = match($tour->tour_status) {
+                            'Actual' => 'success',
+                            'Confirmed' => 'primary',
+                            'Definite' => 'info',
+                            'Prospect', 'Tentative' => 'warning',
+                            'Refunded', 'Refund - Pending' => 'olive',
+                            'Cancelled' => 'danger',
+                            default => 'secondary'
+                        };
+                    @endphp
+                    <span class="badge bg-{{ $overviewStatusClass }} fs-6">
                         {{ $tour->tour_status }}
                     </span>
                 </div>
@@ -73,7 +84,7 @@
                                 <tr>
                                     <td><strong>Status:</strong></td>
                                     <td>
-                                        <span class="badge bg-{{ $tour->tour_status == 'Actual' ? 'success' : ($tour->tour_status == 'Confirmed' ? 'primary' : ($tour->tour_status == 'Definite' ? 'info' : 'warning')) }}">
+                                        <span class="badge bg-{{ $overviewStatusClass }}">
                                             {{ $tour->tour_status }}
                                         </span>
                                     </td>
@@ -111,37 +122,54 @@
                     <h5 class="mb-0">Guest Information</h5>
                 </div>
                 <div class="card-body">
-                    <div class="row">
-                        <div class="col-md-4">
-                            <div class="text-center">
+                    @php
+                        $adultCount  = $tour->adult  ?? 0;
+                        $childCount  = $tour->child  ?? 0;
+                        $infantCount = $tour->infant ?? 0;
+                        $totalGuests = $adultCount + $childCount + $infantCount;
+                    @endphp
+                    <div class="row text-center">
+                        <div class="col-md-3 col-6 mb-3">
+                            <div class="guest-summary-item">
                                 <div class="avatar avatar-xl mx-auto mb-2">
                                     <div class="avatar-initial bg-primary rounded-circle">
                                         <i class="ri-user-line ri-24px"></i>
                                     </div>
                                 </div>
-                                <h5 class="mb-1">{{ $tour->adult ?? 0 }}</h5>
+                                <h5 class="mb-1">{{ $adultCount }}</h5>
                                 <p class="text-muted mb-0">Adults</p>
                             </div>
                         </div>
-                        <div class="col-md-4">
-                            <div class="text-center">
+                        <div class="col-md-3 col-6 mb-3">
+                            <div class="guest-summary-item">
                                 <div class="avatar avatar-xl mx-auto mb-2">
                                     <div class="avatar-initial bg-warning rounded-circle">
                                         <i class="ri-user-smile-line ri-24px"></i>
                                     </div>
                                 </div>
-                                <h5 class="mb-1">{{ $tour->child ?? 0 }}</h5>
+                                <h5 class="mb-1">{{ $childCount }}</h5>
                                 <p class="text-muted mb-0">Children</p>
                             </div>
                         </div>
-                        <div class="col-md-4">
-                            <div class="text-center">
+                        <div class="col-md-3 col-6 mb-3">
+                            <div class="guest-summary-item">
+                                <div class="avatar avatar-xl mx-auto mb-2">
+                                    <div class="avatar-initial bg-success rounded-circle">
+                                        <i class="ri-bear-smile-line ri-24px"></i>
+                                    </div>
+                                </div>
+                                <h5 class="mb-1">{{ $infantCount }}</h5>
+                                <p class="text-muted mb-0">Infants</p>
+                            </div>
+                        </div>
+                        <div class="col-md-3 col-6 mb-3">
+                            <div class="guest-summary-item">
                                 <div class="avatar avatar-xl mx-auto mb-2">
                                     <div class="avatar-initial bg-info rounded-circle">
                                         <i class="ri-group-line ri-24px"></i>
                                     </div>
                                 </div>
-                                <h5 class="mb-1">{{ ($tour->adult ?? 0) + ($tour->child ?? 0) }}</h5>
+                                <h5 class="mb-1">{{ $totalGuests }}</h5>
                                 <p class="text-muted mb-0">Total Guests</p>
                             </div>
                         </div>
@@ -229,63 +257,127 @@
             </div>
             @endif
 
-            <!-- Timeline -->
-            <div class="card">
-                <div class="card-header">
-                    <h5 class="mb-0">Tour Timeline</h5>
+            <!-- Tour Timeline -->
+            <div class="card timeline-card shadow-sm">
+                <div class="card-header border-0 pb-0">
+                    <div class="d-flex align-items-center">
+                        <div class="timeline-header-icon">
+                            <i class="ri-calendar-line"></i>
+                        </div>
+                        <div class="ms-3">
+                            <h5 class="mb-0 fw-semibold">Tour Timeline</h5>
+                            <small class="text-muted">Key dates for this booking</small>
+                        </div>
+                    </div>
                 </div>
-                <div class="card-body">
-                    <div class="timeline">
-                        <div class="timeline-item">
-                            <div class="timeline-marker bg-primary"></div>
-                            <div class="timeline-content">
-                                <h6 class="mb-1">Tour Created</h6>
-                                <p class="text-muted mb-0">{{ $tour->created_at->format('D, M d, Y h:i A') }}</p>
-                                <small class="text-muted">{{ $tour->created_at->diffForHumans() }}</small>
+                <div class="card-body pt-4">
+                    <div class="modern-timeline">
+                        <!-- Tour Created -->
+                        <div class="timeline-event">
+                            <div class="timeline-badge bg-primary">
+                                <i class="ri-add-circle-line"></i>
+                            </div>
+                            <div class="timeline-panel">
+                                <div class="timeline-heading">
+                                    <h6 class="timeline-title mb-1">Tour Created</h6>
+                                </div>
+                                <div class="timeline-body">
+                                    <p class="mb-1 text-muted">
+                                        <i class="ri-calendar-event-line me-1"></i>
+                                        {{ $tour->created_at->format('D, M d, Y') }}
+                                    </p>
+                                    <p class="mb-0">
+                                        <i class="ri-time-line me-1 text-muted"></i>
+                                        <span class="text-muted">{{ $tour->created_at->format('h:i A') }}</span>
+                                        <span class="badge bg-label-secondary ms-2">{{ $tour->created_at->diffForHumans() }}</span>
+                                    </p>
+                                </div>
                             </div>
                         </div>
                         
+                        <!-- Last Updated -->
                         @if($tour->updated_at != $tour->created_at)
-                        <div class="timeline-item">
-                            <div class="timeline-marker bg-warning"></div>
-                            <div class="timeline-content">
-                                <h6 class="mb-1">Last Updated</h6>
-                                <p class="text-muted mb-0">{{ $tour->updated_at->format('D, M d, Y h:i A') }}</p>
-                                <small class="text-muted">{{ $tour->updated_at->diffForHumans() }}</small>
+                        <div class="timeline-event">
+                            <div class="timeline-badge bg-warning">
+                                <i class="ri-edit-line"></i>
+                            </div>
+                            <div class="timeline-panel">
+                                <div class="timeline-heading">
+                                    <h6 class="timeline-title mb-1">Last Updated</h6>
+                                </div>
+                                <div class="timeline-body">
+                                    <p class="mb-1 text-muted">
+                                        <i class="ri-calendar-event-line me-1"></i>
+                                        {{ $tour->updated_at->format('D, M d, Y') }}
+                                    </p>
+                                    <p class="mb-0">
+                                        <i class="ri-time-line me-1 text-muted"></i>
+                                        <span class="text-muted">{{ $tour->updated_at->format('h:i A') }}</span>
+                                        <span class="badge bg-label-warning ms-2">{{ $tour->updated_at->diffForHumans() }}</span>
+                                    </p>
+                                </div>
                             </div>
                         </div>
                         @endif
                         
+                        <!-- Tour Start Date -->
                         @if($tour->check_in_time)
-                        <div class="timeline-item">
-                            <div class="timeline-marker bg-{{ \Carbon\Carbon::parse($tour->check_in_time)->isPast() ? 'success' : 'info' }}"></div>
-                            <div class="timeline-content">
-                                <h6 class="mb-1">{{ \Carbon\Carbon::parse($tour->check_in_time)->isPast() ? 'Tour Started' : 'Tour Start Date' }}</h6>
-                                <p class="text-muted mb-0">{{ \Carbon\Carbon::parse($tour->check_in_time)->format('D, M d, Y h:i A') }}</p>
-                                <small class="text-muted">
-                                    @if(\Carbon\Carbon::parse($tour->check_in_time)->isPast())
-                                        Started {{ \Carbon\Carbon::parse($tour->check_in_time)->diffForHumans() }}
-                                    @else
-                                        Starts {{ \Carbon\Carbon::parse($tour->check_in_time)->diffForHumans() }}
-                                    @endif
-                                </small>
+                        @php
+                            $checkInTime = \Carbon\Carbon::parse($tour->check_in_time);
+                            $isStarted = $checkInTime->isPast();
+                        @endphp
+                        <div class="timeline-event">
+                            <div class="timeline-badge bg-{{ $isStarted ? 'success' : 'info' }}">
+                                <i class="ri-flight-takeoff-line"></i>
+                            </div>
+                            <div class="timeline-panel">
+                                <div class="timeline-heading">
+                                    <h6 class="timeline-title mb-1">{{ $isStarted ? 'Tour Started' : 'Tour Start Date' }}</h6>
+                                </div>
+                                <div class="timeline-body">
+                                    <p class="mb-1 text-muted">
+                                        <i class="ri-calendar-event-line me-1"></i>
+                                        {{ $checkInTime->format('D, M d, Y') }}
+                                    </p>
+                                    <p class="mb-0">
+                                        <i class="ri-time-line me-1 text-muted"></i>
+                                        <span class="text-muted">{{ $checkInTime->format('h:i A') }}</span>
+                                        <span class="badge bg-label-{{ $isStarted ? 'success' : 'info' }} ms-2">
+                                            {{ $isStarted ? 'Started ' : 'Starts ' }}{{ $checkInTime->diffForHumans() }}
+                                        </span>
+                                    </p>
+                                </div>
                             </div>
                         </div>
                         @endif
                         
+                        <!-- Tour End Date -->
                         @if($tour->check_out_time)
-                        <div class="timeline-item">
-                            <div class="timeline-marker bg-{{ \Carbon\Carbon::parse($tour->check_out_time)->isPast() ? 'success' : 'secondary' }}"></div>
-                            <div class="timeline-content">
-                                <h6 class="mb-1">{{ \Carbon\Carbon::parse($tour->check_out_time)->isPast() ? 'Tour Completed' : 'Tour End Date' }}</h6>
-                                <p class="text-muted mb-0">{{ \Carbon\Carbon::parse($tour->check_out_time)->format('D, M d, Y h:i A') }}</p>
-                                <small class="text-muted">
-                                    @if(\Carbon\Carbon::parse($tour->check_out_time)->isPast())
-                                        Completed {{ \Carbon\Carbon::parse($tour->check_out_time)->diffForHumans() }}
-                                    @else
-                                        Ends {{ \Carbon\Carbon::parse($tour->check_out_time)->diffForHumans() }}
-                                    @endif
-                                </small>
+                        @php
+                            $checkOutTime = \Carbon\Carbon::parse($tour->check_out_time);
+                            $isCompleted = $checkOutTime->isPast();
+                        @endphp
+                        <div class="timeline-event">
+                            <div class="timeline-badge bg-{{ $isCompleted ? 'success' : 'secondary' }}">
+                                <i class="ri-flag-line"></i>
+                            </div>
+                            <div class="timeline-panel">
+                                <div class="timeline-heading">
+                                    <h6 class="timeline-title mb-1">{{ $isCompleted ? 'Tour Completed' : 'Tour End Date' }}</h6>
+                                </div>
+                                <div class="timeline-body">
+                                    <p class="mb-1 text-muted">
+                                        <i class="ri-calendar-event-line me-1"></i>
+                                        {{ $checkOutTime->format('D, M d, Y') }}
+                                    </p>
+                                    <p class="mb-0">
+                                        <i class="ri-time-line me-1 text-muted"></i>
+                                        <span class="text-muted">{{ $checkOutTime->format('h:i A') }}</span>
+                                        <span class="badge bg-label-{{ $isCompleted ? 'success' : 'secondary' }} ms-2">
+                                            {{ $isCompleted ? 'Ended ' : 'Ends ' }}{{ $checkOutTime->diffForHumans() }}
+                                        </span>
+                                    </p>
+                                </div>
                             </div>
                         </div>
                         @endif
@@ -386,8 +478,21 @@
                     <hr>
                     <div class="row text-center">
                         <div class="col-12">
-                            <h4 class="text-info">{{ ($tour->adult ?? 0) + ($tour->child ?? 0) }}</h4>
-                            <small class="text-muted">Total Guests</small>
+                            @php
+                                $adultCountStats  = $tour->adult  ?? 0;
+                                $childCountStats  = $tour->child  ?? 0;
+                                $infantCountStats = $tour->infant ?? 0;
+                                $totalGuestsStats = $adultCountStats + $childCountStats + $infantCountStats;
+                            @endphp
+                            <h4 class="text-info">{{ $totalGuestsStats }}</h4>
+                            <small class="text-muted">
+                                Total Guests 
+                                <span class="d-block mt-1">
+                                    <span class="badge bg-label-primary me-1">A: {{ $adultCountStats }}</span>
+                                    <span class="badge bg-label-warning me-1">C: {{ $childCountStats }}</span>
+                                    <span class="badge bg-label-success">I: {{ $infantCountStats }}</span>
+                                </span>
+                            </small>
                         </div>
                     </div>
                     
@@ -407,28 +512,175 @@
             </div>
 
             <!-- Status History -->
-            <div class="card">
-                <div class="card-header">
-                    <h5 class="mb-0">Status History</h5>
-                </div>
-                <div class="card-body">
-                    <div class="timeline timeline-sm">
-                        <div class="timeline-item">
-                            <div class="timeline-marker bg-primary"></div>
-                            <div class="timeline-content">
-                                <h6 class="mb-1">Current Status</h6>
-                                <span class="badge bg-{{ $tour->tour_status == 'Actual' ? 'success' : ($tour->tour_status == 'Confirmed' ? 'primary' : ($tour->tour_status == 'Definite' ? 'info' : 'warning')) }}">
-                                    {{ $tour->tour_status }}
-                                </span>
-                                <div><small class="text-muted">Since {{ $tour->updated_at->format('D, M d, Y') }}</small></div>
+            <div class="card timeline-card shadow-sm">
+                <div class="card-header border-0 pb-0">
+                    <div class="d-flex justify-content-between align-items-start w-100">
+                        <div class="d-flex align-items-center">
+                            <div class="timeline-header-icon">
+                                <i class="ri-history-line"></i>
+                            </div>
+                            <div class="ms-3">
+                                <h5 class="mb-0 fw-semibold">Status History</h5>
+                                <small class="text-muted">Full lifecycle of this tour</small>
+                            </div>
+                        </div>
+                        <div class="text-end">
+                            @php
+                                $statusBadgeClass = match($tour->tour_status) {
+                                    'Actual' => 'success',
+                                    'Confirmed' => 'primary',
+                                    'Definite' => 'info',
+                                    'Prospect', 'Tentative' => 'warning',
+                                    'Refunded', 'Refund - Pending' => 'olive',
+                                    'Cancelled' => 'danger',
+                                    default => 'secondary'
+                                };
+                            @endphp
+                            <span class="badge bg-{{ $statusBadgeClass }} mb-1">{{ $tour->tour_status }}</span>
+                            <div>
+                                <small class="text-muted d-block">Updated {{ $tour->updated_at->format('M d, Y') }}</small>
                             </div>
                         </div>
                     </div>
-                    {{-- <div class="text-center mt-3">
-                        <button class="btn btn-sm btn-outline-secondary" onclick="viewFullHistory()">
-                            <i class="ri-history-line me-1"></i> View Full History
-                        </button>
-                    </div> --}}
+                </div>
+                <div class="card-body pt-4">
+                    @php
+                        $trackDetails = [];
+                        if (!empty($tour->track_details)) {
+                            $decoded = is_array($tour->track_details)
+                                ? $tour->track_details
+                                : json_decode($tour->track_details, true);
+                            if (is_array($decoded)) {
+                                $trackDetails = $decoded;
+                            }
+                        }
+
+                        // Sort by date ascending
+                        if (!empty($trackDetails)) {
+                            usort($trackDetails, function ($a, $b) {
+                                $ad = $a['date'] ?? null;
+                                $bd = $b['date'] ?? null;
+                                if ($ad === $bd) return 0;
+                                if (!$ad) return -1;
+                                if (!$bd) return 1;
+                                return strtotime($ad) <=> strtotime($bd);
+                            });
+                        }
+
+                        // Helper functions
+                        function getStatusColor($status) {
+                            return match(true) {
+                                str_contains($status, 'Actual') => 'success',
+                                str_contains($status, 'Confirmed') => 'primary',
+                                str_contains($status, 'Definite') => 'info',
+                                str_contains($status, 'Prospect') || str_contains($status, 'Tentative') => 'warning',
+                                str_contains($status, 'Refund') => 'olive',
+                                str_contains($status, 'Cancel') => 'danger',
+                                default => 'secondary'
+                            };
+                        }
+
+                        function getStatusIcon($status) {
+                            return match(true) {
+                                str_contains($status, 'Actual') => 'ri-check-double-line',
+                                str_contains($status, 'Confirmed') => 'ri-checkbox-circle-line',
+                                str_contains($status, 'Definite') => 'ri-checkbox-line',
+                                str_contains($status, 'Prospect') || str_contains($status, 'Tentative') => 'ri-question-line',
+                                str_contains($status, 'Cancel') => 'ri-close-circle-line',
+                                str_contains($status, 'Refund') => 'ri-refund-line',
+                                default => 'ri-record-circle-line'
+                            };
+                        }
+                    @endphp
+
+                    <div class="modern-timeline">
+                        <!-- Initial Tour Created -->
+                        <div class="timeline-event">
+                            <div class="timeline-badge bg-secondary">
+                                <i class="ri-add-circle-line"></i>
+                            </div>
+                            <div class="timeline-panel">
+                                <div class="timeline-heading">
+                                    <h6 class="timeline-title mb-1">Tour Created</h6>
+                                </div>
+                                <div class="timeline-body">
+                                    <p class="mb-1 text-muted">
+                                        <i class="ri-calendar-event-line me-1"></i>
+                                        {{ $tour->created_at->format('D, M d, Y') }}
+                                    </p>
+                                    <p class="mb-0">
+                                        <i class="ri-time-line me-1 text-muted"></i>
+                                        <span class="text-muted">{{ $tour->created_at->format('h:i A') }}</span>
+                                        <span class="badge bg-label-secondary ms-2">{{ $tour->created_at->diffForHumans() }}</span>
+                                    </p>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Status Changes from track_details -->
+                        @if(!empty($trackDetails))
+                            @foreach($trackDetails as $item)
+                                @php
+                                    $from = $item['from'] ?? null;
+                                    $to = $item['to'] ?? null;
+                                    $dateString = $item['date'] ?? null;
+                                    $date = $dateString ? \Carbon\Carbon::parse($dateString) : null;
+                                    $statusLabel = $to ?? $from ?? 'Status Change';
+                                    $color = getStatusColor($statusLabel);
+                                    $icon = getStatusIcon($statusLabel);
+                                @endphp
+                                <div class="timeline-event">
+                                    <div class="timeline-badge bg-{{ $color }}">
+                                        <i class="{{ $icon }}"></i>
+                                    </div>
+                                    <div class="timeline-panel">
+                                        <div class="timeline-heading">
+                                            <h6 class="timeline-title mb-1">
+                                                @if(empty($from))
+                                                    <span class="badge bg-label-{{ $color }}">{{ $to }}</span>
+                                                @else
+                                                    <span class="text-muted">{{ $from }}</span>
+                                                    <i class="ri-arrow-right-line mx-1"></i>
+                                                    <span class="badge bg-label-{{ $color }}">{{ $to }}</span>
+                                                @endif
+                                            </h6>
+                                        </div>
+                                        @if($date)
+                                        <div class="timeline-body">
+                                            <p class="mb-1 text-muted">
+                                                <i class="ri-calendar-event-line me-1"></i>
+                                                {{ $date->format('D, M d, Y') }}
+                                            </p>
+                                            <p class="mb-0">
+                                                <i class="ri-time-line me-1 text-muted"></i>
+                                                <span class="text-muted">{{ $date->format('h:i A') }}</span>
+                                                <span class="badge bg-label-{{ $color }} ms-2">{{ $date->diffForHumans() }}</span>
+                                            </p>
+                                        </div>
+                                        @endif
+                                    </div>
+                                </div>
+                            @endforeach
+                        @else
+                            <!-- Fallback if no track history -->
+                            <div class="timeline-event">
+                                <div class="timeline-badge bg-{{ getStatusColor($tour->tour_status) }}">
+                                    <i class="{{ getStatusIcon($tour->tour_status) }}"></i>
+                                </div>
+                                <div class="timeline-panel">
+                                    <div class="timeline-heading">
+                                        <h6 class="timeline-title mb-1">Current Status</h6>
+                                    </div>
+                                    <div class="timeline-body">
+                                        <span class="badge bg-{{ getStatusColor($tour->tour_status) }} mb-2">{{ $tour->tour_status }}</span>
+                                        <p class="mb-0 text-muted">
+                                            <small>Since {{ $tour->updated_at->format('M d, Y') }}</small>
+                                        </p>
+                                    </div>
+                                </div>
+                            </div>
+                        @endif
+                    </div>
                 </div>
             </div>
         </div>
@@ -436,45 +688,331 @@
 </div>
 
 <style>
-.timeline {
-    position: relative;
-    padding-left: 30px;
+/* ============================================
+   MODERN TIMELINE CARD DESIGN
+   ============================================ */
+
+/* Timeline Card */
+.timeline-card {
+    border: none;
+    border-radius: 12px;
+    overflow: hidden;
+    transition: all 0.3s ease;
 }
 
-.timeline::before {
+.timeline-card:hover {
+    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.12) !important;
+    transform: translateY(-2px);
+}
+
+.timeline-card .card-header {
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    padding: 1.25rem 1.5rem;
+}
+
+.timeline-card .card-header h5,
+.timeline-card .card-header small,
+.timeline-card .card-header .text-muted {
+    color: #fff !important;
+}
+
+.timeline-header-icon {
+    width: 48px;
+    height: 48px;
+    background: rgba(255, 255, 255, 0.2);
+    border-radius: 10px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 24px;
+    color: #fff;
+    backdrop-filter: blur(10px);
+}
+
+/* Modern Timeline Container */
+.modern-timeline {
+    position: relative;
+    padding: 0;
+    margin: 0;
+}
+
+/* Vertical Connector Line */
+.modern-timeline::before {
     content: '';
     position: absolute;
-    left: 10px;
-    top: 0;
-    bottom: 0;
+    left: 20px;
+    top: 10px;
+    bottom: 10px;
     width: 2px;
-    background: #e9ecef;
+    background: linear-gradient(180deg, #e9ecef 0%, #dee2e6 100%);
+    z-index: 0;
 }
 
-.timeline-item {
+/* Timeline Event */
+.timeline-event {
     position: relative;
-    margin-bottom: 20px;
+    display: flex;
+    align-items: flex-start;
+    margin-bottom: 1.75rem;
+    padding-left: 0;
 }
 
-.timeline-marker {
-    position: absolute;
-    left: -25px;
-    top: 5px;
-    width: 12px;
-    height: 12px;
+.timeline-event:last-child {
+    margin-bottom: 0;
+}
+
+.timeline-event:last-child .modern-timeline::before {
+    display: none;
+}
+
+/* Timeline Badge (Icon Circle) */
+.timeline-badge {
+    position: relative;
+    width: 40px;
+    height: 40px;
     border-radius: 50%;
-    border: 2px solid #fff;
-    box-shadow: 0 0 0 2px #e9ecef;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 18px;
+    color: #fff;
+    flex-shrink: 0;
+    z-index: 1;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+    transition: all 0.3s ease;
 }
 
-.timeline-sm .timeline-marker {
-    width: 8px;
-    height: 8px;
-    left: -23px;
+.timeline-event:hover .timeline-badge {
+    transform: scale(1.1);
+    box-shadow: 0 6px 16px rgba(0, 0, 0, 0.2);
 }
 
-.timeline-content {
-    padding-left: 10px;
+/* Timeline Panel (Content Area) */
+.timeline-panel {
+    flex: 1;
+    background: #f8f9fa;
+    border-radius: 10px;
+    padding: 1rem 1.25rem;
+    margin-left: 1rem;
+    position: relative;
+    transition: all 0.3s ease;
+    border: 1px solid #e9ecef;
+}
+
+.timeline-event:hover .timeline-panel {
+    background: #fff;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
+    transform: translateX(4px);
+}
+
+/* Arrow pointing to badge */
+.timeline-panel::before {
+    content: '';
+    position: absolute;
+    left: -8px;
+    top: 12px;
+    width: 0;
+    height: 0;
+    border-top: 8px solid transparent;
+    border-bottom: 8px solid transparent;
+    border-right: 8px solid #f8f9fa;
+    transition: border-color 0.3s ease;
+}
+
+.timeline-event:hover .timeline-panel::before {
+    border-right-color: #fff;
+}
+
+/* Timeline Heading */
+.timeline-heading {
+    margin-bottom: 0.5rem;
+}
+
+.timeline-title {
+    font-size: 0.95rem;
+    font-weight: 600;
+    color: #2c3e50;
+    margin: 0;
+    line-height: 1.4;
+}
+
+/* Timeline Body */
+.timeline-body p {
+    font-size: 0.875rem;
+    margin-bottom: 0.35rem;
+    color: #6c757d;
+}
+
+.timeline-body p:last-child {
+    margin-bottom: 0;
+}
+
+.timeline-body i {
+    font-size: 14px;
+    opacity: 0.8;
+}
+
+/* Badge Styles */
+.timeline-body .badge,
+.timeline-heading .badge {
+    font-size: 0.75rem;
+    font-weight: 500;
+    padding: 0.35rem 0.65rem;
+    border-radius: 6px;
+}
+
+/* Guest Info Refinements */
+.guest-summary-item h5 {
+    font-weight: 600;
+    font-size: 1.5rem;
+    color: #2c3e50;
+}
+
+.guest-summary-item p {
+    font-size: 0.875rem;
+    color: #6c757d;
+}
+
+.guest-summary-item .avatar-initial {
+    transition: all 0.3s ease;
+}
+
+.guest-summary-item:hover .avatar-initial {
+    transform: scale(1.05);
+}
+
+/* Responsive Design */
+@media (max-width: 768px) {
+    .timeline-header-icon {
+        width: 40px;
+        height: 40px;
+        font-size: 20px;
+    }
+
+    .timeline-badge {
+        width: 36px;
+        height: 36px;
+        font-size: 16px;
+    }
+
+    .timeline-panel {
+        padding: 0.875rem 1rem;
+        margin-left: 0.75rem;
+    }
+
+    .modern-timeline::before {
+        left: 18px;
+    }
+}
+
+/* Print Styles */
+@media print {
+    .timeline-card {
+        box-shadow: none !important;
+        page-break-inside: avoid;
+    }
+
+    .timeline-event {
+        page-break-inside: avoid;
+    }
+}
+
+/* Smooth Animations */
+.timeline-event {
+    animation: fadeInUp 0.5s ease-out;
+    animation-fill-mode: both;
+}
+
+.timeline-event:nth-child(1) { animation-delay: 0.1s; }
+.timeline-event:nth-child(2) { animation-delay: 0.2s; }
+.timeline-event:nth-child(3) { animation-delay: 0.3s; }
+.timeline-event:nth-child(4) { animation-delay: 0.4s; }
+.timeline-event:nth-child(5) { animation-delay: 0.5s; }
+
+@keyframes fadeInUp {
+    from {
+        opacity: 0;
+        transform: translateY(20px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+/* Status Badge in Header */
+.timeline-card .card-header .badge {
+    font-size: 0.75rem;
+    padding: 0.45rem 0.85rem;
+    font-weight: 600;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
+}
+
+/* Custom Olive Color for Refund Status */
+.bg-olive {
+    background-color: #556b2f !important; /* olive green */
+    color: #fff !important;
+}
+
+.bg-label-olive {
+    background-color: rgba(85, 107, 47, 0.12) !important;
+    color: #556b2f !important;
+    border: 1px solid rgba(85, 107, 47, 0.35);
+}
+
+/* ============================================
+   COMPACT DESKTOP LAYOUT FOR TOUR DETAILS
+   ============================================ */
+
+@media (min-width: 992px) {
+    .tour-details-compact {
+        font-size: 0.9rem;
+    }
+
+    .tour-details-compact h4,
+    .tour-details-compact h5 {
+        font-size: 1rem;
+    }
+
+    .tour-details-compact .card-header {
+        padding: 0.5rem 0.9rem;
+    }
+
+    .tour-details-compact .card-body {
+        padding: 0.75rem 0.9rem;
+    }
+
+    .tour-details-compact .table td,
+    .tour-details-compact .table th {
+        padding: 0.3rem 0.4rem;
+        font-size: 0.85rem;
+    }
+
+    .tour-details-compact .guest-summary-item h5 {
+        font-size: 1.2rem;
+    }
+
+    .tour-details-compact .avatar.avatar-xl {
+        width: 2.5rem;
+        height: 2.5rem;
+    }
+
+    .tour-details-compact .avatar.avatar-xl .avatar-initial i {
+        font-size: 1.1rem;
+    }
+
+    .tour-details-compact .timeline-card .card-header {
+        padding: 0.75rem 1rem;
+    }
+
+    .tour-details-compact .timeline-panel {
+        padding: 0.75rem 0.9rem;
+        margin-left: 0.75rem;
+    }
+
+    .tour-details-compact .timeline-event {
+        margin-bottom: 1.1rem;
+    }
 }
 </style>
 

@@ -800,17 +800,25 @@ class TourController extends Controller
             // Update payment status to verified (1)
             $paymentDetails[$paymentIndex]['status'] = 1;
             
-            // Save updated payment details
+            // Update payment details on the tour model
             $tour->payment_details = json_encode($paymentDetails);
-            $tour->save();
             
             // Only change status from Confirmed to Definite, NOT from Actual
             // Do NOT change status if tour is already in Actual or Definite status
-            if($tour->tour_status == "Confirmed"){
-                Tour::where('tour_id', $tourId)->update([
-                    'tour_status' => "Definite",
-                ]);
+            if ($tour->tour_status === "Confirmed") {
+                // Track status change Confirmed -> Definite in track_details JSON
+                \App\Helpers\CommonHelper::appendTourStatusTrack(
+                    $tour,
+                    $tour->tour_status,
+                    "Definite"
+                );
+
+                // Update in‑memory status; will be persisted with the save below
+                $tour->tour_status = "Definite";
             }
+
+            // Save updated payment details (and possibly updated status)
+            $tour->save();
 
             return response()->json([
                 'success' => true,
