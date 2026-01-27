@@ -1073,7 +1073,7 @@
                                        class="btn btn-outline-primary btn-sm rounded-pill">
                                         <i class="ri-eye-line"></i> Audit Trail
                                     </a>
-                                    <a href="{{ route('tour.itinerary.pdf', ['tourId' => $tour->tour_id]) }}" 
+                                    <a href="{{ route('tour.itinerary.preview', ['encryptedTourId' => Crypt::encrypt($tour->tour_id)]) }}" 
                                        class="btn btn-outline-secondary btn-sm rounded-pill"
                                        target="_blank">
                                         <i class="ri-file-download-line me-1"></i> Download Quotation
