@@ -2576,6 +2576,9 @@ class CommonHelper
         $totalDoubleSharing = 0;
         $totalTripleSharing = 0;
         $totalBabyCot = 0;
+        // Track child-specific pricing component across attraction/restaurant services
+        $totalChildComponent = 0;
+        $totalChildCount = 0;
         
         // Segregated prices by service type
         $segregatedPrices = [
@@ -3076,13 +3079,81 @@ class CommonHelper
                         $totalPriceFloat = floatval($totalPrice);
                         $normalizedType = strtolower($type ?? '');
                         
-                        // Handle attraction and restaurant: adultCount + childCount = total pax, then totalPrice/pax = single pax price
-                        // Both single and double should be the same per-person price
+                        // Handle attraction and restaurant
+                        // Prefer explicit adult/child unit prices when present (from attraction/meals tables),
+                        // otherwise fall back to totalPrice/pax. For restaurants, also fall back to meals table via meal_id.
                         if ($normalizedType === 'attraction' || $normalizedType === 'restaurant') {
                             $adultCount = floatval($item['adultCount'] ?? 0);
                             $childCount = floatval($item['childCount'] ?? 0);
+
+                            // Resolve unit prices from multiple possible locations in the payload
+                            $adultUnitPrice = 0;
+                            $childUnitPrice = 0;
+
+                            if (isset($item['adultPrice'])) {
+                                $adultUnitPrice = floatval($item['adultPrice']);
+                            } elseif (isset($item['adult_price'])) {
+                                $adultUnitPrice = floatval($item['adult_price']);
+                            } elseif (isset($item['ticket_details']['adult_price'])) {
+                                $adultUnitPrice = floatval($item['ticket_details']['adult_price']);
+                            }
+
+                            if (isset($item['childPrice'])) {
+                                $childUnitPrice = floatval($item['childPrice']);
+                            } elseif (isset($item['child_price'])) {
+                                $childUnitPrice = floatval($item['child_price']);
+                            } elseif (isset($item['ticket_details']['child_price'])) {
+                                $childUnitPrice = floatval($item['ticket_details']['child_price']);
+                            }
+
+                            // Extra fallback for RESTAURANTS: if we still don't have unit prices,
+                            // try to fetch them from meals table using MealDescription[0].meal_id.
+                            if ($normalizedType === 'restaurant'
+                            && ($adultUnitPrice <= 0 || $childUnitPrice <= 0)
+                            && !empty($item['MealDescription'][0]['meal_id'])
+                            ) {
+                                try {
+                                    $mealId       = $item['MealDescription'][0]['meal_id'];
+                                    $restaurantId = $item['restaurantId'] ?? null;
+
+                                    $mealQuery = \App\Models\Meal::where('meal_id', $mealId)->first();
+                                    // if ($restaurantId) {
+                                    //     $mealQuery->where('restaurant_id', $restaurantId);
+                                    // }
+                                    // if (!empty($tour->dmc_id)) {
+                                    //     $mealQuery->where('dmc_id', $tour->dmc_id);
+                                    // }
+
+                                    if ($mealQuery) {
+                                        if ($adultUnitPrice <= 0 && $mealQuery->adult_price !== null) {
+                                            $adultUnitPrice = (float) $mealQuery->adult_price;
+                                        }
+                                        if ($childUnitPrice <= 0 && $mealQuery->child_price !== null) {
+                                            $childUnitPrice = (float) $mealQuery->child_price;
+                                        }
+                                    }
+                                } catch (\Throwable $e) {
+                                    \Log::warning('Failed to fetch meal unit prices for restaurant child_sharing', [
+                                        'meal_id'       => $item['MealDescription'][0]['meal_id'] ?? null,
+                                        'restaurant_id' => $item['restaurantId'] ?? null,
+                                        'tour_id'       => $tour->tour_id ?? null,
+                                        'error'         => $e->getMessage(),
+                                    ]);
+                                }
+                            }
+
+                            if (($adultUnitPrice > 0 || $childUnitPrice > 0) && ($adultCount + $childCount) > 0) {
+                                // Rebuild total using adult/child prices from attraction/restaurant tables
+                                $totalPriceFloat = ($adultUnitPrice * $adultCount) + ($childUnitPrice * $childCount);
+
+                                // Track child-specific component for overall child_sharing calculation
+                                if ($childUnitPrice > 0 && $childCount > 0) {
+                                    $totalChildComponent += ($childUnitPrice * $childCount);
+                                    $totalChildCount += $childCount;
+                                }
+                            }
+
                             $pax = $adultCount + $childCount;
-                            
                             if ($pax > 0) {
                                 $singleSharing = $totalPriceFloat / $pax;
                             } else {
@@ -3184,6 +3255,12 @@ class CommonHelper
                 }
             }
         }
+        // Compute effective per-child sharing price (from attraction/restaurant components)
+        $childSharing = 0;
+        if ($totalChildCount > 0 && $totalChildComponent > 0) {
+            $childSharing = $totalChildComponent / $totalChildCount;
+        }
+
         // Round segregated prices and format
         $segregatedPricesRounded = [];
         foreach ($segregatedPrices as $serviceType => $prices) {
@@ -3204,6 +3281,8 @@ class CommonHelper
             'double_sharing' => ceil($totalDoubleSharing),
             'triple_sharing' => ceil($totalTripleSharing),
             'baby_cot_sharing' => ceil($totalBabyCot),
+            // Average per-child price across attraction/restaurant services
+            'child_sharing' => ceil($childSharing),
             'segregated' => $segregatedPricesRounded,
         ];
     }

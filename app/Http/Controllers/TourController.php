@@ -511,6 +511,8 @@ class TourController extends Controller
                     'single_sharing' => $prices['single_sharing'],
                     'double_sharing' => $prices['double_sharing'],
                     'triple_sharing' => $prices['triple_sharing'] ?? 0,
+                    // Effective per-child sharing price built from attraction/restaurant child_price where available
+                    'child_sharing' => $prices['child_sharing'] ?? 0,
                     'supplement' => $prices['single_sharing'] - $prices['double_sharing'],
                     // 'single_sharing_formatted' => '₹' . number_format($prices['single_sharing'], 2),
                     // 'double_sharing_formatted' => '₹' . number_format($prices['double_sharing'], 2),
