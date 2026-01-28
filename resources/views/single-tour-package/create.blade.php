@@ -2153,10 +2153,10 @@
                                 
                                 const timeSlot = document.getElementById(`day${day}_attraction_${index}_time`)?.value || '';
                                 const ticket = document.getElementById(`day${day}_attraction_${index}_ticket`)?.value || '';
-                                const guestSummary = document.getElementById(`day${day}_attraction_${index}_guest_summary`)?.textContent || '';
+                                const guestSummaryEl = document.getElementById(`day${day}_attraction_${index}_guest_summary`);
                                 
-                                // Parse guest info from summary text
-                                const guestInfo = parseGuestSummary(guestSummary);
+                                // Parse guest info from summary badges/HTML so children counts are accurate
+                                const guestInfo = parseGuestSummary(guestSummaryEl?.innerHTML || guestSummaryEl?.textContent || '');
                                 
                                 // Get attraction details from the selected option and fetch dynamic data
                                 const selectedOption = select.options[select.selectedIndex];
@@ -2391,10 +2391,10 @@
                                 
                                 const pickupTime = document.getElementById(`day${day}_guide_${index}_pickup_time`)?.value || '';
                                 const packageType = document.getElementById(`day${day}_guide_${index}_package`)?.value || '';
-                                const guestSummary = document.getElementById(`day${day}_guide_${index}_guest_summary`)?.textContent || '';
+                                const guestSummaryEl = document.getElementById(`day${day}_guide_${index}_guest_summary`);
                                 
-                                // Parse guest info from summary text
-                                const guestInfo = parseGuestSummary(guestSummary);
+                                // Parse guest info from summary badges/HTML
+                                const guestInfo = parseGuestSummary(guestSummaryEl?.innerHTML || guestSummaryEl?.textContent || '');
                                 
                                 // Get guide details from the selected option
                                 const selectedOption = select.options[select.selectedIndex];
@@ -2549,10 +2549,10 @@
                                 
                                 const mealType = document.getElementById(`day${day}_meal_type_${index}`)?.value || '';
                                 const timeSlot = document.getElementById(`day${day}_time_slot_${index}`)?.value || '';
-                                const guestSummary = document.getElementById(`day${day}_restaurant_${index}_guest_summary`)?.textContent || '';
+                                const guestSummaryEl = document.getElementById(`day${day}_restaurant_${index}_guest_summary`);
                                 
-                                // Parse guest info from summary text
-                                const guestInfo = parseGuestSummary(guestSummary);
+                                // Parse guest info from summary badges/HTML
+                                const guestInfo = parseGuestSummary(guestSummaryEl?.innerHTML || guestSummaryEl?.textContent || '');
                                 
                                 // Get restaurant details from the selected option
                                 const selectedOption = select.options[select.selectedIndex];
@@ -15590,7 +15590,7 @@ document.addEventListener('DOMContentLoaded', function() {
             return;
         }
         
-        const guestInfo = parseGuestSummary(guestSummaryElement.textContent);
+        const guestInfo = parseGuestSummary(guestSummaryElement.innerHTML || guestSummaryElement.textContent || '');
         
         if (guestInfo.adults === 0 && guestInfo.children === 0 && guestInfo.seniors === 0) {
             priceDisplay.style.display = 'block';
@@ -17476,12 +17476,10 @@ document.addEventListener('DOMContentLoaded', function() {
             return;
         }
         
-        const guestText = guestSummaryElement.textContent;
-        const adultsMatch = guestText.match(/(\d+)\s+adults/);
-        const childrenMatch = guestText.match(/(\d+)\s+children/);
-        
-        const adults = adultsMatch ? parseInt(adultsMatch[1]) : 0;
-        const children = childrenMatch ? parseInt(childrenMatch[1]) : 0;
+        // Use shared guest summary parser so badge-based children counts are read correctly
+        const guestInfo = parseGuestSummary(guestSummaryElement.innerHTML || guestSummaryElement.textContent || '');
+        const adults = guestInfo.adults || 0;
+        const children = guestInfo.children || 0;
         
         console.log('Guest counts:', { adults, children });
         
@@ -17504,28 +17502,31 @@ document.addEventListener('DOMContentLoaded', function() {
                 pricingDetailsDisplay.innerHTML = pricingHTML;
             }
         } else {
-            // For buffet (type = 1), calculate based on adults and children
-            if (adults > 0 || children > 0) {
-                const adultTotal = adults * adultPrice;
-                const childTotal = children * childPrice;
-                totalPrice = adultTotal + childTotal;
-                
-                priceDisplay.style.display = 'block';
-                if (pricingDetailsDisplay) {
-                    pricingHTML = `
-                        <div><strong>Restaurant Selected: ${selectedRestaurant.text}</strong></div>
-                        <div><strong>Dish: ${selectedDish.text}</strong></div>
-                        ${adults > 0 ? `<div>${adults} Adults × $${adultPrice.toFixed(2)} = $${adultTotal.toFixed(2)}</div>` : ''}
-                        ${children > 0 ? `<div>${children} Children × $${childPrice.toFixed(2)} = $${childTotal.toFixed(2)}</div>` : ''}
-                        <div class="mt-2"><strong class="text-success">$${totalPrice.toFixed(2)}</strong></div>
-                    `;
-                    pricingDetailsDisplay.innerHTML = pricingHTML;
-                }
-            } else {
-                priceDisplay.style.display = 'none';
-                // Update total display even when no pricing
-                updateRestaurantTotalDisplay(day, index);
-                return;
+            // For buffet (type = 1), always show adult_price and child_price
+            // Calculate total only when guests are selected
+            const adultTotal = adults > 0 ? adults * adultPrice : 0;
+            const childTotal = children > 0 ? children * childPrice : 0;
+            totalPrice = adultTotal + childTotal;
+            
+            priceDisplay.style.display = 'block';
+            if (pricingDetailsDisplay) {
+                pricingHTML = `
+                    <div><strong>Restaurant Selected: ${selectedRestaurant.text}</strong></div>
+                    <div><strong>Dish: ${selectedDish.text}</strong></div>
+                    ${adults > 0 || children > 0 ? `
+                        <div class="mt-2 border-top pt-2">
+                            <div><strong>Calculation:</strong></div>
+                            ${adults > 0 ? `<div class="ms-3">${adults} Adults × $${adultPrice.toFixed(2)} = <strong>$${adultTotal.toFixed(2)}</strong></div>` : ''}
+                            ${children > 0 ? `<div class="ms-3">${children} Children × $${childPrice.toFixed(2)} = <strong>$${childTotal.toFixed(2)}</strong></div>` : ''}
+                            <div class="mt-2"><strong class="text-success">Total: $${totalPrice.toFixed(2)}</strong></div>
+                        </div>
+                    ` : `
+                        <div class="mt-2 text-muted" style="font-size: 0.85rem;">
+                            <i class="ri-information-line me-1"></i>Select guests to calculate total price
+                        </div>
+                    `}
+                `;
+                pricingDetailsDisplay.innerHTML = pricingHTML;
             }
         }
         
