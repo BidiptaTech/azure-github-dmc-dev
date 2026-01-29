@@ -487,7 +487,7 @@ class TourController extends Controller
         try {
             $prices = CommonHelper::calculateTourPrices($tourId);
             
-            // Format segregated prices
+            // Format segregated prices (per‑service contribution like hotel/attraction/restaurant, etc.)
             $segregatedFormatted = [];
             if (isset($prices['segregated']) && is_array($prices['segregated'])) {
                 foreach ($prices['segregated'] as $serviceType => $servicePrices) {
@@ -497,9 +497,15 @@ class TourController extends Controller
                         'single_formatted' => '₹' . number_format($servicePrices['single'] ?? 0, 2),
                         'double_formatted' => '₹' . number_format($servicePrices['double'] ?? 0, 2),
                     ];
+
                     if (isset($servicePrices['triple'])) {
                         $segregatedFormatted[$serviceType]['triple'] = $servicePrices['triple'];
                         $segregatedFormatted[$serviceType]['triple_formatted'] = '₹' . number_format($servicePrices['triple'], 2);
+                    }
+
+                    if (isset($servicePrices['baby_cot'])) {
+                        $segregatedFormatted[$serviceType]['baby_cot'] = $servicePrices['baby_cot'];
+                        $segregatedFormatted[$serviceType]['baby_cot_formatted'] = '₹' . number_format($servicePrices['baby_cot'], 2);
                     }
                 }
             }
@@ -517,7 +523,7 @@ class TourController extends Controller
                     // 'single_sharing_formatted' => '₹' . number_format($prices['single_sharing'], 2),
                     // 'double_sharing_formatted' => '₹' . number_format($prices['double_sharing'], 2),
                     // 'triple_sharing_formatted' => '₹' . number_format($prices['triple_sharing'] ?? 0, 2),
-                    // 'segregated' => $segregatedFormatted,
+                    'segregated' => $segregatedFormatted,
                 ]
             ]);
         } catch (\Exception $e) {
