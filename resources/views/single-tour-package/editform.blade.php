@@ -899,7 +899,8 @@
                                     
                                     if (!empty($rooms) && is_array($rooms)) {
                                         $firstRoom = $rooms[0] ?? [];
-                                        $numberOfRooms = count($rooms);
+                                        // Prefer number_of_rooms on room object (same format as Add/Update); fallback to count for legacy data
+                                        $numberOfRooms = isset($firstRoom['number_of_rooms']) ? (int) $firstRoom['number_of_rooms'] : count($rooms);
                                         $roomType = $firstRoom['room_type'] ?? '';
                                         
                                         // Get bed details from first room
@@ -4749,7 +4750,7 @@
                 <button type="button" class="btn" data-bs-dismiss="modal" style="height: 36px; border-radius: 8px; border: 1px solid #dee2e6; background: #ffffff; color: #495057; padding: 0.375rem 1rem; font-weight: 500; font-size: 0.8rem; transition: all 0.2s;">
                     Cancel
                 </button>
-                <button type="button" class="btn text-white" id="proceed_hotel_btn" onclick="proceedWithHotelBooking()" disabled style="height: 36px; border-radius: 8px; background: linear-gradient(135deg, #10b981 0%, #059669 100%); border: none; padding: 0.375rem 1rem; font-weight: 500; font-size: 0.8rem; transition: all 0.2s; box-shadow: 0 2px 6px rgba(16, 185, 129, 0.3);">
+                <button type="button" class="btn text-white" id="proceed_hotel_btn" onclick="proceedToHotelSelection()" disabled style="height: 36px; border-radius: 8px; background: linear-gradient(135deg, #10b981 0%, #059669 100%); border: none; padding: 0.375rem 1rem; font-weight: 500; font-size: 0.8rem; transition: all 0.2s; box-shadow: 0 2px 6px rgba(16, 185, 129, 0.3);">
                     <i class="ri-check-line me-1"></i>Book Hotels
                 </button>
             </div>
@@ -15459,22 +15460,19 @@
         const totalPrice = pricePerNight * numberOfNights * numberOfRooms;
         
         // Update price input if calculated price is valid
+        // Store raw number (no commas) so parseFloat reads full value (e.g. 18000 not 18)
         if (totalPrice > 0) {
-            // Format price with commas and 2 decimal places
+            priceInput.value = totalPrice.toFixed(2);
             const formattedPrice = totalPrice.toLocaleString('en-US', {
                 minimumFractionDigits: 2,
                 maximumFractionDigits: 2
             });
-            priceInput.value = formattedPrice;
-            
-            // Update display element
             const priceDisplay = document.getElementById('total_price_modal_display');
             if (priceDisplay) {
                 priceDisplay.textContent = '$' + formattedPrice;
             }
         } else {
             priceInput.value = '0.00';
-            // Update display element
             const priceDisplay = document.getElementById('total_price_modal_display');
             if (priceDisplay) {
                 priceDisplay.textContent = '$0.00';
@@ -15557,11 +15555,12 @@
         const numberOfRoomsInput = document.getElementById('number_of_rooms_modal');
         const numberOfRooms = numberOfRoomsInput ? parseInt(numberOfRoomsInput.value) || 1 : 1;
         
-        // Get total price from modal (or calculate it)
+        // Get total price from modal (or calculate it) - value must be raw number (no commas)
         const totalPriceInput = document.getElementById('total_price_modal');
         let totalPrice = 0;
         if (totalPriceInput && totalPriceInput.value) {
-            totalPrice = parseFloat(totalPriceInput.value) || 0;
+            const rawValue = String(totalPriceInput.value).replace(/,/g, '');
+            totalPrice = parseFloat(rawValue) || 0;
         }
         
         // If price not set in modal, calculate it
@@ -15612,28 +15611,26 @@
             zip: customer_info.zip,
             specialRequests: customer_info.specialRequests,
             rooms: (() => {
-                // Create array of rooms based on number of rooms
-                const rooms = [];
-                for (let i = 0; i < numberOfRooms; i++) {
-                    rooms.push({
-                        room_id: parseInt(roomId) || 2,
-                        room_type: selectedRoomType,
-                        beds: [
-                            {
-                                bed_id: parseInt(bedId) || 1,
-                                bed_type: selectedBedType,
-                                max_occupancy: parseInt(maxOccupancy) || 1,
-                                mealTypes: [selectedMealPlan.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase())],
-                                selectedMeals: selectedMeals,
-                                head_count: headCount,
-                                price: pricePerNight,
-                                baby_cot: parseInt(bedData.baby_cot) || 0,
-                                room_type: selectedRoomType
-                            }
-                        ]
-                    });
-                }
-                return rooms;
+                // Single room object with number_of_rooms (same format as create/edit)
+                const roomStructure = {
+                    room_id: parseInt(roomId) || 2,
+                    room_type: selectedRoomType,
+                    number_of_rooms: numberOfRooms,
+                    beds: [
+                        {
+                            bed_id: parseInt(bedId) || 1,
+                            bed_type: selectedBedType,
+                            max_occupancy: parseInt(maxOccupancy) || 1,
+                            mealTypes: [selectedMealPlan.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase())],
+                            selectedMeals: selectedMeals,
+                            head_count: headCount,
+                            price: pricePerNight,
+                            baby_cot: parseInt(bedData.baby_cot) || 0,
+                            room_type: selectedRoomType
+                        }
+                    ]
+                };
+                return [roomStructure];
             })(),
             bookingType: "booking",
             totalPrice: totalPrice,
@@ -18653,13 +18650,15 @@
             // Construct mealTypes array
             const mealTypes = [mealPlan];
             
-            // Build room structure
+            // Build room structure: single room object with number_of_rooms (same format as Add Hotel)
             const roomStructure = {
                 room_id: roomId,
                 room_type: roomType,
+                number_of_rooms: numberOfRooms,
                 beds: [{
                     bed_id: bedId,
                     bed_type: bedType,
+                    baby_cot: 0,
                     max_occupancy: numberOfPersons,
                     mealTypes: mealTypes,
                     selectedMeals: selectedMeals,
@@ -18669,12 +18668,8 @@
                 }]
             };
             
-            // Create array of rooms (duplicate if multiple rooms)
-            const rooms = [];
-            for (let i = 0; i < numberOfRooms; i++) {
-                rooms.push(JSON.parse(JSON.stringify(roomStructure))); // Deep copy
-            }
-            
+            // Single room entry with number_of_rooms (not N duplicate room objects)
+            const rooms = [roomStructure];
             roomsJson = JSON.stringify(rooms);
         } else if (originalRooms.length > 0) {
             // If form is incomplete, preserve original rooms
@@ -18694,10 +18689,10 @@
             }
         });
         
-        // Explicitly ensure total_price is captured with its current value
+        // Explicitly ensure total_price is captured (strip commas so 18000 not 18)
         const totalPriceInput = formDiv.querySelector('input[name="total_price"]');
         if (totalPriceInput) {
-            const priceValue = totalPriceInput.value || '0';
+            const priceValue = String(totalPriceInput.value || '0').replace(/,/g, '');
             formData.set('total_price', priceValue);
         }
         
