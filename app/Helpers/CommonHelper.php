@@ -17,12 +17,14 @@ use App\Models\OperationalCountry;
 use App\Models\Agency;
 use App\Models\Rate;
 use App\Models\Jobsheet;
+use App\Models\BankDetail;
 use Carbon\Carbon;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
 use Illuminate\Support\Facades\Mail;
 use App\Mail\DmcMail;
 use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\Auth;
 use Barryvdh\DomPDF\Facade\Pdf;
 use MicrosoftAzure\Storage\Blob\BlobRestProxy;
 use League\Flysystem\Filesystem;
@@ -1663,13 +1665,26 @@ class CommonHelper
         }
     }
 
-    public static function downloadTourPdf($tourId)
+    public static function downloadTourPdf($tourId, $targetCurrency = null, $preview = false)
     {
         $tour = Tour::where('tour_id', $tourId)->first();
         if (!$tour) {
             return null;
         }
 
+        // Currency handling
+        // Base currency is what prices are stored in (default SGD as per requirement)
+        $baseCurrency = strtoupper($tour->currency ?? 'SGD');
+        $selectedCurrency = $targetCurrency ? strtoupper($targetCurrency) : $baseCurrency;
+        $exchangeRate = 1.0;
+
+        if ($selectedCurrency !== $baseCurrency) {
+            $rate = \App\Helpers\CurrencyHelper::getExchangeRate($baseCurrency, $selectedCurrency);
+            if ($rate && is_numeric($rate) && $rate > 0) {
+                $exchangeRate = (float) $rate;
+            }
+        }
+        
         $orders = Order::where('tour_id', $tourId)
             ->where('status', 1)
             ->orderBy('booking_id')
@@ -2046,19 +2061,67 @@ class CommonHelper
         $tourPrices = self::calculateTourPrices($tourId);
         // Format hotels for Excel-like display
         $hotelOptions = self::formatHotelsForPdf($orders, $tour, $tourPrices);
-        // Fetch bank details from DMC user
+        
+        // Get DMC ID - first try from tour, otherwise from current user
+        $dmcIdForBankDetails = null;
+        if (!empty($tour->dmc_id)) {
+            $dmcIdForBankDetails = $tour->dmc_id;
+        } else {
+            // Fallback to getting DMC ID from current user
+            $currentUser = Auth::user();
+            if ($currentUser) {
+                $dmcIdForBankDetails = self::getDmcId($currentUser);
+            }
+        }
+        
+        // Fetch bank details from bank_details table based on DMC ID
         $bankDetails = [];
-        if ($dmcUser && isset($dmcUser->bank_details)) {
+        $termsAndConditions = '';
+        $paymentTerms = [];
+        
+        if ($dmcIdForBankDetails) {
+            $bankDetailRecord = BankDetail::where('dmc_id', $dmcIdForBankDetails)
+                ->where('is_active', 1)
+                ->orderBy('created_at', 'desc')
+                ->first();
+            
+            if ($bankDetailRecord) {
+                // Extract bank details
+                $bankDetails = [
+                    'account_name' => $bankDetailRecord->account_name ?? '',
+                    'account_number' => $bankDetailRecord->account_number ?? '',
+                    'bank_address' => $bankDetailRecord->bank_address ?? '',
+                    'ifsc' => $bankDetailRecord->ifsc ?? '',
+                    'swift_bic_iban' => $bankDetailRecord->swift_bic_iban ?? '',
+                    'bank_code' => $bankDetailRecord->bank_code ?? '',
+                    'branch_code' => $bankDetailRecord->branch_code ?? '',
+                    'aba_routing' => $bankDetailRecord->aba_routing ?? '',
+                ];
+                
+                // Extract terms and conditions
+                $termsAndConditions = $bankDetailRecord->terms_and_conditions ?? '';
+                
+                // Extract payment terms (already cast as array in model)
+                $paymentTerms = $bankDetailRecord->payment_terms ?? [];
+                if (is_string($paymentTerms)) {
+                    $paymentTerms = json_decode($paymentTerms, true) ?? [];
+                }
+                if (!is_array($paymentTerms)) {
+                    $paymentTerms = [];
+                }
+            }
+        }
+        
+        // Fallback to DMC user bank_details if bank_details table record not found
+        if (empty($bankDetails) && $dmcUser && isset($dmcUser->bank_details)) {
             $bankDetailsData = is_string($dmcUser->bank_details) ? json_decode($dmcUser->bank_details, true) : $dmcUser->bank_details;
             if (is_array($bankDetailsData)) {
                 $bankDetails = $bankDetailsData;
             }
         }
         
-        // Terms and conditions, exclusions, and payment terms (can be extended to fetch from database)
-        $termsAndConditions = '';
+        // Exclusions (can be extended to fetch from database if needed)
         $exclusions = '';
-        $paymentTerms = [];
         
         try {
             // Configure DomPDF options to work without GD if possible
@@ -2080,13 +2143,20 @@ class CommonHelper
                 'termsAndConditions' => $termsAndConditions,
                 'exclusions' => $exclusions,
                 'paymentTerms' => $paymentTerms,
+                'baseCurrency' => $baseCurrency,
+                'selectedCurrency' => $selectedCurrency,
+                'exchangeRate' => $exchangeRate,
             ]);
             
             $pdf->setPaper('a4');
             $pdf->setOption('enable-php', false);
             $pdf->setOption('isHtml5ParserEnabled', true);
             $pdf->setOption('isRemoteEnabled', false);
-            
+
+            if ($preview) {
+                return $pdf->stream("tour-quotation.pdf");
+            }
+
             return $pdf->download("tour-quotation.pdf");
         } catch (\Exception $e) {
             // If GD is required and not available, try without logo
@@ -2113,13 +2183,20 @@ class CommonHelper
                     'bankDetails' => $bankDetails,
                     'termsAndConditions' => $termsAndConditions,
                     'paymentTerms' => $paymentTerms,
+                    'baseCurrency' => $baseCurrency,
+                    'selectedCurrency' => $selectedCurrency,
+                    'exchangeRate' => $exchangeRate,
                 ]);
                 
                 $pdf->setPaper('a4');
                 $pdf->setOption('enable-php', false);
                 $pdf->setOption('isHtml5ParserEnabled', true);
                 $pdf->setOption('isRemoteEnabled', false);
-                
+
+                if ($preview) {
+                    return $pdf->stream("tour-quotation.pdf");
+                }
+
                 return $pdf->download("tour-quotation.pdf");
             }
             
@@ -2370,19 +2447,66 @@ class CommonHelper
         $tourPrices = self::calculateTourPrices($tourId);
         $hotelOptions = self::formatHotelsForPdf($orders, $tour, $tourPrices);
         
-        // Fetch bank details from DMC user
+        // Get DMC ID - first try from tour, otherwise from current user
+        $dmcIdForBankDetails = null;
+        if (!empty($tour->dmc_id)) {
+            $dmcIdForBankDetails = $tour->dmc_id;
+        } else {
+            // Fallback to getting DMC ID from current user
+            $currentUser = Auth::user();
+            if ($currentUser) {
+                $dmcIdForBankDetails = self::getDmcId($currentUser);
+            }
+        }
+        
+        // Fetch bank details from bank_details table based on DMC ID
         $bankDetails = [];
-        if ($dmcUser && isset($dmcUser->bank_details)) {
+        $termsAndConditions = '';
+        $paymentTerms = [];
+        
+        if ($dmcIdForBankDetails) {
+            $bankDetailRecord = BankDetail::where('dmc_id', $dmcIdForBankDetails)
+                ->where('is_active', 1)
+                ->orderBy('created_at', 'desc')
+                ->first();
+            
+            if ($bankDetailRecord) {
+                // Extract bank details
+                $bankDetails = [
+                    'account_name' => $bankDetailRecord->account_name ?? '',
+                    'account_number' => $bankDetailRecord->account_number ?? '',
+                    'bank_address' => $bankDetailRecord->bank_address ?? '',
+                    'ifsc' => $bankDetailRecord->ifsc ?? '',
+                    'swift_bic_iban' => $bankDetailRecord->swift_bic_iban ?? '',
+                    'bank_code' => $bankDetailRecord->bank_code ?? '',
+                    'branch_code' => $bankDetailRecord->branch_code ?? '',
+                    'aba_routing' => $bankDetailRecord->aba_routing ?? '',
+                ];
+                
+                // Extract terms and conditions
+                $termsAndConditions = $bankDetailRecord->terms_and_conditions ?? '';
+                
+                // Extract payment terms (already cast as array in model)
+                $paymentTerms = $bankDetailRecord->payment_terms ?? [];
+                if (is_string($paymentTerms)) {
+                    $paymentTerms = json_decode($paymentTerms, true) ?? [];
+                }
+                if (!is_array($paymentTerms)) {
+                    $paymentTerms = [];
+                }
+            }
+        }
+        
+        // Fallback to DMC user bank_details if bank_details table record not found
+        if (empty($bankDetails) && $dmcUser && isset($dmcUser->bank_details)) {
             $bankDetailsData = is_string($dmcUser->bank_details) ? json_decode($dmcUser->bank_details, true) : $dmcUser->bank_details;
             if (is_array($bankDetailsData)) {
                 $bankDetails = $bankDetailsData;
             }
         }
         
-        // Terms and conditions, exclusions, and payment terms
-        $termsAndConditions = '';
+        // Exclusions (can be extended to fetch from database if needed)
         $exclusions = '';
-        $paymentTerms = [];
         
         return [
             'tour' => $tour,
@@ -2451,7 +2575,9 @@ class CommonHelper
         $totalSingleSharing = 0;
         $totalDoubleSharing = 0;
         $totalTripleSharing = 0;
-        $babyCotPrice = 0; // Initialize to 0 instead of null
+        $totalBabyCot = 0;
+        // Track child-specific pricing component across attraction/restaurant services
+        $totalChildComponent = 0; // Sum of child unit prices (attraction + restaurant + …)
         
         // Segregated prices by service type
         $segregatedPrices = [
@@ -2467,8 +2593,8 @@ class CommonHelper
             'other' => ['single' => 0, 'double' => 0],
         ];
         
-        // Flag to track if first hotel has been processed
-        $firstHotelProcessed = false;
+        // Counter for hotels to segregate individually
+        $hotelCount = 0;
 
         foreach ($orders as $order) {
             $rawData = $order->data;
@@ -2482,24 +2608,21 @@ class CommonHelper
 
             $items = isset($rawData[0]) ? $rawData : [$rawData];
             $type = strtolower($order->type ?? '');
+            $babyCotPrice = null;
+            $manualSinglePrice = null;
+            $manualDoublePrice = null;
+
             foreach ($items as $item) {
                 if ($type === 'hotel') {
-                    // Only process the first hotel, skip subsequent hotels
-                    if ($firstHotelProcessed) {
-                        continue;
-                    }
-                    $firstHotelProcessed = true;
+                    $hotelCount++;
+                    $babyCotPrice = 0;
                     
-                    // Hotel pricing calculation with date-based weekday/weekend check
-                    $singleWeekdayPrice = null;
-                    $singleWeekendPrice = null;
-                    $doubleWeekdayPrice = null;
-                    $doubleWeekendPrice = null;
-
-                    // Get hotel_id to fetch weekend_days dynamically
+                    // Fetch hotel details early to use name as key
                     $hotelId = $item['hotelDetails']['hotel_id'] ?? $item['hotelDetails']['hotelId'] ?? $item['hotel_id'] ?? $item['hotelId'] ?? null;
+                    $hotelName = $item['hotelDetails']['hotel_name'] ?? $item['hotelName'] ?? $item['name'] ?? null;
+                    $hotel = null;
                     $weekendDays = ['Saturday', 'Sunday']; // Default fallback only
-                    
+
                     if ($hotelId) {
                         try {
                             $hotel = Hotel::where('hotel_unique_id', $hotelId)->first();
@@ -2510,28 +2633,83 @@ class CommonHelper
                                         $weekendDays = $decodedWeekendDays;
                                     }
                                 }
+                                if ($hotel->name) {
+                                    $hotelName = $hotel->name;
+                                }
                             }
                         } catch (\Exception $e) {
-                            Log::warning('Failed to fetch hotel weekend_days', [
+                            Log::warning('Failed to fetch hotel details', [
                                 'hotel_id' => $hotelId,
                                 'error' => $e->getMessage()
                             ]);
                         }
                     }
 
-                    // Get prices from room data - first try to fetch from database using room_type and hotel_id
+                    if (empty($hotelName)) {
+                        $hotelName = 'Hotel ' . $hotelCount;
+                    }
+
+                    // Initialize individual hotel segregation
+                    $currentHotelKey = $hotelName;
+                    
+                    if (!isset($segregatedPrices[$currentHotelKey])) {
+                        $segregatedPrices[$currentHotelKey] = [
+                            'single' => 0, 
+                            'double' => 0, 
+                            'triple' => 0, 
+                            'baby_cot' => 0
+                        ];
+                    }
+                    
+                    // Check for direct totalPrice and head_count in JSON (e.g. from enquiry)
+                    // We only use this to override SINGLE price when exactly 1 person;
+                    // double/triple prices always come from room/hotel tables so they stay consistent.
+                    $directTotalPrice = $item['totalPrice'] ?? $item['price'] ?? null;
+
+                    if ($directTotalPrice !== null) {
+                        $totalHeadCount = 0;
+                        if (!empty($item['rooms']) && is_array($item['rooms'])) {
+                            foreach ($item['rooms'] as $room) {
+                                if (!empty($room['beds']) && is_array($room['beds'])) {
+                                    foreach ($room['beds'] as $bed) {
+                                        $totalHeadCount += floatval($bed['head_count'] ?? $bed['headCount'] ?? 0);
+                                    }
+                                }
+                            }
+                        }
+                        
+                        // If no headcount from beds, try fallback to top-level fields
+                        if ($totalHeadCount == 0) {
+                            $totalHeadCount = floatval($item['pax'] ?? $item['adults'] ?? $item['adultCount'] ?? 0);
+                        }
+
+                        if ($totalHeadCount == 1) {
+                            // For exactly one person, use enquiry total as single price override
+                            $manualSinglePrice = floatval($directTotalPrice);
+                        }
+                    }
+                    
+                    // Hotel pricing calculation with date-based weekday/weekend check
+                    $singleWeekdayPrice = null;
+                    $singleWeekendPrice = null;
+                    $doubleWeekdayPrice = null;
+                    $doubleWeekendPrice = null;
+
+
+                    // Get prices from room data - first try to fetch from database using room_id (preferred) and hotel_id
                     if (!empty($item['rooms']) && is_array($item['rooms'])) {
                         foreach ($item['rooms'] as $roomData) {
                             $roomtype = $roomData['room_type'] ?? $roomData['roomType'] ?? null;
+                            $roomIdFromJson = $roomData['room_id'] ?? $roomData['roomId'] ?? null;
                             
-                            // Try to fetch room from database first - must match both room_type and hotel_id
-                            if ($roomtype && $hotelId) {
+                            // Try to fetch room from database first - must match both room_id and hotel_id (more reliable than room_type)
+                            if ($roomIdFromJson && $hotelId) {
                                 try {
                                     // First try to get hotel_id from hotel_unique_id
                                     $hotel = Hotel::where('hotel_unique_id', $hotelId)->first();
                                     $dbHotelId = $hotel ? $hotel->hotel_unique_id : $hotelId;
                                     
-                                    $roomRecord = Room::where('room_type', $roomtype)
+                                    $roomRecord = Room::where('room_id', $roomIdFromJson)
                                         ->where('hotel_id', $dbHotelId)
                                         ->where('status', 1)
                                         ->first();
@@ -2543,6 +2721,7 @@ class CommonHelper
                                             $singleWeekendPrice = floatval($roomRecord->weekend_price);
                                         }
                                         if ($roomRecord->double_weekday_price !== null && $roomRecord->double_weekday_price !== '') {
+                                            // Double prices in DB are room prices; convert to per-head by dividing by 2
                                             $doubleWeekdayPrice = floatval($roomRecord->double_weekday_price) / 2;
                                         }
                                         if ($roomRecord->double_weekend_price !== null && $roomRecord->double_weekend_price !== '') {
@@ -2688,6 +2867,7 @@ class CommonHelper
                     $hotelSingleTotal = 0;
                     $hotelDoubleTotal = 0;
                     $hotelTripleTotal = 0;
+                    $extraBedTotal = 0; // total extra bed cost across all nights
                     
                     // Get extra bed price from beds table if available
                     $extraBedWeekdayPrice = null;
@@ -2718,7 +2898,7 @@ class CommonHelper
                                             ->where('is_active', 1)
                                             ->first();
                                         if ($bedRecord && $bedRecord->extra_bed_price !== null) {
-                                            // Extra bed price is typically the same for weekday and weekend
+                                            // Extra bed price is per extra bed (per night)
                                             $extraBedPrice = floatval($bedRecord->extra_bed_price);
                                             $extraBedWeekdayPrice = $extraBedPrice;
                                             $extraBedWeekendPrice = $extraBedPrice;
@@ -2795,11 +2975,11 @@ class CommonHelper
                                     if ($rate->event_type == 'Blackout Date') {
                                         // Blackout Date: Use rate->price (first priority)
                                         $ratePrice = floatval($rate->price ?? 0);
-                                        // For blackout, both single and double use the same price
+                                        // For blackout, single uses full price, double is per-head (price / 2)
                                         $rateSingleWeekdayPrice = $ratePrice;
                                         $rateSingleWeekendPrice = $ratePrice;
-                                        $rateDoubleWeekdayPrice = $ratePrice;
-                                        $rateDoubleWeekendPrice = $ratePrice;
+                                        $rateDoubleWeekdayPrice = $ratePrice / 2;
+                                        $rateDoubleWeekendPrice = $ratePrice / 2;
                                     } elseif ($rate->event_type == 'Season') {
                                         // Season: Use rate weekday/weekend prices (second priority)
                                         $rateSingleWeekdayPrice = $rate->weekday_price ? floatval($rate->weekday_price) : null;
@@ -2823,85 +3003,56 @@ class CommonHelper
                             }
                         }
                         
-                        // Determine which price to use based on priority
+                        // Determine per-night price ONLY from room/hotel data (ignore rates)
+                        // Single: weekday/weekend single prices
+                        // Double: weekday/weekend double prices (already stored per-head: double_* / 2 above)
                         $singlePriceToAdd = null;
                         $doublePriceToAdd = null;
-                        
-                        if ($rateEventType == 'Blackout Date' && $ratePrice !== null) {
-                            // Priority 1: Blackout Date
-                            $singlePriceToAdd = $ratePrice;
-                            $doublePriceToAdd = $ratePrice;
-                        } elseif ($rateEventType == 'Season') {
-                            // Priority 2: Season - use weekday/weekend from rate, fallback to room prices
-                            if ($isWeekend) {
-                                $singlePriceToAdd = $rateSingleWeekendPrice ?? $rateSingleWeekdayPrice ?? $singleWeekendPrice ?? $singleWeekdayPrice;
-                                $doublePriceToAdd = $rateDoubleWeekendPrice ?? $rateDoubleWeekdayPrice ?? $doubleWeekendPrice ?? $doubleWeekdayPrice;
-                            } else {
-                                $singlePriceToAdd = $rateSingleWeekdayPrice ?? $rateSingleWeekendPrice ?? $singleWeekdayPrice ?? $singleWeekendPrice;
-                                $doublePriceToAdd = $rateDoubleWeekdayPrice ?? $rateDoubleWeekendPrice ?? $doubleWeekdayPrice ?? $doubleWeekendPrice;
-                            }
-                        } elseif ($isWeekend) {
-                            // Priority 3: Weekend - use room weekend prices
+
+                        if ($isWeekend) {
                             $singlePriceToAdd = $singleWeekendPrice ?? $singleWeekdayPrice;
                             $doublePriceToAdd = $doubleWeekendPrice ?? $doubleWeekdayPrice;
                         } else {
-                            // Priority 4: Weekday - use room weekday prices
                             $singlePriceToAdd = $singleWeekdayPrice ?? $singleWeekendPrice;
                             $doublePriceToAdd = $doubleWeekdayPrice ?? $doubleWeekendPrice;
                         }
-                        
-                        // Add prices to totals
+
+                        // Add prices to totals (per night)
                         if ($singlePriceToAdd !== null) {
                             $hotelSingleTotal += $singlePriceToAdd;
                         }
                         if ($doublePriceToAdd !== null) {
                             $hotelDoubleTotal += $doublePriceToAdd;
                         }
-                        
-                        // Calculate triple sharing = double sharing + extra bed price (if available)
-                        // Note: Extra bed price is added for EACH night (multiplied by total nights)
-                        $triplePriceToAdd = null;
-                        if ($doublePriceToAdd !== null && $extraBedWeekdayPrice !== null) {
-                            // Use extra bed price based on weekday/weekend
+
+                        // Accumulate extra bed total per night (if available)
+                        if ($extraBedWeekdayPrice !== null) {
                             $extraBedPriceToAdd = $isWeekend 
                                 ? ($extraBedWeekendPrice ?? $extraBedWeekdayPrice) 
                                 : ($extraBedWeekdayPrice ?? $extraBedWeekendPrice);
-                            $triplePriceToAdd = $doublePriceToAdd + $extraBedPriceToAdd;
-                            $hotelTripleTotal += $triplePriceToAdd;
-                            
-                            Log::info('Triple sharing calculation for night', [
-                                'date' => $dateString,
-                                'double_price' => $doublePriceToAdd,
-                                'extra_bed_price' => $extraBedPriceToAdd,
-                                'triple_price_for_this_night' => $triplePriceToAdd,
-                                'triple_total_so_far' => $hotelTripleTotal,
-                            ]);
+
+                            if ($extraBedPriceToAdd !== null) {
+                                $extraBedTotal += $extraBedPriceToAdd;
+                            }
                         }
-                        
-                        // Debug each night calculation
-                        Log::info('Night price calculation', [
-                            'date' => $dateString,
-                            'day_name' => $dayName,
-                            'is_weekend' => $isWeekend,
-                            'rate_event_type' => $rateEventType,
-                            'rate_price' => $ratePrice,
-                            'single_price_added' => $singlePriceToAdd,
-                            'double_price_added' => $doublePriceToAdd,
-                            'triple_price_added' => $triplePriceToAdd,
-                            'single_running_total' => $hotelSingleTotal,
-                            'double_running_total' => $hotelDoubleTotal,
-                            'triple_running_total' => $hotelTripleTotal,
-                        ]);
                     }
-                    
-                    Log::info('Hotel total calculated', [
-                        'hotel_single_total' => $hotelSingleTotal,
-                        'hotel_double_total' => $hotelDoubleTotal,
-                        'hotel_triple_total' => $hotelTripleTotal,
-                        'total_nights' => count($bookingDates),
-                        'extra_bed_price_per_night' => $extraBedWeekdayPrice,
-                        'extra_bed_total' => $extraBedWeekdayPrice ? ($extraBedWeekdayPrice * count($bookingDates)) : 0,
-                    ]);
+
+                    // Simplified totals for hotel:
+                    // - single_sharing: sum of single prices across nights (with optional manual override for 1 pax)
+                    // - double_sharing: sum of per-head double prices across nights (always from room/hotel)
+                    // - triple_sharing (when extra bed present):
+                    //     (double_sharing_total * 2 + extra_bed_total) / 3
+                    //   where extra_bed_total = extra_bed_price_per_night * nights
+                    if ($extraBedTotal > 0) {
+                        $hotelTripleTotal = ($hotelDoubleTotal * 2 + $extraBedTotal) / 3;
+                    } else {
+                        $hotelTripleTotal = 0;
+                    }
+
+                    // Override with manual SINGLE price if available (from directTotalPrice for 1 pax)
+                    if ($manualSinglePrice !== null) {
+                        $hotelSingleTotal = $manualSinglePrice;
+                    }
 
                     $totalSingleSharing += $hotelSingleTotal;
                     $totalDoubleSharing += $hotelDoubleTotal;
@@ -2912,6 +3063,14 @@ class CommonHelper
                     $segregatedPrices['hotel']['double'] += $hotelDoubleTotal;
                     $segregatedPrices['hotel']['triple'] += $hotelTripleTotal;
                     $segregatedPrices['hotel']['baby_cot'] += $babyCotPrice;
+
+                    $totalBabyCot += $babyCotPrice;
+
+                    // Add to individual hotel prices
+                    $segregatedPrices[$currentHotelKey]['single'] += $hotelSingleTotal;
+                    $segregatedPrices[$currentHotelKey]['double'] += $hotelDoubleTotal;
+                    $segregatedPrices[$currentHotelKey]['triple'] += $hotelTripleTotal;
+                    $segregatedPrices[$currentHotelKey]['baby_cot'] += $babyCotPrice;
                 } else {
                     // Other services pricing calculation
                     $totalPrice = $item['totalPrice'] ?? $item['total_price'] ?? $item['price'] ?? null;
@@ -2919,16 +3078,111 @@ class CommonHelper
                         $totalPriceFloat = floatval($totalPrice);
                         $normalizedType = strtolower($type ?? '');
                         
-                        // Handle attraction and restaurant: adultCount + childCount = total pax, then totalPrice/pax = single pax price
-                        // Both single and double should be the same per-person price
+                        // Handle attraction and restaurant
+                        // Prefer explicit adult/child unit prices when present (from attraction/meals tables),
+                        // otherwise fall back to totalPrice/pax. For restaurants, also fall back to meals table via meal_id.
                         if ($normalizedType === 'attraction' || $normalizedType === 'restaurant') {
                             $adultCount = floatval($item['adultCount'] ?? 0);
                             $childCount = floatval($item['childCount'] ?? 0);
-                            $pax = $adultCount + $childCount;
+
+                            // Resolve unit prices from multiple possible locations in the payload
+                            $adultUnitPrice = 0;
+                            $childUnitPrice = 0;
+
+                            if (isset($item['adultPrice'])) {
+                                $adultUnitPrice = floatval($item['adultPrice']);
+                            } elseif (isset($item['adult_price'])) {
+                                $adultUnitPrice = floatval($item['adult_price']);
+                            } elseif (isset($item['ticket_details']['adult_price'])) {
+                                $adultUnitPrice = floatval($item['ticket_details']['adult_price']);
+                            }
+
+                            if (isset($item['childPrice'])) {
+                                $childUnitPrice = floatval($item['childPrice']);
+                            } elseif (isset($item['child_price'])) {
+                                $childUnitPrice = floatval($item['child_price']);
+                            } elseif (isset($item['ticket_details']['child_price'])) {
+                                $childUnitPrice = floatval($item['ticket_details']['child_price']);
+                            }
+
+                            // Extra fallback for RESTAURANTS: if we still don't have unit prices,
+                            // try to fetch them from meals table using MealDescription[0].meal_id.
+                            if ($normalizedType === 'restaurant'
+                            && ($adultUnitPrice <= 0 || $childUnitPrice <= 0)
+                            && !empty($item['MealDescription'][0]['meal_id'])
+                            ) {
+                                try {
+                                    $mealId       = $item['MealDescription'][0]['meal_id'];
+                                    $restaurantId = $item['restaurantId'] ?? null;
+
+                                    $mealQuery = \App\Models\Meal::where('meal_id', $mealId)->first();
+                                    // if ($restaurantId) {
+                                    //     $mealQuery->where('restaurant_id', $restaurantId);
+                                    // }
+                                    // if (!empty($tour->dmc_id)) {
+                                    //     $mealQuery->where('dmc_id', $tour->dmc_id);
+                                    // }
+
+                                    if ($mealQuery) {
+                                        if ($adultUnitPrice <= 0 && $mealQuery->adult_price !== null) {
+                                            $adultUnitPrice = (float) $mealQuery->adult_price;
+                                        }
+                                        if ($childUnitPrice <= 0 && $mealQuery->child_price !== null) {
+                                            $childUnitPrice = (float) $mealQuery->child_price;
+                                        }
+                                    }
+                                } catch (\Throwable $e) {
+                                    \Log::warning('Failed to fetch meal unit prices for restaurant child_sharing', [
+                                        'meal_id'       => $item['MealDescription'][0]['meal_id'] ?? null,
+                                        'restaurant_id' => $item['restaurantId'] ?? null,
+                                        'tour_id'       => $tour->tour_id ?? null,
+                                        'error'         => $e->getMessage(),
+                                    ]);
+                                }
+                            }
+
+                            // Adult per pax → main totals + segregated (with hotel and other services).
+                            // Child per pax → child_sharing only (never mixed into single/double).
+                            $singleSharing = 0;
+                            if ($adultCount >= 1) {
+                                if ($adultUnitPrice > 0) {
+                                    $singleSharing = $adultUnitPrice;
+                                } else {
+                                    $pax = $adultCount + $childCount;
+                                    $singleSharing = $pax > 0 ? ($totalPriceFloat / $pax) : $totalPriceFloat;
+                                }
+                            }
+                            // When adultCount < 1 (only children): nothing added to main/segregated; child goes to child_sharing below
+
+                            // Guide and vehicle: add to adult section only (per adult)
+                            if (isset($item['guide_options']['total_price']) && $adultCount > 0) {
+                                $singleSharing += floatval($item['guide_options']['total_price']) / $adultCount;
+                            }
+                            if (isset($item['transfer_options']['cost']) && $adultCount > 0) {
+                                $singleSharing += floatval($item['transfer_options']['cost']) / $adultCount;
+                            }
+
+                            $doubleSharing = $singleSharing;
+
+                            // Child price: sum child unit prices only (e.g. attraction 20 + restaurant 12 = 32)
+                            if ($childUnitPrice > 0) {
+                                $totalChildComponent += $childUnitPrice;
+                            }
+
+                            // Add only adult part to segregated and main totals
+                            $serviceKey = $normalizedType === 'attraction' ? 'attraction' : 'restaurant';
+                            $segregatedPrices[$serviceKey]['single'] += $singleSharing;
+                            $segregatedPrices[$serviceKey]['double'] += $doubleSharing;
+                        }
+                        // Handle entry_port and exit_port
+                        elseif ($normalizedType === 'entry_port' || $normalizedType === 'exit_port') {
+                            // Calculate per adult price: totalPrice / Adults
+                            $adultCount = floatval($item['adult'] ?? $item['adults'] ?? $item['adultCount'] ?? 0);
                             
-                            if ($pax > 0) {
-                                $singleSharing = $totalPriceFloat / $pax;
+                            if ($adultCount > 0) {
+                                $singleSharing = $totalPriceFloat / $adultCount;
                             } else {
+                                // Fallback if no adult count found, use total price as single sharing
                                 $singleSharing = $totalPriceFloat;
                             }
                             
@@ -2936,52 +3190,27 @@ class CommonHelper
                             $doubleSharing = $singleSharing;
                             
                             // Add to segregated prices
-                            $serviceKey = $normalizedType === 'attraction' ? 'attraction' : 'restaurant';
+                            $serviceKey = $normalizedType === 'entry_port' ? 'entry_port' : 'exit_port';
                             $segregatedPrices[$serviceKey]['single'] += $singleSharing;
                             $segregatedPrices[$serviceKey]['double'] += $doubleSharing;
                         }
-                        // Handle entry_port and exit_port
-                        elseif ($normalizedType === 'entry_port' || $normalizedType === 'exit_port') {
-                            $serviceType = strtolower($item['type'] ?? '');
+                        // Handle travel_point, travel_hourly, local_transport
+                        elseif (in_array($normalizedType, ['travel_point', 'travel_hourly', 'local_transport'])) {
+                            // Calculate per adult price: totalPrice / Adults
+                            $adultCount = floatval($item['adult'] ?? $item['adults'] ?? $item['adultCount'] ?? 0);
                             
-                            // If shared: totalPrice/pax = single pax price
-                            if ($serviceType === 'shared') {
-                                $pax = $item['pax'] 
-                                    ?? (($item['adult'] ?? 0) + ($item['child'] ?? 0) + ($item['infant'] ?? 0))
-                                    ?? (($item['adults'] ?? 0) + ($item['children'] ?? 0))
-                                    ?? (($item['adultCount'] ?? 0) + ($item['childCount'] ?? 0))
-                                    ?? 1;
-                                
-                                if ($pax > 0) {
-                                    $singleSharing = $totalPriceFloat / floatval($pax);
-                                } else {
-                                    $singleSharing = $totalPriceFloat;
-                                }
-                            }
-                            // If private: totalPrice is single price (not divided)
-                            elseif ($serviceType === 'private') {
+                            if ($adultCount > 0) {
+                                $singleSharing = $totalPriceFloat / $adultCount;
+                            } else {
+                                // Fallback if no adult count found or 0, use total price as single sharing (divide by 1)
                                 $singleSharing = $totalPriceFloat;
                             }
-                            // Fallback: use default calculation
-                            else {
-                                $pax = $item['pax'] 
-                                    ?? (($item['adult'] ?? 0) + ($item['child'] ?? 0) + ($item['infant'] ?? 0))
-                                    ?? (($item['adults'] ?? 0) + ($item['children'] ?? 0))
-                                    ?? (($item['adultCount'] ?? 0) + ($item['childCount'] ?? 0))
-                                    ?? null;
-                                
-                                if ($pax && $pax > 0) {
-                                    $singleSharing = $totalPriceFloat / floatval($pax);
-                                } else {
-                                    $singleSharing = $totalPriceFloat;
-                                }
-                            }
                             
-                            // Double sharing: total / 2 (per person for 2 people)
-                            $doubleSharing = $totalPriceFloat;
+                            // Double sharing: same as single (per-person price)
+                            $doubleSharing = $singleSharing;
                             
                             // Add to segregated prices
-                            $serviceKey = $normalizedType === 'entry_port' ? 'entry_port' : 'exit_port';
+                            $serviceKey = $normalizedType;
                             $segregatedPrices[$serviceKey]['single'] += $singleSharing;
                             $segregatedPrices[$serviceKey]['double'] += $doubleSharing;
                         }
@@ -3020,6 +3249,9 @@ class CommonHelper
                 }
             }
         }
+        // Compute effective per-child sharing price (from attraction/restaurant components)
+        $childSharing = $totalChildComponent;
+
         // Round segregated prices and format
         $segregatedPricesRounded = [];
         foreach ($segregatedPrices as $serviceType => $prices) {
@@ -3039,7 +3271,9 @@ class CommonHelper
             'single_sharing' => ceil($totalSingleSharing),
             'double_sharing' => ceil($totalDoubleSharing),
             'triple_sharing' => ceil($totalTripleSharing),
-            'baby_cot_sharing' => ceil($babyCotPrice ?? 0),
+            'baby_cot_sharing' => ceil($totalBabyCot),
+            // Average per-child price across attraction/restaurant services
+            'child_sharing' => ceil($childSharing),
             'segregated' => $segregatedPricesRounded,
         ];
     }
@@ -3752,7 +3986,8 @@ class CommonHelper
     {
         $hotelOptions = [];
         $hotelIndex = 1;
-
+        
+        
         foreach ($orders as $order) {
             if (strtolower($order->type ?? '') !== 'hotel') {
                 continue;
@@ -3889,7 +4124,7 @@ class CommonHelper
 
                 // Supplemental costs (can be extended based on actual data structure)
                 // This could include extra bed charges, meal supplements, etc.
-                $supplementalSingle = 0;
+                $supplementalSingle = $firstTotalSingle - $firstTotalDouble;
                 $supplementalDouble = 0;
                 $supplementalTriple = 0;
 
@@ -3924,7 +4159,6 @@ class CommonHelper
                 ];
             }
         }
-
         return $hotelOptions;
     }
 
@@ -4222,5 +4456,104 @@ class CommonHelper
             'triple_per_night' => $totalNights > 0 ? ($totalTriplePrice / $totalNights) : 0,
             'total_nights' => $totalNights,
         ];
+    }
+
+    /**
+     * Append a status change record into a tour's track_details JSON column.
+     *
+     * Structure example:
+     * [
+     *   { "from": "New Enquiry", "to": "Prospect",  "date": "2026-01-20 10:15:00" },
+     *   { "from": "Prospect",    "to": "Confirmed", "date": "2026-01-22 14:30:00" }
+     * ]
+     *
+     * Behaviour:
+     * - If no history exists, an initial entry is created for the current status
+     *   (first status is usually "New Enquiry").
+     * - Then the transition (from -> to) is appended with the current time.
+     *
+     * @param \App\Models\Tour      $tour
+     * @param string                $fromStatus
+     * @param string                $toStatus
+     * @param \Carbon\Carbon|string|null $changedAt
+     * @return void
+     */
+    public static function appendTourStatusTrack(\App\Models\Tour $tour, string $fromStatus, string $toStatus, $changedAt = null): void
+    {
+        try {
+            // Do nothing if statuses are the same
+            if (trim($fromStatus) === trim($toStatus)) {
+                return;
+            }
+
+            $changedAt = $changedAt ?? now();
+            $changedAtString = $changedAt instanceof \Carbon\Carbon
+                ? $changedAt->format('Y-m-d H:i:s')
+                : (string) $changedAt;
+
+            $history = [];
+
+            if (!empty($tour->track_details)) {
+                $decoded = json_decode($tour->track_details, true);
+                if (is_array($decoded)) {
+                    $history = $decoded;
+                }
+            }
+
+            // If this is the first time we are tracking, add an initial record
+            if (empty($history)) {
+                $initialDate = $tour->created_at
+                    ? $tour->created_at->format('Y-m-d H:i:s')
+                    : $changedAtString;
+
+                $history[] = [
+                    'from' => null,
+                    'to'   => $fromStatus,
+                    'date' => $initialDate,
+                ];
+            }
+
+            $history[] = [
+                'from' => $fromStatus,
+                'to'   => $toStatus,
+                'date' => $changedAtString,
+            ];
+
+            $tour->track_details = json_encode($history);
+            $tour->save();
+        } catch (\Throwable $e) {
+            // Never break main flow because of tracking
+            \Log::error('Failed to append tour status track', [
+                'tour_id' => $tour->tour_id ?? null,
+                'from'    => $fromStatus,
+                'to'      => $toStatus,
+                'message' => $e->getMessage(),
+            ]);
+        }
+    }
+
+    /**
+     * Convenience wrapper: load tour by ID and append status track.
+     *
+     * @param int                   $tourId
+     * @param string                $fromStatus
+     * @param string                $toStatus
+     * @param \Carbon\Carbon|string|null $changedAt
+     * @return void
+     */
+    public static function appendTourStatusTrackById(int $tourId, string $fromStatus, string $toStatus, $changedAt = null): void
+    {
+        $tour = \App\Models\Tour::where('tour_id', $tourId)->first();
+
+        if (!$tour) {
+            \Log::warning('appendTourStatusTrackById: tour not found', [
+                'tour_id' => $tourId,
+                'from'    => $fromStatus,
+                'to'      => $toStatus,
+            ]);
+            return;
+        }
+
+        self::appendTourStatusTrack($tour, $fromStatus, $toStatus, $changedAt);
     }
 }

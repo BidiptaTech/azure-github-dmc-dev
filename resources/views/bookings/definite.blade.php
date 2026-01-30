@@ -2867,73 +2867,80 @@
                             @php $actualBookingIndex = 0; @endphp
                             @foreach($entryData as $originalKey => $booking)
                                 @php $bookingIndex = $actualBookingIndex; @endphp
-                                <div class="card mb-4 shadow-sm border-0" style="border-radius: 12px; overflow: hidden;">
-                                    <div class="card-header border-0" style="background: linear-gradient(90deg, #00b894 0%, #55a3ff 100%); padding: 20px;">
-                                        <div class="row align-items-center">
+                                <div class="card mb-2 shadow-sm border-0" style="border-radius: 8px; overflow: hidden; border-left: 4px solid #00b894 !important;">
+                                    <!-- Compact Card Header -->
+                                    <div class="card-header border-0 py-1 px-2" style="background: linear-gradient(90deg, #00b894 0%, #55a3ff 100%);">
+                                        <div class="row align-items-center g-1">
                                             <div class="col-md-8">
-                                                <h5 class="mb-1 fw-bold text-white">
-                                                    <i class="ri-car-line me-2"></i>{{ $booking['vehicles_name'] ?? 'Vehicle Transfer' }}
-                                                </h5>
-                                                <p class="mb-0 text-white opacity-75">{{ ucfirst($booking['type'] ?? 'Standard') }} Transfer • Booking {{ $index + 1 }}</p>
+                                                <h6 class="mb-0 fw-bold text-white" style="font-size: 0.85rem;">
+                                                    <i class="ri-car-line me-1" style="font-size: 0.8rem;"></i>{{ $booking['vehicles_name'] ?? 'Vehicle Transfer' }}
+                                                </h6>
+                                                <small class="text-white opacity-90" style="font-size: 0.7rem;">Arrival {{ $index + 1 }} • {{ ucfirst($booking['type'] ?? 'Standard') }}</small>
                                             </div>
                                             <div class="col-md-4 text-end">
-                                                <div class="bg-white rounded-pill px-3 py-2 d-inline-block">
-                                                    <span class="text-success fw-bold fs-5">SGD {{ number_format($booking['totalPrice'] ?? 0, 2) }}</span>
-                                                </div>
+                                                <span class="badge bg-white text-success px-2 py-1" style="font-size: 0.8rem;">
+                                                    SGD {{ number_format($booking['totalPrice'] ?? 0, 2) }}
+                                                </span>
                                             </div>
                                         </div>
                                     </div>
                                     
-                                    <div class="card-body p-4" style="background-color: #f8f9fa;">
-                                        <!-- Transfer Schedule -->
-                                        <div class="row mb-4">
+                                    <div class="card-body p-2" style="background-color: #ffffff;">
+                                        <!-- Service Schedule & Group Information -->
+                                        <div class="row mb-2 g-2">
                                             <div class="col-md-6">
-                                                <div class="bg-white rounded p-3 shadow-sm h-100">
-                                                    <div class="d-flex align-items-center mb-3">
-                                                        <div class="bg-success rounded-circle p-2 me-3">
-                                                            <i class="ri-calendar-line text-white"></i>
+                                                <div class="bg-light rounded p-2 h-100">
+                                                    <div class="d-flex align-items-center mb-1">
+                                                        <div class="rounded-circle p-1 me-2" style="background: linear-gradient(135deg, #00b894 0%, #55a3ff 100%); width: 24px; height: 24px; display: flex; align-items: center; justify-content: center;">
+                                                            <i class="ri-calendar-line text-white" style="font-size: 0.8rem;"></i>
                                                         </div>
-                                                        <h6 class="fw-bold mb-0 text-dark">Transfer Schedule</h6>
+                                                        <h6 class="fw-bold mb-0 text-dark" style="font-size: 0.85rem;">Service Schedule</h6>
                                                     </div>
-                                                    <div class="mb-3">
-                                                        <small class="text-muted">Arrival Date</small>
-                                                        <div class="fw-bold text-success fs-5">{{ \Carbon\Carbon::parse($booking['bookingDate'])->format('D, M d, Y') }}</div>
+                                                    <div class="row g-1">
+                                                        <div class="col-6">
+                                                            <small class="text-muted d-block" style="font-size: 0.65rem;">Date</small>
+                                                            <div class="fw-medium" style="font-size: 0.75rem;">{{ \Carbon\Carbon::parse($booking['bookingDate'])->format('M d, Y') }}</div>
                                                     </div>
-                                                    <div class="mb-3">
-                                                        <small class="text-muted">Pickup Time</small>
-                                                        <div class="fw-medium text-primary">{{ $booking['entrytime'] ?? 'To be confirmed' }}</div>
+                                                        <div class="col-6">
+                                                            <small class="text-muted d-block" style="font-size: 0.65rem;">Time</small>
+                                                            <div class="fw-medium" style="font-size: 0.75rem;">{{ $booking['entrytime'] ?? 'TBC' }}</div>
                                                     </div>
-                                                    <div>
-                                                        <small class="text-muted">Transfer Type</small>
-                                                        <div><span class="badge bg-info px-3 py-2">{{ ucfirst($booking['type'] ?? 'Standard') }}</span></div>
+                                                        <div class="col-6">
+                                                            <small class="text-muted d-block" style="font-size: 0.65rem;">Type</small>
+                                                            <div><span class="badge bg-warning px-1 py-0" style="font-size: 0.65rem;">{{ ucfirst($booking['type'] ?? 'Standard') }}</span></div>
+                                                        </div>
+                                                        <div class="col-6">
+                                                            <small class="text-muted d-block" style="font-size: 0.65rem;">Transfer</small>
+                                                            <div><span class="badge bg-info px-1 py-0" style="font-size: 0.65rem;">Arrival</span></div>
+                                                        </div>
                                                     </div>
                                                 </div>
                                             </div>
                                             <div class="col-md-6">
-                                                <div class="bg-white rounded p-3 shadow-sm h-100">
-                                                    <div class="d-flex align-items-center mb-3">
-                                                        <div class="bg-info rounded-circle p-2 me-3">
-                                                            <i class="ri-group-line text-white"></i>
+                                                <div class="bg-light rounded p-2 h-100">
+                                                    <div class="d-flex align-items-center mb-1">
+                                                        <div class="rounded-circle p-1 me-2" style="background: linear-gradient(135deg, #00b894 0%, #55a3ff 100%); width: 24px; height: 24px; display: flex; align-items: center; justify-content: center;">
+                                                            <i class="ri-group-line text-white" style="font-size: 0.8rem;"></i>
                                                         </div>
-                                                        <h6 class="fw-bold mb-0 text-dark">Passenger Information</h6>
+                                                        <h6 class="fw-bold mb-0 text-dark" style="font-size: 0.85rem;">Group Information</h6>
                                                     </div>
-                                                    <div class="row mb-3">
+                                                    <div class="row g-1 mb-1">
                                                         <div class="col-6 text-center">
-                                                            <div class="bg-light rounded p-3">
-                                                                <div class="fs-3 fw-bold text-success">{{ $booking['adults'] ?? 0 }}</div>
-                                                                <small class="text-muted">Adults</small>
+                                                            <div class="bg-white rounded p-1 border" style="border-color: #00b894 !important;">
+                                                                <div class="fw-bold text-success" style="font-size: 0.9rem;">{{ $booking['adults'] ?? 0 }}</div>
+                                                                <small class="text-muted" style="font-size: 0.55rem;">Adults</small>
                                                             </div>
                                                         </div>
                                                         <div class="col-6 text-center">
-                                                            <div class="bg-light rounded p-3">
-                                                                <div class="fs-3 fw-bold text-warning">{{ $booking['children'] ?? 0 }}</div>
-                                                                <small class="text-muted">Children</small>
+                                                            <div class="bg-white rounded p-1 border" style="border-color: #00b894 !important;">
+                                                                <div class="fw-bold text-warning" style="font-size: 0.9rem;">{{ $booking['children'] ?? 0 }}</div>
+                                                                <small class="text-muted" style="font-size: 0.55rem;">Children</small>
                                                             </div>
                                                         </div>
                                                     </div>
                                                     <div class="text-center">
-                                                        <span class="badge bg-primary px-3 py-2">
-                                                            Total: {{ ($booking['adults'] ?? 0) + ($booking['children'] ?? 0) }} Passengers
+                                                        <span class="badge" style="background: linear-gradient(135deg, #00b894 0%, #55a3ff 100%); color: white; font-size: 0.7rem; padding: 2px 4px;">
+                                                            Total: {{ ($booking['adults'] ?? 0) + ($booking['children'] ?? 0) }} Guests
                                                         </span>
                                                     </div>
                                                 </div>
@@ -2941,145 +2948,156 @@
                                         </div>
 
                                         <!-- Route Information -->
-                                        <div class="bg-white rounded p-3 shadow-sm mb-4">
-                                            <div class="d-flex align-items-center mb-3">
-                                                <div class="bg-primary rounded-circle p-2 me-3">
-                                                    <i class="ri-route-line text-white"></i>
+                                        <div class="bg-light rounded p-2 mb-2">
+                                            <div class="d-flex align-items-center mb-1">
+                                                <div class="rounded-circle p-1 me-2" style="background: linear-gradient(135deg, #00b894 0%, #55a3ff 100%); width: 24px; height: 24px; display: flex; align-items: center; justify-content: center;">
+                                                    <i class="ri-route-line text-white" style="font-size: 0.8rem;"></i>
                                                 </div>
-                                                <h6 class="fw-bold mb-0 text-dark">Route Details</h6>
+                                                <h6 class="fw-bold mb-0 text-dark" style="font-size: 0.85rem;">Route Information</h6>
                                             </div>
-                                            <div class="row">
-                                                <div class="col-md-6 mb-3">
-                                                    <div class="d-flex align-items-start">
-                                                        <div class="bg-success rounded-circle p-2 me-3 mt-1">
-                                                            <i class="ri-map-pin-line text-white"></i>
+                                            <div class="row g-1 mb-1">
+                                                <div class="col-md-6">
+                                                    <div class="bg-white rounded p-1">
+                                                        <small class="text-muted d-block" style="font-size: 0.65rem;">Pickup</small>
+                                                        <div class="fw-medium d-flex align-items-center" style="font-size: 0.75rem;">
+                                                            <i class="ri-map-pin-line text-success me-1" style="font-size: 0.7rem;"></i>
+                                                            <span class="text-truncate">{{ $booking['entrypickup'] ?? 'N/A' }}</span>
                                                         </div>
-                                                        <div>
-                                                            <small class="text-muted">Pickup Location</small>
-                                                            <div class="fw-medium">{{ $booking['entrypickup'] ?? 'N/A' }}</div>
-                                                            <small class="text-success">Origin</small>
                                                         </div>
                                                     </div>
+                                                <div class="col-md-6">
+                                                    <div class="bg-white rounded p-1">
+                                                        <small class="text-muted d-block" style="font-size: 0.65rem;">Dropoff</small>
+                                                        <div class="fw-medium d-flex align-items-center" style="font-size: 0.75rem;">
+                                                            <i class="ri-map-pin-2-line text-danger me-1" style="font-size: 0.7rem;"></i>
+                                                            <span class="text-truncate">{{ $booking['entrydropoff'] ?? 'N/A' }}</span>
                                                 </div>
-                                                <div class="col-md-6 mb-3">
-                                                    <div class="d-flex align-items-start">
-                                                        <div class="bg-danger rounded-circle p-2 me-3 mt-1">
-                                                            <i class="ri-flag-line text-white"></i>
                                                         </div>
-                                                        <div>
-                                                            <small class="text-muted">Drop-off Location</small>
-                                                            <div class="fw-medium">{{ $booking['entrydropoff'] ?? 'N/A' }}</div>
-                                                            <small class="text-danger">Destination</small>
                                                         </div>
                                                     </div>
-                                                </div>
-                                                <div class="col-md-6 mb-3">
-                                                    <small class="text-muted">City</small>
-                                                    <div class="fw-medium">{{ $booking['city'] ?? 'N/A' }}</div>
-                                                </div>
-                                                <div class="col-md-6 mb-3">
-                                                    <small class="text-muted">Country</small>
-                                                    <div class="fw-medium">{{ $booking['country'] ?? 'N/A' }}</div>
-                                                </div>
+                                            <!-- Compact Route Direction Visual -->
+                                            <div class="d-flex align-items-center justify-content-center p-1 bg-white rounded">
+                                                <span class="badge bg-success me-1" style="font-size: 0.65rem; padding: 2px 4px;">{{ Str::limit($booking['entrypickup'] ?? 'Pickup', 15) }}</span>
+                                                <i class="ri-arrow-right-line text-primary mx-1" style="font-size: 0.8rem;"></i>
+                                                <span class="badge bg-danger" style="font-size: 0.65rem; padding: 2px 4px;">{{ Str::limit($booking['entrydropoff'] ?? 'Dropoff', 15) }}</span>
                                             </div>
                                         </div>
 
-                                        <!-- Vehicle Information -->
-                                        <div class="row mb-4">
-                                            <div class="col-md-8">
-                                                <div class="bg-white rounded p-3 shadow-sm h-100">
-                                                    <div class="d-flex align-items-center mb-3">
-                                                        <div class="bg-warning rounded-circle p-2 me-3">
-                                                            <i class="ri-car-line text-white"></i>
+                                        <!-- Vehicle & Location Information -->
+                                        <div class="row mb-2 g-2">
+                                            <div class="col-md-6">
+                                                <div class="bg-light rounded p-2 h-100" style="overflow: hidden;">
+                                                    <div class="d-flex align-items-center mb-1">
+                                                        <div class="rounded-circle p-1 me-2" style="background: linear-gradient(135deg, #00b894 0%, #55a3ff 100%); width: 24px; height: 24px; display: flex; align-items: center; justify-content: center; flex-shrink: 0;">
+                                                            <i class="ri-car-line text-white" style="font-size: 0.8rem;"></i>
                                                         </div>
-                                                        <h6 class="fw-bold mb-0 text-dark">Vehicle Details</h6>
+                                                        <h6 class="fw-bold mb-0 text-dark" style="font-size: 0.85rem; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">Vehicle Details</h6>
                                                     </div>
-                                                    <div class="row">
-                                                        <div class="col-6 mb-3">
-                                                            <small class="text-muted">Vehicle name</small>
-                                                            <div class="fw-medium">{{ $booking['vehicles_name'] ?? 'N/A' }}</div>
+                                                    <div class="row g-1 mb-2">
+                                                        <div class="col-6">
+                                                            <small class="text-muted d-block mb-0" style="font-size: 0.65rem;">Vehicle</small>
+                                                            <div class="fw-medium text-truncate" style="font-size: 0.75rem;" title="{{ $booking['vehicles_name'] ?? 'N/A' }}">{{ $booking['vehicles_name'] ?? 'N/A' }}</div>
                                                         </div>
-                                                        <div class="col-6 mb-3">
-                                                            <small class="text-muted">Service Type</small>
-                                                            <div class="fw-medium">{{ $booking['type'] ?? 'N/A' }} Transfer</div>
+                                                        <div class="col-6">
+                                                            <small class="text-muted d-block mb-0" style="font-size: 0.65rem;">Service</small>
+                                                            <div class="fw-medium" style="font-size: 0.75rem;">{{ $booking['type'] ?? 'N/A' }}</div>
                                                         </div>
-                                                        {{-- <div class="col-6 mb-3">
-                                                            <small class="text-muted">Mode</small>
-                                                            <span class="badge bg-info">{{ strtoupper($booking['Mode'] ?? 'N/A') }}</span>
                                                         </div>
-                                                        <div class="col-6 mb-3">
-                                                            <small class="text-muted">Booking Type</small>
-                                                            <span class="badge bg-primary">{{ ucfirst($booking['bookingType'] ?? 'Standard') }}</span>
-                                                        </div> --}}
+                                                    <!-- Compact Vehicle Image Display -->
+                                                    <div class="d-flex justify-content-center align-items-center" style="min-height: 80px; width: 100%; overflow: hidden; position: relative;">
+                                                        @if(isset($booking['image']) && $booking['image'])
+                                                            <div class="position-relative" style="width: 80px; height: 80px; flex-shrink: 0; overflow: hidden;">
+                                                                <img src="{{ $booking['image'] }}" 
+                                                                     alt="Vehicle Image" 
+                                                                     class="rounded-circle shadow-sm" 
+                                                                     style="width: 80px; height: 80px; object-fit: cover; object-position: center; border: 2px solid #00b894; cursor: pointer; display: block; margin: 0; padding: 0; background: #f8f9fa;"
+                                                                     onerror="this.onerror=null; this.parentElement.innerHTML='<div class=\'rounded-circle bg-light d-flex align-items-center justify-content-center shadow-sm\' style=\'width: 80px; height: 80px; border: 2px solid #e9ecef;\'><i class=\'ri-car-line text-muted\' style=\'font-size: 2rem;\'></i></div>';"
+                                                                     onclick="openVehicleImageModal('{{ $booking['image'] }}', '{{ $booking['vehicles_name'] ?? 'Vehicle' }}')">
+                                                                <div class="position-absolute" style="top: -3px; right: -3px; z-index: 10;">
+                                                                    <span class="badge bg-dark bg-opacity-90 text-white rounded-circle d-flex align-items-center justify-content-center" style="width: 20px; height: 20px; font-size: 0.6rem; padding: 0; cursor: pointer; box-shadow: 0 2px 4px rgba(0,0,0,0.2);"
+                                                                          onclick="event.stopPropagation(); openVehicleImageModal('{{ $booking['image'] }}', '{{ $booking['vehicles_name'] ?? 'Vehicle' }}')">
+                                                                        <i class="ri-zoom-in-line"></i>
+                                                                    </span>
                                                     </div>
                                                 </div>
-                                            </div>
-                                            <div class="col-md-4">
-                                                @if(isset($booking['image']))
-                                                    <img src="{{ $booking['image'] }}" 
-                                                         alt="{{ $booking['vehicles_name'] ?? 'Vehicle' }}" 
-                                                         class="img-fluid rounded shadow-sm" 
-                                                         style="height: 150px; width: 100%; object-fit: cover;">
                                                 @else
-                                                    <div class="bg-light rounded d-flex align-items-center justify-content-center" style="height: 150px;">
-                                                        <i class="ri-car-line ri-48px text-muted"></i>
+                                                            <div class="rounded-circle bg-light d-flex align-items-center justify-content-center shadow-sm" style="width: 80px; height: 80px; border: 2px solid #e9ecef; flex-shrink: 0;">
+                                                                <i class="ri-car-line text-muted" style="font-size: 2rem;"></i>
                                                     </div>
                                                 @endif
                                             </div>
                                         </div>
-
-                                      
-                                        
-
-                                        <!-- Action Buttons / Approval Status -->
-                                        <div class="bg-white rounded p-3 shadow-sm mt-4">
-                                            <div class="d-flex align-items-center justify-content-between">
-                                                <div class="d-flex align-items-center">
-                                                    <div class="bg-primary rounded-circle p-2 me-3">
-                                                        <i class="ri-settings-line text-white"></i>
+                                            </div>
+                                            <div class="col-md-6">
+                                                <div class="bg-light rounded p-2 h-100">
+                                                    <div class="d-flex align-items-center mb-1">
+                                                        <div class="rounded-circle p-1 me-2" style="background: linear-gradient(135deg, #00b894 0%, #55a3ff 100%); width: 24px; height: 24px; display: flex; align-items: center; justify-content: center;">
+                                                            <i class="ri-map-pin-line text-white" style="font-size: 0.8rem;"></i>
+                                                        </div>
+                                                        <h6 class="fw-bold mb-0 text-dark" style="font-size: 0.85rem;">Location Information</h6>
                                                     </div>
-                                                    <h6 class="fw-bold mb-0 text-dark">Booking Actions</h6>
+                                                    <div class="row g-1 mb-1">
+                                                        <div class="col-6">
+                                                            <small class="text-muted d-block" style="font-size: 0.65rem;">City</small>
+                                                            <div class="fw-medium" style="font-size: 0.75rem;">{{ $booking['city'] ?? 'N/A' }}</div>
+                                                    </div>
+                                                        <div class="col-6">
+                                                            <small class="text-muted d-block" style="font-size: 0.65rem;">Country</small>
+                                                            <div class="fw-medium" style="font-size: 0.75rem;">{{ $booking['country'] ?? 'N/A' }}</div>
+                                                    </div>
+                                                    </div>
+                                                    @if(($booking['Night_Start_Time'] ?? false) && ($booking['Night_End_Time'] ?? false))
+                                                    <div class="bg-white rounded p-1 mt-1">
+                                                        <small class="text-muted d-block mb-0" style="font-size: 0.65rem;">Night Service</small>
+                                                        <div class="fw-medium text-warning" style="font-size: 0.75rem;">{{ $booking['Night_Start_Time'] }} - {{ $booking['Night_End_Time'] }}</div>
+                                                </div>
+                                                        @endif
+                                                </div>
+                                            </div>
+                                        </div>
+                                        <!-- Booking Status -->
+                                        <div class="bg-light rounded p-1">
+                                            <div class="d-flex align-items-center mb-1">
+                                                <div class="rounded-circle p-1 me-1" style="background: linear-gradient(135deg, #00b894 0%, #55a3ff 100%); width: 20px; height: 20px; display: flex; align-items: center; justify-content: center;">
+                                                    <i class="ri-settings-line text-white" style="font-size: 0.7rem;"></i>
+                                                    </div>
+                                                <h6 class="fw-bold mb-0 text-dark" style="font-size: 0.8rem;">Booking Status</h6>
                                                 </div>
                                                 @if($entryOrder->is_approve == 1)
-                                                    <div class="alert alert-success mb-0 py-1 px-3" style="border-radius: 25px;">
-                                                        <i class="ri-check-circle-fill me-1"></i>
-                                                        <small><strong>Approved Booking</strong></small>
+                                                <div class="alert alert-success mb-0 py-1 px-2" style="border-radius: 6px; font-size: 0.75rem;">
+                                                    <i class="ri-check-circle-fill me-1" style="font-size: 0.7rem;"></i>
+                                                    <strong>Approved</strong>
                                                         @if($entryOrder->reference_id)
-                                                            <br><small class="text-muted">Ref: {{ $entryOrder->reference_id }}</small>
+                                                        <span class="ms-1">• Ref: {{ $entryOrder->reference_id }}</span>
                                                         @endif
                                                         @if($entryOrder->display_due_date)
-                                                            <br><small class="text-muted">Due: {{ \Carbon\Carbon::parse($entryOrder->display_due_date)->format('d-m-Y') }}</small>
+                                                        <span class="ms-1">• Due: {{ \Carbon\Carbon::parse($entryOrder->display_due_date)->format('d-m-Y') }}</span>
                                                         @endif
                                                     </div>
                                                 @else
                                                 @if(auth()->user()->role_id == 11 || auth()->user()->role_id == 34 || auth()->user()->role_id == 33 || auth()->user()->role_id == 37 || auth()->user()->role_id == 38 || auth()->user()->role_id == 124 || auth()->user()->role_id == 125 || auth()->user()->role_id == 128 || auth()->user()->role_id == 129 || auth()->user()->role_id == 130 || auth()->user()->role_id == 131 || auth()->user()->role_id == 132 || auth()->user()->role_id == 134 || auth()->user()->role_id == 135 || auth()->user()->role_id == 136 || auth()->user()->role_id == 137 || auth()->user()->role_id == 138)
-                                                <div class="d-flex gap-2">
+                                                <div class="d-flex gap-1 flex-wrap">
                                                     @if(auth()->user()->role_id == 11 || auth()->user()->role_id == 34 || auth()->user()->role_id == 124 || auth()->user()->role_id == 125 || auth()->user()->role_id == 128 || auth()->user()->role_id == 131 || auth()->user()->role_id == 132 || auth()->user()->role_id == 134 || auth()->user()->role_id == 135 || auth()->user()->role_id == 137 || auth()->user()->role_id == 138)
                                                     <button type="button" 
-                                                            class="btn btn-outline-primary btn-sm px-3 py-2" 
+                                                            class="btn btn-sm px-2 py-1" 
                                                             onclick="editArrivalBooking({{ $tour->tour_id }}, {{ $index }}, {{ $bookingIndex }})"
-                                                            style="border-radius: 25px;">
-                                                        <i class="ri-edit-line me-1"></i>Edit
+                                                            style="border-radius: 6px; background: linear-gradient(135deg, #00b894 0%, #55a3ff 100%); border: none; color: white; font-size: 0.75rem;">
+                                                        <i class="ri-edit-line me-1" style="font-size: 0.7rem;"></i>Edit
                                                     </button>
-                                                    {{-- <button type="button" 
-                                                            class="btn btn-outline-success btn-sm px-3 py-2" 
-                                                            onclick="approveArrivalBooking({{ $tour->tour_id }}, {{ $index }}, {{ $bookingIndex }})"
-                                                            style="border-radius: 25px;">
-                                                        <i class="ri-check-line me-1"></i>Approve
-                                                    </button> --}}
                                                     @endif
                                                     @if(auth()->user()->role_id == 11 || auth()->user()->role_id == 34 || auth()->user()->role_id == 33 || auth()->user()->role_id == 37 || auth()->user()->role_id == 38 || auth()->user()->role_id == 124 || auth()->user()->role_id == 125 || auth()->user()->role_id == 128 || auth()->user()->role_id == 129 || auth()->user()->role_id == 130 || auth()->user()->role_id == 131 || auth()->user()->role_id == 132 || auth()->user()->role_id == 134 || auth()->user()->role_id == 135 || auth()->user()->role_id == 136 || auth()->user()->role_id == 137 || auth()->user()->role_id == 138)
                                                     <button type="button" 
-                                                            class="btn btn-outline-danger btn-sm px-3 py-2" 
+                                                            class="btn btn-outline-danger btn-sm px-2 py-1" 
                                                             onclick="rejectArrivalBooking({{ $tour->tour_id }}, {{ $index }}, {{ $bookingIndex }})"
-                                                            style="border-radius: 25px;">
-                                                        <i class="ri-close-line me-1"></i>Reject
+                                                            style="border-radius: 6px; font-size: 0.75rem;">
+                                                        <i class="ri-close-line me-1" style="font-size: 0.7rem;"></i>Reject
                                                     </button>
                                                     @endif
                                                 </div>
+                                                @else
+                                                <div class="text-muted small" style="font-size: 0.75rem;"><i class="ri-information-line me-1" style="font-size: 0.7rem;"></i>Pending approval</div>
                                                     @endif
                                                 @endif
-                                            </div>
                                         </div>
                                     </div>
                                 </div>
@@ -3132,73 +3150,80 @@
                         @if(is_array($exitData))
                             @php $actualBookingIndex = 0; @endphp
                             @foreach($exitData as $bookingIndex => $booking)
-                                <div class="card mb-4 shadow-sm border-0" style="border-radius: 12px; overflow: hidden;">
-                                    <div class="card-header border-0" style="background: linear-gradient(90deg, #fd7f6f 0%, #feb47b 100%); padding: 20px;">
-                                        <div class="row align-items-center">
+                                <div class="card mb-2 shadow-sm border-0" style="border-radius: 8px; overflow: hidden; border-left: 4px solid #fd7f6f !important;">
+                                    <!-- Compact Card Header -->
+                                    <div class="card-header border-0 py-1 px-2" style="background: linear-gradient(90deg, #fd7f6f 0%, #feb47b 100%);">
+                                        <div class="row align-items-center g-1">
                                             <div class="col-md-8">
-                                                <h5 class="mb-1 fw-bold text-white">
-                                                    <i class="ri-car-line me-2"></i>{{ $booking['vehicles_name'] ?? 'Vehicle Transfer' }}
-                                                </h5>
-                                                <p class="mb-0 text-white opacity-75">{{ ucfirst($booking['type'] ?? 'Standard') }} Transfer • Booking {{ $index + 1 }}</p>
+                                                <h6 class="mb-0 fw-bold text-white" style="font-size: 0.85rem;">
+                                                    <i class="ri-car-line me-1" style="font-size: 0.8rem;"></i>{{ $booking['vehicles_name'] ?? 'Vehicle Transfer' }}
+                                                </h6>
+                                                <small class="text-white opacity-90" style="font-size: 0.7rem;">Departure {{ $index + 1 }} • {{ ucfirst($booking['type'] ?? 'Standard') }}</small>
                                             </div>
                                             <div class="col-md-4 text-end">
-                                                <div class="bg-white rounded-pill px-3 py-2 d-inline-block">
-                                                    <span class="text-success fw-bold fs-5">SGD {{ number_format($booking['totalPrice'] ?? 0, 2) }}</span>
-                                                </div>
+                                                <span class="badge bg-white text-success px-2 py-1" style="font-size: 0.8rem;">
+                                                    SGD {{ number_format($booking['totalPrice'] ?? 0, 2) }}
+                                                </span>
                                             </div>
                                         </div>
                                     </div>
                                     
-                                    <div class="card-body p-4" style="background-color: #f8f9fa;">
-                                        <!-- Transfer Schedule -->
-                                        <div class="row mb-4">
+                                    <div class="card-body p-2" style="background-color: #ffffff;">
+                                        <!-- Service Schedule & Group Information -->
+                                        <div class="row mb-2 g-2">
                                             <div class="col-md-6">
-                                                <div class="bg-white rounded p-3 shadow-sm h-100">
-                                                    <div class="d-flex align-items-center mb-3">
-                                                        <div class="bg-warning rounded-circle p-2 me-3">
-                                                            <i class="ri-calendar-line text-white"></i>
+                                                <div class="bg-light rounded p-2 h-100">
+                                                    <div class="d-flex align-items-center mb-1">
+                                                        <div class="rounded-circle p-1 me-2" style="background: linear-gradient(135deg, #fd7f6f 0%, #feb47b 100%); width: 24px; height: 24px; display: flex; align-items: center; justify-content: center;">
+                                                            <i class="ri-calendar-line text-white" style="font-size: 0.8rem;"></i>
                                                         </div>
-                                                        <h6 class="fw-bold mb-0 text-dark">Transfer Schedule</h6>
+                                                        <h6 class="fw-bold mb-0 text-dark" style="font-size: 0.85rem;">Service Schedule</h6>
                                                     </div>
-                                                    <div class="mb-3">
-                                                        <small class="text-muted">Departure Date</small>
-                                                        <div class="fw-bold text-danger fs-5">{{ \Carbon\Carbon::parse($booking['bookingDate'])->format('D, M d, Y') }}</div>
+                                                    <div class="row g-1">
+                                                        <div class="col-6">
+                                                            <small class="text-muted d-block" style="font-size: 0.65rem;">Date</small>
+                                                            <div class="fw-medium" style="font-size: 0.75rem;">{{ \Carbon\Carbon::parse($booking['bookingDate'])->format('M d, Y') }}</div>
                                                     </div>
-                                                    <div class="mb-3">
-                                                        <small class="text-muted">Pickup Time</small>
-                                                        <div class="fw-medium text-primary">{{ $booking['entrytime'] ?? 'To be confirmed' }}</div>
+                                                        <div class="col-6">
+                                                            <small class="text-muted d-block" style="font-size: 0.65rem;">Time</small>
+                                                            <div class="fw-medium" style="font-size: 0.75rem;">{{ $booking['entrytime'] ?? 'TBC' }}</div>
                                                     </div>
-                                                    <div>
-                                                        <small class="text-muted">Transfer Type</small>
-                                                        <div><span class="badge bg-warning px-3 py-2">{{ ucfirst($booking['type'] ?? 'Standard') }}</span></div>
+                                                        <div class="col-6">
+                                                            <small class="text-muted d-block" style="font-size: 0.65rem;">Type</small>
+                                                            <div><span class="badge bg-warning px-1 py-0" style="font-size: 0.65rem;">{{ ucfirst($booking['type'] ?? 'Standard') }}</span></div>
+                                                        </div>
+                                                        <div class="col-6">
+                                                            <small class="text-muted d-block" style="font-size: 0.65rem;">Transfer</small>
+                                                            <div><span class="badge bg-info px-1 py-0" style="font-size: 0.65rem;">Departure</span></div>
+                                                        </div>
                                                     </div>
                                                 </div>
                                             </div>
                                             <div class="col-md-6">
-                                                <div class="bg-white rounded p-3 shadow-sm h-100">
-                                                    <div class="d-flex align-items-center mb-3">
-                                                        <div class="bg-info rounded-circle p-2 me-3">
-                                                            <i class="ri-group-line text-white"></i>
+                                                <div class="bg-light rounded p-2 h-100">
+                                                    <div class="d-flex align-items-center mb-1">
+                                                        <div class="rounded-circle p-1 me-2" style="background: linear-gradient(135deg, #fd7f6f 0%, #feb47b 100%); width: 24px; height: 24px; display: flex; align-items: center; justify-content: center;">
+                                                            <i class="ri-group-line text-white" style="font-size: 0.8rem;"></i>
                                                         </div>
-                                                        <h6 class="fw-bold mb-0 text-dark">Passenger Information</h6>
+                                                        <h6 class="fw-bold mb-0 text-dark" style="font-size: 0.85rem;">Group Information</h6>
                                                     </div>
-                                                    <div class="row mb-3">
+                                                    <div class="row g-1 mb-1">
                                                         <div class="col-6 text-center">
-                                                            <div class="bg-light rounded p-3">
-                                                                <div class="fs-3 fw-bold text-success">{{ $booking['adults'] ?? 0 }}</div>
-                                                                <small class="text-muted">Adults</small>
+                                                            <div class="bg-white rounded p-1 border" style="border-color: #fd7f6f !important;">
+                                                                <div class="fw-bold text-success" style="font-size: 0.9rem;">{{ $booking['adults'] ?? 0 }}</div>
+                                                                <small class="text-muted" style="font-size: 0.55rem;">Adults</small>
                                                             </div>
                                                         </div>
                                                         <div class="col-6 text-center">
-                                                            <div class="bg-light rounded p-3">
-                                                                <div class="fs-3 fw-bold text-warning">{{ $booking['children'] ?? 0 }}</div>
-                                                                <small class="text-muted">Children</small>
+                                                            <div class="bg-white rounded p-1 border" style="border-color: #fd7f6f !important;">
+                                                                <div class="fw-bold text-warning" style="font-size: 0.9rem;">{{ $booking['children'] ?? 0 }}</div>
+                                                                <small class="text-muted" style="font-size: 0.55rem;">Children</small>
                                                             </div>
                                                         </div>
                                                     </div>
                                                     <div class="text-center">
-                                                        <span class="badge bg-primary px-3 py-2">
-                                                            Total: {{ ($booking['adults'] ?? 0) + ($booking['children'] ?? 0) }} Passengers
+                                                        <span class="badge" style="background: linear-gradient(135deg, #fd7f6f 0%, #feb47b 100%); color: white; font-size: 0.7rem; padding: 2px 4px;">
+                                                            Total: {{ ($booking['adults'] ?? 0) + ($booking['children'] ?? 0) }} Guests
                                                         </span>
                                                     </div>
                                                 </div>
@@ -3206,139 +3231,156 @@
                                         </div>
 
                                         <!-- Route Information -->
-                                        <div class="bg-white rounded p-3 shadow-sm mb-4">
-                                            <div class="d-flex align-items-center mb-3">
-                                                <div class="bg-primary rounded-circle p-2 me-3">
-                                                    <i class="ri-route-line text-white"></i>
+                                        <div class="bg-light rounded p-2 mb-2">
+                                            <div class="d-flex align-items-center mb-1">
+                                                <div class="rounded-circle p-1 me-2" style="background: linear-gradient(135deg, #fd7f6f 0%, #feb47b 100%); width: 24px; height: 24px; display: flex; align-items: center; justify-content: center;">
+                                                    <i class="ri-route-line text-white" style="font-size: 0.8rem;"></i>
                                                 </div>
-                                                <h6 class="fw-bold mb-0 text-dark">Route Details</h6>
+                                                <h6 class="fw-bold mb-0 text-dark" style="font-size: 0.85rem;">Route Information</h6>
                                             </div>
-                                            <div class="row">
-                                                <div class="col-md-6 mb-3">
-                                                    <div class="d-flex align-items-start">
-                                                        <div class="bg-success rounded-circle p-2 me-3 mt-1">
-                                                            <i class="ri-map-pin-line text-white"></i>
+                                            <div class="row g-1 mb-1">
+                                                <div class="col-md-6">
+                                                    <div class="bg-white rounded p-1">
+                                                        <small class="text-muted d-block" style="font-size: 0.65rem;">Pickup</small>
+                                                        <div class="fw-medium d-flex align-items-center" style="font-size: 0.75rem;">
+                                                            <i class="ri-map-pin-line text-success me-1" style="font-size: 0.7rem;"></i>
+                                                            <span class="text-truncate">{{ $booking['exitpickup'] ?? 'N/A' }}</span>
                                                         </div>
-                                                        <div>
-                                                            <small class="text-muted">Pickup Location</small>
-                                                            <div class="fw-medium">{{ $booking['exitpickup'] ?? 'N/A' }}</div>
-                                                            <small class="text-success">Origin</small>
                                                         </div>
                                                     </div>
+                                                <div class="col-md-6">
+                                                    <div class="bg-white rounded p-1">
+                                                        <small class="text-muted d-block" style="font-size: 0.65rem;">Dropoff</small>
+                                                        <div class="fw-medium d-flex align-items-center" style="font-size: 0.75rem;">
+                                                            <i class="ri-map-pin-2-line text-danger me-1" style="font-size: 0.7rem;"></i>
+                                                            <span class="text-truncate">{{ $booking['exitdropoff'] ?? 'N/A' }}</span>
                                                 </div>
-                                                <div class="col-md-6 mb-3">
-                                                    <div class="d-flex align-items-start">
-                                                        <div class="bg-danger rounded-circle p-2 me-3 mt-1">
-                                                            <i class="ri-flag-line text-white"></i>
                                                         </div>
-                                                        <div>
-                                                            <small class="text-muted">Drop-off Location</small>
-                                                            <div class="fw-medium">{{ $booking['exitdropoff'] ?? 'N/A' }}</div>
-                                                            <small class="text-danger">Destination</small>
                                                         </div>
                                                     </div>
-                                                </div>
-                                                <div class="col-md-6 mb-3">
-                                                    <small class="text-muted">City</small>
-                                                    <div class="fw-medium">{{ $booking['city'] ?? 'N/A' }}</div>
-                                                </div>
-                                                <div class="col-md-6 mb-3">
-                                                    <small class="text-muted">Country</small>
-                                                    <div class="fw-medium">{{ $booking['country'] ?? 'N/A' }}</div>
-                                                </div>
+                                            <!-- Compact Route Direction Visual -->
+                                            <div class="d-flex align-items-center justify-content-center p-1 bg-white rounded">
+                                                <span class="badge bg-success me-1" style="font-size: 0.65rem; padding: 2px 4px;">{{ Str::limit($booking['exitpickup'] ?? 'Pickup', 15) }}</span>
+                                                <i class="ri-arrow-right-line text-primary mx-1" style="font-size: 0.8rem;"></i>
+                                                <span class="badge bg-danger" style="font-size: 0.65rem; padding: 2px 4px;">{{ Str::limit($booking['exitdropoff'] ?? 'Dropoff', 15) }}</span>
                                             </div>
                                         </div>
 
-                                        <!-- Vehicle Information -->
-                                        <div class="row mb-4">
-                                            <div class="col-md-8">
-                                                <div class="bg-white rounded p-3 shadow-sm h-100">
-                                                    <div class="d-flex align-items-center mb-3">
-                                                        <div class="bg-warning rounded-circle p-2 me-3">
-                                                            <i class="ri-car-line text-white"></i>
+                                        <!-- Vehicle & Location Information -->
+                                        <div class="row mb-2 g-2">
+                                            <div class="col-md-6">
+                                                <div class="bg-light rounded p-2 h-100" style="overflow: hidden;">
+                                                    <div class="d-flex align-items-center mb-1">
+                                                        <div class="rounded-circle p-1 me-2" style="background: linear-gradient(135deg, #fd7f6f 0%, #feb47b 100%); width: 24px; height: 24px; display: flex; align-items: center; justify-content: center; flex-shrink: 0;">
+                                                            <i class="ri-car-line text-white" style="font-size: 0.8rem;"></i>
                                                         </div>
-                                                        <h6 class="fw-bold mb-0 text-dark">Vehicle Details</h6>
+                                                        <h6 class="fw-bold mb-0 text-dark" style="font-size: 0.85rem; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">Vehicle Details</h6>
                                                     </div>
-                                                    <div class="row">
-                                                        <div class="col-6 mb-3">
-                                                            <small class="text-muted">Vehicle Name</small>
-                                                            <div class="fw-medium">{{ $booking['vehicles_name'] ?? 'N/A' }}</div>
+                                                    <div class="row g-1 mb-2">
+                                                        <div class="col-6">
+                                                            <small class="text-muted d-block mb-0" style="font-size: 0.65rem;">Vehicle</small>
+                                                            <div class="fw-medium text-truncate" style="font-size: 0.75rem;" title="{{ $booking['vehicles_name'] ?? 'N/A' }}">{{ $booking['vehicles_name'] ?? 'N/A' }}</div>
                                                         </div>
-                                                        <div class="col-6 mb-3">
-                                                            <small class="text-muted">Service Type</small>
-                                                            <div class="fw-medium">{{ $booking['type'] ?? 'N/A' }} Transfer</div>
+                                                        <div class="col-6">
+                                                            <small class="text-muted d-block mb-0" style="font-size: 0.65rem;">Service</small>
+                                                            <div class="fw-medium" style="font-size: 0.75rem;">{{ $booking['type'] ?? 'N/A' }}</div>
                                                         </div>
                                                     </div>
+                                                    <!-- Compact Vehicle Image Display -->
+                                                    <div class="d-flex justify-content-center align-items-center" style="min-height: 80px; width: 100%; overflow: hidden; position: relative;">
+                                                        @if(isset($booking['image']) && $booking['image'])
+                                                            <div class="position-relative" style="width: 80px; height: 80px; flex-shrink: 0; overflow: hidden;">
+                                                                <img src="{{ $booking['image'] }}" 
+                                                                     alt="Vehicle Image" 
+                                                                     class="rounded-circle shadow-sm" 
+                                                                     style="width: 80px; height: 80px; object-fit: cover; object-position: center; border: 2px solid #fd7f6f; cursor: pointer; display: block; margin: 0; padding: 0; background: #f8f9fa;"
+                                                                     onerror="this.onerror=null; this.parentElement.innerHTML='<div class=\'rounded-circle bg-light d-flex align-items-center justify-content-center shadow-sm\' style=\'width: 80px; height: 80px; border: 2px solid #e9ecef;\'><i class=\'ri-car-line text-muted\' style=\'font-size: 2rem;\'></i></div>';"
+                                                                     onclick="openVehicleImageModal('{{ $booking['image'] }}', '{{ $booking['vehicles_name'] ?? 'Vehicle' }}')">
+                                                                <div class="position-absolute" style="top: -3px; right: -3px; z-index: 10;">
+                                                                    <span class="badge bg-dark bg-opacity-90 text-white rounded-circle d-flex align-items-center justify-content-center" style="width: 20px; height: 20px; font-size: 0.6rem; padding: 0; cursor: pointer; box-shadow: 0 2px 4px rgba(0,0,0,0.2);"
+                                                                          onclick="event.stopPropagation(); openVehicleImageModal('{{ $booking['image'] }}', '{{ $booking['vehicles_name'] ?? 'Vehicle' }}')">
+                                                                        <i class="ri-zoom-in-line"></i>
+                                                                    </span>
                                                 </div>
                                             </div>
-                                            <div class="col-md-4">
-                                                @if(isset($booking['image']))
-                                                    <img src="{{ $booking['image'] }}" 
-                                                         alt="{{ $booking['vehicles_name'] ?? 'Vehicle' }}" 
-                                                         class="img-fluid rounded shadow-sm" 
-                                                         style="height: 150px; width: 100%; object-fit: cover;">
                                                 @else
-                                                    <div class="bg-light rounded d-flex align-items-center justify-content-center" style="height: 150px;">
-                                                        <i class="ri-car-line ri-48px text-muted"></i>
+                                                            <div class="rounded-circle bg-light d-flex align-items-center justify-content-center shadow-sm" style="width: 80px; height: 80px; border: 2px solid #e9ecef; flex-shrink: 0;">
+                                                                <i class="ri-car-line text-muted" style="font-size: 2rem;"></i>
                                                     </div>
                                                 @endif
-                                            </div>
-                                        </div>
-
-                                        
-
-                                        <!-- Special Requests -->
-                                      
-
-                                        <!-- Action Buttons / Approval Status -->
-                                        <div class="bg-white rounded p-3 shadow-sm mt-4">
-                                            <div class="d-flex align-items-center justify-content-between">
-                                                <div class="d-flex align-items-center">
-                                                    <div class="bg-primary rounded-circle p-2 me-3">
-                                                        <i class="ri-settings-line text-white"></i>
                                                     </div>
-                                                    <h6 class="fw-bold mb-0 text-dark">Booking Actions</h6>
+                                                </div>
+                                            </div>
+                                            <div class="col-md-6">
+                                                <div class="bg-light rounded p-2 h-100">
+                                                    <div class="d-flex align-items-center mb-1">
+                                                        <div class="rounded-circle p-1 me-2" style="background: linear-gradient(135deg, #fd7f6f 0%, #feb47b 100%); width: 24px; height: 24px; display: flex; align-items: center; justify-content: center;">
+                                                            <i class="ri-map-pin-line text-white" style="font-size: 0.8rem;"></i>
+                                                        </div>
+                                                        <h6 class="fw-bold mb-0 text-dark" style="font-size: 0.85rem;">Location Information</h6>
+                                                    </div>
+                                                    <div class="row g-1 mb-1">
+                                                        <div class="col-6">
+                                                            <small class="text-muted d-block" style="font-size: 0.65rem;">City</small>
+                                                            <div class="fw-medium" style="font-size: 0.75rem;">{{ $booking['city'] ?? 'N/A' }}</div>
+                                                    </div>
+                                                        <div class="col-6">
+                                                            <small class="text-muted d-block" style="font-size: 0.65rem;">Country</small>
+                                                            <div class="fw-medium" style="font-size: 0.75rem;">{{ $booking['country'] ?? 'N/A' }}</div>
+                                                </div>
+                                            </div>
+                                                    <!-- Compact Pricing Details -->
+                                                    <div class="bg-white rounded p-1 mt-1">
+                                                        <small class="text-muted d-block mb-0" style="font-size: 0.65rem;">Total Price</small>
+                                                        <div class="fw-bold text-success" style="font-size: 0.9rem;">SGD {{ number_format($booking['totalPrice'] ?? 0, 2) }}</div>
+                                        </div>
+                                                    </div>
+                                                </div>
+                                                </div>
+
+                                        <!-- Booking Status -->
+                                        <div class="bg-light rounded p-1">
+                                            <div class="d-flex align-items-center mb-1">
+                                                <div class="rounded-circle p-1 me-1" style="background: linear-gradient(135deg, #fd7f6f 0%, #feb47b 100%); width: 20px; height: 20px; display: flex; align-items: center; justify-content: center;">
+                                                    <i class="ri-settings-line text-white" style="font-size: 0.7rem;"></i>
+                                                    </div>
+                                                <h6 class="fw-bold mb-0 text-dark" style="font-size: 0.8rem;">Booking Status</h6>
                                                 </div>
                                                 @if($exitOrder->is_approve == 1)
-                                                    <div class="alert alert-success mb-0 py-1 px-3" style="border-radius: 25px;">
-                                                        <i class="ri-check-circle-fill me-1"></i>
-                                                        <small><strong>Approved Booking</strong></small>
+                                                <div class="alert alert-success mb-0 py-1 px-2" style="border-radius: 6px; font-size: 0.75rem;">
+                                                    <i class="ri-check-circle-fill me-1" style="font-size: 0.7rem;"></i>
+                                                    <strong>Approved</strong>
                                                         @if($exitOrder->reference_id)
-                                                            <br><small class="text-muted">Ref: {{ $exitOrder->reference_id }}</small>
+                                                        <span class="ms-1">• Ref: {{ $exitOrder->reference_id }}</span>
                                                         @endif
                                                         @if($exitOrder->display_due_date)
-                                                            <br><small class="text-muted">Due: {{ \Carbon\Carbon::parse($exitOrder->display_due_date)->format('d-m-Y') }}</small>
+                                                        <span class="ms-1">• Due: {{ \Carbon\Carbon::parse($exitOrder->display_due_date)->format('d-m-Y') }}</span>
                                                         @endif
                                                     </div>
                                                 @else
                                                 @if(auth()->user()->role_id == 11 || auth()->user()->role_id == 34 || auth()->user()->role_id == 33 || auth()->user()->role_id == 37 || auth()->user()->role_id == 38 || auth()->user()->role_id == 124 || auth()->user()->role_id == 125 || auth()->user()->role_id == 128 || auth()->user()->role_id == 129 || auth()->user()->role_id == 130 || auth()->user()->role_id == 131 || auth()->user()->role_id == 132 || auth()->user()->role_id == 134 || auth()->user()->role_id == 135 || auth()->user()->role_id == 136 || auth()->user()->role_id == 137 || auth()->user()->role_id == 138)
-                                                <div class="d-flex gap-2">
+                                                <div class="d-flex gap-1 flex-wrap">
                                                     @if(auth()->user()->role_id == 11 || auth()->user()->role_id == 34 || auth()->user()->role_id == 124 || auth()->user()->role_id == 125 || auth()->user()->role_id == 128 || auth()->user()->role_id == 131 || auth()->user()->role_id == 132 || auth()->user()->role_id == 134 || auth()->user()->role_id == 135 || auth()->user()->role_id == 137 || auth()->user()->role_id == 138)
                                                     <button type="button" 
-                                                            class="btn btn-outline-primary btn-sm px-3 py-2" 
+                                                            class="btn btn-sm px-2 py-1" 
                                                             onclick="editDepartureBooking({{ $tour->tour_id }}, {{ $index }}, {{ $actualBookingIndex }})"
-                                                            style="border-radius: 25px;">
-                                                        <i class="ri-edit-line me-1"></i>Edit
+                                                            style="border-radius: 6px; background: linear-gradient(135deg, #fd7f6f 0%, #feb47b 100%); border: none; color: white; font-size: 0.75rem;">
+                                                        <i class="ri-edit-line me-1" style="font-size: 0.7rem;"></i>Edit
                                                     </button>
-                                                    {{-- <button type="button" 
-                                                            class="btn btn-outline-success btn-sm px-3 py-2" 
-                                                            onclick="approveDepartureBooking({{ $tour->tour_id }}, {{ $index }}, {{ $actualBookingIndex }})"
-                                                            style="border-radius: 25px;">
-                                                        <i class="ri-check-line me-1"></i>Approve
-                                                    </button> --}}
                                                     @endif
                                                     @if(auth()->user()->role_id == 11 || auth()->user()->role_id == 34 || auth()->user()->role_id == 33 || auth()->user()->role_id == 37 || auth()->user()->role_id == 38 || auth()->user()->role_id == 124 || auth()->user()->role_id == 125 || auth()->user()->role_id == 128 || auth()->user()->role_id == 129 || auth()->user()->role_id == 130 || auth()->user()->role_id == 131 || auth()->user()->role_id == 132 || auth()->user()->role_id == 134 || auth()->user()->role_id == 135 || auth()->user()->role_id == 136 || auth()->user()->role_id == 137 || auth()->user()->role_id == 138)
                                                     <button type="button" 
-                                                            class="btn btn-outline-danger btn-sm px-3 py-2" 
+                                                            class="btn btn-outline-danger btn-sm px-2 py-1" 
                                                             onclick="rejectDepartureBooking({{ $tour->tour_id }}, {{ $index }}, {{ $actualBookingIndex }})"
-                                                            style="border-radius: 25px;">
-                                                        <i class="ri-close-line me-1"></i>Reject
+                                                            style="border-radius: 6px; font-size: 0.75rem;">
+                                                        <i class="ri-close-line me-1" style="font-size: 0.7rem;"></i>Reject
                                                     </button>
                                                     @endif
                                                 </div>
+                                                @else
+                                                <div class="text-muted small" style="font-size: 0.75rem;"><i class="ri-information-line me-1" style="font-size: 0.7rem;"></i>Pending approval</div>
                                                     @endif
                                                 @endif
-                                            </div>
                                         </div>
                                     </div>
                                 </div>
@@ -5177,159 +5219,243 @@ function loadIndividualGuideContent(tourId, guideOrderIndex, bookingIndex, modal
 
 function generateIndividualGuideContent(guideBooking, modalId, tourId, guideOrderIndex, bookingIndex) {
     const contentHTML = `
-        <!-- Guide Information Card with Image -->
-        <div class="row mb-4">
-            <div class="col-md-12">
-                <div class="card border-0 shadow-sm" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);">
-                    <div class="card-body p-4">
-                        <div class="row align-items-center text-white">
-                            <div class="col-md-3 text-center">
-                                ${guideBooking.image ? `
-                                    <img src="${guideBooking.image}" 
-                                         alt="${guideBooking.guideName || 'Guide'}" 
-                                         class="rounded-circle border border-white border-3 shadow"
-                                         style="width: 100px; height: 100px; object-fit: cover;">
-                                ` : `
-                                    <div class="bg-white bg-opacity-20 rounded-circle d-flex align-items-center justify-content-center border border-white border-3"
-                                         style="width: 100px; height: 100px;">
-                                        <i class="ri-user-voice-line" style="font-size: 2.5rem;"></i>
-                                    </div>
-                                `}
-                            </div>
-                            <div class="col-md-9">
-                                <h4 class="mb-2 fw-bold">
-                                    <i class="ri-user-voice-line me-2"></i>${guideBooking.guideName || 'Professional Guide'}
-                                </h4>
-                                <div class="row">
-                                    <div class="col-md-6">
-                                        <small class="opacity-75">Total Price</small>
-                                        <div class="fw-bold fs-5">SGD ${parseFloat(guideBooking.totalPrice || 0).toFixed(2)}</div>
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
+        <!-- Compact Guide Header Card -->
+        <div class="card mb-2 shadow-sm border-0" style="border-radius: 8px; overflow: hidden; border-left: 4px solid #667eea !important;">
+            <div class="card-header border-0 py-1 px-2" style="background: linear-gradient(90deg, #667eea 0%, #764ba2 100%);">
+                <div class="row align-items-center g-1">
+                    <div class="col-md-8">
+                        <h6 class="mb-0 fw-bold text-white" style="font-size: 0.85rem;">
+                            <i class="ri-user-voice-line me-1" style="font-size: 0.8rem;"></i>${guideBooking.guideName || 'Professional Guide'}
+                        </h6>
+                        <small class="text-white opacity-90" style="font-size: 0.7rem;">Guide Service • ${guideBooking.hours || guideBooking.duration || 'N/A'}H</small>
                     </div>
-                </div>
-            </div>
-        </div>
-
-        <!-- Service Schedule & Group Information -->
-        <div class="row mb-4">
-            <div class="col-md-6">
-                <div class="bg-white rounded p-3 shadow-sm h-100">
-                    <div class="d-flex align-items-center mb-3">
-                        <div class="bg-primary rounded-circle p-2 me-3">
-                            <i class="ri-calendar-line text-white"></i>
-                        </div>
-                        <h6 class="fw-bold mb-0 text-dark">Service Schedule</h6>
-                    </div>
-                    <div class="row">
-                        <div class="col-md-6 mb-3">
-                            <small class="text-muted">Date</small>
-                            <div class="fw-medium">${guideBooking.bookingDate || 'N/A'}</div>
-                        </div>
-                        <div class="col-md-6 mb-3">
-                            <small class="text-muted">Time</small>
-                            <div class="fw-medium">${guideBooking.entrytime || 'N/A'}</div>
-                        </div>
-                        <div class="col-md-6 mb-3">
-                            <small class="text-muted">Duration</small>
-                            <div class="fw-medium">${guideBooking.duration || 'Full Day'}</div>
-                        </div>
-                        <div class="col-md-6 mb-3">
-                            <small class="text-muted">Pickup Location</small>
-                            <div class="fw-medium text-truncate" title="${guideBooking.entrypickup || 'N/A'}">${guideBooking.entrypickup || 'N/A'}</div>
-                        </div>
-                    </div>
-                </div>
-            </div>
-            <div class="col-md-6">
-                <div class="bg-white rounded p-3 shadow-sm h-100">
-                    <div class="d-flex align-items-center mb-3">
-                        <div class="bg-success rounded-circle p-2 me-3">
-                            <i class="ri-group-line text-white"></i>
-                        </div>
-                        <h6 class="fw-bold mb-0 text-dark">Group Information</h6>
-                    </div>
-                    <div class="row">
-                        <div class="col-md-6 mb-3">
-                            <small class="text-muted">Adults</small>
-                            <div class="fw-medium">${guideBooking.adults || 0}</div>
-                        </div>
-                        <div class="col-md-6 mb-3">
-                            <small class="text-muted">Children</small>
-                            <div class="fw-medium">${guideBooking.children || 0}</div>
-                        </div>
-                        <div class="col-md-6 mb-3">
-                            <small class="text-muted">Total Guests</small>
-                            <span class="badge bg-primary">${(parseInt(guideBooking.adults) || 0) + (parseInt(guideBooking.children) || 0)}</span>
-                        </div>
-                    </div>
-                </div>
-            </div>
-        </div>
-
-        <!-- Guide Details & Pricing -->
-        <div class="row mb-4">
-            <div class="col-md-6">
-                <div class="bg-white rounded p-3 shadow-sm h-100">
-                    <div class="d-flex align-items-center mb-3">
-                        <div class="bg-warning rounded-circle p-2 me-3">
-                            <i class="ri-money-dollar-circle-line text-white"></i>
-                        </div>
-                        <h6 class="fw-bold mb-0 text-dark">Pricing Details</h6>
-                    </div>
-                    <div class="row">
-                        <div class="col-md-6 mb-3">
-                            <small class="text-muted">Base Price</small>
-                            <div class="fw-medium">SGD ${parseFloat(guideBooking.basePrice || 0).toFixed(2)}</div>
-                        </div>
-                        <div class="col-md-6 mb-3">
-                            <small class="text-muted">Surcharge</small>
-                            <div class="fw-medium">SGD ${parseFloat(guideBooking.surcharge || 0).toFixed(2)}</div>
-                        </div>
-                        <div class="col-md-6 mb-3">
-                            <small class="text-muted">Tax (${guideBooking.tax || '0'}%)</small>
-                            <div class="fw-medium">SGD ${(parseFloat(guideBooking.totalPrice || 0) * parseFloat(guideBooking.tax || 0) / 100).toFixed(2)}</div>
-                        </div>
-                        <div class="col-md-6 mb-3">
-                            <small class="text-muted">Total Price</small>
-                            <div class="fw-bold text-success fs-5">SGD ${parseFloat(guideBooking.totalPrice || 0).toFixed(2)}</div>
-                        </div>
+                    <div class="col-md-4 text-end">
+                        <span class="badge bg-white text-success px-2 py-1" style="font-size: 0.8rem;">
+                            SGD ${parseFloat(guideBooking.totalPrice || 0).toFixed(2)}
+                        </span>
                     </div>
                 </div>
             </div>
             
-        </div>
-
-        <!-- Special Requests -->
-        ${guideBooking.specialRequests ? `
-        <div class="bg-white rounded p-3 shadow-sm mb-4">
-            <div class="d-flex align-items-center mb-3">
-                <div class="bg-secondary rounded-circle p-2 me-3">
-                    <i class="ri-message-2-line text-white"></i>
-                </div>
-                <h6 class="fw-bold mb-0 text-dark">Special Requests</h6>
-            </div>
-            <p class="text-muted mb-0">${guideBooking.specialRequests}</p>
-        </div>
-        ` : ''}
-
-        <!-- Action Buttons -->
-        <div class="bg-white rounded p-3 shadow-sm mt-4">
-            <div class="d-flex align-items-center justify-content-between">
-                <div class="d-flex align-items-center">
-                    <div class="bg-primary rounded-circle p-2 me-3">
-                        <i class="ri-settings-line text-white"></i>
+            <div class="card-body p-2" style="background-color: #ffffff;">
+                <!-- Guide Information & Image -->
+                <div class="row mb-2 g-2">
+                    <div class="col-md-8">
+                        <div class="bg-light rounded p-1 h-100">
+                            <div class="d-flex align-items-center mb-1">
+                                <div class="rounded-circle p-1 me-1" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); width: 22px; height: 22px; display: flex; align-items: center; justify-content: center;">
+                                    <i class="ri-user-voice-line text-white" style="font-size: 0.75rem;"></i>
+                                </div>
+                                <h6 class="fw-bold mb-0 text-dark" style="font-size: 0.85rem;">Guide Information</h6>
+                            </div>
+                            <div class="row g-1">
+                                <div class="col-6">
+                                    <small class="text-muted d-block" style="font-size: 0.65rem;">Guide Name</small>
+                                    <div class="fw-medium" style="font-size: 0.75rem;">${guideBooking.guideName || 'N/A'}</div>
+                                </div>
+                                <div class="col-6">
+                                    <small class="text-muted d-block" style="font-size: 0.65rem;">Base Price</small>
+                                    <div class="fw-medium text-success" style="font-size: 0.75rem;">SGD ${parseFloat(guideBooking.basePrice || 0).toFixed(2)}</div>
+                                </div>
+                                <div class="col-6">
+                                    <small class="text-muted d-block" style="font-size: 0.65rem;">Surcharge</small>
+                                    <div class="fw-medium text-warning" style="font-size: 0.75rem;">SGD ${parseFloat(guideBooking.surcharge || 0).toFixed(2)}</div>
+                                </div>
+                            </div>
+                        </div>
                     </div>
-                    <h6 class="fw-bold mb-0 text-dark">Booking Actions</h6>
+                    <div class="col-md-4">
+                        ${guideBooking.image ? `
+                            <div class="d-flex justify-content-center align-items-center">
+                                <img src="${guideBooking.image}" 
+                                     alt="${guideBooking.guideName || 'Guide'}" 
+                                     class="rounded-circle shadow-sm" 
+                                     style="width: 80px; height: 80px; object-fit: cover; border: 2px solid #667eea; cursor: pointer;"
+                                     onclick="openVehicleImageModal('${guideBooking.image}', '${guideBooking.guideName || 'Guide'}')">
+                            </div>
+                        ` : `
+                            <div class="d-flex justify-content-center align-items-center">
+                                <div class="bg-light rounded-circle d-flex align-items-center justify-content-center shadow-sm" style="width: 80px; height: 80px; border: 2px solid #e9ecef;">
+                                    <i class="ri-user-voice-line text-muted" style="font-size: 2rem;"></i>
+                                </div>
+                            </div>
+                        `}
+                    </div>
                 </div>
-                                ${generateGuideActionButtons(guideBooking, tourId, guideOrderIndex, bookingIndex)}
+
+                <!-- Service Schedule & Group Information -->
+                <div class="row mb-2 g-2">
+                    <div class="col-md-6">
+                        <div class="bg-light rounded p-1 h-100">
+                            <div class="d-flex align-items-center mb-1">
+                                <div class="rounded-circle p-1 me-1" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); width: 22px; height: 22px; display: flex; align-items: center; justify-content: center;">
+                                    <i class="ri-calendar-line text-white" style="font-size: 0.75rem;"></i>
+                                </div>
+                                <h6 class="fw-bold mb-0 text-dark" style="font-size: 0.85rem;">Service Schedule</h6>
+                            </div>
+                            <div class="row g-1">
+                                <div class="col-6 col-md-3">
+                                    <small class="text-muted d-block" style="font-size: 0.65rem;">Service Date</small>
+                                    <div class="fw-bold text-success" style="font-size: 0.75rem;">${guideBooking.bookingDate || 'N/A'}</div>
+                                </div>
+                                <div class="col-6 col-md-3">
+                                    <small class="text-muted d-block" style="font-size: 0.65rem;">Start Time</small>
+                                    <div class="fw-medium text-primary" style="font-size: 0.75rem;">${guideBooking.entrytime || 'TBC'}</div>
+                                </div>
+                                <div class="col-6 col-md-3">
+                                    <small class="text-muted d-block" style="font-size: 0.65rem;">Duration</small>
+                                    <span class="badge" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; font-size: 0.65rem; padding: 2px 4px;">${guideBooking.hours || guideBooking.duration || 'N/A'}H</span>
+                                </div>
+                                ${guideBooking.entrypickup ? `
+                                <div class="col-6 col-md-3">
+                                    <small class="text-muted d-block" style="font-size: 0.65rem;">Pickup</small>
+                                    <div class="fw-medium text-truncate" style="font-size: 0.75rem;" title="${guideBooking.entrypickup}">${guideBooking.entrypickup}</div>
+                                </div>
+                                ` : ''}
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-md-6">
+                        <div class="bg-light rounded p-1 h-100">
+                            <div class="d-flex align-items-center mb-1">
+                                <div class="rounded-circle p-1 me-1" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); width: 22px; height: 22px; display: flex; align-items: center; justify-content: center;">
+                                    <i class="ri-group-line text-white" style="font-size: 0.75rem;"></i>
+                                </div>
+                                <h6 class="fw-bold mb-0 text-dark" style="font-size: 0.85rem;">Group Information</h6>
+                            </div>
+                            <div class="row g-1 mb-1">
+                                <div class="col-6 text-center">
+                                    <div class="bg-white rounded p-1 border" style="border-color: #667eea !important;">
+                                        <div class="fw-bold text-success" style="font-size: 0.9rem;">${guideBooking.adults || 0}</div>
+                                        <small class="text-muted" style="font-size: 0.55rem;">Adults</small>
+                                    </div>
+                                </div>
+                                <div class="col-6 text-center">
+                                    <div class="bg-white rounded p-1 border" style="border-color: #667eea !important;">
+                                        <div class="fw-bold text-warning" style="font-size: 0.9rem;">${guideBooking.children || 0}</div>
+                                        <small class="text-muted" style="font-size: 0.55rem;">Children</small>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="text-center">
+                                <span class="badge" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; font-size: 0.7rem; padding: 2px 4px;">
+                                    Total: ${(parseInt(guideBooking.adults) || 0) + (parseInt(guideBooking.children) || 0)} Guests
+                                </span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Pricing Breakdown -->
+                <div class="bg-light rounded p-1 mb-2">
+                    <div class="d-flex align-items-center mb-1">
+                        <div class="rounded-circle p-0.5 me-1.5" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); width: 22px; height: 22px; display: flex; align-items: center; justify-content: center;">
+                            <i class="ri-money-dollar-circle-line text-white" style="font-size: 0.75rem;"></i>
+                        </div>
+                        <h6 class="fw-bold mb-0 text-dark" style="font-size: 0.85rem;">Pricing Breakdown</h6>
+                    </div>
+                    <div class="row g-1">
+                        <div class="col-md-4">
+                            <div class="text-center p-1 border rounded bg-white" style="border-color: #28a745 !important;">
+                                <small class="text-muted d-block" style="font-size: 0.6rem;">Base Price</small>
+                                <div class="fw-bold text-success" style="font-size: 0.8rem;">SGD ${parseFloat(guideBooking.basePrice || 0).toFixed(2)}</div>
+                            </div>
+                        </div>
+                        <div class="col-md-4">
+                            <div class="text-center p-1 border rounded bg-white" style="border-color: #ffc107 !important;">
+                                <small class="text-muted d-block" style="font-size: 0.6rem;">Surcharge</small>
+                                <div class="fw-bold text-warning" style="font-size: 0.8rem;">SGD ${parseFloat(guideBooking.surcharge || 0).toFixed(2)}</div>
+                            </div>
+                        </div>
+                        <div class="col-md-4">
+                            <div class="text-center p-1 border rounded bg-white" style="border-color: #667eea !important; background: linear-gradient(135deg, rgba(102,126,234,0.1) 0%, rgba(118,75,162,0.1) 100%) !important;">
+                                <small class="text-muted d-block" style="font-size: 0.6rem;">Total Amount</small>
+                                <div class="fw-bold" style="font-size: 0.95rem; color: #667eea;">SGD ${parseFloat(guideBooking.totalPrice || 0).toFixed(2)}</div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Booking Status -->
+                <div class="bg-light rounded p-1">
+                    <div class="d-flex align-items-center mb-1">
+                        <div class="rounded-circle p-1 me-1" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); width: 20px; height: 20px; display: flex; align-items: center; justify-content: center;">
+                            <i class="ri-settings-line text-white" style="font-size: 0.7rem;"></i>
+                        </div>
+                        <h6 class="fw-bold mb-0 text-dark" style="font-size: 0.8rem;">Booking Status</h6>
+                    </div>
+                    <div class="d-flex gap-1 flex-wrap" id="guide_buttons_${tourId}_${guideOrderIndex}_${bookingIndex}">
+                        <!-- Buttons will be dynamically added based on user role -->
+                    </div>
+                </div>
             </div>
         </div>
     `;
     
     document.getElementById(`individualGuideContent_${modalId}`).innerHTML = contentHTML;
+    
+    // Add action buttons based on user role and approval status
+    const isApproved = guideBooking.guide_details?.is_approve == 1 || guideBooking.guide_details?.is_approve === '1' || guideBooking.guide_details?.is_approve === true || guideBooking.is_approve == 1 || guideBooking.is_approve === '1' || guideBooking.is_approve === true || false;
+    
+    if (!isApproved) {
+        const userRoleId = {{ auth()->user()->role_id ?? 0 }};
+        const buttonsContainer = document.getElementById(`guide_buttons_${tourId}_${guideOrderIndex}_${bookingIndex}`);
+        
+        if (buttonsContainer) {
+            let buttonsHTML = '';
+            
+            // Check permissions
+            const canEdit = [11, 34, 124, 125, 128, 131, 132, 134, 135, 137, 138].includes(userRoleId);
+            const canReject = [11, 34, 33, 37, 38, 124, 125, 128, 129, 130, 131, 132, 134, 135, 136, 137, 138].includes(userRoleId);
+            const hasAnyPermission = canEdit || canReject;
+            
+            if (hasAnyPermission) {
+                // Edit button (DMC and Operational Head only)
+                if (canEdit) {
+                    buttonsHTML += `
+                        <button type="button" 
+                                class="btn btn-sm px-2 py-1" 
+                                onclick="editIndividualGuide(${tourId}, ${guideOrderIndex}, ${bookingIndex})"
+                                style="border-radius: 6px; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); border: none; color: white; font-size: 0.75rem;">
+                            <i class="ri-edit-line me-1" style="font-size: 0.7rem;"></i>Edit
+                        </button>
+                    `;
+                }
+                
+                // Reject button (for users with reject permission)
+                if (canReject) {
+                    buttonsHTML += `
+                        <button type="button" 
+                                class="btn btn-outline-danger btn-sm px-2 py-1" 
+                                onclick="rejectIndividualGuide(${tourId}, ${guideOrderIndex}, ${bookingIndex})"
+                                style="border-radius: 6px; font-size: 0.75rem;">
+                            <i class="ri-close-line me-1" style="font-size: 0.7rem;"></i>Reject
+                        </button>
+                    `;
+                }
+            } else {
+                // Show pending approval only if user has no permissions
+                buttonsHTML += '<div class="text-muted small" style="font-size: 0.75rem;"><i class="ri-information-line me-1" style="font-size: 0.7rem;"></i>Pending approval</div>';
+            }
+            
+            buttonsContainer.innerHTML = buttonsHTML;
+        }
+    } else {
+        // Show approved status
+        const buttonsContainer = document.getElementById(`guide_buttons_${tourId}_${guideOrderIndex}_${bookingIndex}`);
+        if (buttonsContainer) {
+            const referenceId = guideBooking.guide_details?.reference_id || guideBooking.reference_id || '';
+            const displayDueDate = guideBooking.guide_details?.display_due_date || guideBooking.display_due_date || '';
+            buttonsContainer.innerHTML = `
+                <div class="alert alert-success mb-0 py-1 px-2" style="border-radius: 6px; font-size: 0.75rem;">
+                    <i class="ri-check-circle-fill me-1" style="font-size: 0.7rem;"></i>
+                    <strong>Approved</strong>
+                    ${referenceId ? `<span class="ms-1">• Ref: ${referenceId}</span>` : ''}
+                    ${displayDueDate ? `<span class="ms-1">• Due: ${displayDueDate}</span>` : ''}
+                </div>
+            `;
+        }
+    }
 }
 
 function generateGuideActionButtons(booking, tourId, guideOrderIndex, bookingIndex) {
@@ -13973,145 +14099,156 @@ function generateIndividualTravelHourlyContent(travelHourlyData, modalId, tourId
     try {
 
         const content = `
-            <div class="card border-0 shadow-sm" style="border-radius: 12px; overflow: hidden;">
-                <div class="card-header border-0" style="background: linear-gradient(90deg, #667eea 0%, #764ba2 100%); padding: 20px;">
-                    <div class="row align-items-center">
+            <div class="card mb-2 shadow-sm border-0" style="border-radius: 8px; overflow: hidden; border-left: 4px solid #667eea !important;">
+                <!-- Compact Card Header -->
+                <div class="card-header border-0 py-1 px-2" style="background: linear-gradient(90deg, #667eea 0%, #764ba2 100%);">
+                    <div class="row align-items-center g-1">
                         <div class="col-md-8">
-                            <h5 class="mb-1 fw-bold text-white">
-                                <i class="ri-time-line me-2"></i>${travelHourlyData.vehicles_name || 'Hourly Tour Service'}
-                            </h5>
-                            <p class="mb-0 text-white opacity-75">Local-Tour Hourly ${parseInt(travelHourlyOrderIndex) + 1} • ${travelHourlyData.type || 'Standard'} Service</p>
+                            <h6 class="mb-0 fw-bold text-white" style="font-size: 0.85rem;">
+                                <i class="ri-time-line me-1" style="font-size: 0.8rem;"></i>${travelHourlyData.vehicles_name || 'Hourly Tour Service'}
+                            </h6>
+                            <small class="text-white opacity-90" style="font-size: 0.7rem;">Hourly Tour ${parseInt(travelHourlyOrderIndex) + 1} • ${travelHourlyData.type || 'Standard'}</small>
                         </div>
                         <div class="col-md-4 text-end">
-                            <div class="bg-white rounded-pill px-3 py-2 d-inline-block">
-                                <span class="text-success fw-bold fs-5">SGD ${(travelHourlyData.totalPrice || 0).toFixed(2)}</span>
-                            </div>
+                            <span class="badge bg-white text-success px-2 py-1" style="font-size: 0.8rem;">
+                                SGD ${(travelHourlyData.totalPrice || 0).toFixed(2)}
+                            </span>
                         </div>
                     </div>
                 </div>
                 
-                <div class="card-body p-4" style="background-color: #f8f9fa;">
+                <div class="card-body p-2" style="background-color: #ffffff;">
                     <!-- Service Schedule & Group Information -->
-                    <div class="row mb-4">
+                    <div class="row mb-2 g-2">
                         <div class="col-md-6">
-                            <div class="bg-white rounded p-3 shadow-sm h-100">
-                                <div class="d-flex align-items-center mb-3">
-                                    <div class="bg-primary rounded-circle p-2 me-3">
-                                        <i class="ri-calendar-line text-white"></i>
+                            <div class="bg-light rounded p-2 h-100">
+                                <div class="d-flex align-items-center mb-1">
+                                    <div class="rounded-circle p-1 me-2" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); width: 24px; height: 24px; display: flex; align-items: center; justify-content: center;">
+                                        <i class="ri-calendar-line text-white" style="font-size: 0.8rem;"></i>
                                     </div>
-                                    <h6 class="fw-bold mb-0 text-dark">Service Schedule</h6>
+                                    <h6 class="fw-bold mb-0 text-dark" style="font-size: 0.85rem;">Service Schedule</h6>
                                 </div>
-                                <div class="row">
-                                    <div class="col-md-6 mb-3">
-                                        <small class="text-muted">Booking Date</small>
-                                        <div class="fw-medium">${travelHourlyData.bookingDate || 'N/A'}</div>
+                                <div class="row g-1">
+                                    <div class="col-6">
+                                        <small class="text-muted d-block" style="font-size: 0.65rem;">Date</small>
+                                        <div class="fw-medium" style="font-size: 0.75rem;">${travelHourlyData.bookingDate || 'N/A'}</div>
                                     </div>
-                                    <div class="col-md-6 mb-3">
-                                        <small class="text-muted">Time</small>
-                                        <div class="fw-medium">${travelHourlyData.entrytime || 'N/A'}</div>
+                                    <div class="col-6">
+                                        <small class="text-muted d-block" style="font-size: 0.65rem;">Time</small>
+                                        <div class="fw-medium" style="font-size: 0.75rem;">${travelHourlyData.entrytime || 'TBC'}</div>
                                     </div>
-                                    <div class="col-md-6 mb-3">
-                                        <small class="text-muted">Selected Hours</small>
-                                        <span class="badge bg-info">${travelHourlyData.selectedHours || 'N/A'} Hour(s)</span>
+                                    <div class="col-6">
+                                        <small class="text-muted d-block" style="font-size: 0.65rem;">Hours</small>
+                                        <span class="badge bg-info px-1 py-0" style="font-size: 0.65rem;">${travelHourlyData.selectedHours || 'N/A'}H</span>
                                     </div>
-                                    <div class="col-md-6 mb-3">
-                                        <small class="text-muted">Service Type</small>
-                                        <span class="badge bg-warning">${travelHourlyData.type || 'Standard'}</span>
+                                    <div class="col-6">
+                                        <small class="text-muted d-block" style="font-size: 0.65rem;">Type</small>
+                                        <span class="badge bg-warning px-1 py-0" style="font-size: 0.65rem;">${travelHourlyData.type || 'Standard'}</span>
                                     </div>
                                 </div>
                             </div>
                         </div>
                         <div class="col-md-6">
-                            <div class="bg-white rounded p-3 shadow-sm h-100">
-                                <div class="d-flex align-items-center mb-3">
-                                    <div class="bg-success rounded-circle p-2 me-3">
-                                        <i class="ri-group-line text-white"></i>
+                            <div class="bg-light rounded p-2 h-100">
+                                <div class="d-flex align-items-center mb-1">
+                                    <div class="rounded-circle p-1 me-2" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); width: 24px; height: 24px; display: flex; align-items: center; justify-content: center;">
+                                        <i class="ri-group-line text-white" style="font-size: 0.8rem;"></i>
                                     </div>
-                                    <h6 class="fw-bold mb-0 text-dark">Group Information</h6>
+                                    <h6 class="fw-bold mb-0 text-dark" style="font-size: 0.85rem;">Group Information</h6>
                                 </div>
-                                <div class="row">
-                                    <div class="col-md-6 mb-3">
-                                        <small class="text-muted">Adults</small>
-                                        <div class="fw-medium">${travelHourlyData.adults || 0}</div>
+                                <div class="row g-1 mb-1">
+                                    <div class="col-6 text-center">
+                                        <div class="bg-white rounded p-1 border" style="border-color: #667eea !important;">
+                                            <div class="fw-bold text-success" style="font-size: 0.9rem;">${travelHourlyData.adults || 0}</div>
+                                            <small class="text-muted" style="font-size: 0.55rem;">Adults</small>
+                                        </div>
                                     </div>
-                                    <div class="col-md-6 mb-3">
-                                        <small class="text-muted">Children</small>
-                                        <div class="fw-medium">${travelHourlyData.children || 0}</div>
-                                    </div>
-                                    <div class="col-md-6 mb-3">
-                                        <small class="text-muted">Total Guests</small>
-                                        <span class="badge bg-primary">${(parseInt(travelHourlyData.adults || 0) + parseInt(travelHourlyData.children || 0))}</span>
+                                    <div class="col-6 text-center">
+                                        <div class="bg-white rounded p-1 border" style="border-color: #667eea !important;">
+                                            <div class="fw-bold text-warning" style="font-size: 0.9rem;">${travelHourlyData.children || 0}</div>
+                                            <small class="text-muted" style="font-size: 0.55rem;">Children</small>
+                                        </div>
                                     </div>
                                 </div>
+                                <div class="text-center">
+                                    <span class="badge" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; font-size: 0.7rem; padding: 2px 4px;">
+                                        Total: ${(parseInt(travelHourlyData.adults || 0) + parseInt(travelHourlyData.children || 0))} Guests
+                                    </span>
+                                </div>
+                                ${(travelHourlyData.Night_Start_Time && travelHourlyData.Night_End_Time) ? `
+                                <div class="bg-white rounded p-1 mt-1">
+                                    <small class="text-muted d-block mb-0" style="font-size: 0.65rem;">Night Service</small>
+                                    <div class="fw-medium text-warning" style="font-size: 0.75rem;">${travelHourlyData.Night_Start_Time} - ${travelHourlyData.Night_End_Time}</div>
+                                </div>
+                                ` : ''}
                             </div>
                         </div>
                     </div>
 
                     <!-- Pickup Location & Vehicle Information -->
-                    <div class="row mb-4">
+                    <div class="row mb-2 g-2">
                         <div class="col-md-6">
-                            <div class="bg-white rounded p-3 shadow-sm h-100">
-                                <div class="d-flex align-items-center mb-3">
-                                    <div class="bg-success rounded-circle p-2 me-3">
-                                        <i class="ri-map-pin-line text-white"></i>
+                            <div class="bg-light rounded p-2 h-100">
+                                <div class="d-flex align-items-center mb-1">
+                                    <div class="rounded-circle p-1 me-2" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); width: 24px; height: 24px; display: flex; align-items: center; justify-content: center;">
+                                        <i class="ri-map-pin-line text-white" style="font-size: 0.8rem;"></i>
                                     </div>
-                                    <h6 class="fw-bold mb-0 text-dark">Pickup Location</h6>
+                                    <h6 class="fw-bold mb-0 text-dark" style="font-size: 0.85rem;">Pickup Location</h6>
                                 </div>
-                                <div class="row">
-                                    <div class="col-12 mb-3">
-                                        <small class="text-muted">Pickup Point</small>
-                                        <div class="fw-medium">${travelHourlyData.entrypickup || 'N/A'}</div>
+                                <div class="row g-1">
+                                    <div class="col-12">
+                                        <small class="text-muted d-block" style="font-size: 0.65rem;">Pickup Point</small>
+                                        <div class="fw-medium text-truncate" style="font-size: 0.75rem;" title="${travelHourlyData.entrypickup || 'N/A'}">${travelHourlyData.entrypickup || 'N/A'}</div>
                                     </div>
-                                    <div class="col-md-6 mb-3">
-                                        <small class="text-muted">City</small>
-                                        <div class="fw-medium">${travelHourlyData.city || 'N/A'}</div>
+                                    <div class="col-6">
+                                        <small class="text-muted d-block" style="font-size: 0.65rem;">City</small>
+                                        <div class="fw-medium" style="font-size: 0.75rem;">${travelHourlyData.city || 'N/A'}</div>
                                     </div>
-                                    <div class="col-md-6 mb-3">
-                                        <small class="text-muted">Country</small>
-                                        <div class="fw-medium">${travelHourlyData.country || 'N/A'}</div>
+                                    <div class="col-6">
+                                        <small class="text-muted d-block" style="font-size: 0.65rem;">Country</small>
+                                        <div class="fw-medium" style="font-size: 0.75rem;">${travelHourlyData.country || 'N/A'}</div>
                                     </div>
                                 </div>
                             </div>
                         </div>
                         <div class="col-md-6">
-                            <div class="bg-white rounded p-3 shadow-sm h-100">
-                                <div class="d-flex align-items-center mb-3">
-                                    <div class="bg-warning rounded-circle p-2 me-3">
-                                        <i class="ri-car-line text-white"></i>
+                            <div class="bg-light rounded p-2 h-100" style="overflow: hidden;">
+                                <div class="d-flex align-items-center mb-1">
+                                    <div class="rounded-circle p-1 me-2" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); width: 24px; height: 24px; display: flex; align-items: center; justify-content: center; flex-shrink: 0;">
+                                        <i class="ri-car-line text-white" style="font-size: 0.8rem;"></i>
                                     </div>
-                                    <h6 class="fw-bold mb-0 text-dark">Vehicle Details</h6>
+                                    <h6 class="fw-bold mb-0 text-dark" style="font-size: 0.85rem; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">Vehicle Details</h6>
                                 </div>
-                                <div class="row mb-3">
-                                    <div class="col-6 mb-2">
-                                        <small class="text-muted">Vehicle Name</small>
-                                        <div class="fw-medium">${travelHourlyData.vehicles_name || 'N/A'}</div>
+                                <div class="row g-1 mb-2">
+                                    <div class="col-6">
+                                        <small class="text-muted d-block mb-0" style="font-size: 0.65rem;">Vehicle</small>
+                                        <div class="fw-medium text-truncate" style="font-size: 0.75rem;" title="${travelHourlyData.vehicles_name || 'N/A'}">${travelHourlyData.vehicles_name || 'N/A'}</div>
                                     </div>
-                                    <div class="col-6 mb-2">
-                                        <small class="text-muted">Service Type</small>
-                                        <div class="fw-medium">${travelHourlyData.type || 'N/A'} Transfer</div>
+                                    <div class="col-6">
+                                        <small class="text-muted d-block mb-0" style="font-size: 0.65rem;">Service</small>
+                                        <div class="fw-medium" style="font-size: 0.75rem;">${travelHourlyData.type || 'N/A'}</div>
                                     </div>
                                 </div>
-                                <!-- Vehicle Image Display -->
-                                <div class="vehicle-image-container">
-                                    ${travelHourlyData.image ? `
-                                        <div class="position-relative">
+                                <!-- Compact Vehicle Image Display -->
+                                <div class="d-flex justify-content-center align-items-center" style="min-height: 80px; width: 100%; overflow: hidden; position: relative;">
+                                    ${travelHourlyData.image && travelHourlyData.image.trim() !== '' ? `
+                                        <div class="position-relative" style="width: 80px; height: 80px; flex-shrink: 0; overflow: hidden;">
                                             <img src="${travelHourlyData.image}" 
-                                                 alt="${travelHourlyData.vehicles_name || 'Vehicle'}" 
-                                                 class="img-fluid rounded shadow-sm w-100" 
-                                                 style="height: 180px; object-fit: cover; border-radius: 12px !important; cursor: pointer;"
+                                                 alt="Vehicle Image" 
+                                                 class="rounded-circle shadow-sm" 
+                                                 style="width: 80px; height: 80px; object-fit: cover; object-position: center; border: 2px solid #667eea; cursor: pointer; display: block; margin: 0; padding: 0; background: #f8f9fa;"
+                                                 onerror="this.onerror=null; this.parentElement.innerHTML='<div class=\\'rounded-circle bg-light d-flex align-items-center justify-content-center shadow-sm\\' style=\\'width: 80px; height: 80px; border: 2px solid #e9ecef;\\'><i class=\\'ri-car-line text-muted\\' style=\\'font-size: 2rem;\\'></i></div>';"
                                                  onclick="openVehicleImageModal('${travelHourlyData.image}', '${travelHourlyData.vehicles_name || 'Vehicle'}')">
-                                            <div class="position-absolute top-0 end-0 m-2">
-                                                <span class="badge bg-dark bg-opacity-75 text-white">
-                                                    <i class="ri-zoom-in-line me-1"></i>View
+                                            <div class="position-absolute" style="top: -3px; right: -3px; z-index: 10;">
+                                                <span class="badge bg-dark bg-opacity-90 text-white rounded-circle d-flex align-items-center justify-content-center" style="width: 20px; height: 20px; font-size: 0.6rem; padding: 0; cursor: pointer; box-shadow: 0 2px 4px rgba(0,0,0,0.2);"
+                                                      onclick="event.stopPropagation(); openVehicleImageModal('${travelHourlyData.image}', '${travelHourlyData.vehicles_name || 'Vehicle'}')">
+                                                    <i class="ri-zoom-in-line"></i>
                                                 </span>
                                             </div>
                                         </div>
                                     ` : `
-                                        <div class="bg-light rounded d-flex align-items-center justify-content-center" style="height: 180px; border-radius: 12px;">
-                                            <div class="text-center">
-                                                <i class="ri-car-line ri-48px text-muted mb-2"></i>
-                                                <div class="text-muted">No Vehicle Image</div>
-                                            </div>
+                                        <div class="rounded-circle bg-light d-flex align-items-center justify-content-center shadow-sm" style="width: 80px; height: 80px; border: 2px solid #e9ecef; flex-shrink: 0;">
+                                            <i class="ri-car-line text-muted" style="font-size: 2rem;"></i>
                                         </div>
                                     `}
                                 </div>
@@ -14119,113 +14256,80 @@ function generateIndividualTravelHourlyContent(travelHourlyData, modalId, tourId
                         </div>
                     </div>
 
-                    <!-- Pricing & Customer Information -->
-                    <div class="row mb-4">
-                        <div class="col-md-6">
-                            <div class="bg-white rounded p-3 shadow-sm h-100">
-                                <div class="d-flex align-items-center mb-3">
-                                    <div class="bg-warning rounded-circle p-2 me-3">
-                                        <i class="ri-money-dollar-circle-line text-white"></i>
-                                    </div>
-                                    <h6 class="fw-bold mb-0 text-dark">Pricing Details</h6>
-                                </div>
-                                <div class="row">
-                                    <div class="col-md-6 mb-3">
-                                        <small class="text-muted">Total Price</small>
-                                        <div class="fw-bold text-success">SGD ${travelHourlyData.totalPrice || '0'}</div>
-                                    </div>
-                                    <div class="col-md-6 mb-3">
-                                        <small class="text-muted">Tax</small>
-                                        <div class="fw-medium">${travelHourlyData.Tax || '0'}%</div>
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
-                        <div class="col-md-6">
-                            <div class="bg-white rounded p-3 shadow-sm h-100">
-                                <div class="d-flex align-items-center mb-3">
-                                    <div class="bg-info rounded-circle p-2 me-3">
-                                        <i class="ri-user-line text-white"></i>
-                                    </div>
-                                    <h6 class="fw-bold mb-0 text-dark">Customer Information</h6>
-                                </div>
-                                <div class="row">
-                                    <div class="col-12 mb-2">
-                                        <small class="text-muted">Name</small>
-                                        <div class="fw-medium">${travelHourlyData.fullName || 'N/A'}</div>
-                                    </div>
-                                    <div class="col-md-6 mb-2">
-                                        <small class="text-muted">Email</small>
-                                        <div class="fw-medium">${travelHourlyData.email || 'N/A'}</div>
-                                    </div>
-                                    <div class="col-md-6 mb-2">
-                                        <small class="text-muted">Phone</small>
-                                        <div class="fw-medium">${travelHourlyData.phone || 'N/A'}</div>
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
+                  
 
-                    ${travelHourlyData.specialRequests ? `
-                        <!-- Special Requests -->
-                        <div class="bg-white rounded p-3 shadow-sm mb-4">
-                            <div class="d-flex align-items-center mb-3">
-                                <div class="bg-secondary rounded-circle p-2 me-3">
-                                    <i class="ri-message-2-line text-white"></i>
-                                </div>
-                                <h6 class="fw-bold mb-0 text-dark">Special Requests</h6>
+                    <!-- Booking Status -->
+                    <div class="bg-light rounded p-1">
+                        <div class="d-flex align-items-center mb-1">
+                            <div class="rounded-circle p-1 me-1" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); width: 20px; height: 20px; display: flex; align-items: center; justify-content: center;">
+                                <i class="ri-settings-line text-white" style="font-size: 0.7rem;"></i>
                             </div>
-                            <p class="text-muted mb-0">${travelHourlyData.specialRequests}</p>
+                            <h6 class="fw-bold mb-0 text-dark" style="font-size: 0.8rem;">Booking Status</h6>
                         </div>
-                    ` : ''}
-
-                    <!-- Individual Action Buttons -->
-                    <div class="bg-white rounded p-3 shadow-sm border-top">
-                        <div class="d-flex align-items-center justify-content-between">
-                            <div class="d-flex align-items-center">
-                                <div class="bg-secondary rounded-circle p-2 me-3">
-                                    <i class="ri-settings-line text-white"></i>
-                                </div>
-                                <h6 class="fw-bold mb-0 text-dark">Booking Actions</h6>
+                        ${(travelHourlyData.is_approve == 1 || travelHourlyData.is_approve === '1' || travelHourlyData.is_approve === true) ? `
+                            <div class="alert alert-success mb-0 py-1 px-2" style="border-radius: 6px; font-size: 0.75rem;">
+                                <i class="ri-check-circle-fill me-1" style="font-size: 0.7rem;"></i>
+                                <strong>Approved</strong>
+                                ${travelHourlyData.reference_id ? `<span class="ms-1">• Ref: ${travelHourlyData.reference_id}</span>` : ''}
+                                ${travelHourlyData.display_due_date ? `<span class="ms-1">• Due: ${travelHourlyData.display_due_date}</span>` : ''}
                             </div>
-                            ${travelHourlyData.is_approve == 1 ? `
-                                <div class="alert alert-success mb-0 py-1 px-3" style="border-radius: 25px;">
-                                    <i class="ri-check-circle-fill me-1"></i>
-                                    <small><strong>Approved Booking</strong></small>
-                                    ${travelHourlyData.reference_id ? `<br><small class="text-muted">Ref: ${travelHourlyData.reference_id}</small>` : ''}
-                                    ${travelHourlyData.display_due_date ? `<br><small class="text-muted">Due: ${travelHourlyData.display_due_date}</small>` : ''}
-                                </div>
-                            ` : `
-                            @if(auth()->user()->role_id == 11 || auth()->user()->role_id == 34 || auth()->user()->role_id == 33 || auth()->user()->role_id == 37 || auth()->user()->role_id == 38 || auth()->user()->role_id == 124 || auth()->user()->role_id == 125 || auth()->user()->role_id == 128 || auth()->user()->role_id == 129 || auth()->user()->role_id == 130 || auth()->user()->role_id == 131 || auth()->user()->role_id == 132 || auth()->user()->role_id == 134 || auth()->user()->role_id == 135 || auth()->user()->role_id == 136 || auth()->user()->role_id == 137 || auth()->user()->role_id == 138)
-                            <div class="d-flex gap-2">
-                                                 @if(auth()->user()->role_id == 11 || auth()->user()->role_id == 34 || auth()->user()->role_id == 124 || auth()->user()->role_id == 125 || auth()->user()->role_id == 128 || auth()->user()->role_id == 131 || auth()->user()->role_id == 132 || auth()->user()->role_id == 134 || auth()->user()->role_id == 135 || auth()->user()->role_id == 137 || auth()->user()->role_id == 138)
-                                <button type="button" 
-                                        class="btn btn-outline-primary btn-sm px-3 py-2" 
-                                        onclick="editIndividualTravelHourly(${tourId}, ${travelHourlyOrderIndex}, ${bookingIndex})"
-                                        style="border-radius: 25px;">
-                                    <i class="ri-edit-line me-1"></i>Edit
-                                </button>
-                                
-                                @endif
-                                @if(auth()->user()->role_id == 11 || auth()->user()->role_id == 34 || auth()->user()->role_id == 33 || auth()->user()->role_id == 37 || auth()->user()->role_id == 38 || auth()->user()->role_id == 124 || auth()->user()->role_id == 125 || auth()->user()->role_id == 128 || auth()->user()->role_id == 129 || auth()->user()->role_id == 130 || auth()->user()->role_id == 131 || auth()->user()->role_id == 132 || auth()->user()->role_id == 134 || auth()->user()->role_id == 135 || auth()->user()->role_id == 136 || auth()->user()->role_id == 137 || auth()->user()->role_id == 138)
-                                <button type="button" 
-                                        class="btn btn-outline-danger btn-sm px-3 py-2" 
-                                            onclick="rejectTravelHourlyBooking(${tourId}, ${travelHourlyOrderIndex}, ${bookingIndex})"
-                                        style="border-radius: 25px;">
-                                    <i class="ri-close-line me-1"></i>Reject
-                                </button>
-                                @endif
+                        ` : `
+                            <div class="d-flex gap-1 flex-wrap" id="travelHourly_buttons_${tourId}_${travelHourlyOrderIndex}_${bookingIndex}">
+                                <!-- Buttons will be dynamically added based on user role -->
                             </div>
-                            @endif
-                            `}
-                        </div>
+                        `}
                     </div>
                 </div>
             </div>
         `;
         
         document.getElementById(`${modalId}_content`).innerHTML = content;
+        
+        // Add action buttons based on user role and approval status
+        if (!(travelHourlyData.is_approve == 1 || travelHourlyData.is_approve === '1' || travelHourlyData.is_approve === true)) {
+            const userRoleId = {{ auth()->user()->role_id ?? 0 }};
+            const buttonsContainer = document.getElementById(`travelHourly_buttons_${tourId}_${travelHourlyOrderIndex}_${bookingIndex}`);
+            
+            if (buttonsContainer) {
+                let buttonsHTML = '';
+                
+                // Check permissions
+                const canEdit = [11, 34, 124, 125, 128, 131, 132, 134, 135, 137, 138].includes(userRoleId);
+                const canReject = [11, 34, 33, 37, 38, 124, 125, 128, 129, 130, 131, 132, 134, 135, 136, 137, 138].includes(userRoleId);
+                const hasAnyPermission = canEdit || canReject;
+                
+                if (hasAnyPermission) {
+                // Edit button (DMC and Operational Head only)
+                    if (canEdit) {
+                    buttonsHTML += `
+                        <button type="button" 
+                                    class="btn btn-sm px-2 py-1" 
+                                onclick="editIndividualTravelHourly(${tourId}, ${travelHourlyOrderIndex}, ${bookingIndex})"
+                                    style="border-radius: 6px; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); border: none; color: white; font-size: 0.75rem;">
+                                <i class="ri-edit-line me-1" style="font-size: 0.7rem;"></i>Edit
+                        </button>
+                    `;
+                    }
+                    
+                    // Reject button (for users with reject permission)
+                    if (canReject) {
+                        buttonsHTML += `
+                            <button type="button" 
+                                    class="btn btn-outline-danger btn-sm px-2 py-1" 
+                                    onclick="rejectTravelHourlyBooking(${tourId}, ${travelHourlyOrderIndex}, ${bookingIndex})"
+                                    style="border-radius: 6px; font-size: 0.75rem;">
+                                <i class="ri-close-line me-1" style="font-size: 0.7rem;"></i>Reject
+                            </button>
+                        `;
+                    }
+                } else {
+                    // Show pending approval only if user has no permissions
+                    buttonsHTML += '<div class="text-muted small" style="font-size: 0.75rem;"><i class="ri-information-line me-1" style="font-size: 0.7rem;"></i>Pending approval</div>';
+                }
+                
+                buttonsContainer.innerHTML = buttonsHTML;
+                }
+        }
         
     } catch (error) {
         console.error('Error generating individual travel hourly content:', error);
@@ -15149,27 +15253,37 @@ function openIndividualTravelPointModal(tourId, travelPointOrderIndex, bookingIn
 function createIndividualTravelPointViewModal(modalId, tourId, travelPointOrderIndex, bookingIndex) {
     const modalHtml = `
         <div class="modal fade" id="${modalId}" tabindex="-1" aria-hidden="true" data-bs-backdrop="static" data-bs-keyboard="false">
-            <div class="modal-dialog modal-dialog-centered modal-xl modal-dialog-scrollable">
-                <div class="modal-content shadow-lg" style="border-radius: 15px; overflow: hidden;">
-                    <div class="modal-header p-0 border-0 position-relative" style="height: 180px; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);">
-                        <div class="position-absolute w-100 h-100 d-flex align-items-center justify-content-between p-4">
+            <div class="modal-dialog modal-dialog-centered modal-lg modal-dialog-scrollable">
+                <div class="modal-content shadow-lg border-0" style="border-radius: 12px; overflow: hidden;">
+                    <!-- Modal Header -->
+                    <div class="modal-header border-0 py-3 px-4" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);">
+                        <div class="d-flex align-items-center justify-content-between w-100">
                             <div class="text-white">
-                                <h3 class="mb-1 fw-bold">
-                                    <i class="ri-route-line me-2"></i>Local-Tour Point to Point ${parseInt(travelPointOrderIndex) + 1}
-                                </h3>
-                                <p class="mb-0 opacity-75">Tour #${tourId} Point to Point Service Details</p>
+                                <h5 class="mb-0 fw-bold">
+                                    <i class="ri-route-line me-2"></i>Point to Point Details
+                                </h5>
+                                <small class="opacity-90">Tour #${tourId} • Transfer ${parseInt(travelPointOrderIndex) + 1}</small>
                             </div>
-                            <button type="button" class="btn-close btn-close-white" onclick="closeIndividualTravelPointViewModal('${modalId}')" aria-label="Close" style="filter: brightness(0) invert(1); font-size: 1.2rem;"></button>
+                            <button type="button" class="btn-close btn-close-white" onclick="closeIndividualTravelPointViewModal('${modalId}')" aria-label="Close"></button>
                         </div>
                     </div>
-                    <div class="modal-body p-4" style="background-color: #f8f9fa;">
+                    <!-- Modal Body -->
+                    <div class="modal-body p-3" style="background: #f8f9fa;">
                         <div id="${modalId}_content">
-                            <div class="d-flex justify-content-center align-items-center py-5">
-                                <div class="spinner-border text-primary" role="status">
+                            <div class="text-center py-4">
+                                <div class="spinner-border" role="status" style="color: #667eea;">
                                     <span class="visually-hidden">Loading...</span>
                                 </div>
-                                <span class="ms-3 text-muted">Loading travel point details...</span>
+                                <p class="text-muted mt-2 mb-0" style="font-size: 0.9rem;">Loading travel point details...</p>
                             </div>
+                        </div>
+                    </div>
+                    <!-- Modal Footer -->
+                    <div class="modal-footer border-0 py-2 px-3" style="background: #f8f9fa;">
+                        <div class="d-flex gap-2 w-100 justify-content-end" id="travelPointModalFooter_${modalId}">
+                            <button type="button" class="btn btn-outline-secondary btn-sm px-3 py-1" onclick="closeIndividualTravelPointViewModal('${modalId}')" style="border-radius: 8px; font-size: 0.85rem;">
+                                <i class="ri-close-line me-1"></i>Close
+                            </button>
                         </div>
                     </div>
                 </div>
@@ -15299,208 +15413,271 @@ function displayTravelPointErrorContent(modalId, message) {
 function generateIndividualTravelPointContent(travelPointData, modalId, tourId, travelPointOrderIndex, bookingIndex) {
     try {
         const content = `
-            <div class="card border-0 shadow-sm" style="border-radius: 12px; overflow: hidden;">
-                <div class="card-header border-0" style="background: linear-gradient(90deg, #667eea 0%, #764ba2 100%); padding: 20px;">
-                    <div class="row align-items-center">
+            <div class="card mb-3 shadow-sm border-0" style="border-radius: 10px; overflow: hidden; border-left: 4px solid #667eea !important;">
+                <!-- Compact Card Header -->
+                <div class="card-header border-0 py-2 px-3" style="background: linear-gradient(90deg, #667eea 0%, #764ba2 100%);">
+                    <div class="row align-items-center g-2">
                         <div class="col-md-8">
-                            <h5 class="mb-1 fw-bold text-white">
-                                <i class="ri-route-line me-2"></i>${travelPointData.vehicles_name || 'Point to Point Service'}
-                            </h5>
-                            <p class="mb-0 text-white opacity-75">Local-Tour Point to Point ${parseInt(travelPointOrderIndex) + 1} • ${travelPointData.type || 'Standard'} Service</p>
+                            <h6 class="mb-0 fw-bold text-white">
+                                <i class="ri-route-line me-1"></i>${travelPointData.vehicles_name || 'Point to Point Transfer'}
+                            </h6>
+                            <small class="text-white opacity-90">Point to Point ${parseInt(travelPointOrderIndex) + 1} • ${travelPointData.type || 'Standard'} Service</small>
                         </div>
                         <div class="col-md-4 text-end">
-                            <div class="bg-white rounded-pill px-3 py-2 d-inline-block">
-                                <span class="text-success fw-bold fs-5">SGD ${(travelPointData.totalPrice || 0).toFixed(2)}</span>
-                            </div>
+                            <span class="badge bg-white text-success px-3 py-2" style="font-size: 0.95rem;">
+                                SGD ${(travelPointData.totalPrice || 0).toFixed(2)}
+                            </span>
                         </div>
                     </div>
                 </div>
                 
-                <div class="card-body p-4" style="background-color: #f8f9fa;">
-                    <!-- Service Schedule & Location Information -->
-                    <div class="row mb-4">
+                <div class="card-body p-3" style="background-color: #ffffff;">
+                    <!-- Service Schedule & Group Information -->
+                    <div class="row mb-3 g-3">
                         <div class="col-md-6">
-                            <div class="bg-white rounded p-3 shadow-sm h-100">
-                                <div class="d-flex align-items-center mb-3">
-                                    <div class="bg-primary rounded-circle p-2 me-3">
-                                        <i class="ri-calendar-line text-white"></i>
+                            <div class="bg-light rounded p-2 h-100">
+                                <div class="d-flex align-items-center mb-2">
+                                    <div class="rounded-circle p-1 me-2" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); width: 28px; height: 28px; display: flex; align-items: center; justify-content: center;">
+                                        <i class="ri-calendar-line text-white" style="font-size: 0.9rem;"></i>
                                     </div>
-                                    <h6 class="fw-bold mb-0 text-dark">Service Schedule</h6>
+                                    <h6 class="fw-bold mb-0 text-dark" style="font-size: 0.95rem;">Service Schedule</h6>
                                 </div>
-                                <div class="row">
-                                    <div class="col-md-6 mb-3">
-                                        <small class="text-muted">Booking Date</small>
-                                        <div class="fw-medium">${travelPointData.bookingDate || 'N/A'}</div>
+                                <div class="row g-2">
+                                    <div class="col-6">
+                                        <small class="text-muted d-block" style="font-size: 0.7rem;">Booking Date</small>
+                                        <div class="fw-medium" style="font-size: 0.85rem;">${travelPointData.bookingDate || 'N/A'}</div>
                                     </div>
-                                    <div class="col-md-6 mb-3">
-                                        <small class="text-muted">Time</small>
-                                        <div class="fw-medium">${travelPointData.entrytime || 'N/A'}</div>
+                                    <div class="col-6">
+                                        <small class="text-muted d-block" style="font-size: 0.7rem;">Time</small>
+                                        <div class="fw-medium" style="font-size: 0.85rem;">${travelPointData.entrytime || 'N/A'}</div>
                                     </div>
-                                    <div class="col-md-6 mb-3">
-                                        <small class="text-muted">Adults</small>
-                                        <span class="badge bg-info">${travelPointData.adults || '0'}</span>
+                                    <div class="col-6">
+                                        <small class="text-muted d-block" style="font-size: 0.7rem;">Service Type</small>
+                                        <div><span class="badge bg-warning px-2 py-1" style="font-size: 0.7rem;">${travelPointData.type || 'Standard'}</span></div>
                                     </div>
-                                    <div class="col-md-6 mb-3">
-                                        <small class="text-muted">Children</small>
-                                        <span class="badge bg-warning">${travelPointData.children || '0'}</span>
+                                    <div class="col-6">
+                                        <small class="text-muted d-block" style="font-size: 0.7rem;">Transfer Type</small>
+                                        <div><span class="badge bg-info px-2 py-1" style="font-size: 0.7rem;">Point to Point</span></div>
                                     </div>
                                 </div>
                             </div>
                         </div>
                         <div class="col-md-6">
-                            <div class="bg-white rounded p-3 shadow-sm h-100">
-                                <div class="d-flex align-items-center mb-3">
-                                    <div class="bg-success rounded-circle p-2 me-3">
-                                        <i class="ri-map-pin-line text-white"></i>
+                            <div class="bg-light rounded p-2 h-100">
+                                <div class="d-flex align-items-center mb-2">
+                                    <div class="rounded-circle p-1 me-2" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); width: 28px; height: 28px; display: flex; align-items: center; justify-content: center;">
+                                        <i class="ri-group-line text-white" style="font-size: 0.9rem;"></i>
                                     </div>
-                                    <h6 class="fw-bold mb-0 text-dark">Location Details</h6>
+                                    <h6 class="fw-bold mb-0 text-dark" style="font-size: 0.95rem;">Group Information</h6>
                                 </div>
-                                <div class="row">
-                                    <div class="col-12 mb-2">
-                                        <small class="text-muted">Pickup Location</small>
-                                        <div class="fw-medium">${travelPointData.entrypickup || travelPointData.pickup_location || 'N/A'}</div>
+                                <div class="row g-1 mb-1">
+                                    <div class="col-6 text-center">
+                                        <div class="bg-white rounded p-1 border" style="border-color: #667eea !important;">
+                                            <div class="fw-bold text-success" style="font-size: 1rem;">${travelPointData.adults || 0}</div>
+                                            <small class="text-muted" style="font-size: 0.6rem;">Adults</small>
+                                        </div>
                                     </div>
-                                    <div class="col-12 mb-2">
-                                        <small class="text-muted">Drop Location</small>
-                                        <div class="fw-medium">${travelPointData.entrydropoff || travelPointData.drop_location || 'N/A'}</div>
+                                    <div class="col-6 text-center">
+                                        <div class="bg-white rounded p-1 border" style="border-color: #667eea !important;">
+                                            <div class="fw-bold text-warning" style="font-size: 1rem;">${travelPointData.children || 0}</div>
+                                            <small class="text-muted" style="font-size: 0.6rem;">Children</small>
+                                        </div>
                                     </div>
-                                    <div class="col-md-6 mb-2">
-                                        <small class="text-muted">City</small>
-                                        <div class="fw-medium">${travelPointData.city || 'N/A'}</div>
-                                    </div>
-                                    <div class="col-md-6 mb-2">
-                                        <small class="text-muted">Country</small>
-                                        <div class="fw-medium">${travelPointData.country || 'N/A'}</div>
-                                    </div>
+                                </div>
+                                <div class="text-center">
+                                    <span class="badge" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; font-size: 0.8rem; padding: 2px 6px;">
+                                        Total: ${(parseInt(travelPointData.adults || 0) + parseInt(travelPointData.children || 0))} Guests
+                                    </span>
                                 </div>
                             </div>
                         </div>
                     </div>
 
-                    <!-- Vehicle Image & Information -->
-                    <div class="row mb-4">
-                        <div class="col-md-6">
-                            <div class="bg-white rounded p-3 shadow-sm h-100">
-                                <div class="d-flex align-items-center mb-3">
-                                    <div class="bg-info rounded-circle p-2 me-3">
-                                        <i class="ri-car-line text-white"></i>
+                    <!-- Route Information -->
+                    <div class="bg-light rounded p-2 mb-3">
+                        <div class="d-flex align-items-center mb-2">
+                            <div class="rounded-circle p-1 me-2" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); width: 28px; height: 28px; display: flex; align-items: center; justify-content: center;">
+                                <i class="ri-route-line text-white" style="font-size: 0.9rem;"></i>
+                            </div>
+                            <h6 class="fw-bold mb-0 text-dark" style="font-size: 0.95rem;">Route Information</h6>
+                        </div>
+                        <div class="row g-2 mb-2">
+                            <div class="col-md-6">
+                                <div class="bg-white rounded p-2">
+                                    <small class="text-muted d-block" style="font-size: 0.7rem;">Pickup Point</small>
+                                    <div class="fw-medium d-flex align-items-center" style="font-size: 0.85rem;">
+                                        <i class="ri-map-pin-line text-success me-1"></i>
+                                        <span class="text-truncate">${travelPointData.entrypickup || travelPointData.pickupPoint || 'N/A'}</span>
                                     </div>
-                                    <h6 class="fw-bold mb-0 text-dark">Vehicle Information</h6>
+                                    <small class="text-success" style="font-size: 0.65rem;">Origin</small>
                                 </div>
-                                <div class="text-center">
-                                    ${travelPointData.image ? `
-                                        <div class="position-relative d-inline-block">
-                                            <img src="${travelPointData.image}" alt="Vehicle" class="img-fluid rounded shadow-sm" style="max-height: 180px; width: 100%; object-fit: cover; border-radius: 12px;">
-                                            <div class="position-absolute top-0 end-0 m-2">
-                                                <span class="badge bg-dark bg-opacity-75 text-white">
-                                                    <i class="ri-zoom-in-line me-1"></i>View
+                            </div>
+                            <div class="col-md-6">
+                                <div class="bg-white rounded p-2">
+                                    <small class="text-muted d-block" style="font-size: 0.7rem;">Dropoff Point</small>
+                                    <div class="fw-medium d-flex align-items-center" style="font-size: 0.85rem;">
+                                        <i class="ri-map-pin-2-line text-danger me-1"></i>
+                                        <span class="text-truncate">${travelPointData.entrydropoff || travelPointData.dropoffPoint || 'N/A'}</span>
+                                    </div>
+                                    <small class="text-danger" style="font-size: 0.65rem;">Destination</small>
+                                </div>
+                            </div>
+                        </div>
+                        <!-- Compact Route Direction Visual -->
+                        <div class="d-flex align-items-center justify-content-center p-2 bg-white rounded">
+                            <span class="badge bg-success me-2" style="font-size: 0.7rem;">${travelPointData.entrypickup || travelPointData.pickupPoint || 'Pickup'}</span>
+                            <i class="ri-arrow-right-line text-primary mx-1" style="font-size: 1rem;"></i>
+                            <span class="badge bg-danger" style="font-size: 0.7rem;">${travelPointData.entrydropoff || travelPointData.dropoffPoint || 'Dropoff'}</span>
+                        </div>
+                    </div>
+
+                    <!-- Vehicle & Location Information -->
+                    <div class="row mb-3 g-3">
+                        <div class="col-md-6">
+                            <div class="bg-light rounded p-2 h-100" style="overflow: hidden;">
+                                <div class="d-flex align-items-center mb-2">
+                                    <div class="rounded-circle p-1 me-2" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); width: 28px; height: 28px; display: flex; align-items: center; justify-content: center; flex-shrink: 0;">
+                                        <i class="ri-car-line text-white" style="font-size: 0.9rem;"></i>
+                                    </div>
+                                    <h6 class="fw-bold mb-0 text-dark" style="font-size: 0.95rem; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">Vehicle Details</h6>
+                                </div>
+                                <div class="row g-2 mb-3">
+                                    <div class="col-6">
+                                        <small class="text-muted d-block mb-1" style="font-size: 0.7rem;">Vehicle Name</small>
+                                        <div class="fw-medium text-truncate" style="font-size: 0.85rem;" title="${travelPointData.vehicles_name || 'N/A'}">${travelPointData.vehicles_name || 'N/A'}</div>
+                                    </div>
+                                    <div class="col-6">
+                                        <small class="text-muted d-block mb-1" style="font-size: 0.7rem;">Service Type</small>
+                                        <div class="fw-medium" style="font-size: 0.85rem;">${travelPointData.type || 'N/A'}</div>
+                                    </div>
+                                </div>
+                                <!-- Compact Vehicle Image Display -->
+                                <div class="d-flex justify-content-center align-items-center mt-3 mb-2" style="min-height: 110px; width: 100%; overflow: hidden; position: relative;">
+                                    ${travelPointData.image && travelPointData.image.trim() !== '' ? `
+                                        <div class="position-relative" style="width: 100px; height: 100px; flex-shrink: 0; overflow: hidden;">
+                                            <img src="${travelPointData.image}" 
+                                                 alt="Vehicle Image" 
+                                                 class="rounded-circle shadow-sm" 
+                                                 style="width: 100px; height: 100px; object-fit: cover; object-position: center; border: 3px solid #667eea; cursor: pointer; display: block; margin: 0; padding: 0; background: #f8f9fa;"
+                                                 onerror="this.onerror=null; this.parentElement.innerHTML='<div class=\\'rounded-circle bg-light d-flex align-items-center justify-content-center shadow-sm\\' style=\\'width: 100px; height: 100px; border: 3px solid #e9ecef;\\'><i class=\\'ri-car-line text-muted\\' style=\\'font-size: 2.5rem;\\'></i></div>';"
+                                                 onclick="openVehicleImageModal('${travelPointData.image}', '${travelPointData.vehicles_name || 'Vehicle'}')">
+                                            <div class="position-absolute" style="top: -5px; right: -5px; z-index: 10;">
+                                                <span class="badge bg-dark bg-opacity-90 text-white rounded-circle d-flex align-items-center justify-content-center" style="width: 24px; height: 24px; font-size: 0.7rem; padding: 0; cursor: pointer; box-shadow: 0 2px 4px rgba(0,0,0,0.2);"
+                                                      onclick="event.stopPropagation(); openVehicleImageModal('${travelPointData.image}', '${travelPointData.vehicles_name || 'Vehicle'}')">
+                                                    <i class="ri-zoom-in-line"></i>
                                                 </span>
                                             </div>
                                         </div>
                                     ` : `
-                                        <div class="bg-light rounded d-flex align-items-center justify-content-center" style="height: 180px; border-radius: 12px;">
-                                            <div class="text-center">
-                                                <i class="ri-car-line ri-48px text-muted mb-2"></i>
-                                                <div class="text-muted">No Vehicle Image</div>
-                                            </div>
+                                        <div class="rounded-circle bg-light d-flex align-items-center justify-content-center shadow-sm" style="width: 100px; height: 100px; border: 3px solid #e9ecef; flex-shrink: 0;">
+                                            <i class="ri-car-line text-muted" style="font-size: 2.5rem;"></i>
                                         </div>
                                     `}
                                 </div>
                             </div>
                         </div>
                         <div class="col-md-6">
-                            <div class="bg-white rounded p-3 shadow-sm h-100">
-                                <div class="d-flex align-items-center mb-3">
-                                    <div class="bg-warning rounded-circle p-2 me-3">
-                                        <i class="ri-money-dollar-circle-line text-white"></i>
+                            <div class="bg-light rounded p-2 h-100">
+                                <div class="d-flex align-items-center mb-2">
+                                    <div class="rounded-circle p-1 me-2" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); width: 28px; height: 28px; display: flex; align-items: center; justify-content: center;">
+                                        <i class="ri-map-pin-line text-white" style="font-size: 0.9rem;"></i>
                                     </div>
-                                    <h6 class="fw-bold mb-0 text-dark">Pricing & Customer</h6>
+                                    <h6 class="fw-bold mb-0 text-dark" style="font-size: 0.95rem;">Location Information</h6>
                                 </div>
-                                <div class="row">
-                                    <div class="col-md-6 mb-3">
-                                        <small class="text-muted">Total Price</small>
-                                        <div class="fw-bold text-success">SGD ${travelPointData.totalPrice || '0'}</div>
+                                <div class="row g-2 mb-2">
+                                    <div class="col-6">
+                                        <small class="text-muted d-block" style="font-size: 0.7rem;">City</small>
+                                        <div class="fw-medium" style="font-size: 0.85rem;">${travelPointData.city || 'N/A'}</div>
                                     </div>
-                                    <div class="col-md-6 mb-3">
-                                        <small class="text-muted">Tax</small>
-                                        <div class="fw-medium">${travelPointData.Tax || '0'}%</div>
+                                    <div class="col-6">
+                                        <small class="text-muted d-block" style="font-size: 0.7rem;">Country</small>
+                                        <div class="fw-medium" style="font-size: 0.85rem;">${travelPointData.country || 'N/A'}</div>
                                     </div>
-                                    <div class="col-12 mb-2">
-                                        <small class="text-muted">Customer Name</small>
-                                        <div class="fw-medium">${travelPointData.fullName || 'N/A'}</div>
-                                    </div>
-                                    <div class="col-md-6 mb-2">
-                                        <small class="text-muted">Email</small>
-                                        <div class="fw-medium">${travelPointData.email || 'N/A'}</div>
-                                    </div>
-                                    <div class="col-md-6 mb-2">
-                                        <small class="text-muted">Phone</small>
-                                        <div class="fw-medium">${travelPointData.phone || 'N/A'}</div>
-                                    </div>
+                                </div>
+                                <!-- Compact Pricing Details -->
+                                <div class="bg-white rounded p-2 mt-2">
+                                    <small class="text-muted d-block mb-1" style="font-size: 0.7rem;">Total Price</small>
+                                    <div class="fw-bold text-success" style="font-size: 1rem;">SGD ${(travelPointData.totalPrice || 0).toFixed(2)}</div>
                                 </div>
                             </div>
                         </div>
                     </div>
 
-                    ${travelPointData.specialRequests ? `
-                        <!-- Special Requests -->
-                        <div class="bg-white rounded p-3 shadow-sm mb-4">
-                            <div class="d-flex align-items-center mb-3">
-                                <div class="bg-secondary rounded-circle p-2 me-3">
-                                    <i class="ri-message-2-line text-white"></i>
-                                </div>
-                                <h6 class="fw-bold mb-0 text-dark">Special Requests</h6>
-                            </div>
-                            <p class="text-muted mb-0">${travelPointData.specialRequests}</p>
-                        </div>
-                    ` : ''}
+                
 
-                    <!-- Individual Action Buttons -->
-                    <div class="bg-white rounded p-3 shadow-sm border-top">
-                        <div class="d-flex align-items-center justify-content-between">
-                            <div class="d-flex align-items-center">
-                                <div class="bg-secondary rounded-circle p-2 me-3">
-                                    <i class="ri-settings-line text-white"></i>
-                                </div>
-                                <h6 class="fw-bold mb-0 text-dark">Booking Actions</h6>
+
+                    <!-- Booking Status -->
+                    <div class="bg-light rounded p-2">
+                        <div class="d-flex align-items-center mb-2">
+                            <div class="rounded-circle p-1 me-2" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); width: 28px; height: 28px; display: flex; align-items: center; justify-content: center;">
+                                <i class="ri-settings-line text-white" style="font-size: 0.9rem;"></i>
                             </div>
-                            ${(travelPointData.is_approve == 1 || travelPointData.is_approve === '1' || travelPointData.is_approve === true) ? `
-                                <div class="alert alert-success mb-0 py-1 px-3" style="border-radius: 25px;">
-                                    <i class="ri-check-circle-fill me-1"></i>
-                                    <small><strong>Approved Booking</strong></small>
-                                    ${travelPointData.reference_id ? `<br><small class="text-muted">Ref: ${travelPointData.reference_id}</small>` : ''}
-                                    ${travelPointData.display_due_date ? `<br><small class="text-muted">Due: ${travelPointData.display_due_date}</small>` : ''}
-                                </div>
-                            ` : `
-                                @if(auth()->user()->role_id == 11 || auth()->user()->role_id == 34 || auth()->user()->role_id == 33 || auth()->user()->role_id == 37 || auth()->user()->role_id == 38 || auth()->user()->role_id == 124 || auth()->user()->role_id == 125 || auth()->user()->role_id == 128 || auth()->user()->role_id == 129 || auth()->user()->role_id == 130 || auth()->user()->role_id == 131 || auth()->user()->role_id == 132 || auth()->user()->role_id == 134 || auth()->user()->role_id == 135 || auth()->user()->role_id == 136 || auth()->user()->role_id == 137 || auth()->user()->role_id == 138)
-                                <div class="d-flex gap-2">
-                                                 @if(auth()->user()->role_id == 11 || auth()->user()->role_id == 34 || auth()->user()->role_id == 124 || auth()->user()->role_id == 125 || auth()->user()->role_id == 128 || auth()->user()->role_id == 131 || auth()->user()->role_id == 132 || auth()->user()->role_id == 134 || auth()->user()->role_id == 135 || auth()->user()->role_id == 137 || auth()->user()->role_id == 138)
-                                    <button type="button" 
-                                            class="btn btn-outline-primary btn-sm px-3 py-2" 
-                                            onclick="editIndividualTravelPoint(${tourId}, ${travelPointOrderIndex}, ${bookingIndex})"
-                                            style="border-radius: 25px;">
-                                        <i class="ri-edit-line me-1"></i>Edit
-                                    </button>
-                                    
-                                    @endif
-                                    @if(auth()->user()->role_id == 11 || auth()->user()->role_id == 34 || auth()->user()->role_id == 33 || auth()->user()->role_id == 37 || auth()->user()->role_id == 38 || auth()->user()->role_id == 124 || auth()->user()->role_id == 125 || auth()->user()->role_id == 128 || auth()->user()->role_id == 129 || auth()->user()->role_id == 130 || auth()->user()->role_id == 131 || auth()->user()->role_id == 132 || auth()->user()->role_id == 134 || auth()->user()->role_id == 135 || auth()->user()->role_id == 136 || auth()->user()->role_id == 137 || auth()->user()->role_id == 138)
-                                    <button type="button" 
-                                            class="btn btn-outline-danger btn-sm px-3 py-2" 
-                                            onclick="rejectTravelPointBooking(${tourId}, ${travelPointOrderIndex}, ${bookingIndex})"
-                                            style="border-radius: 25px;">
-                                        <i class="ri-close-line me-1"></i>Reject
-                                    </button>
-                                    @endif
-                                </div>
-                                @endif
-                            `}
+                            <h6 class="fw-bold mb-0 text-dark" style="font-size: 0.95rem;">Booking Status</h6>
                         </div>
+                        ${(travelPointData.is_approve == 1 || travelPointData.is_approve === '1' || travelPointData.is_approve === true) ? `
+                            <div class="alert alert-success mb-0 py-2 px-3" style="border-radius: 8px; font-size: 0.85rem;">
+                                <i class="ri-check-circle-fill me-1"></i>
+                                <strong>Approved Booking</strong>
+                                ${travelPointData.reference_id ? `<br><small class="text-muted">Ref: ${travelPointData.reference_id}</small>` : ''}
+                                ${travelPointData.display_due_date ? `<br><small class="text-muted">Due: ${travelPointData.display_due_date}</small>` : ''}
+                            </div>
+                        ` : `
+                            <div class="d-flex gap-2 flex-wrap" id="travelPoint_buttons_${tourId}_${travelPointOrderIndex}_${bookingIndex}">
+                                <!-- Buttons will be dynamically added based on user role -->
+                            </div>
+                        `}
                     </div>
                 </div>
             </div>
         `;
         
         document.getElementById(`${modalId}_content`).innerHTML = content;
+        
+        // Add action buttons based on user role and approval status
+        if (!(travelPointData.is_approve == 1 || travelPointData.is_approve === '1' || travelPointData.is_approve === true)) {
+            const userRoleId = {{ auth()->user()->role_id ?? 0 }};
+            const buttonsContainer = document.getElementById(`travelPoint_buttons_${tourId}_${travelPointOrderIndex}_${bookingIndex}`);
+            
+            if (buttonsContainer) {
+                let buttonsHTML = '';
+                
+                // Check permissions
+                const canEdit = [11, 34, 124, 125, 128, 131, 132, 134, 135, 137, 138].includes(userRoleId);
+                const canReject = [11, 34, 33, 37, 38, 124, 125, 128, 129, 130, 131, 132, 134, 135, 136, 137, 138].includes(userRoleId);
+                const hasAnyPermission = canEdit || canReject;
+                
+                if (hasAnyPermission) {
+                // Edit button (DMC and Operational Head only)
+                    if (canEdit) {
+                    buttonsHTML += `
+                        <button type="button" 
+                                class="btn btn-sm px-3 py-1" 
+                                onclick="editIndividualTravelPoint(${tourId}, ${travelPointOrderIndex}, ${bookingIndex})"
+                                style="border-radius: 8px; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); border: none; color: white; font-size: 0.85rem;">
+                            <i class="ri-edit-line me-1"></i>Edit
+                        </button>
+                    `;
+                    }
+                    
+                    // Reject button (for users with reject permission)
+                    if (canReject) {
+                        buttonsHTML += `
+                            <button type="button" 
+                                    class="btn btn-outline-danger btn-sm px-3 py-1" 
+                                    onclick="rejectTravelPointBooking(${tourId}, ${travelPointOrderIndex}, ${bookingIndex})"
+                                    style="border-radius: 8px; font-size: 0.85rem;">
+                                <i class="ri-close-line me-1"></i>Reject
+                            </button>
+                        `;
+                    }
+                } else {
+                    // Show pending approval only if user has no permissions
+                    buttonsHTML += '<div class="text-muted small" style="font-size: 0.85rem;"><i class="ri-information-line me-1"></i>Pending approval</div>';
+                }
+                
+                buttonsContainer.innerHTML = buttonsHTML;
+            }
+        }
         
     } catch (error) {
         console.error('Error generating individual travel point content:', error);
@@ -16729,290 +16906,271 @@ function displayTravelPointErrorContent(modalId, message) {
 function generateIndividualTravelPointContent(travelPointData, modalId, tourId, travelPointOrderIndex, bookingIndex) {
     try {
         const content = `
-            <div class="card border-0 shadow-sm" style="border-radius: 12px; overflow: hidden;">
-                <div class="card-header border-0" style="background: linear-gradient(90deg, #667eea 0%, #764ba2 100%); padding: 20px;">
-                    <div class="row align-items-center">
+            <div class="card mb-3 shadow-sm border-0" style="border-radius: 10px; overflow: hidden; border-left: 4px solid #667eea !important;">
+                <!-- Compact Card Header -->
+                <div class="card-header border-0 py-2 px-3" style="background: linear-gradient(90deg, #667eea 0%, #764ba2 100%);">
+                    <div class="row align-items-center g-2">
                         <div class="col-md-8">
-                            <h5 class="mb-1 fw-bold text-white">
-                                <i class="ri-route-line me-2"></i>${travelPointData.vehicles_name || 'Point to Point Transfer'}
-                            </h5>
-                            <p class="mb-0 text-white opacity-75">Local-Tour Point to Point ${parseInt(travelPointOrderIndex) + 1} • ${travelPointData.type || 'Standard'} Service</p>
+                            <h6 class="mb-0 fw-bold text-white">
+                                <i class="ri-route-line me-1"></i>${travelPointData.vehicles_name || 'Point to Point Transfer'}
+                            </h6>
+                            <small class="text-white opacity-90">Point to Point ${parseInt(travelPointOrderIndex) + 1} • ${travelPointData.type || 'Standard'} Service</small>
                         </div>
                         <div class="col-md-4 text-end">
-                            <div class="bg-white rounded-pill px-3 py-2 d-inline-block">
-                                <span class="text-success fw-bold fs-5">SGD ${(travelPointData.totalPrice || 0).toFixed(2)}</span>
-                            </div>
+                            <span class="badge bg-white text-success px-3 py-2" style="font-size: 0.95rem;">
+                                SGD ${(travelPointData.totalPrice || 0).toFixed(2)}
+                            </span>
                         </div>
                     </div>
                 </div>
                 
-                <div class="card-body p-4" style="background-color: #f8f9fa;">
+                <div class="card-body p-3" style="background-color: #ffffff;">
                     <!-- Service Schedule & Group Information -->
-                    <div class="row mb-4">
+                    <div class="row mb-3 g-3">
                         <div class="col-md-6">
-                            <div class="bg-white rounded p-3 shadow-sm h-100">
-                                <div class="d-flex align-items-center mb-3">
-                                    <div class="bg-primary rounded-circle p-2 me-3">
-                                        <i class="ri-calendar-line text-white"></i>
+                            <div class="bg-light rounded p-2 h-100">
+                                <div class="d-flex align-items-center mb-2">
+                                    <div class="rounded-circle p-1 me-2" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); width: 28px; height: 28px; display: flex; align-items: center; justify-content: center;">
+                                        <i class="ri-calendar-line text-white" style="font-size: 0.9rem;"></i>
                                     </div>
-                                    <h6 class="fw-bold mb-0 text-dark">Service Schedule</h6>
+                                    <h6 class="fw-bold mb-0 text-dark" style="font-size: 0.95rem;">Service Schedule</h6>
                                 </div>
-                                <div class="row">
-                                    <div class="col-md-6 mb-3">
-                                        <small class="text-muted">Booking Date</small>
-                                        <div class="fw-medium">${travelPointData.bookingDate || 'N/A'}</div>
+                                <div class="row g-2">
+                                    <div class="col-6">
+                                        <small class="text-muted d-block" style="font-size: 0.7rem;">Booking Date</small>
+                                        <div class="fw-medium" style="font-size: 0.85rem;">${travelPointData.bookingDate || 'N/A'}</div>
                                     </div>
-                                    <div class="col-md-6 mb-3">
-                                        <small class="text-muted">Time</small>
-                                        <div class="fw-medium">${travelPointData.entrytime || 'N/A'}</div>
+                                    <div class="col-6">
+                                        <small class="text-muted d-block" style="font-size: 0.7rem;">Time</small>
+                                        <div class="fw-medium" style="font-size: 0.85rem;">${travelPointData.entrytime || 'N/A'}</div>
                                     </div>
-                                    <div class="col-md-6 mb-3">
-                                        <small class="text-muted">Service Type</small>
-                                        <span class="badge bg-warning">${travelPointData.type || 'Standard'}</span>
+                                    <div class="col-6">
+                                        <small class="text-muted d-block" style="font-size: 0.7rem;">Service Type</small>
+                                        <div><span class="badge bg-warning px-2 py-1" style="font-size: 0.7rem;">${travelPointData.type || 'Standard'}</span></div>
                                     </div>
-                                    <div class="col-md-6 mb-3">
-                                        <small class="text-muted">Transfer Type</small>
-                                        <span class="badge bg-info">Point to Point</span>
+                                    <div class="col-6">
+                                        <small class="text-muted d-block" style="font-size: 0.7rem;">Transfer Type</small>
+                                        <div><span class="badge bg-info px-2 py-1" style="font-size: 0.7rem;">Point to Point</span></div>
                                     </div>
                                 </div>
                             </div>
                         </div>
                         <div class="col-md-6">
-                            <div class="bg-white rounded p-3 shadow-sm h-100">
-                                <div class="d-flex align-items-center mb-3">
-                                    <div class="bg-success rounded-circle p-2 me-3">
-                                        <i class="ri-group-line text-white"></i>
+                            <div class="bg-light rounded p-2 h-100">
+                                <div class="d-flex align-items-center mb-2">
+                                    <div class="rounded-circle p-1 me-2" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); width: 28px; height: 28px; display: flex; align-items: center; justify-content: center;">
+                                        <i class="ri-group-line text-white" style="font-size: 0.9rem;"></i>
                                     </div>
-                                    <h6 class="fw-bold mb-0 text-dark">Group Information</h6>
+                                    <h6 class="fw-bold mb-0 text-dark" style="font-size: 0.95rem;">Group Information</h6>
                                 </div>
-                                <div class="row">
-                                    <div class="col-md-6 mb-3">
-                                        <small class="text-muted">Adults</small>
-                                        <div class="fw-medium">${travelPointData.adults || 0}</div>
+                                <div class="row g-1 mb-1">
+                                    <div class="col-6 text-center">
+                                        <div class="bg-white rounded p-1 border" style="border-color: #667eea !important;">
+                                            <div class="fw-bold text-success" style="font-size: 1rem;">${travelPointData.adults || 0}</div>
+                                            <small class="text-muted" style="font-size: 0.6rem;">Adults</small>
+                                        </div>
                                     </div>
-                                    <div class="col-md-6 mb-3">
-                                        <small class="text-muted">Children</small>
-                                        <div class="fw-medium">${travelPointData.children || 0}</div>
+                                    <div class="col-6 text-center">
+                                        <div class="bg-white rounded p-1 border" style="border-color: #667eea !important;">
+                                            <div class="fw-bold text-warning" style="font-size: 1rem;">${travelPointData.children || 0}</div>
+                                            <small class="text-muted" style="font-size: 0.6rem;">Children</small>
+                                        </div>
                                     </div>
-                                    <div class="col-md-6 mb-3">
-                                        <small class="text-muted">Total Guests</small>
-                                        <span class="badge bg-primary">${(parseInt(travelPointData.adults || 0) + parseInt(travelPointData.children || 0))}</span>
-                                    </div>
+                                </div>
+                                <div class="text-center">
+                                    <span class="badge" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; font-size: 0.8rem; padding: 2px 6px;">
+                                        Total: ${(parseInt(travelPointData.adults || 0) + parseInt(travelPointData.children || 0))} Guests
+                                    </span>
                                 </div>
                             </div>
                         </div>
                     </div>
 
                     <!-- Route Information -->
-                    <div class="row mb-4">
-                        <div class="col-md-12">
-                            <div class="bg-white rounded p-3 shadow-sm h-100">
-                                <div class="d-flex align-items-center mb-3">
-                                    <div class="bg-success rounded-circle p-2 me-3">
-                                        <i class="ri-route-line text-white"></i>
+                    <div class="bg-light rounded p-2 mb-3">
+                        <div class="d-flex align-items-center mb-2">
+                            <div class="rounded-circle p-1 me-2" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); width: 28px; height: 28px; display: flex; align-items: center; justify-content: center;">
+                                <i class="ri-route-line text-white" style="font-size: 0.9rem;"></i>
+                            </div>
+                            <h6 class="fw-bold mb-0 text-dark" style="font-size: 0.95rem;">Route Information</h6>
+                        </div>
+                        <div class="row g-2 mb-2">
+                            <div class="col-md-6">
+                                <div class="bg-white rounded p-2">
+                                    <small class="text-muted d-block" style="font-size: 0.7rem;">Pickup Point</small>
+                                    <div class="fw-medium d-flex align-items-center" style="font-size: 0.85rem;">
+                                        <i class="ri-map-pin-line text-success me-1"></i>
+                                        <span class="text-truncate">${travelPointData.entrypickup || travelPointData.pickupPoint || 'N/A'}</span>
                                     </div>
-                                    <h6 class="fw-bold mb-0 text-dark">Route Information</h6>
-                                </div>
-                                <div class="row">
-                                    <div class="col-md-6 mb-3">
-                                        <small class="text-muted">Pickup Point</small>
-                                        <div class="fw-medium d-flex align-items-center">
-                                            <i class="ri-map-pin-line text-success me-2"></i>
-                                            ${travelPointData.entrypickup || travelPointData.pickupPoint || 'N/A'}
-                                        </div>
-                                        <small class="text-success">Origin</small>
-                                    </div>
-                                    <div class="col-md-6 mb-3">
-                                        <small class="text-muted">Dropoff Point</small>
-                                        <div class="fw-medium d-flex align-items-center">
-                                            <i class="ri-map-pin-2-line text-danger me-2"></i>
-                                            ${travelPointData.entrydropoff || travelPointData.dropoffPoint || 'N/A'}
-                                        </div>
-                                        <small class="text-danger">Destination</small>
-                                    </div>
-                                </div>
-                                <!-- Route Direction Visual -->
-                                <div class="d-flex align-items-center justify-content-center mt-3 p-3 bg-light rounded">
-                                    <div class="text-center">
-                                        <span class="badge bg-success me-2">${travelPointData.entrypickup || travelPointData.pickupPoint || 'Pickup'}</span>
-                                        <i class="ri-arrow-right-line text-primary mx-2"></i>
-                                        <span class="badge bg-danger">${travelPointData.entrydropoff || travelPointData.dropoffPoint || 'Dropoff'}</span>
-                                    </div>
+                                    <small class="text-success" style="font-size: 0.65rem;">Origin</small>
                                 </div>
                             </div>
+                            <div class="col-md-6">
+                                <div class="bg-white rounded p-2">
+                                    <small class="text-muted d-block" style="font-size: 0.7rem;">Dropoff Point</small>
+                                    <div class="fw-medium d-flex align-items-center" style="font-size: 0.85rem;">
+                                        <i class="ri-map-pin-2-line text-danger me-1"></i>
+                                        <span class="text-truncate">${travelPointData.entrydropoff || travelPointData.dropoffPoint || 'N/A'}</span>
+                                    </div>
+                                    <small class="text-danger" style="font-size: 0.65rem;">Destination</small>
+                                </div>
+                            </div>
+                        </div>
+                        <!-- Compact Route Direction Visual -->
+                        <div class="d-flex align-items-center justify-content-center p-2 bg-white rounded">
+                            <span class="badge bg-success me-2" style="font-size: 0.7rem;">${travelPointData.entrypickup || travelPointData.pickupPoint || 'Pickup'}</span>
+                            <i class="ri-arrow-right-line text-primary mx-1" style="font-size: 1rem;"></i>
+                            <span class="badge bg-danger" style="font-size: 0.7rem;">${travelPointData.entrydropoff || travelPointData.dropoffPoint || 'Dropoff'}</span>
                         </div>
                     </div>
 
                     <!-- Vehicle & Location Information -->
-                    <div class="row mb-4">
+                    <div class="row mb-3 g-3">
                         <div class="col-md-6">
-                            <div class="bg-white rounded p-3 shadow-sm h-100">
-                                <div class="d-flex align-items-center mb-3">
-                                    <div class="bg-warning rounded-circle p-2 me-3">
-                                        <i class="ri-car-line text-white"></i>
+                            <div class="bg-light rounded p-2 h-100" style="overflow: hidden;">
+                                <div class="d-flex align-items-center mb-2">
+                                    <div class="rounded-circle p-1 me-2" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); width: 28px; height: 28px; display: flex; align-items: center; justify-content: center; flex-shrink: 0;">
+                                        <i class="ri-car-line text-white" style="font-size: 0.9rem;"></i>
                                     </div>
-                                    <h6 class="fw-bold mb-0 text-dark">Vehicle Details</h6>
+                                    <h6 class="fw-bold mb-0 text-dark" style="font-size: 0.95rem; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">Vehicle Details</h6>
                                 </div>
-                                <div class="row mb-3">
-                                    <div class="col-6 mb-2">
-                                        <small class="text-muted">Vehicle Name</small>
-                                        <div class="fw-medium">${travelPointData.vehicles_name || 'N/A'}</div>
+                                <div class="row g-2 mb-3">
+                                    <div class="col-6">
+                                        <small class="text-muted d-block mb-1" style="font-size: 0.7rem;">Vehicle Name</small>
+                                        <div class="fw-medium text-truncate" style="font-size: 0.85rem;" title="${travelPointData.vehicles_name || 'N/A'}">${travelPointData.vehicles_name || 'N/A'}</div>
                                     </div>
-                                    <div class="col-6 mb-2">
-                                        <small class="text-muted">Service Type</small>
-                                        <div class="fw-medium">${travelPointData.type || 'N/A'} Transfer</div>
+                                    <div class="col-6">
+                                        <small class="text-muted d-block mb-1" style="font-size: 0.7rem;">Service Type</small>
+                                        <div class="fw-medium" style="font-size: 0.85rem;">${travelPointData.type || 'N/A'}</div>
                                     </div>
                                 </div>
-                                <!-- Vehicle Image Display -->
-                                <div class="vehicle-image-container">
-                                    ${travelPointData.image ? `
-                                        <div class="position-relative">
+                                <!-- Compact Vehicle Image Display -->
+                                <div class="d-flex justify-content-center align-items-center mt-3 mb-2" style="min-height: 110px; width: 100%; overflow: hidden; position: relative;">
+                                    ${travelPointData.image && travelPointData.image.trim() !== '' ? `
+                                        <div class="position-relative" style="width: 100px; height: 100px; flex-shrink: 0; overflow: hidden;">
                                             <img src="${travelPointData.image}" 
-                                                 alt="${travelPointData.vehicles_name || 'Vehicle'}" 
-                                                 class="img-fluid rounded shadow-sm w-100" 
-                                                 style="height: 180px; object-fit: cover; border-radius: 12px !important; cursor: pointer;"
+                                                 alt="Vehicle Image" 
+                                                 class="rounded-circle shadow-sm" 
+                                                 style="width: 100px; height: 100px; object-fit: cover; object-position: center; border: 3px solid #667eea; cursor: pointer; display: block; margin: 0; padding: 0; background: #f8f9fa;"
+                                                 onerror="this.onerror=null; this.parentElement.innerHTML='<div class=\\'rounded-circle bg-light d-flex align-items-center justify-content-center shadow-sm\\' style=\\'width: 100px; height: 100px; border: 3px solid #e9ecef;\\'><i class=\\'ri-car-line text-muted\\' style=\\'font-size: 2.5rem;\\'></i></div>';"
                                                  onclick="openVehicleImageModal('${travelPointData.image}', '${travelPointData.vehicles_name || 'Vehicle'}')">
-                                            <div class="position-absolute top-0 end-0 m-2">
-                                                <span class="badge bg-dark bg-opacity-75 text-white">
-                                                    <i class="ri-zoom-in-line me-1"></i>View
+                                            <div class="position-absolute" style="top: -5px; right: -5px; z-index: 10;">
+                                                <span class="badge bg-dark bg-opacity-90 text-white rounded-circle d-flex align-items-center justify-content-center" style="width: 24px; height: 24px; font-size: 0.7rem; padding: 0; cursor: pointer; box-shadow: 0 2px 4px rgba(0,0,0,0.2);"
+                                                      onclick="event.stopPropagation(); openVehicleImageModal('${travelPointData.image}', '${travelPointData.vehicles_name || 'Vehicle'}')">
+                                                    <i class="ri-zoom-in-line"></i>
                                                 </span>
                                             </div>
                                         </div>
                                     ` : `
-                                        <div class="bg-light rounded d-flex align-items-center justify-content-center" style="height: 180px; border-radius: 12px;">
-                                            <div class="text-center">
-                                                <i class="ri-car-line ri-48px text-muted mb-2"></i>
-                                                <div class="text-muted">No Vehicle Image</div>
-                                            </div>
+                                        <div class="rounded-circle bg-light d-flex align-items-center justify-content-center shadow-sm" style="width: 100px; height: 100px; border: 3px solid #e9ecef; flex-shrink: 0;">
+                                            <i class="ri-car-line text-muted" style="font-size: 2.5rem;"></i>
                                         </div>
                                     `}
                                 </div>
                             </div>
                         </div>
                         <div class="col-md-6">
-                            <div class="bg-white rounded p-3 shadow-sm h-100">
-                                <div class="d-flex align-items-center mb-3">
-                                    <div class="bg-info rounded-circle p-2 me-3">
-                                        <i class="ri-map-pin-line text-white"></i>
+                            <div class="bg-light rounded p-2 h-100">
+                                <div class="d-flex align-items-center mb-2">
+                                    <div class="rounded-circle p-1 me-2" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); width: 28px; height: 28px; display: flex; align-items: center; justify-content: center;">
+                                        <i class="ri-map-pin-line text-white" style="font-size: 0.9rem;"></i>
                                     </div>
-                                    <h6 class="fw-bold mb-0 text-dark">Location Information</h6>
+                                    <h6 class="fw-bold mb-0 text-dark" style="font-size: 0.95rem;">Location Information</h6>
                                 </div>
-                                <div class="row">
-                                    <div class="col-md-6 mb-3">
-                                        <small class="text-muted">City</small>
-                                        <div class="fw-medium">${travelPointData.city || 'N/A'}</div>
+                                <div class="row g-2 mb-2">
+                                    <div class="col-6">
+                                        <small class="text-muted d-block" style="font-size: 0.7rem;">City</small>
+                                        <div class="fw-medium" style="font-size: 0.85rem;">${travelPointData.city || 'N/A'}</div>
                                     </div>
-                                    <div class="col-md-6 mb-3">
-                                        <small class="text-muted">Country</small>
-                                        <div class="fw-medium">${travelPointData.country || 'N/A'}</div>
+                                    <div class="col-6">
+                                        <small class="text-muted d-block" style="font-size: 0.7rem;">Country</small>
+                                        <div class="fw-medium" style="font-size: 0.85rem;">${travelPointData.country || 'N/A'}</div>
                                     </div>
                                 </div>
-                                
-                                <!-- Pricing Details -->
-                                <div class="mt-3">
-                                    <h6 class="fw-bold mb-2 text-dark">Pricing Details</h6>
-                                    <div class="row">
-                                        <div class="col-md-6 mb-3">
-                                            <small class="text-muted">Total Price</small>
-                                            <div class="fw-bold text-success">SGD ${travelPointData.totalPrice || '0'}</div>
-                                        </div>
-                                        <div class="col-md-6 mb-3">
-                                            <small class="text-muted">Tax</small>
-                                            <div class="fw-medium">${travelPointData.Tax || '0'}%</div>
-                                        </div>
-                                    </div>
+                                <!-- Compact Pricing Details -->
+                                <div class="bg-white rounded p-2 mt-2">
+                                    <small class="text-muted d-block mb-1" style="font-size: 0.7rem;">Total Price</small>
+                                    <div class="fw-bold text-success" style="font-size: 1rem;">SGD ${(travelPointData.totalPrice || 0).toFixed(2)}</div>
                                 </div>
                             </div>
                         </div>
                     </div>
 
-                    <!-- Customer Information -->
-                    <div class="row mb-4">
-                        <div class="col-md-12">
-                            <div class="bg-white rounded p-3 shadow-sm h-100">
-                                <div class="d-flex align-items-center mb-3">
-                                    <div class="bg-info rounded-circle p-2 me-3">
-                                        <i class="ri-user-line text-white"></i>
-                                    </div>
-                                    <h6 class="fw-bold mb-0 text-dark">Customer Information</h6>
-                                </div>
-                                <div class="row">
-                                    <div class="col-md-4 mb-2">
-                                        <small class="text-muted">Name</small>
-                                        <div class="fw-medium">${travelPointData.fullName || 'N/A'}</div>
-                                    </div>
-                                    <div class="col-md-4 mb-2">
-                                        <small class="text-muted">Email</small>
-                                        <div class="fw-medium">${travelPointData.email || 'N/A'}</div>
-                                    </div>
-                                    <div class="col-md-4 mb-2">
-                                        <small class="text-muted">Phone</small>
-                                        <div class="fw-medium">${travelPointData.phone || 'N/A'}</div>
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
+                
 
-                    ${travelPointData.specialRequests ? `
-                        <!-- Special Requests -->
-                        <div class="bg-white rounded p-3 shadow-sm mb-4">
-                            <div class="d-flex align-items-center mb-3">
-                                <div class="bg-secondary rounded-circle p-2 me-3">
-                                    <i class="ri-message-2-line text-white"></i>
-                                </div>
-                                <h6 class="fw-bold mb-0 text-dark">Special Requests</h6>
-                            </div>
-                            <p class="text-muted mb-0">${travelPointData.specialRequests}</p>
-                        </div>
-                    ` : ''}
 
-                    <!-- Individual Action Buttons -->
-                    <div class="bg-white rounded p-3 shadow-sm border-top">
-                        <div class="d-flex align-items-center justify-content-between">
-                            <div class="d-flex align-items-center">
-                                <div class="bg-secondary rounded-circle p-2 me-3">
-                                    <i class="ri-settings-line text-white"></i>
-                                </div>
-                                <h6 class="fw-bold mb-0 text-dark">Booking Actions</h6>
+                    <!-- Booking Status -->
+                    <div class="bg-light rounded p-2">
+                        <div class="d-flex align-items-center mb-2">
+                            <div class="rounded-circle p-1 me-2" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); width: 28px; height: 28px; display: flex; align-items: center; justify-content: center;">
+                                <i class="ri-settings-line text-white" style="font-size: 0.9rem;"></i>
                             </div>
-                            ${(travelPointData.is_approve == 1 || travelPointData.is_approve === '1' || travelPointData.is_approve === true) ? `
-                                <div class="alert alert-success mb-0 py-1 px-3" style="border-radius: 25px;">
-                                    <i class="ri-check-circle-fill me-1"></i>
-                                    <small><strong>Approved Booking</strong></small>
-                                    ${travelPointData.reference_id ? `<br><small class="text-muted">Ref: ${travelPointData.reference_id}</small>` : ''}
-                                    ${travelPointData.display_due_date ? `<br><small class="text-muted">Due: ${travelPointData.display_due_date}</small>` : ''}
-                                </div>
-                            ` : `
-                            @if(auth()->user()->role_id == 11 || auth()->user()->role_id == 34 || auth()->user()->role_id == 33 || auth()->user()->role_id == 37 || auth()->user()->role_id == 38 || auth()->user()->role_id == 124 || auth()->user()->role_id == 125 || auth()->user()->role_id == 128 || auth()->user()->role_id == 129 || auth()->user()->role_id == 130 || auth()->user()->role_id == 131 || auth()->user()->role_id == 132 || auth()->user()->role_id == 134 || auth()->user()->role_id == 135 || auth()->user()->role_id == 136 || auth()->user()->role_id == 137 || auth()->user()->role_id == 138)
-                            <div class="d-flex gap-2">
-                                                 @if(auth()->user()->role_id == 11 || auth()->user()->role_id == 34 || auth()->user()->role_id == 124 || auth()->user()->role_id == 125 || auth()->user()->role_id == 128 || auth()->user()->role_id == 131 || auth()->user()->role_id == 132 || auth()->user()->role_id == 134 || auth()->user()->role_id == 135 || auth()->user()->role_id == 137 || auth()->user()->role_id == 138)
-                                <button type="button" 
-                                        class="btn btn-outline-primary btn-sm px-3 py-2" 
-                                        onclick="editIndividualTravelPoint(${tourId}, ${travelPointOrderIndex}, ${bookingIndex})"
-                                        style="border-radius: 25px;">
-                                    <i class="ri-edit-line me-1"></i>Edit
-                                </button>
-                                
-                                @endif
-                                @if(auth()->user()->role_id == 11 || auth()->user()->role_id == 34 || auth()->user()->role_id == 33 || auth()->user()->role_id == 37 || auth()->user()->role_id == 38 || auth()->user()->role_id == 124 || auth()->user()->role_id == 125 || auth()->user()->role_id == 128 || auth()->user()->role_id == 129 || auth()->user()->role_id == 130 || auth()->user()->role_id == 131 || auth()->user()->role_id == 132 || auth()->user()->role_id == 134 || auth()->user()->role_id == 135 || auth()->user()->role_id == 136 || auth()->user()->role_id == 137 || auth()->user()->role_id == 138)
-                                <button type="button" 
-                                        class="btn btn-outline-danger btn-sm px-3 py-2" 
-                                        onclick="rejectTravelPointBooking(${tourId}, ${travelPointOrderIndex}, ${bookingIndex})"
-                                        style="border-radius: 25px;">
-                                    <i class="ri-close-line me-1"></i>Reject
-                                </button>
-                                @endif
-                            </div>
-                            @endif
-                            `}
+                            <h6 class="fw-bold mb-0 text-dark" style="font-size: 0.95rem;">Booking Status</h6>
                         </div>
+                        ${(travelPointData.is_approve == 1 || travelPointData.is_approve === '1' || travelPointData.is_approve === true) ? `
+                            <div class="alert alert-success mb-0 py-2 px-3" style="border-radius: 8px; font-size: 0.85rem;">
+                                <i class="ri-check-circle-fill me-1"></i>
+                                <strong>Approved Booking</strong>
+                                ${travelPointData.reference_id ? `<br><small class="text-muted">Ref: ${travelPointData.reference_id}</small>` : ''}
+                                ${travelPointData.display_due_date ? `<br><small class="text-muted">Due: ${travelPointData.display_due_date}</small>` : ''}
+                            </div>
+                        ` : `
+                            <div class="d-flex gap-2 flex-wrap" id="travelPoint_buttons_${tourId}_${travelPointOrderIndex}_${bookingIndex}">
+                                <!-- Buttons will be dynamically added based on user role -->
+                            </div>
+                        `}
                     </div>
                 </div>
             </div>
         `;
         
         document.getElementById(`${modalId}_content`).innerHTML = content;
+        
+        // Add action buttons based on user role and approval status
+        if (!(travelPointData.is_approve == 1 || travelPointData.is_approve === '1' || travelPointData.is_approve === true)) {
+            const userRoleId = {{ auth()->user()->role_id ?? 0 }};
+            const buttonsContainer = document.getElementById(`travelPoint_buttons_${tourId}_${travelPointOrderIndex}_${bookingIndex}`);
+            
+            if (buttonsContainer) {
+                let buttonsHTML = '';
+                
+                // Check permissions
+                const canEdit = [11, 34, 124, 125, 128, 131, 132, 134, 135, 137, 138].includes(userRoleId);
+                const canReject = [11, 34, 33, 37, 38, 124, 125, 128, 129, 130, 131, 132, 134, 135, 136, 137, 138].includes(userRoleId);
+                const hasAnyPermission = canEdit || canReject;
+                
+                if (hasAnyPermission) {
+                // Edit button (DMC and Operational Head only)
+                    if (canEdit) {
+                    buttonsHTML += `
+                        <button type="button" 
+                                class="btn btn-sm px-3 py-1" 
+                                onclick="editIndividualTravelPoint(${tourId}, ${travelPointOrderIndex}, ${bookingIndex})"
+                                style="border-radius: 8px; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); border: none; color: white; font-size: 0.85rem;">
+                            <i class="ri-edit-line me-1"></i>Edit
+                        </button>
+                    `;
+                    }
+                    
+                    // Reject button (for users with reject permission)
+                    if (canReject) {
+                        buttonsHTML += `
+                            <button type="button" 
+                                    class="btn btn-outline-danger btn-sm px-3 py-1" 
+                                    onclick="rejectTravelPointBooking(${tourId}, ${travelPointOrderIndex}, ${bookingIndex})"
+                                    style="border-radius: 8px; font-size: 0.85rem;">
+                                <i class="ri-close-line me-1"></i>Reject
+                            </button>
+                        `;
+                    }
+                } else {
+                    // Show pending approval only if user has no permissions
+                    buttonsHTML += '<div class="text-muted small" style="font-size: 0.85rem;"><i class="ri-information-line me-1"></i>Pending approval</div>';
+                }
+                
+                buttonsContainer.innerHTML = buttonsHTML;
+            }
+        }
         
     } catch (error) {
         console.error('Error generating individual travel point content:', error);
