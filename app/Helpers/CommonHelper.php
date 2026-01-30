@@ -3267,7 +3267,6 @@ class CommonHelper
             $segregatedPricesRounded[$serviceType] = [
                 'single' => ceil($prices['single']),
                 'double' => ceil($prices['double']),
-
             ];
             if (isset($prices['triple'])) {
                 $segregatedPricesRounded[$serviceType]['triple'] = ceil($prices['triple']);
@@ -3276,6 +3275,7 @@ class CommonHelper
                 $segregatedPricesRounded[$serviceType]['baby_cot'] = ceil($prices['baby_cot']);
             }
         }
+        // dd($totalSingleSharing, $totalDoubleSharing, $totalTripleSharing, $totalBabyCot, $childSharing, $segregatedPricesRounded);
         return [
             'single_sharing' => ceil($totalSingleSharing),
             'double_sharing' => ceil($totalDoubleSharing),
@@ -3995,8 +3995,9 @@ class CommonHelper
     {
         $hotelOptions = [];
         $hotelIndex = 1;
-        
-        
+        $segregated = $tourPrices !== null ? ($tourPrices['segregated'] ?? []) : [];
+        $segHotelKeys = ['hotel', 'attraction', 'restaurant', 'entry_port', 'exit_port', 'guide', 'travel_hourly', 'travel_point', 'local_transport', 'other'];
+
         foreach ($orders as $order) {
             if (strtolower($order->type ?? '') !== 'hotel') {
                 continue;
@@ -4016,144 +4017,137 @@ class CommonHelper
             foreach ($items as $item) {
                 $hotelName = $item['hotelDetails']['hotel_name'] ?? $item['hotelname'] ?? 'N/A';
                 $hotelCategory = $item['hotelDetails']['category'] ?? $item['hotelDetails']['category_name'] ?? 'N/A';
-                
-                // Get packaged prices - add cost (from transfer_options) and totalPrice, then divide by head_count
-                $totalPrice = floatval($item['totalPrice'] ?? $item['price'] ?? 0);
-                $transferCost = floatval($item['transfer_options']['cost'] ?? 0);
-                $headCount = 0;
-                $childCount = 0;
-                $infantCount = 0;
-                
-                // Calculate head_count from beds (sum of all head_count values)
                 $rooms = $item['rooms'] ?? [];
-                if (is_array($rooms) && count($rooms) > 0) {
-                    foreach ($rooms as $room) {
-                        $beds = $room['beds'] ?? [];
-                        foreach ($beds as $bed) {
-                            $headCount += (int)($bed['head_count'] ?? 0);
-                        }
-                    }
-                }
-                
-                // Calculate Per Adult Packaged Price: (cost + totalPrice) / head_count, then round up (ceiling)
-                $adultPrice = $headCount > 0 ? ceil(($transferCost + $totalPrice) / $headCount) : 'N/A';
                 $childPrice = $item['childPrice'] ?? $item['child_price'] ?? 'N/A';
                 $infantPrice = $item['infantPrice'] ?? $item['infant_price'] ?? 'N/A';
 
-                // Get room information and calculate prices using the same logic as calculateTourPrices
-                $roomCategories = [];
-                $totalSingleRooms = 0;
-                $totalDoubleRooms = 0;
-                $totalTripleRooms = 0;
+                // Use prices from tourPrices['segregated'][hotelName] when available (no separate room calculation)
+                $segThis = isset($segregated[$hotelName]) && !in_array($hotelName, $segHotelKeys, true)
+                    ? $segregated[$hotelName]
+                    : null;
 
-                if (is_array($rooms) && count($rooms) > 0) {
-                    // Group rooms by room_type to avoid duplicates
-                    $roomsByType = [];
-                    foreach ($rooms as $room) {
-                        $roomType = $room['room_type'] ?? 'N/A';
-                        if (!isset($roomsByType[$roomType])) {
-                            $roomsByType[$roomType] = [];
-                        }
-                        $roomsByType[$roomType][] = $room;
+                if ($segThis !== null) {
+                    $firstTotalSingle = (float) ($segThis['single'] ?? 0);
+                    $firstTotalDouble = (float) ($segThis['double'] ?? 0);
+                    $firstTotalTriple = (float) ($segThis['triple'] ?? 0);
+                    $firstTotalBabyCot = (float) ($segThis['baby_cot'] ?? 0);
+                    $adultPrice = 'N/A';
+                    $roomTypeName = 'N/A';
+                    if (is_array($rooms) && count($rooms) > 0) {
+                        $firstRoom = $rooms[0];
+                        $roomTypeName = $firstRoom['room_type'] ?? $firstRoom['roomType'] ?? 'N/A';
                     }
-
-                    // Calculate prices for each unique room type using the same logic as calculateTourPrices
-                    foreach ($roomsByType as $roomType => $roomsOfType) {
-                        // Use the first room of this type to get pricing
-                        $firstRoom = $roomsOfType[0];
-                        $noOfRooms = 0;
-                        foreach ($roomsOfType as $room) {
-                            $noOfRooms += (int)($room['no_of_room'] ?? $room['number_of_rooms'] ?? 0);
-                        }
-
-                        // Calculate prices using the same logic as calculateTourPrices
-                        $prices = self::calculateHotelRoomPrices($item, $firstRoom, $tour);
-                        
-                        // Get total prices (already calculated for all nights), default to 0 if not found
-                        $singlePriceTotal = floatval($prices['single_total'] ?? 0);
-                        $doublePriceTotal = floatval($prices['double_total'] ?? 0);
-                        $triplePriceTotal = floatval($prices['triple_total'] ?? 0);
-
-                        // Count rooms by checking beds occupancy
-                        $beds = $firstRoom['beds'] ?? [];
-                        $roomSingleCount = 0;
-                        $roomDoubleCount = 0;
-                        $roomTripleCount = 0;
-
-                        if (is_array($beds) && count($beds) > 0) {
-                            foreach ($beds as $bed) {
-                                $occupancy = (int)($bed['head_count'] ?? $bed['occupancy'] ?? 1);
-                                if ($occupancy >= 3) {
-                                    $roomTripleCount += $noOfRooms;
-                                } elseif ($occupancy >= 2) {
-                                    $roomDoubleCount += $noOfRooms;
-                                } else {
-                                    $roomSingleCount += $noOfRooms;
-                                }
-                            }
-                        } else {
-                            // Default: assume single occupancy if no bed data
-                            $roomSingleCount = $noOfRooms;
-                        }
-
-                        $totalSingleRooms += $roomSingleCount;
-                        $totalDoubleRooms += $roomDoubleCount;
-                        $totalTripleRooms += $roomTripleCount;
-
-                        // Add room category with all three price columns (total prices for all nights)
-                        // Prices default to 0 if not found
-                        $roomCategories[] = [
-                            'name' => $roomType,
-                            'single_price' => $singlePriceTotal,
-                            'double_price' => $doublePriceTotal,
-                            'triple_price' => $triplePriceTotal,
-                        ];
-                    }
-                }
-
-                // If no rooms found, show empty structure
-                if (count($roomCategories) === 0) {
                     $roomCategories = [
-                        ['name' => 'N/A', 'single_price' => 0, 'double_price' => 0, 'triple_price' => 0],
+                        [
+                            'name' => $roomTypeName,
+                            'single_price' => $firstTotalSingle,
+                            'double_price' => $firstTotalDouble,
+                            'triple_price' => $firstTotalTriple,
+                            'child_price' => 0,
+                        ],
                     ];
+                    $supplementalSingle = 0;
+                    $supplementalDouble = 0;
+                    $supplementalTriple = 0;
+                } else {
+                    // Fallback when tourPrices not passed or hotel not in segregated: use existing room calculation
+                    $totalPrice = floatval($item['totalPrice'] ?? $item['price'] ?? 0);
+                    $transferCost = floatval($item['transfer_options']['cost'] ?? 0);
+                    $headCount = 0;
+                    foreach ($rooms as $room) {
+                        foreach ($room['beds'] ?? [] as $bed) {
+                            $headCount += (int)($bed['head_count'] ?? 0);
+                        }
+                    }
+                    $adultPrice = $headCount > 0 ? ceil(($transferCost + $totalPrice) / $headCount) : 'N/A';
+                    $roomCategories = [];
+                    $totalSingleRooms = 0;
+                    $totalDoubleRooms = 0;
+                    $totalTripleRooms = 0;
+                    if (is_array($rooms) && count($rooms) > 0) {
+                        $roomsByType = [];
+                        foreach ($rooms as $room) {
+                            $roomType = $room['room_type'] ?? 'N/A';
+                            if (!isset($roomsByType[$roomType])) {
+                                $roomsByType[$roomType] = [];
+                            }
+                            $roomsByType[$roomType][] = $room;
+                        }
+                        foreach ($roomsByType as $roomType => $roomsOfType) {
+                            $firstRoom = $roomsOfType[0];
+                            $noOfRooms = 0;
+                            foreach ($roomsOfType as $room) {
+                                $noOfRooms += (int)($room['no_of_room'] ?? $room['number_of_rooms'] ?? 0);
+                            }
+                            $prices = self::calculateHotelRoomPrices($item, $firstRoom, $tour);
+                            $singlePriceTotal = floatval($prices['single_total'] ?? 0);
+                            $doublePriceTotal = floatval($prices['double_total'] ?? 0);
+                            $triplePriceTotal = floatval($prices['triple_total'] ?? 0);
+                            $beds = $firstRoom['beds'] ?? [];
+                            $roomSingleCount = 0;
+                            $roomDoubleCount = 0;
+                            $roomTripleCount = 0;
+                            if (is_array($beds) && count($beds) > 0) {
+                                foreach ($beds as $bed) {
+                                    $occupancy = (int)($bed['head_count'] ?? $bed['occupancy'] ?? 1);
+                                    if ($occupancy >= 3) {
+                                        $roomTripleCount += $noOfRooms;
+                                    } elseif ($occupancy >= 2) {
+                                        $roomDoubleCount += $noOfRooms;
+                                    } else {
+                                        $roomSingleCount += $noOfRooms;
+                                    }
+                                }
+                            } else {
+                                $roomSingleCount = $noOfRooms;
+                            }
+                            $totalSingleRooms += $roomSingleCount;
+                            $totalDoubleRooms += $roomDoubleCount;
+                            $totalTripleRooms += $roomTripleCount;
+                            $roomCategories[] = [
+                                'name' => $roomType,
+                                'single_price' => $singlePriceTotal,
+                                'double_price' => $doublePriceTotal,
+                                'triple_price' => $triplePriceTotal,
+                            ];
+                        }
+                    }
+                    if (count($roomCategories) === 0) {
+                        $roomCategories = [['name' => 'N/A', 'single_price' => 0, 'double_price' => 0, 'triple_price' => 0]];
+                    }
+                    $firstTotalSingle = 0;
+                    $firstTotalDouble = 0;
+                    $firstTotalTriple = 0;
+                    foreach ($roomCategories as $roomCat) {
+                        $firstTotalSingle += floatval($roomCat['single_price'] ?? 0);
+                        $firstTotalDouble += floatval($roomCat['double_price'] ?? 0);
+                        $firstTotalTriple += floatval($roomCat['triple_price'] ?? 0);
+                    }
+                    $supplementalSingle = $firstTotalSingle - $firstTotalDouble;
+                    $supplementalDouble = 0;
+                    $supplementalTriple = 0;
+                    $adultPrice = $headCount > 0 ? ceil(($transferCost + $totalPrice) / $headCount) : 'N/A';
                 }
-
-                // Use actual room categories - no hardcoding, display only what exists
-
-                // Calculate first total by summing all room category prices (not multiplying by room count)
-                $firstTotalSingle = 0;
-                $firstTotalDouble = 0;
-                $firstTotalTriple = 0;
-                
-                foreach ($roomCategories as $roomCat) {
-                    $firstTotalSingle += floatval($roomCat['single_price'] ?? 0);
-                    $firstTotalDouble += floatval($roomCat['double_price'] ?? 0);
-                    $firstTotalTriple += floatval($roomCat['triple_price'] ?? 0);
-                }
-
-                // Supplemental costs (can be extended based on actual data structure)
-                // This could include extra bed charges, meal supplements, etc.
-                $supplementalSingle = $firstTotalSingle - $firstTotalDouble;
-                $supplementalDouble = 0;
-                $supplementalTriple = 0;
 
                 $hotelOptions[] = [
                     'option_number' => $hotelIndex++,
                     'hotel_name' => $hotelName,
                     'hotel_category' => $hotelCategory,
-                    'adult_price' => is_numeric($adultPrice) ? number_format($adultPrice, 2) : $adultPrice,
+                    'adult_price' => isset($adultPrice) && is_numeric($adultPrice) ? number_format($adultPrice, 2) : ($adultPrice ?? 'N/A'),
                     'child_price' => is_numeric($childPrice) ? number_format($childPrice, 2) : ($childPrice ?? 'N/A'),
                     'infant_price' => is_numeric($infantPrice) ? number_format($infantPrice, 2) : ($infantPrice ?? 'N/A'),
                     'no_of_rooms' => [
-                        'single' => $totalSingleRooms,
-                        'double' => $totalDoubleRooms,
-                        'triple' => $totalTripleRooms,
+                        'single' => $totalSingleRooms ?? 0,
+                        'double' => $totalDoubleRooms ?? 0,
+                        'triple' => $totalTripleRooms ?? 0,
                     ],
                     'room_categories' => $roomCategories,
                     'first_total' => [
                         'single' => $firstTotalSingle,
                         'double' => $firstTotalDouble,
                         'triple' => $firstTotalTriple,
+                        'child' => 0,
+                        'baby_cot' => $firstTotalBabyCot ?? 0,
                     ],
                     'supplemental_cost' => [
                         'single' => $supplementalSingle,
@@ -4167,6 +4161,40 @@ class CommonHelper
                     ],
                 ];
             }
+        }
+
+        // Add package total (this hotel + all other services) for each hotel
+        if ($tourPrices !== null && !empty($hotelOptions)) {
+            $totalSingle = (float) ($tourPrices['single_sharing'] ?? 0);
+            $totalDouble = (float) ($tourPrices['double_sharing'] ?? 0);
+            $totalTriple = (float) ($tourPrices['triple_sharing'] ?? 0);
+            $totalBabyCot = (float) ($tourPrices['baby_cot_sharing'] ?? 0);
+            $childSharing = (float) ($tourPrices['child_sharing'] ?? 0);
+            $segregated = $tourPrices['segregated'] ?? [];
+            $segHotel = $segregated['hotel'] ?? ['single' => 0, 'double' => 0, 'triple' => 0, 'baby_cot' => 0];
+
+            foreach ($hotelOptions as &$hotel) {
+                $hotelName = $hotel['hotel_name'] ?? '';
+                $segThis = $segregated[$hotelName] ?? ['single' => 0, 'double' => 0, 'triple' => 0, 'baby_cot' => 0];
+                $thisSingle = (float) ($segThis['single'] ?? 0);
+                $thisDouble = (float) ($segThis['double'] ?? 0);
+                $thisTriple = (float) ($segThis['triple'] ?? 0);
+                $thisBabyCot = (float) ($segThis['baby_cot'] ?? 0);
+                $allHotelsSingle = (float) ($segHotel['single'] ?? 0);
+                $allHotelsDouble = (float) ($segHotel['double'] ?? 0);
+                $allHotelsTriple = (float) ($segHotel['triple'] ?? 0);
+                $allHotelsBabyCot = (float) ($segHotel['baby_cot'] ?? 0);
+
+                // Package total = total - (all other hotels) + this hotel; subtract every other hotel's price
+                $hotel['package_total'] = [
+                    'single'  => ceil($totalSingle - $allHotelsSingle + $thisSingle),
+                    'double'  => ceil($totalDouble - $allHotelsDouble + $thisDouble),
+                    'triple'  => ceil($totalTriple - $allHotelsTriple + $thisTriple),
+                    'child'   => ceil($childSharing),
+                    'infant'  => ceil($totalBabyCot - $allHotelsBabyCot + $thisBabyCot),
+                ];
+            }
+            unset($hotel);
         }
         return $hotelOptions;
     }

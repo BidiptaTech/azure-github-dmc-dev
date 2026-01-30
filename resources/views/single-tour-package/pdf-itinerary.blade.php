@@ -1331,9 +1331,7 @@
                 }
             }
         @endphp
-        
-        
-            </div>
+    </div>
 
     
 
@@ -1376,23 +1374,29 @@
                         </table>
                     </td>
                 </tr>
-                <!-- All Hotels - Show all hotels one after another above supplement section -->
+                <!-- All Hotels - Show package_total (hotel + all services) per hotel in existing table -->
                 @foreach($allHotels as $hotel)
                     @foreach($hotel['room_categories'] as $roomCategory)
                         @php
                             $roomCategoryName = !empty($roomCategory['name']) ? $roomCategory['name'] : 'N/A';
                             $hotelName = $hotel['hotel_name'] ?? 'N/A';
+                            $pt = $hotel['package_total'] ?? [];
+                            $ptSingle = (isset($pt['single']) && is_numeric($pt['single'])) ? ceil($pt['single'] * $exchangeRate) : 0;
+                            $ptDouble = (isset($pt['double']) && is_numeric($pt['double'])) ? ceil($pt['double'] * $exchangeRate) : 0;
+                            $ptTriple = (isset($pt['triple']) && is_numeric($pt['triple']) && floatval($pt['triple']) > 0) ? ceil($pt['triple'] * $exchangeRate) : 0;
+                            $ptChild = (isset($pt['child']) && is_numeric($pt['child'])) ? ceil($pt['child'] * $exchangeRate) : 0;
+                            $ptInfant = (isset($pt['infant']) && is_numeric($pt['infant'])) ? ceil($pt['infant'] * $exchangeRate) : 0;
                         @endphp
                         <tr>
                             <td class="hotel-option-value" style="background: #ffffff; padding: 6px 8px; border: 1px solid #000000; color: #000000; vertical-align: top;">{{ $hotelName }} - {{ $roomCategoryName }}</td>
                             <td style="background: #ffffff; padding: 0; border: 1px solid #000000; vertical-align: top;">
                                 <table style="width: 100%; border-collapse: collapse; margin: 0; padding: 0;">
                                     <tr>
-                                        <td class="hotel-option-value" style="background: #ffffff; padding: 6px 8px; solid #000000; text-align: center; color: #000000; width: 20%; vertical-align: middle;">{{ is_numeric($roomCategory['single_price']) ? number_format(ceil($roomCategory['single_price'] * $exchangeRate), 0) : '0' }}</td>
-                                        <td class="hotel-option-value" style="background: #ffffff; padding: 6px 8px; solid #000000; text-align: center; color: #000000; width: 20%; vertical-align: middle;">{{ is_numeric($roomCategory['double_price']) ? number_format(ceil($roomCategory['double_price'] * $exchangeRate), 0) : '0' }}</td>
-                                        <td class="hotel-option-value" style="background: #ffffff; padding: 6px 8px; solid #000000; text-align: center; color: #000000; width: 20%; vertical-align: middle;">{{ (is_numeric($roomCategory['triple_price']) && floatval($roomCategory['triple_price']) > 0) ? number_format(ceil($roomCategory['triple_price'] * $exchangeRate), 0) : 'N/A' }}</td>
-                                        <td class="hotel-option-value" style="background: #ffffff; padding: 6px 8px; solid #000000; text-align: center; color: #000000; width: 20%; vertical-align: middle;">{{ (isset($roomCategory['child_price']) && is_numeric($roomCategory['child_price'])) ? number_format(ceil($roomCategory['child_price'] * $exchangeRate), 0) : '0' }}</td>
-                                        <td class="hotel-option-value" style="background: #ffffff; padding: 6px 8px; solid #000000; text-align: center; color: #000000; width: 20%; vertical-align: middle;">{{ number_format(ceil($infantPrice), 0) }}</td>
+                                        <td class="hotel-option-value" style="background: #ffffff; padding: 6px 8px; solid #000000; text-align: center; color: #000000; width: 20%; vertical-align: middle;">{{ number_format($ptSingle, 0) }}</td>
+                                        <td class="hotel-option-value" style="background: #ffffff; padding: 6px 8px; solid #000000; text-align: center; color: #000000; width: 20%; vertical-align: middle;">{{ number_format($ptDouble, 0) }}</td>
+                                        <td class="hotel-option-value" style="background: #ffffff; padding: 6px 8px; solid #000000; text-align: center; color: #000000; width: 20%; vertical-align: middle;">{{ $ptTriple > 0 ? number_format($ptTriple, 0) : 'N/A' }}</td>
+                                        <td class="hotel-option-value" style="background: #ffffff; padding: 6px 8px; solid #000000; text-align: center; color: #000000; width: 20%; vertical-align: middle;">{{ number_format($ptChild, 0) }}</td>
+                                        <td class="hotel-option-value" style="background: #ffffff; padding: 6px 8px; solid #000000; text-align: center; color: #000000; width: 20%; vertical-align: middle;">{{ number_format($ptInfant, 0) }}</td>
                                     </tr>
                                 </table>
                             </td>
