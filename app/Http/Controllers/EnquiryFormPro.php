@@ -474,7 +474,12 @@ class EnquiryFormPro extends Controller
             }
         }
         
-        return view('enquiryform_pro.create', compact('destination', 'agents', 'agencies', 'user', 'countries', 'ports', 'destinations', 'attractions', 'restaurants', 'initialData', 'meals', 'guides', 'dmc_id', 'hotels', 'vehicles', 'master_dmc_destinations', 'cityCountryMap', 'defaultValues'));
+        // Add flags for create mode
+        $isEditMode = false;
+        $tourId = null;
+        $existingOrders = collect(); // Empty collection for create mode
+        
+        return view('enquiryform_pro.create', compact('destination', 'agents', 'agencies', 'user', 'countries', 'ports', 'destinations', 'attractions', 'restaurants', 'initialData', 'meals', 'guides', 'dmc_id', 'hotels', 'vehicles', 'master_dmc_destinations', 'cityCountryMap', 'defaultValues', 'isEditMode', 'tourId', 'existingOrders'));
     }
     
     /**
@@ -1035,7 +1040,7 @@ class EnquiryFormPro extends Controller
         try {
             // Validate the request
             $request->validate([
-                'destination' => 'required|string',
+                'destination' => 'required|string|max:191',
                 'start_date' => 'required|date|after_or_equal:today',
                 'end_date' => 'required|date|after:start_date',
                 'adults' => 'required|integer|min:0',
@@ -1117,7 +1122,16 @@ class EnquiryFormPro extends Controller
             
             // Create tour record
             $tour = new Tour();
-            $tour->destination = $request->destination;
+            // Clean destination: extract only country names, remove Arrival:/Departure: text
+            $destinationValue = $request->destination;
+            // Remove any text after "Arrival:" or "Departure:"
+            if (strpos($destinationValue, 'Arrival:') !== false || strpos($destinationValue, 'Departure:') !== false) {
+                // Extract only the part before "Arrival:" or "Departure:"
+                $parts = preg_split('/(,\s*Arrival:|,\s*Departure:)/', $destinationValue);
+                $destinationValue = trim($parts[0]);
+            }
+            // Ensure destination doesn't exceed database limit (varchar 191)
+            $tour->destination = mb_substr($destinationValue, 0, 191);
             $tour->adult = $request->adults;
             $tour->child = $request->children;
             $tour->infant = $request->infants;
@@ -1135,6 +1149,59 @@ class EnquiryFormPro extends Controller
             $tour->auto_cancel_date = $auto_cancel_date;
             $tour->taxes = !empty($taxArray) ? json_encode($taxArray) : null;
             $tour->is_pro = 1; // Set to 1 for Pro Enquiry Form
+            
+            // Store main guest data as JSON
+            if ($request->has('mainguest') && $request->mainguest) {
+                try {
+                    $mainGuestData = $request->mainguest;
+                    if (is_string($mainGuestData)) {
+                        $mainGuestData = json_decode($mainGuestData, true);
+                        if (json_last_error() !== JSON_ERROR_NONE) {
+                            \Log::warning('Invalid JSON in mainguest data', [
+                                'error' => json_last_error_msg(),
+                                'data' => $request->mainguest
+                            ]);
+                            $mainGuestData = null;
+                        }
+                    }
+                    $tour->mainguest = !empty($mainGuestData) ? json_encode($mainGuestData) : null;
+                } catch (\Exception $e) {
+                    \Log::error('Error processing main guest data', [
+                        'error' => $e->getMessage(),
+                        'tour_id' => $tourId
+                    ]);
+                    $tour->mainguest = null;
+                }
+            }
+            
+            // Store additional guests data as JSON
+            if ($request->has('additionalguest') && $request->additionalguest) {
+                try {
+                    $additionalGuestData = $request->additionalguest;
+                    if (is_string($additionalGuestData)) {
+                        $additionalGuestData = json_decode($additionalGuestData, true);
+                        if (json_last_error() !== JSON_ERROR_NONE) {
+                            \Log::warning('Invalid JSON in additionalguest data', [
+                                'error' => json_last_error_msg(),
+                                'data' => $request->additionalguest
+                            ]);
+                            $additionalGuestData = null;
+                        }
+                    }
+                    // Ensure it's an array
+                    if (!is_array($additionalGuestData)) {
+                        $additionalGuestData = [];
+                    }
+                    $tour->additionalguest = !empty($additionalGuestData) ? json_encode($additionalGuestData) : null;
+                } catch (\Exception $e) {
+                    \Log::error('Error processing additional guest data', [
+                        'error' => $e->getMessage(),
+                        'tour_id' => $tourId
+                    ]);
+                    $tour->additionalguest = null;
+                }
+            }
+            
             $tour->save();
             
             \Log::info('Tour created', [
@@ -1994,6 +2061,7 @@ class EnquiryFormPro extends Controller
             $dropId = $request->input('drop_id');
             $pickupType = $request->input('pickup_type'); // hotel, attraction, restaurant, port
             $dropType = $request->input('drop_type'); // hotel, attraction, restaurant, port
+            $dmcId = $request->input('dmc_id'); // DMC ID for zone_assignments lookup
             
             if (!$vehicleId || !$pickupId || !$dropId) {
                 return response()->json([
@@ -2031,15 +2099,145 @@ class EnquiryFormPro extends Controller
                 }
             }
             
-            // Query vehicle_zone_mappings with bidirectional check
+            // Extract zone_id from zone_assignments for hotels, attractions, and restaurants
+            $fromZoneId = $pickupId;
+            $toZoneId = $dropId;
+            
+            // For hotels: extract zone_id from zone_assignments
+            if ($fromZoneType === 'Hotel' && $dmcId) {
+                $hotel = \App\Models\Hotel::where('hotel_unique_id', $pickupId)->first();
+                if ($hotel) {
+                    $zoneId = $hotel->getZoneForDmc($dmcId);
+                    if ($zoneId) {
+                        $fromZoneId = $zoneId;
+                        \Log::info('Extracted zone_id for pickup hotel', ['hotel_unique_id' => $pickupId, 'zone_id' => $zoneId, 'dmc_id' => $dmcId]);
+                    }
+                }
+            }
+            
+            if ($toZoneType === 'Hotel' && $dmcId) {
+                $hotel = \App\Models\Hotel::where('hotel_unique_id', $dropId)->first();
+                if ($hotel) {
+                    $zoneId = $hotel->getZoneForDmc($dmcId);
+                    if ($zoneId) {
+                        $toZoneId = $zoneId;
+                        \Log::info('Extracted zone_id for drop hotel', ['hotel_unique_id' => $dropId, 'zone_id' => $zoneId, 'dmc_id' => $dmcId]);
+                    }
+                }
+            }
+            
+            // For attractions: extract zone_id from zone_assignments
+            if ($fromZoneType === 'Attraction' && $dmcId) {
+                $attraction = \App\Models\Attraction::where('attraction_id', $pickupId)->first();
+                if ($attraction) {
+                    $zoneId = $attraction->getZoneForDmc($dmcId);
+                    if ($zoneId) {
+                        $fromZoneId = $zoneId;
+                        \Log::info('Extracted zone_id for pickup attraction', ['attraction_id' => $pickupId, 'zone_id' => $zoneId, 'dmc_id' => $dmcId]);
+                    }
+                }
+            }
+            
+            if ($toZoneType === 'Attraction' && $dmcId) {
+                $attraction = \App\Models\Attraction::where('attraction_id', $dropId)->first();
+                if ($attraction) {
+                    $zoneId = $attraction->getZoneForDmc($dmcId);
+                    if ($zoneId) {
+                        $toZoneId = $zoneId;
+                        \Log::info('Extracted zone_id for drop attraction', ['attraction_id' => $dropId, 'zone_id' => $zoneId, 'dmc_id' => $dmcId]);
+                    }
+                }
+            }
+            
+            // For restaurants: extract zone_id from zone_assignments
+            if ($fromZoneType === 'Restaurant' && $dmcId) {
+                $restaurant = \App\Models\Restaurant::where('restaurant_id', $pickupId)->first();
+                if ($restaurant) {
+                    $zoneId = $restaurant->getZoneForDmc($dmcId);
+                    if ($zoneId) {
+                        $fromZoneId = $zoneId;
+                        \Log::info('Extracted zone_id for pickup restaurant', ['restaurant_id' => $pickupId, 'zone_id' => $zoneId, 'dmc_id' => $dmcId]);
+                    }
+                }
+            }
+            
+            if ($toZoneType === 'Restaurant' && $dmcId) {
+                $restaurant = \App\Models\Restaurant::where('restaurant_id', $dropId)->first();
+                if ($restaurant) {
+                    $zoneId = $restaurant->getZoneForDmc($dmcId);
+                    if ($zoneId) {
+                        $toZoneId = $zoneId;
+                        \Log::info('Extracted zone_id for drop restaurant', ['restaurant_id' => $dropId, 'zone_id' => $zoneId, 'dmc_id' => $dmcId]);
+                    }
+                }
+            }
+            
+            // For ports: port_id is used directly as zone_id (no conversion needed)
+            
+            // Log the final zone IDs being used for lookup
+            \Log::info('Final zone IDs for vehicle_zone_mappings lookup', [
+                'vehicle_id' => $vehicleId,
+                'from_zone_id' => $fromZoneId,
+                'to_zone_id' => $toZoneId,
+                'from_zone_type' => $fromZoneType,
+                'to_zone_type' => $toZoneType,
+                'dmc_id' => $dmcId
+            ]);
+            
+            // If we couldn't extract zone_id for hotels/attractions/restaurants, return zero prices
+            if (($fromZoneType !== 'Port' && !$fromZoneId) || ($toZoneType !== 'Port' && !$toZoneId)) {
+                \Log::warning('Could not extract zone_id for non-port location', [
+                    'pickup_id' => $pickupId,
+                    'drop_id' => $dropId,
+                    'pickup_type' => $pickupType,
+                    'drop_type' => $dropType,
+                    'from_zone_id' => $fromZoneId,
+                    'to_zone_id' => $toZoneId,
+                    'dmc_id' => $dmcId
+                ]);
+                
+                return response()->json([
+                    'success' => true,
+                    'message' => 'No zone assignment found for selected location with this DMC',
+                    'data' => [
+                        'private_price' => 0,
+                        'shared_price' => 0
+                    ]
+                ]);
+            }
+            
+            // Verify that the vehicle belongs to this DMC (important for port-to-port transfers)
+            // Vehicles are DMC-specific, so we need to ensure the vehicle belongs to the requesting DMC
+            if ($dmcId) {
+                $vehicle = \App\Models\Vehicle::where('vehicle_id', $vehicleId)->first();
+                if (!$vehicle || $vehicle->dmc_id != $dmcId) {
+                    \Log::warning('Vehicle does not belong to this DMC', [
+                        'vehicle_id' => $vehicleId,
+                        'vehicle_dmc_id' => $vehicle->dmc_id ?? 'N/A',
+                        'requested_dmc_id' => $dmcId
+                    ]);
+                    
+                    return response()->json([
+                        'success' => true,
+                        'message' => 'Vehicle not found for this DMC',
+                        'data' => [
+                            'private_price' => 0,
+                            'shared_price' => 0
+                        ]
+                    ]);
+                }
+            }
+            
+            // Query vehicle_zone_mappings with bidirectional check using extracted zone_ids
             // Match SingleTourPackageController logic: check zone_id AND zone_type, also check deleted_at
+            // For port-to-port transfers: Since ports don't have DMC-specific zones, we rely on the vehicle's DMC ownership
             $mapping = VehicleZoneMapping::where('vehicle_id', $vehicleId)
                 ->whereNull('deleted_at')
-                ->where(function($query) use ($pickupId, $dropId, $fromZoneType, $toZoneType) {
+                ->where(function($query) use ($fromZoneId, $toZoneId, $fromZoneType, $toZoneType) {
                     // Case 1: from = pickup, to = drop
-                    $query->where(function($q) use ($pickupId, $dropId, $fromZoneType, $toZoneType) {
-                        $q->where('from_zone_id', $pickupId)
-                          ->where('to_zone_id', $dropId);
+                    $query->where(function($q) use ($fromZoneId, $toZoneId, $fromZoneType, $toZoneType) {
+                        $q->where('from_zone_id', $fromZoneId)
+                          ->where('to_zone_id', $toZoneId);
                         // Add zone type checks if provided
                         if ($fromZoneType) {
                             $q->where('from_zone_type', $fromZoneType);
@@ -2049,9 +2247,9 @@ class EnquiryFormPro extends Controller
                         }
                     })
                     // Case 2: from = drop, to = pickup (bidirectional)
-                    ->orWhere(function($q) use ($pickupId, $dropId, $fromZoneType, $toZoneType) {
-                        $q->where('from_zone_id', $dropId)
-                          ->where('to_zone_id', $pickupId);
+                    ->orWhere(function($q) use ($fromZoneId, $toZoneId, $fromZoneType, $toZoneType) {
+                        $q->where('from_zone_id', $toZoneId)
+                          ->where('to_zone_id', $fromZoneId);
                         // Swap zone types for bidirectional check
                         if ($fromZoneType && $toZoneType) {
                             $q->where('from_zone_type', $toZoneType)
@@ -2066,15 +2264,37 @@ class EnquiryFormPro extends Controller
                 ->first();
             
             if (!$mapping) {
+                \Log::warning('No vehicle zone mapping found', [
+                    'vehicle_id' => $vehicleId,
+                    'from_zone_id' => $fromZoneId,
+                    'to_zone_id' => $toZoneId,
+                    'from_zone_type' => $fromZoneType,
+                    'to_zone_type' => $toZoneType,
+                    'pickup_id_original' => $pickupId,
+                    'drop_id_original' => $dropId,
+                    'dmc_id' => $dmcId
+                ]);
+                
                 return response()->json([
-                    'success' => false,
-                    'message' => 'No zone mapping found for the given parameters',
+                    'success' => true,
+                    'message' => 'No zone mapping found - please add mapping in vehicle zone settings',
                     'data' => [
                         'private_price' => 0,
                         'shared_price' => 0
                     ]
                 ]);
             }
+            
+            \Log::info('Vehicle zone mapping found', [
+                'mapping_id' => $mapping->mapping_id,
+                'vehicle_id' => $vehicleId,
+                'from_zone_id' => $mapping->from_zone_id,
+                'to_zone_id' => $mapping->to_zone_id,
+                'from_zone_type' => $mapping->from_zone_type,
+                'to_zone_type' => $mapping->to_zone_type,
+                'private_price' => $mapping->private_price,
+                'shared_price' => $mapping->shared_price
+            ]);
             
             return response()->json([
                 'success' => true,
@@ -2227,7 +2447,51 @@ class EnquiryFormPro extends Controller
         $agency = Agency::find($tour->agent->agency_id ?? null);
         $agent = Agent::find($tour->agent_id);
         
+        // Decode guest data from tour table
+        $mainGuestData = null;
+        $additionalGuestData = null;
+        
+        if ($tour->mainguest) {
+            try {
+                $decoded = is_string($tour->mainguest) ? json_decode($tour->mainguest, true) : $tour->mainguest;
+                if (json_last_error() === JSON_ERROR_NONE && is_array($decoded)) {
+                    $mainGuestData = $decoded;
+                }
+            } catch (\Exception $e) {
+                \Log::warning('Error decoding main guest data in edit', [
+                    'tour_id' => $tour_id,
+                    'error' => $e->getMessage()
+                ]);
+            }
+        }
+        
+        if ($tour->additionalguest) {
+            try {
+                $decoded = is_string($tour->additionalguest) ? json_decode($tour->additionalguest, true) : $tour->additionalguest;
+                if (json_last_error() === JSON_ERROR_NONE && is_array($decoded)) {
+                    $additionalGuestData = $decoded;
+                }
+            } catch (\Exception $e) {
+                \Log::warning('Error decoding additional guest data in edit', [
+                    'tour_id' => $tour_id,
+                    'error' => $e->getMessage()
+                ]);
+            }
+        }
+        
         // Prepare initialData from tour data
+        // Parse destination field which can contain multiple comma-separated destinations
+        $destinationString = $tour->destination ?? '';
+        $destinationsArray = [];
+        if (!empty($destinationString)) {
+            // Split by comma and trim whitespace from each destination
+            $destinationsArray = array_map('trim', explode(',', $destinationString));
+            // Remove empty values
+            $destinationsArray = array_filter($destinationsArray);
+            // Re-index array to ensure sequential keys
+            $destinationsArray = array_values($destinationsArray);
+        }
+        
         $initialData = [
             'tour_type' => $tour->tour_type ?? 'FIT',
             'salutation' => $tour->salutation ?? 'Mr',
@@ -2238,11 +2502,14 @@ class EnquiryFormPro extends Controller
             'agent_name' => $agent->name ?? '',
             'destination' => $tour->destination ?? '',
             'destination_display' => $tour->destination ?? '',
+            'destinations_array' => $destinationsArray,
             'tour_start_date' => $tour->check_in_time ? $tour->check_in_time->format('Y-m-d') : '',
             'tour_end_date' => $tour->check_out_time ? $tour->check_out_time->format('Y-m-d') : '',
             'adult_count' => $tour->adult ?? 1,
             'child_count' => $tour->child ?? 0,
             'infant_count' => $tour->infant ?? 0,
+            'male_count' => $tour->male_count ?? 0,
+            'female_count' => $tour->female_count ?? 0,
         ];
         
         // Load agencies filtered by DMC ID
@@ -2321,9 +2588,17 @@ class EnquiryFormPro extends Controller
             }
         }
         
+        // Add flags for edit mode
+        $isEditMode = true;
+        $tourId = $tour_id;
+        $existingOrders = $orders; // Rename for consistency with view
+        
         return view('enquiryform_pro.edit', compact(
             'tour',
             'orders',
+            'existingOrders',
+            'isEditMode',
+            'tourId',
             'hotels',
             'attractions',
             'restaurants',
@@ -2336,6 +2611,8 @@ class EnquiryFormPro extends Controller
             'agencies',
             'agents',
             'initialData',
+            'mainGuestData',
+            'additionalGuestData',
             'countries',
             'master_dmc_destinations',
             'cityCountryMap',
@@ -2366,7 +2643,7 @@ class EnquiryFormPro extends Controller
             
             // Validate the request
             $request->validate([
-                'destination' => 'required|string',
+                'destination' => 'required|string|max:191',
                 'start_date' => 'required|date',
                 'end_date' => 'required|date|after:start_date',
                 'adults' => 'required|integer|min:0',
@@ -2395,7 +2672,16 @@ class EnquiryFormPro extends Controller
             $checkInTime = Carbon::createFromFormat('Y-m-d', $request->start_date);
             $checkOutTime = Carbon::createFromFormat('Y-m-d', $request->end_date);
             
-            $tour->destination = $request->destination;
+            // Clean destination: extract only country names, remove Arrival:/Departure: text
+            $destinationValue = $request->destination;
+            // Remove any text after "Arrival:" or "Departure:"
+            if (strpos($destinationValue, 'Arrival:') !== false || strpos($destinationValue, 'Departure:') !== false) {
+                // Extract only the part before "Arrival:" or "Departure:"
+                $parts = preg_split('/(,\s*Arrival:|,\s*Departure:)/', $destinationValue);
+                $destinationValue = trim($parts[0]);
+            }
+            // Ensure destination doesn't exceed database limit (varchar 191)
+            $tour->destination = mb_substr($destinationValue, 0, 191);
             $tour->adult = $request->adults;
             $tour->child = $request->children;
             $tour->infant = $request->infants;
@@ -2406,6 +2692,68 @@ class EnquiryFormPro extends Controller
             $tour->check_out_time = $checkOutTime;
             $tour->city = $request->city ?? null;
             $tour->child_ages = $request->child_ages ?? null;
+            
+            // Update main guest data as JSON
+            if ($request->has('mainguest')) {
+                try {
+                    $mainGuestData = $request->mainguest;
+                    if (is_string($mainGuestData) && !empty(trim($mainGuestData))) {
+                        $decoded = json_decode($mainGuestData, true);
+                        if (json_last_error() === JSON_ERROR_NONE && is_array($decoded)) {
+                            $mainGuestData = $decoded;
+                        } else {
+                            \Log::warning('Invalid JSON in mainguest data during update', [
+                                'error' => json_last_error_msg(),
+                                'data' => $request->mainguest,
+                                'tour_id' => $tour_id,
+                            ]);
+                            $mainGuestData = [];
+                        }
+                    } elseif (is_string($mainGuestData) && empty(trim($mainGuestData))) {
+                        $mainGuestData = [];
+                    } elseif (!is_array($mainGuestData)) {
+                        $mainGuestData = [];
+                    }
+                    
+                    $tour->mainguest = !empty($mainGuestData) ? json_encode($mainGuestData) : null;
+                } catch (\Throwable $e) {
+                    \Log::error('Error processing main guest data during update', [
+                        'error' => $e->getMessage(),
+                        'tour_id' => $tour_id,
+                    ]);
+                }
+            }
+            
+            // Update additional guests data as JSON
+            if ($request->has('additionalguest')) {
+                try {
+                    $additionalGuestData = $request->additionalguest;
+                    if (is_string($additionalGuestData) && !empty(trim($additionalGuestData))) {
+                        $decoded = json_decode($additionalGuestData, true);
+                        if (json_last_error() === JSON_ERROR_NONE && is_array($decoded)) {
+                            $additionalGuestData = $decoded;
+                        } else {
+                            \Log::warning('Invalid JSON in additionalguest data during update', [
+                                'error' => json_last_error_msg(),
+                                'data' => $request->additionalguest,
+                                'tour_id' => $tour_id,
+                            ]);
+                            $additionalGuestData = [];
+                        }
+                    } elseif (is_string($additionalGuestData) && empty(trim($additionalGuestData))) {
+                        $additionalGuestData = [];
+                    } elseif (!is_array($additionalGuestData)) {
+                        $additionalGuestData = [];
+                    }
+                    
+                    $tour->additionalguest = !empty($additionalGuestData) ? json_encode($additionalGuestData) : null;
+                } catch (\Throwable $e) {
+                    \Log::error('Error processing additional guest data during update', [
+                        'error' => $e->getMessage(),
+                        'tour_id' => $tour_id,
+                    ]);
+                }
+            }
             
             // Save tour with updated dates
             $saved = $tour->save();
