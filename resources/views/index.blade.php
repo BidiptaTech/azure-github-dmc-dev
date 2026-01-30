@@ -6,45 +6,47 @@
     .dashboard-container {
         background: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%);
         min-height: 100vh;
-        padding: 2rem;
+        padding: 1rem;
     }
 
     .dashboard-header {
         background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-        border-radius: 20px;
-        padding: 2rem;
-        margin-bottom: 2rem;
+        border-radius: 12px;
+        padding: 1rem;
+        margin-bottom: 1rem;
         color: white;
-        box-shadow: 0 10px 30px rgba(102, 126, 234, 0.3);
+        box-shadow: 0 5px 15px rgba(102, 126, 234, 0.3);
     }
 
     .welcome-text {
-        font-size: 2.5rem;
+        font-size: 1.5rem;
         font-weight: 700;
         text-shadow: 0 2px 4px rgba(0,0,0,0.1);
-        margin-bottom: 0.5rem;
+        margin-bottom: 0.25rem;
     }
 
     .subtitle {
-        font-size: 1.2rem;
+        font-size: 0.9rem;
         opacity: 0.9;
         font-weight: 300;
     }
 
     .time-filter {
         background: rgba(255, 255, 255, 0.2);
-        border-radius: 10px;
-        padding: 0.5rem;
-        margin-bottom: 1rem;
+        border-radius: 8px;
+        padding: 0.4rem;
+        margin-bottom: 0.5rem;
+        margin-top: 0.5rem;
     }
 
     .time-filter .btn {
         background: transparent;
         border: 1px solid rgba(255, 255, 255, 0.3);
         color: white;
-        margin: 0 0.2rem;
-        padding: 0.4rem 1rem;
-        border-radius: 8px;
+        margin: 0 0.15rem;
+        padding: 0.3rem 0.8rem;
+        border-radius: 6px;
+        font-size: 0.85rem;
         transition: all 0.3s ease;
     }
 
@@ -57,10 +59,10 @@
 
     .stats-card {
         background: white;
-        border-radius: 15px;
-        padding: 1.5rem;
-        margin-bottom: 1.5rem;
-        box-shadow: 0 5px 15px rgba(0,0,0,0.08);
+        border-radius: 10px;
+        padding: 0.9rem;
+        margin-bottom: 0.9rem;
+        box-shadow: 0 3px 10px rgba(0,0,0,0.08);
         transition: all 0.3s ease;
         border: 1px solid rgba(0,0,0,0.05);
         position: relative;
@@ -68,8 +70,8 @@
     }
 
     .stats-card:hover {
-        transform: translateY(-5px);
-        box-shadow: 0 15px 35px rgba(0,0,0,0.15);
+        transform: translateY(-3px);
+        box-shadow: 0 8px 20px rgba(0,0,0,0.15);
     }
 
     .stats-card::before {
@@ -78,54 +80,54 @@
         top: 0;
         left: 0;
         right: 0;
-        height: 4px;
+        height: 3px;
         background: var(--card-color);
     }
 
     .stats-icon {
-        width: 60px;
-        height: 60px;
-        border-radius: 12px;
+        width: 40px;
+        height: 40px;
+        border-radius: 8px;
         display: flex;
         align-items: center;
         justify-content: center;
-        font-size: 1.5rem;
+        font-size: 1.1rem;
         color: white;
-        margin-bottom: 1rem;
+        margin-bottom: 0.6rem;
     }
 
     .stats-number {
-        font-size: 2rem;
+        font-size: 1.4rem;
         font-weight: 700;
         color: #2d3748;
-        margin-bottom: 0.5rem;
+        margin-bottom: 0.3rem;
     }
 
     .stats-label {
         color: #718096;
-        font-size: 0.9rem;
+        font-size: 0.8rem;
         font-weight: 500;
     }
 
     .stats-detail {
-        font-size: 0.8rem;
+        font-size: 0.7rem;
         color: #a0aec0;
-        margin-top: 0.5rem;
+        margin-top: 0.3rem;
     }
 
     .chart-card {
         background: white;
-        border-radius: 15px;
-        padding: 1.5rem;
-        box-shadow: 0 5px 15px rgba(0,0,0,0.08);
-        margin-bottom: 1.5rem;
+        border-radius: 10px;
+        padding: 0.9rem;
+        box-shadow: 0 3px 10px rgba(0,0,0,0.08);
+        margin-bottom: 0.9rem;
     }
 
     .chart-header {
-        font-size: 1.2rem;
+        font-size: 1rem;
         font-weight: 600;
         color: #2d3748;
-        margin-bottom: 1rem;
+        margin-bottom: 0.7rem;
         display: flex;
         align-items: center;
         justify-content: space-between;
@@ -134,79 +136,82 @@
     .activity-item {
         display: flex;
         align-items: center;
-        padding: 1rem;
-        border-radius: 10px;
-        margin-bottom: 0.8rem;
+        padding: 0.6rem;
+        border-radius: 8px;
+        margin-bottom: 0.5rem;
         background: #f8fafc;
         transition: all 0.3s ease;
     }
 
     .activity-item:hover {
         background: #e2e8f0;
-        transform: translateX(5px);
+        transform: translateX(3px);
     }
 
     .activity-icon {
-        width: 40px;
-        height: 40px;
-        border-radius: 8px;
+        width: 32px;
+        height: 32px;
+        border-radius: 6px;
         display: flex;
         align-items: center;
         justify-content: center;
-        margin-right: 1rem;
+        margin-right: 0.7rem;
         color: white;
-        font-size: 1rem;
+        font-size: 0.85rem;
     }
 
     .activity-content h6 {
-        margin: 0 0 0.2rem 0;
+        margin: 0 0 0.15rem 0;
         color: #2d3748;
         font-weight: 600;
+        font-size: 0.85rem;
     }
 
     .activity-content small {
         color: #718096;
+        font-size: 0.75rem;
     }
 
     .quick-action-btn {
         background: white;
         border: 1px solid #e2e8f0;
-        border-radius: 12px;
-        padding: 1rem;
+        border-radius: 8px;
+        padding: 0.7rem;
         text-decoration: none;
         color: #4a5568;
         display: flex;
         flex-direction: column;
         align-items: center;
         transition: all 0.3s ease;
-        margin-bottom: 1rem;
+        margin-bottom: 0.7rem;
+        font-size: 0.85rem;
     }
 
     .quick-action-btn:hover {
-        transform: translateY(-3px);
-        box-shadow: 0 10px 25px rgba(0,0,0,0.1);
+        transform: translateY(-2px);
+        box-shadow: 0 6px 15px rgba(0,0,0,0.1);
         color: #667eea;
         border-color: #667eea;
     }
 
     .quick-action-icon {
-        width: 50px;
-        height: 50px;
-        border-radius: 10px;
+        width: 36px;
+        height: 36px;
+        border-radius: 8px;
         display: flex;
         align-items: center;
         justify-content: center;
-        margin-bottom: 0.8rem;
-        font-size: 1.3rem;
+        margin-bottom: 0.5rem;
+        font-size: 1rem;
         background: linear-gradient(135deg, #667eea, #764ba2);
         color: white;
     }
 
     .section-title {
-        font-size: 1.3rem;
+        font-size: 1.1rem;
         font-weight: 600;
         color: #2d3748;
-        margin-bottom: 1.5rem;
+        margin-bottom: 0.9rem;
         display: flex;
         align-items: center;
     }
@@ -234,11 +239,11 @@
 
     /* Progress Bar */
     .progress-modern {
-        height: 8px;
-        border-radius: 4px;
+        height: 5px;
+        border-radius: 3px;
         background: #e2e8f0;
         overflow: hidden;
-        margin-top: 0.5rem;
+        margin-top: 0.3rem;
     }
 
     .progress-bar-modern {
@@ -247,27 +252,43 @@
         transition: width 0.3s ease;
     }
 
+    /* Desktop Compact View */
+    @media (min-width: 1200px) {
+        .dashboard-container {
+            padding: 1rem;
+            max-width: 100%;
+        }
+        
+        .stats-card {
+            padding: 0.8rem;
+        }
+        
+        .chart-card {
+            padding: 0.8rem;
+        }
+    }
+
     /* Responsive */
     @media (max-width: 768px) {
         .dashboard-container {
-            padding: 1rem;
+            padding: 0.7rem;
         }
         
         .welcome-text {
-            font-size: 1.8rem;
+            font-size: 1.3rem;
         }
         
         .stats-number {
-            font-size: 1.5rem;
+            font-size: 1.2rem;
         }
     }
 
     /* Enhanced Chart specific styles */
     .chart-canvas {
         position: relative;
-        height: 400px;
+        height: 280px;
         width: 100%;
-        border-radius: 15px;
+        border-radius: 10px;
         overflow: hidden;
     }
     
@@ -278,8 +299,8 @@
         transform: translate(-50%, -50%);
         z-index: 10;
         background: rgba(255, 255, 255, 0.9);
-        padding: 1rem;
-        border-radius: 10px;
+        padding: 0.7rem;
+        border-radius: 8px;
     }
 
     /* Modern Chart Controls */
@@ -287,25 +308,25 @@
         display: flex;
         justify-content: space-between;
         align-items: center;
-        margin-bottom: 1rem;
-        padding: 0.75rem;
+        margin-bottom: 0.7rem;
+        padding: 0.5rem;
         background: rgba(99, 102, 241, 0.05);
-        border-radius: 12px;
+        border-radius: 8px;
         border: 1px solid rgba(99, 102, 241, 0.1);
     }
 
     .chart-type-selector {
         display: flex;
-        gap: 0.5rem;
+        gap: 0.4rem;
     }
 
     .chart-type-btn {
         background: transparent;
         border: 1px solid rgba(99, 102, 241, 0.3);
         color: #6366f1;
-        padding: 0.4rem 0.8rem;
-        border-radius: 8px;
-        font-size: 0.85rem;
+        padding: 0.3rem 0.6rem;
+        border-radius: 6px;
+        font-size: 0.75rem;
         transition: all 0.3s ease;
         cursor: pointer;
     }
@@ -332,15 +353,16 @@
         background: transparent;
         border: 1px solid rgba(99, 102, 241, 0.3);
         color: #6366f1;
-        padding: 0.4rem;
-        border-radius: 8px;
+        padding: 0.3rem;
+        border-radius: 6px;
         cursor: pointer;
         transition: all 0.3s ease;
-        width: 35px;
-        height: 35px;
+        width: 28px;
+        height: 28px;
         display: flex;
         align-items: center;
         justify-content: center;
+        font-size: 0.85rem;
     }
 
     .chart-action-btn:hover {
@@ -350,22 +372,23 @@
 
     /* Data Table Toggle */
     .data-table-container {
-        margin-top: 1.5rem;
+        margin-top: 0.9rem;
         background: white;
-        border-radius: 15px;
-        padding: 1.5rem;
-        box-shadow: 0 5px 15px rgba(0,0,0,0.08);
+        border-radius: 10px;
+        padding: 0.9rem;
+        box-shadow: 0 3px 10px rgba(0,0,0,0.08);
         display: none;
     }
 
     .data-table {
         width: 100%;
         border-collapse: collapse;
+        font-size: 0.85rem;
     }
 
     .data-table th,
     .data-table td {
-        padding: 0.75rem;
+        padding: 0.5rem;
         text-align: left;
         border-bottom: 1px solid rgba(0,0,0,0.05);
     }
@@ -374,6 +397,7 @@
         background: linear-gradient(135deg, #6366f1, #8b5cf6);
         color: white;
         font-weight: 600;
+        font-size: 0.8rem;
     }
 
     .data-table tr:hover {
@@ -391,38 +415,40 @@
     /* Chart Insights Panel */
     .chart-insights {
         background: linear-gradient(135deg, rgba(99, 102, 241, 0.05), rgba(139, 92, 246, 0.05));
-        border-radius: 15px;
-        padding: 1.5rem;
-        margin-top: 1rem;
+        border-radius: 10px;
+        padding: 0.9rem;
+        margin-top: 0.7rem;
         border: 1px solid rgba(99, 102, 241, 0.1);
     }
 
     .insight-item {
         display: flex;
         align-items: center;
-        margin-bottom: 1rem;
+        margin-bottom: 0.6rem;
     }
 
     .insight-icon {
-        width: 40px;
-        height: 40px;
-        border-radius: 10px;
+        width: 32px;
+        height: 32px;
+        border-radius: 8px;
         display: flex;
         align-items: center;
         justify-content: center;
-        margin-right: 1rem;
+        margin-right: 0.7rem;
         color: white;
-        font-size: 1.2rem;
+        font-size: 0.95rem;
     }
 
     .insight-content h6 {
-        margin: 0 0 0.2rem 0;
+        margin: 0 0 0.15rem 0;
         color: #2d3748;
         font-weight: 600;
+        font-size: 0.85rem;
     }
 
     .insight-content small {
-        color: #718096; 
+        color: #718096;
+        font-size: 0.75rem;
     }
 
     /* Responsive Design */
@@ -448,8 +474,8 @@
 
 <div class="dashboard-container">
     <!-- Flash Messages -->
-    @if(session('success'))
-        <div class="alert alert-success alert-dismissible fade show" role="alert" style="margin-bottom: 1.5rem; border-radius: 10px;">
+        @if(session('success'))
+        <div class="alert alert-success alert-dismissible fade show" role="alert" style="margin-bottom: 0.9rem; border-radius: 8px; padding: 0.7rem; font-size: 0.85rem;">
             <i class="ri-check-circle-line me-2"></i>
             {{ session('success') }}
             <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
@@ -457,7 +483,7 @@
     @endif
 
     @if(session('error'))
-        <div class="alert alert-danger alert-dismissible fade show" role="alert" style="margin-bottom: 1.5rem; border-radius: 10px;">
+        <div class="alert alert-danger alert-dismissible fade show" role="alert" style="margin-bottom: 0.9rem; border-radius: 8px; padding: 0.7rem; font-size: 0.85rem;">
             <i class="ri-error-warning-line me-2"></i>
             {{ session('error') }}
             <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
@@ -468,14 +494,14 @@
     <div class="dashboard-header">
         <div class="row align-items-center">
             <div class="col-lg-8">
-                    <h1 class="welcome-text mb-2" style="color: wheat; font-weight: 600; font-size: 1.8rem;">Welcome back, {{ Auth::user()->name }}! 👋</h1>
-                    <p class="subtitle mb-0">Here's what's happening with your travel management system today.</p>
+                    <h1 class="welcome-text mb-2" style="color: wheat; font-weight: 600; font-size: 1.3rem;">Welcome back, {{ Auth::user()->name }}! 👋</h1>
+                    <p class="subtitle mb-0" style="font-size: 0.85rem;">Here's what's happening with your travel management system today.</p>
             </div>
             <div class="col-lg-4 text-end">
-                <div class="text-white">
+                <div class="text-white" style="font-size: 0.85rem;">
                     <i class="ri-calendar-line"></i> {{ date('M d, Y') }}
                     <br>
-                    <small>{{ date('l') }}</small>
+                    <small style="font-size: 0.75rem;">{{ date('l') }}</small>
                 </div>
             </div>
         </div>
@@ -509,7 +535,7 @@
                     @endphp
                     <div class="progress-bar-modern" id="enquiry-progress" style="width: {{ $enquiryProgress }}%; background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);"></div>
                 </div>
-                <small class="text-muted mt-1 d-block">Progress: Volume (Max: 500)</small>
+                <small class="text-muted mt-1 d-block" style="font-size: 0.7rem;">Progress: Volume (Max: 500)</small>
             </div>
         </div>
         @endif
@@ -531,7 +557,7 @@
                     @endphp
                     <div class="progress-bar-modern" id="booking-progress" style="width: {{ $bookingProgress }}%; background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%);"></div>
                 </div>
-                <small class="text-muted mt-1 d-block">Progress: Volume (Max: 500)</small>
+                <small class="text-muted mt-1 d-block" style="font-size: 0.7rem;">Progress: Volume (Max: 500)</small>
             </div>
         </div>
 
@@ -551,7 +577,7 @@
                     @endphp
                     <div class="progress-bar-modern" id="tour-progress" style="width: {{ $tourProgress }}%; background: linear-gradient(135deg, #43e97b 0%, #38f9d7 100%);"></div>
                 </div>
-                <small class="text-muted mt-1 d-block">Progress: Volume (Max: 500)</small>
+                <small class="text-muted mt-1 d-block" style="font-size: 0.7rem;">Progress: Volume (Max: 500)</small>
             </div>
         </div>
         @endif
@@ -562,7 +588,7 @@
     @if($userPermissions['canViewBusinessMetrics'] && isset($counts['bookingStatus']))
     <div class="row">
         <div class="col-12">
-            <h3 class="section-title mt-4">
+            <h3 class="section-title mt-3">
                 <i class="ri-bookmark-3-line"></i>
                 Booking Status Overview - {{ ucfirst($period) }}
             </h3>
@@ -770,14 +796,14 @@
         <div class="col-lg-8">
             <div class="chart-card">
                 <div class="chart-header">
-                    <span><i class="ri-bar-chart-line"></i> 
+                    <span style="font-size: 0.95rem;"><i class="ri-bar-chart-line"></i> 
                         @if($userPermissions['canViewProductAnalytics'] && !$userPermissions['canViewBusinessMetrics'])
                             Product Analytics - {{ ucfirst($period) }}
                         @else
                             Business Analytics - {{ ucfirst($period) }}
                         @endif
                     </span>
-                    <small class="text-muted">Live data updates • Interactive Dashboard</small>
+                    <small class="text-muted" style="font-size: 0.7rem;">Live data updates • Interactive Dashboard</small>
                 </div>
                 
                 <!-- Enhanced Chart Controls -->
@@ -830,7 +856,7 @@
                 
                 <!-- Data Table Container -->
                 <div class="data-table-container" id="dataTableContainer">
-                    <h6 style="margin-bottom: 1rem; color: #6366f1;">
+                    <h6 style="margin-bottom: 0.7rem; color: #6366f1; font-size: 0.9rem;">
                         <i class="ri-table-line"></i> Detailed Data View
                     </h6>
                     <div style="overflow-x: auto;">
@@ -857,8 +883,8 @@
         <div class="col-lg-4">
             <div class="chart-card">
                 <div class="chart-header">
-                    <span><i class="ri-time-line"></i> System Overview</span>
-                    <small class="text-muted">Real-time statistics</small>
+                    <span style="font-size: 0.95rem;"><i class="ri-time-line"></i> System Overview</span>
+                    <small class="text-muted" style="font-size: 0.7rem;">Real-time statistics</small>
                 </div>
                 
                 @if(isset($counts['orders']))
@@ -1248,13 +1274,13 @@ function getEnhancedChartOptions() {
                 display: true,
                 text: 'Business Analytics Overview',
                 font: {
-                    size: 18,
+                    size: 14,
                     weight: 'bold',
                     family: 'Inter, sans-serif'
                 },
                 color: '#2d3748',
                 padding: {
-                    bottom: 20
+                    bottom: 12
                 }
             },
             legend: {
@@ -1262,9 +1288,9 @@ function getEnhancedChartOptions() {
                 position: 'top',
                 labels: {
                     usePointStyle: true,
-                    padding: 25,
+                    padding: 15,
                     font: {
-                        size: 13,
+                        size: 11,
                         family: 'Inter, sans-serif'
                     }
                 }
@@ -1278,13 +1304,13 @@ function getEnhancedChartOptions() {
                 cornerRadius: 12,
                 displayColors: true,
                 titleFont: {
-                    size: 14,
+                    size: 12,
                     weight: 'bold'
                 },
                 bodyFont: {
-                    size: 13
+                    size: 11
                 },
-                padding: 12,
+                padding: 8,
                 callbacks: {
                     title: function(context) {
                         return context[0].label + ' Analytics';
@@ -1309,17 +1335,17 @@ function getEnhancedChartOptions() {
                 beginAtZero: true,
                 min: 0,
                 max: 200, // Changed to 200
-                ticks: {
-                    stepSize: 20, // Changed to show steps of 20
-                    color: '#718096',
-                    font: {
-                        size: 12,
-                        family: 'Inter, sans-serif'
+                    ticks: {
+                        stepSize: 20, // Changed to show steps of 20
+                        color: '#718096',
+                        font: {
+                            size: 10,
+                            family: 'Inter, sans-serif'
+                        },
+                        callback: function(value) {
+                            return value.toLocaleString();
+                        }
                     },
-                    callback: function(value) {
-                        return value.toLocaleString();
-                    }
-                },
                 grid: {
                     color: 'rgba(99, 102, 241, 0.1)',
                     drawBorder: false,
@@ -1330,7 +1356,7 @@ function getEnhancedChartOptions() {
                     text: 'Count (0-200)',
                     color: '#6366f1',
                     font: {
-                        size: 14,
+                        size: 11,
                         weight: 'bold'
                     }
                 }
@@ -1342,7 +1368,7 @@ function getEnhancedChartOptions() {
                 ticks: {
                     color: '#718096',
                     font: {
-                        size: 11,
+                        size: 9,
                         family: 'Inter, sans-serif'
                     },
                     maxRotation: 45,
