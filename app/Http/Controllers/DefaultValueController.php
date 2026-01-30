@@ -223,7 +223,7 @@ class DefaultValueController extends Controller
                 ->withInput();
         }
 
-        // Check if this type already exists for this DMC
+        // Check if this type already exists for this DMC (active row)
         $existingDefault = DefaultValue::where('dmc_id', $dmcId)
             ->where('name', $request->name)
             ->first();
@@ -234,8 +234,26 @@ class DefaultValueController extends Controller
                 ->withInput();
         }
 
-        // Generate unique default_id
-        $maxDefaultId = DefaultValue::max('default_id') ?? 0;
+        // If same service was soft-deleted, restore it and update instead of creating new
+        $trashedSameService = DefaultValue::onlyTrashed()
+            ->where('dmc_id', $dmcId)
+            ->where('name', $request->name)
+            ->where('service_id', $request->service_id)
+            ->first();
+
+        if ($trashedSameService) {
+            $trashedSameService->restore();
+            $trashedSameService->update([
+                'service_id' => $request->service_id,
+                'status' => $request->status,
+            ]);
+
+            return redirect()->route('default-values.index')
+                ->with('success', 'Default value restored successfully.');
+        }
+
+        // Generate unique default_id (include soft-deleted rows so we never reuse an existing default_id)
+        $maxDefaultId = DefaultValue::withTrashed()->max('default_id') ?? 0;
         $defaultId = CommonHelper::createId($maxDefaultId);
 
         // Create default value
