@@ -48,6 +48,7 @@ use App\Http\Controllers\SpecialDiscountController;
 use App\Http\Controllers\TicketController;
 use App\Http\Controllers\PortController;
 use App\Http\Controllers\ZoneController;
+use App\Http\Controllers\DefaultValueController;
 use App\Http\Controllers\JobSheetController;
 use App\Http\Controllers\MailController;
 use App\Http\Controllers\DashboardController;
@@ -196,6 +197,7 @@ Route::get('/clear', function () {
             Route::post('/package-store-orders', [SingleTourPackageController::class, 'storeServiceOrders'])->name('single-tour-package.store-orders');
             Route::post('/single-tour-package/orders/{order}/update', [SingleTourPackageController::class, 'updateServiceOrder'])->name('single-tour-package.orders.update');
             Route::post('/single-tour-package/{tour}/info', [EditTourController::class, 'updateTour'])->name('single-tour-package.update-info');
+            Route::post('/single-tour-package/{tour}/guests', [EditTourController::class, 'updateGuests'])->name('single-tour-package.update-guests');
             // Service update routes via EditTourController
             Route::post('/edit-tour/hotel/{order}', [EditTourController::class, 'updateHotel'])->name('edit-tour.update-hotel');
             Route::post('/edit-tour/attraction/{order}', [EditTourController::class, 'updateAttraction'])->name('edit-tour.update-attraction');
@@ -295,13 +297,218 @@ Route::get('/clear', function () {
                 ]);
             });
             
-            Route::get('/tour/{tourId}/download-itinerary', function ($tourId) {
-                $pdfResponse = CommonHelper::downloadTourPdf($tourId);
-                if ($pdfResponse) {
-                    return $pdfResponse;
+            // Preview page for itinerary with currency selection and download button
+            Route::get('/tour/{encryptedTourId}/itinerary-preview', [\App\Http\Controllers\QuotationController::class, 'itineraryPreview'])
+                ->name('tour.itinerary.preview');
+
+            // PDF generation route (used by preview iframe and direct download)
+            Route::get('/tour/{tourId}/download-itinerary', [\App\Http\Controllers\QuotationController::class, 'downloadItinerary'])
+                ->name('tour.itinerary.pdf');
+
+            Route::get('/tour/{encryptedTourId}/email-preview', function ($encryptedTourId) {
+                try {
+                    // Decrypt the tour ID
+                    $tourId = decrypt($encryptedTourId);
+                    
+                    // Try to get the tour first to verify it exists
+                    $tour = \App\Models\Tour::where('tour_id', $tourId)->first();
+                    if (!$tour) {
+                        \Log::error('Email preview: Tour not found', ['tour_id' => $tourId]);
+                        return redirect()->back()->with('error', 'Tour not found.');
+                    }
+                    
+                    // Try to prepare email data, but handle exceptions gracefully
+                    try {
+                        $emailData = CommonHelper::prepareEmailTemplateData($tourId);
+                        
+                        // If passenger details are still empty after prepareEmailTemplateData, try to get from tour's mainguest column
+                        if ($emailData && isset($emailData['bookingDetails']) && 
+                            ($emailData['bookingDetails']['lead_guest_name'] === 'N/A' || empty($emailData['bookingDetails']['lead_guest_name'])) && 
+                            !empty($tour->mainguest)) {
+                            try {
+                                $mainguestData = is_string($tour->mainguest) ? json_decode($tour->mainguest, true) : $tour->mainguest;
+                                if (is_array($mainguestData) && !empty($mainguestData)) {
+                                    // Map mainguest fields to bookingDetails
+                                    if (!empty($mainguestData['full_name'])) {
+                                        $emailData['bookingDetails']['lead_guest_name'] = $mainguestData['full_name'];
+                                    }
+                                    if (!empty($mainguestData['email'])) {
+                                        $emailData['bookingDetails']['email'] = $mainguestData['email'];
+                                    }
+                                    if (!empty($mainguestData['phone'])) {
+                                        $phone = $mainguestData['phone'];
+                                        // Add country code if available
+                                        if (!empty($mainguestData['country_code'])) {
+                                            $phone = '+' . $mainguestData['country_code'] . ' ' . $phone;
+                                        }
+                                        $emailData['bookingDetails']['phone'] = $phone;
+                                    }
+                                    // Combine address1 and address2
+                                    $address1 = $mainguestData['address1'] ?? '';
+                                    $address2 = $mainguestData['address2'] ?? '';
+                                    if (!empty($address1) || !empty($address2)) {
+                                        $emailData['bookingDetails']['address'] = trim($address1 . ' ' . $address2);
+                                    }
+                                    if (!empty($mainguestData['state'])) {
+                                        $emailData['bookingDetails']['city'] = $mainguestData['state'];
+                                    }
+                                    if (!empty($mainguestData['zip'])) {
+                                        $emailData['bookingDetails']['postal_code'] = $mainguestData['zip'];
+                                    }
+                                }
+                            } catch (\Exception $e) {
+                                // If parsing fails, keep existing values
+                                \Log::warning('Failed to parse mainguest data from tour in email preview', [
+                                    'tour_id' => $tourId,
+                                    'error' => $e->getMessage()
+                                ]);
+                            }
+                        }
+                    } catch (\Exception $e) {
+                        \Log::error('Email preview data preparation error: ' . $e->getMessage(), [
+                            'tour_id' => $tourId,
+                            'trace' => $e->getTraceAsString()
+                        ]);
+                        
+                        // If data preparation fails, create minimal data structure
+                        $emailData = [
+                            'tour' => $tour,
+                            'servicesByDate' => [],
+                            'servicesByType' => [],
+                            'generatedAt' => now(),
+                            'dmcLogo' => null,
+                            'dmcCompanyName' => null,
+                            'dmcDetails' => [
+                                'name' => 'N/A',
+                                'address' => 'N/A',
+                                'city' => 'N/A',
+                                'country' => 'N/A',
+                                'email' => 'N/A',
+                                'email2' => 'N/A',
+                                'phone' => 'N/A',
+                                'postal_pin' => 'N/A',
+                                'company_name' => 'N/A',
+                            ],
+                            'agentDetails' => [
+                                'name' => 'N/A',
+                                'address' => 'N/A',
+                                'contact_person' => 'N/A',
+                                'phone' => 'N/A',
+                                'email' => 'N/A',
+                            ],
+                            'proposalDetails' => [
+                                'proposal_date' => now()->format('d M Y'),
+                                'proposal_validity' => 'N/A',
+                                'proposal_sent_by' => 'N/A',
+                            ],
+                            'bookingDetails' => [
+                                'booking_id' => $tour->display_id ?? ('Tour #' . ($tour->tour_id ?? 'N/A')),
+                                'lead_guest_name' => 'N/A',
+                                'email' => 'N/A',
+                                'phone' => 'N/A',
+                                'address' => 'N/A',
+                                'city' => 'N/A',
+                                'postal_code' => 'N/A',
+                                'no_of_adults' => (int)($tour->adult ?? 0),
+                                'no_of_children' => (int)($tour->child ?? 0),
+                                'no_of_infants' => (int)($tour->infant ?? 0),
+                            ],
+                            'travelDetails' => [
+                                'destination' => $tour->destination ?? $tour->tour_destination ?? 'N/A',
+                                'travel_date_from' => $tour->check_in_time ? \Carbon\Carbon::parse($tour->check_in_time)->format('l- d/m/Y') : 'N/A',
+                                'travel_date_to' => $tour->check_out_time ? \Carbon\Carbon::parse($tour->check_out_time)->format('l- d/m/Y') : 'N/A',
+                                'duration' => 'N/A',
+                            ],
+                            'tourPrices' => [
+                                'segregated' => [
+                                    'hotel' => ['baby_cot' => 0],
+                                ],
+                            ],
+                            'hotelOptions' => [],
+                            'bankDetails' => [],
+                            'termsAndConditions' => '',
+                            'exclusions' => '',
+                            'paymentTerms' => [],
+                        ];
+                        
+                        // If passenger details are still empty, try to get from tour's mainguest column
+                        if (($emailData['bookingDetails']['lead_guest_name'] === 'N/A' || empty($emailData['bookingDetails']['lead_guest_name'])) && !empty($tour->mainguest)) {
+                            try {
+                                $mainguestData = is_string($tour->mainguest) ? json_decode($tour->mainguest, true) : $tour->mainguest;
+                                if (is_array($mainguestData) && !empty($mainguestData)) {
+                                    // Map mainguest fields to bookingDetails
+                                    if (!empty($mainguestData['full_name'])) {
+                                        $emailData['bookingDetails']['lead_guest_name'] = $mainguestData['full_name'];
+                                    }
+                                    if (!empty($mainguestData['email'])) {
+                                        $emailData['bookingDetails']['email'] = $mainguestData['email'];
+                                    }
+                                    if (!empty($mainguestData['phone'])) {
+                                        $phone = $mainguestData['phone'];
+                                        // Add country code if available
+                                        if (!empty($mainguestData['country_code'])) {
+                                            $phone = '+' . $mainguestData['country_code'] . ' ' . $phone;
+                                        }
+                                        $emailData['bookingDetails']['phone'] = $phone;
+                                    }
+                                    // Combine address1 and address2
+                                    $address1 = $mainguestData['address1'] ?? '';
+                                    $address2 = $mainguestData['address2'] ?? '';
+                                    if (!empty($address1) || !empty($address2)) {
+                                        $emailData['bookingDetails']['address'] = trim($address1 . ' ' . $address2);
+                                    }
+                                    if (!empty($mainguestData['state'])) {
+                                        $emailData['bookingDetails']['city'] = $mainguestData['state'];
+                                    }
+                                    if (!empty($mainguestData['zip'])) {
+                                        $emailData['bookingDetails']['postal_code'] = $mainguestData['zip'];
+                                    }
+                                }
+                            } catch (\Exception $e) {
+                                // If parsing fails, keep existing values
+                                \Log::warning('Failed to parse mainguest data from tour in email preview', [
+                                    'tour_id' => $tourId,
+                                    'error' => $e->getMessage()
+                                ]);
+                            }
+                        }
+                    }
+                    
+                    if (!$emailData) {
+                        \Log::error('Email preview: prepareEmailTemplateData returned null', ['tour_id' => $tourId]);
+                        return redirect()->back()->with('error', 'Tour not found.');
+                    }
+                    
+                    // Ensure servicesByType is always an array, even if empty
+                    if (!isset($emailData['servicesByType']) || !is_array($emailData['servicesByType'])) {
+                        $emailData['servicesByType'] = [];
+                    }
+                    
+                    // Ensure hotelOptions is always an array, even if empty
+                    if (!isset($emailData['hotelOptions']) || !is_array($emailData['hotelOptions'])) {
+                        $emailData['hotelOptions'] = [];
+                    }
+                    
+                    // Ensure tourPrices has the expected structure
+                    if (!isset($emailData['tourPrices']) || !is_array($emailData['tourPrices'])) {
+                        $emailData['tourPrices'] = [
+                            'segregated' => [
+                                'hotel' => ['baby_cot' => 0],
+                            ],
+                        ];
+                    }
+                    
+                    return view('single-tour-package.email-details', $emailData);
+                } catch (\Illuminate\Contracts\Encryption\DecryptException $e) {
+                    \Log::error('Email preview decryption error: ' . $e->getMessage());
+                    return redirect()->back()->with('error', 'Invalid tour ID.');
+                } catch (\Exception $e) {
+                    \Log::error('Email preview error: ' . $e->getMessage(), [
+                        'trace' => $e->getTraceAsString()
+                    ]);
+                    return redirect()->back()->with('error', 'Unable to load email preview.');
                 }
-                return redirect()->back()->with('error', 'Unable to generate itinerary PDF.');
-            })->name('tour.itinerary.pdf');
+            })->name('tour.email.preview');
 
             // API routes for single tour packages (follow agent controller pattern)
             Route::get('/fetch-cities-by-country-single-tour', [SingleTourPackageController::class, 'fetchCitiesByCountry'])->name('fetch-cities-by-country-single-tour');
@@ -370,6 +577,10 @@ Route::get('/clear', function () {
         Route::post('/package-booking/{booking_id}/process-refund', [PackageController::class, 'processRefund'])->name('package.process-refund');
 
         Route::resource('zones', ZoneController::class);
+        
+        // Default Value Routes (DMC Product Configuration)
+        Route::resource('default-values', DefaultValueController::class);
+        Route::get('/default-values/get-services', [DefaultValueController::class, 'getServices'])->name('default-values.get-services');
         
         // Tax Management Routes (DMC Only)
         Route::get('/tax', [TaxController::class, 'index'])->name('tax.index');

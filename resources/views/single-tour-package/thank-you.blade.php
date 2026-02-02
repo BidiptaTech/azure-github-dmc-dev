@@ -105,7 +105,7 @@
                         @endif
 
                         <!-- Action Buttons -->
-                        <div class="d-flex justify-content-center gap-3">
+                        <div class="d-flex justify-content-center gap-3 flex-wrap">
                             <a href="{{ route('single-tour-package.create') }}" class="btn btn-primary btn-lg px-4">
                                 <i class="ri-add-line me-2"></i>Create Another Tour Package
                             </a>
@@ -116,6 +116,10 @@
 
                             <a href="{{ route('tour.itinerary.pdf', ['tourId' => $tourDetails['tour_id']]) }}" class="btn btn-outline-secondary btn-lg px-4" target="_blank">
                                 <i class="ri-file-download-line me-2"></i>Download Quotation
+                            </a>
+
+                            <a href="{{ route('tour.email.preview', ['encryptedTourId' => Crypt::encrypt($tourDetails['tour_id'])]) }}" class="btn btn-outline-info btn-lg px-4" target="_blank">
+                                <i class="ri-mail-line me-2"></i>Preview Email Template
                             </a>
                         </div>
 

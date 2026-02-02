@@ -171,6 +171,15 @@ class EnquiryFormPro extends Controller
         
         $agencies = $agencyQuery->orderBy('agency_name', 'asc')->get();
         
+        // Log agency filtering results for debugging
+        \Log::info('EnquiryFormPro create() - Agencies loaded', [
+            'dmc_id' => $dmc_id,
+            'destination' => $initialData['destination_display'] ?? $destination,
+            'total_agencies' => $agencies->count(),
+            'agency_names' => $agencies->pluck('agency_name')->toArray(),
+            'agency_ids' => $agencies->pluck('agency_id')->toArray()
+        ]);
+        
         // Get country names for port filtering
         $countryNames = $countries->pluck('name')->toArray();
         
@@ -179,7 +188,7 @@ class EnquiryFormPro extends Controller
         if (!empty($countryNames)) {
             $portsQuery->whereIn('country', $countryNames);
         }
-        $ports = $portsQuery->get();
+        $ports = $portsQuery->select('port_id', 'port_name', 'type', 'country', 'city_id')->get();
         
         \Log::info('EnquiryFormPro create() - Ports loaded', [
             'filtered_by_countries' => $countryNames,
@@ -310,13 +319,25 @@ class EnquiryFormPro extends Controller
                 'restaurant_count' => count($restaurantIds)
             ]);
             
-            // Get guides for this DMC (include pricing for linked guides)
-            $guides = Guide::where('dmc_id', $dmc_id)
-                ->where('status', 1)
-                ->with('languages')
-                ->select('guide_id', 'name', 'city', 'twelve_hour_price', 'day_rate')
-                ->orderBy('name')
-                ->get();
+            // Get guides for this DMC only (include pricing for linked guides)
+            // Status 1 and 3 are both considered active guides
+            if ($dmc_id) {
+                $guides = Guide::where('dmc_id', $dmc_id)
+                    ->whereIn('status', [1, 3])
+                    ->with('languages')
+                    ->select('guide_id', 'name', 'city', 'twelve_hour_price', 'day_rate')
+                    ->orderBy('name')
+                    ->get();
+                
+                \Log::info('EnquiryFormPro create() - Guides loaded for arrival/departure', [
+                    'dmc_id' => $dmc_id,
+                    'guide_count' => $guides->count(),
+                    'guide_ids' => $guides->pluck('guide_id')->toArray(),
+                    'guide_names' => $guides->pluck('name')->toArray()
+                ]);
+            } else {
+                $guides = collect([]); // Empty collection if no DMC ID
+            }
             
             // Get hotels for this DMC
             $hotelsQuery = Hotel::where('status', 1)
@@ -353,7 +374,7 @@ class EnquiryFormPro extends Controller
             // Get vehicles for this DMC
             $vehicles = Vehicle::where('dmc_id', $dmc_id)
                 ->where('is_available', 1)
-                ->select('vehicle_id', 'vehicle_type', 'vehicle_name', 'seating_capacity', 'base_price', 'sharable_base_price')
+                ->select('vehicle_id', 'vehicle_type', 'vehicle_name', 'seating_capacity', 'base_price', 'sharable_base_price', 'sharable')
                 ->orderBy('vehicle_type')
                 ->get();
             
@@ -404,11 +425,18 @@ class EnquiryFormPro extends Controller
                 ->select('meal_id', 'restaurant_id', 'name', 'type', 'price', 'adult_price', 'child_price', 'meal_period')
                 ->get();
             
-            $guides = Guide::where('status', 1)
-                ->with('languages')
-                ->select('guide_id', 'name', 'city')
-                ->orderBy('name')
-                ->get();
+            // Get guides for this DMC only
+            // Status 1 and 3 are both considered active guides
+            if ($dmc_id) {
+                $guides = Guide::where('dmc_id', $dmc_id)
+                    ->whereIn('status', [1, 3])
+                    ->with('languages')
+                    ->select('guide_id', 'name', 'city')
+                    ->orderBy('name')
+                    ->get();
+            } else {
+                $guides = collect([]); // Empty collection if no DMC ID
+            }
             
             // Get all hotels (fallback)
             $hotels = Hotel::where('status', 1)
@@ -423,7 +451,7 @@ class EnquiryFormPro extends Controller
             
             // Get all vehicles (fallback)
             $vehicles = Vehicle::where('is_available', 1)
-                ->select('vehicle_id', 'vehicle_type', 'vehicle_name', 'seating_capacity', 'base_price', 'sharable_base_price')
+                ->select('vehicle_id', 'vehicle_type', 'vehicle_name', 'seating_capacity', 'base_price', 'sharable_base_price', 'sharable')
                 ->orderBy('vehicle_type')
                 ->get();
         }
@@ -434,7 +462,24 @@ class EnquiryFormPro extends Controller
             ->pluck('country.name', 'name')
             ->toArray();
         
-        return view('enquiryform_pro.create', compact('destination', 'agents', 'agencies', 'user', 'countries', 'ports', 'destinations', 'attractions', 'restaurants', 'initialData', 'meals', 'guides', 'dmc_id', 'hotels', 'vehicles', 'master_dmc_destinations', 'cityCountryMap'));
+        // Fetch default values for this DMC (6 types: hotel, restaurant, attraction, car_private, car_shared, port)
+        $defaultValues = [];
+        if ($dmc_id) {
+            $defaults = \App\Models\DefaultValue::where('dmc_id', $dmc_id)
+                ->where('status', 1)
+                ->get();
+            
+            foreach ($defaults as $default) {
+                $defaultValues[$default->name] = $default->service_id;
+            }
+        }
+        
+        // Add flags for create mode
+        $isEditMode = false;
+        $tourId = null;
+        $existingOrders = collect(); // Empty collection for create mode
+        
+        return view('enquiryform_pro.create', compact('destination', 'agents', 'agencies', 'user', 'countries', 'ports', 'destinations', 'attractions', 'restaurants', 'initialData', 'meals', 'guides', 'dmc_id', 'hotels', 'vehicles', 'master_dmc_destinations', 'cityCountryMap', 'defaultValues', 'isEditMode', 'tourId', 'existingOrders'));
     }
     
     /**
@@ -551,6 +596,16 @@ class EnquiryFormPro extends Controller
         
         $agencies = $agencies->orderBy('agency_name', 'asc')
                            ->get(['agency_id', 'agency_name', 'country', 'dmc_id']);
+        
+        // Log agency filtering results for debugging
+        \Log::info('EnquiryFormPro getAgencies() - AJAX request', [
+            'dmc_id' => $dmc_id,
+            'user_id' => $user->userId,
+            'role_id' => $user->role_id,
+            'destinations' => $countryArray,
+            'total_agencies' => $agencies->count(),
+            'agency_names' => $agencies->pluck('agency_name')->toArray()
+        ]);
         
         return response()->json([
             'success' => true,
@@ -908,15 +963,21 @@ class EnquiryFormPro extends Controller
                 'created_by' => $user->created_by ?? null
             ]);
             
-            // Get guides for this DMC and destination
-            $guidesQuery = Guide::where('status', 1)
-                ->where('city', $destination);
-            
-            if ($dmc_id) {
-                $guidesQuery->where('dmc_id', $dmc_id);
+            // Get guides for this DMC and destination only
+            if (!$dmc_id) {
+                // If no DMC ID, return empty collection
+                return response()->json([
+                    'success' => true,
+                    'guides' => [],
+                    'count' => 0,
+                    'message' => 'No DMC ID found for this user'
+                ]);
             }
             
-            $guides = $guidesQuery
+            // Status 1 and 3 are both considered active guides
+            $guides = Guide::where('dmc_id', $dmc_id)
+                ->whereIn('status', [1, 3])
+                ->where('city', $destination)
                 ->with('languages')
                 ->select('guide_id', 'name', 'city', 'country', 'day_rate', 
                          'hourly_price', 'two_hour_price', 'four_hour_price', 
@@ -979,7 +1040,7 @@ class EnquiryFormPro extends Controller
         try {
             // Validate the request
             $request->validate([
-                'destination' => 'required|string',
+                'destination' => 'required|string|max:191',
                 'start_date' => 'required|date|after_or_equal:today',
                 'end_date' => 'required|date|after:start_date',
                 'adults' => 'required|integer|min:0',
@@ -1061,7 +1122,16 @@ class EnquiryFormPro extends Controller
             
             // Create tour record
             $tour = new Tour();
-            $tour->destination = $request->destination;
+            // Clean destination: extract only country names, remove Arrival:/Departure: text
+            $destinationValue = $request->destination;
+            // Remove any text after "Arrival:" or "Departure:"
+            if (strpos($destinationValue, 'Arrival:') !== false || strpos($destinationValue, 'Departure:') !== false) {
+                // Extract only the part before "Arrival:" or "Departure:"
+                $parts = preg_split('/(,\s*Arrival:|,\s*Departure:)/', $destinationValue);
+                $destinationValue = trim($parts[0]);
+            }
+            // Ensure destination doesn't exceed database limit (varchar 191)
+            $tour->destination = mb_substr($destinationValue, 0, 191);
             $tour->adult = $request->adults;
             $tour->child = $request->children;
             $tour->infant = $request->infants;
@@ -1079,6 +1149,59 @@ class EnquiryFormPro extends Controller
             $tour->auto_cancel_date = $auto_cancel_date;
             $tour->taxes = !empty($taxArray) ? json_encode($taxArray) : null;
             $tour->is_pro = 1; // Set to 1 for Pro Enquiry Form
+            
+            // Store main guest data as JSON
+            if ($request->has('mainguest') && $request->mainguest) {
+                try {
+                    $mainGuestData = $request->mainguest;
+                    if (is_string($mainGuestData)) {
+                        $mainGuestData = json_decode($mainGuestData, true);
+                        if (json_last_error() !== JSON_ERROR_NONE) {
+                            \Log::warning('Invalid JSON in mainguest data', [
+                                'error' => json_last_error_msg(),
+                                'data' => $request->mainguest
+                            ]);
+                            $mainGuestData = null;
+                        }
+                    }
+                    $tour->mainguest = !empty($mainGuestData) ? json_encode($mainGuestData) : null;
+                } catch (\Exception $e) {
+                    \Log::error('Error processing main guest data', [
+                        'error' => $e->getMessage(),
+                        'tour_id' => $tourId
+                    ]);
+                    $tour->mainguest = null;
+                }
+            }
+            
+            // Store additional guests data as JSON
+            if ($request->has('additionalguest') && $request->additionalguest) {
+                try {
+                    $additionalGuestData = $request->additionalguest;
+                    if (is_string($additionalGuestData)) {
+                        $additionalGuestData = json_decode($additionalGuestData, true);
+                        if (json_last_error() !== JSON_ERROR_NONE) {
+                            \Log::warning('Invalid JSON in additionalguest data', [
+                                'error' => json_last_error_msg(),
+                                'data' => $request->additionalguest
+                            ]);
+                            $additionalGuestData = null;
+                        }
+                    }
+                    // Ensure it's an array
+                    if (!is_array($additionalGuestData)) {
+                        $additionalGuestData = [];
+                    }
+                    $tour->additionalguest = !empty($additionalGuestData) ? json_encode($additionalGuestData) : null;
+                } catch (\Exception $e) {
+                    \Log::error('Error processing additional guest data', [
+                        'error' => $e->getMessage(),
+                        'tour_id' => $tourId
+                    ]);
+                    $tour->additionalguest = null;
+                }
+            }
+            
             $tour->save();
             
             \Log::info('Tour created', [
@@ -1100,7 +1223,26 @@ class EnquiryFormPro extends Controller
             // 0. Entry Port Orders (Arrival)
             if ($request->has('entry_port') && !empty($request->entry_port)) {
                 $entryPorts = json_decode($request->entry_port, true);
+                
+                // Track unique entries to prevent duplicates within the same request
+                $seenEntries = [];
+                
                 foreach ($entryPorts as $entryPort) {
+                    // Create a unique identifier for this entry (based on key data fields)
+                    $uniqueKey = md5(json_encode([
+                        'port_id' => $entryPort['port_id'] ?? '',
+                        'port_name' => $entryPort['port_name'] ?? '',
+                        'bookingDate' => $entryPort['bookingDate'] ?? '',
+                        'type' => $entryPort['type'] ?? ''
+                    ]));
+                    
+                    // Skip if we've already processed this exact entry
+                    if (in_array($uniqueKey, $seenEntries)) {
+                        \Log::info('Skipping duplicate entry_port within create request', ['unique_key' => $uniqueKey]);
+                        continue;
+                    }
+                    $seenEntries[] = $uniqueKey;
+                    
                     // Get vehicle details from database if vehicle_id exists
                     if (!empty($entryPort['vehicle_id'])) {
                         $vehicleDetails = $this->getVehicleDetails($entryPort['vehicle_id']);
@@ -1150,7 +1292,26 @@ class EnquiryFormPro extends Controller
             // 0b. Exit Port Orders (Departure)
             if ($request->has('exit_port') && !empty($request->exit_port)) {
                 $exitPorts = json_decode($request->exit_port, true);
+                
+                // Track unique exits to prevent duplicates within the same request
+                $seenExits = [];
+                
                 foreach ($exitPorts as $exitPort) {
+                    // Create a unique identifier for this exit (based on key data fields)
+                    $uniqueKey = md5(json_encode([
+                        'port_id' => $exitPort['port_id'] ?? '',
+                        'port_name' => $exitPort['port_name'] ?? '',
+                        'bookingDate' => $exitPort['bookingDate'] ?? '',
+                        'type' => $exitPort['type'] ?? ''
+                    ]));
+                    
+                    // Skip if we've already processed this exact exit
+                    if (in_array($uniqueKey, $seenExits)) {
+                        \Log::info('Skipping duplicate exit_port within create request', ['unique_key' => $uniqueKey]);
+                        continue;
+                    }
+                    $seenExits[] = $uniqueKey;
+                    
                     // Get vehicle details from database if vehicle_id exists
                     if (!empty($exitPort['vehicle_id'])) {
                         $vehicleDetails = $this->getVehicleDetails($exitPort['vehicle_id']);
@@ -1232,114 +1393,15 @@ class EnquiryFormPro extends Controller
                         'service_date' => $accommodation['checkIn'] ?? null
                     ];
                     
-                    // AUTO-CREATE LOCAL TRANSPORT IF TRANSFER IS OPTED
+                    // DISABLED: AUTO-CREATE LOCAL TRANSPORT IF TRANSFER IS OPTED
+                    // Note: Hotel-linked transfers are now handled through the transfers array (section 4)
+                    // This prevents duplicates - the transfers array contains the correct data
+                    // The auto-created transfer was the first (wrong) one, the transfers array has the second (correct) one
+                    /*
                     if (isset($accommodation['transfer_options']) && !empty($accommodation['transfer_options']) && ($accommodation['transfer_options']['transfer_required'] ?? false)) {
-                        $transferOptions = $accommodation['transfer_options'];
-                        $bookingDates = $accommodation['bookingDate'] ?? [];
-                        $transferDate = is_array($bookingDates) && count($bookingDates) > 0 ? $bookingDates[0] : date('Y-m-d');
-                        
-                        // Create unique transfer identifier
-                        $transferIdentifier = md5(
-                            ($transferOptions['pickup_location_name'] ?? '') . 
-                            ($accommodation['hotelDetails']['hotel_name'] ?? '') . 
-                            $transferDate . 
-                            '11:00 AM'
-                        );
-                        
-                        // Only create transfer if not already created
-                        if (!in_array($transferIdentifier, $createdTransferIds)) {
-                            $createdTransferIds[] = $transferIdentifier;
-                            
-                            \Log::info('Auto-creating local_transport for hotel', ['hotel_booking_id' => $bookingId]);
-                            
-                            // Get vehicle details from database
-                            $vehicleDetails = $this->getVehicleDetails($transferOptions['vehicle_id'] ?? null);
-                            
-                            // Normalize transfer type
-                            $transferType = $this->normalizeTransferType($transferOptions['type'] ?? 'Private');
-                            
-                            // Extract zone_id from hotel's zone_assignments
-                            $dropoffZoneId = '';
-                            $hotelUniqueId = $accommodation['hotelDetails']['hotel_id'] ?? $accommodation['hotel_unique_id'] ?? null;
-                            if ($hotelUniqueId && $dmcId) {
-                                $hotel = Hotel::where('hotel_unique_id', $hotelUniqueId)->first();
-                                if ($hotel) {
-                                    $dropoffZoneId = $hotel->getZoneForDmc($dmcId) ?? '';
-                                    \Log::info('Extracted zone_id from hotel zone_assignments', [
-                                        'hotel_unique_id' => $hotelUniqueId,
-                                        'dmc_id' => $dmcId,
-                                        'zone_id' => $dropoffZoneId
-                                    ]);
-                                }
-                            }
-                        
-                        $localTransportData = [
-                            'tour_id' => $tourId,
-                            'bookingDate' => $transferDate,
-                            'vehicle_id' => $vehicleDetails['vehicle_id'] ?? ($transferOptions['vehicle_id'] ?? ''),
-                            'vehicles_name' => $vehicleDetails['vehicles_name'] ?? '',
-                            'vehicle_type' => $vehicleDetails['vehicle_type'] ?? '',
-                            'vehicle_model' => $vehicleDetails['vehicle_model'] ?? '',
-                            'model_year' => $vehicleDetails['model_year'] ?? '',
-                            'seating_capacity' => $vehicleDetails['seating_capacity'] ?? 0,
-                            'dmc_id' => (string) ($request->user()->created_by ?? $dmcId ?? ''),
-                            'image' => $vehicleDetails['image'] ?? '',
-                            'Mode' => 'dmc',
-                            'type' => $transferType,
-                            'entrypickup' => $transferOptions['pickup_location_name'] ?? '',
-                            'entrydropoff' => $transferOptions['destination_name'] ?? $accommodation['hotelDetails']['hotel_name'] ?? '',
-                            'PickupPlaceid' => '',
-                            'DropoffPlaceid' => (string) $dropoffZoneId,
-                            'pickupdate' => $transferDate,
-                            'entrytime' => '11:00 AM',
-                            'adults' => (string) ($accommodation['rooms'][0]['beds'][0]['head_count'] ?? 2),
-                            'children' => '0',
-                            'totalPrice' => (string) ($transferOptions['cost'] ?? 0),
-                            'to_zone_id' => (string) $dropoffZoneId,
-                            'from_zone_id' => '',
-                            'city' => $accommodation['hotelDetails']['location'] ?? 'Singapore',
-                            'country' => $accommodation['hotelDetails']['location'] ?? 'Singapore',
-                            'fullName' => $accommodation['fullName'] ?? 'Guest User',
-                            'email' => $accommodation['email'] ?? 'guest@example.com',
-                            'phone' => $accommodation['phone'] ?? '0000000000',
-                            'countryCode' => $accommodation['countryCode'] ?? '65',
-                            'address1' => $accommodation['address1'] ?? '',
-                            'address2' => $accommodation['address2'] ?? '',
-                            'state' => $accommodation['state'] ?? '',
-                            'zip' => $accommodation['zip'] ?? '',
-                            'specialRequests' => $accommodation['specialRequests'] ?? '',
-                            'userInfo' => [
-                                'fullName' => $accommodation['fullName'] ?? 'Guest User',
-                                'email' => $accommodation['email'] ?? 'guest@example.com',
-                                'phone' => $accommodation['phone'] ?? '0000000000',
-                                'countryCode' => $accommodation['countryCode'] ?? '65',
-                                'address1' => $accommodation['address1'] ?? ''
-                            ],
-                            'bookingType' => 'enquiry',
-                            'linked_to_hotel' => $bookingId
-                        ];
-                        
-                        $transportBookingId = $this->generateBookingId();
-                        Order::create([
-                            'booking_id' => $transportBookingId,
-                            'agent_id' => $request->agent_id,
-                            'tour_id' => $tourId,
-                            'data' => [$localTransportData],
-                            'type' => 'local_transport',
-                            'bookingType' => $bookingType,
-                            'discount' => $discountValue,
-                            'discount_type' => $discountType,
-                            'markup_percentage' => $markupValue,
-                            'markup_type' => $markupType,
-                            'status' => 1,
-                        ]);
-                        
-                            $createdOrders[] = ['type' => 'local_transport', 'booking_id' => $transportBookingId, 'linked_to' => 'hotel'];
-                            \Log::info('Local transport created for hotel', ['transport_booking_id' => $transportBookingId, 'linked_to_hotel' => $bookingId]);
-                        } else {
-                            \Log::info('Skipped duplicate local_transport for hotel', ['transfer_identifier' => $transferIdentifier]);
-                        }
+                        // Auto-create logic disabled - transfers are handled via transfers array
                     }
+                    */
                 }
             }
             
@@ -1802,6 +1864,38 @@ class EnquiryFormPro extends Controller
                         $transfer['type'] = $this->normalizeTransferType($transfer['type']);
                     }
                     
+                    // CRITICAL FIX: Validate and sanitize zone IDs - only use integer zone IDs, not Place IDs
+                    // Helper function to check if a value is a valid zone ID (integer) or a Place ID (contains dot)
+                    $isValidZoneId = function($value) {
+                        if (empty($value) || $value === '') return false;
+                        // If it contains a dot, it's likely a Google Place ID, not a zone ID
+                        if (strpos((string)$value, '.') !== false) return false;
+                        // Check if it's a valid integer
+                        return ctype_digit((string)$value) || (is_numeric($value) && (int)$value == $value);
+                    };
+                    
+                    // Sanitize from_zone_id - only keep if it's a valid integer zone ID
+                    if (isset($transfer['from_zone_id']) && !empty($transfer['from_zone_id'])) {
+                        if (!$isValidZoneId($transfer['from_zone_id'])) {
+                            // If it's a Place ID, clear from_zone_id but keep PickupPlaceid
+                            if (empty($transfer['PickupPlaceid'])) {
+                                $transfer['PickupPlaceid'] = $transfer['from_zone_id'];
+                            }
+                            $transfer['from_zone_id'] = '';
+                        }
+                    }
+                    
+                    // Sanitize to_zone_id - only keep if it's a valid integer zone ID
+                    if (isset($transfer['to_zone_id']) && !empty($transfer['to_zone_id'])) {
+                        if (!$isValidZoneId($transfer['to_zone_id'])) {
+                            // If it's a Place ID, clear to_zone_id but keep DropoffPlaceid
+                            if (empty($transfer['DropoffPlaceid'])) {
+                                $transfer['DropoffPlaceid'] = $transfer['to_zone_id'];
+                            }
+                            $transfer['to_zone_id'] = '';
+                        }
+                    }
+                    
                     $bookingId = $this->generateBookingId();
                     
                     $order = Order::create([
@@ -1957,6 +2051,7 @@ class EnquiryFormPro extends Controller
     /**
      * Get zone prices from vehicle_zone_mappings
      * Query: vehicle_id, (from_zone_id = pickupid AND to_zone_id = dropid) OR (from_zone_id = dropid AND to_zone_id = pickupid)
+     * Also checks from_zone_type and to_zone_type to match SingleTourPackageController logic
      */
     public function getZonePrices(Request $request)
     {
@@ -1964,6 +2059,9 @@ class EnquiryFormPro extends Controller
             $vehicleId = $request->input('vehicle_id');
             $pickupId = $request->input('pickup_id');
             $dropId = $request->input('drop_id');
+            $pickupType = $request->input('pickup_type'); // hotel, attraction, restaurant, port
+            $dropType = $request->input('drop_type'); // hotel, attraction, restaurant, port
+            $dmcId = $request->input('dmc_id'); // DMC ID for zone_assignments lookup
             
             if (!$vehicleId || !$pickupId || !$dropId) {
                 return response()->json([
@@ -1972,29 +2070,231 @@ class EnquiryFormPro extends Controller
                 ], 400);
             }
             
-            // Query vehicle_zone_mappings with bidirectional check
-            $mapping = VehicleZoneMapping::where('vehicle_id', $vehicleId)
-                ->where(function($query) use ($pickupId, $dropId) {
-                    $query->where(function($q) use ($pickupId, $dropId) {
-                        $q->where('from_zone_id', $pickupId)
-                          ->where('to_zone_id', $dropId);
-                    })->orWhere(function($q) use ($pickupId, $dropId) {
-                        $q->where('from_zone_id', $dropId)
-                          ->where('to_zone_id', $pickupId);
-                    });
-                })
-                ->first();
+            // Map pickup and drop types to zone types (Hotel, Attraction, Restaurant, Port)
+            $fromZoneType = null;
+            if ($pickupType) {
+                $pickupTypeLower = strtolower($pickupType);
+                if ($pickupTypeLower === 'hotel') {
+                    $fromZoneType = 'Hotel';
+                } elseif ($pickupTypeLower === 'attraction') {
+                    $fromZoneType = 'Attraction';
+                } elseif ($pickupTypeLower === 'restaurant') {
+                    $fromZoneType = 'Restaurant';
+                } elseif ($pickupTypeLower === 'port') {
+                    $fromZoneType = 'Port';
+                }
+            }
             
-            if (!$mapping) {
+            $toZoneType = null;
+            if ($dropType) {
+                $dropTypeLower = strtolower($dropType);
+                if ($dropTypeLower === 'hotel') {
+                    $toZoneType = 'Hotel';
+                } elseif ($dropTypeLower === 'attraction') {
+                    $toZoneType = 'Attraction';
+                } elseif ($dropTypeLower === 'restaurant') {
+                    $toZoneType = 'Restaurant';
+                } elseif ($dropTypeLower === 'port') {
+                    $toZoneType = 'Port';
+                }
+            }
+            
+            // Extract zone_id from zone_assignments for hotels, attractions, and restaurants
+            $fromZoneId = $pickupId;
+            $toZoneId = $dropId;
+            
+            // For hotels: extract zone_id from zone_assignments
+            if ($fromZoneType === 'Hotel' && $dmcId) {
+                $hotel = \App\Models\Hotel::where('hotel_unique_id', $pickupId)->first();
+                if ($hotel) {
+                    $zoneId = $hotel->getZoneForDmc($dmcId);
+                    if ($zoneId) {
+                        $fromZoneId = $zoneId;
+                        \Log::info('Extracted zone_id for pickup hotel', ['hotel_unique_id' => $pickupId, 'zone_id' => $zoneId, 'dmc_id' => $dmcId]);
+                    }
+                }
+            }
+            
+            if ($toZoneType === 'Hotel' && $dmcId) {
+                $hotel = \App\Models\Hotel::where('hotel_unique_id', $dropId)->first();
+                if ($hotel) {
+                    $zoneId = $hotel->getZoneForDmc($dmcId);
+                    if ($zoneId) {
+                        $toZoneId = $zoneId;
+                        \Log::info('Extracted zone_id for drop hotel', ['hotel_unique_id' => $dropId, 'zone_id' => $zoneId, 'dmc_id' => $dmcId]);
+                    }
+                }
+            }
+            
+            // For attractions: extract zone_id from zone_assignments
+            if ($fromZoneType === 'Attraction' && $dmcId) {
+                $attraction = \App\Models\Attraction::where('attraction_id', $pickupId)->first();
+                if ($attraction) {
+                    $zoneId = $attraction->getZoneForDmc($dmcId);
+                    if ($zoneId) {
+                        $fromZoneId = $zoneId;
+                        \Log::info('Extracted zone_id for pickup attraction', ['attraction_id' => $pickupId, 'zone_id' => $zoneId, 'dmc_id' => $dmcId]);
+                    }
+                }
+            }
+            
+            if ($toZoneType === 'Attraction' && $dmcId) {
+                $attraction = \App\Models\Attraction::where('attraction_id', $dropId)->first();
+                if ($attraction) {
+                    $zoneId = $attraction->getZoneForDmc($dmcId);
+                    if ($zoneId) {
+                        $toZoneId = $zoneId;
+                        \Log::info('Extracted zone_id for drop attraction', ['attraction_id' => $dropId, 'zone_id' => $zoneId, 'dmc_id' => $dmcId]);
+                    }
+                }
+            }
+            
+            // For restaurants: extract zone_id from zone_assignments
+            if ($fromZoneType === 'Restaurant' && $dmcId) {
+                $restaurant = \App\Models\Restaurant::where('restaurant_id', $pickupId)->first();
+                if ($restaurant) {
+                    $zoneId = $restaurant->getZoneForDmc($dmcId);
+                    if ($zoneId) {
+                        $fromZoneId = $zoneId;
+                        \Log::info('Extracted zone_id for pickup restaurant', ['restaurant_id' => $pickupId, 'zone_id' => $zoneId, 'dmc_id' => $dmcId]);
+                    }
+                }
+            }
+            
+            if ($toZoneType === 'Restaurant' && $dmcId) {
+                $restaurant = \App\Models\Restaurant::where('restaurant_id', $dropId)->first();
+                if ($restaurant) {
+                    $zoneId = $restaurant->getZoneForDmc($dmcId);
+                    if ($zoneId) {
+                        $toZoneId = $zoneId;
+                        \Log::info('Extracted zone_id for drop restaurant', ['restaurant_id' => $dropId, 'zone_id' => $zoneId, 'dmc_id' => $dmcId]);
+                    }
+                }
+            }
+            
+            // For ports: port_id is used directly as zone_id (no conversion needed)
+            
+            // Log the final zone IDs being used for lookup
+            \Log::info('Final zone IDs for vehicle_zone_mappings lookup', [
+                'vehicle_id' => $vehicleId,
+                'from_zone_id' => $fromZoneId,
+                'to_zone_id' => $toZoneId,
+                'from_zone_type' => $fromZoneType,
+                'to_zone_type' => $toZoneType,
+                'dmc_id' => $dmcId
+            ]);
+            
+            // If we couldn't extract zone_id for hotels/attractions/restaurants, return zero prices
+            if (($fromZoneType !== 'Port' && !$fromZoneId) || ($toZoneType !== 'Port' && !$toZoneId)) {
+                \Log::warning('Could not extract zone_id for non-port location', [
+                    'pickup_id' => $pickupId,
+                    'drop_id' => $dropId,
+                    'pickup_type' => $pickupType,
+                    'drop_type' => $dropType,
+                    'from_zone_id' => $fromZoneId,
+                    'to_zone_id' => $toZoneId,
+                    'dmc_id' => $dmcId
+                ]);
+                
                 return response()->json([
-                    'success' => false,
-                    'message' => 'No zone mapping found for the given parameters',
+                    'success' => true,
+                    'message' => 'No zone assignment found for selected location with this DMC',
                     'data' => [
                         'private_price' => 0,
                         'shared_price' => 0
                     ]
                 ]);
             }
+            
+            // Verify that the vehicle belongs to this DMC (important for port-to-port transfers)
+            // Vehicles are DMC-specific, so we need to ensure the vehicle belongs to the requesting DMC
+            if ($dmcId) {
+                $vehicle = \App\Models\Vehicle::where('vehicle_id', $vehicleId)->first();
+                if (!$vehicle || $vehicle->dmc_id != $dmcId) {
+                    \Log::warning('Vehicle does not belong to this DMC', [
+                        'vehicle_id' => $vehicleId,
+                        'vehicle_dmc_id' => $vehicle->dmc_id ?? 'N/A',
+                        'requested_dmc_id' => $dmcId
+                    ]);
+                    
+                    return response()->json([
+                        'success' => true,
+                        'message' => 'Vehicle not found for this DMC',
+                        'data' => [
+                            'private_price' => 0,
+                            'shared_price' => 0
+                        ]
+                    ]);
+                }
+            }
+            
+            // Query vehicle_zone_mappings with bidirectional check using extracted zone_ids
+            // Match SingleTourPackageController logic: check zone_id AND zone_type, also check deleted_at
+            // For port-to-port transfers: Since ports don't have DMC-specific zones, we rely on the vehicle's DMC ownership
+            $mapping = VehicleZoneMapping::where('vehicle_id', $vehicleId)
+                ->whereNull('deleted_at')
+                ->where(function($query) use ($fromZoneId, $toZoneId, $fromZoneType, $toZoneType) {
+                    // Case 1: from = pickup, to = drop
+                    $query->where(function($q) use ($fromZoneId, $toZoneId, $fromZoneType, $toZoneType) {
+                        $q->where('from_zone_id', $fromZoneId)
+                          ->where('to_zone_id', $toZoneId);
+                        // Add zone type checks if provided
+                        if ($fromZoneType) {
+                            $q->where('from_zone_type', $fromZoneType);
+                        }
+                        if ($toZoneType) {
+                            $q->where('to_zone_type', $toZoneType);
+                        }
+                    })
+                    // Case 2: from = drop, to = pickup (bidirectional)
+                    ->orWhere(function($q) use ($fromZoneId, $toZoneId, $fromZoneType, $toZoneType) {
+                        $q->where('from_zone_id', $toZoneId)
+                          ->where('to_zone_id', $fromZoneId);
+                        // Swap zone types for bidirectional check
+                        if ($fromZoneType && $toZoneType) {
+                            $q->where('from_zone_type', $toZoneType)
+                              ->where('to_zone_type', $fromZoneType);
+                        } elseif ($toZoneType) {
+                            $q->where('from_zone_type', $toZoneType);
+                        } elseif ($fromZoneType) {
+                            $q->where('to_zone_type', $fromZoneType);
+                        }
+                    });
+                })
+                ->first();
+            
+            if (!$mapping) {
+                \Log::warning('No vehicle zone mapping found', [
+                    'vehicle_id' => $vehicleId,
+                    'from_zone_id' => $fromZoneId,
+                    'to_zone_id' => $toZoneId,
+                    'from_zone_type' => $fromZoneType,
+                    'to_zone_type' => $toZoneType,
+                    'pickup_id_original' => $pickupId,
+                    'drop_id_original' => $dropId,
+                    'dmc_id' => $dmcId
+                ]);
+                
+                return response()->json([
+                    'success' => true,
+                    'message' => 'No zone mapping found - please add mapping in vehicle zone settings',
+                    'data' => [
+                        'private_price' => 0,
+                        'shared_price' => 0
+                    ]
+                ]);
+            }
+            
+            \Log::info('Vehicle zone mapping found', [
+                'mapping_id' => $mapping->mapping_id,
+                'vehicle_id' => $vehicleId,
+                'from_zone_id' => $mapping->from_zone_id,
+                'to_zone_id' => $mapping->to_zone_id,
+                'from_zone_type' => $mapping->from_zone_type,
+                'to_zone_type' => $mapping->to_zone_type,
+                'private_price' => $mapping->private_price,
+                'shared_price' => $mapping->shared_price
+            ]);
             
             return response()->json([
                 'success' => true,
@@ -2036,8 +2336,11 @@ class EnquiryFormPro extends Controller
             // If decryption fails, use tour_id as-is
         }
         
-        // Get the tour
-        $tour = Tour::where('tour_id', $tour_id)->firstOrFail();
+        // Clean up any duplicate orders for this tour before loading edit page
+        $this->cleanupDuplicateOrders($tour_id);
+        
+        // Get the tour with agent relationship
+        $tour = Tour::with('agent')->where('tour_id', $tour_id)->firstOrFail();
         
         // Get all orders for this tour
         $orders = Order::where('tour_id', $tour_id)->get();
@@ -2051,68 +2354,251 @@ class EnquiryFormPro extends Controller
         
         // Get DMC ID
         $user = Auth::user();
-        $dmcId = null;
+        $dmc_id = null;
         if ($user->role_id == 11) {
-            $dmcId = $user->userId;
+            $dmc_id = $user->userId;
         } elseif (in_array($user->role_id, [33, 34, 35, 77, 78, 84, 120, 128, 129, 130, 131, 132, 133, 134, 135, 136, 137, 138, 139, 140])) {
-            $dmcId = $user->created_by;
+            $dmc_id = $user->created_by;
         } elseif (in_array($user->role_id, [37, 64, 65, 66, 67, 68])) {
             $sales_head = User::where('userId', $user->created_by)->first();
-            $dmcId = $sales_head ? $sales_head->created_by : null;
+            $dmc_id = $sales_head ? $sales_head->created_by : null;
         } elseif (in_array($user->role_id, [38, 81, 90, 108, 117, 124, 125, 126, 127])) {
             $sales_manager = User::where('userId', $user->created_by)->first();
             if ($sales_manager) {
                 $sales_head = User::where('userId', $sales_manager->created_by)->first();
-                $dmcId = $sales_head ? $sales_head->created_by : null;
+                $dmc_id = $sales_head ? $sales_head->created_by : null;
             }
         }
         
-        if (!$dmcId) {
-            $dmcId = $user->created_by;
+        if (!$dmc_id) {
+            $dmc_id = $user->created_by;
         }
         
         // Get all required data (same as create method)
-        $hotels = Hotel::where('dmc_id', $dmcId)
+        // Note: dmc_id is a JSON array column, so we use whereJsonContains
+        $hotels = Hotel::whereJsonContains('dmc_id', (int) $dmc_id)
+            ->where('status', 1)
             ->where('is_active', 1)
-            ->select('hotel_id', 'hotel_name', 'hotel_unique_id', 'destination', 'image', 'zone_assignments')
+            ->where('hotel_unique_id', '!=', '0')
+            ->select('id', 'hotel_unique_id', 'name', 'city', 'country', 'address', 'zone_assignments')
+            ->orderBy('name')
             ->get();
         
-        $attractions = Attraction::where('dmc_id', $dmcId)
+        // Add zone_id to each hotel
+        $hotels->each(function($hotel) use ($dmc_id) {
+            $hotel->zone_id = $dmc_id ? $hotel->getZoneForDmc($dmc_id) : null;
+        });
+        
+        $attractions = Attraction::whereJsonContains('dmc_id', (int) $dmc_id)
             ->where('is_active', 1)
-            ->select('attraction_id', 'name', 'destination', 'address', 'image', 'zone_assignments')
+            ->select('attraction_id', 'name', 'location', 'country', 'open_time', 'close_time', 
+                     'adult_price', 'child_price', 'senior_adult_price', 'zone_assignments')
+            ->orderBy('name')
             ->get();
         
-        $restaurants = Restaurant::where('dmc_id', $dmcId)
+        // Add zone_id to each attraction
+        $attractions->each(function($attraction) use ($dmc_id) {
+            $attraction->zone_id = $dmc_id ? $attraction->getZoneForDmc($dmc_id) : null;
+        });
+        
+        $restaurants = Restaurant::whereJsonContains('dmc_id', (int) $dmc_id)
             ->where('is_active', 1)
-            ->select('restaurant_id', 'name', 'destination', 'address', 'image', 'zone_assignments')
+            ->select('restaurant_id', 'name', 'city', 'country', 'breakfast_available', 'lunch_available', 
+                     'dinner_available', 'opening_time_bf', 'closing_time_bf', 'opening_time_lunch', 
+                     'closing_time_lunch', 'opening_time_dinner', 'closing_time_dinner', 'zone_assignments')
+            ->orderBy('name')
             ->get();
         
-        $guides = Guide::where('dmc_id', $dmcId)
-            ->where('is_active', 1)
-            ->select('guide_id', 'name', 'languages', 'image', 'destination')
+        // Add zone_id to each restaurant
+        $restaurants->each(function($restaurant) use ($dmc_id) {
+            $restaurant->zone_id = $dmc_id ? $restaurant->getZoneForDmc($dmc_id) : null;
+        });
+        
+        // Get guides for this DMC only
+        // Status 1 and 3 are both considered active guides
+        if ($dmc_id) {
+            $guides = Guide::where('dmc_id', $dmc_id)
+                ->whereIn('status', [1, 3])
+                ->with('languages')
+                ->select('guide_id', 'name', 'city', 'twelve_hour_price', 'day_rate')
+                ->orderBy('name')
+                ->get();
+        } else {
+            $guides = collect([]); // Empty collection if no DMC ID
+        }
+        
+        $vehicles = Vehicle::where('dmc_id', $dmc_id)
+            ->where('is_available', 1)
+            ->select('vehicle_id', 'vehicle_type', 'vehicle_name', 'seating_capacity', 'base_price', 'sharable_base_price', 'sharable')
+            ->orderBy('vehicle_type')
             ->get();
         
-        $vehicles = Vehicle::where('dmc_id', $dmcId)
-            ->where('is_active', 1)
-            ->select('vehicle_id', 'vehicle_name', 'vehicle_type', 'seating_capacity', 'image')
+        $ports = Port::where('status', 1)
+            ->with('country')
+            ->select('port_id', 'port_name', 'type', 'country', 'city_id')
+            ->orderBy('port_name')
             ->get();
         
-        $ports = Port::where('dmc_id', $dmcId)
-            ->where('is_active', 1)
-            ->select('port_id', 'port_name', 'port_type', 'city')
-            ->get();
-        
-        $destinations = Country::where('dmc_id', $dmcId)
-            ->where('is_active', 1)
-            ->pluck('name');
+        $destinations = Country::where('is_active', 1)
+            ->orderBy('name', 'asc')
+            ->get(['id', 'name']);
         
         // Get agency and agent
         $agency = Agency::find($tour->agent->agency_id ?? null);
         $agent = Agent::find($tour->agent_id);
         
+        // Decode guest data from tour table
+        $mainGuestData = null;
+        $additionalGuestData = null;
+        
+        if ($tour->mainguest) {
+            try {
+                $decoded = is_string($tour->mainguest) ? json_decode($tour->mainguest, true) : $tour->mainguest;
+                if (json_last_error() === JSON_ERROR_NONE && is_array($decoded)) {
+                    $mainGuestData = $decoded;
+                }
+            } catch (\Exception $e) {
+                \Log::warning('Error decoding main guest data in edit', [
+                    'tour_id' => $tour_id,
+                    'error' => $e->getMessage()
+                ]);
+            }
+        }
+        
+        if ($tour->additionalguest) {
+            try {
+                $decoded = is_string($tour->additionalguest) ? json_decode($tour->additionalguest, true) : $tour->additionalguest;
+                if (json_last_error() === JSON_ERROR_NONE && is_array($decoded)) {
+                    $additionalGuestData = $decoded;
+                }
+            } catch (\Exception $e) {
+                \Log::warning('Error decoding additional guest data in edit', [
+                    'tour_id' => $tour_id,
+                    'error' => $e->getMessage()
+                ]);
+            }
+        }
+        
+        // Prepare initialData from tour data
+        // Parse destination field which can contain multiple comma-separated destinations
+        $destinationString = $tour->destination ?? '';
+        $destinationsArray = [];
+        if (!empty($destinationString)) {
+            // Split by comma and trim whitespace from each destination
+            $destinationsArray = array_map('trim', explode(',', $destinationString));
+            // Remove empty values
+            $destinationsArray = array_filter($destinationsArray);
+            // Re-index array to ensure sequential keys
+            $destinationsArray = array_values($destinationsArray);
+        }
+        
+        $initialData = [
+            'tour_type' => $tour->tour_type ?? 'FIT',
+            'salutation' => $tour->salutation ?? 'Mr',
+            'customer_name' => $tour->customer_name ?? 'To Be Advised',
+            'contact_number' => $tour->contact_number ?? '',
+            'agency_id' => $tour->agent->agency_id ?? null,
+            'agent_id' => $tour->agent_id ?? null,
+            'agent_name' => $agent->name ?? '',
+            'destination' => $tour->destination ?? '',
+            'destination_display' => $tour->destination ?? '',
+            'destinations_array' => $destinationsArray,
+            'tour_start_date' => $tour->check_in_time ? $tour->check_in_time->format('Y-m-d') : '',
+            'tour_end_date' => $tour->check_out_time ? $tour->check_out_time->format('Y-m-d') : '',
+            'adult_count' => $tour->adult ?? 1,
+            'child_count' => $tour->child ?? 0,
+            'infant_count' => $tour->infant ?? 0,
+            'male_count' => $tour->male_count ?? 0,
+            'female_count' => $tour->female_count ?? 0,
+        ];
+        
+        // Load agencies filtered by DMC ID
+        $agencyQuery = Agency::where('status', 1);
+        if ($dmc_id) {
+            $agencyQuery->whereJsonContains('dmc_id', (int) $dmc_id);
+        }
+        // Filter by tour destination
+        if ($tour->destination) {
+            $agencyQuery->where('country', $tour->destination);
+        }
+        $agencies = $agencyQuery->orderBy('agency_name', 'asc')->get();
+        
+        // Get agents for the selected agency (if any)
+        $agents = [];
+        if ($tour->agent && $tour->agent->agency_id) {
+            $agents = Agent::where('status', 1)
+                ->where('agency_id', $tour->agent->agency_id)
+                ->orderBy('name', 'asc')
+                ->get(['agent_id', 'name', 'email']);
+        }
+        
+        // Get master_dmc_id from logged-in user
+        $master_dmc_id = $user->master_dmc_id;
+        
+        // Get countries based on master_dmc_id
+        $countries = collect();
+        if ($master_dmc_id) {
+            // Find all users with this master_dmc_id
+            $usersWithMasterDmc = User::where('master_dmc_id', $master_dmc_id)
+                ->whereNotNull('country')
+                ->get();
+            
+            // Extract and merge all countries (comma-separated)
+            $countryNames = [];
+            foreach ($usersWithMasterDmc as $userItem) {
+                if ($userItem->country) {
+                    $userCountries = array_map('trim', explode(',', $userItem->country));
+                    $countryNames = array_merge($countryNames, $userCountries);
+                }
+            }
+            
+            // Remove duplicates and get unique country names
+            $countryNames = array_unique($countryNames);
+            
+            // Get Country objects matching these names
+            if (!empty($countryNames)) {
+                $countries = Country::whereIn('name', $countryNames)
+                    ->where('is_active', 1)
+                    ->orderBy('name')
+                    ->get();
+            }
+        } else {
+            // Fallback: Get all active countries if no master_dmc_id
+            $countries = Country::where('is_active', 1)->orderBy('name')->get();
+        }
+        
+        // Get destinations for master DMC (use the same filtered countries)
+        $master_dmc_destinations = $countries;
+        
+        // Create city to country mapping for filtering
+        $cityCountryMap = \App\Models\City::with('country')
+            ->get()
+            ->pluck('country.name', 'name')
+            ->toArray();
+        
+        // Fetch default values for this DMC (6 types: hotel, restaurant, attraction, car_private, car_shared, port)
+        $defaultValues = [];
+        if ($dmc_id) {
+            $defaults = \App\Models\DefaultValue::where('dmc_id', $dmc_id)
+                ->where('status', 1)
+                ->get();
+            
+            foreach ($defaults as $default) {
+                $defaultValues[$default->name] = $default->service_id;
+            }
+        }
+        
+        // Add flags for edit mode
+        $isEditMode = true;
+        $tourId = $tour_id;
+        $existingOrders = $orders; // Rename for consistency with view
+        
         return view('enquiryform_pro.edit', compact(
             'tour',
             'orders',
+            'existingOrders',
+            'isEditMode',
+            'tourId',
             'hotels',
             'attractions',
             'restaurants',
@@ -2122,7 +2608,17 @@ class EnquiryFormPro extends Controller
             'destinations',
             'agency',
             'agent',
-            'dmc_id'
+            'agencies',
+            'agents',
+            'initialData',
+            'mainGuestData',
+            'additionalGuestData',
+            'countries',
+            'master_dmc_destinations',
+            'cityCountryMap',
+            'dmc_id',
+            'user',
+            'defaultValues'
         ))->with([
             'markupValue' => $markupValue,
             'markupType' => $markupType,
@@ -2147,7 +2643,7 @@ class EnquiryFormPro extends Controller
             
             // Validate the request
             $request->validate([
-                'destination' => 'required|string',
+                'destination' => 'required|string|max:191',
                 'start_date' => 'required|date',
                 'end_date' => 'required|date|after:start_date',
                 'adults' => 'required|integer|min:0',
@@ -2176,7 +2672,16 @@ class EnquiryFormPro extends Controller
             $checkInTime = Carbon::createFromFormat('Y-m-d', $request->start_date);
             $checkOutTime = Carbon::createFromFormat('Y-m-d', $request->end_date);
             
-            $tour->destination = $request->destination;
+            // Clean destination: extract only country names, remove Arrival:/Departure: text
+            $destinationValue = $request->destination;
+            // Remove any text after "Arrival:" or "Departure:"
+            if (strpos($destinationValue, 'Arrival:') !== false || strpos($destinationValue, 'Departure:') !== false) {
+                // Extract only the part before "Arrival:" or "Departure:"
+                $parts = preg_split('/(,\s*Arrival:|,\s*Departure:)/', $destinationValue);
+                $destinationValue = trim($parts[0]);
+            }
+            // Ensure destination doesn't exceed database limit (varchar 191)
+            $tour->destination = mb_substr($destinationValue, 0, 191);
             $tour->adult = $request->adults;
             $tour->child = $request->children;
             $tour->infant = $request->infants;
@@ -2187,7 +2692,78 @@ class EnquiryFormPro extends Controller
             $tour->check_out_time = $checkOutTime;
             $tour->city = $request->city ?? null;
             $tour->child_ages = $request->child_ages ?? null;
-            $tour->save();
+            
+            // Update main guest data as JSON
+            if ($request->has('mainguest')) {
+                try {
+                    $mainGuestData = $request->mainguest;
+                    if (is_string($mainGuestData) && !empty(trim($mainGuestData))) {
+                        $decoded = json_decode($mainGuestData, true);
+                        if (json_last_error() === JSON_ERROR_NONE && is_array($decoded)) {
+                            $mainGuestData = $decoded;
+                        } else {
+                            \Log::warning('Invalid JSON in mainguest data during update', [
+                                'error' => json_last_error_msg(),
+                                'data' => $request->mainguest,
+                                'tour_id' => $tour_id,
+                            ]);
+                            $mainGuestData = [];
+                        }
+                    } elseif (is_string($mainGuestData) && empty(trim($mainGuestData))) {
+                        $mainGuestData = [];
+                    } elseif (!is_array($mainGuestData)) {
+                        $mainGuestData = [];
+                    }
+                    
+                    $tour->mainguest = !empty($mainGuestData) ? json_encode($mainGuestData) : null;
+                } catch (\Throwable $e) {
+                    \Log::error('Error processing main guest data during update', [
+                        'error' => $e->getMessage(),
+                        'tour_id' => $tour_id,
+                    ]);
+                }
+            }
+            
+            // Update additional guests data as JSON
+            if ($request->has('additionalguest')) {
+                try {
+                    $additionalGuestData = $request->additionalguest;
+                    if (is_string($additionalGuestData) && !empty(trim($additionalGuestData))) {
+                        $decoded = json_decode($additionalGuestData, true);
+                        if (json_last_error() === JSON_ERROR_NONE && is_array($decoded)) {
+                            $additionalGuestData = $decoded;
+                        } else {
+                            \Log::warning('Invalid JSON in additionalguest data during update', [
+                                'error' => json_last_error_msg(),
+                                'data' => $request->additionalguest,
+                                'tour_id' => $tour_id,
+                            ]);
+                            $additionalGuestData = [];
+                        }
+                    } elseif (is_string($additionalGuestData) && empty(trim($additionalGuestData))) {
+                        $additionalGuestData = [];
+                    } elseif (!is_array($additionalGuestData)) {
+                        $additionalGuestData = [];
+                    }
+                    
+                    $tour->additionalguest = !empty($additionalGuestData) ? json_encode($additionalGuestData) : null;
+                } catch (\Throwable $e) {
+                    \Log::error('Error processing additional guest data during update', [
+                        'error' => $e->getMessage(),
+                        'tour_id' => $tour_id,
+                    ]);
+                }
+            }
+            
+            // Save tour with updated dates
+            $saved = $tour->save();
+            
+            \Log::info('Tour dates updated', [
+                'saved' => $saved,
+                'tour_id' => $tour_id,
+                'check_in_time' => $tour->check_in_time->format('Y-m-d H:i:s'),
+                'check_out_time' => $tour->check_out_time->format('Y-m-d H:i:s')
+            ]);
             
             \Log::info('Tour updated', [
                 'tour_id' => $tour_id,
@@ -2206,6 +2782,10 @@ class EnquiryFormPro extends Controller
                 }
             }
             
+            // Collect all existing booking_ids to track what we're updating
+            $existingBookingIds = Order::where('tour_id', $tour_id)->pluck('booking_id')->toArray();
+            \Log::info('Existing booking IDs before update', ['booking_ids' => $existingBookingIds]);
+            
             // Determine booking type
             $bookingType = 'enquiry';
             
@@ -2213,11 +2793,37 @@ class EnquiryFormPro extends Controller
             // Note: We'll update existing orders by booking_id or create new ones
             $createdOrders = [];
             $updatedOrders = [];
+            $processedBookingIds = []; // Track processed booking IDs to prevent duplicates
             
             // 1. Entry Port Orders (Arrival)
             if ($request->has('entry_port') && !empty($request->entry_port)) {
+                // First, delete ALL existing entry_port orders for this tour to prevent duplicates
+                $deletedEntryPorts = Order::where('tour_id', $tour_id)
+                    ->where('type', 'entry_port')
+                    ->delete();
+                \Log::info('Deleted existing entry_port orders', ['count' => $deletedEntryPorts, 'tour_id' => $tour_id]);
+                
                 $entryPorts = json_decode($request->entry_port, true);
+                
+                // Use a set to track unique entries to prevent duplicates within the same request
+                $seenEntries = [];
+                
                 foreach ($entryPorts as $entryPort) {
+                    // Create a unique identifier for this entry (based on key data fields)
+                    $uniqueKey = md5(json_encode([
+                        'port_id' => $entryPort['port_id'] ?? '',
+                        'port_name' => $entryPort['port_name'] ?? '',
+                        'bookingDate' => $entryPort['bookingDate'] ?? '',
+                        'type' => $entryPort['type'] ?? ''
+                    ]));
+                    
+                    // Skip if we've already processed this exact entry
+                    if (in_array($uniqueKey, $seenEntries)) {
+                        \Log::info('Skipping duplicate entry_port within request', ['unique_key' => $uniqueKey]);
+                        continue;
+                    }
+                    $seenEntries[] = $uniqueKey;
+                    
                     // Get vehicle details from database if vehicle_id exists
                     if (!empty($entryPort['vehicle_id'])) {
                         $vehicleDetails = $this->getVehicleDetails($entryPort['vehicle_id']);
@@ -2240,28 +2846,7 @@ class EnquiryFormPro extends Controller
                     // Add tour_id to the JSON data
                     $entryPort['tour_id'] = $tour_id;
                     
-                    // Check if this order already exists by booking_id
-                    if (isset($entryPort['booking_id']) && !empty($entryPort['booking_id'])) {
-                        $existingOrder = Order::where('booking_id', $entryPort['booking_id'])
-                            ->where('tour_id', $tour_id)
-                            ->first();
-                        
-                        if ($existingOrder) {
-                            // Update existing order
-                            $existingOrder->update([
-                                'data' => [$entryPort],
-                                'agent_id' => $request->agent_id,
-                                'discount' => $discountValue,
-                                'discount_type' => $discountType,
-                                'markup_percentage' => $markupValue,
-                                'markup_type' => $markupType,
-                            ]);
-                            $updatedOrders[] = ['type' => 'entry_port', 'booking_id' => $existingOrder->booking_id];
-                            continue;
-                        }
-                    }
-                    
-                    // Create new order
+                    // Create new order (always create new since we deleted all existing ones)
                     $bookingId = $this->generateBookingId();
                     Order::create([
                         'booking_id' => $bookingId,
@@ -2283,8 +2868,33 @@ class EnquiryFormPro extends Controller
             
             // 2. Exit Port Orders (Departure)
             if ($request->has('exit_port') && !empty($request->exit_port)) {
+                // First, delete ALL existing exit_port orders for this tour to prevent duplicates
+                $deletedExitPorts = Order::where('tour_id', $tour_id)
+                    ->where('type', 'exit_port')
+                    ->delete();
+                \Log::info('Deleted existing exit_port orders', ['count' => $deletedExitPorts, 'tour_id' => $tour_id]);
+                
                 $exitPorts = json_decode($request->exit_port, true);
+                
+                // Use a set to track unique entries to prevent duplicates within the same request
+                $seenExits = [];
+                
                 foreach ($exitPorts as $exitPort) {
+                    // Create a unique identifier for this exit (based on key data fields)
+                    $uniqueKey = md5(json_encode([
+                        'port_id' => $exitPort['port_id'] ?? '',
+                        'port_name' => $exitPort['port_name'] ?? '',
+                        'bookingDate' => $exitPort['bookingDate'] ?? '',
+                        'type' => $exitPort['type'] ?? ''
+                    ]));
+                    
+                    // Skip if we've already processed this exact exit
+                    if (in_array($uniqueKey, $seenExits)) {
+                        \Log::info('Skipping duplicate exit_port within request', ['unique_key' => $uniqueKey]);
+                        continue;
+                    }
+                    $seenExits[] = $uniqueKey;
+                    
                     // Get vehicle details from database if vehicle_id exists
                     if (!empty($exitPort['vehicle_id'])) {
                         $vehicleDetails = $this->getVehicleDetails($exitPort['vehicle_id']);
@@ -2307,28 +2917,7 @@ class EnquiryFormPro extends Controller
                     // Add tour_id to the JSON data
                     $exitPort['tour_id'] = $tour_id;
                     
-                    // Check if this order already exists by booking_id
-                    if (isset($exitPort['booking_id']) && !empty($exitPort['booking_id'])) {
-                        $existingOrder = Order::where('booking_id', $exitPort['booking_id'])
-                            ->where('tour_id', $tour_id)
-                            ->first();
-                        
-                        if ($existingOrder) {
-                            // Update existing order
-                            $existingOrder->update([
-                                'data' => [$exitPort],
-                                'agent_id' => $request->agent_id,
-                                'discount' => $discountValue,
-                                'discount_type' => $discountType,
-                                'markup_percentage' => $markupValue,
-                                'markup_type' => $markupType,
-                            ]);
-                            $updatedOrders[] = ['type' => 'exit_port', 'booking_id' => $existingOrder->booking_id];
-                            continue;
-                        }
-                    }
-                    
-                    // Create new order
+                    // Create new order (always create new since we deleted all existing ones)
                     $bookingId = $this->generateBookingId();
                     Order::create([
                         'booking_id' => $bookingId,
@@ -2350,31 +2939,31 @@ class EnquiryFormPro extends Controller
             
             // 3. Accommodation Orders
             if ($request->has('accommodations') && !empty($request->accommodations)) {
+                // Delete ALL existing hotel orders for this tour to prevent duplicates
+                $deletedHotels = Order::where('tour_id', $tour_id)
+                    ->where('type', 'hotel')
+                    ->delete();
+                \Log::info('Deleted existing hotel orders', ['count' => $deletedHotels, 'tour_id' => $tour_id]);
+                
                 $accommodations = json_decode($request->accommodations, true);
+                $seenHotels = [];
+                
                 foreach ($accommodations as $accommodation) {
+                    // Create unique identifier
+                    $uniqueKey = md5(json_encode([
+                        'hotel_id' => $accommodation['hotel_unique_id'] ?? $accommodation['hotelDetails']['hotel_id'] ?? '',
+                        'checkIn' => $accommodation['checkIn'] ?? '',
+                        'checkOut' => $accommodation['checkOut'] ?? ''
+                    ]));
+                    
+                    if (in_array($uniqueKey, $seenHotels)) {
+                        \Log::info('Skipping duplicate hotel within request', ['unique_key' => $uniqueKey]);
+                        continue;
+                    }
+                    $seenHotels[] = $uniqueKey;
+                    
                     // Add tour_id to the JSON data
                     $accommodation['tour_id'] = $tour_id;
-                    
-                    // Check if this order already exists by booking_id
-                    if (isset($accommodation['booking_id']) && !empty($accommodation['booking_id'])) {
-                        $existingOrder = Order::where('booking_id', $accommodation['booking_id'])
-                            ->where('tour_id', $tour_id)
-                            ->first();
-                        
-                        if ($existingOrder) {
-                            // Update existing order
-                            $existingOrder->update([
-                                'data' => [$accommodation],
-                                'agent_id' => $request->agent_id,
-                                'discount' => $discountValue,
-                                'discount_type' => $discountType,
-                                'markup_percentage' => $markupValue,
-                                'markup_type' => $markupType,
-                            ]);
-                            $updatedOrders[] = ['type' => 'hotel', 'booking_id' => $existingOrder->booking_id];
-                            continue;
-                        }
-                    }
                     
                     // Create new order
                     $bookingId = $this->generateBookingId();
@@ -2398,33 +2987,24 @@ class EnquiryFormPro extends Controller
             
             // 4. Tour/Attraction Orders
             if ($request->has('tours') && !empty($request->tours)) {
+                // Delete ALL existing attraction orders
+                Order::where('tour_id', $tour_id)->where('type', 'attraction')->delete();
+                
                 $tours = json_decode($request->tours, true);
+                $seenTours = [];
+                
                 foreach ($tours as $tourItem) {
-                    // Add tour_id to the JSON data
+                    $uniqueKey = md5(json_encode([
+                        'attraction_id' => $tourItem['attraction_id'] ?? '',
+                        'AttractionName' => $tourItem['AttractionName'] ?? '',
+                        'bookingDate' => $tourItem['bookingDate'] ?? ''
+                    ]));
+                    
+                    if (in_array($uniqueKey, $seenTours)) continue;
+                    $seenTours[] = $uniqueKey;
+                    
                     $tourItem['tour_id'] = $tour_id;
                     
-                    // Check if this order already exists by booking_id
-                    if (isset($tourItem['booking_id']) && !empty($tourItem['booking_id'])) {
-                        $existingOrder = Order::where('booking_id', $tourItem['booking_id'])
-                            ->where('tour_id', $tour_id)
-                            ->first();
-                        
-                        if ($existingOrder) {
-                            // Update existing order
-                            $existingOrder->update([
-                                'data' => [$tourItem],
-                                'agent_id' => $request->agent_id,
-                                'discount' => $discountValue,
-                                'discount_type' => $discountType,
-                                'markup_percentage' => $markupValue,
-                                'markup_type' => $markupType,
-                            ]);
-                            $updatedOrders[] = ['type' => 'attraction', 'booking_id' => $existingOrder->booking_id];
-                            continue;
-                        }
-                    }
-                    
-                    // Create new order
                     $bookingId = $this->generateBookingId();
                     Order::create([
                         'booking_id' => $bookingId,
@@ -2446,33 +3026,24 @@ class EnquiryFormPro extends Controller
             
             // 5. Meal/Restaurant Orders
             if ($request->has('meals') && !empty($request->meals)) {
+                // Delete ALL existing restaurant orders
+                Order::where('tour_id', $tour_id)->where('type', 'restaurant')->delete();
+                
                 $meals = json_decode($request->meals, true);
+                $seenMeals = [];
+                
                 foreach ($meals as $meal) {
-                    // Add tour_id to the JSON data
+                    $uniqueKey = md5(json_encode([
+                        'restaurant_id' => $meal['restaurant_id'] ?? '',
+                        'restaurantName' => $meal['restaurantName'] ?? '',
+                        'bookingDate' => $meal['bookingDate'] ?? ''
+                    ]));
+                    
+                    if (in_array($uniqueKey, $seenMeals)) continue;
+                    $seenMeals[] = $uniqueKey;
+                    
                     $meal['tour_id'] = $tour_id;
                     
-                    // Check if this order already exists by booking_id
-                    if (isset($meal['booking_id']) && !empty($meal['booking_id'])) {
-                        $existingOrder = Order::where('booking_id', $meal['booking_id'])
-                            ->where('tour_id', $tour_id)
-                            ->first();
-                        
-                        if ($existingOrder) {
-                            // Update existing order
-                            $existingOrder->update([
-                                'data' => [$meal],
-                                'agent_id' => $request->agent_id,
-                                'discount' => $discountValue,
-                                'discount_type' => $discountType,
-                                'markup_percentage' => $markupValue,
-                                'markup_type' => $markupType,
-                            ]);
-                            $updatedOrders[] = ['type' => 'restaurant', 'booking_id' => $existingOrder->booking_id];
-                            continue;
-                        }
-                    }
-                    
-                    // Create new order
                     $bookingId = $this->generateBookingId();
                     Order::create([
                         'booking_id' => $bookingId,
@@ -2494,8 +3065,23 @@ class EnquiryFormPro extends Controller
             
             // 6. Transfer Orders (Local Transport)
             if ($request->has('transfers') && !empty($request->transfers)) {
+                // Delete ALL existing local_transport orders
+                Order::where('tour_id', $tour_id)->where('type', 'local_transport')->delete();
+                
                 $transfers = json_decode($request->transfers, true);
+                $seenTransfers = [];
+                
                 foreach ($transfers as $transfer) {
+                    $uniqueKey = md5(json_encode([
+                        'vehicle_id' => $transfer['vehicle_id'] ?? '',
+                        'entrypickup' => $transfer['entrypickup'] ?? '',
+                        'entrydropoff' => $transfer['entrydropoff'] ?? '',
+                        'bookingDate' => $transfer['bookingDate'] ?? ''
+                    ]));
+                    
+                    if (in_array($uniqueKey, $seenTransfers)) continue;
+                    $seenTransfers[] = $uniqueKey;
+                    
                     // Get vehicle details from database if vehicle_id exists
                     if (!empty($transfer['vehicle_id'])) {
                         $vehicleDetails = $this->getVehicleDetails($transfer['vehicle_id']);
@@ -2515,31 +3101,40 @@ class EnquiryFormPro extends Controller
                         $transfer['type'] = $this->normalizeTransferType($transfer['type']);
                     }
                     
-                    // Add tour_id to the JSON data
-                    $transfer['tour_id'] = $tour_id;
+                    // CRITICAL FIX: Validate and sanitize zone IDs - only use integer zone IDs, not Place IDs
+                    // Helper function to check if a value is a valid zone ID (integer) or a Place ID (contains dot)
+                    $isValidZoneId = function($value) {
+                        if (empty($value) || $value === '') return false;
+                        // If it contains a dot, it's likely a Google Place ID, not a zone ID
+                        if (strpos((string)$value, '.') !== false) return false;
+                        // Check if it's a valid integer
+                        return ctype_digit((string)$value) || (is_numeric($value) && (int)$value == $value);
+                    };
                     
-                    // Check if this order already exists by booking_id
-                    if (isset($transfer['booking_id']) && !empty($transfer['booking_id'])) {
-                        $existingOrder = Order::where('booking_id', $transfer['booking_id'])
-                            ->where('tour_id', $tour_id)
-                            ->first();
-                        
-                        if ($existingOrder) {
-                            // Update existing order
-                            $existingOrder->update([
-                                'data' => [$transfer],
-                                'agent_id' => $request->agent_id,
-                                'discount' => $discountValue,
-                                'discount_type' => $discountType,
-                                'markup_percentage' => $markupValue,
-                                'markup_type' => $markupType,
-                            ]);
-                            $updatedOrders[] = ['type' => 'local_transport', 'booking_id' => $existingOrder->booking_id];
-                            continue;
+                    // Sanitize from_zone_id - only keep if it's a valid integer zone ID
+                    if (isset($transfer['from_zone_id']) && !empty($transfer['from_zone_id'])) {
+                        if (!$isValidZoneId($transfer['from_zone_id'])) {
+                            // If it's a Place ID, clear from_zone_id but keep PickupPlaceid
+                            if (empty($transfer['PickupPlaceid'])) {
+                                $transfer['PickupPlaceid'] = $transfer['from_zone_id'];
+                            }
+                            $transfer['from_zone_id'] = '';
                         }
                     }
                     
-                    // Create new order
+                    // Sanitize to_zone_id - only keep if it's a valid integer zone ID
+                    if (isset($transfer['to_zone_id']) && !empty($transfer['to_zone_id'])) {
+                        if (!$isValidZoneId($transfer['to_zone_id'])) {
+                            // If it's a Place ID, clear to_zone_id but keep DropoffPlaceid
+                            if (empty($transfer['DropoffPlaceid'])) {
+                                $transfer['DropoffPlaceid'] = $transfer['to_zone_id'];
+                            }
+                            $transfer['to_zone_id'] = '';
+                        }
+                    }
+                    
+                    $transfer['tour_id'] = $tour_id;
+                    
                     $bookingId = $this->generateBookingId();
                     Order::create([
                         'booking_id' => $bookingId,
@@ -2561,33 +3156,24 @@ class EnquiryFormPro extends Controller
             
             // 7. Guide Orders
             if ($request->has('guides') && !empty($request->guides)) {
+                // Delete ALL existing guide orders
+                Order::where('tour_id', $tour_id)->where('type', 'guide')->delete();
+                
                 $guides = json_decode($request->guides, true);
+                $seenGuides = [];
+                
                 foreach ($guides as $guide) {
-                    // Add tour_id to the JSON data
+                    $uniqueKey = md5(json_encode([
+                        'guide_id' => $guide['guide_id'] ?? '',
+                        'guide_name' => $guide['guide_name'] ?? '',
+                        'bookingDate' => $guide['bookingDate'] ?? ''
+                    ]));
+                    
+                    if (in_array($uniqueKey, $seenGuides)) continue;
+                    $seenGuides[] = $uniqueKey;
+                    
                     $guide['tour_id'] = $tour_id;
                     
-                    // Check if this order already exists by booking_id
-                    if (isset($guide['booking_id']) && !empty($guide['booking_id'])) {
-                        $existingOrder = Order::where('booking_id', $guide['booking_id'])
-                            ->where('tour_id', $tour_id)
-                            ->first();
-                        
-                        if ($existingOrder) {
-                            // Update existing order
-                            $existingOrder->update([
-                                'data' => [$guide],
-                                'agent_id' => $request->agent_id,
-                                'discount' => $discountValue,
-                                'discount_type' => $discountType,
-                                'markup_percentage' => $markupValue,
-                                'markup_type' => $markupType,
-                            ]);
-                            $updatedOrders[] = ['type' => 'guide', 'booking_id' => $existingOrder->booking_id];
-                            continue;
-                        }
-                    }
-                    
-                    // Create new order
                     $bookingId = $this->generateBookingId();
                     Order::create([
                         'booking_id' => $bookingId,
@@ -2609,33 +3195,24 @@ class EnquiryFormPro extends Controller
             
             // 8. Miscellaneous Orders
             if ($request->has('miscellaneous') && !empty($request->miscellaneous)) {
+                // Delete ALL existing miscellaneous orders
+                Order::where('tour_id', $tour_id)->where('type', 'miscellaneous')->delete();
+                
                 $miscItems = json_decode($request->miscellaneous, true);
+                $seenMisc = [];
+                
                 foreach ($miscItems as $miscItem) {
-                    // Add tour_id to the JSON data
+                    $uniqueKey = md5(json_encode([
+                        'item_id' => $miscItem['item_id'] ?? '',
+                        'item_name' => $miscItem['item_name'] ?? '',
+                        'bookingDate' => $miscItem['bookingDate'] ?? ''
+                    ]));
+                    
+                    if (in_array($uniqueKey, $seenMisc)) continue;
+                    $seenMisc[] = $uniqueKey;
+                    
                     $miscItem['tour_id'] = $tour_id;
                     
-                    // Check if this order already exists by booking_id
-                    if (isset($miscItem['booking_id']) && !empty($miscItem['booking_id'])) {
-                        $existingOrder = Order::where('booking_id', $miscItem['booking_id'])
-                            ->where('tour_id', $tour_id)
-                            ->first();
-                        
-                        if ($existingOrder) {
-                            // Update existing order
-                            $existingOrder->update([
-                                'data' => [$miscItem],
-                                'agent_id' => $request->agent_id,
-                                'discount' => $discountValue,
-                                'discount_type' => $discountType,
-                                'markup_percentage' => $markupValue,
-                                'markup_type' => $markupType,
-                            ]);
-                            $updatedOrders[] = ['type' => 'miscellaneous', 'booking_id' => $existingOrder->booking_id];
-                            continue;
-                        }
-                    }
-                    
-                    // Create new order
                     $bookingId = $this->generateBookingId();
                     Order::create([
                         'booking_id' => $bookingId,
@@ -2657,14 +3234,17 @@ class EnquiryFormPro extends Controller
             
             DB::commit();
             
+            \Log::info('Orders recreated using delete-and-create approach', [
+                'tour_id' => $tour_id,
+                'total_created' => count($createdOrders)
+            ]);
+            
             return response()->json([
                 'success' => true,
                 'message' => 'Tour enquiry updated successfully',
                 'display_id' => $tour->display_id,
                 'tour_id' => $tour_id,
-                'created_orders' => count($createdOrders),
-                'updated_orders' => count($updatedOrders),
-                'total_orders' => count($createdOrders) + count($updatedOrders)
+                'total_orders' => count($createdOrders)
             ]);
             
         } catch (\Exception $e) {
@@ -2680,6 +3260,126 @@ class EnquiryFormPro extends Controller
                 'success' => false,
                 'message' => 'Failed to update tour enquiry: ' . $e->getMessage()
             ], 500);
+        }
+    }
+    
+    /**
+     * Clean up duplicate orders for a tour
+     * Keeps only the first unique order of each type based on key data fields
+     */
+    private function cleanupDuplicateOrders($tour_id)
+    {
+        try {
+            $orders = Order::where('tour_id', $tour_id)->get();
+            
+            $seenOrders = [];
+            $duplicateIds = [];
+            
+            foreach ($orders as $order) {
+                $orderData = is_array($order->data) ? $order->data : json_decode($order->data, true);
+                $firstItem = $orderData[0] ?? [];
+                
+                // Create unique key based on order type and key fields
+                $uniqueKey = '';
+                switch ($order->type) {
+                    case 'entry_port':
+                    case 'exit_port':
+                        $uniqueKey = md5(json_encode([
+                            'type' => $order->type,
+                            'port_id' => $firstItem['port_id'] ?? '',
+                            'port_name' => $firstItem['port_name'] ?? '',
+                            'bookingDate' => $firstItem['bookingDate'] ?? '',
+                            'transfer_type' => $firstItem['type'] ?? ''
+                        ]));
+                        break;
+                    case 'hotel':
+                        $uniqueKey = md5(json_encode([
+                            'type' => $order->type,
+                            'hotel_id' => $firstItem['hotel_unique_id'] ?? $firstItem['hotelDetails']['hotel_id'] ?? '',
+                            'checkIn' => $firstItem['checkIn'] ?? '',
+                            'checkOut' => $firstItem['checkOut'] ?? ''
+                        ]));
+                        break;
+                    case 'attraction':
+                        $uniqueKey = md5(json_encode([
+                            'type' => $order->type,
+                            'attraction_id' => $firstItem['attraction_id'] ?? '',
+                            'AttractionName' => $firstItem['AttractionName'] ?? '',
+                            'bookingDate' => $firstItem['bookingDate'] ?? ''
+                        ]));
+                        break;
+                    case 'restaurant':
+                        $uniqueKey = md5(json_encode([
+                            'type' => $order->type,
+                            'restaurant_id' => $firstItem['restaurant_id'] ?? '',
+                            'restaurantName' => $firstItem['restaurantName'] ?? '',
+                            'bookingDate' => $firstItem['bookingDate'] ?? ''
+                        ]));
+                        break;
+                    case 'local_transport':
+                        $uniqueKey = md5(json_encode([
+                            'type' => $order->type,
+                            'vehicle_id' => $firstItem['vehicle_id'] ?? '',
+                            'entrypickup' => $firstItem['entrypickup'] ?? '',
+                            'entrydropoff' => $firstItem['entrydropoff'] ?? '',
+                            'bookingDate' => $firstItem['bookingDate'] ?? ''
+                        ]));
+                        break;
+                    case 'guide':
+                        $uniqueKey = md5(json_encode([
+                            'type' => $order->type,
+                            'guide_id' => $firstItem['guide_id'] ?? '',
+                            'guide_name' => $firstItem['guide_name'] ?? '',
+                            'bookingDate' => $firstItem['bookingDate'] ?? ''
+                        ]));
+                        break;
+                    case 'miscellaneous':
+                        $uniqueKey = md5(json_encode([
+                            'type' => $order->type,
+                            'item_id' => $firstItem['item_id'] ?? '',
+                            'item_name' => $firstItem['item_name'] ?? '',
+                            'bookingDate' => $firstItem['bookingDate'] ?? ''
+                        ]));
+                        break;
+                    default:
+                        $uniqueKey = md5(json_encode([
+                            'type' => $order->type,
+                            'booking_id' => $order->booking_id
+                        ]));
+                        break;
+                }
+                
+                // Check if we've seen this order before
+                if (in_array($uniqueKey, $seenOrders)) {
+                    // This is a duplicate, mark for deletion
+                    $duplicateIds[] = $order->id;
+                    \Log::info('Found duplicate order', [
+                        'tour_id' => $tour_id,
+                        'order_id' => $order->id,
+                        'booking_id' => $order->booking_id,
+                        'type' => $order->type
+                    ]);
+                } else {
+                    // First occurrence, keep it
+                    $seenOrders[] = $uniqueKey;
+                }
+            }
+            
+            // Delete duplicates
+            if (count($duplicateIds) > 0) {
+                $deletedCount = Order::whereIn('id', $duplicateIds)->delete();
+                \Log::info('Cleaned up duplicate orders', [
+                    'tour_id' => $tour_id,
+                    'deleted_count' => $deletedCount
+                ]);
+            }
+            
+        } catch (\Exception $e) {
+            \Log::error('Error cleaning up duplicate orders', [
+                'tour_id' => $tour_id,
+                'error' => $e->getMessage()
+            ]);
+            // Don't fail the edit page load if cleanup fails
         }
     }
    

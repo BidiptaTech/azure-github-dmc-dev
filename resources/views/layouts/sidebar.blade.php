@@ -687,6 +687,100 @@
         min-height: 1.5rem;
         align-items: center;
     }
+
+    /* PRO badge (yellow/orange) - Refined Design */
+    .badge-pro {
+        position: absolute !important;
+        right: 10px;
+        top: 6px;
+        display: inline-flex !important;
+        align-items: center;
+        justify-content: center;
+        background: linear-gradient(135deg, #FFD700, #FFA500) !important;
+        color: #ffffff !important;
+        font-size: 8.5px;
+        font-weight: 700;
+        letter-spacing: 0.3px;
+        text-transform: uppercase;
+        padding: 3px 7px;
+        border-radius: 8px;
+        box-shadow: 0 2px 6px rgba(255, 215, 0, 0.4), 
+                    0 1px 2px rgba(0, 0, 0, 0.15);
+        z-index: 10;
+        transition: all 0.2s ease;
+        border: 1px solid rgba(255, 255, 255, 0.25);
+        min-width: 28px;
+        text-align: center;
+        line-height: 1.2;
+    }
+    
+    .menu-item.active .badge-pro {
+        background: linear-gradient(135deg, #FFD700, #FFA500) !important;
+        color: #ffffff !important;
+        box-shadow: 0 2px 8px rgba(255, 215, 0, 0.5),
+                    0 0 6px rgba(255, 215, 0, 0.3);
+    }
+    
+    .menu-item:hover .badge-pro {
+        transform: scale(1.05);
+        box-shadow: 0 2px 10px rgba(255, 215, 0, 0.5),
+                    0 0 8px rgba(255, 215, 0, 0.35);
+    }
+
+    /* LITE badge (blue) - Refined Design */
+    .badge-lite {
+        position: absolute !important;
+        right: 10px;
+        top: 6px;
+        display: inline-flex !important;
+        align-items: center;
+        justify-content: center;
+        background: linear-gradient(135deg, #5b6cff, #4c63d2) !important;
+        color: #ffffff !important;
+        font-size: 8.5px;
+        font-weight: 700;
+        letter-spacing: 0.3px;
+        text-transform: uppercase;
+        padding: 3px 7px;
+        border-radius: 8px;
+        box-shadow: 0 2px 6px rgba(91, 108, 255, 0.35),
+                    0 1px 2px rgba(0, 0, 0, 0.15);
+        z-index: 10;
+        transition: all 0.2s ease;
+        border: 1px solid rgba(255, 255, 255, 0.25);
+        min-width: 28px;
+        text-align: center;
+        line-height: 1.2;
+    }
+    
+    .menu-item.active .badge-lite {
+        background: linear-gradient(135deg, #5b6cff, #4c63d2) !important;
+        color: #ffffff !important;
+        box-shadow: 0 2px 8px rgba(91, 108, 255, 0.5),
+                    0 0 6px rgba(91, 108, 255, 0.3);
+    }
+    
+    .menu-item:hover .badge-lite {
+        transform: scale(1.05);
+        box-shadow: 0 2px 10px rgba(91, 108, 255, 0.5),
+                    0 0 8px rgba(91, 108, 255, 0.35);
+    }
+
+    .menu-link div {
+        letter-spacing: 0.4px;
+        word-spacing: 1px;
+    }
+    
+    /* Ensure menu items with badges have proper positioning */
+    .menu-item:has(.badge-pro),
+    .menu-item:has(.badge-lite) {
+        position: relative;
+    }
+    
+    /* Alternative for browsers that don't support :has() */
+    .menu-item[style*="position: relative"] {
+        position: relative !important;
+    }
 </style>
         <body>
             <div class="layout-wrapper layout-content-navbar  ">
@@ -757,20 +851,21 @@
 
         
 
-        <li class="menu-item @if(Request::is('enquiry-form-pro/create')) active @endif" style="position: relative;">
-            <a href="javascript:void(0);" class="menu-link" id="createSingleTourProBtn">
-                <i class="menu-icon tf-icons ri-file-list-3-line"></i>
-                <div data-i18n="Create Single Tour">Create Single Tour</div>
-                <span class="pro-badge">Pro</span>
-            </a>
-        </li> 
-
         @if(in_array(auth()->user()->role_id, [33, 37, 38, 128, 129, 130, 134, 135, 136, 138]))
+            <li class="menu-item @if(Request::is('enquiry-form-pro/create')) active @endif" style="position: relative;">
+                <a href="{{ route('enquiry-form-pro.create') }}" class="menu-link" id="createSingleTourProBtn">
+                    <i class="menu-icon tf-icons ri-file-list-3-line"></i>
+                    <div data-i18n="Create Tour">Create Tour</div>
+                    <span class="badge-pro">Pro</span>
+                </a>
+            </li> 
+
             <!-- Single Tour Package for DMCs -->
-            <li class="menu-item @if(Request::is('single-tour-package/create')) active @endif">
+            <li class="menu-item @if(Request::is('single-tour-package/create')) active @endif" style="position: relative;">
                 <a href="{{ route('single-tour-package.create') }}" class="menu-link">
                     <i class="menu-icon tf-icons ri-route-line"></i>
-                    <div data-i18n="Create Tour Package">Create Tour Package</div>
+                    <div data-i18n="Create Tour">Create Tour</div>
+                    <span class="badge-lite">Lite</span>
                 </a>
             </li> 
         @endif
@@ -986,7 +1081,7 @@
                     <span class="menu-header-text" data-i18n="All Products">All Products</span>
                 </li>
 
-            <li class="menu-item @if(Request::is('packages*') || Request::is('packaged-attractions*') || Request::is('hotels*') || Request::is('attraction*') || Request::is('restaurant*') || Request::is('guide*') || Request::is('vehicle*') || Request::is('driver*') || Request::is('category*') || Request::is('facility*') || Request::is('ports*') || Request::is('single-tour-package*') || Request::is('zones*')) open active @endif">
+            <li class="menu-item @if(Request::is('packages*') || Request::is('packaged-attractions*') || Request::is('hotels*') || Request::is('attraction*') || Request::is('restaurant*') || Request::is('guide*') || Request::is('vehicle*') || Request::is('driver*') || Request::is('category*') || Request::is('facility*') || Request::is('ports*') || Request::is('single-tour-package*') || Request::is('zones*') || Request::is('miscellaneous*') || Request::is('default-values*'))  open active @endif">
                 <a href="#" class="menu-link menu-toggle">
                     <i class="menu-icon tf-icons ri-stack-line" style="color: #3565bd"></i>
                     <div data-i18n="All Products">All Products</div>
@@ -1244,7 +1339,7 @@
                 <!-- Product Configuration -->
             
                 @if(hasPermission('view facility') || hasPermission('view category') || Auth::user()->role_id == 11 || Auth::user()->role_id == 35 || Auth::user()->role_id == 76 || Auth::user()->role_id == 111 || Auth::user()->role_id == 139 || Auth::user()->role_id == 140 || Auth::user()->role_id == 130 || Auth::user()->role_id == 132 || Auth::user()->role_id == 133 || Auth::user()->role_id == 135 || Auth::user()->role_id == 136 || Auth::user()->role_id == 137 || Auth::user()->role_id == 138)
-                <li class="menu-item @if(Request::is('category*') || Request::is('facility*') || Request::is('zones*') || Request::is('ports*') || Request::is('miscellaneous*')) open @endif">
+                <li class="menu-item @if(Request::is('category*') || Request::is('facility*') || Request::is('zones*') || Request::is('default-values*') || Request::is('ports*') || Request::is('miscellaneous*')) open @endif">
                     <a href="#" class="menu-link menu-toggle" title="Product Configuration">
                         {{-- <i class="menu-icon tf-icons ri-function-line"></i> --}}
                         <div data-i18n="Product Configuration">Product Configuration</div>
@@ -1302,6 +1397,16 @@
                                 <div data-i18n="Zones" class="menu-tooltip">
                                     <span class="menu-text-with-tooltip">Zones</span>
                                     <span class="tooltip-text">Zones</span>
+                                </div>
+                            </a>
+                        </li>
+
+                    <!-- Default Value (same permissions as Zones) -->
+                    <li class="menu-item @if(Request::is('default-values') || Request::is('default-values/*')) active @endif">
+                        <a href="{{ route('default-values.index') }}" class="menu-link" title="Default Value">
+                                <div data-i18n="Default Value" class="menu-tooltip">
+                                    <span class="menu-text-with-tooltip">Default Value</span>
+                                    <span class="tooltip-text">Default Value</span>
                                 </div>
                             </a>
                         </li>
@@ -2292,7 +2397,7 @@
                         <div class="col-12">
                             <div class="position-relative">
                                 <input type="text" class="form-control form-control-sm" id="destinationSingle" placeholder="Type to search destination..." autocomplete="off" style="font-size: 10px;" readonly onfocus="this.removeAttribute('readonly');">
-                                <div id="destinationSuggestionsSingle" class="list-group position-absolute w-100" style="z-index: 1050; max-height: 120px; overflow-y: auto; display: none; box-shadow: 0 2px 8px rgba(0,0,0,0.15); font-size: 10px;"></div>
+                                <div id="destinationSuggestionsSingle" class="list-group position-absolute w-100" style="z-index: 1050; max-height: 120px; overflow-y: auto; display: none; box-shadow: 0 2px 8px rgba(0,0,0,0.15); font-size: 10px; background-color: white; border: 1px solid #dee2e6;"></div>
                             </div>
                             <input type="hidden" id="destinationSingleValue" name="destination_single">
                         </div>
@@ -2303,7 +2408,7 @@
                         <div class="col-12">
                             <div class="position-relative">
                                 <input type="text" class="form-control form-control-sm" id="destinationMultiple" placeholder="Type to search and select multiple destinations..." autocomplete="off" style="font-size: 10px;" readonly onfocus="this.removeAttribute('readonly');">
-                                <div id="destinationSuggestions" class="list-group position-absolute w-100" style="z-index: 1050; max-height: 120px; overflow-y: auto; display: none; box-shadow: 0 2px 8px rgba(0,0,0,0.15); font-size: 10px;"></div>
+                                <div id="destinationSuggestions" class="list-group position-absolute w-100" style="z-index: 1050; max-height: 120px; overflow-y: auto; display: none; box-shadow: 0 2px 8px rgba(0,0,0,0.15); font-size: 10px; background-color: white; border: 1px solid #dee2e6;"></div>
                             </div>
                             <div id="selectedDestinations" class="mt-1"></div>
                             <input type="hidden" id="destinationsArray" name="destinations">
@@ -2316,7 +2421,7 @@
                             <label class="form-label small mb-0" style="font-size: 10px;">Agency <span class="text-danger">*</span></label>
                             <div class="position-relative">
                                 <input type="text" class="form-control form-control-sm" id="agencySelectModal" placeholder="Select destination first..." autocomplete="off" style="font-size: 10px;" disabled readonly onfocus="this.removeAttribute('readonly');">
-                                <div id="agencySuggestions" class="list-group position-absolute w-100" style="z-index: 1050; max-height: 150px; overflow-y: auto; display: none; box-shadow: 0 2px 8px rgba(0,0,0,0.15); font-size: 10px;"></div>
+                                <div id="agencySuggestions" class="list-group position-absolute w-100" style="z-index: 1050; max-height: 150px; overflow-y: auto; display: none; box-shadow: 0 2px 8px rgba(0,0,0,0.15); font-size: 10px; background-color: white; border: 1px solid #dee2e6;"></div>
                             </div>
                             <input type="hidden" id="agencyIdValue" name="agency_id" required>
                         </div>
@@ -2324,7 +2429,7 @@
                             <label class="form-label small mb-0" style="font-size: 10px;">Agent <span class="text-danger">*</span></label>
                             <div class="position-relative">
                                 <input type="text" class="form-control form-control-sm" id="agentSelectModal" placeholder="Select agency first..." autocomplete="off" style="font-size: 10px;" disabled readonly onfocus="this.removeAttribute('readonly');">
-                                <div id="agentSuggestions" class="list-group position-absolute w-100" style="z-index: 1050; max-height: 150px; overflow-y: auto; display: none; box-shadow: 0 2px 8px rgba(0,0,0,0.15); font-size: 10px;"></div>
+                                <div id="agentSuggestions" class="list-group position-absolute w-100" style="z-index: 1050; max-height: 150px; overflow-y: auto; display: none; box-shadow: 0 2px 8px rgba(0,0,0,0.15); font-size: 10px; background-color: white; border: 1px solid #dee2e6;"></div>
                             </div>
                             <input type="hidden" id="agentIdValue" name="agent_id" required>
                         </div>

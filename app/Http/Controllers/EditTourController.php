@@ -147,6 +147,103 @@ class EditTourController extends Controller
     }
 
     /**
+     * Update only guest information (main guest + additional guests) for a tour.
+     * No validation on tour dates/pax – only guest JSON fields are touched.
+     */
+    public function updateGuests(Request $request, $tour)
+    {
+        // Resolve tour by tour_id
+        $tour = Tour::where('tour_id', $tour)->firstOrFail();
+
+        try {
+            DB::beginTransaction();
+
+            // Main guest data
+            if ($request->has('mainguest')) {
+                try {
+                    $mainGuestData = $request->mainguest;
+                    if (is_string($mainGuestData) && !empty(trim($mainGuestData))) {
+                        $decoded = json_decode($mainGuestData, true);
+                        if (json_last_error() === JSON_ERROR_NONE && is_array($decoded)) {
+                            $mainGuestData = $decoded;
+                        } else {
+                            Log::warning('Invalid JSON in mainguest data during updateGuests', [
+                                'error' => json_last_error_msg(),
+                                'data' => $request->mainguest,
+                                'tour_id' => $tour->tour_id,
+                            ]);
+                            $mainGuestData = [];
+                        }
+                    } elseif (is_string($mainGuestData) && empty(trim($mainGuestData))) {
+                        $mainGuestData = [];
+                    } elseif (!is_array($mainGuestData)) {
+                        $mainGuestData = [];
+                    }
+
+                    $tour->mainguest = !empty($mainGuestData) ? json_encode($mainGuestData) : null;
+                } catch (\Throwable $e) {
+                    Log::error('Error processing main guest data during updateGuests', [
+                        'error' => $e->getMessage(),
+                        'tour_id' => $tour->tour_id,
+                    ]);
+                }
+            }
+
+            // Additional guests data
+            if ($request->has('additionalguest')) {
+                try {
+                    $additionalGuestData = $request->additionalguest;
+                    if (is_string($additionalGuestData) && !empty(trim($additionalGuestData))) {
+                        $decoded = json_decode($additionalGuestData, true);
+                        if (json_last_error() === JSON_ERROR_NONE && is_array($decoded)) {
+                            $additionalGuestData = $decoded;
+                        } else {
+                            Log::warning('Invalid JSON in additionalguest data during updateGuests', [
+                                'error' => json_last_error_msg(),
+                                'data' => $request->additionalguest,
+                                'tour_id' => $tour->tour_id,
+                            ]);
+                            $additionalGuestData = [];
+                        }
+                    } elseif (is_string($additionalGuestData) && empty(trim($additionalGuestData))) {
+                        $additionalGuestData = [];
+                    } elseif (!is_array($additionalGuestData)) {
+                        $additionalGuestData = [];
+                    }
+
+                    $tour->additionalguest = !empty($additionalGuestData) ? json_encode($additionalGuestData) : null;
+                } catch (\Throwable $e) {
+                    Log::error('Error processing additional guest data during updateGuests', [
+                        'error' => $e->getMessage(),
+                        'tour_id' => $tour->tour_id,
+                    ]);
+                }
+            }
+
+            $tour->save();
+            DB::commit();
+
+            return response()->json([
+                'success' => true,
+                'message' => 'Guest details updated successfully.',
+            ]);
+        } catch (\Throwable $exception) {
+            DB::rollBack();
+            Log::error('Failed to update guest information', [
+                'tour_id' => $tour->tour_id ?? null,
+                'error' => $exception->getMessage(),
+                'trace' => $exception->getTraceAsString(),
+            ]);
+
+            return response()->json([
+                'success' => false,
+                'message' => 'Unable to save guest information right now.',
+                'error' => config('app.debug') ? $exception->getMessage() : null,
+            ], 500);
+        }
+    }
+
+    /**
      * Update hotel service order.
      */
     public function updateHotel(Request $request, $orderId)
@@ -1576,36 +1673,33 @@ class EditTourController extends Controller
                 break;
                 
             case 'attraction':
-                // Attractions have visitTime
-                if (isset($service['visitTime'])) {
-                    $dates[] = $service['visitTime'];
+                // Attractions have bookingDate (the actual booking date)
+                // visitTime is just a time range (e.g., "15:00 - 17:00"), not a date, so skip it
+                if (isset($service['bookingDate']) && !empty($service['bookingDate'])) {
+                    $dates[] = $service['bookingDate'];
                 }
+                // Skip visitTime as it's a time field, not a date field
                 break;
                 
             case 'guide':
-                // Guides have pickupdate and entrytime
-                if (isset($service['pickupdate'])) {
+                // Guides have pickupdate and bookingDate
+                // entrytime is just a time (e.g., "1:00 AM"), not a date, so skip it
+                // Priority: bookingDate (actual booking date) > pickupdate
+                if (isset($service['bookingDate']) && !empty($service['bookingDate'])) {
+                    $dates[] = $service['bookingDate'];
+                } elseif (isset($service['pickupdate']) && !empty($service['pickupdate'])) {
                     $dates[] = $service['pickupdate'];
                 }
-                if (isset($service['entrytime'])) {
-                    // entrytime might be datetime, extract date
-                    try {
-                        $parsed = Carbon::parse($service['entrytime']);
-                        $dates[] = $parsed->format('Y-m-d');
-                    } catch (\Exception $e) {
-                        $dates[] = $service['entrytime'];
-                    }
-                }
-                if (isset($service['bookingDate'])) {
-                    $dates[] = $service['bookingDate'];
-                }
+                // Skip entrytime as it's a time field, not a date field
                 break;
                 
             case 'restaurant':
-                // Restaurants have visitTime
-                if (isset($service['visitTime'])) {
-                    $dates[] = $service['visitTime'];
+                // Restaurants have bookingDate (the actual booking date)
+                // visitTime is just a time (e.g., "2:00 PM"), not a date, so skip it
+                if (isset($service['bookingDate']) && !empty($service['bookingDate'])) {
+                    $dates[] = $service['bookingDate'];
                 }
+                // Skip visitTime as it's a time field, not a date field
                 break;
                 
             case 'entry_port':

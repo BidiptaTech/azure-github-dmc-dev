@@ -487,6 +487,29 @@ class TourController extends Controller
         try {
             $prices = CommonHelper::calculateTourPrices($tourId);
             
+            // Format segregated prices (per‑service contribution like hotel/attraction/restaurant, etc.)
+            $segregatedFormatted = [];
+            if (isset($prices['segregated']) && is_array($prices['segregated'])) {
+                foreach ($prices['segregated'] as $serviceType => $servicePrices) {
+                    $segregatedFormatted[$serviceType] = [
+                        'single' => $servicePrices['single'] ?? 0,
+                        'double' => $servicePrices['double'] ?? 0,
+                        'single_formatted' => '₹' . number_format($servicePrices['single'] ?? 0, 2),
+                        'double_formatted' => '₹' . number_format($servicePrices['double'] ?? 0, 2),
+                    ];
+
+                    if (isset($servicePrices['triple'])) {
+                        $segregatedFormatted[$serviceType]['triple'] = $servicePrices['triple'];
+                        $segregatedFormatted[$serviceType]['triple_formatted'] = '₹' . number_format($servicePrices['triple'], 2);
+                    }
+
+                    if (isset($servicePrices['baby_cot'])) {
+                        $segregatedFormatted[$serviceType]['baby_cot'] = $servicePrices['baby_cot'];
+                        $segregatedFormatted[$serviceType]['baby_cot_formatted'] = '₹' . number_format($servicePrices['baby_cot'], 2);
+                    }
+                }
+            }
+            
             return response()->json([
                 'success' => true,
                 'tour_id' => $tourId,
@@ -494,9 +517,13 @@ class TourController extends Controller
                     'single_sharing' => $prices['single_sharing'],
                     'double_sharing' => $prices['double_sharing'],
                     'triple_sharing' => $prices['triple_sharing'] ?? 0,
-                    'single_sharing_formatted' => '₹' . number_format($prices['single_sharing'], 2),
-                    'double_sharing_formatted' => '₹' . number_format($prices['double_sharing'], 2),
-                    'triple_sharing_formatted' => '₹' . number_format($prices['triple_sharing'] ?? 0, 2),
+                    // Effective per-child sharing price built from attraction/restaurant child_price where available
+                    'child_sharing' => $prices['child_sharing'] ?? 0,
+                    'supplement' => $prices['single_sharing'] - $prices['double_sharing'],
+                    // 'single_sharing_formatted' => '₹' . number_format($prices['single_sharing'], 2),
+                    // 'double_sharing_formatted' => '₹' . number_format($prices['double_sharing'], 2),
+                    // 'triple_sharing_formatted' => '₹' . number_format($prices['triple_sharing'] ?? 0, 2),
+                    'segregated' => $segregatedFormatted,
                 ]
             ]);
         } catch (\Exception $e) {
@@ -781,17 +808,25 @@ class TourController extends Controller
             // Update payment status to verified (1)
             $paymentDetails[$paymentIndex]['status'] = 1;
             
-            // Save updated payment details
+            // Update payment details on the tour model
             $tour->payment_details = json_encode($paymentDetails);
-            $tour->save();
             
             // Only change status from Confirmed to Definite, NOT from Actual
             // Do NOT change status if tour is already in Actual or Definite status
-            if($tour->tour_status == "Confirmed"){
-                Tour::where('tour_id', $tourId)->update([
-                    'tour_status' => "Definite",
-                ]);
+            if ($tour->tour_status === "Confirmed") {
+                // Track status change Confirmed -> Definite in track_details JSON
+                \App\Helpers\CommonHelper::appendTourStatusTrack(
+                    $tour,
+                    $tour->tour_status,
+                    "Definite"
+                );
+
+                // Update in‑memory status; will be persisted with the save below
+                $tour->tour_status = "Definite";
             }
+
+            // Save updated payment details (and possibly updated status)
+            $tour->save();
 
             return response()->json([
                 'success' => true,

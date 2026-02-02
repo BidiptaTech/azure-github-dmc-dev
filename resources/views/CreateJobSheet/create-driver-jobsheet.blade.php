@@ -76,16 +76,72 @@
         color: #4a4a4a;
         font-weight: 600;
         border-bottom: 2px solid #efefef;
-        padding: 12px 10px;
+        padding: 12px 1px 12px 10px;
+        font-size: 12px;
     }
     
     .table td {
-        padding: 12px 10px;
+        padding: 8px 1px 8px 10px;
         vertical-align: middle;
+        font-size: 11px;
+    }
+    
+    /* Ensure DataTables cells also have the same padding */
+    table.dataTable#tourOrdersTable thead th,
+    table.dataTable#tourOrdersTable tbody td {
+        padding-right: 1px !important;
+        padding-left: 10px !important;
+    }
+    
+    /* First column needs extra left padding for the toggle button */
+    table.dataTable#tourOrdersTable thead th:first-child,
+    table.dataTable#tourOrdersTable tbody td:first-child {
+        padding-left: 30px !important; /* Extra space for toggle button */
+        padding-right: 1px !important;
     }
     
     .table tbody tr:hover {
         background-color: #f9f9f9;
+    }
+    
+    /* DataTables Responsive toggle button styling - Arrow without background circle */
+    table.dataTable.dtr-inline.collapsed > tbody > tr > td:first-child:before,
+    table.dataTable.dtr-inline.collapsed > tbody > tr > th:first-child:before {
+        content: "▶" !important; /* Right-pointing arrow (solid triangle) */
+        background: none !important; /* Remove background circle */
+        background-color: transparent !important;
+        border: none !important;
+        box-shadow: none !important;
+        border-radius: 0 !important;
+        left: 8px;
+        color: #000000 !important;
+        font-size: 10px;
+        line-height: 16px;
+        width: 16px;
+        height: 16px;
+        text-align: center;
+        display: inline-block !important; /* Ensure arrow is visible */
+    }
+    
+    table.dataTable.dtr-inline.collapsed > tbody > tr.parent > td:first-child:before,
+    table.dataTable.dtr-inline.collapsed > tbody > tr.parent > th:first-child:before {
+        content: "▼" !important; /* Down-pointing arrow when expanded */
+        background: none !important; /* Remove background circle */
+        background-color: transparent !important;
+        border: none !important;
+        box-shadow: none !important;
+        border-radius: 0 !important;
+        color: #588061 !important;
+        display: inline-block !important; /* Ensure arrow is visible */
+    }
+    
+    /* Smaller font for table content */
+    #tourOrdersTable {
+        font-size: 11px;
+    }
+    
+    #tourOrdersTable .select2-container {
+        font-size: 11px;
     }
     
     /* Better Select2 styling */
@@ -214,7 +270,6 @@
                                 <thead>
                                     <tr>
                                         <th>Tour ID</th>
-                                        <th>Pickup Time</th>
                                         <th>Pickup Location</th>
                                         <th>Pickup Zone</th>
                                         <th>Dropoff Location</th>
@@ -222,13 +277,20 @@
                                         <th>Vehicle</th>
                                         <th>Assign Vehicle</th>
                                         <th>Assign Driver</th>
-                                        <th>Order Type</th>
-                                        <th>Tour Type</th>
+                                        <th>Pickup Time</th>
+                                        <th>Transfer Type</th>
+                                        <th>Transport Type</th>
+                                        <th>Reference No</th>
+                                        <th>Guest Name</th>
+                                        <th>Guest Mobile No</th>
+                                        <th>Adults</th>
+                                        <th>Child</th>
+                                        <th>Infant</th>
                                     </tr>
                                 </thead>
                                 <tbody id="tourOrdersTableBody">
                                     <tr>
-                                        <td colspan="11" class="text-center">Loading data...</td>
+                                        <td colspan="17" class="text-center">Loading data...</td>
                                     </tr>
                                 </tbody>
                             </table>
@@ -248,9 +310,14 @@
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.17.5/xlsx.full.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/exceljs/4.3.0/exceljs.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/FileSaver.js/2.0.5/FileSaver.min.js"></script>
+<!-- DataTables Responsive CSS -->
+<link rel="stylesheet" href="https://cdn.datatables.net/responsive/2.4.0/css/responsive.bootstrap5.min.css">
 <!-- DataTables JS -->
 <script src="https://cdn.datatables.net/1.10.25/js/jquery.dataTables.min.js"></script>
 <script src="https://cdn.datatables.net/1.10.25/js/dataTables.bootstrap5.min.js"></script>
+<!-- DataTables Responsive JS -->
+<script src="https://cdn.datatables.net/responsive/2.4.0/js/dataTables.responsive.min.js"></script>
+<script src="https://cdn.datatables.net/responsive/2.4.0/js/responsive.bootstrap5.min.js"></script>
 
 <script>
 // Define route URLs using Blade
@@ -330,7 +397,6 @@ $(document).ready(function() {
                 tableHTML += `
                     <tr>
                         <td>${item.tour_id || 'N/A'}</td>
-                        <td>${dataItem.entrytime || 'N/A'}</td>
                         <td>${dataItem.entrypickup || 'N/A'}</td>
                         <td>${item.pickup_zone || 'N/A'}</td>
                         <td>${dataItem.entrydropoff || 'N/A'}</td>
@@ -339,7 +405,7 @@ $(document).ready(function() {
                         <td>
                             <select class="form-control vehicle-select" 
                                 name="vehicle_id[${index}]" 
-                                data-order-id="${item.id || ''}" 
+                                data-order-id="${item.booking_id || ''}" 
                                 data-tour-id="${item.tour_id || ''}"
                                 data-order-type="${item.type || ''}"
                                 data-entry-time="${dataItem.entrytime || ''}"
@@ -365,7 +431,7 @@ $(document).ready(function() {
                         <td>
                             <select class="form-control driver-select" 
                                 name="driver_id[${index}]" 
-                                data-order-id="${item.id || ''}" 
+                                data-order-id="${item.booking_id || ''}" 
                                 data-tour-id="${item.tour_id || ''}"
                                 data-order-type="${item.type || ''}"
                                 data-entry-time="${dataItem.entrytime || ''}"
@@ -387,11 +453,18 @@ $(document).ready(function() {
                                     return options;
                                 })()}
                             </select>
-                            <input type="hidden" name="order_id[${index}]" value="${item.id || ''}">
+                            <input type="hidden" name="order_id[${index}]" value="${item.booking_id || ''}">
                             <input type="hidden" name="tour_id[${index}]" value="${item.tour_id || ''}">
                         </td>
+                        <td>${dataItem.entrytime || 'N/A'}</td>
                         <td>${formatOrderType(item.type) || 'N/A'}</td>
                         <td>${dataItem.type || 'N/A'}</td>
+                        <td>${item.tour_id || 'N/A'}</td>
+                        <td>${dataItem.fullName || dataItem.name || 'N/A'}</td>
+                        <td>${dataItem.countryCode && dataItem.phone ? dataItem.countryCode + ' ' + dataItem.phone : (dataItem.phone || 'N/A')}</td>
+                        <td>${dataItem.adultCount || dataItem.adults || '0'}</td>
+                        <td>${dataItem.childCount || dataItem.children || '0'}</td>
+                        <td>${dataItem.infantCount || dataItem.infants || '0'}</td>
                     </tr>`;
             });
             
@@ -404,7 +477,7 @@ $(document).ready(function() {
             // Initialize DataTable
             initializeDataTable();
         } else {
-            $('#tourOrdersTableBody').html('<tr><td colspan="11" class="text-center">No orders found</td></tr>');
+            $('#tourOrdersTableBody').html('<tr><td colspan="17" class="text-center">No orders found</td></tr>');
             $('#exportOrdersBtn').hide();
         }
     }
@@ -434,7 +507,7 @@ $(document).ready(function() {
         cleanupDataTable();
         
         if (!date) {
-            $('#tourOrdersTableBody').html('<tr><td colspan="11" class="text-center">Please select a date</td></tr>');
+            $('#tourOrdersTableBody').html('<tr><td colspan="17" class="text-center">Please select a date</td></tr>');
             $('#exportOrdersBtn').hide();
             return;
         }
@@ -443,7 +516,7 @@ $(document).ready(function() {
         $('#hiddenDate').val(date);
         
         // Show loading indicator
-        $('#tourOrdersTableBody').html('<tr><td colspan="11" class="text-center"><i class="fas fa-spinner fa-spin"></i> Loading data...</td></tr>');
+        $('#tourOrdersTableBody').html('<tr><td colspan="17" class="text-center"><i class="fas fa-spinner fa-spin"></i> Loading data...</td></tr>');
 
         fetch(getOrdersByDateUrl.replace(':date', date), {
             method: 'GET',
@@ -487,7 +560,6 @@ $(document).ready(function() {
                         tableHTML += `
                             <tr>
                                 <td>${item.tour_id || 'N/A'}</td>
-                                <td>${dataItem.entrytime || 'N/A'}</td>
                                 <td>${dataItem.entrypickup || 'N/A'}</td>
                                 <td>${item.pickup_zone || 'N/A'}</td>
                                 <td>${dataItem.entrydropoff || 'N/A'}</td>
@@ -496,7 +568,7 @@ $(document).ready(function() {
                                 <td>
                                     <select class="form-control vehicle-select" 
                                         name="vehicle_id[${index}]" 
-                                        data-order-id="${item.id || ''}" 
+                                        data-order-id="${item.booking_id || ''}" 
                                         data-tour-id="${item.tour_id || ''}"
                                         data-order-type="${item.type || ''}"
                                         data-entry-time="${dataItem.entrytime || ''}"
@@ -522,7 +594,7 @@ $(document).ready(function() {
                                 <td>
                                     <select class="form-control driver-select" 
                                         name="driver_id[${index}]" 
-                                        data-order-id="${item.id || ''}" 
+                                        data-order-id="${item.booking_id || ''}" 
                                         data-tour-id="${item.tour_id || ''}"
                                         data-order-type="${item.type || ''}"
                                         data-entry-time="${dataItem.entrytime || ''}"
@@ -544,8 +616,15 @@ $(document).ready(function() {
                                     <input type="hidden" name="order_id[${index}]" value="${item.id || ''}">
                                     <input type="hidden" name="tour_id[${index}]" value="${item.tour_id || ''}">
                                 </td>
+                                <td>${dataItem.entrytime || 'N/A'}</td>
                                 <td>${formatOrderType(item.type) || 'N/A'}</td>
                                 <td>${dataItem.type || 'N/A'}</td>
+                                <td>${item.tour_id || 'N/A'}</td>
+                                <td>${dataItem.fullName || dataItem.name || 'N/A'}</td>
+                                <td>${dataItem.countryCode && dataItem.phone ? dataItem.countryCode + ' ' + dataItem.phone : (dataItem.phone || 'N/A')}</td>
+                                <td>${dataItem.adultCount || dataItem.adults || '0'}</td>
+                                <td>${dataItem.childCount || dataItem.children || '0'}</td>
+                                <td>${dataItem.infantCount || dataItem.infants || '0'}</td>
                             </tr>`;
                     });
                     
@@ -558,14 +637,14 @@ $(document).ready(function() {
                     // Initialize DataTable after content is loaded
                     initializeDataTable();
                 } else {
-                    $('#tourOrdersTableBody').html('<tr><td colspan="11" class="text-center">No orders found for this date</td></tr>');
+                    $('#tourOrdersTableBody').html('<tr><td colspan="17" class="text-center">No orders found for this date</td></tr>');
                     $('#exportOrdersBtn').hide();
                 }
             } else {
                 const errorMessage = response.message || 'Error loading orders';
                 console.error('Error:', errorMessage);
                 showAlert('error', errorMessage);
-                $('#tourOrdersTableBody').html('<tr><td colspan="11" class="text-center">Error loading orders</td></tr>');
+                $('#tourOrdersTableBody').html('<tr><td colspan="17" class="text-center">Error loading orders</td></tr>');
                 $('#exportOrdersBtn').hide();
             }
         })
@@ -618,20 +697,24 @@ $(document).ready(function() {
                            !$('#tourOrdersTableBody tr td[colspan]').length;
             
             if (hasData) {
-                // Initialize DataTable with minimal options
+                // Initialize DataTable with responsive mode (toggle in first column)
                 $('#tourOrdersTable').DataTable({
                     paging: true,
                     ordering: true,
                     info: true,
                     searching: true,
+                    responsive: true, // Enable responsive mode
                     columnDefs: [
-                        { orderable: false, targets: [7, 8] }  // Disable sorting on Assign Vehicle and Assign Driver columns
+                        { orderable: false, targets: [6, 7] },  // Disable sorting on Assign Vehicle and Assign Driver columns
+                        { responsivePriority: 1, targets: 0 }, // Tour ID - always visible
+                        { responsivePriority: 2, targets: 1 }, // Pickup Location - high priority
+                        { responsivePriority: 3, targets: 8 }  // Pickup Time - high priority (now at index 8)
                     ]
                 });
                 
                 // Set the flag
                 dataTableInitialized = true;
-                console.log("DataTable initialized successfully");
+                console.log("DataTable initialized successfully with responsive mode");
             } else {
                 console.log("No data available, skipping DataTable initialization");
             }
@@ -693,32 +776,37 @@ $(document).ready(function() {
             }
             
             const cells = $row.find('td');
-            if (cells.length < 11) {
+            if (cells.length < 17) {
                 return; // Skip incomplete rows
             }
             
-            // Extract data directly from the table cells
+            // Extract data directly from the table cells (new column order)
             const tourId = $(cells[0]).text().trim();
-            const pickupTime = $(cells[1]).text().trim();
-            const pickupLocation = $(cells[2]).text().trim();
-            const pickupZone = $(cells[3]).text().trim();
-            const dropoffLocation = $(cells[4]).text().trim();
-            const dropoffZone = $(cells[5]).text().trim();
-            const vehicle = $(cells[6]).text().trim();
+            const pickupLocation = $(cells[1]).text().trim();
+            const pickupZone = $(cells[2]).text().trim();
+            const dropoffLocation = $(cells[3]).text().trim();
+            const dropoffZone = $(cells[4]).text().trim();
+            const vehicle = $(cells[5]).text().trim();
             const orderType = $(cells[9]).text().trim(); // Already formatted by formatOrderType()
             const tourType = $(cells[10]).text().trim();
+            const referenceNo = $(cells[11]).text().trim();
+            const guestName = $(cells[12]).text().trim();
+            const guestMobile = $(cells[13]).text().trim();
+            const adults = $(cells[14]).text().trim();
+            const child = $(cells[15]).text().trim();
+            const infant = $(cells[16]).text().trim();
             
             // Get selected vehicle and driver from the dropdowns
-            const vehicleSelect = $(cells[7]).find('.vehicle-select');
-            const driverSelect = $(cells[8]).find('.driver-select');
+            const vehicleSelect = $(cells[6]).find('.vehicle-select');
+            const driverSelect = $(cells[7]).find('.driver-select');
             
             const assignedVehicle = vehicleSelect.find('option:selected').text().trim() || 'Not Assigned';
             const assignedDriver = driverSelect.find('option:selected').text().trim() || 'Not Assigned';
+            const pickupTime = $(cells[8]).text().trim(); // Pickup Time is now at index 8
             
             // Add to excel data
             excelData.push({
                 'Tour ID': tourId,
-                'Pickup Time': pickupTime,
                 'Pickup Location': pickupLocation,
                 'Pickup Zone': pickupZone,
                 'Dropoff Location': dropoffLocation,
@@ -726,8 +814,15 @@ $(document).ready(function() {
                 'Vehicle': vehicle,
                 'Assigned Vehicle': assignedVehicle,
                 'Assigned Driver': assignedDriver,
+                'Pickup Time': pickupTime,
                 'Order Type': orderType,
-                'Tour Type': tourType
+                'Tour Type': tourType,
+                'Reference No': referenceNo,
+                'Guest Name': guestName,
+                'Guest Mobile No': guestMobile,
+                'Adults': adults,
+                'Child': child,
+                'Infant': infant
             });
         });
         

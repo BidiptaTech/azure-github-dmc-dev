@@ -14,14 +14,14 @@
             font-family: Arial, sans-serif;
             font-size: 11px;
             color: #212529;
-            padding: 20px;
+            padding: 10px;
             background: #ffffff;
         }
         /* Quotation Page Styles */
         .quotation-page {
             page-break-after: always;
             background: #ffffff;
-            padding: 20px;
+            padding: 10px;
             margin: 0;
             width: 100%;
         }
@@ -130,10 +130,10 @@
             margin: 0;
         }
         .quotation-label {
-            background: #f0f8ff;
+            background: #a0aec0;
             font-weight: bold;
             padding: 4px 6px;
-            border: 1px solid #e0e0e0;
+            border: 1px solid #90a0b0;
             color: #2c3e50;
         }
         .quotation-value {
@@ -194,7 +194,7 @@
         }
         .hotel-supplemental-header {
             background: #e8f5e9;
-            color: #2c3e50;
+            color: #7b8fa3;
             font-weight: bold;
             text-align: center;
             padding: 6px;
@@ -202,7 +202,7 @@
         }
         .hotel-supplemental-cell {
             background: #e8f5e9;
-            color: #2c3e50;
+            color: #bacadb;
             font-weight: bold;
             text-align: center;
             padding: 4px 6px;
@@ -621,6 +621,385 @@
             color: #2c3e50;
             font-weight: 700;
         }
+        /* Quotation First Page Styles - Matching Image Format */
+        .quotation-header-table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-bottom: 16px;
+            padding-bottom: 16px;
+            border: none;
+        }
+        .quotation-header-table td {
+            vertical-align: middle;
+            padding: 8px;
+            border: none;
+        }
+        .quotation-header-table tr {
+            border: none;
+        }
+        .quotation-logo-container {
+            width: auto;
+            display: inline-block;
+            vertical-align: middle;
+        }
+        .quotation-logo {
+            max-width: 60px;
+            max-height: 60px;
+            object-fit: contain;
+            vertical-align: middle;
+            margin-right: 8px;
+        }
+        .quotation-company-name-inline {
+            display: inline-block;
+            vertical-align: middle;
+            font-size: 18px;
+            font-weight: bold;
+            color: #2c3e50;
+        }
+        .quotation-title-container {
+            text-align: center;
+            width: auto;
+        }
+        .quotation-main-title {
+            font-size: 22px;
+            font-weight: bold;
+            color: #2c3e50;
+            margin: 0;
+            letter-spacing: 0.3px;
+            text-transform: uppercase;
+        }
+        .quotation-booking-badge {
+            background: #666cff;
+            color: #ffffff;
+            padding: 10px 18px;
+            border-radius: 10px;
+            text-align: center;
+            font-weight: bold;
+            width: auto;
+            min-width: 140px;
+            display: inline-block;
+        }
+        .quotation-booking-badge-label {
+            font-size: 10px;
+            display: block;
+            margin-bottom: 2px;
+        }
+        .quotation-booking-badge-value {
+            font-size: 14px;
+            display: block;
+        }
+        .quotation-company-info {
+            margin-bottom: 20px;
+            padding: 12px 0 8px 0;
+        }
+        .quotation-company-name {
+            font-size: 16px;
+            font-weight: bold;
+            color: #2c3e50;
+            margin-bottom: 8px;
+        }
+        .quotation-company-details {
+            font-size: 14px;
+            color: #212529;
+            line-height: 1.8;
+        }
+        /* Modern Card-Based Panel Design - PDF-Compatible */
+        .quotation-panels-container {
+            display: table;
+            width: 100%;
+            border-collapse: separate;
+            border-spacing: 10px;
+            margin: 0 0 15px 0;
+            table-layout: fixed;
+        }
+        .quotation-panel-wrapper {
+            display: table-cell;
+            vertical-align: top;
+            padding: 0;
+        }
+        .quotation-panel-wrapper:first-child {
+            width: 52%;
+        }
+        .quotation-panel-wrapper:last-child {
+            width: 48%;
+        }
+        .quotation-panel {
+            background: #f5f7f8;
+            border: none;
+            border-radius: 10px;
+            overflow: hidden;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.06);
+            display: flex;
+            flex-direction: column;
+            min-height: 300px;
+        }
+        .quotation-panel-header {
+            background: #a0aec0;
+            color: #2c3e50;
+            font-weight: 600;
+            padding: 14px 16px;
+            font-size: 12px;
+            text-align: center;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            border-radius: 10px 10px 0 0;
+        }
+        .quotation-panel-content {
+            padding: 14px 16px;
+            background: #f5f7f8;
+            flex: 1;
+            border-radius: 0 0 10px 10px;
+        }
+        /* Left Panel - Two Column Internal Layout (Table-based for PDF compatibility) */
+        .quotation-panel-content-two-col {
+            display: table;
+            width: 100%;
+            border-collapse: separate;
+            border-spacing: 0;
+            table-layout: fixed;
+        }
+        .quotation-panel-col {
+            display: table-cell;
+            line-height: 1.4;
+            vertical-align: top;
+            padding: 0;
+        }
+        .quotation-panel-col:first-child {
+            padding-right: 4px;
+            width: 45%;
+        }
+        .quotation-panel-col:last-child {
+            padding-left: 4px;
+            width: 55%;
+        }
+        /* Right Panel - Single Column Layout */
+        .quotation-panel-content-single-col {
+            display: block;
+        }
+        /* Field Item Styling - Side by Side Layout */
+        .quotation-field-item {
+            display: table;
+            width: 100%;
+            margin-bottom: 8px;
+            border-collapse: collapse;
+        }
+        .quotation-field-item:last-child {
+            margin-bottom: 0;
+        }
+        .quotation-field-label {
+            font-size: 12px;
+            color: #64748b;
+            font-weight: 400;
+            line-height: 1.4;
+            display: table-cell;
+            vertical-align: middle;
+            padding-right: 8px;
+            width: auto;
+            white-space: nowrap;
+        }
+        .quotation-field-value {
+            font-size: 12px;
+            color: #0f172a;
+            font-weight: 600;
+            line-height: 1.4;
+            display: table-cell;
+            vertical-align: middle;
+            width: 100%;
+        }
+        .quotation-field-icon {
+            font-size: 12px;
+            line-height: 1;
+            color: #20b2aa;
+            margin-right: 4px;
+            vertical-align: middle;
+            display: inline-block;
+        }
+        /* Pax Counts Group */
+        .quotation-pax-group {
+            display: block;
+            margin-top: 12px;
+        }
+        .quotation-pax-item {
+            display: table;
+            width: 100%;
+            margin-bottom: 8px;
+            border-collapse: collapse;
+        }
+        .quotation-pax-item:last-child {
+            margin-bottom: 0;
+        }
+        .quotation-pax-label {
+            display: table-cell;
+            font-size: 12px;
+            color: #64748b;
+            font-weight: 400;
+            line-height: 1.4;
+            width: auto;
+            padding-right: 8px;
+            vertical-align: middle;
+            white-space: nowrap;
+        }
+        .quotation-pax-value {
+            display: table-cell;
+            font-size: 12px;
+            color: #0f172a;
+            font-weight: 600;
+            line-height: 1.4;
+            text-align: right;
+            width: 100%;
+            vertical-align: middle;
+        }
+        /* Field Row for Right Panel */
+        .quotation-field-row {
+            display: table;
+            width: 100%;
+            margin-bottom: 12px;
+            border-collapse: collapse;
+            padding: 0;
+        }
+        .quotation-field-row:last-child {
+            margin-bottom: 0;
+        }
+        .quotation-field-row-label {
+            display: table-cell;
+            font-size: 12px;
+            color: #0f172a;
+            font-weight: 400;
+            width: 140px;
+            vertical-align: top;
+            padding-right: 12px;
+            padding-bottom: 4px;
+        }
+        .quotation-field-row-value {
+            display: table-cell;
+            font-size: 12px;
+            color: #0f172a;
+            font-weight: 400;
+            text-align: left;
+            vertical-align: top;
+            padding-bottom: 4px;
+        }
+        .quotation-placeholder-line {
+            border-bottom: 1px solid #cbd5e1;
+            min-height: 18px;
+            display: block;
+            width: 100%;
+            margin-top: 4px;
+        }
+        .quotation-travel-summary {
+            background: #ffffff;
+            border: 1px solid #e0e0e0;
+            border-radius: 8px 8px 0 0;
+            margin: 0 10px 16px 10px; /* equal left/right margin */
+            overflow: hidden;
+            box-shadow: 0 2px 6px rgba(0,0,0,0.08);
+        }
+        .quotation-travel-summary-header {
+            background: #a0aec0;
+            color: #2c3e50;
+            font-weight: bold;
+            padding: 12px;
+            font-size: 12px;
+            text-align: center;
+            border-radius: 8px 8px 0 0;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+        .quotation-travel-summary-content {
+            padding: 14px 12px;
+            background: #ffffff;
+        }
+        .quotation-travel-items {
+            display: table;
+            width: 100%;
+            table-layout: fixed;
+        }
+        .quotation-travel-item {
+            display: table-cell;
+            padding: 4px 4px;
+            text-align: center;
+            font-size: 12px;
+            font-weight: bold;
+            color: #2c3e50;
+            vertical-align: middle;
+        }
+        .quotation-travel-item:first-child {
+            width: 27.5%;
+        }
+        .quotation-travel-item:nth-child(2) {
+            width: 45%;
+        }
+        .quotation-travel-item:last-child {
+            width: 27.5%;
+        }
+        .quotation-travel-item-icon {
+            font-size: 12px;
+            margin-right: 6px;
+            vertical-align: middle;
+            display: inline-block;
+            color: #20b2aa;
+            font-weight: bold;
+            font-family: Arial, sans-serif;
+        }
+        .quotation-travel-item-icon:before {
+            content: "•";
+        }
+        .quotation-travel-arrow {
+            margin: 0 8px;
+            font-size: 14px;
+            vertical-align: middle;
+            color: #000000;
+            font-weight: bold;
+            font-family: Arial, sans-serif;
+        }
+        
+        .quotation-passenger-wrapper {
+            background: #ffffff;
+            border: 1px solid #e0e0e0;
+            border-radius: 8px 8px 0 0;
+            margin: 0 10px 0 10px; /* equal left/right margin */
+            overflow: hidden;
+            box-shadow: 0 2px 6px rgba(0,0,0,0.08);
+        }
+
+        .quotation-passenger-table {
+            width: 100%;
+            border-collapse: collapse;
+            margin: 0;
+            border: 1px solid #e0e0e0;
+        }
+        .quotation-passenger-table th {
+            background: #a0aec0;
+            color: #2c3e50;
+            font-weight: bold;
+            padding: 10px 8px;
+            text-align: center;
+            border: 1px solid #90a0b0;
+            font-size: 11px;
+        }
+        .quotation-passenger-table td {
+            padding: 10px 8px;
+            text-align: center;
+            border: 1px solid #e0e0e0;
+            font-size: 11px;
+            background: #ffffff;
+        }
+        .quotation-passenger-table tbody tr:nth-child(even) td {
+            background: #f8f9fa;
+        }
+        .quotation-passenger-table tbody tr:nth-child(odd) td {
+            background: #ffffff;
+        }
+        .quotation-passenger-table td:first-child,
+        .quotation-passenger-table td:nth-child(3),
+        .quotation-passenger-table td:nth-child(4),
+        .quotation-passenger-table td:nth-child(5) {
+            text-align: center;
+        }
+        .quotation-passenger-table td:nth-child(2),
+        .quotation-passenger-table td:nth-child(6) {
+            text-align: left;
+        }
     </style>
 </head>
 <body>
@@ -628,162 +1007,304 @@
         $checkIn = $tour->check_in_time ? \Carbon\Carbon::parse($tour->check_in_time)->format('d M Y') : '-';
         $checkOut = $tour->check_out_time ? \Carbon\Carbon::parse($tour->check_out_time)->format('d M Y') : '-';
         $totalServices = collect($servicesByType ?? [])->flatten(1)->count();
+
+        // Currency context
+        $baseCurrency = $baseCurrency ?? 'SGD';
+        $selectedCurrency = $selectedCurrency ?? $baseCurrency;
+        $exchangeRate = isset($exchangeRate) && is_numeric($exchangeRate) && $exchangeRate > 0 ? (float) $exchangeRate : 1.0;
     @endphp
 
-    <!-- Quotation First Page (Proforma Style) -->
+    <!-- Quotation First Page (Matching Image Format) -->
     <div class="quotation-page">
-        <!-- Header -->
-        <div class="header">
-            @php
-                $dmcLogoSrc = null;
-                if (!empty($dmcLogo) && strpos($dmcLogo, 'data:image') === 0) {
-                    $dmcLogoSrc = $dmcLogo;
-                } elseif (!empty($dmcLogo)) {
-                    try {
-                        if (preg_match('/^https?:\/\//i', $dmcLogo)) {
-                            $logoContent = @file_get_contents($dmcLogo);
-                        } else {
-                            $logoPath = public_path(ltrim($dmcLogo, '/'));
-                            $logoContent = @file_get_contents($logoPath);
-                        }
-                        if ($logoContent) {
-                            $base64 = base64_encode($logoContent);
-                            $dmcLogoSrc = 'data:image/png;base64,' . $base64;
-                        }
-                    } catch (\Exception $e) {
-                        $dmcLogoSrc = null;
+        @php
+            $dmcLogoSrc = null;
+            if (!empty($dmcLogo) && strpos($dmcLogo, 'data:image') === 0) {
+                $dmcLogoSrc = $dmcLogo;
+            } elseif (!empty($dmcLogo)) {
+                try {
+                    if (preg_match('/^https?:\/\//i', $dmcLogo)) {
+                        $logoContent = @file_get_contents($dmcLogo);
+                    } else {
+                        $logoPath = public_path(ltrim($dmcLogo, '/'));
+                        $logoContent = @file_get_contents($logoPath);
                     }
+                    if ($logoContent) {
+                        $base64 = base64_encode($logoContent);
+                        $dmcLogoSrc = 'data:image/png;base64,' . $base64;
+                    }
+                } catch (\Exception $e) {
+                    $dmcLogoSrc = null;
                 }
-            @endphp
-            @if($dmcLogoSrc)
-            <div class="header-top">
-                <div class="dmc-logo-wrapper">
-                    <img src="{{ $dmcLogoSrc }}" class="dmc-logo" />
+            }
+            $bookingId = $bookingDetails['booking_id'] ?? ($tour->display_id ?? ('DMC-' . ($tour->tour_id ?? 'N/A')));
+            $leadGuestName = $bookingDetails['lead_guest_name'] ?? '';
+            $leadGuestDate = $bookingDetails['lead_guest_date'] ?? ($checkIn ?? 'N/A');
+            $proposalSentBy = $proposalDetails['proposal_sent_by'] ?? '—';
+            $proposalDate = $proposalDetails['proposal_date'] ?? ($generatedAt->format('d M Y') ?? 'N/A');
+            $proposalValidity = $proposalDetails['proposal_validity'] ?? 'N/A';
+            $postalPinDate = $proposalDetails['postal_pin_date'] ?? ($travelDetails['travel_date_from'] ?? 'N/A');
+            // Format postalPinDate with day name (e.g., "Tuesday-30/12/2025")
+            if ($postalPinDate !== 'N/A') {
+                try {
+                    $pinDate = \Carbon\Carbon::parse($postalPinDate);
+                    $postalPinDate = $pinDate->format('l-d/m/Y');
+                } catch (\Exception $e) {
+                    // Keep original format if parsing fails
+                }
+            }
+            $operationsTeam = $proposalDetails['operations_team'] ?? 'Operations Team';
+            $noOfAdults = $bookingDetails['no_of_adults'] ?? ($tour->adult ?? 0);
+            $noOfChildren = $bookingDetails['no_of_children'] ?? ($tour->child ?? 0);
+            $noOfInfants = $bookingDetails['no_of_infants'] ?? ($tour->infant ?? 0);
+            $companyName = $dmcDetails['company_name'] ?? $dmcCompanyName ?? 'DMC Name';
+            $companyAddress = $dmcDetails['address'] ?? ($dmcDetails['company_address'] ?? 'N/A');
+            $companyTel = $dmcDetails['tel'] ?? ($dmcDetails['telephone'] ?? ($dmcDetails['phone'] ?? 'N/A'));
+            $companyFax = $dmcDetails['fax'] ?? 'N/A';
+            $companyEmail = $dmcDetails['email'] ?? ($dmcDetails['company_email'] ?? 'N/A');
+            $destination = $travelDetails['destination'] ?? ($tour->destination ?? 'N/A');
+            $travelDateFrom = $travelDetails['travel_date_from'] ?? ($checkIn ?? 'N/A');
+            $travelDateTo = $travelDetails['travel_date_to'] ?? ($checkOut ?? 'N/A');
+            $duration = $travelDetails['duration'] ?? ($tourDuration ?? 'N/A');
+            
+            // Format travel dates with day names (e.g., "Tuesday- 30/12/2025")
+            $travelDateFromFormatted = 'N/A';
+            $travelDateToFormatted = 'N/A';
+            if ($travelDateFrom !== 'N/A') {
+                try {
+                    $fromDate = \Carbon\Carbon::parse($travelDateFrom);
+                    $travelDateFromFormatted = $fromDate->format('l- d/m/Y');
+                } catch (\Exception $e) {
+                    $travelDateFromFormatted = $travelDateFrom;
+                }
+            }
+            if ($travelDateTo !== 'N/A') {
+                try {
+                    $toDate = \Carbon\Carbon::parse($travelDateTo);
+                    $travelDateToFormatted = $toDate->format('l- d/m/Y');
+                } catch (\Exception $e) {
+                    $travelDateToFormatted = $travelDateTo;
+                }
+            }
+            
+            // Calculate duration if not provided
+            if ($duration === 'N/A' && $travelDateFrom !== 'N/A' && $travelDateTo !== 'N/A') {
+                try {
+                    $from = \Carbon\Carbon::parse($travelDateFrom);
+                    $to = \Carbon\Carbon::parse($travelDateTo);
+                    $nights = $from->diffInDays($to);
+                    $days = $nights + 1;
+                    $duration = $days . ' Days';
+                } catch (\Exception $e) {
+                    $duration = 'N/A';
+                }
+            }
+        @endphp
+
+        <!-- Header: Logo, Title, Booking ID Badge -->
+        <table class="quotation-header-table" style="width: 100%; border-collapse: collapse; border: none;">
+            <tr>
+                <td style="width: auto; vertical-align: middle; padding: 8px; border: none;">
+                    <div class="quotation-logo-container">
+                        @if($dmcLogoSrc)
+                            <img src="{{ $dmcLogoSrc }}" class="quotation-logo" />
+                        @endif
+                    </div>
+                </td>
+                <td class="quotation-title-container" style="text-align: center; vertical-align: middle; padding: 8px; border: none;">
+                    <h1 class="quotation-main-title">QUOTATION & CONFIRMATION VOUCHER</h1>
+                </td>
+                {{-- <td style="text-align: right; vertical-align: middle; padding: 8px; width: auto;">
+                    <div class="quotation-booking-badge">
+                        <span class="quotation-booking-badge-label">BOOKING ID</span>
+                        <span class="quotation-booking-badge-value">{{ $bookingId }}</span>
+                    </div>
+                </td> --}}
+            </tr>
+        </table>
+        <div style="border-bottom: 1px solid #ddd; margin-bottom: 16px; margin-top: 8px;"></div>
+
+        <!-- Company Contact Information -->
+        <div class="quotation-company-info">
+            <div class="quotation-company-name">{{ $companyName }}</div>
+            <div class="quotation-company-details">
+                {{ $companyAddress }}<br>
+                Tel: {{ $companyTel }}<br>
+                @if($companyFax !== 'N/A')Fax: {{ $companyFax }}<br>@endif
+                Email: {{ $companyEmail }}
+            </div>
+        </div>
+
+        <!-- Two Side-by-Side Panels - Modern Card-Based Design -->
+        <div class="quotation-panels-container">
+            <div class="quotation-panel-wrapper">
+                <!-- Left Panel: Booking & Proposal Details - Two Column Internal Layout -->
+                <div class="quotation-panel">
+                    <div class="quotation-panel-header">BOOKING & PROPOSAL DETAILS</div>
+                    <div class="quotation-panel-content quotation-panel-content-two-col">
+                        <!-- Left Column -->
+                        <div class="quotation-panel-col">
+                            <!-- Booking ID -->
+                            <div class="quotation-field-item">
+                                <div class="quotation-field-label">Booking ID:</div>
+                                <div class="quotation-field-value">{{ $bookingId }}</div>
+                            </div>
+                            
+                            <!-- Lead Guest -->
+                            <div class="quotation-field-item">
+                                <div class="quotation-field-label">Lead Guest:</div>
+                                <div class="quotation-field-value">{{ $leadGuestName ?: '' }}</div>
+                            </div>
+                            
+                            
+                            
+                            <!-- Adults -->
+                            <div class="quotation-field-item">
+                                <div class="quotation-field-label">Adults:</div>
+                                <div class="quotation-field-value">{{ $noOfAdults }}</div>
+                            </div>
+                            
+                            <!-- Children -->
+                            <div class="quotation-field-item">
+                                <div class="quotation-field-label">Children:</div>
+                                <div class="quotation-field-value">{{ $noOfChildren }}</div>
+                            </div>
+                            
+                            <!-- Infants -->
+                            <div class="quotation-field-item">
+                                <div class="quotation-field-label">Infants:</div>
+                                <div class="quotation-field-value">{{ $noOfInfants }}</div>
+                            </div>
+                        </div>
+                        
+                        <!-- Right Column -->
+                        <div class="quotation-panel-col">
+                            <!-- Proposal Date -->
+                            <div class="quotation-field-item">
+                                <div class="quotation-field-label">Proposal Date:</div>
+                                <div class="quotation-field-value">{{ $proposalDate }}</div>
+                            </div>
+                            
+                            <!-- Proposal Validity -->
+                            <div class="quotation-field-item">
+                                <div class="quotation-field-label">Proposal Validity:</div>
+                                <div class="quotation-field-value">{{ $proposalValidity }}</div>
+                            </div>
+                            
+                            <!-- Proposal Sent By with Icon -->
+                            <div class="quotation-field-item">
+                                <div class="quotation-field-label">
+                                    <span class="quotation-field-icon"></span>Proposal Sent By:
+                                </div>
+                                <div class="quotation-field-value">{{ $proposalSentBy }}</div>
+                            </div>
+                        </div>
+                    </div>
                 </div>
             </div>
+            
+            <div class="quotation-panel-wrapper">
+                <!-- Right Panel: Travel Company / Agent - Single Column Layout -->
+                <div class="quotation-panel">
+                    <div class="quotation-panel-header">TRAVEL COMPANY / AGENT</div>
+                    <div class="quotation-panel-content quotation-panel-content-single-col">
+                        @php
+                            $agentName = !empty($agentDetails) ? ($agentDetails['name'] ?? ($agentDetails['company_name'] ?? '')) : '';
+                            $agentAddress = !empty($agentDetails) ? ($agentDetails['address'] ?? '') : '';
+                            $contactPerson = !empty($agentDetails) ? ($agentDetails['contact_person'] ?? '') : '';
+                            $agentPhone = !empty($agentDetails) ? ($agentDetails['phone'] ?? '') : '';
+                            $agentEmail = !empty($agentDetails) ? ($agentDetails['email'] ?? '') : '';
+                        @endphp
+                        <div class="quotation-company-info">
+                            @if($agentName)
+                                <div class="quotation-company-name">{{ $agentName }}</div>
+                            @endif
+                            <div class="quotation-company-details">
+                                @if($agentAddress){{ $agentAddress }}<br>@endif
+                                @if($contactPerson)Contact Person: {{ $contactPerson }}<br>@endif
+                                @if($agentPhone)Tel: {{ $agentPhone }}<br>@endif
+                                @if($agentEmail)Email: {{ $agentEmail }}@endif
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Travel Summary Section -->
+        <div class="quotation-travel-summary">
+            <div class="quotation-travel-summary-header">TRAVEL SUMMARY</div>
+            <div class="quotation-travel-summary-content">
+                <div class="quotation-travel-items">
+                    <div class="quotation-travel-item">
+                        <span>Destination: {{ $destination }}</span>
+                    </div>
+                    <div class="quotation-travel-item">
+                        
+                        <span>{{ $travelDateFromFormatted }}</span>
+                        <span class="quotation-travel-arrow"> &ndash; </span>
+                        <span>{{ $travelDateToFormatted }}</span>
+                    </div>
+                    <div class="quotation-travel-item">
+                        <span>Duration: {{ $duration }}</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Passenger Details Table -->
+        <div class="quotation-passenger-wrapper">
+        <table class="quotation-passenger-table">
+            <thead>
+                <tr>
+                    <th>Salutation</th>
+                    <th>Name</th>
+                    <th>Passenger Type</th>
+                    <th>Gender</th>
+                    <th>Mobile Phone</th>
+                    <th>Email</th>
+                </tr>
+            </thead>
+            <tbody>
+                @php
+                    $passengers = $bookingDetails['passengers'] ?? [];
+                    // If no passengers found, create a default entry from lead guest
+                    if (empty($passengers) && !empty($leadGuestName)) {
+                        $passengers = [[
+                            'salutation' => $bookingDetails['salutation'] ?? 'Mr',
+                            'first_name' => $bookingDetails['lead_guest_name'] ?? '',
+                            'passenger_type' => $bookingDetails['passenger_type'] ?? 'Adult',
+                            'gender' => $bookingDetails['gender'] ?? 'M',
+                            'mobile_phone' => $bookingDetails['phone'] ?? '—',
+                            'phone' => $bookingDetails['phone'] ?? '—',
+                            'email' => $bookingDetails['email'] ?? '—'
+                        ]];
+                    }
+                @endphp
+                @if(!empty($passengers) && is_array($passengers))
+                    @foreach($passengers as $passenger)
+                        <tr>
+                            <td>{{ $passenger['salutation'] ?? 'Mr' }}</td>
+                            <td>{{ $passenger['first_name'] ?? ($passenger['name'] ?? '—') }}</td>
+                            <td>{{ $passenger['passenger_type'] ?? 'Adult' }}</td>
+                            <td>{{ $passenger['gender'] ?? 'M' }}</td>
+                            <td>{{ $passenger['mobile_phone'] ?? ($passenger['phone'] ?? '—') }}</td>
+                            <td>{{ $passenger['email'] ?? '—' }}</td>
+                        </tr>
+                    @endforeach
+                @else
+                    <tr>
+                        <td>{{ $bookingDetails['salutation'] ?? 'Mr' }}</td>
+                        <td>{{ $leadGuestName ?? '—' }}</td>
+                        <td>{{ $bookingDetails['passenger_type'] ?? 'Adult' }}</td>
+                        <td>{{ $bookingDetails['gender'] ?? 'M' }}</td>
+                        <td>{{ $bookingDetails['phone'] ?? '—' }}</td>
+                        <td>{{ $bookingDetails['email'] ?? '—' }}</td>
+                    </tr>
                 @endif
-            <h1>TOUR QUOTATION</h1>
-            <p><strong>{{ $dmcDetails['company_name'] ?? $dmcCompanyName ?? 'DMC Name' }}</strong></p>
-            <p>Tour ID: <strong>{{ $tour->display_id ?? ('Tour #' . ($tour->tour_id ?? '-')) }}</strong></p>
-            </div>
-
-        <!-- Client/Guest Information -->
-        <table class="invoice-info">
-            <tr>
-                <td colspan="4" style="background-color: #f0f8ff; font-weight: bold; padding: 6px; border: 1px solid #e0e0e0;">Client/Guest Information:</td>
-            </tr>
-            <tr>
-                <td style="background-color: #f0f8ff; font-weight: bold; padding: 4px 6px; border: 1px solid #e0e0e0; width: 25%;">Lead Guest:</td>
-                <td style="background-color: #ffffff; padding: 4px 6px; border: 1px solid #e0e0e0; width: 25%;">{{ $bookingDetails['lead_guest_name'] ?? 'N/A' }}</td>
-                <td style="background-color: #f0f8ff; font-weight: bold; padding: 4px 6px; border: 1px solid #e0e0e0; width: 25%;">Address:</td>
-                <td style="background-color: #ffffff; padding: 4px 6px; border: 1px solid #e0e0e0; width: 25%;">{{ $bookingDetails['address'] ?? 'N/A' }}</td>
-            </tr>
-            <tr>
-                <td style="background-color: #f0f8ff; font-weight: bold; padding: 4px 6px; border: 1px solid #e0e0e0;">State:</td>
-                <td style="background-color: #ffffff; padding: 4px 6px; border: 1px solid #e0e0e0;">{{ $bookingDetails['city'] ?? 'N/A' }}</td>
-                <td style="background-color: #f0f8ff; font-weight: bold; padding: 4px 6px; border: 1px solid #e0e0e0;">Postal Code:</td>
-                <td style="background-color: #ffffff; padding: 4px 6px; border: 1px solid #e0e0e0;">{{ $bookingDetails['postal_code'] ?? 'N/A' }}</td>
-            </tr>
-            <tr>
-                <td style="background-color: #f0f8ff; font-weight: bold; padding: 4px 6px; border: 1px solid #e0e0e0;">Email:</td>
-                <td style="background-color: #ffffff; padding: 4px 6px; border: 1px solid #e0e0e0;">{{ $bookingDetails['email'] ?? 'N/A' }}</td>
-                <td style="background-color: #f0f8ff; font-weight: bold; padding: 4px 6px; border: 1px solid #e0e0e0;">Phone:</td>
-                <td style="background-color: #ffffff; padding: 4px 6px; border: 1px solid #e0e0e0;">{{ $bookingDetails['phone'] ?? 'N/A' }}</td>
-            </tr>
-            <tr>
-                <td style="background-color: #f0f8ff; font-weight: bold; padding: 4px 6px; border: 1px solid #e0e0e0;">Booking ID:</td>
-                <td style="background-color: #ffffff; padding: 4px 6px; border: 1px solid #e0e0e0;">{{ $bookingDetails['booking_id'] ?? 'N/A' }}</td>
-                <td style="background-color: #f0f8ff; font-weight: bold; padding: 4px 6px; border: 1px solid #e0e0e0;">No. of Adults:</td>
-                <td style="background-color: #ffffff; padding: 4px 6px; border: 1px solid #e0e0e0;">{{ $bookingDetails['no_of_adults'] ?? 0 }}</td>
-            </tr>
-            <tr>
-                <td style="background-color: #f0f8ff; font-weight: bold; padding: 4px 6px; border: 1px solid #e0e0e0;">No. of Children:</td>
-                <td style="background-color: #ffffff; padding: 4px 6px; border: 1px solid #e0e0e0;">{{ $bookingDetails['no_of_children'] ?? 0 }}</td>
-                <td style="background-color: #f0f8ff; font-weight: bold; padding: 4px 6px; border: 1px solid #e0e0e0;">No. of Infants:</td>
-                <td style="background-color: #ffffff; padding: 4px 6px; border: 1px solid #e0e0e0;">{{ $bookingDetails['no_of_infants'] ?? 0 }}</td>
-            </tr>
+            </tbody>
         </table>
-
-        <!-- Proposal Details -->
-        <table class="invoice-info" style="width: 50%; float: right;">
-            <tr>
-                <td colspan="2" style="background-color: #f0f8ff; font-weight: bold; padding: 6px; border: 1px solid #e0e0e0;">Proposal Details:</td>
-            </tr>
-            <tr>
-                <td style="background-color: #f0f8ff; font-weight: bold; padding: 4px 6px; border: 1px solid #e0e0e0; width: 40%;">Postal / Pin:</td>
-                <td style="background-color: #ffffff; padding: 4px 6px; border: 1px solid #e0e0e0; width: 60%;">{{ $dmcDetails['postal_pin'] ?? 'N/A' }}</td>
-            </tr>
-            <tr>
-                <td style="background-color: #f0f8ff; font-weight: bold; padding: 4px 6px; border: 1px solid #e0e0e0;">Proposal Date:</td>
-                <td style="background-color: #ffffff; padding: 4px 6px; border: 1px solid #e0e0e0;">{{ $proposalDetails['proposal_date'] ?? ($generatedAt->format('jS M Y') ?? 'N/A') }}</td>
-            </tr>
-            <tr>
-                <td style="background-color: #f0f8ff; font-weight: bold; padding: 4px 6px; border: 1px solid #e0e0e0;">Proposal Validity:</td>
-                <td style="background-color: #ffffff; padding: 4px 6px; border: 1px solid #e0e0e0;">{{ $proposalDetails['proposal_validity'] ?? 'N/A' }}</td>
-            </tr>
-            <tr>
-                <td style="background-color: #f0f8ff; font-weight: bold; padding: 4px 6px; border: 1px solid #e0e0e0;">Proposal Sent by:</td>
-                <td style="background-color: #ffffff; padding: 4px 6px; border: 1px solid #e0e0e0;">{{ $proposalDetails['proposal_sent_by'] ?? 'N/A' }}</td>
-            </tr>
-            <tr>
-                <td style="background-color: #ffffff; padding: 4px 6px; border: 1px solid #e0e0e0;"></td>
-                <td style="background-color: #ffffff; padding: 4px 6px; border: 1px solid #e0e0e0;"></td>
-            </tr>
-            <tr>
-                <td style="background-color: #ffffff; padding: 4px 6px; border: 1px solid #e0e0e0;"></td>
-                <td style="background-color: #ffffff; padding: 4px 6px; border: 1px solid #e0e0e0;"></td>
-            </tr>
-        </table>
-
-        <div style="clear: both;"></div>
-
-        <!-- Travel Company/Agent Information -->
-        @if(!empty($agentDetails))
-        <table class="invoice-info">
-            <tr>
-                <td colspan="2" style="background-color: #f0f8ff; font-weight: bold; padding: 6px; border: 1px solid #e0e0e0;">Travel Company / Agent Name: {{ $agentDetails['name'] ?? 'N/A' }}</td>
-            </tr>
-            @if(!empty($agentDetails['company_name']))
-            <tr>
-                <td style="background-color: #f0f8ff; font-weight: bold; padding: 4px 6px; border: 1px solid #e0e0e0; width: 40%;">Travel Agency:</td>
-                <td style="background-color: #ffffff; padding: 4px 6px; border: 1px solid #e0e0e0; width: 60%;">{{ $agentDetails['company_name'] ?? 'N/A' }}</td>
-            </tr>
-        @endif
-            <tr>
-                <td style="background-color: #f0f8ff; font-weight: bold; padding: 4px 6px; border: 1px solid #e0e0e0;">Address:</td>
-                <td style="background-color: #ffffff; padding: 4px 6px; border: 1px solid #e0e0e0;">{{ $agentDetails['address'] ?? 'N/A' }}</td>
-            </tr>
-            <tr>
-                <td style="background-color: #f0f8ff; font-weight: bold; padding: 4px 6px; border: 1px solid #e0e0e0;">Contact Person:</td>
-                <td style="background-color: #ffffff; padding: 4px 6px; border: 1px solid #e0e0e0;">{{ $agentDetails['contact_person'] ?? 'N/A' }}</td>
-            </tr>
-            <tr>
-                <td style="background-color: #f0f8ff; font-weight: bold; padding: 4px 6px; border: 1px solid #e0e0e0;">Phone:</td>
-                <td style="background-color: #ffffff; padding: 4px 6px; border: 1px solid #e0e0e0;">{{ $agentDetails['phone'] ?? 'N/A' }}</td>
-            </tr>
-            <tr>
-                <td style="background-color: #f0f8ff; font-weight: bold; padding: 4px 6px; border: 1px solid #e0e0e0;">Email:</td>
-                <td style="background-color: #ffffff; padding: 4px 6px; border: 1px solid #e0e0e0;">{{ $agentDetails['email'] ?? 'N/A' }}</td>
-            </tr>
-        </table>
-        @endif
-
-        <!-- Travel Dates & Destination -->
-        <table class="invoice-info">
-            <tr>
-                <td style="background-color: #f0f8ff; font-weight: bold; padding: 4px 6px; border: 1px solid #e0e0e0; width: 20%;">Destination:</td>
-                <td style="background-color: #ffffff; padding: 4px 6px; border: 1px solid #e0e0e0; width: 30%;">{{ $travelDetails['destination'] ?? ($tour->destination ?? 'N/A') }}</td>
-                <td style="background-color: #f0f8ff; font-weight: bold; padding: 4px 6px; border: 1px solid #e0e0e0; width: 20%;">Duration / No of Days:</td>
-                <td style="background-color: #ffffff; padding: 4px 6px; border: 1px solid #e0e0e0; width: 30%;">{{ $travelDetails['duration'] ?? ($tourDuration ?? 'N/A') }}</td>
-            </tr>
-            <tr>
-                <td style="background-color: #f0f8ff; font-weight: bold; padding: 4px 6px; border: 1px solid #e0e0e0;">Travel Date From:</td>
-                <td style="background-color: #ffffff; padding: 4px 6px; border: 1px solid #e0e0e0;">{{ $travelDetails['travel_date_from'] ?? ($checkIn ?? 'N/A') }}</td>
-                <td style="background-color: #f0f8ff; font-weight: bold; padding: 4px 6px; border: 1px solid #e0e0e0;">Travel Date To:</td>
-                <td style="background-color: #ffffff; padding: 4px 6px; border: 1px solid #e0e0e0;">{{ $travelDetails['travel_date_to'] ?? ($checkOut ?? 'N/A') }}</td>
-            </tr>
-        </table>
-            </div>
+        </div>
+    </div>
 
     <!-- Existing Content (Itinerary Details) -->
     <div class="content-wrapper">
@@ -818,93 +1339,163 @@
 
     <!-- Hotel Options Section (Excel-like format) -->
     @if(!empty($hotelOptions) && count($hotelOptions) > 0)
-        <div class="hotel-options-section">
-            @foreach($hotelOptions as $hotel)
-                <table class="hotel-option-table" style="width: 100%; border-collapse: collapse; border: 2px solid #000000; font-size: 11px; margin: 0 0 20px 0; padding: 0;">
-                    <!-- OPTION Header -->
-                    <tr>
-                        <td colspan="5" class="hotel-option-header" style="background: #a0aec0; color: #2c3e50; text-align: center; font-weight: bold; font-size: 12px; padding: 6px; border: 1px solid #90a0b0;">
-                            ACCOMMODATION {{ $hotel['option_number'] }}
-                        </td>
-                    </tr>
-                    <!-- Packaged Price Information -->
-                    <tr>
-                        <td class="hotel-option-label" style="background: #f0f8ff; font-weight: bold; padding: 4px 6px; border: 1px solid #e0e0e0; width: 30%; color: #2c3e50;">Per Adult Packaged Price :</td>
-                        <td class="hotel-option-value" style="background: #ffffff; padding: 4px 6px; border: 1px solid #e0e0e0; width: 70%; color: #212529;">{{ is_numeric($hotel['adult_price']) ? number_format($hotel['adult_price'], 2) : ($hotel['adult_price'] ?? 'N/A') }}</td>
-                        <td colspan="3" style="background: #ffffff; border: 1px solid #e0e0e0; padding: 4px 6px;"></td>
-                    </tr>
-                    <tr>
-                        <td class="hotel-option-label" style="background: #f0f8ff; font-weight: bold; padding: 4px 6px; border: 1px solid #e0e0e0; color: #2c3e50;">Per Child Packaged Price :</td>
-                        <td class="hotel-option-value" style="background: #ffffff; padding: 4px 6px; border: 1px solid #e0e0e0; color: #212529;">{{ is_numeric($hotel['child_price']) ? number_format($hotel['child_price'], 2) : ($hotel['child_price'] ?? 'N/A') }}</td>
-                        <td colspan="3" style="background: #ffffff; border: 1px solid #e0e0e0; padding: 4px 6px;"></td>
-                    </tr>
-                    <tr>
-                        <td class="hotel-option-label" style="background: #f0f8ff; font-weight: bold; padding: 4px 6px; border: 1px solid #e0e0e0; color: #2c3e50;">Per Infant Packaged Price :</td>
-                        <td class="hotel-option-value" style="background: #ffffff; padding: 4px 6px; border: 1px solid #e0e0e0; color: #212529;">{{ is_numeric($hotel['infant_price']) ? number_format($hotel['infant_price'], 2) : ($hotel['infant_price'] ?? 'N/A') }}</td>
-                        <td colspan="3" style="background: #ffffff; border: 1px solid #e0e0e0; padding: 4px 6px;"></td>
-                    </tr>
-                    <!-- Hotel Details -->
-                    <tr>
-                        <td class="hotel-option-label" style="background: #f8f9fa; font-weight: bold; padding: 4px 6px; border: 1px solid #e0e0e0; color: #2c3e50;">Hotel Name :</td>
-                        <td class="hotel-option-value" style="background: #ffffff; padding: 4px 6px; border: 1px solid #e0e0e0; color: #212529;">{{ $hotel['hotel_name'] ?? 'N/A' }}</td>
-                        <td colspan="3" style="background: #ffffff; border: 1px solid #e0e0e0; padding: 4px 6px;"></td>
-                    </tr>
-                    <tr>
-                        <td class="hotel-option-label" style="background: #f0f8ff; font-weight: bold; padding: 4px 6px; border: 1px solid #e0e0e0; color: #2c3e50;">Hotel Category :</td>
-                        <td class="hotel-option-value" style="background: #ffffff; padding: 4px 6px; border: 1px solid #e0e0e0; color: #212529;">{{ $hotel['hotel_category'] ?? 'N/A' }}</td>
-                        <td colspan="3" style="background: #ffffff; border: 1px solid #e0e0e0; padding: 4px 6px;"></td>
-                    </tr>
-                    <!-- Room Details -->
-                    <tr>
-                        <td class="hotel-option-label" style="background: #f0f8ff; font-weight: bold; padding: 4px 6px; border: 1px solid #e0e0e0; color: #2c3e50;">No. of Rooms :</td>
-                        <td class="hotel-option-value" style="background: #ffffff; padding: 4px 6px; border: 1px solid #e0e0e0;"></td>
-                        <td class="hotel-option-label" style="background: #f0f8ff; font-weight: bold; padding: 4px 6px; border: 1px solid #e0e0e0; text-align: center; color: #2c3e50;">Single</td>
-                        <td class="hotel-option-label" style="background: #f0f8ff; font-weight: bold; padding: 4px 6px; border: 1px solid #e0e0e0; text-align: center; color: #2c3e50;">Double</td>
-                        <td class="hotel-option-label" style="background: #f0f8ff; font-weight: bold; padding: 4px 6px; border: 1px solid #e0e0e0; text-align: center; color: #2c3e50;">Triple</td>
-                    </tr>
-                    <!-- Room Categories - Always show exactly 4 rows as per screenshot, directly after No. of Rooms -->
+        @php
+            // ALL hotels belong to ONE OPTION - no grouping by option_number
+            // All hotels are children of a single option
+            $allHotels = $hotelOptions;
+            $firstHotel = $allHotels[0] ?? null;
+            $additionalHotels = array_slice($allHotels, 1); // Hotels after the first one
+            
+            // Get baby_cot price from tourPrices to use as infant price
+            $infantPrice = 0;
+            if (isset($tourPrices['segregated']['hotel']['baby_cot']) && is_numeric($tourPrices['segregated']['hotel']['baby_cot'])) {
+                $infantPrice = floatval($tourPrices['segregated']['hotel']['baby_cot']) * $exchangeRate;
+            }
+        @endphp
+        <div class="hotel-options-section" style="width: 100%; text-align: center;">
+            <table class="hotel-option-table" style="width: 90%; border-collapse: collapse; border: 2px solid #000000; font-size: 11px; margin: 0 auto 20px auto; padding: 0;">
+                <!-- OPTION Header - Matching other services color scheme -->
+                <tr>
+                    <td class="hotel-option-label" style="background-color: #a0aec0; color: #2c3e50; text-align: center; font-weight: bold; font-size: 12px; padding: 8px; border: 1px solid #90a0b0; width: 40%;">Hotel</td>
+                    <td class="hotel-option-header" style="background-color: #a0aec0; color: #2c3e50; text-align: center; font-weight: bold; font-size: 12px; padding: 8px; border: 1px solid #90a0b0; width: 60%;">
+                        OPTION 1
+                    </td>
+                </tr>
+                <!-- Room Pricing Header - Nested structure inside OPTION 1 column -->
+                <tr>
+                    <td class="hotel-option-label" style="background: #ffffff; padding: 6px 8px; border: 1px solid #90a0b0; color: #000000;"></td>
+                    <td style="background: #ffffff; padding: 0; border: 1px solid #90a0b0;">
+                        <table style="width: 100%; border-collapse: collapse; margin: 0; padding: 0;">
+                            <tr>
+                                <td class="hotel-option-label" style="background-color: #a0aec0; color: #2c3e50; font-weight: bold; padding: 6px 8px; border: 1px solid #90a0b0; text-align: center; width: 20%;">Single</td>
+                                <td class="hotel-option-label" style="background-color: #a0aec0; color: #2c3e50; font-weight: bold; padding: 6px 8px; border: 1px solid #90a0b0; text-align: center; width: 20%;">Double</td>
+                                <td class="hotel-option-label" style="background-color: #a0aec0; color: #2c3e50; font-weight: bold; padding: 6px 8px; border: 1px solid #90a0b0; text-align: center; width: 20%;">Triple</td>
+                                <td class="hotel-option-label" style="background-color: #a0aec0; color: #2c3e50; font-weight: bold; padding: 6px 8px; border: 1px solid #90a0b0; text-align: center; width: 20%;">Child</td>
+                                <td class="hotel-option-label" style="background-color: #a0aec0; color: #2c3e50; font-weight: bold; padding: 6px 8px; border: 1px solid #90a0b0; text-align: center; width: 20%;">Infant</td>
+                            </tr>
+                        </table>
+                    </td>
+                </tr>
+                <!-- All Hotels - Show all hotels one after another above supplement section -->
+                @foreach($allHotels as $hotel)
                     @foreach($hotel['room_categories'] as $roomCategory)
+                        @php
+                            $roomCategoryName = !empty($roomCategory['name']) ? $roomCategory['name'] : 'N/A';
+                            $hotelName = $hotel['hotel_name'] ?? 'N/A';
+                        @endphp
                         <tr>
-                            <td class="hotel-option-label" style="background: #f0f8ff; font-weight: bold; padding: 4px 6px; border: 1px solid #e0e0e0; color: #2c3e50;">Room Category :</td>
-                            <td class="hotel-option-value" style="background: #ffffff; padding: 4px 6px; border: 1px solid #e0e0e0; color: #212529;">{{ !empty($roomCategory['name']) ? $roomCategory['name'] : 'N/A' }}</td>
-                            <td class="hotel-option-value" style="background: #ffffff; padding: 4px 6px; border: 1px solid #e0e0e0; text-align: center; color: #212529;">{{ is_numeric($roomCategory['single_price']) ? number_format($roomCategory['single_price'], 2) : '0.00' }}</td>
-                            <td class="hotel-option-value" style="background: #ffffff; padding: 4px 6px; border: 1px solid #e0e0e0; text-align: center; color: #212529;">{{ is_numeric($roomCategory['double_price']) ? number_format($roomCategory['double_price'], 2) : '0.00' }}</td>
-                            <td class="hotel-option-value" style="background: #ffffff; padding: 4px 6px; border: 1px solid #e0e0e0; text-align: center; color: #212529;">{{ is_numeric($roomCategory['triple_price']) ? number_format($roomCategory['triple_price'], 2) : '0.00' }}</td>
+                            <td class="hotel-option-value" style="background: #ffffff; padding: 6px 8px; border: 1px solid #000000; color: #000000; vertical-align: top;">{{ $hotelName }} - {{ $roomCategoryName }}</td>
+                            <td style="background: #ffffff; padding: 0; border: 1px solid #000000; vertical-align: top;">
+                                <table style="width: 100%; border-collapse: collapse; margin: 0; padding: 0;">
+                                    <tr>
+                                        <td class="hotel-option-value" style="background: #ffffff; padding: 6px 8px; solid #000000; text-align: center; color: #000000; width: 20%; vertical-align: middle;">{{ is_numeric($roomCategory['single_price']) ? number_format(ceil($roomCategory['single_price'] * $exchangeRate), 0) : '0' }}</td>
+                                        <td class="hotel-option-value" style="background: #ffffff; padding: 6px 8px; solid #000000; text-align: center; color: #000000; width: 20%; vertical-align: middle;">{{ is_numeric($roomCategory['double_price']) ? number_format(ceil($roomCategory['double_price'] * $exchangeRate), 0) : '0' }}</td>
+                                        <td class="hotel-option-value" style="background: #ffffff; padding: 6px 8px; solid #000000; text-align: center; color: #000000; width: 20%; vertical-align: middle;">{{ (is_numeric($roomCategory['triple_price']) && floatval($roomCategory['triple_price']) > 0) ? number_format(ceil($roomCategory['triple_price'] * $exchangeRate), 0) : 'N/A' }}</td>
+                                        <td class="hotel-option-value" style="background: #ffffff; padding: 6px 8px; solid #000000; text-align: center; color: #000000; width: 20%; vertical-align: middle;">{{ (isset($roomCategory['child_price']) && is_numeric($roomCategory['child_price'])) ? number_format(ceil($roomCategory['child_price'] * $exchangeRate), 0) : '0' }}</td>
+                                        <td class="hotel-option-value" style="background: #ffffff; padding: 6px 8px; solid #000000; text-align: center; color: #000000; width: 20%; vertical-align: middle;">{{ number_format(ceil($infantPrice), 0) }}</td>
+                                    </tr>
+                                </table>
+                            </td>
                         </tr>
                     @endforeach
-                    <!-- First Total -->
-                    <tr>
-                        <td class="hotel-total-row" style="background: #7f8c8d; color: #ffffff; font-weight: bold; text-align: center; padding: 6px; border: 1px solid #6c7a89;" colspan="2">Total :</td>
-                        <td class="hotel-total-row" style="background: #7f8c8d; color: #ffffff; font-weight: bold; text-align: center; padding: 6px; border: 1px solid #6c7a89;">{{ is_numeric($hotel['first_total']['single']) ? number_format($hotel['first_total']['single'], 2) : '0.00' }}</td>
-                        <td class="hotel-total-row" style="background: #7f8c8d; color: #ffffff; font-weight: bold; text-align: center; padding: 6px; border: 1px solid #6c7a89;">{{ is_numeric($hotel['first_total']['double']) ? number_format($hotel['first_total']['double'], 2) : '0.00' }}</td>
-                        <td class="hotel-total-row" style="background: #7f8c8d; color: #ffffff; font-weight: bold; text-align: center; padding: 6px; border: 1px solid #6c7a89;">{{ is_numeric($hotel['first_total']['triple']) ? number_format($hotel['first_total']['triple'], 2) : '0.00' }}</td>
-                    </tr>
-                    <!-- Supplemental cost -->
-                    <tr>
-                        <td class="hotel-supplemental-header" style="background: #e8f5e9; color: #2c3e50; font-weight: bold; text-align: center; padding: 6px; border: 1px solid #c8e6c9;" colspan="2">Supplemental cost :</td>
-                        <td class="hotel-supplemental-cell" style="background: #e8f5e9; color: #2c3e50; font-weight: bold; text-align: center; padding: 4px 6px; border: 1px solid #c8e6c9;">Single</td>
-                        <td class="hotel-supplemental-cell" style="background: #e8f5e9; color: #2c3e50; font-weight: bold; text-align: center; padding: 4px 6px; border: 1px solid #c8e6c9;">Double</td>
-                        <td class="hotel-supplemental-cell" style="background: #e8f5e9; color: #2c3e50; font-weight: bold; text-align: center; padding: 4px 6px; border: 1px solid #c8e6c9;">Triple</td>
-                    </tr>
-                    <!-- Supplemental cost rows (2 rows as per screenshot) -->
-                    @for($i = 1; $i <= 2; $i++)
-                        <tr>
-                            <td class="hotel-option-value" style="background: #ffffff; padding: 4px 6px; border: 1px solid #e0e0e0; color: #212529;" colspan="2">{{ $i === 1 ? 'N/A' : 'N/A' }}</td>
-                            <td class="hotel-option-value" style="background: #ffffff; padding: 4px 6px; border: 1px solid #e0e0e0; text-align: center; color: #212529;">{{ $i === 1 ? (is_numeric($hotel['supplemental_cost']['single']) ? number_format($hotel['supplemental_cost']['single'], 2) : '0.00') : '0.00' }}</td>
-                            <td class="hotel-option-value" style="background: #ffffff; padding: 4px 6px; border: 1px solid #e0e0e0; text-align: center; color: #212529;">{{ $i === 1 ? (is_numeric($hotel['supplemental_cost']['double']) ? number_format($hotel['supplemental_cost']['double'], 2) : '0.00') : '0.00' }}</td>
-                            <td class="hotel-option-value" style="background: #ffffff; padding: 4px 6px; border: 1px solid #e0e0e0; text-align: center; color: #212529;">{{ $i === 1 ? (is_numeric($hotel['supplemental_cost']['triple']) ? number_format($hotel['supplemental_cost']['triple'], 2) : '0.00') : '0.00' }}</td>
-                        </tr>
-                    @endfor
-                    <!-- Second Total (Final Total = First Total + Supplemental) -->
-                    <tr>
-                        <td class="hotel-total-row" style="background: #7f8c8d; color: #ffffff; font-weight: bold; text-align: center; padding: 6px; border: 1px solid #6c7a89;" colspan="2">Total :</td>
-                        <td class="hotel-total-row" style="background: #7f8c8d; color: #ffffff; font-weight: bold; text-align: center; padding: 6px; border: 1px solid #6c7a89;">{{ is_numeric($hotel['final_total']['single']) ? number_format($hotel['final_total']['single'], 2) : '0.00' }}</td>
-                        <td class="hotel-total-row" style="background: #7f8c8d; color: #ffffff; font-weight: bold; text-align: center; padding: 6px; border: 1px solid #6c7a89;">{{ is_numeric($hotel['final_total']['double']) ? number_format($hotel['final_total']['double'], 2) : '0.00' }}</td>
-                        <td class="hotel-total-row" style="background: #7f8c8d; color: #ffffff; font-weight: bold; text-align: center; padding: 6px; border: 1px solid #6c7a89;">{{ is_numeric($hotel['final_total']['triple']) ? number_format($hotel['final_total']['triple'], 2) : '0.00' }}</td>
-                    </tr>
-                </table>
-            @endforeach
-            </div>
+                @endforeach
+                <!-- First Total - All hotels totals -->
+                @php
+                    // Calculate totals for all hotels
+                    $optionFirstTotalSingle = 0;
+                    $optionFirstTotalDouble = 0;
+                    $optionFirstTotalTriple = 0;
+                    $optionFirstTotalChild = 0;
+                    $optionFirstTotalInfant = $infantPrice; // Use baby_cot price from tourPrices
+                    foreach($allHotels as $hotel) {
+                        $optionFirstTotalSingle += floatval($hotel['first_total']['single'] ?? 0) * $exchangeRate;
+                        $optionFirstTotalDouble += floatval($hotel['first_total']['double'] ?? 0) * $exchangeRate;
+                        $optionFirstTotalTriple += floatval($hotel['first_total']['triple'] ?? 0) * $exchangeRate;
+                        $optionFirstTotalChild += floatval($hotel['first_total']['child'] ?? 0) * $exchangeRate;
+                    }
+                @endphp
+                <tr>
+                    <td class="hotel-total-row" style="background-color: #6c7a89; color: #ffffff; font-weight: bold; text-align: center; padding: 8px; border: 1px solid #5a6c7d;">Total :</td>
+                    <td style="background: #ffffff; padding: 0; border: 1px solid #5a6c7d;">
+                        <table style="width: 100%; border-collapse: collapse; margin: 0; padding: 0;">
+                            <tr>
+                                <td class="hotel-total-row" style="background-color: #6c7a89; color: #ffffff; font-weight: bold; text-align: center; padding: 8px; border: 1px solid #5a6c7d; width: 20%;">{{ number_format(ceil($optionFirstTotalSingle), 0) }}</td>
+                                <td class="hotel-total-row" style="background-color: #6c7a89; color: #ffffff; font-weight: bold; text-align: center; padding: 8px; border: 1px solid #5a6c7d; width: 20%;">{{ number_format(ceil($optionFirstTotalDouble), 0) }}</td>
+                                <td class="hotel-total-row" style="background-color: #6c7a89; color: #ffffff; font-weight: bold; text-align: center; padding: 8px; border: 1px solid #5a6c7d; width: 20%;">{{ ($optionFirstTotalTriple > 0) ? number_format(ceil($optionFirstTotalTriple), 0) : 'N/A' }}</td>
+                                <td class="hotel-total-row" style="background-color: #6c7a89; color: #ffffff; font-weight: bold; text-align: center; padding: 8px; border: 1px solid #5a6c7d; width: 20%;">{{ number_format(ceil($optionFirstTotalChild), 0) }}</td>
+                                <td class="hotel-total-row" style="background-color: #6c7a89; color: #ffffff; font-weight: bold; text-align: center; padding: 8px; border: 1px solid #5a6c7d; width: 20%;">{{ number_format(ceil($optionFirstTotalInfant), 0) }}</td>
+                            </tr>
+                        </table>
+                    </td>
+                </tr>
+                <!-- Supplemental cost - Matching other services color scheme -->
+                <!-- <tr>
+                    <td class="hotel-supplemental-header" style="background-color: #a0aec0; color: #2c3e50; font-weight: bold; text-align: center; padding: 8px; border: 1px solid #90a0b0;">Supplemental cost :</td>
+                    <td style="background: #ffffff; padding: 0; border: 1px solid #90a0b0;">
+                        <table style="width: 100%; border-collapse: collapse; margin: 0; padding: 0;">
+                            <tr>
+                                <td class="hotel-supplemental-cell" style="background-color: #a0aec0; color: #2c3e50; font-weight: bold; text-align: center; padding: 6px 8px; border: 1px solid #90a0b0; width: 20%;">Single</td>
+                                <td class="hotel-supplemental-cell" style="background-color: #a0aec0; color: #2c3e50; font-weight: bold; text-align: center; padding: 6px 8px; border: 1px solid #90a0b0; width: 20%;">Double</td>
+                                <td class="hotel-supplemental-cell" style="background-color: #a0aec0; color: #2c3e50; font-weight: bold; text-align: center; padding: 6px 8px; border: 1px solid #90a0b0; width: 20%;">Triple</td>
+                                <td class="hotel-supplemental-cell" style="background-color: #a0aec0; color: #2c3e50; font-weight: bold; text-align: center; padding: 6px 8px; border: 1px solid #90a0b0; width: 20%;">Child</td>
+                                <td class="hotel-supplemental-cell" style="background-color: #a0aec0; color: #2c3e50; font-weight: bold; text-align: center; padding: 6px 8px; border: 1px solid #90a0b0; width: 20%;">Infant</td>
+                            </tr>
+                        </table>
+                    </td>
+                </tr> -->
+                <!-- Supplemental cost values - Aggregate from all hotels -->
+                <!-- @php
+                    // Aggregate supplemental costs from all hotels
+                    $optionSupplementalSingle = 0;
+                    $optionSupplementalDouble = 0;
+                    $optionSupplementalTriple = 0;
+                    $optionSupplementalChild = 0;
+                    $optionSupplementalInfant = $infantPrice; // Use baby_cot price from tourPrices
+                    foreach($allHotels as $hotel) {
+                        $optionSupplementalSingle += floatval($hotel['supplemental_cost']['single'] ?? 0);
+                        $optionSupplementalDouble += floatval($hotel['supplemental_cost']['double'] ?? 0);
+                        $optionSupplementalTriple += floatval($hotel['supplemental_cost']['triple'] ?? 0);
+                        $optionSupplementalChild += floatval($hotel['supplemental_cost']['child'] ?? 0);
+                    }
+                @endphp
+                <tr>
+                    <td class="hotel-supplemental-cell" style="background-color: #a0aec0; color: #2c3e50; font-weight: bold; text-align: center; padding: 6px 8px; border: 1px solid #90a0b0;"></td>
+                    <td style="background: #ffffff; padding: 0; border: 1px solid #90a0b0;">
+                        <table style="width: 100%; border-collapse: collapse; margin: 0; padding: 0;">
+                            <tr>
+                                <td class="hotel-supplemental-cell" style="background-color: #a0aec0; color: #2c3e50; font-weight: bold; text-align: center; padding: 6px 8px; border: 1px solid #90a0b0; width: 20%;">{{ number_format(ceil($optionSupplementalSingle), 0) }}</td>
+                                <td class="hotel-supplemental-cell" style="background-color: #a0aec0; color: #2c3e50; font-weight: bold; text-align: center; padding: 6px 8px; border: 1px solid #90a0b0; width: 20%;">{{ number_format(ceil($optionSupplementalDouble), 0) }}</td>
+                                <td class="hotel-supplemental-cell" style="background-color: #a0aec0; color: #2c3e50; font-weight: bold; text-align: center; padding: 6px 8px; border: 1px solid #90a0b0; width: 20%;">{{ ($optionSupplementalTriple > 0) ? number_format(ceil($optionSupplementalTriple), 0) : 'N/A' }}</td>
+                                <td class="hotel-supplemental-cell" style="background-color: #a0aec0; color: #2c3e50; font-weight: bold; text-align: center; padding: 6px 8px; border: 1px solid #90a0b0; width: 20%;">{{ number_format(ceil($optionSupplementalChild), 0) }}</td>
+                                <td class="hotel-supplemental-cell" style="background-color: #a0aec0; color: #2c3e50; font-weight: bold; text-align: center; padding: 6px 8px; border: 1px solid #90a0b0; width: 20%;">{{ number_format(ceil($optionSupplementalInfant), 0) }}</td>
+                            </tr>
+                        </table>
+                    </td>
+                </tr> -->
+                <!-- Final Total - Including all hotels and supplemental costs -->
+                <!-- @php
+                    $optionFinalTotalSingle = $optionFirstTotalSingle + $optionSupplementalSingle;
+                    $optionFinalTotalDouble = $optionFirstTotalDouble + $optionSupplementalDouble;
+                    $optionFinalTotalTriple = $optionFirstTotalTriple + $optionSupplementalTriple;
+                    $optionFinalTotalChild = $optionFirstTotalChild + $optionSupplementalChild;
+                    $optionFinalTotalInfant = $optionFirstTotalInfant + $optionSupplementalInfant;
+                @endphp
+                <tr>
+                    <td class="hotel-total-row" style="background-color: #6c7a89; color: #ffffff; font-weight: bold; text-align: center; padding: 8px; border: 1px solid #5a6c7d;">Total :</td>
+                    <td style="background: #ffffff; padding: 0; border: 1px solid #5a6c7d;">
+                        <table style="width: 100%; border-collapse: collapse; margin: 0; padding: 0;">
+                            <tr>
+                                <td class="hotel-total-row" style="background-color: #6c7a89; color: #ffffff; font-weight: bold; text-align: center; padding: 8px; border: 1px solid #5a6c7d; width: 20%;">{{ number_format(ceil($optionFinalTotalSingle), 0) }}</td>
+                                <td class="hotel-total-row" style="background-color: #6c7a89; color: #ffffff; font-weight: bold; text-align: center; padding: 8px; border: 1px solid #5a6c7d; width: 20%;">{{ number_format(ceil($optionFinalTotalDouble), 0) }}</td>
+                                <td class="hotel-total-row" style="background-color: #6c7a89; color: #ffffff; font-weight: bold; text-align: center; padding: 8px; border: 1px solid #5a6c7d; width: 20%;">{{ ($optionFinalTotalTriple > 0) ? number_format(ceil($optionFinalTotalTriple), 0) : 'N/A' }}</td>
+                                <td class="hotel-total-row" style="background-color: #6c7a89; color: #ffffff; font-weight: bold; text-align: center; padding: 8px; border: 1px solid #5a6c7d; width: 20%;">{{ number_format(ceil($optionFinalTotalChild), 0) }}</td>
+                                <td class="hotel-total-row" style="background-color: #6c7a89; color: #ffffff; font-weight: bold; text-align: center; padding: 8px; border: 1px solid #5a6c7d; width: 20%;">{{ number_format(ceil($optionFinalTotalInfant), 0) }}</td>
+                            </tr>
+                        </table>
+                    </td>
+                </tr> -->
+            </table>
+        </div>
     @endif
 
     @if(empty($servicesByType))
@@ -995,16 +1586,16 @@
                         <thead>
                             <tr style="page-break-inside: avoid;">
                                 <th colspan="6" style="background-color: #a0aec0; color: #2c3e50; font-weight: bold; padding: 6px; border: 1px solid #90a0b0; text-align: center; font-size: 12px;">
-                                    Port of Arrival Transfer :
+                                    Port of Arrival Transfer
                                 </th>
                             </tr>
                             <tr style="page-break-inside: avoid;">
-                                <th style="width: 16.67%;">Port Name :</th>
-                                <th style="width: 16.67%;">Transfer Type :</th>
-                                <th style="width: 16.67%;">Vehicle Type / Seater :</th>
-                                <th style="width: 16.67%;">Vehicle No :</th>
-                                <th style="width: 16.67%;">Vehicle Brand :</th>
-                                <th style="width: 16.67%;">Max Passenger capacity with luggage :</th>
+                                <th style="width: 16.67%;">Port Name</th>
+                                <th style="width: 16.67%;">Transfer Type</th>
+                                <th style="width: 16.67%;">Vehicle Type / Seater</th>
+                                <th style="width: 16.67%;">Vehicle No</th>
+                                <th style="width: 16.67%;">Vehicle Brand</th>
+                                <th style="width: 16.67%;">Max Passenger capacity with luggage</th>
                             </tr>
                         </thead>
                         <tbody>
@@ -1023,8 +1614,8 @@
                     <table style="width: 100%; border-collapse: collapse; margin: 0 0 10px 0; page-break-inside: auto;">
                         <thead>
                             <tr style="page-break-inside: avoid;">
-                                <th style="width: 16.67%;">Max Luggage capacity :</th>
-                                <th style="width: 16.67%;">Max Passenger Capacity without luggage :</th>
+                                <th style="width: 16.67%;">Max Luggage capacity</th>
+                                <th style="width: 16.67%;">Max Passenger Capacity without luggage</th>
                                 <th colspan="4" style="background-color: #ffffff;"></th>
                             </tr>
                         </thead>
@@ -1046,12 +1637,12 @@
                                 </th>
                             </tr>
                             <tr style="page-break-inside: avoid;">
-                                <th style="width: 16.67%;">Flight Name :</th>
-                                <th style="width: 16.67%;">Flight No. :</th>
-                                <th style="width: 16.67%;">Origin Departure Time :</th>
-                                <th style="width: 16.67%;">Origin Departure Terminal :</th>
-                                <th style="width: 16.67%;">Destination Arrival Time :</th>
-                                <th style="width: 16.67%;">Destination Arrival Terminal :</th>
+                                <th style="width: 16.67%;">Flight Name</th>
+                                <th style="width: 16.67%;">Flight No</th>
+                                <th style="width: 16.67%;">Origin Departure Time</th>
+                                <th style="width: 16.67%;">Origin Departure Terminal</th>
+                                <th style="width: 16.67%;">Destination Arrival Time</th>
+                                <th style="width: 16.67%;">Destination Arrival Terminal</th>
                             </tr>
                         </thead>
                         <tbody>
@@ -1127,12 +1718,12 @@
                                 </th>
                             </tr>
                             <tr style="page-break-inside: avoid;">
-                                <th style="width: 16.67%;">Port Name :</th>
-                                <th style="width: 16.67%;">Transfer Type :</th>
-                                <th style="width: 16.67%;">Vehicle Type / Seater :</th>
-                                <th style="width: 16.67%;">Vehicle No :</th>
-                                <th style="width: 16.67%;">Vehicle Brand :</th>
-                                <th style="width: 16.67%;">Max Passenger capacity with luggage :</th>
+                                <th style="width: 16.67%;">Port Name</th>
+                                <th style="width: 16.67%;">Transfer Type</th>
+                                <th style="width: 16.67%;">Vehicle Type / Seater</th>
+                                <th style="width: 16.67%;">Vehicle No</th>
+                                <th style="width: 16.67%;">Vehicle Brand</th>
+                                <th style="width: 16.67%;">Max Passenger capacity with luggage</th>
                             </tr>
                         </thead>
                         <tbody>
@@ -1151,8 +1742,8 @@
                     <table style="width: 100%; border-collapse: collapse; margin: 0 0 10px 0; page-break-inside: auto;">
                         <thead>
                             <tr style="page-break-inside: avoid;">
-                                <th style="width: 16.67%;">Max Luggage capacity :</th>
-                                <th style="width: 16.67%;">Max Passenger Capacity without luggage :</th>
+                                <th style="width: 16.67%;">Max Luggage capacity</th>
+                                <th style="width: 16.67%;">Max Passenger Capacity without luggage</th>
                                 <th colspan="4" style="background-color: #ffffff;"></th>
                             </tr>
                         </thead>
@@ -1174,12 +1765,12 @@
                                 </th>
                             </tr>
                             <tr style="page-break-inside: avoid;">
-                                <th style="width: 16.67%;">Flight Name :</th>
-                                <th style="width: 16.67%;">Flight No. :</th>
-                                <th style="width: 16.67%;">Origin Departure Time :</th>
-                                <th style="width: 16.67%;">Origin Departure Terminal :</th>
-                                <th style="width: 16.67%;">Destination Arrival Time :</th>
-                                <th style="width: 16.67%;">Destination Arrival Terminal :</th>
+                                <th style="width: 16.67%;">Flight Name</th>
+                                <th style="width: 16.67%;">Flight No.</th>
+                                <th style="width: 16.67%;">Origin Departure Time</th>
+                                <th style="width: 16.67%;">Origin Departure Terminal</th>
+                                <th style="width: 16.67%;">Destination Arrival Time</th>
+                                <th style="width: 16.67%;">Destination Arrival Terminal</th>
                             </tr>
                         </thead>
                         <tbody>
@@ -1327,7 +1918,8 @@
                                 $vehicleData = $card['vehicle'] ?? [];
                                 
                                 // Get Transfer Type and format it (remove underscores, capitalize words)
-                                $transferTypeRaw = $vehicleData['transfer_type'] ?? 'N/A';
+                                // Check transfer_type first, then fallback to type field
+                                $transferTypeRaw = $vehicleData['transfer_type'] ?? $vehicleData['type'] ?? 'N/A';
                                 if ($transferTypeRaw !== 'N/A' && strpos($transferTypeRaw, '_') !== false) {
                                     $transferType = ucwords(str_replace('_', ' ', $transferTypeRaw));
                                 } else {
@@ -1398,6 +1990,26 @@
                                         </div>
                                                     @endforeach
                                             @endif
+
+    <!-- Exclusions Section -->
+    <div style="margin-top: 30px; page-break-inside: avoid;">
+        <table style="width: 100%; border-collapse: collapse; border: 2px solid #000000;">
+            <thead>
+                <tr>
+                    <th colspan="2" style="background-color: #ffb6c1; color: #000000; font-weight: bold; padding: 10px; border: 2px solid #000000; text-align: left; font-size: 14px;">
+                        Exclusions :
+                    </th>
+                </tr>
+            </thead>
+            <tbody>
+                <tr>
+                    <td colspan="2" style="background-color: #ffffff; padding: 20px; border: 2px solid #000000; min-height: 100px; vertical-align: top;">
+                        {{ $exclusions ?? '' }}
+                    </td>
+                </tr>
+            </tbody>
+        </table>
+    </div>
 
     <!-- Terms & Conditions Section -->
     <div style="margin-top: 30px; page-break-inside: avoid;">
@@ -1507,4 +2119,3 @@
             </div>
 </body>
 </html>
-
