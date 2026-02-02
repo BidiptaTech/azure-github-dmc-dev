@@ -2385,12 +2385,12 @@
                         </a> --}}
                         
                         <button id="downloadExcelFormat" class="btn-modern btn-secondary-modern">
-                            <i class="fas fa-file-excel"></i> Download Excel Format
+                            <i class="fas fa-file-excel"></i> Download Itinerary
                         </button>
                         
-                        <button id="printItinerary" class="btn-modern btn-primary-modern">
+                        {{-- <button id="printItinerary" class="btn-modern btn-primary-modern">
                             <i class="fas fa-print"></i> Print Itinerary
-                        </button>
+                        </button> --}}
                     </div>
                 </div>
             </div>
@@ -3107,32 +3107,7 @@
                                                             $confirmationNo = $data['confirmationNo'] ?? $data['confirmation_no'] ?? null;
                                                         @endphp
                                                         
-                                                        @if(isset($data['day_in_stay']) && isset($data['total_nights']))
-                                                            @if(isset($data['stay_type']) && $data['stay_type'] == 'checkin')
-                                                                <p class="service-description">
-                                                                    <span class="service-detail-label">Service:</span> {{ $serviceName }}
-                                                                </p>
-                                                                @if(!empty($hotelLocation))
-                                                                    <p class="service-detail-line">
-                                                                        <span class="service-detail-label">Location:</span> {{ $hotelLocation }}
-                                                                    </p>
-                                                                @endif
-                                                                <p class="service-detail-line">
-                                                                    <span class="service-detail-label">Duration:</span> {{ $data['total_nights'] }} {{ $data['total_nights'] > 1 ? 'Nights' : 'Night' }} (Checkout: {{ \Carbon\Carbon::parse($date)->addDays($data['total_nights'])->format('d M Y') }})
-                                                                </p>
-                                                                @if(!empty($confirmationNo))
-                                                                    <p class="service-detail-line">
-                                                                        <span class="service-detail-label">Confirmation No:</span> {{ $confirmationNo }}
-                                                                    </p>
-                                                                @endif
-                                                            @else
-                                                                <p class="service-description">
-                                                                    Day {{ $data['day_in_stay'] }} of {{ $data['total_nights'] }} • {{ $serviceName }}
-                                                                </p>
-                                                            @endif
-                                                        @else
-                                                            <p class="service-description">Hotel accommodation</p>
-                                                        @endif
+                                                        
                                                         
                                                         <!-- Compact Hotel Details - 2 lines -->
                                                         <div class="hotel-details-compact">
