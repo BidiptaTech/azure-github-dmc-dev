@@ -1012,6 +1012,17 @@
         $baseCurrency = $baseCurrency ?? 'SGD';
         $selectedCurrency = $selectedCurrency ?? $baseCurrency;
         $exchangeRate = isset($exchangeRate) && is_numeric($exchangeRate) && $exchangeRate > 0 ? (float) $exchangeRate : 1.0;
+
+        // When currency changed: existing amount + " (newCurrency exchangeRate*amount)"
+        $formatPrice = function($amount, $isTriple = false) use ($baseCurrency, $selectedCurrency, $exchangeRate) {
+            if (!is_numeric($amount)) return 'N/A';
+            $base = (float) $amount;
+            if ($isTriple && $base <= 0) return 'N/A';
+            $existing = number_format($base, 0);
+            if ($selectedCurrency === $baseCurrency) return $existing;
+            $converted = number_format(ceil($exchangeRate * $base), 0);
+            return $existing .' '.$baseCurrency. ' (' . $converted . ' '.$selectedCurrency.')';
+        };
     @endphp
 
     <!-- Quotation First Page (Matching Image Format) -->
@@ -1331,9 +1342,7 @@
                 }
             }
         @endphp
-        
-        
-            </div>
+    </div>
 
     
 
@@ -1376,23 +1385,29 @@
                         </table>
                     </td>
                 </tr>
-                <!-- All Hotels - Show all hotels one after another above supplement section -->
+                <!-- All Hotels - Show package_total (hotel + all services) per hotel in existing table -->
                 @foreach($allHotels as $hotel)
                     @foreach($hotel['room_categories'] as $roomCategory)
                         @php
                             $roomCategoryName = !empty($roomCategory['name']) ? $roomCategory['name'] : 'N/A';
                             $hotelName = $hotel['hotel_name'] ?? 'N/A';
+                            $pt = $hotel['package_total'] ?? [];
+                            $amtSingle = isset($pt['single']) && is_numeric($pt['single']) ? (float) $pt['single'] : 0;
+                            $amtDouble = isset($pt['double']) && is_numeric($pt['double']) ? (float) $pt['double'] : 0;
+                            $amtTriple = isset($pt['triple']) && is_numeric($pt['triple']) ? (float) $pt['triple'] : 0;
+                            $amtChild = isset($pt['child']) && is_numeric($pt['child']) ? (float) $pt['child'] : 0;
+                            $amtInfant = isset($pt['infant']) && is_numeric($pt['infant']) ? (float) $pt['infant'] : 0;
                         @endphp
                         <tr>
                             <td class="hotel-option-value" style="background: #ffffff; padding: 6px 8px; border: 1px solid #000000; color: #000000; vertical-align: top;">{{ $hotelName }} - {{ $roomCategoryName }}</td>
                             <td style="background: #ffffff; padding: 0; border: 1px solid #000000; vertical-align: top;">
                                 <table style="width: 100%; border-collapse: collapse; margin: 0; padding: 0;">
                                     <tr>
-                                        <td class="hotel-option-value" style="background: #ffffff; padding: 6px 8px; solid #000000; text-align: center; color: #000000; width: 20%; vertical-align: middle;">{{ is_numeric($roomCategory['single_price']) ? number_format(ceil($roomCategory['single_price'] * $exchangeRate), 0) : '0' }}</td>
-                                        <td class="hotel-option-value" style="background: #ffffff; padding: 6px 8px; solid #000000; text-align: center; color: #000000; width: 20%; vertical-align: middle;">{{ is_numeric($roomCategory['double_price']) ? number_format(ceil($roomCategory['double_price'] * $exchangeRate), 0) : '0' }}</td>
-                                        <td class="hotel-option-value" style="background: #ffffff; padding: 6px 8px; solid #000000; text-align: center; color: #000000; width: 20%; vertical-align: middle;">{{ (is_numeric($roomCategory['triple_price']) && floatval($roomCategory['triple_price']) > 0) ? number_format(ceil($roomCategory['triple_price'] * $exchangeRate), 0) : 'N/A' }}</td>
-                                        <td class="hotel-option-value" style="background: #ffffff; padding: 6px 8px; solid #000000; text-align: center; color: #000000; width: 20%; vertical-align: middle;">{{ (isset($roomCategory['child_price']) && is_numeric($roomCategory['child_price'])) ? number_format(ceil($roomCategory['child_price'] * $exchangeRate), 0) : '0' }}</td>
-                                        <td class="hotel-option-value" style="background: #ffffff; padding: 6px 8px; solid #000000; text-align: center; color: #000000; width: 20%; vertical-align: middle;">{{ number_format(ceil($infantPrice), 0) }}</td>
+                                        <td class="hotel-option-value" style="background: #ffffff; padding: 6px 8px; solid #000000; text-align: center; color: #000000; width: 20%; vertical-align: middle;">{{ $formatPrice($amtSingle) }}</td>
+                                        <td class="hotel-option-value" style="background: #ffffff; padding: 6px 8px; solid #000000; text-align: center; color: #000000; width: 20%; vertical-align: middle;">{{ $formatPrice($amtDouble) }}</td>
+                                        <td class="hotel-option-value" style="background: #ffffff; padding: 6px 8px; solid #000000; text-align: center; color: #000000; width: 20%; vertical-align: middle;">{{ $formatPrice($amtTriple, true) }}</td>
+                                        <td class="hotel-option-value" style="background: #ffffff; padding: 6px 8px; solid #000000; text-align: center; color: #000000; width: 20%; vertical-align: middle;">{{ $formatPrice($amtChild) }}</td>
+                                        <td class="hotel-option-value" style="background: #ffffff; padding: 6px 8px; solid #000000; text-align: center; color: #000000; width: 20%; vertical-align: middle;">{{ $formatPrice($amtInfant) }}</td>
                                     </tr>
                                 </table>
                             </td>
@@ -1414,7 +1429,8 @@
                         $optionFirstTotalChild += floatval($hotel['first_total']['child'] ?? 0) * $exchangeRate;
                     }
                 @endphp
-                <tr>
+                <!-- Total Pricing Section -->
+                {{-- <tr>
                     <td class="hotel-total-row" style="background-color: #6c7a89; color: #ffffff; font-weight: bold; text-align: center; padding: 8px; border: 1px solid #5a6c7d;">Total :</td>
                     <td style="background: #ffffff; padding: 0; border: 1px solid #5a6c7d;">
                         <table style="width: 100%; border-collapse: collapse; margin: 0; padding: 0;">
@@ -1427,7 +1443,7 @@
                             </tr>
                         </table>
                     </td>
-                </tr>
+                </tr> --}}
                 <!-- Supplemental cost - Matching other services color scheme -->
                 <!-- <tr>
                     <td class="hotel-supplemental-header" style="background-color: #a0aec0; color: #2c3e50; font-weight: bold; text-align: center; padding: 8px; border: 1px solid #90a0b0;">Supplemental cost :</td>

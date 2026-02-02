@@ -354,16 +354,31 @@
                                 @enderror
                             </div>
 
-                            <!-- Seating Capacity -->
+                            <!-- Seating Capacity (Arr/Dept)-->
                             <div class="col-md-3 mb-3">
                                 <label for="seating_capacity" class="form-label"><strong>Seating
-                                        Capacity</strong><span class="text-danger">*</span></label>
+                                        Capacity(Arr/Dept)</strong><span class="text-danger">*</span></label>
                                 <input value="{{$vehicle->seating_capacity}}" type="text"
                                     class="form-control" name="seating_capacity" id="seating_capacity"
                                     placeholder="Enter Seating Capacity" required
                                     oninput="validateSeatingCapacity(this)">
                                 <small class="validation-message text-danger" id="seating_capacity-validation-message"></small>
                                 @error('seating_capacity')
+                                <div class="text-danger mt-1">{{ $message }}</div>
+                                @enderror
+                            </div>
+
+                            <!-- Seating Capacity(City Tour) -->
+
+                            <div class="col-md-3 mb-3">
+                                <label for="city_tour_seating_capacity" class="form-label"><strong>Seating
+                                        Capacity(City Tour)</strong><span class="text-danger">*</span></label>
+                                <input value="{{$vehicle->city_tour_seating_capacity}}" type="text"
+                                    class="form-control" name="city_tour_seating_capacity" id="city_tour_seating_capacity"
+                                    placeholder="Enter Seating Capacity" required
+                                    oninput="validateSeatingCapacity(this)">
+                                <small class="validation-message text-danger" id="city_tour_seating_capacity-validation-message"></small>
+                                @error('city_tour_seating_capacity')
                                 <div class="text-danger mt-1">{{ $message }}</div>
                                 @enderror
                             </div>

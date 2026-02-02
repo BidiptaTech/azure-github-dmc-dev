@@ -197,8 +197,8 @@
                                 <input type="text" class="form-control" name="vehicle_plate_no" id="vehicle_plate_no"
                                     placeholder="Enter Vehicle Plate Number" value="{{ old('vehicle_plate_no') }}" oninput="validatePlateNumber(this)">
                                 <small class="validation-message text-danger" id="vehicle_plate_no-validation-message"></small>
-                                <small class="text-muted mt-1 d-block">
-                                    <i class="fas fa-info-circle"></i> Special characters are automatically removed. Plate numbers like "WB 26", "WB-26", "WB/26" will all be treated as "WB26".
+                                <small class="text-muted mt-1 d-block" style="font-size: 9px;">
+                                    <i class="fas fa-info-circle"></i> Plate numbers like "WB 26", "WB-26", "WB/26" will all be treated as "WB26".
                                 </small>
                                 @error('vehicle_plate_no')
                                 <div class="text-danger mt-1">{{ $message }}</div>
@@ -208,7 +208,7 @@
                             <!-- Seating Capacity -->
                             <div class="col-md-3 mb-3">
                                 <label for="seating_capacity" class="form-label"><strong>Seating
-                                        Capacity</strong><span class="text-danger">*</span></label>
+                                        Capacity(Arr/Dept)</strong><span class="text-danger">*</span></label>
                                 <input type="text" class="form-control" name="seating_capacity" id="seating_capacity"
                                     placeholder="Enter Seating Capacity" value="{{ old('seating_capacity') }}" oninput="validateSeatingCapacity(this)">
                                 <small class="validation-message text-danger" id="seating_capacity-validation-message"></small>
@@ -216,6 +216,17 @@
                                 <div class="text-danger mt-1">{{ $message }}</div>
                                 @enderror
                             </div>
+                            <!-- Seating Capacity(city tour) -->
+                            <div class="col-md-3 mb-3">
+                                <label for="seating_capacity" class="form-label"><strong>Seating
+                                        Capacity(City Tour)</strong><span class="text-danger">*</span></label>
+                                <input type="text" class="form-control" name="city_tour_seating_capacity" id="city_tour_seating_capacity"
+                                    placeholder="Enter Seating Capacity" value="{{ old('city_tour_seating_capacity') }}" oninput="validateSeatingCapacity(this)">
+                                <small class="validation-message text-danger" id="city_tour_seating_capacity-validation-message"></small>
+                                @error('city_tour_seating_capacity')
+                                <div class="text-danger mt-1">{{ $message }}</div>
+                                @enderror
+                            </div>  
                             <!-- City Name -->
                             <div class="col-md-3 mb-3">
                                 <label for="city_name" class="form-label"><strong><i class="ri-map-pin-line"></i> City Name</strong><span class="text-danger">*</span></label>
