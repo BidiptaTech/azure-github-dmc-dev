@@ -1220,7 +1220,9 @@ class HotelController extends Controller
             'doubleWeekdayPrice' => 'nullable|numeric',
             'doubleWeekendPrice' => 'nullable|numeric',
             'children_price' => 'nullable|numeric|min:0',
-            'master_image' => 'required|nullable'
+            'master_image' => 'required|nullable',
+            'child_with_bed' => 'nullable|numeric|min:0',
+            'child_without_bed' => 'nullable|numeric|min:0',
         ]);
         
         $admin_base_room = 1; // Admin creates base rooms
@@ -1309,6 +1311,8 @@ class HotelController extends Controller
         $room->lunch_price=$request->lunch_price;
         $room->dinner_price=$request->dinner_price;
         $room->breakfast_included=$request->supplementary_breakfast;
+        $room->child_with_bed = $request->child_with_bed;
+        $room->child_without_bed = $request->child_without_bed;
         $room->save();
         
         if($request->no_of_rooms){
