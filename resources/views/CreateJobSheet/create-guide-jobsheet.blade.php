@@ -84,6 +84,47 @@
         z-index: 9999;
         width: 300px;
     }
+
+    /* Assign Guide: view (read-only text + pen) vs edit (dropdown) */
+    .assign-guide-cell {
+        min-width: 180px;
+    }
+    .assign-guide-view {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 8px;
+        min-height: 38px;
+    }
+    .assign-guide-text {
+        flex: 1;
+        padding: 6px 0;
+        color: #333;
+    }
+    .assign-guide-text.empty {
+        color: #999;
+        font-style: italic;
+    }
+    .assign-guide-edit-btn {
+        flex-shrink: 0;
+        padding: 4px 8px;
+        color: #6777ef;
+        border: 1px solid #e2e5ec;
+        background: #fff;
+        border-radius: 4px;
+        cursor: pointer;
+    }
+    .assign-guide-edit-btn:hover {
+        background: #f8f9fa;
+        color: #5568d3;
+    }
+    .assign-guide-edit {
+        display: none;
+        min-width: 180px;
+    }
+    .assign-guide-edit.is-active {
+        display: block;
+    }
 </style>
 
 <div class="content-wrapper">
@@ -244,30 +285,44 @@ $(document).ready(function() {
                             }
                             return 'N/A';
                         })()}</td>
-                        <td>
-                            <select class="form-control guide-select" 
-                                name="guide_id[${index}]" 
-                                data-order-id="${item.booking_id || item.id || ''}" 
-                                data-tour-id="${item.tour_id_numeric || ''}"
-                                data-order-type="${item.type || ''}"
-                                data-entry-time="${dataItem.entrytime || ''}"
-                                data-entrypickup="${dataItem.entrypickup || ''}"
-                                data-type="${item.type || ''}">
-                                <option value="">Select Guide</option>
-                                ${(function() {
-                                    let options = '';
-                                    if (initialGuides.length) {
-                                        initialGuides.forEach(guide => {
-                                            const isSelected = item.assigned_guide_id && (guide.guide_id == item.assigned_guide_id);
-                                            const languages = guide.languages && guide.languages.length > 0 
-                                                ? ' (' + guide.languages.map(lang => lang.language).join(', ') + ')'
-                                                : '';
-                                            options += `<option ${isSelected ? 'selected' : ''} value="${guide.guide_id}">${guide.name}${languages}</option>`;
-                                        });
+                        <td class="assign-guide-cell">
+                            <div class="assign-guide-view">
+                                <span class="assign-guide-text ${!(item.assigned_guide_id) ? 'empty' : ''}">${(function() {
+                                    if (!item.assigned_guide_id) return 'Not Assigned';
+                                    const g = initialGuides.find(gr => gr.guide_id == item.assigned_guide_id);
+                                    if (g) {
+                                        const lang = g.languages && g.languages.length ? ' (' + g.languages.map(l => l.language).join(', ') + ')' : '';
+                                        return g.name + lang;
                                     }
-                                    return options;
-                                })()}
-                            </select>
+                                    return 'Guide #' + item.assigned_guide_id;
+                                })()}</span>
+                                <button type="button" class="assign-guide-edit-btn" title="Edit guide" aria-label="Edit guide"><i class="fas fa-pen"></i></button>
+                            </div>
+                            <div class="assign-guide-edit">
+                                <select class="form-control guide-select" 
+                                    name="guide_id[${index}]" 
+                                    data-order-id="${item.booking_id || item.id || ''}" 
+                                    data-tour-id="${item.tour_id_numeric || ''}"
+                                    data-order-type="${item.type || ''}"
+                                    data-entry-time="${dataItem.entrytime || ''}"
+                                    data-entrypickup="${dataItem.entrypickup || ''}"
+                                    data-type="${item.type || ''}">
+                                    <option value="">Select Guide</option>
+                                    ${(function() {
+                                        let options = '';
+                                        if (initialGuides.length) {
+                                            initialGuides.forEach(guide => {
+                                                const isSelected = item.assigned_guide_id && (guide.guide_id == item.assigned_guide_id);
+                                                const languages = guide.languages && guide.languages.length > 0 
+                                                    ? ' (' + guide.languages.map(lang => lang.language).join(', ') + ')'
+                                                    : '';
+                                                options += `<option ${isSelected ? 'selected' : ''} value="${guide.guide_id}">${guide.name}${languages}</option>`;
+                                            });
+                                        }
+                                        return options;
+                                    })()}
+                                </select>
+                            </div>
                             <input type="hidden" name="order_id[${index}]" value="${item.id || ''}">
                             <input type="hidden" name="tour_id[${index}]" id="tour_id[${index}]" value="${item.tour_id || ''}">
                         </td>
@@ -277,8 +332,7 @@ $(document).ready(function() {
             $('#tourOrdersTableBody').html(tableHTML);
             $('#exportOrdersBtn').show();
             
-            // Initialize Select2 for guide dropdowns
-            initializeSelect2();
+            // Don't init Select2 on hidden dropdowns; init on pen click
             
             // Initialize DataTable
             initializeDataTable();
@@ -353,30 +407,44 @@ $(document).ready(function() {
                                         }
                                         return 'N/A';
                                     })()}</td>
-                                    <td>
-                                        <select class="form-control guide-select" 
-                                            name="guide_id[${index}]" 
-                                            data-order-id="${item.booking_id || item.id || ''}" 
-                                            data-tour-id="${item.tour_id_numeric || ''}"
-                                            data-order-type="${item.type || ''}"
-                                            data-entry-time="${dataItem.entrytime || ''}"
-                                            data-entrypickup="${dataItem.entrypickup || ''}"
-                                            data-type="${item.type || ''}">
-                                            <option value="">Select Guide</option>
-                                            ${(function() {
-                                                let options = '';
-                                                if (response.guides && response.guides.length) {
-                                                    response.guides.forEach(guide => {
-                                                        const isSelected = item.assigned_guide_id && (guide.guide_id == item.assigned_guide_id);
-                                                        const languages = guide.languages && guide.languages.length > 0 
-                                                            ? ' (' + guide.languages.map(lang => lang.language).join(', ') + ')'
-                                                            : '';
-                                                        options += `<option ${isSelected ? 'selected' : ''} value="${guide.guide_id}">${guide.name} - ${guide.government_license_no}${languages}</option>`;
-                                                    });
+                                    <td class="assign-guide-cell">
+                                        <div class="assign-guide-view">
+                                            <span class="assign-guide-text ${!(item.assigned_guide_id) ? 'empty' : ''}">${(function() {
+                                                if (!item.assigned_guide_id) return 'Not Assigned';
+                                                const g = response.guides && response.guides.find(gr => gr.guide_id == item.assigned_guide_id);
+                                                if (g) {
+                                                    const lang = g.languages && g.languages.length ? ' (' + g.languages.map(l => l.language).join(', ') + ')' : '';
+                                                    return g.name + (g.government_license_no ? ' - ' + g.government_license_no : '') + lang;
                                                 }
-                                                return options;
-                                            })()}
-                                        </select>
+                                                return 'Guide #' + item.assigned_guide_id;
+                                            })()}</span>
+                                            <button type="button" class="assign-guide-edit-btn" title="Edit guide" aria-label="Edit guide"><i class="fas fa-pen"></i></button>
+                                        </div>
+                                        <div class="assign-guide-edit">
+                                            <select class="form-control guide-select" 
+                                                name="guide_id[${index}]" 
+                                                data-order-id="${item.booking_id || item.id || ''}" 
+                                                data-tour-id="${item.tour_id_numeric || ''}"
+                                                data-order-type="${item.type || ''}"
+                                                data-entry-time="${dataItem.entrytime || ''}"
+                                                data-entrypickup="${dataItem.entrypickup || ''}"
+                                                data-type="${item.type || ''}">
+                                                <option value="">Select Guide</option>
+                                                ${(function() {
+                                                    let options = '';
+                                                    if (response.guides && response.guides.length) {
+                                                        response.guides.forEach(guide => {
+                                                            const isSelected = item.assigned_guide_id && (guide.guide_id == item.assigned_guide_id);
+                                                            const languages = guide.languages && guide.languages.length > 0 
+                                                                ? ' (' + guide.languages.map(lang => lang.language).join(', ') + ')'
+                                                                : '';
+                                                            options += `<option ${isSelected ? 'selected' : ''} value="${guide.guide_id}">${guide.name} - ${guide.government_license_no}${languages}</option>`;
+                                                        });
+                                                    }
+                                                    return options;
+                                                })()}
+                                            </select>
+                                        </div>
                                         <input type="hidden" name="order_id[${index}]" value="${item.booking_id || ''}">
                                         <input type="hidden" name="tour_id[${index}]" value="${item.tour_id || ''}">
                                     </td>
@@ -386,8 +454,7 @@ $(document).ready(function() {
                         $('#tourOrdersTableBody').html(tableHTML);
                         $('#exportOrdersBtn').show();
                         
-                        // Initialize Select2 for guide dropdowns
-                        initializeSelect2();
+                        // Don't init Select2 on hidden dropdowns; init on pen click
                         
                         // Initialize DataTable
                         initializeDataTable();
@@ -520,6 +587,32 @@ $(document).ready(function() {
     
     // Then load the table with initial data from controller
     initializeTable();
+
+    // Pen icon: show dropdown for Assign Guide, then collapse back to text on close
+    $(document).on('click', '.assign-guide-edit-btn', function() {
+        const $btn = $(this);
+        const $cell = $btn.closest('.assign-guide-cell');
+        const $view = $cell.find('.assign-guide-view');
+        const $edit = $cell.find('.assign-guide-edit');
+        const $select = $cell.find('.guide-select').first();
+        $view.hide();
+        $edit.addClass('is-active').show();
+        if (!$select.hasClass('select2-hidden-accessible')) {
+            $select.select2({
+                placeholder: "Select Guide",
+                allowClear: true,
+                width: '100%',
+                dropdownParent: $('#tourOrdersTable').parent()
+            });
+            $select.on('select2:close', function() {
+                const selectedText = $select.find('option:selected').text();
+                $cell.find('.assign-guide-text').text(selectedText || 'Not Assigned').toggleClass('empty', !$select.val());
+                $edit.removeClass('is-active').hide();
+                $view.show();
+            });
+        }
+        $select.select2('open');
+    });
 
     // Handle guide selection change
     $(document).on('change', '.guide-select', function() {

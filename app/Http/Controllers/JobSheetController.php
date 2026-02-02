@@ -2288,7 +2288,7 @@ class JobSheetController extends Controller
 
     /**
      * Get orders by date without requiring a tour ID
-     */
+     */ 
     public function getOrdersByDate($date, Request $request)
     {
         try {
@@ -2480,13 +2480,14 @@ class JobSheetController extends Controller
                     }
                     $order->OrderGuide = $orderGuide;
                     
-                    // Attach guide info from jobsheet
+                    // Attach guide info: use orderData guide_id if it doesn't match jobsheet
+                    $orderDataGuideId = $dataItem['guide_id'] ?? $order->guide_id;
                     if ($jobsheet) {
                         $order->assigned_guide_id = $jobsheet->guide_id;
                         $order->guide = $jobsheet->guide_id ? Guide::where('guide_id', $jobsheet->guide_id)->with('languages')->first() : null;
                     } else {
-                        $order->assigned_guide_id = null;
-                        $order->guide = null;
+                        $order->assigned_guide_id = $orderDataGuideId ?: $order->guide_id;
+                        $order->guide = $order->assigned_guide_id ? Guide::where('guide_id', $order->assigned_guide_id)->with('languages')->first() : null;
                     }
                     
                     // Add zone information for pickup and dropoff
