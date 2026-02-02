@@ -921,6 +921,19 @@
 @endsection
 
 @section('content')
+<!-- Mode Configuration -->
+<script>
+    // CREATE MODE CONFIGURATION
+    window.isEditMode = {{ $isEditMode ? 'true' : 'false' }};
+    window.tourId = {{ $tourId ?? 'null' }};
+    window.existingOrders = @json($existingOrders);
+    
+    console.log('=== CREATE MODE ===');
+    console.log('Edit Mode:', window.isEditMode);
+    console.log('Tour ID:', window.tourId);
+    console.log('Existing Orders:', window.existingOrders);
+</script>
+
 <!-- Debug: Check data counts -->
 <script>
     console.log('=== DATA DEBUG ===');
@@ -1036,12 +1049,7 @@
                 <li class="nav-item">
                     <a class="nav-link" href="#">Invoice</a>
                 </li> -->
-                <li class="nav-item ms-auto">
-                    <div class="form-check">
-                        <input class="form-check-input" type="checkbox" id="costSheet">
-                        <label class="form-check-label" for="costSheet">Cost Sheet</label>
-                    </div>
-                </li>
+                <!-- Cost Sheet removed from create form - only available in edit mode -->
                 <li class="nav-item ms-3">
                     <span class="status-badge">STATUS: QUOTATION</span>
                 </li>
@@ -2025,56 +2033,56 @@
                                 </select>
                             </div>
                         </div>
-                        
-                        <!-- Arrival Guide Section -->
-                        <div class="row g-2 mb-1 mt-1" id="arrivalGuideSection" style="display: none;">
-                            <div class="col-12">
-                                <div class="form-check mb-2">
-                                    <input type="checkbox" class="form-check-input" id="arrivalGuideCheckbox" onchange="toggleArrivalGuideFields()">
-                                    <label class="form-check-label small" for="arrivalGuideCheckbox">
-                                        <strong>Add Guide for Arrival</strong>
-                                    </label>
+                    </div>
+                    
+                    <!-- Arrival Guide Section (outside transfer details so it's always visible) -->
+                    <div class="row g-2 mb-1 mt-1" id="arrivalGuideSection" style="display: none;">
+                        <div class="col-12">
+                            <div class="form-check mb-2">
+                                <input type="checkbox" class="form-check-input" id="arrivalGuideCheckbox" onchange="toggleArrivalGuideFields()">
+                                <label class="form-check-label small" for="arrivalGuideCheckbox">
+                                    <strong>Add Guide for Arrival</strong>
+                                </label>
+                            </div>
+                        </div>
+                        <div class="col-12 mb-1" id="arrivalGuideHeaderRow" style="display: none;">
+                            <div class="row g-2">
+                                <div class="col-3">
+                                    <label class="form-label small fw-bold">Select Guide</label>
+                                </div>
+                                <div class="col-1">
+                                    <label class="form-label small fw-bold">Adult Count</label>
+                                </div>
+                                <div class="col-1">
+                                    <label class="form-label small fw-bold">Child Count</label>
                                 </div>
                             </div>
-                            <div class="col-12 mb-1" id="arrivalGuideHeaderRow" style="display: none;">
-                                <div class="row g-2">
-                                    <div class="col-3">
-                                        <label class="form-label small fw-bold">Select Guide</label>
-                                    </div>
-                                    <div class="col-1">
-                                        <label class="form-label small fw-bold">Adult Count</label>
-                                    </div>
-                                    <div class="col-1">
-                                        <label class="form-label small fw-bold">Child Count</label>
-                                    </div>
+                        </div>
+                        <div class="col-12" id="arrivalGuideFieldsRow" style="display: none;">
+                            <div class="row g-2">
+                                <div class="col-3" id="arrivalGuideDropdownField">
+                                    <label class="form-label small">Select Guide</label>
+                                    <select class="form-select form-select-sm" id="arrivalGuide" style="font-size: 10px;">
+                                        <option value="">Select Guide</option>
+                                        @foreach($guides as $guide)
+                                            @php
+                                                $languages = $guide->languages->pluck('language')->join(', ');
+                                                $defaultPrice = $guide->twelve_hour_price ?? $guide->day_rate ?? 0;
+                                            @endphp
+                                            <option value="{{ $guide->guide_id }}" 
+                                                    data-name="{{ $guide->name }}" 
+                                                    data-languages="{{ $languages }}"
+                                                    data-twelve-hour-price="{{ $defaultPrice }}">{{ $guide->name }} @if($languages)({{ $languages }})@endif</option>
+                                        @endforeach
+                                    </select>
                                 </div>
-                            </div>
-                            <div class="col-12" id="arrivalGuideFieldsRow" style="display: none;">
-                                <div class="row g-2">
-                                    <div class="col-3" id="arrivalGuideDropdownField">
-                                        <label class="form-label small">Select Guide</label>
-                                        <select class="form-select form-select-sm" id="arrivalGuide" style="font-size: 10px;">
-                                            <option value="">Select Guide</option>
-                                            @foreach($guides as $guide)
-                                                @php
-                                                    $languages = $guide->languages->pluck('language')->join(', ');
-                                                    $defaultPrice = $guide->twelve_hour_price ?? $guide->day_rate ?? 0;
-                                                @endphp
-                                                <option value="{{ $guide->guide_id }}" 
-                                                        data-name="{{ $guide->name }}" 
-                                                        data-languages="{{ $languages }}"
-                                                        data-twelve-hour-price="{{ $defaultPrice }}">{{ $guide->name }} @if($languages)({{ $languages }})@endif</option>
-                                            @endforeach
-                                        </select>
-                                    </div>
-                                    <div class="col-1" id="arrivalGuideAdultField">
-                                        <label class="form-label small">Adult Qty</label>
-                                        <input type="number" class="form-control form-control-sm" id="arrivalGuideAdultQty" value="0" min="0" max="99" style="font-size: 10px;">
-                                    </div>
-                                    <div class="col-1" id="arrivalGuideChildField">
-                                        <label class="form-label small">Child Qty</label>
-                                        <input type="number" class="form-control form-control-sm" id="arrivalGuideChildQty" value="0" min="0" max="99" style="font-size: 10px;">
-                                    </div>
+                                <div class="col-1" id="arrivalGuideAdultField">
+                                    <label class="form-label small">Adult Qty</label>
+                                    <input type="number" class="form-control form-control-sm" id="arrivalGuideAdultQty" value="0" min="0" max="99" style="font-size: 10px;">
+                                </div>
+                                <div class="col-1" id="arrivalGuideChildField">
+                                    <label class="form-label small">Child Qty</label>
+                                    <input type="number" class="form-control form-control-sm" id="arrivalGuideChildQty" value="0" min="0" max="99" style="font-size: 10px;">
                                 </div>
                             </div>
                         </div>
@@ -2189,56 +2197,56 @@
                                 </select>
                             </div>
                         </div>
-                        
-                        <!-- Departure Guide Section -->
-                        <div class="row g-2 mb-1 mt-1" id="departureGuideSection" style="display: none;">
-                            <div class="col-12">
-                                <div class="form-check mb-2">
-                                    <input type="checkbox" class="form-check-input" id="departureGuideCheckbox" onchange="toggleDepartureGuideFields()">
-                                    <label class="form-check-label small" for="departureGuideCheckbox">
-                                        <strong>Add Guide for Departure</strong>
-                                    </label>
+                    </div>
+                    
+                    <!-- Departure Guide Section (outside transfer details so it's always visible) -->
+                    <div class="row g-2 mb-1 mt-1" id="departureGuideSection" style="display: none;">
+                        <div class="col-12">
+                            <div class="form-check mb-2">
+                                <input type="checkbox" class="form-check-input" id="departureGuideCheckbox" onchange="toggleDepartureGuideFields()">
+                                <label class="form-check-label small" for="departureGuideCheckbox">
+                                    <strong>Add Guide for Departure</strong>
+                                </label>
+                            </div>
+                        </div>
+                        <div class="col-12 mb-1" id="departureGuideHeaderRow" style="display: none;">
+                            <div class="row g-2">
+                                <div class="col-3">
+                                    <label class="form-label small fw-bold">Select Guide</label>
+                                </div>
+                                <div class="col-1">
+                                    <label class="form-label small fw-bold">Adult Count</label>
+                                </div>
+                                <div class="col-1">
+                                    <label class="form-label small fw-bold">Child Count</label>
                                 </div>
                             </div>
-                            <div class="col-12 mb-1" id="departureGuideHeaderRow" style="display: none;">
-                                <div class="row g-2">
-                                    <div class="col-3">
-                                        <label class="form-label small fw-bold">Select Guide</label>
-                                    </div>
-                                    <div class="col-1">
-                                        <label class="form-label small fw-bold">Adult Count</label>
-                                    </div>
-                                    <div class="col-1">
-                                        <label class="form-label small fw-bold">Child Count</label>
-                                    </div>
+                        </div>
+                        <div class="col-12" id="departureGuideFieldsRow" style="display: none;">
+                            <div class="row g-2">
+                                <div class="col-3" id="departureGuideDropdownField">
+                                    <label class="form-label small">Select Guide</label>
+                                    <select class="form-select form-select-sm" id="departureGuide" style="font-size: 10px;">
+                                        <option value="">Select Guide</option>
+                                        @foreach($guides as $guide)
+                                            @php
+                                                $languages = $guide->languages->pluck('language')->join(', ');
+                                                $defaultPrice = $guide->twelve_hour_price ?? $guide->day_rate ?? 0;
+                                            @endphp
+                                            <option value="{{ $guide->guide_id }}" 
+                                                    data-name="{{ $guide->name }}" 
+                                                    data-languages="{{ $languages }}"
+                                                    data-twelve-hour-price="{{ $defaultPrice }}">{{ $guide->name }} @if($languages)({{ $languages }})@endif</option>
+                                        @endforeach
+                                    </select>
                                 </div>
-                            </div>
-                            <div class="col-12" id="departureGuideFieldsRow" style="display: none;">
-                                <div class="row g-2">
-                                    <div class="col-3" id="departureGuideDropdownField">
-                                        <label class="form-label small">Select Guide</label>
-                                        <select class="form-select form-select-sm" id="departureGuide" style="font-size: 10px;">
-                                            <option value="">Select Guide</option>
-                                            @foreach($guides as $guide)
-                                                @php
-                                                    $languages = $guide->languages->pluck('language')->join(', ');
-                                                    $defaultPrice = $guide->twelve_hour_price ?? $guide->day_rate ?? 0;
-                                                @endphp
-                                                <option value="{{ $guide->guide_id }}" 
-                                                        data-name="{{ $guide->name }}" 
-                                                        data-languages="{{ $languages }}"
-                                                        data-twelve-hour-price="{{ $defaultPrice }}">{{ $guide->name }} @if($languages)({{ $languages }})@endif</option>
-                                            @endforeach
-                                        </select>
-                                    </div>
-                                    <div class="col-1" id="departureGuideAdultField">
-                                        <label class="form-label small">Adult Qty</label>
-                                        <input type="number" class="form-control form-control-sm" id="departureGuideAdultQty" value="0" min="0" max="99" style="font-size: 10px;">
-                                    </div>
-                                    <div class="col-1" id="departureGuideChildField">
-                                        <label class="form-label small">Child Qty</label>
-                                        <input type="number" class="form-control form-control-sm" id="departureGuideChildQty" value="0" min="0" max="99" style="font-size: 10px;">
-                                    </div>
+                                <div class="col-1" id="departureGuideAdultField">
+                                    <label class="form-label small">Adult Qty</label>
+                                    <input type="number" class="form-control form-control-sm" id="departureGuideAdultQty" value="0" min="0" max="99" style="font-size: 10px;">
+                                </div>
+                                <div class="col-1" id="departureGuideChildField">
+                                    <label class="form-label small">Child Qty</label>
+                                    <input type="number" class="form-control form-control-sm" id="departureGuideChildQty" value="0" min="0" max="99" style="font-size: 10px;">
                                 </div>
                             </div>
                         </div>
@@ -2937,17 +2945,17 @@
                                 </optgroup>
                                 <optgroup label="Hotels">
                                     @foreach($hotels as $hotel)
-                                        <option value="{{ $hotel->hotel_unique_id }}" data-name="{{ $hotel->name }}" data-type="hotel" data-hotel-unique-id="{{ $hotel->hotel_unique_id }}" data-city="{{ $hotel->city ?? '' }}" data-country="{{ $hotel->country ?? '' }}">{{ $hotel->name }}</option>
+                                        <option value="{{ $hotel->hotel_unique_id }}" data-name="{{ $hotel->name }}" data-type="hotel" data-hotel-unique-id="{{ $hotel->hotel_unique_id }}" data-zone-id="{{ $hotel->zone_id ?? '' }}" data-city="{{ $hotel->city ?? '' }}" data-country="{{ $hotel->country ?? '' }}">{{ $hotel->name }}</option>
                                     @endforeach
                                 </optgroup>
                                 <optgroup label="Attractions">
                                     @foreach($attractions as $attr)
-                                        <option value="{{ $attr->attraction_id }}" data-name="{{ $attr->name }}" data-type="attraction" data-attraction-id="{{ $attr->attraction_id }}" data-location="{{ $attr->location ?? '' }}" data-country="{{ $attr->country ?? '' }}">{{ $attr->name }}</option>
+                                        <option value="{{ $attr->attraction_id }}" data-name="{{ $attr->name }}" data-type="attraction" data-attraction-id="{{ $attr->attraction_id }}" data-zone-id="{{ $attr->zone_id ?? '' }}" data-location="{{ $attr->location ?? '' }}" data-country="{{ $attr->country ?? '' }}">{{ $attr->name }}</option>
                                     @endforeach
                                 </optgroup>
                                 <optgroup label="Restaurants">
                                     @foreach($restaurants as $rest)
-                                        <option value="{{ $rest->restaurant_id }}" data-name="{{ $rest->name }}" data-type="restaurant" data-restaurant-id="{{ $rest->restaurant_id }}" data-city="{{ $rest->city ?? '' }}" data-country="{{ $rest->country ?? '' }}">{{ $rest->name }}</option>
+                                        <option value="{{ $rest->restaurant_id }}" data-name="{{ $rest->name }}" data-type="restaurant" data-restaurant-id="{{ $rest->restaurant_id }}" data-zone-id="{{ $rest->zone_id ?? '' }}" data-city="{{ $rest->city ?? '' }}" data-country="{{ $rest->country ?? '' }}">{{ $rest->name }}</option>
                                     @endforeach
                                 </optgroup>
                             </select>
@@ -2963,17 +2971,17 @@
                                 </optgroup>
                                 <optgroup label="Hotels">
                                     @foreach($hotels as $hotel)
-                                        <option value="{{ $hotel->hotel_unique_id }}" data-name="{{ $hotel->name }}" data-type="hotel" data-hotel-unique-id="{{ $hotel->hotel_unique_id }}" data-city="{{ $hotel->city ?? '' }}" data-country="{{ $hotel->country ?? '' }}">{{ $hotel->name }}</option>
+                                        <option value="{{ $hotel->hotel_unique_id }}" data-name="{{ $hotel->name }}" data-type="hotel" data-hotel-unique-id="{{ $hotel->hotel_unique_id }}" data-zone-id="{{ $hotel->zone_id ?? '' }}" data-city="{{ $hotel->city ?? '' }}" data-country="{{ $hotel->country ?? '' }}">{{ $hotel->name }}</option>
                                     @endforeach
                                 </optgroup>
                                 <optgroup label="Attractions">
                                     @foreach($attractions as $attr)
-                                        <option value="{{ $attr->attraction_id }}" data-name="{{ $attr->name }}" data-type="attraction" data-attraction-id="{{ $attr->attraction_id }}" data-location="{{ $attr->location ?? '' }}" data-country="{{ $attr->country ?? '' }}">{{ $attr->name }}</option>
+                                        <option value="{{ $attr->attraction_id }}" data-name="{{ $attr->name }}" data-type="attraction" data-attraction-id="{{ $attr->attraction_id }}" data-zone-id="{{ $attr->zone_id ?? '' }}" data-location="{{ $attr->location ?? '' }}" data-country="{{ $attr->country ?? '' }}">{{ $attr->name }}</option>
                                     @endforeach
                                 </optgroup>
                                 <optgroup label="Restaurants">
                                     @foreach($restaurants as $rest)
-                                        <option value="{{ $rest->restaurant_id }}" data-name="{{ $rest->name }}" data-type="restaurant" data-restaurant-id="{{ $rest->restaurant_id }}" data-city="{{ $rest->city ?? '' }}" data-country="{{ $rest->country ?? '' }}">{{ $rest->name }}</option>
+                                        <option value="{{ $rest->restaurant_id }}" data-name="{{ $rest->name }}" data-type="restaurant" data-restaurant-id="{{ $rest->restaurant_id }}" data-zone-id="{{ $rest->zone_id ?? '' }}" data-city="{{ $rest->city ?? '' }}" data-country="{{ $rest->country ?? '' }}">{{ $rest->name }}</option>
                                     @endforeach
                                 </optgroup>
                             </select>
@@ -3427,38 +3435,7 @@
     </div>
 </div>
 
-<!-- Cost Sheet Modal -->
-<div class="modal fade" id="costSheetModal" tabindex="-1" aria-labelledby="costSheetModalLabel" aria-hidden="true" data-bs-backdrop="static" data-bs-keyboard="false">
-    <div class="modal-dialog modal-xl modal-dialog-centered modal-dialog-scrollable" style="max-width: 95%;">
-        <div class="modal-content">
-            <div class="modal-header" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); padding: 10px 15px;">
-                <h5 class="modal-title text-white" id="costSheetModalLabel">
-                    <i class="ri-file-list-3-line me-2"></i>Cost Sheet
-                </h5>
-                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
-            </div>
-            <div class="modal-body" style="background: #f8f9fa; padding: 20px;">
-                <!-- Cost Sheet Content Will Be Loaded Here -->
-                <div class="cost-sheet-content">
-                    <div class="text-center py-5">
-                        <div class="spinner-border text-primary" role="status">
-                            <span class="visually-hidden">Loading...</span>
-                        </div>
-                        <p class="mt-3 text-muted">Loading cost sheet data...</p>
-                    </div>
-                </div>
-            </div>
-            <div class="modal-footer">
-                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">
-                    <i class="ri-close-line me-1"></i>Close
-                </button>
-                <button type="button" class="btn btn-primary" onclick="printCostSheet()">
-                    <i class="ri-printer-line me-1"></i>Print
-                </button>
-            </div>
-        </div>
-    </div>
-</div>
+<!-- Cost Sheet Modal - Removed from create form (only available in edit mode) -->
 
 <style>
     #accommodationModal .form-label.small {
@@ -4135,6 +4112,13 @@
             setTimeout(() => filterArrivalVehiclesByServiceType(), 100);
             // Sync guide counts when transfer section is shown
             setTimeout(() => syncArrivalGuideCounts(), 150);
+        } else {
+            // When transfer is unchecked, also uncheck the guide checkbox and hide guide fields
+            const guideCheckbox = document.getElementById('arrivalGuideCheckbox');
+            if (guideCheckbox) {
+                guideCheckbox.checked = false;
+                toggleArrivalGuideFields(); // This will hide the guide fields
+            }
         }
     }
     
@@ -4201,6 +4185,13 @@
             setTimeout(() => filterDepartureVehiclesByServiceType(), 100);
             // Sync guide counts when transfer section is shown
             setTimeout(() => syncDepartureGuideCounts(), 150);
+        } else {
+            // When transfer is unchecked, also uncheck the guide checkbox and hide guide fields
+            const guideCheckbox = document.getElementById('departureGuideCheckbox');
+            if (guideCheckbox) {
+                guideCheckbox.checked = false;
+                toggleDepartureGuideFields(); // This will hide the guide fields
+            }
         }
     }
     
@@ -13046,10 +13037,20 @@
                             }
                         }
                     } else {
-                        // Show guide section even if no guide is selected
+                        // Show guide section even if no guide is selected, but uncheck checkbox and hide fields
                         const arrivalGuideSection = document.getElementById('arrivalGuideSection');
                         if (arrivalGuideSection) {
                             arrivalGuideSection.style.display = 'block';
+                        }
+                        // Uncheck guide checkbox and hide guide fields when no guide is linked
+                        document.getElementById('arrivalGuideCheckbox').checked = false;
+                        const arrivalGuideFieldsRow = document.getElementById('arrivalGuideFieldsRow');
+                        if (arrivalGuideFieldsRow) {
+                            arrivalGuideFieldsRow.style.display = 'none';
+                        }
+                        const arrivalGuideHeaderRow = document.getElementById('arrivalGuideHeaderRow');
+                        if (arrivalGuideHeaderRow) {
+                            arrivalGuideHeaderRow.style.display = 'none';
                         }
                     }
                 } else {
@@ -13097,10 +13098,20 @@
                             }
                         }
                     } else {
-                        // Show guide section even if no guide is selected
+                        // Show guide section even if no guide is selected, but uncheck checkbox and hide fields
                         const departureGuideSection = document.getElementById('departureGuideSection');
                         if (departureGuideSection) {
                             departureGuideSection.style.display = 'block';
+                        }
+                        // Uncheck guide checkbox and hide guide fields when no guide is linked
+                        document.getElementById('departureGuideCheckbox').checked = false;
+                        const departureGuideFieldsRow = document.getElementById('departureGuideFieldsRow');
+                        if (departureGuideFieldsRow) {
+                            departureGuideFieldsRow.style.display = 'none';
+                        }
+                        const departureGuideHeaderRow = document.getElementById('departureGuideHeaderRow');
+                        if (departureGuideHeaderRow) {
+                            departureGuideHeaderRow.style.display = 'none';
                         }
                     }
                 }
@@ -14634,7 +14645,10 @@
                 child: childQty,
                 childQty: childQty,
                 taxIncluded: true,
-                isStandalone: false
+                transportMode: 'local',
+                isStandalone: false,
+                sourceType: 'attraction',
+                sourceId: attractionId
             };
             
             // Add to transfer list
@@ -14825,8 +14839,8 @@
                     if (infantCharge) infantCharge.value = `SGD ${parseFloat(tour.infantCost || 0).toFixed(2)}`;
                     
                     // Populate transfer info if available
+                    const transferCheckbox = row.querySelector('.attraction-transfer-checkbox');
                     if (tour.transferInfo) {
-                        const transferCheckbox = row.querySelector('.attraction-transfer-checkbox');
                         if (transferCheckbox) transferCheckbox.checked = true;
                         
                         // Set transfer destination
@@ -14865,11 +14879,14 @@
                         if (typeSelect && tour.transferInfo.type) {
                             typeSelect.value = tour.transferInfo.type;
                         }
+                    } else {
+                        // No transfer info - ensure checkbox is unchecked
+                        if (transferCheckbox) transferCheckbox.checked = false;
                     }
                     
                     // Populate guide info if available
+                    const guideCheckbox = row.querySelector('.attraction-guide-checkbox');
                     if (tour.guideRequired || tour.guideInfo) {
-                        const guideCheckbox = row.querySelector('.attraction-guide-checkbox');
                         if (guideCheckbox) guideCheckbox.checked = true;
                         
                         if (tour.guideInfo && tour.guideInfo.guide_id) {
@@ -14879,6 +14896,9 @@
                                 guideSelect.value = tour.guideInfo.guide_id;
                             }
                         }
+                    } else {
+                        // No guide info - ensure checkbox is unchecked
+                        if (guideCheckbox) guideCheckbox.checked = false;
                     }
                 }
             });
@@ -15565,9 +15585,65 @@
         }
         
         const idsToRemove = Array.from(checkboxes).map(cb => cb.value);
+        
+        // Before removing guides, uncheck guide checkboxes in linked services
+        idsToRemove.forEach(guideIdToRemove => {
+            // Uncheck guide checkbox in tours (but keep transfer if checked)
+            tourList.forEach(tour => {
+                if (tour.guideId && String(tour.guideId) === String(guideIdToRemove)) {
+                    // Uncheck the guide checkbox
+                    tour.guideId = null;
+                    tour.guideInfo = null;
+                    console.log('Unchecked guide checkbox for tour (transfer remains if checked):', tour);
+                }
+            });
+            
+            // Uncheck guide checkbox in local transfers
+            transferList.forEach(transfer => {
+                if (transfer.guideId && String(transfer.guideId) === String(guideIdToRemove)) {
+                    // Uncheck the guide checkbox
+                    transfer.guideId = null;
+                    transfer.guideInfo = null;
+                    console.log('Unchecked guide checkbox for local transfer:', transfer);
+                }
+            });
+            
+            // Uncheck guide checkbox in meals/restaurants (but keep transfer if checked)
+            mealList.forEach(meal => {
+                if (meal.guideId && String(meal.guideId) === String(guideIdToRemove)) {
+                    // Uncheck the guide checkbox
+                    meal.guideId = null;
+                    meal.guideInfo = null;
+                    // Also remove guide_options if it exists
+                    if (meal.guide_options) {
+                        delete meal.guide_options;
+                    }
+                    // Note: Do NOT clear transferId - transfer checkbox should remain checked
+                    console.log('Unchecked guide checkbox for meal/restaurant (transfer remains if checked):', meal);
+                }
+            });
+            
+            // Uncheck guide checkbox in arrival/departure services (but keep transfer if checked)
+            arrivalDepartureList.forEach(arrivalDep => {
+                if (arrivalDep.guideId && String(arrivalDep.guideId) === String(guideIdToRemove)) {
+                    // Uncheck the guide checkbox
+                    arrivalDep.hasGuide = false;
+                    arrivalDep.guideId = null;
+                    // Note: Do NOT clear transferId - transfer checkbox should remain checked
+                    console.log('Unchecked guide checkbox for arrival/departure (transfer remains if checked):', arrivalDep);
+                }
+            });
+        });
+        
+        // Now remove the guides
         guideList = guideList.filter(guide => !idsToRemove.includes(String(guide.id)));
         
+        // Update all affected tables
         updateGuideTable();
+        updateTourTable();
+        updateTransferTable();
+        updateMealTable();
+        updateArrivalDepartureTable();
         recalculateHeaderDatesFromServices();
         recalculateTotals();
     }
@@ -17959,7 +18035,10 @@
                 child: childQty,
                 childQty: childQty,
                 taxIncluded: true,
-                isStandalone: false
+                transportMode: 'local',
+                isStandalone: false,
+                sourceType: 'restaurant',
+                sourceId: restaurantId
             };
             
             // Add to transfer list
@@ -18213,11 +18292,13 @@
             populateMealFormForEdit(meal);
             
             // Populate restaurant transfer section if transfer exists
+            const restaurantTransferCheckbox = document.getElementById('restaurantTransferCheckbox');
+            const restaurantTransferDetailsSection = document.getElementById('restaurantTransferDetailsSection');
+            
             if (meal.transferId || meal.transferInfo) {
                 console.log('=== Populating Transfer Section for Edit ===');
                 console.log('Meal data:', meal);
                 
-                const restaurantTransferCheckbox = document.getElementById('restaurantTransferCheckbox');
                 if (restaurantTransferCheckbox) {
                     restaurantTransferCheckbox.checked = true;
                     toggleRestaurantTransferFields(); // Show the fields
@@ -18339,16 +18420,25 @@
                 }
             } else {
                 console.log('No transfer data for this meal');
+                // Ensure checkbox is unchecked and section is hidden when no transfer
+                if (restaurantTransferCheckbox) {
+                    restaurantTransferCheckbox.checked = false;
+                }
+                if (restaurantTransferDetailsSection) {
+                    restaurantTransferDetailsSection.style.display = 'none';
+                }
                 // Clear transfer form fields if no transfer data exists
                 resetRestaurantTransferFields();
             }
             
             // Populate restaurant guide section if guide exists
+            const restaurantGuideCheckbox = document.getElementById('restaurantGuideCheckbox');
+            const restaurantGuideDetailsSection = document.getElementById('restaurantGuideDetailsSection');
+            
             if (meal.guideId || meal.guideInfo) {
                 console.log('=== Populating Guide Section for Edit ===');
                 console.log('Guide data:', meal.guideInfo);
                 
-                const restaurantGuideCheckbox = document.getElementById('restaurantGuideCheckbox');
                 if (restaurantGuideCheckbox) {
                     restaurantGuideCheckbox.checked = true;
                     toggleRestaurantGuideFields(); // Show the fields
@@ -18376,6 +18466,13 @@
                 }
             } else {
                 console.log('No guide data for this meal');
+                // Ensure checkbox is unchecked and section is hidden when no guide
+                if (restaurantGuideCheckbox) {
+                    restaurantGuideCheckbox.checked = false;
+                }
+                if (restaurantGuideDetailsSection) {
+                    restaurantGuideDetailsSection.style.display = 'none';
+                }
             }
         } else {
             // If no restaurant ID, just try to populate what we can
@@ -19590,7 +19687,7 @@
             // Query vehicle_zone_mappings directly for prices
             // Query: vehicle_id, (from_zone_id = pickupid AND to_zone_id = dropid) OR (from_zone_id = dropid AND to_zone_id = pickupid)
             // Also includes from_zone_type and to_zone_type to match SingleTourPackageController logic
-            const apiUrl = `{{ route('enquiry-form-pro.get-zone-prices') }}?vehicle_id=${encodeURIComponent(vehicleId)}&pickup_id=${encodeURIComponent(actualPickupId)}&drop_id=${encodeURIComponent(actualDropId)}&pickup_type=${encodeURIComponent(actualPickupType)}&drop_type=${encodeURIComponent(actualDropType)}`;
+            const apiUrl = `{{ route('enquiry-form-pro.get-zone-prices') }}?vehicle_id=${encodeURIComponent(vehicleId)}&pickup_id=${encodeURIComponent(actualPickupId)}&drop_id=${encodeURIComponent(actualDropId)}&pickup_type=${encodeURIComponent(actualPickupType)}&drop_type=${encodeURIComponent(actualDropType)}&dmc_id=${encodeURIComponent(dmcId)}`;
             console.log('API URL:', apiUrl);
             console.log('Querying vehicle_zone_mappings with:');
             console.log('  vehicle_id:', vehicleId);
@@ -19598,6 +19695,7 @@
             console.log('  drop_id (to_zone_id):', actualDropId);
             console.log('  pickup_type (from_zone_type):', actualPickupType);
             console.log('  drop_type (to_zone_type):', actualDropType);
+            console.log('  dmc_id:', dmcId);
             
             const response = await fetch(apiUrl, {
                 method: 'GET',
@@ -19628,10 +19726,17 @@
             // Handle case where API returns error message
             if (!result.success) {
                 console.warn('API returned error message:', result.message);
-                return { 
-                    private_price: result.data?.private_price || 0, 
-                    shared_price: result.data?.shared_price || 0 
-                };
+                
+                // Log warning but don't throw error - allow zero prices
+                const errorMsg = result.message || 'Zone mapping not found';
+                console.warn('⚠️ ZONE MAPPING WARNING:', errorMsg);
+                console.warn('   Pickup Type:', actualPickupType, 'ID:', actualPickupId);
+                console.warn('   Drop Type:', actualDropType, 'ID:', actualDropId);
+                console.warn('   Vehicle ID:', vehicleId);
+                console.warn('   Continuing with zero prices...');
+                
+                // Return zero prices instead of throwing error
+                return { private_price: 0, shared_price: 0 };
             }
             
             // Extract prices from the response
@@ -19651,6 +19756,13 @@
             console.error('Error fetching zone price:', error);
             console.error('Error stack:', error.stack);
             console.log('=== FETCH ZONE PRICE DEBUG END ===');
+            
+            // Re-throw zone mapping errors to stop the save process
+            if (error.message && error.message.includes('Zone mapping missing')) {
+                throw error;
+            }
+            
+            // For other errors, return zero prices (network errors, etc.)
             return { private_price: 0, shared_price: 0 };
         }
     }
@@ -19664,17 +19776,9 @@
         let zonePrivatePrice = zonePrice.private_price || 0;
         let zoneSharedPrice = zonePrice.shared_price || 0;
         
-        // If zone prices are 0 and vehicle option is provided, fall back to base prices
-        if ((zonePrivatePrice === 0 && zoneSharedPrice === 0) && vehicleOption) {
-            const basePriceAttr = parseFloat(vehicleOption.getAttribute('data-base-price') || 0);
-            const sharablePriceAttr = parseFloat(vehicleOption.getAttribute('data-sharable-price') || 0);
-            
-            // Use base prices as fallback
-            if (basePriceAttr > 0 || sharablePriceAttr > 0) {
-                zonePrivatePrice = basePriceAttr;
-                zoneSharedPrice = sharablePriceAttr;
-            }
-        }
+        // DO NOT fall back to vehicle base prices if zone mapping is missing
+        // Zone prices should remain 0 to indicate missing mapping
+        // User must either: 1) Add zone mapping in settings, or 2) Manually enter prices
         
         // Get base price based on type (SIC or Private)
         if (type === 'S' || type === 'sic' || type === 'Shared') {
@@ -19755,7 +19859,14 @@
             
             // Fetch zone price
             const dmcId = '{{ $dmc_id ?? "" }}';
-            const zonePrice = await fetchZonePrice(vehicleId, pickupSelect.value, pickupType, dropSelect.value, dropType, dmcId);
+            let zonePrice;
+            try {
+                zonePrice = await fetchZonePrice(vehicleId, pickupSelect.value, pickupType, dropSelect.value, dropType, dmcId);
+            } catch (error) {
+                console.error('Failed to fetch zone price:', error.message);
+                // Stop the save process and return early
+                return;
+            }
             
             // Calculate prices with vehicle option for fallback to base prices
             const prices = calculateTransferPrice(zonePrice, type, way, adults, child, vehicleOption);
@@ -20137,11 +20248,12 @@
             document.getElementById('localChild').value = transfer.child || 0;
             
             // Load guide info if available
+            const guideCheckbox = document.getElementById('localTransportGuideCheckbox');
+            const guideSelect = document.getElementById('localTransportGuideSelect');
+            const hoursSelect = document.getElementById('localTransportGuideHours');
+            const guideDetailsSection = document.getElementById('localTransportGuideDetailsSection');
+            
             if (transfer.guideInfo && transfer.guideInfo.guideId) {
-                const guideCheckbox = document.getElementById('localTransportGuideCheckbox');
-                const guideSelect = document.getElementById('localTransportGuideSelect');
-                const hoursSelect = document.getElementById('localTransportGuideHours');
-                const guideDetailsSection = document.getElementById('localTransportGuideDetailsSection');
                 if (guideCheckbox && guideSelect) {
                     guideCheckbox.checked = true;
                     guideSelect.value = transfer.guideInfo.guideId;
@@ -20154,6 +20266,14 @@
                         hoursSelect.value = guideEntry.hours;
                     }
                     updateLocalTransportGuidePricing(); // Update pricing based on hours
+                }
+            } else {
+                // No guide info - ensure checkbox is unchecked and section is hidden
+                if (guideCheckbox) {
+                    guideCheckbox.checked = false;
+                }
+                if (guideDetailsSection) {
+                    guideDetailsSection.style.display = 'none';
                 }
             }
         }
@@ -20281,9 +20401,58 @@
         }
         
         const idsToRemove = Array.from(checkboxes).map(cb => cb.value);
+        
+        // Before removing transfers, uncheck transfer checkboxes in linked services
+        idsToRemove.forEach(transferIdToRemove => {
+            // Uncheck transfer checkbox in tours (but keep guide if checked)
+            tourList.forEach(tour => {
+                if (tour.transferId && String(tour.transferId) === String(transferIdToRemove)) {
+                    // Uncheck the transfer checkbox
+                    tour.transferId = null;
+                    tour.transferInfo = null;
+                    console.log('Unchecked transfer checkbox for tour (guide remains if checked):', tour);
+                }
+            });
+            
+            // Uncheck transfer checkbox in meals/restaurants (but keep guide if checked)
+            mealList.forEach(meal => {
+                if (meal.transferId && String(meal.transferId) === String(transferIdToRemove)) {
+                    // Uncheck the transfer checkbox
+                    meal.transferId = null;
+                    meal.transferInfo = null;
+                    // Also remove transfer_options if it exists
+                    if (meal.transfer_options) {
+                        delete meal.transfer_options;
+                    }
+                    // Note: Do NOT clear guideId - guide checkbox should remain checked
+                    console.log('Unchecked transfer checkbox for meal/restaurant (guide remains if checked):', meal);
+                }
+            });
+            
+            // Uncheck transfer checkbox in arrival/departure services (but keep guide if checked)
+            arrivalDepartureList.forEach(arrivalDep => {
+                if (arrivalDep.transferId && String(arrivalDep.transferId) === String(transferIdToRemove)) {
+                    // Uncheck the transfer checkbox
+                    arrivalDep.hasTransfer = false;
+                    arrivalDep.transferId = null;
+                    // Clear transfer-related fields
+                    arrivalDep.transferDestinationId = null;
+                    arrivalDep.vehicleId = null;
+                    arrivalDep.transferType = null;
+                    // Note: Do NOT clear guideId - guide checkbox should remain checked
+                    console.log('Unchecked transfer checkbox for arrival/departure (guide remains if checked):', arrivalDep);
+                }
+            });
+        });
+        
+        // Now remove the transfers
         transferList = transferList.filter(transfer => !idsToRemove.includes(String(transfer.id)));
         
+        // Update all affected tables
         updateTransferTable();
+        updateTourTable();
+        updateMealTable();
+        updateArrivalDepartureTable();
         recalculateHeaderDatesFromServices();
         recalculateTotals();
     }
@@ -23163,628 +23332,7 @@
         URL.revokeObjectURL(url);
     }
 
-    // Cost Sheet Modal Handling
-    document.addEventListener('DOMContentLoaded', function() {
-        const costSheetCheckbox = document.getElementById('costSheet');
-        const costSheetModal = new bootstrap.Modal(document.getElementById('costSheetModal'));
-        const costSheetModalElement = document.getElementById('costSheetModal');
-        
-        // Handle checkbox change - open modal when checked
-        if (costSheetCheckbox) {
-            costSheetCheckbox.addEventListener('change', function() {
-                if (this.checked) {
-                    // Open the modal
-                    costSheetModal.show();
-                    // Load cost sheet data
-                    loadCostSheetData();
-                } else {
-                    // If unchecked manually, close modal if open
-                    costSheetModal.hide();
-                }
-            });
-        }
-        
-        // Handle modal close - uncheck the checkbox
-        if (costSheetModalElement) {
-            costSheetModalElement.addEventListener('hidden.bs.modal', function() {
-                if (costSheetCheckbox && costSheetCheckbox.checked) {
-                    costSheetCheckbox.checked = false;
-                }
-            });
-        }
-    });
-
-    // Load Cost Sheet Data
-    function loadCostSheetData() {
-        const contentDiv = document.querySelector('.cost-sheet-content');
-        
-        // Show loading state
-        contentDiv.innerHTML = `
-            <div class="text-center py-5">
-                <div class="spinner-border text-primary" role="status">
-                    <span class="visually-hidden">Loading...</span>
-                </div>
-                <p class="mt-3 text-muted">Generating cost sheet...</p>
-            </div>
-        `;
-        
-        // Use requestAnimationFrame for better performance
-        requestAnimationFrame(() => {
-            const costSheetHTML = generateCostSheetHTML();
-            contentDiv.innerHTML = costSheetHTML;
-        });
-    }
-
-    // Generate Cost Sheet HTML
-    function generateCostSheetHTML() {
-        // Get agent and agency information
-        const agencySelect = document.getElementById('agencySelect');
-        const agentSelect = document.getElementById('agentSelect');
-        const agencyName = agencySelect?.options[agencySelect.selectedIndex]?.text || 'N/A';
-        const agentName = agentSelect?.options[agentSelect.selectedIndex]?.text || 'N/A';
-        
-        const sections = [];
-        const totals = { cost: 0, sell: 0 };
-        
-        // Header Section
-        sections.push(`
-            <div class="card shadow-sm">
-                <div class="card-header bg-primary text-white">
-                    <h5 class="mb-0">Cost Sheet Summary</h5>
-                </div>
-                <div class="card-body">
-                    <div class="row mb-3">
-                        <div class="col-md-3">
-                            <p class="mb-1"><strong>Customer:</strong> ${document.getElementById('customerNameInput')?.value || 'N/A'}</p>
-                            <p class="mb-1"><strong>Contact:</strong> ${document.getElementById('contactNumberInput')?.value || 'N/A'}</p>
-                        </div>
-                        <div class="col-md-3">
-                            <p class="mb-1"><strong>Agency:</strong> ${agencyName}</p>
-                            <p class="mb-1"><strong>Agent:</strong> ${agentName}</p>
-                        </div>
-                        <div class="col-md-3">
-                            <p class="mb-1"><strong>Adults:</strong> ${document.getElementById('adultCountInput')?.value || '0'} | 
-                               <strong>Children:</strong> ${document.getElementById('childCountInput')?.value || '0'}</p>
-                            <p class="mb-1"><strong>Start:</strong> ${document.getElementById('tourStartDate')?.value || 'N/A'} | 
-                               <strong>End:</strong> ${document.getElementById('tourEndDate')?.value || 'N/A'}</p>
-                        </div>
-                    </div>
-        `);
-        
-        // Arrival/Departure Section
-        if (arrivalDepartureList.length > 0) {
-            let totalArrDepCost = 0;
-            let totalArrDepSell = 0;
-            
-            const rows = arrivalDepartureList.map(item => {
-                const cost = parseFloat(item.transferCost || 0);
-                const sell = parseFloat(item.transferSell || 0);
-                totalArrDepCost += cost;
-                totalArrDepSell += sell;
-                
-                return `
-                    <tr>
-                        <td>${item.dateTime || 'N/A'}</td>
-                        <td>${item.portName || 'N/A'}</td>
-                        <td>${item.flightNumber || 'N/A'}</td>
-                        <td>${item.type || 'N/A'}</td>
-                        <td>${item.transferRequired ? 'Yes' : 'No'}</td>
-                        <td>${item.vehicleName || 'N/A'}</td>
-                        <td>${item.vehicleType || 'N/A'}</td>
-                        <td class="text-end">${cost.toFixed(2)}</td>
-                        <td class="text-end">${sell.toFixed(2)}</td>
-                    </tr>`;
-            }).join('');
-            
-            totals.cost += totalArrDepCost;
-            totals.sell += totalArrDepSell;
-            
-            sections.push(`
-                <div class="mb-3">
-                    <h6 class="bg-light p-2 border mb-0"><i class="ri-flight-takeoff-line me-2"></i>Arrival / Departure</h6>
-                    <table class="table table-bordered table-sm mb-0">
-                        <thead class="table-light" style="font-size: 11px;">
-                            <tr>
-                                <th>DATE/TIME</th>
-                                <th>PORT</th>
-                                <th>FLIGHT/TRAIN/BUS NO</th>
-                                <th>TYPE</th>
-                                <th>TRANSFER</th>
-                                <th>VEHICLE NAME</th>
-                                <th>VEHICLE TYPE</th>
-                                <th class="text-end">COST</th>
-                                <th class="text-end">SELL</th>
-                            </tr>
-                        </thead>
-                        <tbody style="font-size: 10px;">
-                            ${rows}
-                            <tr class="table-secondary fw-bold" style="font-size: 10px;">
-                                <td colspan="7" class="text-end">Subtotal:</td>
-                                <td class="text-end">${totalArrDepCost.toFixed(2)}</td>
-                                <td class="text-end">${totalArrDepSell.toFixed(2)}</td>
-                            </tr>
-                        </tbody>
-                    </table>
-                </div>
-            `);
-        }
-        
-        // Accommodation Section
-        if (accommodationList.length > 0) {
-            let totalAccomCost = 0;
-            let totalAccomSell = 0;
-            
-            const rows = accommodationList.map(hotel => {
-                const cost = parseFloat(hotel.totalCost || 0);
-                const sell = parseFloat(hotel.totalSell || 0);
-                totalAccomCost += cost;
-                totalAccomSell += sell;
-                
-                // Handle both array and number for hotel.rooms
-                let roomDetails = 'N/A';
-                let adultsPerRoom = 'N/A';
-                let roomsCount = 0;
-                
-                if (Array.isArray(hotel.rooms)) {
-                    // New structure: rooms is an array
-                    roomDetails = hotel.rooms.map(room => {
-                        const bedName = room.beds?.[0]?.bed_type || 'N/A';
-                        const mealType = room.meal_type || 'N/A';
-                        return `${room.room_type} / ${bedName} / ${mealType}`;
-                    }).join(', ');
-                    adultsPerRoom = hotel.rooms[0]?.beds?.[0]?.head_count || 'N/A';
-                    roomsCount = hotel.rooms.length;
-                } else {
-                    // Old structure: rooms is a number, use direct properties
-                    const roomType = hotel.roomType || 'N/A';
-                    const bedType = hotel.bedType || 'N/A';
-                    const mealType = hotel.mealPlanLabel || hotel.mealPlan || 'N/A';
-                    roomDetails = `${roomType} / ${bedType} / ${mealType}`;
-                    adultsPerRoom = hotel.adultsPerRoom || 'N/A';
-                    roomsCount = hotel.rooms || 0;
-                }
-                
-                const nights = hotel.numberOfNights || hotel.nights || '0';
-                
-                return `
-                    <tr>
-                        <td>${hotel.hotelName || 'N/A'}<br><small>${roomDetails}</small></td>
-                        <td>${hotel.checkInDate || 'N/A'} ${hotel.checkInTime || ''}</td>
-                        <td>${hotel.checkOutDate || 'N/A'} ${hotel.checkOutTime || ''}</td>
-                        <td>${nights}</td>
-                        <td>${roomsCount}</td>
-                        <td>${adultsPerRoom}</td>
-                        <td class="text-end">${cost.toFixed(2)}</td>
-                        <td class="text-end">${sell.toFixed(2)}</td>
-                        <td>${hotel.supplement || ''}</td>
-                    </tr>`;
-            }).join('');
-            
-            totals.cost += totalAccomCost;
-            totals.sell += totalAccomSell;
-            
-            sections.push(`
-                <div class="mb-3">
-                    <h6 class="bg-light p-2 border mb-0"><i class="ri-hotel-line me-2"></i>Accommodation</h6>
-                    <table class="table table-bordered table-sm mb-0">
-                        <thead class="table-light" style="font-size: 11px;">
-                            <tr>
-                                <th>HOTEL / ROOM / BED / MEAL</th>
-                                <th>CHECK IN DATE</th>
-                                <th>CHECK OUT DATE</th>
-                                <th>NO. OF NIGHTS</th>
-                                <th>NO. OF ROOMS</th>
-                                <th>ADULTS PER RM</th>
-                                <th class="text-end">COST</th>
-                                <th class="text-end">SELL</th>
-                                <th>SUPPLEMENT</th>
-                            </tr>
-                        </thead>
-                        <tbody style="font-size: 10px;">
-                            ${rows}
-                            <tr class="table-secondary fw-bold" style="font-size: 10px;">
-                                <td colspan="6" class="text-end">Subtotal:</td>
-                                <td class="text-end">${totalAccomCost.toFixed(2)}</td>
-                                <td class="text-end">${totalAccomSell.toFixed(2)}</td>
-                                <td></td>
-                            </tr>
-                        </tbody>
-                    </table>
-                </div>
-            `);
-        }
-        
-        // Attractions Section
-        if (tourList.length > 0) {
-            let totalTourCost = 0;
-            let totalTourSell = 0;
-            
-            const rows = tourList.map(tour => {
-                const adultQty = parseInt(tour.adultCount || 0);
-                const childQty = parseInt(tour.childCount || 0);
-                const adultCostPerPax = parseFloat(tour.adultCost || 0);
-                const adultSellPerPax = parseFloat(tour.adultSell || 0);
-                const childCostPerPax = parseFloat(tour.childCost || 0);
-                const childSellPerPax = parseFloat(tour.childSell || 0);
-                
-                const totalCost = (adultQty * adultCostPerPax) + (childQty * childCostPerPax);
-                const totalSell = (adultQty * adultSellPerPax) + (childQty * childSellPerPax);
-                
-                totalTourCost += totalCost;
-                totalTourSell += totalSell;
-                
-                return `
-                    <tr>
-                        <td>${tour.dateTime || 'N/A'}</td>
-                        <td>${tour.AttractionName || tour.Name || 'N/A'}</td>
-                        <td>${adultQty}</td>
-                        <td class="text-end">${adultCostPerPax.toFixed(2)}</td>
-                        <td class="text-end">${adultSellPerPax.toFixed(2)}</td>
-                        <td>${childQty}</td>
-                        <td class="text-end">${childCostPerPax.toFixed(2)}</td>
-                        <td class="text-end">${childSellPerPax.toFixed(2)}</td>
-                        <td>${tour.supplement || ''}</td>
-                    </tr>`;
-            }).join('');
-            
-            totals.cost += totalTourCost;
-            totals.sell += totalTourSell;
-            
-            sections.push(`
-                <div class="mb-3">
-                    <h6 class="bg-light p-2 border mb-0"><i class="ri-map-pin-line me-2"></i>Attractions</h6>
-                    <table class="table table-bordered table-sm mb-0">
-                        <thead class="table-light" style="font-size: 11px;">
-                            <tr>
-                                <th>DATE/TIME</th>
-                                <th>TOUR NAME</th>
-                                <th>ADULTS QTY</th>
-                                <th class="text-end">COST/PAX</th>
-                                <th class="text-end">SELL/PAX</th>
-                                <th>CHILD QTY</th>
-                                <th class="text-end">COST/PAX</th>
-                                <th class="text-end">SELL/PAX</th>
-                                <th>SUPPLEMENT</th>
-                            </tr>
-                        </thead>
-                        <tbody style="font-size: 10px;">
-                            ${rows}
-                            <tr class="table-secondary fw-bold" style="font-size: 10px;">
-                                <td colspan="2" class="text-end">Subtotal:</td>
-                                <td colspan="2" class="text-end">${totalTourCost.toFixed(2)}</td>
-                                <td colspan="4" class="text-end">${totalTourSell.toFixed(2)}</td>
-                                <td></td>
-                            </tr>
-                        </tbody>
-                    </table>
-                </div>
-            `);
-        }
-        
-        // Restaurants Section
-        if (mealList.length > 0) {
-            let totalMealCost = 0;
-            let totalMealSell = 0;
-            
-            const rows = mealList.map(meal => {
-                const adultQty = parseInt(meal.adultCount || 0);
-                const childQty = parseInt(meal.childCount || 0);
-                const adultCostPerPax = parseFloat(meal.adultCost || 0);
-                const adultSellPerPax = parseFloat(meal.adultSell || 0);
-                const childCostPerPax = parseFloat(meal.childCost || 0);
-                const childSellPerPax = parseFloat(meal.childSell || 0);
-                
-                const totalCost = (adultQty * adultCostPerPax) + (childQty * childCostPerPax);
-                const totalSell = (adultQty * adultSellPerPax) + (childQty * childSellPerPax);
-                
-                totalMealCost += totalCost;
-                totalMealSell += totalSell;
-                
-                return `
-                    <tr>
-                        <td>${meal.bookingDate || meal.Date || 'N/A'} ${meal.visitTime || ''}</td>
-                        <td>${meal.restaurantName || meal.Name || 'N/A'}</td>
-                        <td>${adultQty}</td>
-                        <td class="text-end">${adultCostPerPax.toFixed(2)}</td>
-                        <td class="text-end">${adultSellPerPax.toFixed(2)}</td>
-                        <td>${childQty}</td>
-                        <td class="text-end">${childCostPerPax.toFixed(2)}</td>
-                        <td class="text-end">${childSellPerPax.toFixed(2)}</td>
-                        <td>${meal.supplement || ''}</td>
-                    </tr>`;
-            }).join('');
-            
-            totals.cost += totalMealCost;
-            totals.sell += totalMealSell;
-            
-            sections.push(`
-                <div class="mb-3">
-                    <h6 class="bg-light p-2 border mb-0"><i class="ri-restaurant-line me-2"></i>Restaurants</h6>
-                    <table class="table table-bordered table-sm mb-0">
-                        <thead class="table-light" style="font-size: 11px;">
-                            <tr>
-                                <th>DATE/TIME</th>
-                                <th>RESTAURANT</th>
-                                <th>ADULTS QTY</th>
-                                <th class="text-end">COST/PAX</th>
-                                <th class="text-end">SELL/PAX</th>
-                                <th>CHILD QTY</th>
-                                <th class="text-end">COST/PAX</th>
-                                <th class="text-end">SELL/PAX</th>
-                                <th>SUPPLEMENT</th>
-                            </tr>
-                        </thead>
-                        <tbody style="font-size: 10px;">
-                            ${rows}
-                            <tr class="table-secondary fw-bold" style="font-size: 10px;">
-                                <td colspan="2" class="text-end">Subtotal:</td>
-                                <td colspan="2" class="text-end">${totalMealCost.toFixed(2)}</td>
-                                <td colspan="4" class="text-end">${totalMealSell.toFixed(2)}</td>
-                                <td></td>
-                            </tr>
-                        </tbody>
-                    </table>
-                </div>
-            `);
-        }
-        
-        // Local Transfer Section
-        if (transferList.length > 0) {
-            let totalTransferCost = 0;
-            let totalTransferSell = 0;
-            
-            const rows = transferList.map(transfer => {
-                const cost = parseFloat(transfer.Cost || transfer.cost || 0);
-                const sell = parseFloat(transfer.Sell || transfer.sell || 0);
-                totalTransferCost += cost;
-                totalTransferSell += sell;
-                
-                const serviceDetails = transfer.Mode === 'local' 
-                    ? `${transfer.entrypickup || 'N/A'} to ${transfer.entrydropoff || 'N/A'}` 
-                    : `${transfer.departureCity || ''} to ${transfer.arrivalCity || ''}`;
-                
-                return `
-                    <tr>
-                        <td>${transfer.bookingDate || transfer.Date || 'N/A'} ${transfer.entrytime || ''}</td>
-                        <td>${serviceDetails}</td>
-                        <td>${transfer.Mode || 'N/A'}</td>
-                        <td>${transfer.vehicles_name || transfer.vehicleType || 'N/A'}</td>
-                        <td>${transfer.type || transfer.Type || 'N/A'}</td>
-                        <td>${transfer.way || 'N/A'}</td>
-                        <td>${transfer.adults || '0'}</td>
-                        <td>${transfer.children || '0'}</td>
-                        <td class="text-end">${cost.toFixed(2)}</td>
-                        <td class="text-end">${sell.toFixed(2)}</td>
-                        <td>${transfer.supplement || ''}</td>
-                    </tr>`;
-            }).join('');
-            
-            totals.cost += totalTransferCost;
-            totals.sell += totalTransferSell;
-            
-            sections.push(`
-                <div class="mb-3">
-                    <h6 class="bg-light p-2 border mb-0"><i class="ri-car-line me-2"></i>Local Transfer</h6>
-                    <table class="table table-bordered table-sm mb-0">
-                        <thead class="table-light" style="font-size: 11px;">
-                            <tr>
-                                <th>DATE/TIME</th>
-                                <th>SERVICE</th>
-                                <th>MODE</th>
-                                <th>VEHICLE TYPE</th>
-                                <th>TYPE</th>
-                                <th>WAY</th>
-                                <th>ADULTS</th>
-                                <th>CHILD</th>
-                                <th class="text-end">COST</th>
-                                <th class="text-end">SELL</th>
-                                <th>SUPPLEMENT</th>
-                            </tr>
-                        </thead>
-                        <tbody style="font-size: 10px;">
-                            ${rows}
-                            <tr class="table-secondary fw-bold" style="font-size: 10px;">
-                                <td colspan="8" class="text-end">Subtotal:</td>
-                                <td class="text-end">${totalTransferCost.toFixed(2)}</td>
-                                <td class="text-end">${totalTransferSell.toFixed(2)}</td>
-                                <td></td>
-                            </tr>
-                        </tbody>
-                    </table>
-                </div>
-            `);
-        }
-        
-        // Tour Guide Section
-        if (guideList.length > 0) {
-            let totalGuideCost = 0;
-            let totalGuideSell = 0;
-            
-            const rows = guideList.map(guide => {
-                const cost = parseFloat(guide.Cost || guide.cost || 0);
-                const sell = parseFloat(guide.Sell || guide.sell || 0);
-                totalGuideCost += cost;
-                totalGuideSell += sell;
-                
-                const languageList = guide.languages ? (Array.isArray(guide.languages) ? guide.languages.join(', ') : guide.languages) : 'N/A';
-                
-                return `
-                    <tr>
-                        <td>${guide.bookingDate || guide.Date || 'N/A'} ${guide.entrytime || ''}</td>
-                        <td>${guide.TourActivity || guide.Activity || 'N/A'}</td>
-                        <td>${languageList}</td>
-                        <td>${guide.guide_name || guide.Name || 'N/A'}</td>
-                        <td>${guide.hours || guide.Hours || '0'}</td>
-                        <td class="text-end">${cost.toFixed(2)}</td>
-                        <td class="text-end">${sell.toFixed(2)}</td>
-                        <td>${guide.supplement || ''}</td>
-                    </tr>`;
-            }).join('');
-            
-            totals.cost += totalGuideCost;
-            totals.sell += totalGuideSell;
-            
-            sections.push(`
-                <div class="mb-3">
-                    <h6 class="bg-light p-2 border mb-0"><i class="ri-user-line me-2"></i>Tour Guide</h6>
-                    <table class="table table-bordered table-sm mb-0">
-                        <thead class="table-light" style="font-size: 11px;">
-                            <tr>
-                                <th>DATE/TIME</th>
-                                <th>TOUR/ACTIVITY</th>
-                                <th>LANGUAGE</th>
-                                <th>GUIDE NAME</th>
-                                <th>HOURS</th>
-                                <th class="text-end">COST</th>
-                                <th class="text-end">SELL</th>
-                                <th>SUPPLEMENT</th>
-                            </tr>
-                        </thead>
-                        <tbody style="font-size: 10px;">
-                            ${rows}
-                            <tr class="table-secondary fw-bold" style="font-size: 10px;">
-                                <td colspan="5" class="text-end">Subtotal:</td>
-                                <td class="text-end">${totalGuideCost.toFixed(2)}</td>
-                                <td class="text-end">${totalGuideSell.toFixed(2)}</td>
-                                <td></td>
-                            </tr>
-                        </tbody>
-                    </table>
-                </div>
-            `);
-        }
-        
-        // Miscellaneous Section
-        if (miscList.length > 0) {
-            let totalMiscCost = 0;
-            let totalMiscSell = 0;
-            
-            const rows = miscList.map(misc => {
-                const adultQty = parseInt(misc.adultCount || 0);
-                const childQty = parseInt(misc.childCount || 0);
-                const infantQty = parseInt(misc.infantCount || 0);
-                const adultCostPerPax = parseFloat(misc.adultCost || 0);
-                const adultSellPerPax = parseFloat(misc.adultSell || 0);
-                const childCostPerPax = parseFloat(misc.childCost || 0);
-                const childSellPerPax = parseFloat(misc.childSell || 0);
-                const infantCostPerPax = parseFloat(misc.infantCost || 0);
-                const infantSellPerPax = parseFloat(misc.infantSell || 0);
-                
-                const totalCost = (adultQty * adultCostPerPax) + (childQty * childCostPerPax) + (infantQty * infantCostPerPax);
-                const totalSell = (adultQty * adultSellPerPax) + (childQty * childSellPerPax) + (infantQty * infantSellPerPax);
-                
-                totalMiscCost += totalCost;
-                totalMiscSell += totalSell;
-                
-                return `
-                    <tr>
-                        <td>${misc.bookingDate || misc.Date || 'N/A'}</td>
-                        <td>${misc.itemName || misc.Name || 'N/A'}</td>
-                        <td>${adultQty}</td>
-                        <td class="text-end">${adultCostPerPax.toFixed(2)}</td>
-                        <td class="text-end">${adultSellPerPax.toFixed(2)}</td>
-                        <td>${childQty}</td>
-                        <td class="text-end">${childCostPerPax.toFixed(2)}</td>
-                        <td class="text-end">${childSellPerPax.toFixed(2)}</td>
-                        <td>${infantQty}</td>
-                        <td class="text-end">${infantCostPerPax.toFixed(2)}</td>
-                        <td class="text-end">${infantSellPerPax.toFixed(2)}</td>
-                        <td>${misc.supplement || ''}</td>
-                    </tr>`;
-            }).join('');
-            
-            totals.cost += totalMiscCost;
-            totals.sell += totalMiscSell;
-            
-            sections.push(`
-                <div class="mb-3">
-                    <h6 class="bg-light p-2 border mb-0"><i class="ri-more-line me-2"></i>Miscellaneous</h6>
-                    <table class="table table-bordered table-sm mb-0">
-                        <thead class="table-light" style="font-size: 11px;">
-                            <tr>
-                                <th>DATE/TIME</th>
-                                <th>ITEM</th>
-                                <th>ADULTS QTY</th>
-                                <th class="text-end">COST/PAX</th>
-                                <th class="text-end">SELL/PAX</th>
-                                <th>CHILD QTY</th>
-                                <th class="text-end">COST/PAX</th>
-                                <th class="text-end">SELL/PAX</th>
-                                <th>INFANT QTY</th>
-                                <th class="text-end">COST/PAX</th>
-                                <th class="text-end">SELL/PAX</th>
-                                <th>SUPPLEMENT</th>
-                            </tr>
-                        </thead>
-                        <tbody style="font-size: 10px;">
-                            ${rows}
-                            <tr class="table-secondary fw-bold" style="font-size: 10px;">
-                                <td colspan="2" class="text-end">Subtotal:</td>
-                                <td colspan="3" class="text-end">${totalMiscCost.toFixed(2)}</td>
-                                <td colspan="6" class="text-end">${totalMiscSell.toFixed(2)}</td>
-                                <td></td>
-                            </tr>
-                        </tbody>
-                    </table>
-                </div>
-            `);
-        }
-        
-        // Grand Total (already calculated in totals object)
-        const profit = totals.sell - totals.cost;
-        const profitMargin = totals.sell > 0 ? ((profit / totals.sell) * 100).toFixed(2) : 0;
-        
-        sections.push(`
-                    <div class="mt-3">
-                        <table class="table table-bordered table-sm mb-0">
-                            <tbody>
-                                <tr class="table-primary fw-bold">
-                                    <td colspan="2">GRAND TOTAL</td>
-                                    <td class="text-end">Cost: ${totals.cost.toFixed(2)}</td>
-                                    <td class="text-end">Sell: ${totals.sell.toFixed(2)}</td>
-                                    <td class="text-end">Profit: ${profit.toFixed(2)} (${profitMargin}%)</td>
-                                </tr>
-                            </tbody>
-                        </table>
-                    </div>
-                </div>
-            </div>
-        `);
-        
-        return sections.join('');
-    }
-
-    // Print Cost Sheet
-    function printCostSheet() {
-        const costSheetContent = document.querySelector('.cost-sheet-content').innerHTML;
-        const printWindow = window.open('', '', 'height=600,width=800');
-        
-        printWindow.document.write(`
-            <html>
-                <head>
-                    <title>Cost Sheet</title>
-                    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/css/bootstrap.min.css" rel="stylesheet">
-                    <style>
-                        body { padding: 20px; }
-                        @media print {
-                            .no-print { display: none; }
-                        }
-                    </style>
-                </head>
-                <body>
-                    ${costSheetContent}
-                    <script>
-                        window.onload = function() {
-                            window.print();
-                            setTimeout(function() { window.close(); }, 100);
-                        };
-                    <\/script>
-                </body>
-            </html>
-        `);
-        
-        printWindow.document.close();
-    }
+    // Cost Sheet - Removed from create form (only available in edit mode)
     
     // Initialize max attributes for all inputs on page load
     document.addEventListener('DOMContentLoaded', function() {

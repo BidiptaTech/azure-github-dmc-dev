@@ -544,51 +544,56 @@ class EditTourController extends Controller
                     // Get requested number of rooms
                     $requestedNumberOfRooms = isset($validated['number_of_rooms']) ? (int)$validated['number_of_rooms'] : count($rooms);
                     
-                    // Remove duplicate rooms based on room_id and bed_id combination
-                    $uniqueRooms = [];
-                    $seenRooms = [];
-                    
-                    foreach ($rooms as $room) {
-                        if (!is_array($room)) {
-                            continue;
+                    // If single room with number_of_rooms (new format), store as-is - do NOT duplicate into multiple room objects
+                    $isSingleRoomWithCount = count($rooms) === 1 && isset($rooms[0]['number_of_rooms']);
+                    if ($isSingleRoomWithCount) {
+                        $currentPayload['rooms'] = $rooms;
+                    } else {
+                        // Legacy: remove duplicate rooms based on room_id and bed_id combination
+                        $uniqueRooms = [];
+                        $seenRooms = [];
+                        
+                        foreach ($rooms as $room) {
+                            if (!is_array($room)) {
+                                continue;
+                            }
+                            
+                            $roomId = $room['room_id'] ?? null;
+                            $bedId = null;
+                            
+                            if (isset($room['beds']) && is_array($room['beds']) && count($room['beds']) > 0) {
+                                $bedId = $room['beds'][0]['bed_id'] ?? null;
+                            }
+                            
+                            $uniqueKey = $roomId . '_' . $bedId;
+                            
+                            if (!isset($seenRooms[$uniqueKey])) {
+                                $uniqueRooms[] = $room;
+                                $seenRooms[$uniqueKey] = true;
+                            }
                         }
                         
-                        $roomId = $room['room_id'] ?? null;
-                        $bedId = null;
-                        
-                        if (isset($room['beds']) && is_array($room['beds']) && count($room['beds']) > 0) {
-                            $bedId = $room['beds'][0]['bed_id'] ?? null;
+                        // If requested number of rooms is greater than unique rooms, duplicate the first room
+                        if ($requestedNumberOfRooms > count($uniqueRooms) && !empty($uniqueRooms)) {
+                            $firstRoom = $uniqueRooms[0];
+                            $roomsToAdd = $requestedNumberOfRooms - count($uniqueRooms);
+                            for ($i = 0; $i < $roomsToAdd; $i++) {
+                                $duplicatedRoom = json_decode(json_encode($firstRoom), true);
+                                $uniqueRooms[] = $duplicatedRoom;
+                            }
+                        } elseif ($requestedNumberOfRooms > 0 && $requestedNumberOfRooms < count($uniqueRooms)) {
+                            $uniqueRooms = array_slice($uniqueRooms, 0, $requestedNumberOfRooms);
                         }
                         
-                        $uniqueKey = $roomId . '_' . $bedId;
-                        
-                        if (!isset($seenRooms[$uniqueKey])) {
-                            $uniqueRooms[] = $room;
-                            $seenRooms[$uniqueKey] = true;
-                        }
+                        $currentPayload['rooms'] = $uniqueRooms;
                     }
-                    
-                    // If requested number of rooms is greater than unique rooms, duplicate the first room
-                    if ($requestedNumberOfRooms > count($uniqueRooms) && !empty($uniqueRooms)) {
-                        $firstRoom = $uniqueRooms[0];
-                        $roomsToAdd = $requestedNumberOfRooms - count($uniqueRooms);
-                        for ($i = 0; $i < $roomsToAdd; $i++) {
-                            // Deep copy the first room
-                            $duplicatedRoom = json_decode(json_encode($firstRoom), true);
-                            $uniqueRooms[] = $duplicatedRoom;
-                        }
-                    } elseif ($requestedNumberOfRooms > 0 && $requestedNumberOfRooms < count($uniqueRooms)) {
-                        // If requested is less, trim to requested count
-                        $uniqueRooms = array_slice($uniqueRooms, 0, $requestedNumberOfRooms);
-                    }
-                    
-                    $currentPayload['rooms'] = $uniqueRooms;
                     $roomsUpdated = true;
                     
+                    $storedRooms = $currentPayload['rooms'] ?? [];
                     Log::info('Rooms updated from rooms_json', [
                         'order_id' => $orderId,
-                        'rooms_count' => count($uniqueRooms),
-                        'sample_room' => !empty($uniqueRooms) ? $uniqueRooms[0] : null,
+                        'rooms_count' => count($storedRooms),
+                        'sample_room' => !empty($storedRooms) ? $storedRooms[0] : null,
                     ]);
                 }
             } elseif ($request->has('room_type') || $request->has('bed_type') || $request->has('meal_plan')) {

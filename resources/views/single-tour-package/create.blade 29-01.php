@@ -12577,18 +12577,24 @@ document.addEventListener('DOMContentLoaded', function() {
         const customRoomPriceNum = parseFloat(customRoomPrice);
 
         console.log('Custom room price:', customRoomPrice);
+        console.log('Custom room price/numberOfRooms:', customRoomPriceNum/numberOfRooms);
         console.log('Weekday nights*storedWeekdayPrice:', weekdayNights*storedWeekdayPrice);
         console.log('Weekend nights*storedWeekendPrice:', weekendNights*storedWeekendPrice);
-        console.log('Total room price (weekday+weekend per room):', totalRoomPrice);
-        // Always use the calculated totalRoomPrice (weekday + weekend) so Cost Summary total is correct.
-        // Do NOT overwrite with roomPriceDisplay value, which may be stale or weekday-only.
-        if (customRoomPriceNum > 0 && Math.abs((customRoomPriceNum / numberOfRooms) - totalRoomPrice) > 0.01) {
-            console.log('Syncing room price display to calculated total:', (totalRoomPrice * numberOfRooms).toFixed(2));
-            const roomPriceDisplayEl = document.getElementById('roomPriceDisplay');
-            if (roomPriceDisplayEl) {
-                roomPriceDisplayEl.value = (totalRoomPrice * numberOfRooms).toFixed(2);
-                roomPriceDisplayEl.dataset.manuallyEdited = 'false';
-            }
+        console.log('Total room price:', totalRoomPrice);
+        if((customRoomPriceNum/numberOfRooms)*(weekdayNights*storedWeekdayPrice+weekendNights*storedWeekendPrice) === totalRoomPrice) {
+            console.log('Custom room price is correct');
+        } else {
+            console.log('totalRoomPrice before correction:', totalRoomPrice);
+            totalRoomPrice = (customRoomPriceNum/numberOfRooms);
+            console.log('totalRoomPrice after correction:', totalRoomPrice);
+            console.log('Custom room price is incorrect',(customRoomPriceNum)*(weekdayNights+weekendNights), totalRoomPrice*numberOfRooms);
+            console.log('custom room price:', customRoomPriceNum);
+            console.log('Weekday nights:', weekdayNights);
+            console.log('Weekend nights:', weekendNights);
+            console.log('Total room price:', totalRoomPrice);
+            console.log('Number of rooms:', numberOfRooms);
+            console.log('Total nights:', nightNumbers.length);
+            console.log('Total nights:', nightNumbers.length);
         }
 
         
