@@ -2577,8 +2577,7 @@ class CommonHelper
         $totalTripleSharing = 0;
         $totalBabyCot = 0;
         // Track child-specific pricing component across attraction/restaurant services
-        $totalChildComponent = 0;
-        $totalChildCount = 0;
+        $totalChildComponent = 0; // Sum of child unit prices (attraction + restaurant + …)
         
         // Segregated prices by service type
         $segregatedPrices = [
@@ -3142,40 +3141,35 @@ class CommonHelper
                                 }
                             }
 
-                            if (($adultUnitPrice > 0 || $childUnitPrice > 0) && ($adultCount + $childCount) > 0) {
-                                // Rebuild total using adult/child prices from attraction/restaurant tables
-                                $totalPriceFloat = ($adultUnitPrice * $adultCount) + ($childUnitPrice * $childCount);
-
-                                // Track child-specific component for overall child_sharing calculation
-                                if ($childUnitPrice > 0 && $childCount > 0) {
-                                    $totalChildComponent += ($childUnitPrice * $childCount);
-                                    $totalChildCount += $childCount;
+                            // Adult per pax → main totals + segregated (with hotel and other services).
+                            // Child per pax → child_sharing only (never mixed into single/double).
+                            $singleSharing = 0;
+                            if ($adultCount >= 1) {
+                                if ($adultUnitPrice > 0) {
+                                    $singleSharing = $adultUnitPrice;
+                                } else {
+                                    $pax = $adultCount + $childCount;
+                                    $singleSharing = $pax > 0 ? ($totalPriceFloat / $pax) : $totalPriceFloat;
                                 }
                             }
+                            // When adultCount < 1 (only children): nothing added to main/segregated; child goes to child_sharing below
 
-                            $pax = $adultCount + $childCount;
-                            if ($pax > 0) {
-                                $singleSharing = $totalPriceFloat / $pax;
-                            } else {
-                                $singleSharing = $totalPriceFloat;
-                            }
-
-                            // Add Guide Cost Calculation (divided by adult count)
+                            // Guide and vehicle: add to adult section only (per adult)
                             if (isset($item['guide_options']['total_price']) && $adultCount > 0) {
-                                $guideCost = floatval($item['guide_options']['total_price']);
-                                $singleSharing += ($guideCost / $adultCount);
+                                $singleSharing += floatval($item['guide_options']['total_price']) / $adultCount;
+                            }
+                            if (isset($item['transfer_options']['cost']) && $adultCount > 0) {
+                                $singleSharing += floatval($item['transfer_options']['cost']) / $adultCount;
                             }
 
-                            // Add Vehicle Cost Calculation (divided by adult count)
-                            if (isset($item['transfer_options']['cost']) && $adultCount > 0) {
-                                $vehicleCost = floatval($item['transfer_options']['cost']);
-                                $singleSharing += ($vehicleCost / $adultCount);
-                            }
-                            
-                            // Double sharing: same as single (per-person price)
                             $doubleSharing = $singleSharing;
-                            
-                            // Add to segregated prices
+
+                            // Child price: sum child unit prices only (e.g. attraction 20 + restaurant 12 = 32)
+                            if ($childUnitPrice > 0) {
+                                $totalChildComponent += $childUnitPrice;
+                            }
+
+                            // Add only adult part to segregated and main totals
                             $serviceKey = $normalizedType === 'attraction' ? 'attraction' : 'restaurant';
                             $segregatedPrices[$serviceKey]['single'] += $singleSharing;
                             $segregatedPrices[$serviceKey]['double'] += $doubleSharing;
@@ -3256,10 +3250,7 @@ class CommonHelper
             }
         }
         // Compute effective per-child sharing price (from attraction/restaurant components)
-        $childSharing = 0;
-        if ($totalChildCount > 0 && $totalChildComponent > 0) {
-            $childSharing = $totalChildComponent / $totalChildCount;
-        }
+        $childSharing = $totalChildComponent;
 
         // Round segregated prices and format
         $segregatedPricesRounded = [];
