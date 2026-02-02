@@ -227,8 +227,8 @@ class VehicleController extends Controller
             'description' => 'nullable|string',
             'seating_capacity' => 'required|integer|min:1',
             'vehicle_status' => 'nullable|integer',
+            'city_tour_seating_capacity' => 'required|integer|min:1',
             // Add validation for sharable prices when sharable is checked
-            
         ]);
         $lastVehicle = Vehicle::withTrashed()->orderBy('created_at', 'desc')->first();
         $vehicle_max_id = $lastVehicle->vehicle_id ?? 0;
@@ -414,6 +414,8 @@ class VehicleController extends Controller
         $vehicle->restaurant_private_transport_price = $request->input('restaurant_private_transport_price')?? 0;
         $vehicle->restaurant_shared_transport_price = $request->input('restaurant_shared_transport_price')?? 0;
 
+        $vehicle->city_tour_seating_capacity = $request->input('city_tour_seating_capacity')?? 0;
+
         if ($vehicle->save()) {
             LogActivityService::log('create_vehicle', 'App\Models\Vehicle', $vehicle->vehicle_id, $vehicle);
             
@@ -578,6 +580,7 @@ class VehicleController extends Controller
         $vehicle->image = $master_image;
         $vehicle->driver_id = $request->driver_id;
         $vehicle->city = $request->city_name;
+        $vehicle->city_tour_seating_capacity = $request->input('city_tour_seating_capacity')?? 0;
 
         // Regular Day Pricing
         $vehicle->base_price = $request->input('base_price')?? 0;
