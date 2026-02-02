@@ -122,9 +122,19 @@
                                 Price</option>
                         </select>
                     </div>
+                    <!-- Child with bed price -->
+                    <div class="col-md-3">
+                        <label for="children_with_bed_price" class="form-label"><strong>Child with Bed Price</strong></label>
+                        <input type="number" name="child_with_bed" id="child_with_bed" class="form-control" placeholder="Enter Price" value="{{ $room->child_with_bed ?? 0 }}">
+                    </div>
+                    <!-- Child without bed price -->
+                    <div class="col-md-3">
+                        <label for="children_without_bed_price" class="form-label"><strong>Child without Bed Price</strong></label>
+                        <input type="number" name="child_without_bed" id="child_without_bed" class="form-control" placeholder="Enter Price" value="{{ $room->child_without_bed ?? 0 }}">
+                    </div>
 
                     <!-- Single weekday weekend price -->
-                    <div class="col-md-4" id="single_price" style="display: none;">
+                    <div class="col-md-6" id="single_price" style="display: none;">
                         <div class="mb-3">
                             <fieldset class="border p-1 position-relative">
                                 <legend>Single</legend>
@@ -149,7 +159,7 @@
                     </div>
 
                     <!-- Double weekday weekend price -->
-                    <div class="col-md-4" id="double_price" style="display: none;">
+                    <div class="col-md-6" id="double_price" style="display: none;">
                         <div class="mb-3">
                             <fieldset class="border p-1 position-relative">
                                 <legend>Double</legend>
@@ -175,7 +185,7 @@
                     </div>
 
                     <!-- Base Single weekday weekend -->
-                    <div class="col-md-4" id="base_single_price" style="display: none;">
+                    <div class="col-md-6" id="base_single_price" style="display: none;">
                         <div class="mb-3">
                             <fieldset class="border p-1 position-relative">
                                 <legend>Single</legend>
@@ -202,7 +212,7 @@
                     </div>
 
                     <!-- Base Double weekday weekend -->
-                    <div class="col-md-4" id="base_double_price" style="display: none;">
+                    <div class="col-md-6" id="base_double_price" style="display: none;">
                         <div class="mb-3">
                             <fieldset class="border p-1 position-relative">
                                 <legend>Double</legend>

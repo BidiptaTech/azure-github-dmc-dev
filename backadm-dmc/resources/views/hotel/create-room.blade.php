@@ -541,6 +541,16 @@
                             <option value="2">Full Price</option>
                         </select>
                     </div>
+                    <!-- Child with bed price -->
+                    <div class="col-md-3">
+                        <label for="children_with_bed_price" class="form-label"><strong>Child with Bed Price</strong></label>
+                        <input type="number" name="child_with_bed" id="child_with_bed" class="form-control" placeholder="Enter Price">
+                    </div>
+                    <!-- Child without bed price -->
+                    <div class="col-md-3">
+                        <label for="children_without_bed_price" class="form-label"><strong>Child without Bed Price</strong></label>
+                        <input type="number" name="child_without_bed" id="child_without_bed" class="form-control" placeholder="Enter Price">
+                    </div>
 
                     <!-- Single weekday weekend price -->
                     <div class="col-md-6" id="single_price" style="display: none;">
