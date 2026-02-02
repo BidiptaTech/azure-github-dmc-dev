@@ -1740,7 +1740,9 @@ class HotelController extends Controller
                 'double_weekday_price' => 'nullable|numeric',
                 'double_weekend_price' => 'nullable|numeric',
                 'children_price' => 'nullable|numeric|min:0',
-                'images.*' => 'image|mimes:jpeg,png,jpg,gif|max:2048'
+                'images.*' => 'image|mimes:jpeg,png,jpg,gif|max:2048',
+                'child_with_bed' => 'nullable|numeric|min:0',
+                'child_without_bed' => 'nullable|numeric|min:0',
             ]);
 
             $auth_user = Auth::user();
@@ -1918,7 +1920,9 @@ class HotelController extends Controller
             'dinner_price' => $request->dinner_included ? $request->dinner_price : null,
             'breakfast_included' => $request->supplementary_breakfast ?? false,
             'master_image' => $master_image,
-            'images' => json_encode($img_path)
+            'images' => json_encode($img_path),
+            'child_with_bed' => $request->child_with_bed,
+            'child_without_bed' => $request->child_without_bed,
         ]);
         
         \Log::info("Room update result", ['success' => $updateResult]);
@@ -2022,6 +2026,8 @@ class HotelController extends Controller
             'status' => $request->room_status == 1 ? 1 : 0,
             'varient_price' => $varientPrice, // Store the variant price for future calculations
             'breakfast_restaurant' => $originalRoom->breakfast_restaurant,
+            'child_with_bed' => $request->child_with_bed,
+            'child_without_bed' => $request->child_without_bed,
         ]);
     }
 
