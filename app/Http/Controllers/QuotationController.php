@@ -3,10 +3,14 @@
 namespace App\Http\Controllers;
 
 use App\Helpers\CommonHelper;
+use App\Helpers\CurrencyHelper;
 use App\Models\Tour;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Crypt;
+use App\Models\User;
+use App\Models\Country;
+use Illuminate\Support\Facades\Auth;
 
 class QuotationController extends Controller
 {
@@ -93,8 +97,12 @@ class QuotationController extends Controller
             'DOP', // Dominican Peso
             'JMD', // Jamaican Dollar
         ];
-
-        $defaultCurrency = 'SGD';
+        $currentUser = Auth::user();
+        $dmcId = CommonHelper::getDmcId($currentUser);
+        $dmc = User::select('country')->where('userId', $dmcId)->first();
+        $country = $dmc ? Country::select('currency')->where('name', $dmc->country)->first() : null;
+        $currencyRaw = $country ? $country->currency : null;
+        $defaultCurrency = CurrencyHelper::normalizeCurrencyToCode($currencyRaw, $availableCurrencies, 'SGD');
         $selectedCurrency = strtoupper($request->query('currency', $defaultCurrency));
 
         if (!in_array($selectedCurrency, $availableCurrencies, true)) {
