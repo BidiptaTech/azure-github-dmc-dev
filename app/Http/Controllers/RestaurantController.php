@@ -19,6 +19,7 @@ use App\Models\Country;
 use App\Models\City;
 use App\Models\Order;
 use Illuminate\Support\Facades\Crypt;
+use Illuminate\Support\Facades\Hash;
 
 class RestaurantController extends Controller
 {
@@ -290,6 +291,8 @@ class RestaurantController extends Controller
         $restaurant->lunch_price = $request->input('lunch_price'); // Fixed typo
         $restaurant->dinner_price = $request->input('dinner_price');
         $restaurant->property = $request->input('property');
+        $restaurant->email = $request->input('restaurant_email');    //email added
+        $restaurant->password = Hash::make($request->input('password'));    //password added
         $restaurant->is_active = $request->input('restaurant_status') == 1 ? 1 : 0;
         $restaurant->images = $img_path ?? null;
         $restaurant->master_image = $master_image ?? null;
@@ -460,6 +463,8 @@ class RestaurantController extends Controller
             'description' => 'required',
             'terms_conditions' => 'required|string',
             'remarks' => 'nullable|string',
+            'restaurant_email' => 'required|email|unique:restaurants,email', //email added
+            'password' => 'required|string|min:8', //password added 
         ]);
 
         
@@ -589,6 +594,8 @@ class RestaurantController extends Controller
         $restaurant->restaurant_id = $restaurantId;
 
         $restaurant->property = $request->input('property');
+        $restaurant->email = $request->input('restaurant_email');    //email added
+        $restaurant->password = Hash::make($request->input('password'));    //password added
         //$restaurant->is_active = $restaurant->restaurant_status;
         $restaurant->images = $imagePathsJson;
         $restaurant->master_image = $masterImage;
@@ -735,6 +742,8 @@ class RestaurantController extends Controller
         $restaurant->lunch_price = $request->input('lunch_price');
         $restaurant->dinner_price = $request->input('dinner_price');
         $restaurant->property = $request->input('property');
+        $restaurant->email = $request->input('restaurant_email');    //email added
+        $restaurant->password = Hash::make($request->input('password'));    //password added
         $restaurant->is_active = $request->input('restaurant_status') == 1 ? 1 : 0;
         $restaurant->description = $request->input('description');
         $restaurant->remarks = $request->input('remarks');

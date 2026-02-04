@@ -4,6 +4,9 @@
 <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css" rel="stylesheet">
 <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/flatpickr/dist/flatpickr.min.css">
 <link href="https://cdnjs.cloudflare.com/ajax/libs/select2/4.0.13/css/select2.min.css" rel="stylesheet" />
+<link rel="stylesheet"
+      href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.1/font/bootstrap-icons.css">
+
 
 <style>
     /* Flatpickr container styling */
@@ -245,6 +248,32 @@
                                 @endif
                                 @error('property')
                                     <div class="text-danger mt-1">{{ $message }}</div>
+                                @enderror
+                            </div>
+                            <!-- email-->
+                            <div class="col-md-3 mb-3">
+                                <label for="restaurant_email" class="form-label"><strong>Email</strong><span class="text-danger">*</span></label>
+                                <input type="email" class="form-control" name="restaurant_email" value="{{$restaurant->email}}" placeholder="Enter Email"   autocomplete="new-email"required>
+                                @error('restaurant_email')
+                                <div class="text-danger mt-1">{{ $message }}</div>
+                                @enderror
+                            </div>
+                        <!-- password-->
+                        <div class="col-md-3 mb-3">
+                                <label for="password" class="form-label"><strong>Password</strong><span class="text-danger">*</span></label>
+                                <div class="input-group">
+                                    <input id="password" type="password" class="form-control" name="password" placeholder="Enter Password" required>
+                                    <!-- Show / Hide -->
+                                    <button type="button"id="togglePasswordBtn" class="btn btn-outline-secondary  btn-sm px-2" onclick="togglePassword()">
+                                        <i id="eyeIcon" class="bi bi-eye-slash"></i>
+                                    </button>
+                                    <!-- Auto Generate -->
+                                    <button type="button" class="btn btn-outline-secondary  btn-sm px-2" onclick="generatePassword()">
+                                        🔐
+                                    </button>
+                                </div>
+                                @error('password')
+                                <div class="text-danger mt-1">{{ $message }}</div>
                                 @enderror
                             </div>
                         </div>
@@ -1330,6 +1359,36 @@ document.head.insertAdjacentHTML('beforeend', `
         }
     </style>
 `);
+
+  // password show/hide toggle functionality  
+  function togglePassword() {
+        const passwordField = document.getElementById('password');
+        console.log(passwordField);
+        const eyeBtn = document.getElementById('togglePasswordBtn');
+
+if (passwordField.type === 'password') {
+    passwordField.type = 'text';
+    eyeBtn.innerHTML = '<i id="eyeIcon" class="bi bi-eye"></i>';      // open eye
+} else {
+    passwordField.type = 'password';
+    eyeBtn.innerHTML = ' <i id="eyeIcon" class="bi bi-eye-slash"></i>';      // closed eye
+}
+}
+    
+    // password auto generate functionality
+    function generatePassword() {
+        const length = 10;
+        const chars = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789@#$!";
+        let password = "";
+
+        for (let i = 0; i < length; i++) {
+            password += chars.charAt(Math.floor(Math.random() * chars.length));
+        }
+
+        const passwordField = document.getElementById('password');
+        passwordField.value = password;
+        passwordField.type = 'text'; // show generated password
+    }
 </script>
 
 @endsection
