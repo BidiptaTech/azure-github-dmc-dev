@@ -888,9 +888,21 @@ class EnquiryFormPro extends Controller
             ->orderBy('name')
             ->get();
         
-        // Add zone_id to each attraction
-        $attractions->each(function($attraction) use ($dmc_id) {
+        // Add zone_id to each attraction and fetch tickets
+        $attractionIds = $attractions->pluck('id')->toArray();
+        $tickets = \App\Models\Ticket::whereIn('attraction_id', $attractionIds)
+            ->where('dmc_id', $dmc_id)
+            ->select('ticket_id', 'attraction_id', 'name', 'child_price', 'adult_price', 
+                     'senior_adult_price', 'description')
+            ->get();
+        
+        // Group tickets by attraction_id
+        $ticketsByAttraction = $tickets->groupBy('attraction_id');
+        
+        // Add zone_id and tickets to each attraction
+        $attractions->each(function($attraction) use ($dmc_id, $ticketsByAttraction) {
             $attraction->zone_id = $dmc_id ? $attraction->getZoneForDmc($dmc_id) : null;
+            $attraction->tickets = $ticketsByAttraction->get($attraction->id, collect())->values();
         });
         
         \Log::info('getAttractionsByDestination - Attractions found', [

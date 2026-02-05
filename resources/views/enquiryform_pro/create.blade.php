@@ -1218,38 +1218,6 @@
     <!-- Scrollable Middle Content -->
     <div class="enquiry-pro-content">
         
-        <!-- Arrival/Departure Section -->
-        <div class="section-card">
-            <div class="section-header">
-                <span>Arrival / Departure</span>
-                <div>
-                    <button class="btn btn-sm btn-light btn-xs" onclick="openArrivalDepartureModal()">+ Add</button>
-                    <button class="btn btn-sm btn-light btn-xs ms-1" onclick="removeSelectedArrivalDeparture()">- Remove</button>
-                </div>
-            </div>
-            <div class="section-body">
-                <table class="table table-custom table-hover" id="arrivalDepartureTable" style="display: none;">
-                    <thead>
-                        <tr>
-                            <th><input type="checkbox" id="selectAllArrivalDeparture"></th>
-                            <th>Date/Time</th>
-                            <th>Port</th>
-                            <th>Flight/Train/Bus No</th>
-                            <th>Type</th>
-                            <th>Transfer</th>
-                            <th>Vehicle Name</th>
-                            <th>Vehicle Type</th>
-                            <th>Supplement</th>
-                        </tr>
-                    </thead>
-                    <tbody id="arrivalDepartureTableBody">
-                        <!-- Arrival/Departure entries will be added here -->
-                    </tbody>
-                </table>
-                <div class="empty-section" id="emptyArrivalDepartureMessage">No arrival/departure added yet</div>
-            </div>
-        </div>
-
         <!-- Book Travel Section - COMMENTED OUT FOR NOW -->
         <!--
         <div class="section-card">
@@ -1462,6 +1430,38 @@
                     </tbody>
                 </table>
                 <div class="empty-section" id="emptyGuideMessage">No guides added yet</div>
+            </div>
+        </div>
+
+        <!-- Arrival/Departure Section -->
+        <div class="section-card">
+            <div class="section-header">
+                <span>Arrival / Departure</span>
+                <div>
+                    <button class="btn btn-sm btn-light btn-xs" onclick="openArrivalDepartureModal()">+ Add</button>
+                    <button class="btn btn-sm btn-light btn-xs ms-1" onclick="removeSelectedArrivalDeparture()">- Remove</button>
+                </div>
+            </div>
+            <div class="section-body">
+                <table class="table table-custom table-hover" id="arrivalDepartureTable" style="display: none;">
+                    <thead>
+                        <tr>
+                            <th><input type="checkbox" id="selectAllArrivalDeparture"></th>
+                            <th>Date/Time</th>
+                            <th>Port</th>
+                            <th>Flight/Train/Bus No</th>
+                            <th>Type</th>
+                            <th>Transfer</th>
+                            <th>Vehicle Name</th>
+                            <th>Vehicle Type</th>
+                            <th>Supplement</th>
+                        </tr>
+                    </thead>
+                    <tbody id="arrivalDepartureTableBody">
+                        <!-- Arrival/Departure entries will be added here -->
+                    </tbody>
+                </table>
+                <div class="empty-section" id="emptyArrivalDepartureMessage">No arrival/departure added yet</div>
             </div>
         </div>
 
@@ -9179,6 +9179,12 @@
         
         // Get header values for validation
         const headerValues = getHeaderValues();
+        const totalPax = headerValues.adults + headerValues.children;
+        
+        // Calculate initial rooms based on pax: pax/2 rounded up (default 2 adults per room)
+        // Example: 7 pax / 2 = 3.5 = 4 rooms
+        const initialRooms = Math.ceil(totalPax / 2);
+        
         const headerInfoEl = document.getElementById('roomComboHeaderInfo');
         const adultsBadge = document.getElementById('headerAdultsBadge');
         const childBedBadge = document.getElementById('headerChildrenBedBadge');
@@ -9195,28 +9201,36 @@
             row.className = 'room-combination-row';
             row.setAttribute('data-combo-id', combo.id);
             row.setAttribute('data-max-occupancy', combo.maxOccupancy || 0);
+            row.setAttribute('data-extra-bed-available', combo.extraBedAvailable ? 'true' : 'false');
+            row.setAttribute('data-extra-bed-price', combo.extraBedPrice || 0);
+            
+            // Default adults per room is 2
+            const defaultAdults = 2;
+            // Default rooms is 1 (will be adjusted when checkbox is checked)
+            const defaultRooms = 1;
             
             row.innerHTML = `
                 <td style="padding: 2px 8px; text-align: center;">
                     <input type="checkbox" class="room-combination-checkbox" data-combo-id="${combo.id}">
                 </td>
                 <td style="padding: 2px 8px;">${combo.roomType}</td>
-                <td style="padding: 2px 8px;">${combo.bedType}</td>
+                <td style="padding: 2px 8px;">${combo.bedType}${combo.extraBedAvailable && combo.extraBedPrice ? ` <small class="text-info">(Extra Bed: $${parseFloat(combo.extraBedPrice).toFixed(2)})</small>` : ''}</td>
                 <td style="padding: 2px 8px;">${combo.mealPlanLabel}</td>
                 <td style="padding: 2px 8px; text-align: center;">${combo.maxOccupancy}</td>
                 <td style="padding: 2px 8px;">
                     <input type="number" class="form-control form-control-sm combo-rooms" 
-                           data-combo-id="${combo.id}" value="1" min="1" 
+                           data-combo-id="${combo.id}" value="${defaultRooms}" min="1" 
                            style="font-size: 10px; padding: 2px 4px; text-align: center;">
                 </td>
                 <td style="padding: 2px 8px;">
                     <input type="number" class="form-control form-control-sm combo-adults" 
-                           data-combo-id="${combo.id}" value="${Math.min(2, headerValues.adults)}" min="1" max="${headerValues.adults}"
+                           data-combo-id="${combo.id}" value="${defaultAdults}" min="1" max="${headerValues.adults}"
                            style="font-size: 10px; padding: 2px 4px; text-align: center;">
                 </td>
                 <td style="padding: 2px 8px;">
                     <input type="number" class="form-control form-control-sm combo-extra-bed" 
                            data-combo-id="${combo.id}" value="0" min="0" max="${headerValues.children}"
+                           ${!combo.extraBedAvailable ? 'disabled title="Extra bed not available"' : ''}
                            style="font-size: 10px; padding: 2px 4px; text-align: center;">
                 </td>
                 <td style="padding: 2px 8px;">
@@ -9243,6 +9257,12 @@
             let adults = parseInt(adultsInput.value || 0);
             let childWithBed = parseInt(childBedInput.value || 0);
             let childWithoutBed = parseInt(childNoBedInput.value || 0);
+            const minAdultsPerRoom = 2;
+
+            // Ensure minimum 2 adults per room
+            if (adults > 0 && adults < minAdultsPerRoom) {
+                adults = minAdultsPerRoom;
+            }
 
             // Header caps
             adults = Math.min(adults, headerValues.adults);
@@ -9302,26 +9322,367 @@
             }
         };
 
+        // Function to distribute total pax across all checked rooms intelligently
+        // Example: 7 pax = 3 rooms with 2 pax each + 1 room with 1 pax
+        const distributePaxAcrossRooms = () => {
+            const headerValues = getHeaderValues();
+            const totalPax = headerValues.adults + headerValues.children;
+            
+            // Get all checked combinations
+            const checkedBoxes = tbody.querySelectorAll('.room-combination-checkbox:checked');
+            
+            if (checkedBoxes.length === 0) {
+                return;
+            }
+            
+            // Collect all checked room data
+            const checkedRooms = [];
+            checkedBoxes.forEach(checkbox => {
+                const comboId = checkbox.getAttribute('data-combo-id');
+                const row = tbody.querySelector(`tr[data-combo-id="${comboId}"]`);
+                if (!row) return;
+                
+                const combo = window.currentRoomCombinations.find(c => c.id === comboId);
+                if (!combo) return;
+                
+                const roomsInput = row.querySelector('.combo-rooms');
+                const adultsInput = row.querySelector('.combo-adults');
+                const extraBedInput = row.querySelector('.combo-extra-bed');
+                const childWithoutInput = row.querySelector('.combo-child-without');
+                const maxOccupancy = parseInt(row.getAttribute('data-max-occupancy') || 0);
+                const extraBedAvailable = row.getAttribute('data-extra-bed-available') === 'true';
+                
+                checkedRooms.push({
+                    comboId: comboId,
+                    row: row,
+                    roomsInput: roomsInput,
+                    adultsInput: adultsInput,
+                    extraBedInput: extraBedInput,
+                    childWithoutInput: childWithoutInput,
+                    maxOccupancy: maxOccupancy,
+                    extraBedAvailable: extraBedAvailable,
+                    combo: combo
+                });
+            });
+            
+            if (checkedRooms.length === 0) {
+                return;
+            }
+            
+            // If only one room is checked, set default to 2 pax and calculate rooms needed
+            if (checkedRooms.length === 1) {
+                const room = checkedRooms[0];
+                const defaultPaxPerRoom = 2;
+                const roomsNeeded = Math.ceil(totalPax / defaultPaxPerRoom);
+                
+                room.adultsInput.value = defaultPaxPerRoom;
+                room.extraBedInput.value = 0;
+                room.childWithoutInput.value = 0;
+                room.roomsInput.value = roomsNeeded;
+                
+                // Recalculate price
+                recalcPrice(room.comboId);
+                return;
+            }
+            
+            // Multiple rooms: distribute pax intelligently
+            // Strategy: Ensure minimum 2 adults per room, then distribute remainder intelligently
+            const minAdultsPerRoom = 2;
+            const defaultPaxPerRoom = 2;
+            
+            // Calculate total rooms needed (minimum 2 adults per room)
+            const totalRoomsNeeded = Math.ceil(totalPax / minAdultsPerRoom);
+            
+            // Initialize all checked rooms with 0 rooms
+            checkedRooms.forEach(room => {
+                room.roomsInput.value = 0;
+                room.adultsInput.value = minAdultsPerRoom;
+                room.extraBedInput.value = 0;
+                room.childWithoutInput.value = 0;
+            });
+            
+            let remainingPax = totalPax;
+            let totalRoomsAssigned = 0;
+            
+            // First pass: Assign at least 1 room with 2 adults to each checked combination
+            // This ensures each room type gets at least 1 room with minimum 2 adults
+            checkedRooms.forEach((room, index) => {
+                if (remainingPax >= minAdultsPerRoom && totalRoomsAssigned < totalRoomsNeeded) {
+                    room.roomsInput.value = 1;
+                    room.adultsInput.value = minAdultsPerRoom;
+                    room.extraBedInput.value = 0;
+                    room.childWithoutInput.value = 0;
+                    remainingPax -= minAdultsPerRoom;
+                    totalRoomsAssigned += 1;
+                }
+            });
+            
+            // Second pass: Distribute remaining pax and additional rooms
+            // Strategy: Add rooms with 2 adults each until we can't fit another full room
+            while (remainingPax >= minAdultsPerRoom && totalRoomsAssigned < totalRoomsNeeded) {
+                // Find the room combination with the least rooms assigned
+                let minRoomsRoom = checkedRooms[0];
+                let minRooms = parseInt(minRoomsRoom.roomsInput.value || 0);
+                
+                checkedRooms.forEach(room => {
+                    const currentRooms = parseInt(room.roomsInput.value || 0);
+                    if (currentRooms < minRooms) {
+                        minRooms = currentRooms;
+                        minRoomsRoom = room;
+                    }
+                });
+                
+                // Add one more room with 2 adults to balance distribution
+                const currentRooms = parseInt(minRoomsRoom.roomsInput.value || 0);
+                minRoomsRoom.roomsInput.value = currentRooms + 1;
+                minRoomsRoom.adultsInput.value = minAdultsPerRoom;
+                remainingPax -= minAdultsPerRoom;
+                totalRoomsAssigned += 1;
+            }
+            
+            // Third pass: Handle remaining pax (if less than 2, add to last room or add extra room)
+            if (remainingPax > 0 && remainingPax < minAdultsPerRoom) {
+                // Try to add remaining pax to the last room that was assigned
+                // Check if we can add it to an existing room without exceeding max occupancy
+                let addedToExisting = false;
+                
+                for (let i = checkedRooms.length - 1; i >= 0; i--) {
+                    const room = checkedRooms[i];
+                    const currentRooms = parseInt(room.roomsInput.value || 0);
+                    
+                    if (currentRooms > 0) {
+                        const currentAdults = parseInt(room.adultsInput.value || minAdultsPerRoom);
+                        const maxOccupancy = room.maxOccupancy || 999; // Default to high value if not set
+                        const currentOccupancy = currentAdults + parseInt(room.extraBedInput.value || 0) + parseInt(room.childWithoutInput.value || 0);
+                        
+                        // Check if we can add remaining pax to this room's last room
+                        if (currentOccupancy + remainingPax <= maxOccupancy) {
+                            // Add to adults (since we're ensuring minimum 2 adults, this is safe)
+                            room.adultsInput.value = currentAdults + remainingPax;
+                            remainingPax = 0;
+                            addedToExisting = true;
+                            break;
+                        }
+                    }
+                }
+                
+                // If couldn't add to existing room, add a new room with minimum 2 adults
+                // The extra pax will be distributed across rooms
+                if (!addedToExisting) {
+                    // Find room with least rooms to add one more
+                    let minRoomsRoom = checkedRooms[0];
+                    let minRooms = parseInt(minRoomsRoom.roomsInput.value || 0);
+                    
+                    checkedRooms.forEach(room => {
+                        const currentRooms = parseInt(room.roomsInput.value || 0);
+                        if (currentRooms < minRooms) {
+                            minRooms = currentRooms;
+                            minRoomsRoom = room;
+                        }
+                    });
+                    
+                    const currentRooms = parseInt(minRoomsRoom.roomsInput.value || 0);
+                    minRoomsRoom.roomsInput.value = currentRooms + 1;
+                    // Set to minimum 2 adults (remaining pax will be handled by adjusting other rooms)
+                    minRoomsRoom.adultsInput.value = minAdultsPerRoom;
+                    
+                    // Now we have extra capacity, redistribute to balance
+                    // Add the remaining pax to the room that can accommodate it
+                    const totalExtraCapacity = minAdultsPerRoom - remainingPax;
+                    if (totalExtraCapacity > 0) {
+                        // Find a room that can take the extra capacity
+                        for (let i = 0; i < checkedRooms.length; i++) {
+                            const room = checkedRooms[i];
+                            const currentAdults = parseInt(room.adultsInput.value || minAdultsPerRoom);
+                            const maxOccupancy = room.maxOccupancy || 999;
+                            const currentOccupancy = currentAdults + parseInt(room.extraBedInput.value || 0) + parseInt(room.childWithoutInput.value || 0);
+                            
+                            if (currentOccupancy + totalExtraCapacity <= maxOccupancy) {
+                                room.adultsInput.value = currentAdults + totalExtraCapacity;
+                                break;
+                            }
+                        }
+                    }
+                }
+            }
+            
+            // Recalculate prices for all rooms
+            checkedRooms.forEach(room => {
+                if (parseInt(room.roomsInput.value || 0) > 0) {
+                    recalcPrice(room.comboId);
+                }
+            });
+        };
+        
+        // Function to validate and adjust total occupancy to match total pax
+        const validateTotalOccupancy = () => {
+            const headerValues = getHeaderValues();
+            const totalPax = headerValues.adults + headerValues.children;
+            const minAdultsPerRoom = 2;
+            
+            // Get all checked combinations
+            const checkedBoxes = tbody.querySelectorAll('.room-combination-checkbox:checked');
+            
+            if (checkedBoxes.length === 0) {
+                return;
+            }
+            
+            // Calculate current total occupancy and check for minimum adults per room
+            let totalOccupancy = 0;
+            let needsRedistribution = false;
+            const roomData = [];
+            
+            checkedBoxes.forEach(checkbox => {
+                const comboId = checkbox.getAttribute('data-combo-id');
+                const row = tbody.querySelector(`tr[data-combo-id="${comboId}"]`);
+                if (!row) return;
+                
+                const roomsInput = row.querySelector('.combo-rooms');
+                const adultsInput = row.querySelector('.combo-adults');
+                const extraBedInput = row.querySelector('.combo-extra-bed');
+                const childWithoutInput = row.querySelector('.combo-child-without');
+                
+                const rooms = parseInt(roomsInput.value || 1);
+                let adults = parseInt(adultsInput.value || 2);
+                const extraBed = parseInt(extraBedInput.value || 0);
+                const childWithout = parseInt(childWithoutInput.value || 0);
+                
+                // Ensure minimum 2 adults per room
+                if (adults < minAdultsPerRoom && rooms > 0) {
+                    adults = minAdultsPerRoom;
+                    adultsInput.value = minAdultsPerRoom;
+                    needsRedistribution = true;
+                }
+                
+                const occupancyPerRoom = adults + extraBed + childWithout;
+                const comboOccupancy = rooms * occupancyPerRoom;
+                totalOccupancy += comboOccupancy;
+                
+                roomData.push({
+                    comboId: comboId,
+                    row: row,
+                    roomsInput: roomsInput,
+                    adultsInput: adultsInput,
+                    extraBedInput: extraBedInput,
+                    childWithoutInput: childWithoutInput,
+                    rooms: rooms,
+                    adults: adults,
+                    extraBed: extraBed,
+                    childWithout: childWithout,
+                    occupancyPerRoom: occupancyPerRoom,
+                    comboOccupancy: comboOccupancy
+                });
+            });
+            
+            // If total occupancy doesn't match total pax or minimum adults violated, redistribute
+            if (totalOccupancy !== totalPax || needsRedistribution) {
+                distributePaxAcrossRooms();
+            }
+        };
+        
         // Add validation event listeners
         tbody.querySelectorAll('.combo-adults').forEach(input => {
             input.addEventListener('input', function() {
                 const max = parseInt(this.getAttribute('max'));
-                if (parseInt(this.value) > max) {
+                const comboId = this.getAttribute('data-combo-id');
+                const minAdultsPerRoom = 2;
+                let adults = parseInt(this.value || minAdultsPerRoom);
+                
+                // Ensure minimum 2 adults per room
+                if (adults < minAdultsPerRoom) {
+                    adults = minAdultsPerRoom;
+                    this.value = minAdultsPerRoom;
+                    alert(`Minimum ${minAdultsPerRoom} adults required per room.`);
+                }
+                
+                if (adults > max) {
+                    adults = max;
                     this.value = max;
                     alert(`Adults cannot exceed ${max} (header value)`);
                 }
-                recalcPrice(this.getAttribute('data-combo-id'));
+                
+                // If adults changed to 3 and extra bed is available, adjust rooms
+                const row = tbody.querySelector(`tr[data-combo-id="${comboId}"]`);
+                if (row) {
+                    const extraBedAvailable = row.getAttribute('data-extra-bed-available') === 'true';
+                    
+                    if (adults > 2 && !extraBedAvailable) {
+                        // If extra bed not available, limit to 2 adults
+                        adults = 2;
+                        this.value = 2;
+                        alert('Extra bed not available. Maximum 2 adults per room.');
+                    }
+                }
+                
+                recalcPrice(comboId);
+                // Redistribute pax across all checked rooms when pax changes
+                distributePaxAcrossRooms();
+                validateTotalOccupancy();
             });
         });
         
         tbody.querySelectorAll('.combo-extra-bed, .combo-child-without').forEach(input => {
             input.addEventListener('input', function() {
                 const max = parseInt(this.getAttribute('max'));
+                const comboId = this.getAttribute('data-combo-id');
+                
                 if (parseInt(this.value) > max) {
                     this.value = max;
                     alert(`Children count cannot exceed ${max} (header value)`);
                 }
-                recalcPrice(this.getAttribute('data-combo-id'));
+                
+                recalcPrice(comboId);
+                // Redistribute pax across all checked rooms when pax changes
+                distributePaxAcrossRooms();
+                validateTotalOccupancy();
+            });
+        });
+        
+        // Add event listener for room count changes
+        tbody.querySelectorAll('.combo-rooms').forEach(input => {
+            input.addEventListener('input', function() {
+                const comboId = this.getAttribute('data-combo-id');
+                recalcPrice(comboId);
+                // When room quantity changes, redistribute pax to match total
+                validateTotalOccupancy();
+            });
+        });
+        
+        // Add event listener for checkbox changes (when combinations are selected/deselected)
+        tbody.querySelectorAll('.room-combination-checkbox').forEach(checkbox => {
+            checkbox.addEventListener('change', function() {
+                const comboId = this.getAttribute('data-combo-id');
+                const isChecked = this.checked;
+                
+                // When checkbox is toggled, redistribute pax across all checked rooms
+                if (isChecked) {
+                    // When checking a room, set default values first
+                    const row = tbody.querySelector(`tr[data-combo-id="${comboId}"]`);
+                    if (row) {
+                        const adultsInput = row.querySelector('.combo-adults');
+                        const extraBedInput = row.querySelector('.combo-extra-bed');
+                        const childWithoutInput = row.querySelector('.combo-child-without');
+                        const roomsInput = row.querySelector('.combo-rooms');
+                        
+                        // Set default: 2 pax per room
+                        if (!adultsInput.value || parseInt(adultsInput.value) === 0) {
+                            adultsInput.value = 2;
+                        }
+                        if (!extraBedInput.value) {
+                            extraBedInput.value = 0;
+                        }
+                        if (!childWithoutInput.value) {
+                            childWithoutInput.value = 0;
+                        }
+                        if (!roomsInput.value || parseInt(roomsInput.value) === 0) {
+                            roomsInput.value = 1;
+                        }
+                    }
+                }
+                
+                // Redistribute pax across all checked rooms
+                distributePaxAcrossRooms();
+                validateTotalOccupancy();
             });
         });
 
@@ -9354,6 +9715,38 @@
             }
             recalcPrice(combo.id);
         });
+        
+        // Add listeners for header pax changes to redistribute rooms
+        const adultCountInput = document.getElementById('adultCountInput');
+        const childCountInput = document.getElementById('childCountInput');
+        
+        if (adultCountInput && !adultCountInput.hasAttribute('data-room-redistribute-listener')) {
+            adultCountInput.setAttribute('data-room-redistribute-listener', 'true');
+            adultCountInput.addEventListener('change', function() {
+                // Small delay to ensure value is updated
+                setTimeout(() => {
+                    const checkedBoxes = tbody.querySelectorAll('.room-combination-checkbox:checked');
+                    if (checkedBoxes.length > 0) {
+                        distributePaxAcrossRooms();
+                        validateTotalOccupancy();
+                    }
+                }, 100);
+            });
+        }
+        
+        if (childCountInput && !childCountInput.hasAttribute('data-room-redistribute-listener')) {
+            childCountInput.setAttribute('data-room-redistribute-listener', 'true');
+            childCountInput.addEventListener('change', function() {
+                // Small delay to ensure value is updated
+                setTimeout(() => {
+                    const checkedBoxes = tbody.querySelectorAll('.room-combination-checkbox:checked');
+                    if (checkedBoxes.length > 0) {
+                        distributePaxAcrossRooms();
+                        validateTotalOccupancy();
+                    }
+                }, 100);
+            });
+        }
         
         // Reset debug flag for next hotel selection
         window.priceCalcDebugged = false;
@@ -12318,7 +12711,9 @@
                             roomsInput.dispatchEvent(new Event('input', { bubbles: true }));
                         }
                         if (adultsInput) {
-                            adultsInput.value = hotel.adultsPerRoom;
+                            const minAdultsPerRoom = 2;
+                            const adultsValue = Math.max(minAdultsPerRoom, parseInt(hotel.adultsPerRoom) || minAdultsPerRoom);
+                            adultsInput.value = adultsValue;
                             adultsInput.dispatchEvent(new Event('input', { bubbles: true }));
                         }
                         if (extraBedInput) {
@@ -13646,77 +14041,155 @@
                     // Get header values for auto-fill
                     const headerValues = getHeaderValues();
                     
-                    // Build table rows
+                    // Build table rows - one row per ticket
                     let html = '';
                     data.attractions.forEach(attr => {
-                        console.log('Attraction:', attr.name, 'Adult Price:', attr.adult_price, 'Child Price:', attr.child_price);
-                        html += `
-                            <tr class="attraction-row" data-attraction-id="${attr.id}" data-attraction-name="${attr.name}">
-                                <td style="padding: 2px 8px; text-align: center;">
-                                    <input type="checkbox" class="attraction-checkbox" data-attr-id="${attr.id}">
-                                </td>
-                                <td style="padding: 2px 8px;">
-                                    ${attr.name}
-                                </td>
-                                <td style="padding: 2px 8px;">
-                                    <input type="number" class="form-control form-control-sm attraction-adult-qty" data-attr-id="${attr.id}" value="${headerValues.adults || 0}" min="0" style="font-size: 10px; padding: 2px 4px; text-align: center;">
-                                </td>
-                                <td style="padding: 2px 8px;">
-                                    <input type="text" class="form-control form-control-sm attraction-adult-charge" data-attr-id="${attr.id}" value="SGD ${parseFloat(attr.adult_price || 0).toFixed(2)}" style="font-size: 10px; padding: 2px 4px;">
-                                </td>
-                                <td style="padding: 2px 8px;">
-                                    <input type="number" class="form-control form-control-sm attraction-child-qty" data-attr-id="${attr.id}" value="${headerValues.children || 0}" min="0" style="font-size: 10px; padding: 2px 4px; text-align: center;">
-                                </td>
-                                <td style="padding: 2px 8px;">
-                                    <input type="text" class="form-control form-control-sm attraction-child-charge" data-attr-id="${attr.id}" value="SGD ${parseFloat(attr.child_price || 0).toFixed(2)}" style="font-size: 10px; padding: 2px 4px;">
-                                </td>
-                                <td style="padding: 2px 8px;">
-                                    <input type="number" class="form-control form-control-sm attraction-infant-qty" data-attr-id="${attr.id}" value="${headerValues.infants || 0}" min="0" style="font-size: 10px; padding: 2px 4px; text-align: center;">
-                                </td>
-                                <td style="padding: 2px 8px;">
-                                    <input type="text" class="form-control form-control-sm attraction-infant-charge" data-attr-id="${attr.id}" value="SGD 0.00" style="font-size: 10px; padding: 2px 4px;">
-                                </td>
-                                <td style="padding: 2px 8px; text-align: center;">
-                                    <input type="checkbox" class="form-check-input attraction-transfer-checkbox" data-attr-id="${attr.id}" checked>
-                                </td>
-                                <td style="padding: 2px 8px;">
-                                    <select class="form-select form-select-sm attraction-transfer-destination" data-attr-id="${attr.id}" style="font-size: 10px; padding: 2px 4px;">
-                                        <option value="">Select Dropoff</option>
-                                        ${getDestinationOptionsHTML()}
-                                    </select>
-                                </td>
-                                <td style="padding: 2px 8px; text-align: center;">
-                                    <input type="checkbox" class="form-check-input attraction-is-pickup" data-attr-id="${attr.id}">
-                                </td>
-                                <td style="padding: 2px 8px;">
-                                    <select class="form-select form-select-sm attraction-vehicle-type" data-attr-id="${attr.id}" style="font-size: 10px; padding: 2px 4px;">
-                                        <option value="">Select Vehicle</option>
-                                        ${getVehicleOptionsHTML()}
-                                    </select>
-                                </td>
-                                <td style="padding: 2px 8px;">
-                                    <select class="form-select form-select-sm attraction-transfer-way" data-attr-id="${attr.id}" style="font-size: 10px; padding: 2px 4px;">
-                                        <option value="one-way">1-Way</option>
-                                        <option value="both-way" selected>2-Way</option>
-                                    </select>
-                                </td>
-                                <td style="padding: 2px 8px;">
-                                    <select class="form-select form-select-sm attraction-transfer-type" data-attr-id="${attr.id}" style="font-size: 10px; padding: 2px 4px;" onchange="filterAttractionVehiclesByServiceType(this)">
-                                        <option value="P">Private</option>
-                                        <option value="S" selected>Shared</option>
-                                    </select>
-                                </td>
-                                <td style="padding: 2px 8px; text-align: center;">
-                                    <input type="checkbox" class="form-check-input attraction-guide-checkbox" data-attr-id="${attr.id}">
-                                </td>
-                                <td style="padding: 2px 8px;">
-                                    <select class="form-select form-select-sm attraction-guide-select" data-attr-id="${attr.id}" style="font-size: 10px; padding: 2px 4px;">
-                                        <option value="">Select Guide</option>
-                                        ${getGuideOptionsHTML()}
-                                    </select>
-                                </td>
-                            </tr>
-                        `;
+                        console.log('Attraction:', attr.name, 'Tickets:', attr.tickets);
+                        
+                        // If attraction has tickets, create a row for each ticket
+                        if (attr.tickets && attr.tickets.length > 0) {
+                            attr.tickets.forEach(ticket => {
+                                const displayName = `${attr.name} - ${ticket.name}`;
+                                const uniqueId = `${attr.id}_${ticket.ticket_id}`;
+                                
+                                html += `
+                                    <tr class="attraction-row" data-attraction-id="${attr.id}" data-attraction-name="${attr.name}" data-ticket-id="${ticket.ticket_id}" data-ticket-name="${ticket.name}">
+                                        <td style="padding: 2px 8px; text-align: center;">
+                                            <input type="checkbox" class="attraction-checkbox" data-attr-id="${attr.id}" data-ticket-id="${ticket.ticket_id}" data-unique-id="${uniqueId}">
+                                        </td>
+                                        <td style="padding: 2px 8px;">
+                                            ${displayName}
+                                        </td>
+                                        <td style="padding: 2px 8px;">
+                                            <input type="number" class="form-control form-control-sm attraction-adult-qty" data-attr-id="${attr.id}" data-ticket-id="${ticket.ticket_id}" data-unique-id="${uniqueId}" value="${headerValues.adults || 0}" min="0" style="font-size: 10px; padding: 2px 4px; text-align: center;">
+                                        </td>
+                                        <td style="padding: 2px 8px;">
+                                            <input type="text" class="form-control form-control-sm attraction-adult-charge" data-attr-id="${attr.id}" data-ticket-id="${ticket.ticket_id}" data-unique-id="${uniqueId}" value="SGD ${parseFloat(ticket.adult_price || 0).toFixed(2)}" style="font-size: 10px; padding: 2px 4px;">
+                                        </td>
+                                        <td style="padding: 2px 8px;">
+                                            <input type="number" class="form-control form-control-sm attraction-child-qty" data-attr-id="${attr.id}" data-ticket-id="${ticket.ticket_id}" data-unique-id="${uniqueId}" value="${headerValues.children || 0}" min="0" style="font-size: 10px; padding: 2px 4px; text-align: center;">
+                                        </td>
+                                        <td style="padding: 2px 8px;">
+                                            <input type="text" class="form-control form-control-sm attraction-child-charge" data-attr-id="${attr.id}" data-ticket-id="${ticket.ticket_id}" data-unique-id="${uniqueId}" value="SGD ${parseFloat(ticket.child_price || 0).toFixed(2)}" style="font-size: 10px; padding: 2px 4px;">
+                                        </td>
+                                        <td style="padding: 2px 8px;">
+                                            <input type="number" class="form-control form-control-sm attraction-infant-qty" data-attr-id="${attr.id}" data-ticket-id="${ticket.ticket_id}" data-unique-id="${uniqueId}" value="${headerValues.infants || 0}" min="0" style="font-size: 10px; padding: 2px 4px; text-align: center;">
+                                        </td>
+                                        <td style="padding: 2px 8px;">
+                                            <input type="text" class="form-control form-control-sm attraction-infant-charge" data-attr-id="${attr.id}" data-ticket-id="${ticket.ticket_id}" data-unique-id="${uniqueId}" value="SGD 0.00" style="font-size: 10px; padding: 2px 4px;">
+                                        </td>
+                                        <td style="padding: 2px 8px; text-align: center;">
+                                            <input type="checkbox" class="form-check-input attraction-transfer-checkbox" data-attr-id="${attr.id}" data-ticket-id="${ticket.ticket_id}" data-unique-id="${uniqueId}" checked>
+                                        </td>
+                                        <td style="padding: 2px 8px;">
+                                            <select class="form-select form-select-sm attraction-transfer-destination" data-attr-id="${attr.id}" data-ticket-id="${ticket.ticket_id}" data-unique-id="${uniqueId}" style="font-size: 10px; padding: 2px 4px;">
+                                                <option value="">Select Dropoff</option>
+                                                ${getDestinationOptionsHTML()}
+                                            </select>
+                                        </td>
+                                        <td style="padding: 2px 8px; text-align: center;">
+                                            <input type="checkbox" class="form-check-input attraction-is-pickup" data-attr-id="${attr.id}" data-ticket-id="${ticket.ticket_id}" data-unique-id="${uniqueId}">
+                                        </td>
+                                        <td style="padding: 2px 8px;">
+                                            <select class="form-select form-select-sm attraction-vehicle-type" data-attr-id="${attr.id}" data-ticket-id="${ticket.ticket_id}" data-unique-id="${uniqueId}" style="font-size: 10px; padding: 2px 4px;">
+                                                <option value="">Select Vehicle</option>
+                                                ${getVehicleOptionsHTML()}
+                                            </select>
+                                        </td>
+                                        <td style="padding: 2px 8px;">
+                                            <select class="form-select form-select-sm attraction-transfer-way" data-attr-id="${attr.id}" data-ticket-id="${ticket.ticket_id}" data-unique-id="${uniqueId}" style="font-size: 10px; padding: 2px 4px;">
+                                                <option value="one-way">1-Way</option>
+                                                <option value="both-way" selected>2-Way</option>
+                                            </select>
+                                        </td>
+                                        <td style="padding: 2px 8px;">
+                                            <select class="form-select form-select-sm attraction-transfer-type" data-attr-id="${attr.id}" data-ticket-id="${ticket.ticket_id}" data-unique-id="${uniqueId}" style="font-size: 10px; padding: 2px 4px;" onchange="filterAttractionVehiclesByServiceType(this)">
+                                                <option value="P">Private</option>
+                                                <option value="S" selected>Shared</option>
+                                            </select>
+                                        </td>
+                                        <td style="padding: 2px 8px; text-align: center;">
+                                            <input type="checkbox" class="form-check-input attraction-guide-checkbox" data-attr-id="${attr.id}" data-ticket-id="${ticket.ticket_id}" data-unique-id="${uniqueId}">
+                                        </td>
+                                        <td style="padding: 2px 8px;">
+                                            <select class="form-select form-select-sm attraction-guide-select" data-attr-id="${attr.id}" data-ticket-id="${ticket.ticket_id}" data-unique-id="${uniqueId}" style="font-size: 10px; padding: 2px 4px;">
+                                                <option value="">Select Guide</option>
+                                                ${getGuideOptionsHTML()}
+                                            </select>
+                                        </td>
+                                    </tr>
+                                `;
+                            });
+                        } else {
+                            // If no tickets, create a row with attraction name only (fallback)
+                            html += `
+                                <tr class="attraction-row" data-attraction-id="${attr.id}" data-attraction-name="${attr.name}" data-ticket-id="0" data-ticket-name="">
+                                    <td style="padding: 2px 8px; text-align: center;">
+                                        <input type="checkbox" class="attraction-checkbox" data-attr-id="${attr.id}" data-ticket-id="0" data-unique-id="${attr.id}_0">
+                                    </td>
+                                    <td style="padding: 2px 8px;">
+                                        ${attr.name}
+                                    </td>
+                                    <td style="padding: 2px 8px;">
+                                        <input type="number" class="form-control form-control-sm attraction-adult-qty" data-attr-id="${attr.id}" data-ticket-id="0" data-unique-id="${attr.id}_0" value="${headerValues.adults || 0}" min="0" style="font-size: 10px; padding: 2px 4px; text-align: center;">
+                                    </td>
+                                    <td style="padding: 2px 8px;">
+                                        <input type="text" class="form-control form-control-sm attraction-adult-charge" data-attr-id="${attr.id}" data-ticket-id="0" data-unique-id="${attr.id}_0" value="SGD ${parseFloat(attr.adult_price || 0).toFixed(2)}" style="font-size: 10px; padding: 2px 4px;">
+                                    </td>
+                                    <td style="padding: 2px 8px;">
+                                        <input type="number" class="form-control form-control-sm attraction-child-qty" data-attr-id="${attr.id}" data-ticket-id="0" data-unique-id="${attr.id}_0" value="${headerValues.children || 0}" min="0" style="font-size: 10px; padding: 2px 4px; text-align: center;">
+                                    </td>
+                                    <td style="padding: 2px 8px;">
+                                        <input type="text" class="form-control form-control-sm attraction-child-charge" data-attr-id="${attr.id}" data-ticket-id="0" data-unique-id="${attr.id}_0" value="SGD ${parseFloat(attr.child_price || 0).toFixed(2)}" style="font-size: 10px; padding: 2px 4px;">
+                                    </td>
+                                    <td style="padding: 2px 8px;">
+                                        <input type="number" class="form-control form-control-sm attraction-infant-qty" data-attr-id="${attr.id}" data-ticket-id="0" data-unique-id="${attr.id}_0" value="${headerValues.infants || 0}" min="0" style="font-size: 10px; padding: 2px 4px; text-align: center;">
+                                    </td>
+                                    <td style="padding: 2px 8px;">
+                                        <input type="text" class="form-control form-control-sm attraction-infant-charge" data-attr-id="${attr.id}" data-ticket-id="0" data-unique-id="${attr.id}_0" value="SGD 0.00" style="font-size: 10px; padding: 2px 4px;">
+                                    </td>
+                                    <td style="padding: 2px 8px; text-align: center;">
+                                        <input type="checkbox" class="form-check-input attraction-transfer-checkbox" data-attr-id="${attr.id}" data-ticket-id="0" data-unique-id="${attr.id}_0" checked>
+                                    </td>
+                                    <td style="padding: 2px 8px;">
+                                        <select class="form-select form-select-sm attraction-transfer-destination" data-attr-id="${attr.id}" data-ticket-id="0" data-unique-id="${attr.id}_0" style="font-size: 10px; padding: 2px 4px;">
+                                            <option value="">Select Dropoff</option>
+                                            ${getDestinationOptionsHTML()}
+                                        </select>
+                                    </td>
+                                    <td style="padding: 2px 8px; text-align: center;">
+                                        <input type="checkbox" class="form-check-input attraction-is-pickup" data-attr-id="${attr.id}" data-ticket-id="0" data-unique-id="${attr.id}_0">
+                                    </td>
+                                    <td style="padding: 2px 8px;">
+                                        <select class="form-select form-select-sm attraction-vehicle-type" data-attr-id="${attr.id}" data-ticket-id="0" data-unique-id="${attr.id}_0" style="font-size: 10px; padding: 2px 4px;">
+                                            <option value="">Select Vehicle</option>
+                                            ${getVehicleOptionsHTML()}
+                                        </select>
+                                    </td>
+                                    <td style="padding: 2px 8px;">
+                                        <select class="form-select form-select-sm attraction-transfer-way" data-attr-id="${attr.id}" data-ticket-id="0" data-unique-id="${attr.id}_0" style="font-size: 10px; padding: 2px 4px;">
+                                            <option value="one-way">1-Way</option>
+                                            <option value="both-way" selected>2-Way</option>
+                                        </select>
+                                    </td>
+                                    <td style="padding: 2px 8px;">
+                                        <select class="form-select form-select-sm attraction-transfer-type" data-attr-id="${attr.id}" data-ticket-id="0" data-unique-id="${attr.id}_0" style="font-size: 10px; padding: 2px 4px;" onchange="filterAttractionVehiclesByServiceType(this)">
+                                            <option value="P">Private</option>
+                                            <option value="S" selected>Shared</option>
+                                        </select>
+                                    </td>
+                                    <td style="padding: 2px 8px; text-align: center;">
+                                        <input type="checkbox" class="form-check-input attraction-guide-checkbox" data-attr-id="${attr.id}" data-ticket-id="0" data-unique-id="${attr.id}_0">
+                                    </td>
+                                    <td style="padding: 2px 8px;">
+                                        <select class="form-select form-select-sm attraction-guide-select" data-attr-id="${attr.id}" data-ticket-id="0" data-unique-id="${attr.id}_0" style="font-size: 10px; padding: 2px 4px;">
+                                            <option value="">Select Guide</option>
+                                            ${getGuideOptionsHTML()}
+                                        </select>
+                                    </td>
+                                </tr>
+                            `;
+                        }
                     });
                     tbody.innerHTML = html;
                     
@@ -13866,6 +14339,8 @@
             const attrId = checkbox.getAttribute('data-attr-id');
             const row = checkbox.closest('tr');
             const attractionName = row.getAttribute('data-attraction-name');
+            const ticketId = checkbox.getAttribute('data-ticket-id') || row.getAttribute('data-ticket-id') || '0';
+            const ticketName = row.getAttribute('data-ticket-name') || '';
             
             // Get values from the row
             const adultsQty = parseInt(row.querySelector('.attraction-adult-qty').value) || 0;
@@ -14182,6 +14657,8 @@
                 destination: document.getElementById('tourDestination').value || 'Singapore',
                 attractionId: attrId,
                 attractionName: attractionName,
+                ticketId: ticketId ? parseInt(ticketId) : 0,
+                ticketName: ticketName,
                 dateTime: dateTime,
                 adultsQty: adultsQty,
                 adultCost: adultCost,
@@ -14230,6 +14707,8 @@
             const attrId = checkbox.getAttribute('data-attr-id');
             const row = checkbox.closest('tr');
             const attractionName = row.getAttribute('data-attraction-name');
+            const ticketId = checkbox.getAttribute('data-ticket-id') || row.getAttribute('data-ticket-id') || '0';
+            const ticketName = row.getAttribute('data-ticket-name') || '';
             
             // Get values from the row
             const adultsQty = parseInt(row.querySelector('.attraction-adult-qty').value) || 0;
@@ -14528,6 +15007,8 @@
                 destination: document.getElementById('tourDestination').value || 'Singapore',
                 attractionId: attrId,
                 attractionName: attractionName,
+                ticketId: ticketId ? parseInt(ticketId) : 0,
+                ticketName: ticketName,
                 dateTime: dateTime,
                 adultsQty: adultsQty,
                 adultCost: adultCost,
@@ -21876,7 +22357,9 @@
                 attractionName: tour.attractionName || "",
                 destination: tour.destination || "",
                 ticketId: tour.ticketId || 0,
+                ticket_id: tour.ticketId || 0,
                 ticketName: tour.ticketName || "",
+                ticket_name: tour.ticketName || "",
                 adultCost: parseFloat(tour.adultCost) || 0,
                 childCost: parseFloat(tour.childCost) || 0,
                 infantCost: parseFloat(tour.infantCost) || 0,
@@ -21884,6 +22367,8 @@
                 childSell: parseFloat(tour.childSell) || 0,
                 infantSell: parseFloat(tour.infantSell) || 0,
                 ticket_details: {
+                    ticket_id: tour.ticketId || 0,
+                    ticket_name: tour.ticketName || "",
                     adult_price: parseFloat(tour.adultCost) || 0,
                     adult_cost: parseFloat(tour.adultCost) || 0,
                     adult_sell: parseFloat(tour.adultSell) || 0,
