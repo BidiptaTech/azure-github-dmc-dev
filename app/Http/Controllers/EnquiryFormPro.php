@@ -258,7 +258,7 @@ class EnquiryFormPro extends Controller
             
             $attractions = $attractionsQuery
                 ->select('attraction_id', 'name', 'location', 'country', 'open_time', 'close_time', 
-                         'adult_price', 'child_price', 'senior_adult_price', 'zone_assignments')
+                         'adult_price', 'child_price', 'senior_adult_price', 'zone_assignments', 'attraction_type')
                 ->orderBy('name')
                 ->get();
             
@@ -408,7 +408,7 @@ class EnquiryFormPro extends Controller
             
             $attractions = $attractionsQuery
                 ->select('attraction_id', 'name', 'location', 'country', 'open_time', 'close_time', 
-                         'adult_price', 'child_price', 'senior_adult_price')
+                         'adult_price', 'child_price', 'senior_adult_price', 'attraction_type')
                 ->orderBy('name')
                 ->get();
             
@@ -884,7 +884,7 @@ class EnquiryFormPro extends Controller
         
         $attractions = $attractionsQuery
             ->select('attraction_id as id', 'name', 'location', 'country', 'open_time', 'close_time', 
-                     'adult_price', 'child_price', 'senior_adult_price', 'zone_assignments')
+                     'adult_price', 'child_price', 'senior_adult_price', 'zone_assignments', 'attraction_type')
             ->orderBy('name')
             ->get();
         
@@ -2354,8 +2354,16 @@ class EnquiryFormPro extends Controller
         // Get the tour with agent relationship
         $tour = Tour::with('agent')->where('tour_id', $tour_id)->firstOrFail();
         
-        // Get all orders for this tour
+        // Get all orders for this tour (excludes soft-deleted records automatically via SoftDeletes)
         $orders = Order::where('tour_id', $tour_id)->get();
+        
+        // Debug: Log hotel orders count
+        $hotelOrdersCount = $orders->where('type', 'hotel')->count();
+        \Log::info('Edit form - Hotel orders count for tour_id ' . $tour_id, [
+            'total_orders' => $orders->count(),
+            'hotel_orders' => $hotelOrdersCount,
+            'hotel_order_ids' => $orders->where('type', 'hotel')->pluck('id')->toArray()
+        ]);
         
         // Get the first order to extract markup/discount values
         $firstOrder = $orders->first();
@@ -2404,7 +2412,7 @@ class EnquiryFormPro extends Controller
         $attractions = Attraction::whereJsonContains('dmc_id', (int) $dmc_id)
             ->where('is_active', 1)
             ->select('attraction_id', 'name', 'location', 'country', 'open_time', 'close_time', 
-                     'adult_price', 'child_price', 'senior_adult_price', 'zone_assignments')
+                     'adult_price', 'child_price', 'senior_adult_price', 'zone_assignments', 'attraction_type')
             ->orderBy('name')
             ->get();
         
@@ -3288,6 +3296,17 @@ class EnquiryFormPro extends Controller
             $duplicateIds = [];
             
             foreach ($orders as $order) {
+                // Skip hotel orders - hotels should only be deleted by user action, not automatically
+                // Multiple hotels with same name but different dates/rooms should be allowed
+                if ($order->type === 'hotel') {
+                    \Log::info('Skipping hotel order in cleanup (preserved for user management)', [
+                        'tour_id' => $tour_id,
+                        'order_id' => $order->id,
+                        'booking_id' => $order->booking_id
+                    ]);
+                    continue;
+                }
+                
                 $orderData = is_array($order->data) ? $order->data : json_decode($order->data, true);
                 $firstItem = $orderData[0] ?? [];
                 
@@ -3302,14 +3321,6 @@ class EnquiryFormPro extends Controller
                             'port_name' => $firstItem['port_name'] ?? '',
                             'bookingDate' => $firstItem['bookingDate'] ?? '',
                             'transfer_type' => $firstItem['type'] ?? ''
-                        ]));
-                        break;
-                    case 'hotel':
-                        $uniqueKey = md5(json_encode([
-                            'type' => $order->type,
-                            'hotel_id' => $firstItem['hotel_unique_id'] ?? $firstItem['hotelDetails']['hotel_id'] ?? '',
-                            'checkIn' => $firstItem['checkIn'] ?? '',
-                            'checkOut' => $firstItem['checkOut'] ?? ''
                         ]));
                         break;
                     case 'attraction':
