@@ -1519,6 +1519,7 @@ class UserController extends Controller
             'user_country' => $request->input('user_country'),
             'address' => $request->input('address'),
             'markup_type' => 0, 
+            'guide_pax' => (int) ($request->guide_pax ?? 0), // Ensure integer
             'markup_price' => 0, // Ensure float
             'userId' => (int) $usersId, // Ensure integer
             'email' => $email, // Store email in lowercase
@@ -2524,6 +2525,30 @@ class UserController extends Controller
             'user_id' => $request->user_id, 
             'auto_cancel_date' => $request->auto_cancel_date,
             'previous_value' => $previousValue
+        ]);
+    }
+
+    public function updateGuidePax(Request $request)
+    {
+        $user = User::where('userId', $request->user_id)->first();
+
+        if (!$user) {
+            return response()->json(['success' => false, 'message' => 'User not found']);
+        }
+
+        $previousValue = $user->guide_pax;
+        $guidePax = (int) ($request->guide_pax ?? 0);
+        $guidePax = max(0, min(99, $guidePax)); // clamp 0-99
+
+        $user->guide_pax = $guidePax;
+        $user->save();
+
+        return response()->json([
+            'success' => true,
+            'message' => 'Guide pax updated successfully',
+            'user_id' => $request->user_id,
+            'guide_pax' => $guidePax,
+            'previous_value' => $previousValue,
         ]);
     }
 

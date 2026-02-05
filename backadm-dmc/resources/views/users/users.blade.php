@@ -56,6 +56,7 @@
                       <span class="fw-bold">Price Hide</span>
                       <span class="fw-bold">Email On</span>
                       <span class="fw-bold">Auto Cancel</span>
+                      <span class="fw-bold">Guide Pax</span>
                     </div>
                   </div>
                 </th>
@@ -167,6 +168,16 @@
                                 <option value="14" {{ $user->auto_cancel_date == 14 ? 'selected' : '' }}>D-14</option>
                             </select>
                         </div>
+                        <!-- Guide Pax Input (max 2 digits) -->
+                        <div class="form-group">
+                            <input type="text" class="form-control guide-pax-input"
+                                data-user-id="{{ $user->userId }}"
+                                id="guide_pax_{{ $user->userId }}"
+                                value="{{ $user->guide_pax ?? 0 }}"
+                                maxlength="2" inputmode="numeric" pattern="[0-9]*"
+                                style="width: 65px; height: 25px; font-size: 14px; padding: 2px; text-align: center;"
+                                oninput="this.value = this.value.replace(/\D/g, '').slice(0, 2);">
+                        </div>
                       @else
                         <!-- Zone On Toggle (Disabled) -->
                         <div class="form-check form-switch">
@@ -219,6 +230,7 @@
                                 <option value="14" {{ $user->auto_cancel_date == 14 ? 'selected' : '' }}>D-14</option>
                             </select>
                         </div>
+                        
                       @endif
                     </div>
                   @else
@@ -626,6 +638,47 @@ $(document).ready(function() {
                 toastr.error('Error updating auto cancel date');
                 // Revert the dropdown to previous value
                 $('.auto-cancel-dropdown[data-user-id="' + userId + '"]').val('');
+                console.error(xhr.responseText);
+            }
+        });
+    });
+
+    // Guide Pax input: save via AJAX on blur (when user leaves the field)
+    $(document).on('blur', '.guide-pax-input', function() {
+        const $input = $(this);
+        const userId = $input.data('user-id');
+        let value = $input.val().replace(/\D/g, '').slice(0, 2);
+        if (value === '') value = '0';
+        const num = parseInt(value, 10);
+        const guidePax = isNaN(num) ? 0 : Math.max(0, Math.min(99, num));
+        $input.val(guidePax);
+
+        $input.prop('disabled', true);
+        $.ajax({
+            url: "{{ route('update.guidepax') }}",
+            type: "POST",
+            data: {
+                user_id: userId,
+                guide_pax: guidePax,
+                _token: "{{ csrf_token() }}"
+            },
+            success: function(response) {
+                $input.prop('disabled', false);
+                if (response.success) {
+                    toastr.success(response.message || 'Guide pax updated successfully');
+                } else {
+                    toastr.error(response.message || 'Error updating guide pax');
+                    if (response.previous_value !== undefined) {
+                        $input.val(response.previous_value);
+                    }
+                }
+            },
+            error: function(xhr) {
+                $input.prop('disabled', false);
+                toastr.error('Error updating guide pax');
+                if (xhr.responseJSON && xhr.responseJSON.previous_value !== undefined) {
+                    $input.val(xhr.responseJSON.previous_value);
+                }
                 console.error(xhr.responseText);
             }
         });
