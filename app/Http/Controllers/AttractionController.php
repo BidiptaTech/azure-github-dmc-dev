@@ -315,6 +315,7 @@ class AttractionController extends Controller
                 'afternoon_opening' => 'required',
                 'night_opening' => 'required',
                 'evening_opening' => 'required',
+                'attraction_type' => 'required|integer|in:1,2',
             ], [
                 // Custom error messages for each field
                 'name.required' => 'The attraction name is required',
@@ -342,6 +343,9 @@ class AttractionController extends Controller
                 'afternoon_opening.required' => 'Afternoon opening status is required',
                 'night_opening.required' => 'Night opening status is required',
                 'evening_opening.required' => 'Evening opening status is required',
+                'attraction_type.required' => 'Type of attraction is required',
+                'attraction_type.integer' => 'Type of attraction data type mismatch',
+                'attraction_type.in' => 'Type of attraction value mismatch',
             ]);
         // } catch (\Illuminate\Validation\ValidationException $e) {
         //     return redirect()
@@ -450,6 +454,7 @@ class AttractionController extends Controller
         $attraction->senior_min_age = $request->senior_min_age;
         $attraction->child_max_age = $request->child_end_age;
         $attraction->senior_adult_price = 0;
+        $attraction->attraction_type = $request->input('attraction_type');
         $attraction->save();
 
         // if (in_array($auth_user->role_id, [11, 4, 3, 35, 74, 93])) {
@@ -570,7 +575,7 @@ class AttractionController extends Controller
         $attraction->senior_min_age = $request->senior_min_age;
         $attraction->child_max_age = $request->child_end_age;
         $attraction->senior_adult_price = 0;
-
+        $attraction->attraction_type = $request->input('attraction_type');
         $attraction->save();
 
         return redirect()->route('attraction.index')->with('success', 'Attraction details updated successfully.');

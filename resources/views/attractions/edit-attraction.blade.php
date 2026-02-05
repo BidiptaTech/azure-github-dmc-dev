@@ -290,6 +290,19 @@
                                 @enderror
                             </div>
 
+                            <!-- Type of Attraction -->
+                            <div class="col-md-3 mb-3">
+                                <label for="attraction_type" class="form-label"><strong>Type of Attraction</strong><span class="text-danger">*</span></label>
+                                <select class="form-control" id="attraction_type" name="attraction_type" required>
+                                    <option value="">Select One</option>
+                                    <option value="1" {{ old('attraction_type', $attraction->attraction_type ?? '') == '1' ? 'selected' : '' }}>Attraction</option>
+                                    <option value="2" {{ old('attraction_type', $attraction->attraction_type ?? '') == '2' ? 'selected' : '' }}>Tour Site</option>
+                                </select>
+                                @error('attraction_type')
+                                    <div class="text-danger mt-1">{{ $message }}</div>  
+                                @enderror
+                            </div>
+
                             {{-- <div id="time-container">
                                 @php
                                     $openTimes = json_decode($attraction->open_time, true) ?? [];

@@ -22,6 +22,7 @@ use App\Models\Vehicle;
 use App\Models\VehicleZoneMapping;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Log;
 use App\Helpers\CommonHelper;
 use Carbon\Carbon;
 use App\Models\EnquiryForm;
@@ -53,9 +54,13 @@ class SingleTourPackageController extends Controller
      */
     public function create(Request $request, $enquiry_id = null)
     {
-
         $user = Auth::user();
+        $allowedRoleIds = [11, 33, 34, 128, 129, 130, 131, 132, 134, 135, 136, 137, 138, 37, 64, 65, 66, 67, 68, 38, 81, 90, 108, 117, 124, 125, 126, 127];
 
+        // Check if user has permission to access this page
+        if (!in_array($user->role_id, $allowedRoleIds)) {
+            return redirect()->route('dashboard')->with('error', 'You have not permission for access this page');
+        }
         if($user->role_id == 11){
             $dmc_id = $user->userId;
         }
@@ -72,7 +77,20 @@ class SingleTourPackageController extends Controller
             $dmc_id = $sales_head->created_by;
         }
 
-        $countries = Country::where('is_active', 1)->orderBy('name')->get();
+        $mdmc_user = User::where('userId', $dmc_id)->first();
+        $mdmc_id = User::where('userId', $mdmc_user->created_by)->first();
+        $mdmc_country = $mdmc_id->country;
+        
+        // Extract and map countries from comma-separated string
+        $countriesQuery = Country::where('is_active', 1);
+        if ($mdmc_country) {
+            $countryNames = array_map('trim', explode(',', $mdmc_country));
+            $countryNames = array_filter($countryNames); // Remove empty values
+            if (!empty($countryNames)) {
+                $countriesQuery->whereIn('name', $countryNames);
+            }
+        }
+        $countries = $countriesQuery->orderBy('name')->get();
         $portsQuery = Port::query();
         if ($request->has('country') && $request->country) {
             $country = Country::find($request->country);
@@ -97,6 +115,8 @@ class SingleTourPackageController extends Controller
         $meals = collect();
         $tickets = collect();
         $zones = collect();
+        $entryDropoffLocation = null;
+        $exitPickupLocation = null;
         
         if($enquiry_id){
             $enquiry_id = Crypt::decrypt($enquiry_id);
@@ -126,6 +146,35 @@ class SingleTourPackageController extends Controller
                     if($enquiry->local_transport_vehicle_ids){
                         $vehicle_ids = json_decode($enquiry->local_transport_vehicle_ids, true);
                         $vehicles = Vehicle::whereIn('vehicle_id', $vehicle_ids)->get();
+                    }
+                    
+                    // Get port and transfer information
+                    // Handle entry port dropoff location
+                    if($enquiry->entry_port && $enquiry->entry_dropoff_type && $enquiry->entry_dropoff_location_id){
+                        $dropoffType = $enquiry->entry_dropoff_type;
+                        $dropoffLocationId = $enquiry->entry_dropoff_location_id;
+                        
+                        if($dropoffType == 'hotel'){
+                            $entryDropoffLocation = Hotel::where('hotel_unique_id', $dropoffLocationId)->value('name');
+                        } elseif($dropoffType == 'attraction'){
+                            $entryDropoffLocation = Attraction::where('attraction_id', $dropoffLocationId)->value('name');
+                        } elseif($dropoffType == 'restaurant'){
+                            $entryDropoffLocation = Restaurant::where('restaurant_id', $dropoffLocationId)->value('name');
+                        }
+                    }
+                    
+                    // Handle exit port pickup location
+                    if($enquiry->exit_port && $enquiry->exit_pickup_type && $enquiry->exit_pickup_location_id){
+                        $pickupType = $enquiry->exit_pickup_type;
+                        $pickupLocationId = $enquiry->exit_pickup_location_id;
+                        
+                        if($pickupType == 'hotel'){
+                            $exitPickupLocation = Hotel::where('hotel_unique_id', $pickupLocationId)->value('name');
+                        } elseif($pickupType == 'attraction'){
+                            $exitPickupLocation = Attraction::where('attraction_id', $pickupLocationId)->value('name');
+                        } elseif($pickupType == 'restaurant'){
+                            $exitPickupLocation = Restaurant::where('restaurant_id', $pickupLocationId)->value('name');
+                        }
                     }
                     
                     // Get restaurants as meals
@@ -176,7 +225,7 @@ class SingleTourPackageController extends Controller
         // Pass restaurant_data for detailed display
         $restaurant_data = isset($enquiry->restaurant_ids) ? json_decode($enquiry->restaurant_ids, true) : [];
         
-        return view('single-tour-package.create', compact('countries', 'agents', 'ports', 'selectedCountry', 'enquiry', 'hotels', 'attractions', 'guides', 'vehicles', 'meals', 'tickets', 'zones', 'agency', 'restaurants', 'UserDmc', 'restaurant_data'));
+        return view('single-tour-package.create', compact('countries', 'agents', 'ports', 'selectedCountry', 'enquiry', 'hotels', 'attractions', 'guides', 'vehicles', 'meals', 'tickets', 'zones', 'agency', 'restaurants', 'UserDmc', 'restaurant_data', 'entryDropoffLocation', 'exitPickupLocation'));
     }
     
     /**
@@ -652,6 +701,7 @@ class SingleTourPackageController extends Controller
             $tour->child = $request->children ?? 0;
             $tour->infant = $request->infants ?? 0;
             $tour->agent_id = $request->agent_id;
+            $tour->tour_type = $request->tour_type ?? 'FIT';
             $tour->tour_id = $tourId;
             $tour->male_count = $request->male;
             $tour->female_count = $request->female;
@@ -664,6 +714,60 @@ class SingleTourPackageController extends Controller
             $tour->child_ages = $request->child_ages ?? null;
             $tour->auto_cancel_date = $auto_cancel_date;
             $tour->taxes = !empty($taxArray) ? json_encode($taxArray) : null;
+            $tour->created_by = Auth::user()->userId;
+            // Store main guest data as JSON
+            if ($request->has('mainguest') && $request->mainguest) {
+                try {
+                    $mainGuestData = $request->mainguest;
+                    if (is_string($mainGuestData)) {
+                        $mainGuestData = json_decode($mainGuestData, true);
+                        if (json_last_error() !== JSON_ERROR_NONE) {
+                            \Log::warning('Invalid JSON in mainguest data', [
+                                'error' => json_last_error_msg(),
+                                'data' => $request->mainguest
+                            ]);
+                            $mainGuestData = null;
+                        }
+                    }
+                    $tour->mainguest = !empty($mainGuestData) ? json_encode($mainGuestData) : null;
+                } catch (\Exception $e) {
+                    \Log::error('Error processing main guest data', [
+                        'error' => $e->getMessage(),
+                        'tour_id' => $tourId
+                    ]);
+                    // Continue without failing the tour creation
+                    $tour->mainguest = null;
+                }
+            }
+            
+            // Store additional guests data as JSON
+            if ($request->has('additionalguest') && $request->additionalguest) {
+                try {
+                    $additionalGuestData = $request->additionalguest;
+                    if (is_string($additionalGuestData)) {
+                        $additionalGuestData = json_decode($additionalGuestData, true);
+                        if (json_last_error() !== JSON_ERROR_NONE) {
+                            \Log::warning('Invalid JSON in additionalguest data', [
+                                'error' => json_last_error_msg(),
+                                'data' => $request->additionalguest
+                            ]);
+                            $additionalGuestData = null;
+                        }
+                    }
+                    // Ensure it's an array
+                    if (!is_array($additionalGuestData)) {
+                        $additionalGuestData = [];
+                    }
+                    $tour->additionalguest = !empty($additionalGuestData) ? json_encode($additionalGuestData) : null;
+                } catch (\Exception $e) {
+                    \Log::error('Error processing additional guest data', [
+                        'error' => $e->getMessage(),
+                        'tour_id' => $tourId
+                    ]);
+                    // Continue without failing the tour creation
+                    $tour->additionalguest = null;
+                }
+            }
             $tour->save();
 
             $thisTour = Tour::where('tour_id', $tour->tour_id)->first();
@@ -754,17 +858,193 @@ class SingleTourPackageController extends Controller
     /**
      * Show the form for editing the specified single tour package.
      */
-    public function edit($id)
+    public function edit(Request $request, $id)
     {
-        $package = Tour::findOrFail($id);
+        if (!$id) {
+            \Log::error('No tour_id provided for edit view');
+            return redirect()->back()->with('error', 'Tour ID is required to edit tour services.');
+        }
+
+        $tourId = $id;
+        if (!is_numeric($tourId)) {
+            try {
+                $tourId = Crypt::decrypt($tourId);
+            } catch (\Throwable $e) {
+                \Log::warning('Failed to decrypt tour_id in edit method, proceeding with original value', [
+                    'provided_id' => $id,
+                    'error' => $e->getMessage(),
+                ]);
+            }
+        }
+
+        $tour = Tour::where('tour_id', $tourId)->first();
+        if (!$tour) {
+            \Log::error('Tour not found with tour_id: ' . $tourId);
+            return redirect()->back()->with('error', 'Tour not found.');
+        }
+
+        $userDmcId = CommonHelper::getDmcId(Auth::user());
+        $UserDmc = User::select('userId', 'zone_on')->where('userId', $userDmcId)->first();
+
+        if ($userDmcId) {
+            $hotels = Hotel::with(['rooms.bed'])
+                ->where('country', $tour->destination)
+                ->whereJsonContains('dmc_id', (int) $userDmcId)
+                ->get();
+        } else {
+            $hotels = collect();
+        }
+
+        // Load guides filtered by DMC and country (tour destination)
+        $guidesQuery = Guide::with(['languages'])->where('dmc_id', $userDmcId);
+        if ($tour->destination) {
+            $guidesQuery->where('country', $tour->destination);
+        }
+        $guides = $guidesQuery->get();
+
+        // Load restaurants filtered by DMC and country (tour destination)
+        $restaurantsQuery = Restaurant::with(['meals' => function ($query) use ($userDmcId) {
+            $query->where('dmc_id', $userDmcId);
+        }])
+            ->whereJsonContains('dmc_id', $userDmcId);
+        if ($tour->destination) {
+            $restaurantsQuery->where('country', $tour->destination);
+        }
+        $restaurants = $restaurantsQuery->get();
+
+        // Load attractions filtered by DMC and country (tour destination)
+        $attractionsQuery = Attraction::with(['tickets' => function ($query) use ($userDmcId) {
+            $query->where('dmc_id', $userDmcId);
+        }])
+            ->whereJsonContains('dmc_id', $userDmcId);
+        if ($tour->destination) {
+            $attractionsQuery->where('country', $tour->destination);
+        }
+        $attractions = $attractionsQuery->get();
+
+        $vehicles = Vehicle::where('dmc_id', $userDmcId)->get();
+
         $countries = Country::where('is_active', 1)->orderBy('name')->get();
-        $cities = City::orderBy('name')->get();
-        
-        $agents = Agent::where('sales_manager_dmc', Auth::id())
+        $portsQuery = Port::query();
+        if ($tour->destination) {
+            $portsQuery->where('country', $tour->destination);
+        }
+        $cities = City::where('country', $tour->destination)->get();
+        if ($cities->isEmpty()) {
+            $cities = City::orderBy('name')->get();
+        }
+        $ports = $portsQuery->orderBy('port_name')->get();
+
+        $agencies = Agency::whereJsonContains('dmc_id', $userDmcId)->get();
+        $agents = Agent::whereIn('agency_id', $agencies->pluck('agency_id'))
             ->orderBy('name')
             ->get();
 
-        return view('single-tour-package.edit', compact('package', 'countries', 'cities', 'agents'));
+        $orders = Order::where('tour_id', $tourId)
+            ->whereNull('deleted_at')
+            ->orderBy('created_at', 'desc')
+            ->get();
+
+        $firstOrder = $orders->first();
+        $customer_info = [];
+        if ($firstOrder && $firstOrder->data) {
+            $firstOrderData = is_array($firstOrder->data) ? $firstOrder->data : json_decode($firstOrder->data, true);
+            if (isset($firstOrderData[0])) {
+                $firstOrderData = $firstOrderData[0];
+            }
+            $customer_info['fullName'] = $firstOrderData['fullName'] ?? '';
+            $customer_info['email'] = $firstOrderData['email'] ?? '';
+            $customer_info['phone'] = $firstOrderData['phone'] ?? '';
+            $customer_info['countryCode'] = $firstOrderData['countryCode'] ?? '';
+            $customer_info['address1'] = $firstOrderData['address1'] ?? '';
+            $customer_info['address2'] = $firstOrderData['address2'] ?? '';
+            $customer_info['state'] = $firstOrderData['state'] ?? '';
+            $customer_info['zip'] = $firstOrderData['zip'] ?? '';
+            $customer_info['specialRequests'] = $firstOrderData['specialRequests'] ?? '';
+        }
+
+        $hotelOrders = [];
+
+        $checkInDate = \Carbon\Carbon::parse($tour->check_in_time);
+        $checkOutDate = \Carbon\Carbon::parse($tour->check_out_time);
+        $tourDays = [];
+
+        $currentDate = $checkInDate->copy();
+        $dayNumber = 1;
+        while ($currentDate <= $checkOutDate) {
+            $tourDays[$currentDate->format('Y-m-d')] = [
+                'day_number' => $dayNumber,
+                'date' => $currentDate->copy(),
+                'orders' => [],
+            ];
+            $currentDate->addDay();
+            $dayNumber++;
+        }
+
+        foreach ($orders as $order) {
+            $type = $order->type;
+            $orderData = is_string($order->data) ? json_decode($order->data, true) : $order->data;
+            $order->processed_data = $orderData;
+
+            if ($type === 'hotel') {
+                $hotelOrders[] = $order;
+                continue;
+            }
+
+            $bookingDate = null;
+            if (isset($orderData[0]['bookingDate'])) {
+                $bookingDate = $orderData[0]['bookingDate'];
+            } elseif (isset($orderData['bookingDate'])) {
+                $bookingDate = $orderData['bookingDate'];
+            } elseif (isset($orderData[0]['pickupdate'])) {
+                $bookingDate = $orderData[0]['pickupdate'];
+            } elseif (isset($orderData['pickupdate'])) {
+                $bookingDate = $orderData['pickupdate'];
+            } elseif (isset($orderData[0]['exitpickupdate'])) {
+                $bookingDate = $orderData[0]['exitpickupdate'];
+            } elseif (isset($orderData['exitpickupdate'])) {
+                $bookingDate = $orderData['exitpickupdate'];
+            }
+
+            if ($type === 'entry_port') {
+                $bookingDate = $checkInDate->format('Y-m-d');
+            } elseif ($type === 'exit_port') {
+                $bookingDate = $checkOutDate->format('Y-m-d');
+            }
+
+            if ($bookingDate) {
+                if (is_array($bookingDate)) {
+                    $bookingDate = $bookingDate[0];
+                }
+
+                try {
+                    $bookingDate = \Carbon\Carbon::parse($bookingDate)->format('Y-m-d');
+                } catch (\Exception $e) {
+                    $bookingDate = null;
+                }
+
+                if ($bookingDate && isset($tourDays[$bookingDate])) {
+                    $tourDays[$bookingDate]['orders'][] = $order;
+                }
+            }
+        }
+
+        return view('single-tour-package.editform', compact(
+            'tour',
+            'countries',
+            'agents',
+            'ports',
+            'hotels',
+            'guides',
+            'restaurants',
+            'attractions',
+            'customer_info',
+            'vehicles',
+            'hotelOrders',
+            'tourDays',
+            'cities',
+            'UserDmc'
+        ));
     }
 
     /**
@@ -821,6 +1101,68 @@ class SingleTourPackageController extends Controller
                 ->with('error', 'Failed to update tour package. Please try again.');
         }
     }
+
+    /**
+     * Update top-level tour information from the edit services page.
+     */
+    // public function updateTourInformation(Request $request, Tour $tour)
+    // {
+    //     $validated = $request->validate([
+    //         'display_id' => 'nullable|string|max:255',
+    //         'user_country' => 'required|string|max:255',
+    //         'start_date' => 'required|date',
+    //         'end_date' => 'required|date|after_or_equal:start_date',
+    //         'adults' => 'required|integer|min:1',
+    //         'children' => 'required|integer|min:0',
+    //         'infants' => 'required|integer|min:0',
+    //         'male' => 'required|integer|min:0',
+    //         'female' => 'required|integer|min:0',
+    //         'agent_id' => 'required|exists:agents,agent_id',
+    //         'child_ages' => 'nullable|string|max:255',
+    //     ]);
+
+    //     try {
+    //         $checkIn = Carbon::createFromFormat('Y-m-d', $validated['start_date']);
+    //         $checkOut = Carbon::createFromFormat('Y-m-d', $validated['end_date']);
+
+    //         if (!empty($validated['display_id'])) {
+    //             $tour->display_id = $validated['display_id'];
+    //         }
+
+    //         $tour->destination = $validated['user_country'];
+    //         $tour->check_in_time = $checkIn;
+    //         $tour->check_out_time = $checkOut;
+    //         $tour->adult = $validated['adults'];
+    //         $tour->child = $validated['children'];
+    //         $tour->infant = $validated['infants'];
+    //         $tour->male_count = $validated['male'];
+    //         $tour->female_count = $validated['female'];
+    //         $tour->agent_id = $validated['agent_id'];
+    //         $tour->child_ages = $validated['child_ages'] ?: null;
+    //         $tour->save();
+
+    //         return response()->json([
+    //             'success' => true,
+    //             'message' => 'Tour information updated successfully.',
+    //             'data' => [
+    //                 'display_id' => $tour->display_id,
+    //                 'destination' => $tour->destination,
+    //                 'check_in_time' => $tour->check_in_time?->toDateString(),
+    //                 'check_out_time' => $tour->check_out_time?->toDateString(),
+    //             ],
+    //         ]);
+    //     } catch (\Throwable $exception) {
+    //         \Log::error('Failed to update tour information', [
+    //             'tour_id' => $tour->tour_id,
+    //             'error' => $exception->getMessage(),
+    //         ]);
+
+    //         return response()->json([
+    //             'success' => false,
+    //             'message' => 'Unable to save tour information right now.',
+    //         ], 500);
+    //     }
+    // }
 
     /**
      * Remove the specified single tour package from storage.
@@ -1533,7 +1875,7 @@ class SingleTourPackageController extends Controller
                 ->where('created_by', $dmcId) // Filter by DMC ID
                 ->select('room_id', 'room_type', 'weekday_price', 'weekend_price', 'double_weekday_price', 'double_weekend_price', 
                         'breakfast', 'breakfast_type', 'breakfast_price', 'lunch', 'lunch_type', 'lunch_price', 'dinner', 'dinner_type', 'dinner_price',
-                        'breakfast_included', 'dimension', 'features', 'master_image', 'created_by')
+                        'breakfast_included', 'dimension', 'features', 'master_image', 'created_by', 'rooms_only')
                 ->orderBy('room_type')
                 ->get();
             // If no rooms found with created_by, try alternative field names
@@ -1549,7 +1891,7 @@ class SingleTourPackageController extends Controller
                     })
                     ->select('room_id', 'room_type', 'weekday_price', 'weekend_price', 'double_weekday_price', 'double_weekend_price', 
                             'breakfast', 'breakfast_type','breakfast_price','lunch', 'lunch_type', 'lunch_price', 'dinner', 'dinner_type', 'dinner_price',
-                            'breakfast_included', 'dimension', 'features', 'master_image', 'created_by', 'dmc_id',)
+                            'breakfast_included', 'dimension', 'features', 'master_image', 'created_by', 'dmc_id', 'rooms_only')
                     ->orderBy('room_type')
                     ->get();
                 
@@ -2326,42 +2668,138 @@ class SingleTourPackageController extends Controller
 
             if($zone_status == 1){
                 
-                $actualFromZoneId = intval($this->getActualZoneId($fromZoneId, $fromZoneType, $dmcId));
-                $actualToZoneId = intval($this->getActualZoneId($toZoneId, $toZoneType, $dmcId));
+                $actualFromZoneId = $this->getActualZoneId($fromZoneId, $fromZoneType, $dmcId);
+                $actualToZoneId = $this->getActualZoneId($toZoneId, $toZoneType, $dmcId);
+                
+                // Convert to integers for database query (zone_id and port_id are integers)
+                // If conversion fails (e.g., hotel_unique_id), log and skip query
+                $actualFromZoneIdInt = is_numeric($actualFromZoneId) ? intval($actualFromZoneId) : null;
+                $actualToZoneIdInt = is_numeric($actualToZoneId) ? intval($actualToZoneId) : null;
+                
+                if (!$actualFromZoneIdInt || !$actualToZoneIdInt) {
+                    \Log::warning('Invalid zone IDs for vehicle mapping query', [
+                        'from_zone_id' => $actualFromZoneId,
+                        'to_zone_id' => $actualToZoneId,
+                        'from_zone_type' => $fromZoneType,
+                        'to_zone_type' => $toZoneType
+                    ]);
+                    return response()->json([
+                        'success' => false,
+                        'message' => 'Unable to determine valid zone IDs for the selected locations',
+                        'vehicles' => []
+                    ]);
+                }
+                
+                // Use integer zone IDs for query
+                $actualFromZoneId = $actualFromZoneIdInt;
+                $actualToZoneId = $actualToZoneIdInt;
 
-                $vehicleMappings = VehicleZoneMapping::whereIn('from_zone_id', [$actualFromZoneId, $actualToZoneId])
-                ->whereIn('to_zone_id', [$actualToZoneId, $actualFromZoneId])
+                // Normalize zone types to match database format
+                // Database stores: "Port", "Hotel", "Attraction", "Restaurant"
+                $normalizedFromZoneType = $fromZoneType ? ucfirst(strtolower($fromZoneType)) : null;
+                $normalizedToZoneType = $toZoneType ? ucfirst(strtolower($toZoneType)) : null;
+                
+                // Handle "Port" vs "port" - ensure it's "Port" in database
+                if ($normalizedFromZoneType === 'Port') {
+                    $normalizedFromZoneType = 'Port';
+                }
+                if ($normalizedToZoneType === 'Port') {
+                    $normalizedToZoneType = 'Port';
+                }
+
+                // Get vehicle mappings for both directions (bidirectional) with zone type matching
+                $vehicleMappings = VehicleZoneMapping::where(function($query) use ($actualFromZoneId, $actualToZoneId, $normalizedFromZoneType, $normalizedToZoneType) {
+                    // Original direction: from -> to
+                    $query->where(function($q) use ($actualFromZoneId, $actualToZoneId, $normalizedFromZoneType, $normalizedToZoneType) {
+                        $q->where('from_zone_id', $actualFromZoneId)
+                          ->where('to_zone_id', $actualToZoneId);
+                        // Add zone type filters if provided
+                        if ($normalizedFromZoneType) {
+                            $q->where('from_zone_type', $normalizedFromZoneType);
+                        }
+                        if ($normalizedToZoneType) {
+                            $q->where('to_zone_type', $normalizedToZoneType);
+                        }
+                    })
+                    // Reverse direction: to -> from (swapped)
+                    ->orWhere(function($q) use ($actualFromZoneId, $actualToZoneId, $normalizedFromZoneType, $normalizedToZoneType) {
+                        $q->where('from_zone_id', $actualToZoneId)
+                          ->where('to_zone_id', $actualFromZoneId);
+                        // Add zone type filters (swapped for reverse direction)
+                        if ($normalizedToZoneType) {
+                            $q->where('from_zone_type', $normalizedToZoneType);
+                        }
+                        if ($normalizedFromZoneType) {
+                            $q->where('to_zone_type', $normalizedFromZoneType);
+                        }
+                    });
+                })
                 ->get();
-                $vehicles = $vehicleMappings->load(['vehicle', 'fromZone', 'toZone'])
-                    ->map(function ($mapping) {
+                
+                // Map vehicles with zone mapping prices and deduplicate by vehicle_id
+                $vehiclesMap = [];
+                $vehicleMappings->load(['vehicle', 'fromZone', 'toZone'])
+                    ->each(function ($mapping) use (&$vehiclesMap) {
                         $vehicle = $mapping->vehicle;
                         if (!$vehicle) {
-                            return null;
+                            return;
                         }
-                        return [
-                            'vehicle_id' => $vehicle->vehicle_id,
-                            'vehicle_name' => $vehicle->vehicle_name,
-                            'vehicle_type' => $vehicle->vehicle_type,
-                            'seating_capacity' => $vehicle->seating_capacity,
-                            'vehicle_model' => $vehicle->vehicle_model,
-                            'image' => $vehicle->image,
-                            'base_price' => $vehicle->base_price,
-                            'sharable_base_price' => $vehicle->sharable_base_price,
-                            'service_type' => $vehicle->service_type,
-                            'sharable' => $vehicle->sharable,
-                            'from_zone' => $mapping->fromZone->zone_name ?? '',
-                            'to_zone' => $mapping->toZone->zone_name ?? '',
-                            'mapping_id' => $mapping->mapping_id,
-                            // ✅ Zone mapping prices
-                            'private_price' => $mapping->private_price,
-                            'shared_price' => $mapping->shared_price,
-                        ];
+                        
+                        $vehicleId = $vehicle->vehicle_id;
+                        
+                        // Only add vehicle if not already added, or if this mapping has better prices
+                        if (!isset($vehiclesMap[$vehicleId])) {
+                            $vehiclesMap[$vehicleId] = [
+                                'vehicle_id' => $vehicle->vehicle_id,
+                                'vehicle_name' => $vehicle->vehicle_name,
+                                'vehicle_type' => $vehicle->vehicle_type,
+                                'seating_capacity' => $vehicle->seating_capacity,
+                                'vehicle_model' => $vehicle->vehicle_model,
+                                'image' => $vehicle->image,
+                                'base_price' => $vehicle->base_price,
+                                'sharable_base_price' => $vehicle->sharable_base_price,
+                                'service_type' => $vehicle->service_type,
+                                'sharable' => $vehicle->sharable,
+                                'from_zone' => $mapping->fromZone->zone_name ?? '',
+                                'to_zone' => $mapping->toZone->zone_name ?? '',
+                                'mapping_id' => $mapping->mapping_id,
+                                // ✅ Zone mapping prices - use mapping prices
+                                'private_price' => $mapping->private_price ?? 0,
+                                'shared_price' => $mapping->shared_price ?? 0,
+                                // Additional fields for consistency
+                                'dmc_id' => $vehicle->dmc_id,
+                                'city' => $vehicle->city,
+                                'country' => $vehicle->country,
+                                'model_year' => $vehicle->model_year,
+                            ];
+                        } else {
+                            // If vehicle already exists, update prices if current mapping has better prices
+                            // Prefer mapping with non-zero prices
+                            $currentPrivatePrice = $vehiclesMap[$vehicleId]['private_price'] ?? 0;
+                            $currentSharedPrice = $vehiclesMap[$vehicleId]['shared_price'] ?? 0;
+                            $newPrivatePrice = $mapping->private_price ?? 0;
+                            $newSharedPrice = $mapping->shared_price ?? 0;
+                            
+                            // Update if new mapping has prices and current doesn't, or if both have prices, keep the first one
+                            if (($newPrivatePrice > 0 && $currentPrivatePrice == 0) || 
+                                ($newSharedPrice > 0 && $currentSharedPrice == 0)) {
+                                $vehiclesMap[$vehicleId]['private_price'] = $newPrivatePrice;
+                                $vehiclesMap[$vehicleId]['shared_price'] = $newSharedPrice;
+                                $vehiclesMap[$vehicleId]['mapping_id'] = $mapping->mapping_id;
+                            }
+                        }
+                    });
+                
+                // Convert map to array and filter out vehicles without prices
+                $vehicles = collect($vehiclesMap)
+                    ->filter(function($vehicle) {
+                        // Only include vehicles that have at least one price (private or shared)
+                        return ($vehicle['private_price'] > 0 || $vehicle['shared_price'] > 0);
                     })
-                ->filter()
-                ->values();
+                    ->values();
             }
             else{
-                $vehicles = Vehicle::select('vehicle_id', 'vehicle_name', 'vehicle_type', 'seating_capacity', 'vehicle_model', 'image', 'base_price', 'sharable_base_price', 'service_type', 'sharable')
+                $vehicles = Vehicle::select('vehicle_id', 'vehicle_name', 'vehicle_type', 'seating_capacity', 'vehicle_model', 'image', 'base_price', 'sharable_base_price', 'service_type', 'sharable', 'dmc_id', 'city', 'country', 'model_year')
                     ->where('dmc_id', $dmcId)
                     ->where('city', $city)
                     ->where('is_available', 1)
@@ -2380,6 +2818,11 @@ class SingleTourPackageController extends Controller
                         'private_price' => $vehicle->base_price,
                         'shared_price' => $vehicle->sharable_base_price,
                         'sharable' => $vehicle->sharable,
+                        // Additional fields for consistency
+                        'dmc_id' => $vehicle->dmc_id,
+                        'city' => $vehicle->city,
+                        'country' => $vehicle->country,
+                        'model_year' => $vehicle->model_year,
                     ];
                 });
             }
@@ -2464,7 +2907,7 @@ class SingleTourPackageController extends Controller
             case 'port':
                 case 'Port':
                 // For ports, get the port_id
-                $port = Port::where('id', $locationId)->first();
+                $port = Port::where('port_id', $locationId)->first();
                 return $port ? $port->port_id : $locationId;
                 
             case 'attraction':
@@ -2478,9 +2921,13 @@ class SingleTourPackageController extends Controller
                 
             case 'hotel':
                 case 'Hotel':
-                // For hotels, use hotel_unique_id directly
+                // For hotels, get the zone_id for the specific DMC
                 $hotel = Hotel::where('hotel_unique_id', $locationId)->first();
-                return $hotel->getZoneForDmc($dmcId);
+                if ($hotel && $dmcId) {
+                    $zoneId = $hotel->getZoneForDmc($dmcId);
+                    return $zoneId ? $zoneId : $locationId;
+                }
+                return $locationId;
                 
             case 'restaurant':
                 case 'Restaurant':
@@ -2873,17 +3320,33 @@ class SingleTourPackageController extends Controller
                                         'priceMode' => $hotelBooking['priceMode'] ?? 'dmc',
                                         'priceModeId' => $hotelBooking['priceModeId'] ?? 0,
                                         
-                                        // Rooms data (exact structure)
-                                        'rooms' => $hotelBooking['rooms'] ?? [],
+                                        // Rooms data - fix room_id to use actual numeric ID from database
+                                        'rooms' => $this->fixRoomIds($hotelBooking['rooms'] ?? [], $hotelBooking['hotelDetails']['hotel_id'] ?? $hotelBooking['hotel_id'] ?? null),
                                         
                                         // Total price
                                         'totalPrice' => $hotelBooking['totalPrice'] ?? 0,
                                         // Price field for database storage
                                         'price' => $hotelBooking['totalPrice'] ?? 0,
                                         
+                                        // Transfer Options
+                                        'transfer_options' => $hotelBooking['transfer_options'] ?? null,
+                                        
                                         // Tour ID
                                         'tour_id' => $tourId
                                     ];
+                                    
+                                    // Log transfer options for debugging
+                                    if (isset($hotelBooking['transfer_options'])) {
+                                        \Log::info("Hotel transfer options found:", [
+                                            'transfer_options' => $hotelBooking['transfer_options'],
+                                            'hotel_name' => $enhancedHotelData['hotelDetails']['hotel_name']
+                                        ]);
+                                    } else {
+                                        \Log::info("No transfer options in hotel booking data", [
+                                            'hotel_name' => $enhancedHotelData['hotelDetails']['hotel_name'],
+                                            'available_keys' => array_keys($hotelBooking)
+                                        ]);
+                                    }
                                     
                                     // Generate new booking ID for each hotel
                                     $newHotelBookingId = $this->getNextBookingId();
@@ -2931,6 +3394,50 @@ class SingleTourPackageController extends Controller
                                 // Ensure attraction has proper price field (use totalPrice from frontend calculation)
                                 $attraction['price'] = $attraction['totalPrice'] ?? $attraction['price'] ?? 0;
                                 
+                                // Process transfer_options if it exists
+                                if (isset($attraction['transfer_options']) && is_array($attraction['transfer_options']) && !empty($attraction['transfer_options'])) {
+                                    $transferOptions = &$attraction['transfer_options'];
+                                    
+                                    // Process vehicle_id and fetch vehicle name from DB
+                                    if (isset($transferOptions['vehicle_id']) && !empty($transferOptions['vehicle_id'])) {
+                                        $vehicleId = $transferOptions['vehicle_id'];
+                                        
+                                        // Fetch vehicle from DB using vehicle_id
+                                        $vehicle = Vehicle::where('vehicle_id', $vehicleId)->first();
+                                        
+                                        if ($vehicle && $vehicle->vehicle_name) {
+                                            // Overwrite vehicle_name with value from DB
+                                            $transferOptions['vehicle_name'] = $vehicle->vehicle_name;
+                                            
+                                            // Also update vehicle_details if it exists
+                                            if (isset($transferOptions['vehicle_details']) && is_array($transferOptions['vehicle_details'])) {
+                                                $transferOptions['vehicle_details']['vehicle_name'] = $vehicle->vehicle_name;
+                                            }
+                                        }
+                                    }
+                                    
+                                    // Ensure type (Private/Shared) is normalized
+                                    if (isset($transferOptions['type']) && !empty($transferOptions['type'])) {
+                                        $typeValue = trim($transferOptions['type']);
+                                        $typeLower = strtolower($typeValue);
+                                        
+                                        if (in_array($typeLower, ['private', 'shared', 'sic'])) {
+                                            $transferOptions['type'] = ucfirst($typeLower);
+                                        } else {
+                                            // Map common variations
+                                            $typeMap = [
+                                                'sharable' => 'Shared',
+                                                'shareable' => 'Shared',
+                                                'share' => 'Shared',
+                                            ];
+                                            $transferOptions['type'] = $typeMap[$typeLower] ?? 'Private';
+                                        }
+                                    } else {
+                                        // Default to Private if type is missing
+                                        $transferOptions['type'] = 'Private';
+                                    }
+                                }
+                                
                                 // Generate new booking ID for each attraction
                                 $newAttractionBookingId = $this->getNextBookingId();
                                 
@@ -2961,6 +3468,50 @@ class SingleTourPackageController extends Controller
                         } elseif ($type === 'restaurant') {
                             // For restaurants, store each restaurant as a separate order
                             foreach ($decodedData as $restaurant) {
+                                // Process transfer_options if it exists
+                                if (isset($restaurant['transfer_options']) && is_array($restaurant['transfer_options']) && !empty($restaurant['transfer_options'])) {
+                                    $transferOptions = &$restaurant['transfer_options'];
+                                    
+                                    // Process vehicle_id and fetch vehicle name from DB
+                                    if (isset($transferOptions['vehicle_id']) && !empty($transferOptions['vehicle_id'])) {
+                                        $vehicleId = $transferOptions['vehicle_id'];
+                                        
+                                        // Fetch vehicle from DB using vehicle_id
+                                        $vehicle = Vehicle::where('vehicle_id', $vehicleId)->first();
+                                        
+                                        if ($vehicle && $vehicle->vehicle_name) {
+                                            // Overwrite vehicle_name with value from DB
+                                            $transferOptions['vehicle_name'] = $vehicle->vehicle_name;
+                                            
+                                            // Also update vehicle_details if it exists
+                                            if (isset($transferOptions['vehicle_details']) && is_array($transferOptions['vehicle_details'])) {
+                                                $transferOptions['vehicle_details']['vehicle_name'] = $vehicle->vehicle_name;
+                                            }
+                                        }
+                                    }
+                                    
+                                    // Ensure type (Private/Shared) is normalized
+                                    if (isset($transferOptions['type']) && !empty($transferOptions['type'])) {
+                                        $typeValue = trim($transferOptions['type']);
+                                        $typeLower = strtolower($typeValue);
+                                        
+                                        if (in_array($typeLower, ['private', 'shared', 'sic'])) {
+                                            $transferOptions['type'] = ucfirst($typeLower);
+                                        } else {
+                                            // Map common variations
+                                            $typeMap = [
+                                                'sharable' => 'Shared',
+                                                'shareable' => 'Shared',
+                                                'share' => 'Shared',
+                                            ];
+                                            $transferOptions['type'] = $typeMap[$typeLower] ?? 'Private';
+                                        }
+                                    } else {
+                                        // Default to Private if type is missing
+                                        $transferOptions['type'] = 'Private';
+                                    }
+                                }
+                                
                                 // Generate new booking ID for each restaurant
                                 $newRestaurantBookingId = $this->getNextBookingId();
                                 
@@ -3309,6 +3860,66 @@ class SingleTourPackageController extends Controller
         }
     }
 
+    /** All Add more services modal submission handling from below */
+    public function orderSelectHotel(Request $request)
+    {
+        $bookingData = json_decode($request->input('booking_data'), true);
+        $tourId = $request->input('tour_id');
+        
+        // Fetch tour from database to get agent_id and tour_status
+        $tour = Tour::where('tour_id', $tourId)->first();
+        
+        if (!$tour) {
+            return back()->with('error', 'Tour not found');
+        }
+        
+        // Get agent_id from tour table
+        $agentId = $tour->agent_id;
+        
+        // Determine bookingType based on tour_status
+        $bookingType = 'booking';
+        if (in_array($tour->tour_status, ['New Enquiry', 'Prospect', 'Tentative'])) {
+            $bookingType = 'enquiry';
+        }
+        
+        // Fix room_ids in booking data
+        $hotelId = $bookingData['hotelDetails']['hotel_id'] ?? $bookingData['hotel_id'] ?? null;
+        if (isset($bookingData['rooms']) && is_array($bookingData['rooms'])) {
+            $bookingData['rooms'] = $this->fixRoomIds($bookingData['rooms'], $hotelId);
+        }
+        
+        // Generate a unique booking ID
+        $max_book_id = \App\Models\Order::max('booking_id') ?? 0;
+        $bookingId = \App\Helpers\CommonHelper::createId($max_book_id);
+        while (\App\Models\Order::where('booking_id', $bookingId)->exists()) {
+            $bookingId = \App\Helpers\CommonHelper::createId($bookingId);
+        }
+        
+        $order = \App\Models\Order::create([
+            'booking_id' => $bookingId,
+            'agent_id' => $agentId,
+            'tour_id' => $tourId,
+            'data' => [$bookingData],
+            'type' => 'hotel',
+            'bookingType' => $bookingType,
+            'discount' => 0,
+            'markup_percentage' => 0,
+            'status' => 1,
+        ]);
+        
+        // Update tour destination with hotel location if location is provided
+        if (!empty($bookingData['hotelDetails']['location'])) {
+            $tour->destination = $bookingData['hotelDetails']['location'];
+            $tour->save();
+            \Log::info('Tour destination updated with hotel location', [
+                'tour_id' => $tourId,
+                'destination' => $bookingData['hotelDetails']['location']
+            ]);
+        }
+        
+        return back()->with('success', 'Hotel selected successfully');
+    }
+
     public function orderSelectGuide(Request $request)
     {
         $request->validate([
@@ -3322,11 +3933,25 @@ class SingleTourPackageController extends Controller
         $customHours = $request->input('custom_hours');
         $pickupTime = $request->input('pickup_time');
         $tourId = $request->input('tour_id');
-        $agentId = $request->input('agent_id');
         $dmcId = $request->input('dmc_id');
         $commission = $request->input('commission');
         $markup_percentage = $request->input('markup_percentage');
 
+        // Fetch tour from database to get agent_id and tour_status
+        $tour = Tour::where('tour_id', $tourId)->first();
+        
+        if (!$tour) {
+            return back()->with('error', 'Tour not found');
+        }
+        
+        // Get agent_id from tour table
+        $agentId = $tour->agent_id;
+        
+        // Determine bookingType based on tour_status
+        $bookingType = 'booking';
+        if (in_array($tour->tour_status, ['New Enquiry', 'Prospect', 'Tentative'])) {
+            $bookingType = 'enquiry';
+        }
 
         $max_book_id = Order::max('booking_id') ?? 0;
         $bookingId = CommonHelper::createId($max_book_id);
@@ -3340,7 +3965,7 @@ class SingleTourPackageController extends Controller
             'tour_id' => $tourId,
             'data' => $bookingData,
             'type' => 'guide',
-            'bookingType' => 'booking',
+            'bookingType' => $bookingType,
             'discount' => $commission,
             'markup_percentage' => $markup_percentage,
             'status' => 1,
@@ -3352,7 +3977,6 @@ class SingleTourPackageController extends Controller
     {
         $request->validate([
             'booking_data' => 'required|json',
-            'agent_id' => 'required',
             'tour_id' => 'required',
             'restaurant_id' => 'required',
             'meal_type' => 'required',
@@ -3369,8 +3993,23 @@ class SingleTourPackageController extends Controller
         ]);
 
         $bookingData = json_decode($request->input('booking_data'), true);
-        $agentId = $request->input('agent_id');
         $tourId = $request->input('tour_id');
+        
+        // Fetch tour from database to get agent_id and tour_status
+        $tour = Tour::where('tour_id', $tourId)->first();
+        
+        if (!$tour) {
+            return back()->with('error', 'Tour not found');
+        }
+        
+        // Get agent_id from tour table
+        $agentId = $tour->agent_id;
+        
+        // Determine bookingType based on tour_status
+        $bookingType = 'booking';
+        if (in_array($tour->tour_status, ['New Enquiry', 'Prospect', 'Tentative'])) {
+            $bookingType = 'enquiry';
+        }
        
         // Generate unique booking ID
         $max_book_id = Order::max('booking_id') ?? 0;
@@ -3385,7 +4024,7 @@ class SingleTourPackageController extends Controller
             'tour_id' => $tourId,
             'data' => $bookingData,
             'type' => 'restaurant',
-            'bookingType' => 'booking',
+            'bookingType' => $bookingType,
             'discount' => 0,
             'markup_percentage' => 0,
             'status' => 1,
@@ -3398,15 +4037,29 @@ class SingleTourPackageController extends Controller
     {
         $request->validate([
             'booking_data' => 'required|json',
-            'agent_id' => 'required',
             'tour_id' => 'required',
             'attraction_id' => 'required',
             'time_slot' => 'required',
         ]);
 
         $bookingData = json_decode($request->input('booking_data'), true);
-        $agentId = $request->input('agent_id');
         $tourId = $request->input('tour_id');
+        
+        // Fetch tour from database to get agent_id and tour_status
+        $tour = Tour::where('tour_id', $tourId)->first();
+        
+        if (!$tour) {
+            return back()->with('error', 'Tour not found');
+        }
+        
+        // Get agent_id from tour table
+        $agentId = $tour->agent_id;
+        
+        // Determine bookingType based on tour_status
+        $bookingType = 'booking';
+        if (in_array($tour->tour_status, ['New Enquiry', 'Prospect', 'Tentative'])) {
+            $bookingType = 'enquiry';
+        }
         
         // Generate a unique booking ID
         $max_book_id = \App\Models\Order::max('booking_id') ?? 0;
@@ -3422,7 +4075,7 @@ class SingleTourPackageController extends Controller
             'tour_id' => $tourId,
             'data' => $bookingData,
             'type' => 'attraction',
-            'bookingType' => 'booking',
+            'bookingType' => $bookingType,
             'discount' => 0,
             'markup_percentage' => 0,
             'status' => 1,
@@ -3435,7 +4088,6 @@ class SingleTourPackageController extends Controller
     {
         $request->validate([
             'transport_data' => 'required|json',
-            'agent_id' => 'required',
             'tour_id' => 'required',
             'pickup_zone_id' => 'required',
             'dropoff_zone_id' => 'required',
@@ -3444,8 +4096,23 @@ class SingleTourPackageController extends Controller
         ]);
 
         $transportData = json_decode($request->input('transport_data'), true);
-        $agentId = $request->input('agent_id');
         $tourId = $request->input('tour_id');
+        
+        // Fetch tour from database to get agent_id and tour_status
+        $tour = Tour::where('tour_id', $tourId)->first();
+        
+        if (!$tour) {
+            return back()->with('error', 'Tour not found');
+        }
+        
+        // Get agent_id from tour table
+        $agentId = $tour->agent_id;
+        
+        // Determine bookingType based on tour_status
+        $bookingType = 'booking';
+        if (in_array($tour->tour_status, ['New Enquiry', 'Prospect', 'Tentative'])) {
+            $bookingType = 'enquiry';
+        }
         
         // Generate a unique booking ID
         $max_book_id = \App\Models\Order::max('booking_id') ?? 0;
@@ -3454,13 +4121,26 @@ class SingleTourPackageController extends Controller
             $bookingId = \App\Helpers\CommonHelper::createId($bookingId);
         }
         
-        // Log the transport data for debugging
+        // Detailed logging for transport order - check image field
         \Log::info("Processing transport order", [
             'transport_data' => $transportData,
             'booking_id' => $bookingId,
             'agent_id' => $agentId,
             'tour_id' => $tourId
         ]);
+        
+        // Specifically log the image field from first transport item
+        if (is_array($transportData) && count($transportData) > 0) {
+            \Log::info("Transport order IMAGE field check", [
+                'image_value' => $transportData[0]['image'] ?? 'NOT_FOUND',
+                'dmc_id_value' => $transportData[0]['dmc_id'] ?? 'NOT_FOUND',
+                'vehicle_id' => $transportData[0]['vehicles_id'] ?? 'NOT_FOUND',
+                'vehicle_name' => $transportData[0]['vehicles_name'] ?? 'NOT_FOUND',
+                'has_image_key' => isset($transportData[0]['image']),
+                'image_is_empty' => empty($transportData[0]['image']),
+                'all_keys' => array_keys($transportData[0])
+            ]);
+        }
         
         // Create order
         $order = \App\Models\Order::create([
@@ -3469,7 +4149,7 @@ class SingleTourPackageController extends Controller
             'tour_id' => $tourId,
             'data' => $transportData,
             'type' => $request->input('type'),
-            'bookingType' => 'booking',
+            'bookingType' => $bookingType,
             'discount' => 0,
             'markup_percentage' => 0,
             'status' => 1,
@@ -3489,8 +4169,25 @@ class SingleTourPackageController extends Controller
         $transportData = json_decode($request->input('booking_data'), true);
         $serviceType = $request->input('type');
         $tourId = $transportData[0]['tour_id'];
+        
+        // Fetch tour from database to get agent_id and tour_status
         $tour = Tour::where('tour_id', $tourId)->first();
+        
+        if (!$tour) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Tour not found'
+            ], 404);
+        }
+        
+        // Get agent_id from tour table
         $agent_id = $tour->agent_id;
+        
+        // Determine bookingType based on tour_status
+        $bookingType = 'booking';
+        if (in_array($tour->tour_status, ['New Enquiry', 'Prospect', 'Tentative'])) {
+            $bookingType = 'enquiry';
+        }
 
         $max_book_id = Order::max('booking_id') ?? 0;
         $bookingId = CommonHelper::createId($max_book_id);
@@ -3512,7 +4209,7 @@ class SingleTourPackageController extends Controller
             'tour_id' => $tourId,
             'data' => $transportData,
             'type' => $orderType,
-            'bookingType' => 'booking',
+            'bookingType' => $bookingType,
             'discount' => 0,
             'markup_percentage' => 0,
             'status' => 1,
@@ -3534,4 +4231,895 @@ class SingleTourPackageController extends Controller
             'order_type' => $orderType
         ]);
     }
-} 
+
+    /**
+     * Update an existing service order (currently supports hotel orders).
+     */
+    public function updateServiceOrder(Request $request, Order $order)
+    {
+        $request->validate([
+            'type' => 'required|string|in:hotel,entry_port,exit_port,attraction,guide,restaurant,travel_hourly,travel_point,local_transport',
+        ]);
+
+        if ($request->type === 'hotel') {
+            $validated = $request->validate([
+                'hotel_name' => 'required|string|max:255',
+                'hotel_location' => 'nullable|string|max:255',
+                'check_in_date' => 'required|date',
+                'check_out_date' => 'required|date|after_or_equal:check_in_date',
+                'check_in_time' => 'nullable|string|max:20',
+                'check_out_time' => 'nullable|string|max:20',
+                'rooms_json' => 'nullable|string',
+                'notes' => 'nullable|string|max:1000',
+                'days_display' => 'nullable|string|max:255',
+            ]);
+
+            $existingData = is_array($order->data) ? $order->data : json_decode($order->data, true);
+            $currentPayload = [];
+
+            if (empty($existingData)) {
+                $currentPayload = [];
+            } elseif (isset($existingData[0])) {
+                $currentPayload = $existingData[0];
+            } else {
+                $currentPayload = $existingData;
+            }
+
+            $currentPayload['hotelDetails'] = array_merge($currentPayload['hotelDetails'] ?? [], [
+                'hotel_name' => $validated['hotel_name'],
+                'location' => $validated['hotel_location'] ?? ($currentPayload['hotelDetails']['location'] ?? ''),
+                'checkInTime' => $validated['check_in_time'] ?? ($currentPayload['hotelDetails']['checkInTime'] ?? null),
+                'checkOutTime' => $validated['check_out_time'] ?? ($currentPayload['hotelDetails']['checkOutTime'] ?? null),
+            ]);
+
+            $currentPayload['bookingDate'] = [
+                $validated['check_in_date'],
+                $validated['check_out_date'],
+            ];
+
+            if (!empty($validated['rooms_json'])) {
+                $rooms = json_decode($validated['rooms_json'], true);
+                if (json_last_error() !== JSON_ERROR_NONE) {
+                    return response()->json([
+                        'success' => false,
+                        'message' => 'Rooms JSON is invalid. Please provide a valid JSON structure.',
+                    ], 422);
+                }
+                // Fix room_ids in rooms array
+                $hotelId = $currentPayload['hotelDetails']['hotel_id'] ?? $currentPayload['hotel_id'] ?? null;
+                $currentPayload['rooms'] = $this->fixRoomIds($rooms, $hotelId);
+            }
+
+            if (!empty($validated['notes'])) {
+                $currentPayload['notes'] = $validated['notes'];
+            }
+
+            if (!empty($validated['days_display'])) {
+                $currentPayload['days_display'] = $validated['days_display'];
+            }
+
+            $order->data = [$currentPayload];
+            $order->save();
+
+            return response()->json([
+                'success' => true,
+                'message' => 'Hotel service updated successfully.',
+            ]);
+        }
+
+        if (in_array($request->type, ['entry_port', 'exit_port'])) {
+            $validated = $request->validate([
+                'city' => 'nullable|string|max:255',
+                'pickup_location' => 'required|string|max:255',
+                'dropoff_location' => 'required|string|max:255',
+                'pickup_time' => 'required|string|max:50',
+                'vehicle_name' => 'nullable|string|max:255',
+                'vehicle_type' => 'nullable|string|max:50',
+                'passenger_count' => 'nullable|integer|min:1',
+                'notes' => 'nullable|string|max:1000',
+            ]);
+
+            $existingData = is_array($order->data) ? $order->data : json_decode($order->data, true);
+            $currentPayload = [];
+
+            if (empty($existingData)) {
+                $currentPayload = [];
+            } elseif (isset($existingData[0])) {
+                $currentPayload = $existingData[0];
+            } else {
+                $currentPayload = $existingData;
+            }
+
+            $currentPayload['city'] = $validated['city'] ?? ($currentPayload['city'] ?? null);
+
+            if ($request->type === 'entry_port') {
+                $currentPayload['entrypickup'] = $validated['pickup_location'];
+                $currentPayload['entrydropoff'] = $validated['dropoff_location'];
+                $currentPayload['entrytime'] = $validated['pickup_time'];
+            } else {
+                $currentPayload['exitpickup'] = $validated['pickup_location'];
+                $currentPayload['exitdropoff'] = $validated['dropoff_location'];
+                $currentPayload['exitpickupdate'] = $validated['pickup_time'];
+            }
+
+            if (!empty($validated['vehicle_name'])) {
+                $currentPayload['vehicles_name'] = $validated['vehicle_name'];
+            }
+
+            if (!empty($validated['vehicle_type'])) {
+                $currentPayload['type'] = $validated['vehicle_type'];
+            }
+
+            if (!empty($validated['passenger_count'])) {
+                $currentPayload['passengers'] = (int)$validated['passenger_count'];
+            }
+
+            if (!empty($validated['notes'])) {
+                $currentPayload['notes'] = $validated['notes'];
+            }
+
+            $order->data = [$currentPayload];
+            $order->save();
+
+            return response()->json([
+                'success' => true,
+                'message' => 'Transport service updated successfully.',
+            ]);
+        }
+
+        if (in_array($request->type, ['travel_hourly', 'travel_point', 'local_transport'])) {
+            $rules = [
+                'pickup_location' => 'required|string|max:255',
+                'pickup_time' => 'required|string|max:50',
+                'pickup_date' => 'nullable|date',
+                'vehicle_name' => 'nullable|string|max:255',
+                'vehicle_type' => 'nullable|string|max:50',
+                'total_price' => 'nullable|numeric|min:0',
+                'adult_count' => 'nullable|integer|min:0',
+                'child_count' => 'nullable|integer|min:0',
+                'notes' => 'nullable|string|max:1000',
+            ];
+
+            if ($request->type === 'travel_hourly') {
+                $rules['dropoff_location'] = 'nullable|string|max:255';
+                $rules['selected_hours'] = 'nullable|integer|min:1';
+            } else {
+                $rules['dropoff_location'] = 'required|string|max:255';
+            }
+
+            if ($request->type === 'travel_point') {
+                $rules['distance'] = 'nullable|numeric|min:0';
+            }
+
+            $validated = $request->validate($rules);
+
+            $existingData = is_array($order->data) ? $order->data : json_decode($order->data, true);
+            if (empty($existingData)) {
+                $currentPayload = [];
+            } elseif (isset($existingData[0])) {
+                $currentPayload = $existingData[0];
+            } else {
+                $currentPayload = $existingData;
+            }
+
+            $currentPayload['entrypickup'] = $validated['pickup_location'];
+
+            if (array_key_exists('dropoff_location', $validated)) {
+                $currentPayload['entrydropoff'] = $validated['dropoff_location'];
+            }
+
+            if (!empty($validated['pickup_date'])) {
+                $currentPayload['pickupdate'] = $validated['pickup_date'];
+                $currentPayload['bookingDate'] = $validated['pickup_date'];
+            }
+
+            $currentPayload['entrytime'] = $validated['pickup_time'];
+
+            if (array_key_exists('vehicle_name', $validated)) {
+                $currentPayload['vehicles_name'] = $validated['vehicle_name'];
+            }
+
+            if (array_key_exists('vehicle_type', $validated)) {
+                $currentPayload['type'] = $validated['vehicle_type'];
+            }
+
+            if (array_key_exists('selected_hours', $validated)) {
+                $currentPayload['selectedHours'] = $validated['selected_hours'];
+            }
+
+            if (array_key_exists('total_price', $validated) && $validated['total_price'] !== null) {
+                $currentPayload['totalPrice'] = (float) $validated['total_price'];
+            }
+
+            if (array_key_exists('adult_count', $validated) && $validated['adult_count'] !== null) {
+                $currentPayload['adults'] = (int) $validated['adult_count'];
+                $currentPayload['adultCount'] = (int) $validated['adult_count'];
+            }
+
+            if (array_key_exists('child_count', $validated) && $validated['child_count'] !== null) {
+                $currentPayload['children'] = (int) $validated['child_count'];
+                $currentPayload['childCount'] = (int) $validated['child_count'];
+            }
+
+            if (array_key_exists('distance', $validated) && $validated['distance'] !== null) {
+                $currentPayload['distance'] = (float) $validated['distance'];
+            }
+
+            if (array_key_exists('notes', $validated)) {
+                $currentPayload['notes'] = $validated['notes'];
+            }
+
+            $currentPayload['travel_type'] = $request->type;
+
+            $order->data = [$currentPayload];
+            $order->save();
+
+            $messages = [
+                'travel_hourly' => 'Hourly transport updated successfully.',
+                'travel_point' => 'Point-to-point transport updated successfully.',
+                'local_transport' => 'Local transfer updated successfully.',
+            ];
+
+            return response()->json([
+                'success' => true,
+                'message' => $messages[$request->type] ?? 'Transport service updated successfully.',
+            ]);
+        }
+
+        if ($request->type === 'attraction') {
+            $validated = $request->validate([
+                'attraction_name' => 'required|string|max:255',
+                'ticket_name' => 'nullable|string|max:255',
+                'visit_time' => 'nullable|string|max:255',
+                'adult_count' => 'required|integer|min:0',
+                'child_count' => 'required|integer|min:0',
+                'senior_count' => 'required|integer|min:0',
+                'total_price' => 'required|numeric|min:0',
+                'notes' => 'nullable|string|max:1000',
+            ]);
+
+            $existingData = is_array($order->data) ? $order->data : json_decode($order->data, true);
+            $currentPayload = [];
+
+            if (empty($existingData)) {
+                $currentPayload = [];
+            } elseif (isset($existingData[0])) {
+                $currentPayload = $existingData[0];
+            } else {
+                $currentPayload = $existingData;
+            }
+
+            $currentPayload['AttractionName'] = $validated['attraction_name'];
+            if (array_key_exists('ticket_name', $validated)) {
+                $currentPayload['ticketName'] = $validated['ticket_name'];
+            }
+            if (array_key_exists('visit_time', $validated)) {
+                $currentPayload['visitTime'] = $validated['visit_time'];
+            }
+
+            $currentPayload['adultCount'] = (int) $validated['adult_count'];
+            $currentPayload['childCount'] = (int) $validated['child_count'];
+            $currentPayload['seniorCount'] = (int) $validated['senior_count'];
+            $currentPayload['totalPrice'] = (float) $validated['total_price'];
+
+            if (!empty($validated['notes'])) {
+                $currentPayload['notes'] = $validated['notes'];
+            }
+
+            $order->data = [$currentPayload];
+            $order->save();
+
+            return response()->json([
+                'success' => true,
+                'message' => 'Attraction booking updated successfully.',
+            ]);
+        }
+
+        if ($request->type === 'guide') {
+            $validated = $request->validate([
+                'guide_name' => 'required|string|max:255',
+                'package_hours' => 'nullable|string|max:255',
+                'pickup_time' => 'nullable|string|max:255',
+                'guest_name' => 'nullable|string|max:255',
+                'notes' => 'nullable|string|max:1000',
+            ]);
+
+            $existingData = is_array($order->data) ? $order->data : json_decode($order->data, true);
+            $currentPayload = [];
+
+            if (empty($existingData)) {
+                $currentPayload = [];
+            } elseif (isset($existingData[0])) {
+                $currentPayload = $existingData[0];
+            } else {
+                $currentPayload = $existingData;
+            }
+
+            $currentPayload['guide_name'] = $validated['guide_name'];
+
+            if (array_key_exists('package_hours', $validated)) {
+                $currentPayload['hours'] = $validated['package_hours'];
+            }
+            if (array_key_exists('pickup_time', $validated)) {
+                $currentPayload['entrytime'] = $validated['pickup_time'];
+            }
+            if (array_key_exists('guest_name', $validated)) {
+                $currentPayload['fullName'] = $validated['guest_name'];
+            }
+            if (!empty($validated['notes'])) {
+                $currentPayload['notes'] = $validated['notes'];
+            }
+
+            $order->data = [$currentPayload];
+            $order->save();
+
+            return response()->json([
+                'success' => true,
+                'message' => 'Guide booking updated successfully.',
+            ]);
+        }
+
+        if ($request->type === 'restaurant') {
+            $validated = $request->validate([
+                'restaurant_name' => 'required|string|max:255',
+                'meal_type' => 'nullable|string|max:255',
+                'meal_specific_type' => 'nullable|string|max:255',
+                'adult_count' => 'required|integer|min:0',
+                'child_count' => 'required|integer|min:0',
+                'total_price' => 'nullable|numeric|min:0',
+                'notes' => 'nullable|string|max:1000',
+                'meal_description_json' => 'nullable|string',
+            ]);
+
+            $existingData = is_array($order->data) ? $order->data : json_decode($order->data, true);
+            $currentPayload = [];
+
+            if (empty($existingData)) {
+                $currentPayload = [];
+            } elseif (isset($existingData[0])) {
+                $currentPayload = $existingData[0];
+            } else {
+                $currentPayload = $existingData;
+            }
+
+            $currentPayload['restaurantName'] = $validated['restaurant_name'];
+            $currentPayload['mealType'] = $validated['meal_type'] ?? ($currentPayload['mealType'] ?? null);
+            $currentPayload['mealSpecificType'] = $validated['meal_specific_type'] ?? ($currentPayload['mealSpecificType'] ?? null);
+            $currentPayload['adultCount'] = (int) $validated['adult_count'];
+            $currentPayload['childCount'] = (int) $validated['child_count'];
+
+            if (array_key_exists('total_price', $validated) && $validated['total_price'] !== null) {
+                $currentPayload['totalPrice'] = (float) $validated['total_price'];
+            }
+
+            if (!empty($validated['notes'])) {
+                $currentPayload['notes'] = $validated['notes'];
+            }
+
+            if (!empty($validated['meal_description_json'])) {
+                $decodedMeals = json_decode($validated['meal_description_json'], true);
+                if (json_last_error() !== JSON_ERROR_NONE) {
+                    return response()->json([
+                        'success' => false,
+                        'message' => 'Meal details JSON is invalid.',
+                    ], 422);
+                }
+                $currentPayload['MealDescription'] = $decodedMeals;
+            }
+
+            $order->data = [$currentPayload];
+            $order->save();
+
+            return response()->json([
+                'success' => true,
+                'message' => 'Restaurant booking updated successfully.',
+            ]);
+        }
+
+        return response()->json([
+            'success' => false,
+            'message' => 'Unsupported service type for editing.',
+        ], 422);
+    }
+
+    public function fetchAttractionTransferPricing(Request $request)
+    {
+        try {
+            $request->validate([
+                'vehicle_id' => 'required|string',
+                'attraction_id' => 'required|string',
+                'pickup_location_id' => 'required|string',
+                'pickup_location_type' => 'required|string|in:Hotel,Attraction,Restaurant',
+                'transfer_type' => 'required|string|in:Private,Shared',
+                'transfer_way' => 'required|string|in:One Way,Both Way',
+                'city' => 'nullable|string',
+                'country' => 'nullable|string'
+            ]);
+            
+            $vehicleId = $request->vehicle_id;
+            $attractionId = $request->attraction_id;
+            $pickupLocationId = $request->pickup_location_id;
+            $pickupLocationType = $request->pickup_location_type;
+            $transferType = $request->transfer_type;
+            
+            // Get current DMC ID using the existing method
+            $dmcId = 4;
+            if (!$dmcId) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'DMC ID not found'
+                ], 400);
+            }
+            
+            // Get attraction's zone_assignments
+            // Try both attraction_id and attraction_unique_id
+            $attraction = DB::table('attractions')
+                ->where('attraction_id', $attractionId)
+                ->first();
+            
+            if (!$attraction) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Attraction not found'
+                ], 404);
+            }
+            
+            $attractionZoneAssignments = json_decode($attraction->zone_assignments ?? '[]', true);
+            $attractionZoneId = null;
+            
+            // Find zone_id for current DMC from attraction's zone_assignments
+            foreach ($attractionZoneAssignments as $assignment) {
+                if (isset($assignment['dmc_id']) && $assignment['dmc_id'] == $dmcId) {
+                    $attractionZoneId = $assignment['zone_id'] ?? null;
+                    break;
+                }
+            }
+            
+            if (!$attractionZoneId) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Zone not found for attraction with current DMC'
+                ], 404);
+            }
+            
+            // Get pickup location's zone_assignments based on type
+            $pickupLocation = null;
+            $pickupZoneAssignments = [];
+            $pickupZoneId = null;
+            
+            if ($pickupLocationType === 'Hotel') {
+                $pickupLocation = DB::table('hotels')
+                    ->where('hotel_unique_id', $pickupLocationId)
+                    ->first();
+                if ($pickupLocation) {
+                    $pickupZoneAssignments = json_decode($pickupLocation->zone_assignments ?? '[]', true);
+                }
+            } elseif ($pickupLocationType === 'Attraction') {
+                $pickupLocation = DB::table('attractions')
+                    ->where('attraction_id', $pickupLocationId)
+                    ->first();
+                if ($pickupLocation) {
+                    $pickupZoneAssignments = json_decode($pickupLocation->zone_assignments ?? '[]', true);
+                }
+            } elseif ($pickupLocationType === 'Restaurant') {
+                $pickupLocation = DB::table('restaurants')
+                    ->where('restaurant_id', $pickupLocationId)
+                    ->first();
+                if ($pickupLocation) {
+                    $pickupZoneAssignments = json_decode($pickupLocation->zone_assignments ?? '[]', true);
+                }
+            }
+            
+            if (!$pickupLocation) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Pickup location not found'
+                ], 404);
+            }
+            
+            // Find zone_id for current DMC from pickup location's zone_assignments
+            foreach ($pickupZoneAssignments as $assignment) {
+                if (isset($assignment['dmc_id']) && $assignment['dmc_id'] == $dmcId) {
+                    $pickupZoneId = $assignment['zone_id'] ?? null;
+                    break;
+                }
+            }
+            
+            if (!$pickupZoneId) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Zone not found for pickup location with current DMC'
+                ], 404);
+            }
+            
+            // Determine zone types
+            $fromZoneType = $pickupLocationType; // Hotel, Attraction, or Restaurant
+            $toZoneType = 'Attraction'; // Always Attraction for dropoff
+            // Query vehicle_zone_mappings
+            $mapping = VehicleZoneMapping::where('vehicle_id', $vehicleId)
+                ->whereNull('deleted_at')
+                ->where(function ($q) use (
+                    $pickupZoneId,
+                    $attractionZoneId,
+                    $fromZoneType,
+                    $toZoneType
+                ) {
+                    // Case 1: from = pickup, to = attraction
+                    $q->where(function ($q1) use (
+                        $pickupZoneId,
+                        $attractionZoneId,
+                        $fromZoneType,
+                        $toZoneType
+                    ) {
+                        $q1->where('from_zone_id', $pickupZoneId)
+                        ->where('to_zone_id', $attractionZoneId)
+                        ->where('from_zone_type', $fromZoneType)
+                        ->where('to_zone_type', $toZoneType);
+                    })
+
+                    // Case 2: from = attraction, to = pickup
+                    ->orWhere(function ($q2) use (
+                        $pickupZoneId,
+                        $attractionZoneId,
+                        $fromZoneType,
+                        $toZoneType
+                    ) {
+                        $q2->where('from_zone_id', $attractionZoneId)
+                        ->where('to_zone_id', $pickupZoneId)
+                        ->where('from_zone_type', $toZoneType)
+                        ->where('to_zone_type', $fromZoneType);
+                    });
+                })
+                ->first();
+            if (!$mapping) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'No pricing mapping found for this route'
+                ], 404);
+            }
+            //dd($mapping); // Get the appropriate price based on transfer type
+            $price = 0;
+            if ($transferType === 'Private') {
+                $price = floatval($mapping->private_price ?? 0);
+            } elseif ($transferType === 'Shared') {
+                $price = floatval($mapping->shared_price ?? 0);
+            }
+            
+            if ($price <= 0) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Price not available for this transfer type'
+                ], 404);
+            }
+            
+            return response()->json([
+                'success' => true,
+                'price' => $price,
+                'vehicle_id' => $vehicleId,
+                'from_zone_id' => $pickupZoneId,
+                'to_zone_id' => $attractionZoneId,
+                'from_zone_type' => $fromZoneType,
+                'to_zone_type' => $toZoneType,
+                'transfer_type' => $transferType
+            ]);
+            
+        } catch (\Exception $e) {
+            Log::error('Error fetching attraction transfer pricing: ' . $e->getMessage(), [
+                'trace' => $e->getTraceAsString(),
+                'request_data' => $request->all()
+            ]);
+            return response()->json([
+                'success' => false,
+                'message' => 'An error occurred while fetching pricing: ' . $e->getMessage()
+            ], 500);
+        }
+    }
+
+    public function fetchRestaurantTransferPricing(Request $request)
+    {
+        try {
+            $request->validate([
+                'vehicle_id' => 'required|string',
+                'restaurant_id' => 'required|string',
+                'pickup_location_id' => 'required|string',
+                'pickup_location_type' => 'required|string|in:Hotel,Attraction,Restaurant',
+                'transfer_type' => 'required|string|in:Private,Shared',
+                'transfer_way' => 'required|string|in:One Way,Both Way',
+                'city' => 'nullable|string',
+                'country' => 'nullable|string'
+            ]);
+            
+            $vehicleId = $request->vehicle_id;
+            $restaurantId = $request->restaurant_id;
+            $pickupLocationId = $request->pickup_location_id;
+            $pickupLocationType = $request->pickup_location_type;
+            $transferType = $request->transfer_type;
+            
+            // Get current DMC ID using the existing method
+            $dmcId = 4;
+            if (!$dmcId) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'DMC ID not found'
+                ], 400);
+            }
+            
+            // Get restaurant's zone_assignments
+            // Try both restaurant_id and restaurant_unique_id
+            $restaurant = DB::table('restaurants')
+                ->where('restaurant_id', $restaurantId)
+                ->first();
+            
+            if (!$restaurant) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Restaurant not found'
+                ], 404);
+            }
+            
+            $restaurantZoneAssignments = json_decode($restaurant->zone_assignments ?? '[]', true);
+            $restaurantZoneId = null;
+            
+            // Find zone_id for current DMC from restaurant's zone_assignments
+            foreach ($restaurantZoneAssignments as $assignment) {
+                if (isset($assignment['dmc_id']) && $assignment['dmc_id'] == $dmcId) {
+                    $restaurantZoneId = $assignment['zone_id'] ?? null;
+                    break;
+                }
+            }
+            
+            if (!$restaurantZoneId) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Zone not found for restaurant with current DMC'
+                ], 404);
+            }
+            
+            // Get pickup location's zone_assignments based on type
+            $pickupLocation = null;
+            $pickupZoneAssignments = [];
+            $pickupZoneId = null;
+            
+            if ($pickupLocationType === 'Hotel') {
+                $pickupLocation = DB::table('hotels')
+                    ->where('hotel_unique_id', $pickupLocationId)
+                    ->first();
+                if ($pickupLocation) {
+                    $pickupZoneAssignments = json_decode($pickupLocation->zone_assignments ?? '[]', true);
+                }
+            } elseif ($pickupLocationType === 'Attraction') {
+                $pickupLocation = DB::table('attractions')
+                    ->where('attraction_id', $pickupLocationId)
+                    ->first();
+                if ($pickupLocation) {
+                    $pickupZoneAssignments = json_decode($pickupLocation->zone_assignments ?? '[]', true);
+                }
+            } elseif ($pickupLocationType === 'Restaurant') {
+                $pickupLocation = DB::table('restaurants')
+                    ->where('restaurant_id', $pickupLocationId)
+                    ->first();
+                if ($pickupLocation) {
+                    $pickupZoneAssignments = json_decode($pickupLocation->zone_assignments ?? '[]', true);
+                }
+            }
+            
+            if (!$pickupLocation) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Pickup location not found'
+                ], 404);
+            }
+            
+            // Find zone_id for current DMC from pickup location's zone_assignments
+            foreach ($pickupZoneAssignments as $assignment) {
+                if (isset($assignment['dmc_id']) && $assignment['dmc_id'] == $dmcId) {
+                    $pickupZoneId = $assignment['zone_id'] ?? null;
+                    break;
+                }
+            }
+            
+            if (!$pickupZoneId) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Zone not found for pickup location with current DMC'
+                ], 404);
+            }
+            
+            // Determine zone types
+            $fromZoneType = $pickupLocationType; // Hotel, Attraction, or Restaurant
+            $toZoneType = 'Restaurant'; // Always Restaurant for dropoff
+            // Query vehicle_zone_mappings
+            $mapping = VehicleZoneMapping::where('vehicle_id', $vehicleId)
+                ->whereNull('deleted_at')
+                ->where(function ($q) use (
+                    $pickupZoneId,
+                    $restaurantZoneId,
+                    $fromZoneType,
+                    $toZoneType
+                ) {
+                    // Case 1: from = pickup, to = restaurant
+                    $q->where(function ($q1) use (
+                        $pickupZoneId,
+                        $restaurantZoneId,
+                        $fromZoneType,
+                        $toZoneType
+                    ) {
+                        $q1->where('from_zone_id', $pickupZoneId)
+                        ->where('to_zone_id', $restaurantZoneId)
+                        ->where('from_zone_type', $fromZoneType)
+                        ->where('to_zone_type', $toZoneType);
+                    })
+                    // Case 2: from = restaurant, to = pickup
+                    ->orWhere(function ($q2) use (
+                        $pickupZoneId,
+                        $restaurantZoneId,
+                        $fromZoneType,
+                        $toZoneType
+                    ) {
+                        $q2->where('from_zone_id', $restaurantZoneId)
+                        ->where('to_zone_id', $pickupZoneId)
+                        ->where('from_zone_type', $toZoneType)
+                        ->where('to_zone_type', $fromZoneType);
+                    });
+                })
+                ->first();
+            if (!$mapping) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'No pricing mapping found for this route'
+                ], 404);
+            }
+            // Get the appropriate price based on transfer type
+            $price = 0;
+            if ($transferType === 'Private') {
+                $price = floatval($mapping->private_price ?? 0);
+            } elseif ($transferType === 'Shared') {
+                $price = floatval($mapping->shared_price ?? 0);
+            }
+            
+            if ($price <= 0) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Price not available for this transfer type'
+                ], 404);
+            }
+            
+            return response()->json([
+                'success' => true,
+                'price' => $price,
+                'vehicle_id' => $vehicleId,
+                'from_zone_id' => $pickupZoneId,
+                'to_zone_id' => $restaurantZoneId,
+                'from_zone_type' => $fromZoneType,
+                'to_zone_type' => $toZoneType,
+                'transfer_type' => $transferType
+            ]);
+            
+        } catch (\Exception $e) {
+            Log::error('Error fetching restaurant transfer pricing: ' . $e->getMessage(), [
+                'trace' => $e->getTraceAsString(),
+                'request_data' => $request->all()
+            ]);
+            return response()->json([
+                'success' => false,
+                'message' => 'An error occurred while fetching pricing: ' . $e->getMessage()
+            ], 500);
+        }
+    }
+
+    /**
+     * Fix room_id in rooms array - replace generated string IDs with actual numeric room_id from database
+     */
+    private function fixRoomIds($rooms, $hotelId)
+    {
+        if (empty($rooms) || !is_array($rooms) || !$hotelId) {
+            return $rooms;
+        }
+
+        $fixedRooms = [];
+        
+        foreach ($rooms as $room) {
+            $roomId = $room['room_id'] ?? $room['roomId'] ?? null;
+            $roomType = $room['room_type'] ?? $room['roomType'] ?? null;
+            
+            // Check if room_id is a generated string (starts with "room_") or not numeric
+            if ($roomId && (is_string($roomId) && strpos($roomId, 'room_') === 0) || !is_numeric($roomId)) {
+                // First, try to get room_id from bed_id in beds array (most accurate)
+                $foundRoomId = null;
+                
+                if (isset($room['beds']) && is_array($room['beds']) && !empty($room['beds'])) {
+                    foreach ($room['beds'] as $index => $bed) {
+                        $bedId = $bed['bed_id'] ?? null;
+                        
+                        // Fix bed_id if it's a string
+                        if ($bedId && is_string($bedId) && (strpos($bedId, 'bed_') === 0 || !is_numeric($bedId))) {
+                            // Try to extract numeric part from bed_id
+                            $numericBedId = filter_var($bedId, FILTER_SANITIZE_NUMBER_INT);
+                            if ($numericBedId && is_numeric($numericBedId)) {
+                                $bedId = (int)$numericBedId;
+                                $room['beds'][$index]['bed_id'] = $bedId;
+                            }
+                        }
+                        
+                        // Use bed_id to find the correct room_id from beds table
+                        if ($bedId && is_numeric($bedId)) {
+                            try {
+                                $bedRecord = \App\Models\Bed::where('bed_id', $bedId)
+                                    ->where('is_active', 1)
+                                    ->first();
+                                
+                                if ($bedRecord && $bedRecord->room_id) {
+                                    $foundRoomId = $bedRecord->room_id;
+                                    \Log::info("Found room_id from bed_id", [
+                                        'bed_id' => $bedId,
+                                        'room_id' => $foundRoomId,
+                                        'hotel_id' => $hotelId
+                                    ]);
+                                    break; // Found the room_id, no need to check other beds
+                                }
+                            } catch (\Exception $e) {
+                                \Log::error("Error looking up room_id from bed_id", [
+                                    'error' => $e->getMessage(),
+                                    'bed_id' => $bedId
+                                ]);
+                            }
+                        }
+                    }
+                }
+                
+                // If we found room_id from bed_id, use it
+                if ($foundRoomId) {
+                    $room['room_id'] = $foundRoomId;
+                } elseif ($roomType) {
+                    // Fallback: if bed_id lookup failed, use room_type (but this is less accurate)
+                    try {
+                        $roomRecord = \App\Models\Room::where('hotel_id', $hotelId)
+                            ->where('room_type', $roomType)
+                            ->where('status', 1)
+                            ->first();
+                        
+                        if ($roomRecord && $roomRecord->room_id) {
+                            $room['room_id'] = $roomRecord->room_id;
+                            \Log::warning("Used room_type fallback (less accurate)", [
+                                'room_type' => $roomType,
+                                'room_id' => $roomRecord->room_id,
+                                'hotel_id' => $hotelId
+                            ]);
+                        } else {
+                            \Log::warning("Could not find room in database", [
+                                'room_type' => $roomType,
+                                'hotel_id' => $hotelId,
+                                'original_room_id' => $roomId
+                            ]);
+                        }
+                    } catch (\Exception $e) {
+                        \Log::error("Error in room_type fallback lookup", [
+                            'error' => $e->getMessage(),
+                            'room_type' => $roomType,
+                            'hotel_id' => $hotelId
+                        ]);
+                    }
+                }
+            } elseif ($roomId && is_numeric($roomId)) {
+                // room_id is already numeric, but still fix bed_ids if needed
+                if (isset($room['beds']) && is_array($room['beds'])) {
+                    foreach ($room['beds'] as $index => $bed) {
+                        $bedId = $bed['bed_id'] ?? null;
+                        if ($bedId && is_string($bedId) && (strpos($bedId, 'bed_') === 0 || !is_numeric($bedId))) {
+                            $numericBedId = filter_var($bedId, FILTER_SANITIZE_NUMBER_INT);
+                            if ($numericBedId && is_numeric($numericBedId)) {
+                                $room['beds'][$index]['bed_id'] = (int)$numericBedId;
+                            }
+                        }
+                    }
+                }
+            }
+            
+            $fixedRooms[] = $room;
+        }
+        
+        return $fixedRooms;
+    }
+    
+    
+}
