@@ -1493,4 +1493,41 @@ class BookingsController extends Controller
             ], 500);
         }
     }
+
+    public function saveQrCode(Request $request, $encryptedId)
+    {
+        try {
+            $qrCode = '';
+            if ($request->hasFile('qr_code')) {
+                $pathData = CommonHelper::image_path('file_storage', $request->file('qr_code'));
+                if (!empty($pathData['master_value'])) {
+                    $qrCode = $pathData['master_value'];
+                }
+            }
+            // Allow either an encrypted id or a plain numeric booking_id
+            $orderId = is_numeric($encryptedId) ? $encryptedId : Crypt::decrypt($encryptedId);
+            $order = Order::where('booking_id', $orderId)->first();
+            if (!$order) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Order not found'
+                ], 404);
+            }
+
+            $order->qr_code = $qrCode;
+            $order->save();
+        }
+        catch (\Exception $e) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Failed to save QR code: ' . $e->getMessage()
+            ], 500);
+        }
+        return response()->json([
+            'success' => true,
+            'message' => 'QR code saved successfully',
+            'order_id' => $order->booking_id,
+            'qr_code' => $qrCode
+        ]);
+    }
 }
