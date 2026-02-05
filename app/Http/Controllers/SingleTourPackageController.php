@@ -2754,6 +2754,7 @@ class SingleTourPackageController extends Controller
                                 'vehicle_name' => $vehicle->vehicle_name,
                                 'vehicle_type' => $vehicle->vehicle_type,
                                 'seating_capacity' => $vehicle->seating_capacity,
+                                'city_tour_seating_capacity' => $vehicle->city_tour_seating_capacity ?? $vehicle->seating_capacity,
                                 'vehicle_model' => $vehicle->vehicle_model,
                                 'image' => $vehicle->image,
                                 'base_price' => $vehicle->base_price,
@@ -2799,7 +2800,7 @@ class SingleTourPackageController extends Controller
                     ->values();
             }
             else{
-                $vehicles = Vehicle::select('vehicle_id', 'vehicle_name', 'vehicle_type', 'seating_capacity', 'vehicle_model', 'image', 'base_price', 'sharable_base_price', 'service_type', 'sharable', 'dmc_id', 'city', 'country', 'model_year')
+                $vehicles = Vehicle::select('vehicle_id', 'vehicle_name', 'vehicle_type', 'seating_capacity', 'city_tour_seating_capacity', 'vehicle_model', 'image', 'base_price', 'sharable_base_price', 'service_type', 'sharable', 'dmc_id', 'city', 'country', 'model_year')
                     ->where('dmc_id', $dmcId)
                     ->where('city', $city)
                     ->where('is_available', 1)
@@ -2810,6 +2811,7 @@ class SingleTourPackageController extends Controller
                         'vehicle_name' => $vehicle->vehicle_name,
                         'vehicle_type' => $vehicle->vehicle_type,
                         'seating_capacity' => $vehicle->seating_capacity,
+                        'city_tour_seating_capacity' => $vehicle->city_tour_seating_capacity ?? $vehicle->seating_capacity,
                         'vehicle_model' => $vehicle->vehicle_model,
                         'image' => $vehicle->image,
                         'base_price' => $vehicle->base_price,
@@ -2970,7 +2972,7 @@ class SingleTourPackageController extends Controller
             // Build query for vehicles
             $query = Vehicle::where('dmc_id', $dmcId)
                 ->where('is_available', 1)
-                ->select('vehicle_id', 'vehicle_name', 'vehicle_type', 'seating_capacity', 'vehicle_model', 'image', 'base_price', 'sharable_base_price', 'service_type', 'cost_per_hour', 'sharable_cost_per_hour', 'sharable');
+                ->select('vehicle_id', 'vehicle_name', 'vehicle_type', 'seating_capacity', 'city_tour_seating_capacity', 'vehicle_model', 'image', 'base_price', 'sharable_base_price', 'service_type', 'cost_per_hour', 'sharable_cost_per_hour', 'sharable');
             
             // Only filter by city if not showing all vehicles
             if (!$showAllVehicles && $city) {
@@ -2985,6 +2987,7 @@ class SingleTourPackageController extends Controller
                     'vehicle_name' => $vehicle->vehicle_name,
                     'vehicle_type' => $vehicle->vehicle_type,
                     'seating_capacity' => $vehicle->seating_capacity,
+                    'city_tour_seating_capacity' => $vehicle->city_tour_seating_capacity ?? $vehicle->seating_capacity,
                     'vehicle_model' => $vehicle->vehicle_model,
                     'image' => $vehicle->image,
                     'base_price' => $vehicle->base_price,
