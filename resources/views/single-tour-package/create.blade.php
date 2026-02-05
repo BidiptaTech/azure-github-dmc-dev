@@ -13298,7 +13298,7 @@ document.addEventListener('DOMContentLoaded', function() {
                                                         style="border: 1px solid #e5e7eb; height: 42px; font-size: 0.735rem;">
                                                     </div>
                                                     <small class="form-text text-muted mt-1">
-                                                        <i class="ri-information-line me-1"></i>Enter number of passengers for this service
+                                                        <i class="ri-information-line me-1"></i>Enter number of passengers for this service. Max: <span id="day${day}_entry_0_max_pax">—</span> pax
                                                     </small>
                                                 </div>
                                             </div>
@@ -13578,7 +13578,7 @@ document.addEventListener('DOMContentLoaded', function() {
                                                         style="border: 1px solid #e5e7eb;">
                                                     </div>
                                                     <small class="form-text text-muted mt-1">
-                                                        <i class="ri-information-line me-1"></i>Enter number of passengers for this service
+                                                        <i class="ri-information-line me-1"></i>Enter number of passengers for this service. Max: <span id="day${day}_exit_0_max_pax">—</span> pax
                                                     </small>
                                                 </div>
                                             </div>
@@ -19810,7 +19810,7 @@ document.addEventListener('DOMContentLoaded', function() {
                                 <input type="number" class="form-control" id="day${day}_entry_${newIndex}_passengers" name="day${day}_entry_${newIndex}_passengers" min="1" max="999" oninput="if(this.value.length > 3) this.value = this.value.slice(0,3);" value="" onchange="validatePassengerCapacity(${day}, 'entry_${newIndex}'); updatePricing(${day}, 'entry_${newIndex}')" onwheel="event.preventDefault(); return false;" style="height: 36px; border-radius: 0 6px 6px 0; border: 1px solid #dee2e6; font-size: 0.85rem; text-align: start; max-width: 200px ">
                             </div>
                             <small class="form-text text-muted" style="font-size: 0.75rem; margin-top: 0.25rem;">
-                                Max 3 digits
+                                Max: <span id="day${day}_entry_${newIndex}_max_pax">—</span> pax
                             </small>
                         </div>
                         
@@ -19965,13 +19965,15 @@ document.addEventListener('DOMContentLoaded', function() {
                                 if (data.success && data.vehicles && data.vehicles.length > 0) {
                                     newVehicleSelect.innerHTML = '<option value="">Choose vehicle</option>';
                                     data.vehicles.forEach(vehicle => {
+                                        const entryMaxPax = (vehicle.city_tour_seating_capacity != null && vehicle.city_tour_seating_capacity !== '') ? (vehicle.city_tour_seating_capacity || vehicle.seating_capacity) : (vehicle.seating_capacity || '');
                                         const vehicleInfo = `${vehicle.vehicle_name} (${vehicle.vehicle_type}) - ${vehicle.seating_capacity} seats`;
                                         const option = document.createElement('option');
                                         option.value = vehicle.vehicle_id;
                                         option.textContent = vehicleInfo;
                                         option.setAttribute('data-vehicle-name', vehicle.vehicle_name);
                                         option.setAttribute('data-vehicle-type', vehicle.vehicle_type);
-                                        option.setAttribute('data-seating-capacity', vehicle.seating_capacity);
+                                        option.setAttribute('data-seating-capacity', entryMaxPax);
+                                        option.setAttribute('data-seatingCapacity', entryMaxPax);
                                         option.setAttribute('data-private-price', vehicle.private_price || '');
                                         option.setAttribute('data-shared-price', vehicle.shared_price || '');
                                         option.setAttribute('data-service-type', vehicle.service_type || '');
@@ -20137,7 +20139,7 @@ document.addEventListener('DOMContentLoaded', function() {
                                     <input type="number" class="form-control" onwheel="event.preventDefault(); return false;" id="day${day}_exit_${newIndex}_passengers" name="day${day}_exit_${newIndex}_passengers" min="1" max="50" value="" onchange="validatePassengerCapacity(${day}, 'exit_${newIndex}'); updatePricing(${day}, 'exit_${newIndex}')">
                                 </div>
                                 <small class="form-text text-muted">
-                                    Enter number of passengers for this service
+                                    Enter number of passengers for this service. Max: <span id="day${day}_exit_${newIndex}_max_pax">—</span> pax
                                 </small>
                             </div>
                         </div>
@@ -20292,13 +20294,15 @@ document.addEventListener('DOMContentLoaded', function() {
                                 if (data.success && data.vehicles && data.vehicles.length > 0) {
                                     newVehicleSelect.innerHTML = '<option value="">Choose vehicle</option>';
                                     data.vehicles.forEach(vehicle => {
+                                        const exitMaxPax = (vehicle.city_tour_seating_capacity != null && vehicle.city_tour_seating_capacity !== '') ? (vehicle.city_tour_seating_capacity || vehicle.seating_capacity) : (vehicle.seating_capacity || '');
                                         const vehicleInfo = `${vehicle.vehicle_name} (${vehicle.vehicle_type}) - ${vehicle.seating_capacity} seats`;
                                         const option = document.createElement('option');
                                         option.value = vehicle.vehicle_id;
                                         option.textContent = vehicleInfo;
                                         option.setAttribute('data-vehicle-name', vehicle.vehicle_name);
                                         option.setAttribute('data-vehicle-type', vehicle.vehicle_type);
-                                        option.setAttribute('data-seating-capacity', vehicle.seating_capacity);
+                                        option.setAttribute('data-seating-capacity', exitMaxPax);
+                                        option.setAttribute('data-seatingCapacity', exitMaxPax);
                                         option.setAttribute('data-private-price', vehicle.private_price || '');
                                         option.setAttribute('data-shared-price', vehicle.shared_price || '');
                                         option.setAttribute('data-service-type', vehicle.service_type || '');
@@ -23642,6 +23646,7 @@ function loadDropoffZones(day, section) {
                      vehicleSelect.innerHTML = '<option value="">Select vehicle</option>';
                      
                      data.vehicles.forEach(vehicle => {
+                         const entryOrExitMaxPax = ((section === 'entry' || section === 'exit') && (vehicle.city_tour_seating_capacity != null && vehicle.city_tour_seating_capacity !== '')) ? vehicle.city_tour_seating_capacity : vehicle.seating_capacity;
                          const vehicleInfo = `${vehicle.vehicle_name} (${vehicle.vehicle_type}) - ${vehicle.seating_capacity} seats`;
                          
                          // Debug logging for vehicle data
@@ -23655,7 +23660,7 @@ function loadDropoffZones(day, section) {
                              data-shared-price="${vehicle.shared_price}"
                              data-service-type="${vehicle.service_type}"
                              data-mapping-id="${vehicle.mapping_id}"
-                            data-seatingCapacity="${vehicle.seating_capacity}" data-sharable="${vehicle.sharable}"
+                            data-seatingCapacity="${entryOrExitMaxPax}" data-sharable="${vehicle.sharable}"
                             data-image="${vehicle.image || ''}">
                              ${vehicleInfo}
                          </option>`;
@@ -23766,6 +23771,19 @@ function loadDropoffZones(day, section) {
              `;
          }
          
+         // Arrival (entry) / Departure (exit) section: set Number of Passengers max from vehicle city_tour_seating_capacity
+         const isEntryOrExitSection = (section === 'entry_0' || (typeof section === 'string' && section.startsWith('entry_'))) || (section === 'exit_0' || (typeof section === 'string' && section.startsWith('exit_')));
+         if (isEntryOrExitSection) {
+             const passengerInput = document.getElementById(`day${day}_${section}_passengers`);
+             const maxPaxSpan = document.getElementById(`day${day}_${section}_max_pax`);
+             const maxPax = parseInt(selectedOption.dataset.seatingcapacity || selectedOption.getAttribute('data-seatingCapacity') || '50', 10) || 50;
+             if (passengerInput) {
+                 passengerInput.setAttribute('max', maxPax);
+                 if (parseInt(passengerInput.value, 10) > maxPax) passengerInput.value = maxPax;
+             }
+             if (maxPaxSpan) maxPaxSpan.textContent = maxPax;
+         }
+         
          // Reset service type selection to trigger pricing update
      } else {
          // Reset to default state
@@ -23780,6 +23798,15 @@ function loadDropoffZones(day, section) {
          // Hide price display
          if (priceDisplay) {
              priceDisplay.style.display = 'none';
+         }
+         
+         // Arrival (entry) / Departure (exit) section: reset max pax display when no vehicle selected
+         const isEntryOrExitSectionReset = (section === 'entry_0' || (typeof section === 'string' && section.startsWith('entry_'))) || (section === 'exit_0' || (typeof section === 'string' && section.startsWith('exit_')));
+         if (isEntryOrExitSectionReset) {
+             const passengerInput = document.getElementById(`day${day}_${section}_passengers`);
+             const maxPaxSpan = document.getElementById(`day${day}_${section}_max_pax`);
+             if (passengerInput) passengerInput.setAttribute('max', '50');
+             if (maxPaxSpan) maxPaxSpan.textContent = '—';
          }
      }
  }
@@ -26440,6 +26467,7 @@ window.saveService = function(day, type) {
                          console.log('No vehicles with prices found');
                      } else {
                          uniqueVehicles.forEach(vehicle => {
+                             const entryOrExitMaxPax = ((section === 'entry' || section === 'exit') && (vehicle.city_tour_seating_capacity != null && vehicle.city_tour_seating_capacity !== '')) ? (vehicle.city_tour_seating_capacity || vehicle.seating_capacity) : (vehicle.seating_capacity || '');
                              const vehicleInfo = `${vehicle.vehicle_name} (${vehicle.vehicle_type}) - ${vehicle.seating_capacity} seats`;
                              
                              // Debug logging for vehicle data
@@ -26454,7 +26482,7 @@ window.saveService = function(day, type) {
                              data-shared-price="${vehicle.shared_price || ''}"
                              data-service-type="${vehicle.service_type || ''}"
                              data-mapping-id="${vehicle.mapping_id || ''}"
-                            data-seatingCapacity="${vehicle.seating_capacity || ''}"
+                            data-seatingCapacity="${entryOrExitMaxPax}"
                             data-sharable="${vehicle.sharable || ''}"
                             data-image="${vehicle.image || ''}">
                              ${vehicleInfo}
@@ -28393,11 +28421,13 @@ window.saveService = function(day, type) {
                                     console.log(`DEBUG: vehicleSelect id:`, vehicleSelect.id);
                                     vehicleSelect.innerHTML = '<option value="">Choose your vehicle</option>';
                                     data.vehicles.forEach(vehicle => {
+                                        const entryOrExitMaxPax = ((section === 'entry' || section === 'exit') && (vehicle.city_tour_seating_capacity != null && vehicle.city_tour_seating_capacity !== '')) ? (vehicle.city_tour_seating_capacity || vehicle.seating_capacity) : (vehicle.seating_capacity || '');
                                         const vehicleInfo = `${vehicle.vehicle_name} (${vehicle.vehicle_type}) - ${vehicle.seating_capacity} seats`;
                                     vehicleSelect.innerHTML += `<option value="${vehicle.vehicle_id}" 
                                             data-vehicle-name="${vehicle.vehicle_name}" 
                                             data-vehicle-type="${vehicle.vehicle_type}" 
-                                            data-seating-capacity="${vehicle.seating_capacity}"
+                                            data-seating-capacity="${entryOrExitMaxPax}"
+                                            data-seatingCapacity="${entryOrExitMaxPax}"
                                             data-private-price="${vehicle.private_price || ''}"
                                             data-shared-price="${vehicle.shared_price || ''}"
                                             data-service-type="${vehicle.service_type || ''}"
@@ -29174,7 +29204,9 @@ function populateVehicleDropdown(day, section, vehicles) {
     
     if (vehicles && vehicles.length > 0) {
         vehicleSelect.innerHTML = '<option value="">Choose vehicle</option>';
+        const isEntryOrExit = (section === 'entry' || String(section).startsWith('entry_') || section === 'exit' || String(section).startsWith('exit_'));
         vehicles.forEach(vehicle => {
+            const entryOrExitMaxPax = isEntryOrExit && (vehicle.city_tour_seating_capacity != null && vehicle.city_tour_seating_capacity !== '') ? (vehicle.city_tour_seating_capacity || vehicle.seating_capacity) : (vehicle.seating_capacity || '');
             const vehicleInfo = `${vehicle.vehicle_name} (${vehicle.vehicle_type}) - ${vehicle.seating_capacity} seats`;
             
         vehicleSelect.innerHTML += `<option value="${vehicle.vehicle_id}" 
@@ -29185,7 +29217,7 @@ function populateVehicleDropdown(day, section, vehicles) {
                 data-sharable-cost-per-hour="${vehicle.sharable_cost_per_hour || ''}"
                 data-vehicle-name="${vehicle.vehicle_name || ''}"
                 data-vehicle-type="${vehicle.vehicle_type || ''}"
-                data-seatingCapacity="${vehicle.seating_capacity || ''}"
+                data-seatingCapacity="${entryOrExitMaxPax}"
                 data-sharable="${vehicle.sharable || ''}"
                 data-image="${vehicle.image || ''}">
                 ${vehicleInfo}
