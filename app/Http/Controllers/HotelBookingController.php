@@ -735,6 +735,7 @@ class HotelBookingController extends Controller
                         'is_approve' => $restaurantOrder->is_approve ?? false,
                         'reference_id' => $restaurantOrder->reference_id ?? null,
                         'display_due_date' => $restaurantOrder->display_due_date ?? null,
+                        'qr_code' => $restaurantOrder->qr_code ?? null,
                         'restaurant_details' => $booking, // This contains the full JSON data
                         // Transfer Options
                         'transfer_options' => $booking['transfer_options'] ?? null
