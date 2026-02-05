@@ -2399,12 +2399,18 @@
                         </thead>
                         <tbody id="attractionsTableBody">
                             @foreach($attractions as $attr)
-                            <tr class="attraction-row" data-attraction-id="{{ $attr->id }}" data-attraction-name="{{ $attr->name }}" data-attraction-type="tour_sites">
+                            @php
+                                $attractionType = $attr->attraction_type ?? 1;
+                                $isAttraction = ($attractionType == 2);
+                                $typeLabel = $isAttraction ? 'Attraction' : 'Tour Sites';
+                            @endphp
+                            <tr class="attraction-row" data-attraction-id="{{ $attr->id }}" data-attraction-name="{{ $attr->name }}" data-attraction-type="{{ $attractionType }}">
                                 <td style="padding: 2px 8px; text-align: center;">
                                     <input type="checkbox" class="attraction-checkbox" data-attr-id="{{ $attr->id }}">
                                 </td>
                                 <td style="padding: 2px 8px;">
                                     {{ $attr->name }}
+                                    <br><small class="text-muted" style="font-size: 9px;">({{ $typeLabel }})</small>
                                 </td>
                                 <td style="padding: 2px 8px;">
                                     <input type="number" class="form-control form-control-sm attraction-adult-qty" data-attr-id="{{ $attr->id }}" value="0" min="0" style="font-size: 10px; padding: 2px 4px; text-align: center;">
@@ -2425,7 +2431,7 @@
                                     <input type="text" class="form-control form-control-sm attraction-infant-charge" data-attr-id="{{ $attr->id }}" value="SGD 0.00" style="font-size: 10px; padding: 2px 4px;">
                                 </td>
                                 <td style="padding: 2px 8px; text-align: center;">
-                                    <input type="checkbox" class="form-check-input attraction-transfer-checkbox" data-attr-id="{{ $attr->id }}" checked>
+                                    <input type="checkbox" class="form-check-input attraction-transfer-checkbox" data-attr-id="{{ $attr->id }}" {{ $isAttraction ? 'checked' : '' }}>
                                 </td>
                                 <td style="padding: 2px 8px;">
                                     <select class="form-select form-select-sm attraction-transfer-destination" data-attr-id="{{ $attr->id }}" style="font-size: 10px; padding: 2px 4px;">
@@ -14837,6 +14843,11 @@
                     data.attractions.forEach(attr => {
                         console.log('Attraction:', attr.name, 'Tickets:', attr.tickets);
                         
+                        // Determine attraction type and label
+                        const attractionType = attr.attraction_type ?? 1;
+                        const isAttraction = (attractionType == 2);
+                        const typeLabel = isAttraction ? 'Attraction' : 'Tour Sites';
+                        
                         // If attraction has tickets, create a row for each ticket
                         if (attr.tickets && attr.tickets.length > 0) {
                             attr.tickets.forEach(ticket => {
@@ -14844,12 +14855,13 @@
                                 const uniqueId = `${attr.id}_${ticket.ticket_id}`;
                                 
                                 html += `
-                                    <tr class="attraction-row" data-attraction-id="${attr.id}" data-attraction-name="${attr.name}" data-ticket-id="${ticket.ticket_id}" data-ticket-name="${ticket.name}">
+                                    <tr class="attraction-row" data-attraction-id="${attr.id}" data-attraction-name="${attr.name}" data-ticket-id="${ticket.ticket_id}" data-ticket-name="${ticket.name}" data-attraction-type="${attractionType}">
                                         <td style="padding: 2px 8px; text-align: center;">
                                             <input type="checkbox" class="attraction-checkbox" data-attr-id="${attr.id}" data-ticket-id="${ticket.ticket_id}" data-unique-id="${uniqueId}">
                                         </td>
                                         <td style="padding: 2px 8px;">
                                             ${displayName}
+                                            <br><small class="text-muted" style="font-size: 9px;">(${typeLabel})</small>
                                         </td>
                                         <td style="padding: 2px 8px;">
                                             <input type="number" class="form-control form-control-sm attraction-adult-qty" data-attr-id="${attr.id}" data-ticket-id="${ticket.ticket_id}" data-unique-id="${uniqueId}" value="${headerValues.adults || 0}" min="0" style="font-size: 10px; padding: 2px 4px; text-align: center;">
@@ -14870,7 +14882,7 @@
                                             <input type="text" class="form-control form-control-sm attraction-infant-charge" data-attr-id="${attr.id}" data-ticket-id="${ticket.ticket_id}" data-unique-id="${uniqueId}" value="SGD 0.00" style="font-size: 10px; padding: 2px 4px;">
                                         </td>
                                         <td style="padding: 2px 8px; text-align: center;">
-                                            <input type="checkbox" class="form-check-input attraction-transfer-checkbox" data-attr-id="${attr.id}" data-ticket-id="${ticket.ticket_id}" data-unique-id="${uniqueId}" checked>
+                                            <input type="checkbox" class="form-check-input attraction-transfer-checkbox" data-attr-id="${attr.id}" data-ticket-id="${ticket.ticket_id}" data-unique-id="${uniqueId}" ${isAttraction ? 'checked' : ''}>
                                         </td>
                                         <td style="padding: 2px 8px;">
                                             <select class="form-select form-select-sm attraction-transfer-destination" data-attr-id="${attr.id}" data-ticket-id="${ticket.ticket_id}" data-unique-id="${uniqueId}" style="font-size: 10px; padding: 2px 4px;">
@@ -14914,12 +14926,13 @@
                         } else {
                             // If no tickets, create a row with attraction name only (fallback)
                             html += `
-                                <tr class="attraction-row" data-attraction-id="${attr.id}" data-attraction-name="${attr.name}" data-ticket-id="0" data-ticket-name="">
+                                <tr class="attraction-row" data-attraction-id="${attr.id}" data-attraction-name="${attr.name}" data-ticket-id="0" data-ticket-name="" data-attraction-type="${attractionType}">
                                     <td style="padding: 2px 8px; text-align: center;">
                                         <input type="checkbox" class="attraction-checkbox" data-attr-id="${attr.id}" data-ticket-id="0" data-unique-id="${attr.id}_0">
                                     </td>
                                     <td style="padding: 2px 8px;">
                                         ${attr.name}
+                                        <br><small class="text-muted" style="font-size: 9px;">(${typeLabel})</small>
                                     </td>
                                     <td style="padding: 2px 8px;">
                                         <input type="number" class="form-control form-control-sm attraction-adult-qty" data-attr-id="${attr.id}" data-ticket-id="0" data-unique-id="${attr.id}_0" value="${headerValues.adults || 0}" min="0" style="font-size: 10px; padding: 2px 4px; text-align: center;">
@@ -14940,7 +14953,7 @@
                                         <input type="text" class="form-control form-control-sm attraction-infant-charge" data-attr-id="${attr.id}" data-ticket-id="0" data-unique-id="${attr.id}_0" value="SGD 0.00" style="font-size: 10px; padding: 2px 4px;">
                                     </td>
                                     <td style="padding: 2px 8px; text-align: center;">
-                                        <input type="checkbox" class="form-check-input attraction-transfer-checkbox" data-attr-id="${attr.id}" data-ticket-id="0" data-unique-id="${attr.id}_0" checked>
+                                        <input type="checkbox" class="form-check-input attraction-transfer-checkbox" data-attr-id="${attr.id}" data-ticket-id="0" data-unique-id="${attr.id}_0" ${isAttraction ? 'checked' : ''}>
                                     </td>
                                     <td style="padding: 2px 8px;">
                                         <select class="form-select form-select-sm attraction-transfer-destination" data-attr-id="${attr.id}" data-ticket-id="0" data-unique-id="${attr.id}_0" style="font-size: 10px; padding: 2px 4px;">
@@ -18121,6 +18134,26 @@
         });
         
         console.log(`Loaded ${filteredRestaurants.length} restaurant(s) for ${destination}`);
+        
+        // Auto-select default restaurant if available
+        if (window.defaultValues && window.defaultValues.restaurant) {
+            const defaultRestaurantId = String(window.defaultValues.restaurant);
+            const defaultRestaurantOption = Array.from(restaurantSelect.options).find(opt => 
+                String(opt.value) === defaultRestaurantId
+            );
+            if (defaultRestaurantOption) {
+                restaurantSelect.value = defaultRestaurantOption.value;
+                console.log('✓ Auto-selected default restaurant:', defaultRestaurantId);
+                // Trigger change event to load meals automatically
+                setTimeout(() => {
+                    if (typeof updateMealsFromRestaurant === 'function') {
+                        updateMealsFromRestaurant();
+                    }
+                }, 100);
+            } else {
+                console.log('Default restaurant not found in filtered restaurants for this destination');
+            }
+        }
     }
     
     // Update meals from selected restaurant
@@ -25797,15 +25830,32 @@
                 // Parse the data field if it's a string
                 let orderData = typeof order.data === 'string' ? JSON.parse(order.data) : order.data;
                 
-                // IMPORTANT: The data field is stored as an array with a single object
-                // Extract the first element if it's an array
+                // Map order types (database uses different names than frontend)
+                const orderType = order.type.toLowerCase();
+                
+                // For hotel orders, process all hotels in the array (data can contain multiple hotels)
+                if (orderType === 'hotel' || orderType === 'hotels' || orderType === 'accommodation') {
+                    // Handle both array and single object formats
+                    const hotelDataArray = Array.isArray(orderData) ? orderData : [orderData];
+                    
+                    console.log(`Processing ${hotelDataArray.length} hotel(s) in order ${order.id}`);
+                    
+                    // Process each hotel in the array
+                    hotelDataArray.forEach((hotelData, hotelIndex) => {
+                        if (hotelData) {
+                            console.log(`Loading hotel ${hotelIndex + 1} of ${hotelDataArray.length} from order ${order.id}:`, hotelData.hotelName || hotelData.hotel_name);
+                            loadHotelOrder(hotelData, order);
+                        }
+                    });
+                    return; // Skip to next order
+                }
+                
+                // For other order types, extract the first element if it's an array
+                // IMPORTANT: The data field is stored as an array with a single object for non-hotel orders
                 if (Array.isArray(orderData) && orderData.length > 0) {
                     orderData = orderData[0];
                     console.log('Extracted first element from data array:', orderData);
                 }
-                
-                // Map order types (database uses different names than frontend)
-                const orderType = order.type.toLowerCase();
                 
                 // Check if this is a local_transport order linked to a hotel
                 const isLinkedTransport = (orderType === 'transfer' || orderType === 'transfers' || 
@@ -25831,12 +25881,6 @@
                     case 'departure':
                     case 'departures':
                         loadDepartureOrder(orderData, order);
-                        break;
-                    
-                    case 'hotel':
-                    case 'hotels':
-                    case 'accommodation':
-                        loadHotelOrder(orderData, order);
                         break;
                     
                     case 'tour':
