@@ -374,7 +374,7 @@ class EnquiryFormPro extends Controller
             // Get vehicles for this DMC
             $vehicles = Vehicle::where('dmc_id', $dmc_id)
                 ->where('is_available', 1)
-                ->select('vehicle_id', 'vehicle_type', 'vehicle_name', 'seating_capacity', 'base_price', 'sharable_base_price', 'sharable')
+                ->select('vehicle_id', 'vehicle_type', 'vehicle_name', 'seating_capacity', 'city_tour_seating_capacity', 'base_price', 'sharable_base_price', 'sharable')
                 ->orderBy('vehicle_type')
                 ->get();
             
@@ -451,7 +451,7 @@ class EnquiryFormPro extends Controller
             
             // Get all vehicles (fallback)
             $vehicles = Vehicle::where('is_available', 1)
-                ->select('vehicle_id', 'vehicle_type', 'vehicle_name', 'seating_capacity', 'base_price', 'sharable_base_price', 'sharable')
+                ->select('vehicle_id', 'vehicle_type', 'vehicle_name', 'seating_capacity', 'city_tour_seating_capacity', 'base_price', 'sharable_base_price', 'sharable')
                 ->orderBy('vehicle_type')
                 ->get();
         }
@@ -2449,7 +2449,7 @@ class EnquiryFormPro extends Controller
         
         $vehicles = Vehicle::where('dmc_id', $dmc_id)
             ->where('is_available', 1)
-            ->select('vehicle_id', 'vehicle_type', 'vehicle_name', 'seating_capacity', 'base_price', 'sharable_base_price', 'sharable')
+            ->select('vehicle_id', 'vehicle_type', 'vehicle_name', 'seating_capacity', 'city_tour_seating_capacity', 'base_price', 'sharable_base_price', 'sharable')
             ->orderBy('vehicle_type')
             ->get();
         
