@@ -374,9 +374,10 @@
                             </div>
                             <div id="tourPackageConfigurationSection" class="collapse show">
                                 <div class="card-body" style="background: #ffffff; padding: 1.75rem;">
+                            @if($enquiry)
+                            {{-- Two-row layout when form is in 8 columns (with enquiry sidebar) for proper alignment --}}
                             <div class="row g-3">
-                                <!-- Country Selection -->
-                                <div class="col-md-2">
+                                <div class="col-12 col-sm-4">
                                     <label for="user_country" class="form-label fw-semibold mb-2" style="color: #495057; font-size: 0.875rem;">
                                         <i class="ri-earth-line me-1"></i>Country
                                     </label>
@@ -391,9 +392,7 @@
                                     @endif
                                     <input type="hidden" name="country_id" id="country_id">
                                 </div>
-
-                                <!-- Travel Dates -->
-                                <div class="col-md-3">
+                                <div class="col-12 col-sm-4">
                                     <label for="travel_dates" class="form-label fw-semibold mb-2" style="color: #495057; font-size: 0.875rem;">
                                         <i class="ri-calendar-line me-1"></i>Travel Dates
                                     </label>
@@ -404,52 +403,30 @@
                                     <input type="hidden" name="start_date" id="start_date" value="{{ $enquiry && $enquiry->check_in_time ? \Carbon\Carbon::parse($enquiry->check_in_time)->format('Y-m-d') : '' }}">
                                     <input type="hidden" name="end_date" id="end_date" value="{{ $enquiry && $enquiry->check_out_time ? \Carbon\Carbon::parse($enquiry->check_out_time)->format('Y-m-d') : '' }}">
                                 </div>
-
-                                <!-- Guests -->
-                                <div class="col-md-3">
+                                <div class="col-12 col-sm-4">
                                     <label class="form-label fw-semibold mb-2" style="color: #495057; font-size: 0.875rem;">
                                         <i class="ri-group-line me-1"></i>Guests
                                     </label>
                                     <div class="guest-selector">
-                                        <div class="guest-display border rounded d-flex align-items-start justify-content-between" style="min-height: 34px; padding: 0.3rem 0.75rem; background: #f8f9fa; border: 1px solid #dee2e6 !important; border-radius: 8px; {{ $enquiry ? 'cursor:not-allowed;opacity:0.8;' : '' }}">
+                                        <div class="guest-display border rounded d-flex align-items-start justify-content-between" style="min-height: 34px; padding: 0.3rem 0.75rem; background: #f8f9fa; border: 1px solid #dee2e6 !important; border-radius: 8px; cursor:not-allowed;opacity:0.8;">
                                             <div class="guest-info d-flex flex-column gap-1" style="flex: 1;">
                                                 <span id="mainGuestSummary" class="d-flex flex-column gap-1" style="font-size: 0.8rem;">
                                                     <span class="d-flex align-items-center gap-1">
-                                                        @if($enquiry)
-                                                            <span class="badge d-flex align-items-center gap-1" style="background: #667eea; border-radius: 4px; font-size: 0.7rem; padding: 0.2rem 0.4rem;" title="Adults"><i class="ri-group-line" style="font-size: 0.75rem;"></i><span>{{ $enquiry->adult ?? 1 }} Adults</span></span>
-                                                            <span class="badge d-flex align-items-center gap-1" style="background: #667eea; border-radius: 4px; font-size: 0.7rem; padding: 0.2rem 0.4rem; opacity: 0.8;" title="Male"><i class="ri-men-line" style="font-size: 0.75rem;"></i><span>{{ $enquiry->male_count ?? 0 }}</span></span>
-                                                            <span class="badge d-flex align-items-center gap-1" style="background: #667eea; border-radius: 4px; font-size: 0.7rem; padding: 0.2rem 0.4rem; opacity: 0.8;" title="Female"><i class="ri-women-line" style="font-size: 0.75rem;"></i><span>{{ $enquiry->female_count ?? 0 }}</span></span>
-                                                        @else
-                                                            <span class="badge d-flex align-items-center gap-1" style="background: #667eea; border-radius: 4px; font-size: 0.7rem; padding: 0.2rem 0.4rem;" title="Adults"><i class="ri-group-line" style="font-size: 0.75rem;"></i><span>1 Adults</span></span>
-                                                            <span class="badge d-flex align-items-center gap-1" style="background: #667eea; border-radius: 4px; font-size: 0.7rem; padding: 0.2rem 0.4rem; opacity: 0.8;" title="Male"><i class="ri-men-line" style="font-size: 0.75rem;"></i><span>0</span></span>
-                                                            <span class="badge d-flex align-items-center gap-1" style="background: #667eea; border-radius: 4px; font-size: 0.7rem; padding: 0.2rem 0.4rem; opacity: 0.8;" title="Female"><i class="ri-women-line" style="font-size: 0.75rem;"></i><span>0</span></span>
-                                                        @endif
+                                                        <span class="badge d-flex align-items-center gap-1" style="background: #667eea; border-radius: 4px; font-size: 0.7rem; padding: 0.2rem 0.4rem;" title="Adults"><i class="ri-group-line" style="font-size: 0.75rem;"></i><span>{{ $enquiry->adult ?? 1 }} Adults</span></span>
+                                                        <span class="badge d-flex align-items-center gap-1" style="background: #667eea; border-radius: 4px; font-size: 0.7rem; padding: 0.2rem 0.4rem; opacity: 0.8;" title="Male"><i class="ri-men-line" style="font-size: 0.75rem;"></i><span>{{ $enquiry->male_count ?? 0 }}</span></span>
+                                                        <span class="badge d-flex align-items-center gap-1" style="background: #667eea; border-radius: 4px; font-size: 0.7rem; padding: 0.2rem 0.4rem; opacity: 0.8;" title="Female"><i class="ri-women-line" style="font-size: 0.75rem;"></i><span>{{ $enquiry->female_count ?? 0 }}</span></span>
                                                     </span>
                                                     <span class="d-flex align-items-center gap-1">
-                                                        @if($enquiry)
-                                                            <span class="badge d-flex align-items-center gap-1" style="background: #28a745; border-radius: 4px; font-size: 0.7rem; padding: 0.2rem 0.4rem;" title="Children"><i class="ri-user-smile-line" style="font-size: 0.75rem;"></i><span>{{ $enquiry->child ?? 0 }}</span></span>
-                                                            <span class="badge d-flex align-items-center gap-1" style="background: #ffc107; color: #000; border-radius: 4px; font-size: 0.7rem; padding: 0.2rem 0.4rem;" title="Infants"><i class="ri-user-heart-line" style="font-size: 0.75rem;"></i><span>{{ $enquiry->infant ?? 0 }}</span></span>
-                                                        @else
-                                                            <span class="badge d-flex align-items-center gap-1" style="background: #28a745; border-radius: 4px; font-size: 0.7rem; padding: 0.2rem 0.4rem;" title="Children"><i class="ri-user-smile-line" style="font-size: 0.75rem;"></i><span>0</span></span>
-                                                            <span class="badge d-flex align-items-center gap-1" style="background: #ffc107; color: #000; border-radius: 4px; font-size: 0.7rem; padding: 0.2rem 0.4rem;" title="Infants"><i class="ri-user-heart-line" style="font-size: 0.75rem;"></i><span>0</span></span>
-                                                        @endif
+                                                        <span class="badge d-flex align-items-center gap-1" style="background: #28a745; border-radius: 4px; font-size: 0.7rem; padding: 0.2rem 0.4rem;" title="Children"><i class="ri-user-smile-line" style="font-size: 0.75rem;"></i><span>{{ $enquiry->child ?? 0 }}</span></span>
+                                                        <span class="badge d-flex align-items-center gap-1" style="background: #ffc107; color: #000; border-radius: 4px; font-size: 0.7rem; padding: 0.2rem 0.4rem;" title="Infants"><i class="ri-user-heart-line" style="font-size: 0.75rem;"></i><span>{{ $enquiry->infant ?? 0 }}</span></span>
                                                     </span>
                                                 </span>
                                             </div>
-                                            @if(!$enquiry)
-                                            <button type="button" class="btn btn-sm btn-outline-primary" onclick="openMainGuestSelector()" style="border-radius: 6px; padding: 0.25rem 0.5rem; margin-left: 0.5rem; flex-shrink: 0;">
-                                                <i class="ri-edit-line"></i>
-                                            </button>
-                                            @else
                                             <span class="text-muted small" style="margin-left: 0.5rem; flex-shrink: 0;">
                                                 <i class="ri-lock-line"></i>
                                             </span>
-                                            @endif
                                         </div>
                                     </div>
-
-                                    
-                                    <!-- Hidden Fields -->
                                     <input type="hidden" name="adults" id="adults" value="{{ $enquiry ? ($enquiry->adult ?? 1) : 1 }}">
                                     <input type="hidden" name="male" id="male" value="{{ $enquiry ? ($enquiry->male_count ?? 0) : 0 }}">
                                     <input type="hidden" name="female" id="female" value="{{ $enquiry ? ($enquiry->female_count ?? 0) : 0 }}">
@@ -457,8 +434,9 @@
                                     <input type="hidden" name="infants" id="infants" value="{{ $enquiry ? ($enquiry->infant ?? 0) : 0 }}">
                                     <input type="hidden" name="child_ages" id="child_ages" value="{{ $enquiry && $enquiry->child_ages ? $enquiry->child_ages : '[]' }}">
                                 </div>
-
-                                <div class="col-md-2">
+                            </div>
+                            <div class="row g-3 mt-0">
+                                <div class="col-12 col-sm-6">
                                     <label for="agency_id" class="form-label fw-semibold mb-2" style="color: #495057; font-size: 0.875rem;">
                                         <i class="ri-building-line me-1"></i>Agency Company
                                     </label>
@@ -472,9 +450,7 @@
                                         <input type="hidden" name="agency_id" value="{{ $enquiry->agent->agency_id ?? '' }}">
                                     @endif
                                 </div>
-
-                                <!-- Agent Selection -->
-                                <div class="col-md-2">
+                                <div class="col-12 col-sm-6">
                                     <label for="agent_id" class="form-label fw-semibold mb-2" style="color: #495057; font-size: 0.875rem;">
                                         <i class="ri-user-star-line me-1"></i>Agent
                                     </label>
@@ -488,10 +464,93 @@
                                         <input type="hidden" name="agent_id" value="{{ $enquiry->agent_id }}">
                                     @endif
                                 </div>
-
-                                
-
                             </div>
+                            @else
+                            {{-- Single row layout when form is full 12 columns --}}
+                            <div class="row g-3">
+                                <!-- Country Selection -->
+                                <div class="col-md-2">
+                                    <label for="user_country" class="form-label fw-semibold mb-2" style="color: #495057; font-size: 0.875rem;">
+                                        <i class="ri-earth-line me-1"></i>Country
+                                    </label>
+                                    <select name="user_country" id="user_country" class="form-select" style="height: 40px; border-radius: 8px; border: 1px solid #dee2e6; font-size: 0.9rem;" required>
+                                        <option value="">Choose a country...</option>
+                                        @foreach($countries as $country)
+                                            <option value="{{ $country->name }}" data-country-id="{{ $country->id }}">{{ $country->name }}</option>
+                                        @endforeach
+                                    </select>
+                                    <input type="hidden" name="country_id" id="country_id">
+                                </div>
+
+                                <!-- Travel Dates -->
+                                <div class="col-md-3">
+                                    <label for="travel_dates" class="form-label fw-semibold mb-2" style="color: #495057; font-size: 0.875rem;">
+                                        <i class="ri-calendar-line me-1"></i>Travel Dates
+                                    </label>
+                                    <input type="text" id="travel_dates" class="form-control" style="height: 40px; border-radius: 8px; border: 1px solid #dee2e6; font-size: 0.9rem;" placeholder="Select dates" readonly>
+                                    <input type="hidden" name="start_date" id="start_date" value="">
+                                    <input type="hidden" name="end_date" id="end_date" value="">
+                                </div>
+
+                                <!-- Guests -->
+                                <div class="col-md-3">
+                                    <label class="form-label fw-semibold mb-2" style="color: #495057; font-size: 0.875rem;">
+                                        <i class="ri-group-line me-1"></i>Guests
+                                    </label>
+                                    <div class="guest-selector">
+                                        <div class="guest-display border rounded d-flex align-items-start justify-content-between" style="min-height: 34px; padding: 0.3rem 0.75rem; background: #f8f9fa; border: 1px solid #dee2e6 !important; border-radius: 8px;">
+                                            <div class="guest-info d-flex flex-column gap-1" style="flex: 1;">
+                                                <span id="mainGuestSummary" class="d-flex flex-column gap-1" style="font-size: 0.8rem;">
+                                                    <span class="d-flex align-items-center gap-1">
+                                                        <span class="badge d-flex align-items-center gap-1" style="background: #667eea; border-radius: 4px; font-size: 0.7rem; padding: 0.2rem 0.4rem;" title="Adults"><i class="ri-group-line" style="font-size: 0.75rem;"></i><span>1 Adults</span></span>
+                                                        <span class="badge d-flex align-items-center gap-1" style="background: #667eea; border-radius: 4px; font-size: 0.7rem; padding: 0.2rem 0.4rem; opacity: 0.8;" title="Male"><i class="ri-men-line" style="font-size: 0.75rem;"></i><span>0</span></span>
+                                                        <span class="badge d-flex align-items-center gap-1" style="background: #667eea; border-radius: 4px; font-size: 0.7rem; padding: 0.2rem 0.4rem; opacity: 0.8;" title="Female"><i class="ri-women-line" style="font-size: 0.75rem;"></i><span>0</span></span>
+                                                    </span>
+                                                    <span class="d-flex align-items-center gap-1">
+                                                        <span class="badge d-flex align-items-center gap-1" style="background: #28a745; border-radius: 4px; font-size: 0.7rem; padding: 0.2rem 0.4rem;" title="Children"><i class="ri-user-smile-line" style="font-size: 0.75rem;"></i><span>0</span></span>
+                                                        <span class="badge d-flex align-items-center gap-1" style="background: #ffc107; color: #000; border-radius: 4px; font-size: 0.7rem; padding: 0.2rem 0.4rem;" title="Infants"><i class="ri-user-heart-line" style="font-size: 0.75rem;"></i><span>0</span></span>
+                                                    </span>
+                                                </span>
+                                            </div>
+                                            <button type="button" class="btn btn-sm btn-outline-primary" onclick="openMainGuestSelector()" style="border-radius: 6px; padding: 0.25rem 0.5rem; margin-left: 0.5rem; flex-shrink: 0;">
+                                                <i class="ri-edit-line"></i>
+                                            </button>
+                                        </div>
+                                    </div>
+                                    <input type="hidden" name="adults" id="adults" value="1">
+                                    <input type="hidden" name="male" id="male" value="0">
+                                    <input type="hidden" name="female" id="female" value="0">
+                                    <input type="hidden" name="children" id="children" value="0">
+                                    <input type="hidden" name="infants" id="infants" value="0">
+                                    <input type="hidden" name="child_ages" id="child_ages" value="[]">
+                                </div>
+
+                                <div class="col-md-2">
+                                    <label for="agency_id" class="form-label fw-semibold mb-2" style="color: #495057; font-size: 0.875rem;">
+                                        <i class="ri-building-line me-1"></i>Agency Company
+                                    </label>
+                                    <select name="agency_id" id="agency_id" class="form-select" style="height: 40px; border-radius: 8px; border: 1px solid #dee2e6; font-size: 0.9rem;">
+                                        <option value="">Choose agency...</option>
+                                        @foreach($agency as $agnc)
+                                            <option value="{{ $agnc->agency_id }}">{{ $agnc->agency_name }}</option>
+                                        @endforeach
+                                    </select>
+                                </div>
+
+                                <!-- Agent Selection -->
+                                <div class="col-md-2">
+                                    <label for="agent_id" class="form-label fw-semibold mb-2" style="color: #495057; font-size: 0.875rem;">
+                                        <i class="ri-user-star-line me-1"></i>Agent
+                                    </label>
+                                    <select name="agent_id" id="agent_id" class="form-select" style="height: 40px; border-radius: 8px; border: 1px solid #dee2e6; font-size: 0.9rem;" required>
+                                        <option value="">Choose agent...</option>
+                                        @foreach($agents as $agent)
+                                            <option value="{{ $agent->agent_id }}">{{ $agent->name }}</option>
+                                        @endforeach
+                                    </select>
+                                </div>
+                            </div>
+                            @endif
                                 </div>
                             </div>
                         </div>
@@ -590,13 +649,13 @@
                                         <option value="">Select Meal Plans</option>
                                     </select>
                                 </div>
-                                <div class="col-md-2">
+                                <div class="col-md-3">
                                     <label class="form-label fw-semibold mb-1" style="color: #495057; font-size: 0.8rem;">
                                         <i class="ri-hotel-bed-2-line me-1"></i>Number of Rooms
                                     </label>
                                     <input type="number" class="form-control" id="numberOfRooms" value="1" min="1" max="999" oninput="if(this.value.length > 3) this.value = this.value.slice(0,3);" onwheel="event.preventDefault(); return false;" style="height: 36px; border-radius: 6px; border: 1px solid #dee2e6; font-size: 0.85rem; text-align: center; max-width: 100px;"> 
                                 </div>
-                                <div class="col-md-2">
+                                <div class="col-md-3">
                                     <label class="form-label fw-semibold mb-1" style="color: #495057; font-size: 0.8rem;">
                                         <i class="ri-money-dollar-circle-line me-1"></i>Price
                                     </label>
@@ -6546,6 +6605,7 @@
 </script>
 
 <script>
+var hasEnquiryLayout = @json(!empty($enquiry));
 // Function to save customer information
 function saveCustomerInfo() {
     const customerData = {
@@ -6886,6 +6946,64 @@ function getTourDateForDay(day) {
         return new Date().toISOString().split('T')[0];
     }
     return moment(tourStartDate).add(day-1, 'days').format('YYYY-MM-DD');
+}
+
+// ------------------------- Hotel Helper Utilities -------------------------
+function parseWeekendDays(raw) {
+    if (!raw) return [];
+    if (Array.isArray(raw)) return raw;
+    try {
+        const parsed = JSON.parse(raw);
+        if (Array.isArray(parsed)) return parsed;
+    } catch (e) {}
+    if (typeof raw === 'string') {
+        return raw.split(',').map(d => d.trim()).filter(Boolean);
+    }
+    return [];
+}
+
+function getSelectedHotelWeekendDays() {
+    try {
+        const hotelSelect = document.getElementById('hotelSelect');
+        if (!hotelSelect || !hotelSelect.value || !Array.isArray(hotelData) || hotelData.length === 0) {
+            return [];
+        }
+
+        const selectedHotel = hotelData.find(h => h.hotel_unique_id == hotelSelect.value);
+        if (!selectedHotel || !selectedHotel.weekend_days) {
+            return [];
+        }
+
+        return parseWeekendDays(selectedHotel.weekend_days);
+    } catch (e) {
+        console.error('Error getting selected hotel weekend days:', e);
+        return [];
+    }
+}
+
+/**
+ * Determine if a given moment date should be treated as weekend
+ * based on the selected hotel's configured weekend_days.
+ * Falls back to Saturday/Sunday if config is missing.
+ */
+function isWeekendForSelectedHotel(nightDate) {
+    if (!nightDate || typeof moment === 'undefined') {
+        return false;
+    }
+
+    const weekendDays = getSelectedHotelWeekendDays();
+
+    // If hotel has no specific weekend_days configured, fall back to Sat/Sun
+    if (!weekendDays || weekendDays.length === 0) {
+        const dayOfWeek = nightDate.day(); // 0 = Sunday, 6 = Saturday
+        return dayOfWeek === 0 || dayOfWeek === 6;
+    }
+
+    const normalizedConfig = weekendDays.map(d => String(d).toLowerCase());
+    const dayName = nightDate.format('dddd'); // e.g. "Sunday"
+    const dayNameLower = dayName.toLowerCase();
+
+    return normalizedConfig.includes(dayNameLower);
 }
 
 document.addEventListener('DOMContentLoaded', function() {
@@ -9885,8 +10003,9 @@ document.addEventListener('DOMContentLoaded', function() {
         
         newNights.forEach(nightNum => {
             const nightDate = moment(tourStartDate).add(nightNum - 1, 'days');
-            const dayOfWeek = nightDate.day(); // 0 = Sunday, 6 = Saturday
-            const isWeekend = dayOfWeek === 0 || dayOfWeek === 6;
+            
+            // Determine weekend based on hotel's configured weekend_days
+            const isWeekend = isWeekendForSelectedHotel(nightDate);
             
             const nightPrice = isWeekend ? weekendPrice : weekdayPrice;
             totalRoomPrice += nightPrice;
@@ -11325,6 +11444,10 @@ document.addEventListener('DOMContentLoaded', function() {
                         roomTypeSelect.onchange = function() {
                             clearRoomTypeDependentFields();
                             updateBedTypesForRoom(this.value);
+                            // Refresh meal plans based on the selected room type's meal availability
+                            if (typeof window.updateMealPlansForRoomType === 'function') {
+                                window.updateMealPlansForRoomType(this.value);
+                            }
                             updateRoomPriceDisplay(true); // Force update when room type changes
                         };
                     }
@@ -11656,6 +11779,94 @@ document.addEventListener('DOMContentLoaded', function() {
             });
     };
 
+    // Update meal plans for selected room type so that
+    // options like "room with breakfast" only appear when
+    // the chosen room type actually has those meals configured.
+    window.updateMealPlansForRoomType = function(roomType) {
+        const mealPlanSelect = document.getElementById('mealPlanSelect');
+
+        if (!mealPlanSelect) {
+            return;
+        }
+
+        // If no room type chosen or no room data yet, reset to default prompt
+        if (!roomType || !window.roomData || !Array.isArray(window.roomData) || window.roomData.length === 0) {
+            mealPlanSelect.innerHTML = '<option value="">Select meal plan</option>';
+            if (typeof window.reinitializeSelect2 === 'function') {
+                window.reinitializeSelect2('mealPlanSelect', 'Select meal plan');
+            }
+            return;
+        }
+
+        // Filter rooms for the selected room type
+        const roomsOfType = window.roomData.filter(room => room.room_type === roomType);
+
+        if (roomsOfType.length === 0) {
+            // No matching rooms for this type – show only a neutral option
+            mealPlanSelect.innerHTML = '<option value="">Select meal plan</option>';
+            if (typeof window.reinitializeSelect2 === 'function') {
+                window.reinitializeSelect2('mealPlanSelect', 'Select meal plan');
+            }
+            return;
+        }
+
+        console.log('Updating meal plans for room type:', roomType, 'Rooms:', roomsOfType);
+
+        // Determine meal availability for this specific room type
+        const hasBreakfast = roomsOfType.some(room => room.breakfast == 1 || room.breakfast === true);
+        const hasLunch = roomsOfType.some(room => room.lunch == 1 || room.lunch === true);
+        const hasDinner = roomsOfType.some(room => room.dinner == 1 || room.dinner === true);
+        const hasRoomsOnly = roomsOfType.some(room => room.rooms_only == 1 || room.rooms_only === true || room.rooms_only === '1');
+
+        const mealPlans = new Set();
+        const roomText = 'room';
+
+        // Follow the same rooms_only rule used when building hotel-wide plans
+        if (!hasRoomsOnly) {
+            mealPlans.add(`${roomText} only`);
+        }
+
+        // Add specific meal options only when that meal exists for this room type
+        if (hasBreakfast) {
+            mealPlans.add(`${roomText} with breakfast`);
+        }
+        if (hasLunch) {
+            mealPlans.add(`${roomText} with lunch`);
+        }
+        if (hasDinner) {
+            mealPlans.add(`${roomText} with dinner`);
+        }
+
+        // Add combination options based on availability for this room type
+        if (hasBreakfast && hasLunch) {
+            mealPlans.add(`${roomText} with breakfast + lunch`);
+        }
+        if (hasBreakfast && hasDinner) {
+            mealPlans.add(`${roomText} with breakfast + dinner`);
+        }
+        if (hasLunch && hasDinner) {
+            mealPlans.add(`${roomText} with lunch + dinner`);
+        }
+        if (hasBreakfast && hasLunch && hasDinner) {
+            mealPlans.add(`${roomText} with all meals (breakfast + lunch + dinner)`);
+        }
+
+        // Clean and sort options using existing helper
+        const cleanedMealPlans = typeof cleanMealPlanOptions === 'function'
+            ? cleanMealPlanOptions([...mealPlans])
+            : [...mealPlans];
+
+        // Rebuild dropdown
+        mealPlanSelect.innerHTML = '<option value="">Select meal plan</option>';
+        cleanedMealPlans.forEach(mealPlan => {
+            mealPlanSelect.innerHTML += `<option value="${mealPlan}">${mealPlan}</option>`;
+        });
+
+        if (typeof window.reinitializeSelect2 === 'function') {
+            window.reinitializeSelect2('mealPlanSelect', 'Select meal plan');
+        }
+    };
+
     // Update pricing when bed type is selected
     window.updatePricingForBed = function(bedTypeValue) {
         console.log('updatePricingForBed called with:', bedTypeValue);
@@ -11840,8 +12051,9 @@ document.addEventListener('DOMContentLoaded', function() {
             selectedNights.forEach(nightBtn => {
                 const nightNum = parseInt(nightBtn.dataset.night);
                 const nightDate = moment(startDate).add(nightNum - 1, 'days');
-                const dayOfWeek = nightDate.day(); // 0 = Sunday, 6 = Saturday
-                const isWeekend = dayOfWeek === 0 || dayOfWeek === 6;
+                
+                // Determine weekend based on hotel's configured weekend_days
+                const isWeekend = isWeekendForSelectedHotel(nightDate);
                 const nightPrice = isWeekend ? weekendPrice : weekdayPrice;
                 totalPrice += nightPrice;
                 
@@ -12462,29 +12674,30 @@ document.addEventListener('DOMContentLoaded', function() {
                     ? parseFloat(selectedOption.dataset.weekendPrice) || 0
                     : parseFloat(selectedOption.dataset.doubleWeekendPrice) || 0;
                 
-                // Calculate price for each selected night
-                nightNumbers.forEach(nightNum => {
-                    const nightDate = moment(tourStartDate).add(nightNum-1, 'days');
-                    const dayOfWeek = nightDate.day(); // 0 = Sunday, 6 = Saturday
-                    const isWeekend = dayOfWeek === 0 || dayOfWeek === 6;
-                    
-                    const nightPrice = isWeekend ? weekendPrice : weekdayPrice;
-                    totalRoomPrice += nightPrice;
-                    
-                    if (isWeekend) {
-                        weekendNights++;
-                    } else {
-                        weekdayNights++;
-                    }
-                    
-                    priceBreakdown.push({
-                        night: nightNum,
-                        date: nightDate.format('MMM DD'),
-                        dayOfWeek: nightDate.format('ddd'),
-                        isWeekend: isWeekend,
-                        price: nightPrice
-                    });
-                });
+        // Calculate price for each selected night
+        nightNumbers.forEach(nightNum => {
+            const nightDate = moment(tourStartDate).add(nightNum-1, 'days');
+            
+            // Determine weekend based on hotel's configured weekend_days
+            const isWeekend = isWeekendForSelectedHotel(nightDate);
+            
+            const nightPrice = isWeekend ? weekendPrice : weekdayPrice;
+            totalRoomPrice += nightPrice;
+            
+            if (isWeekend) {
+                weekendNights++;
+            } else {
+                weekdayNights++;
+            }
+            
+            priceBreakdown.push({
+                night: nightNum,
+                date: nightDate.format('MMM DD'),
+                dayOfWeek: nightDate.format('ddd'),
+                isWeekend: isWeekend,
+                price: nightPrice
+            });
+        });
                 
                 console.log(`=== PRICE BREAKDOWN FOR ${roomType} ===`);
                 console.log(`Total nights: ${nightNumbers.length}`);
@@ -12956,7 +13169,7 @@ document.addEventListener('DOMContentLoaded', function() {
                                             ${hotel.customRoomPrice ? `
                                                 <div class="d-flex justify-content-between mb-1" style="color: rgba(255, 255, 255, 0.9);">
                                                     <span>Custom Room Cost:</span>
-                                                    <span style="font-weight: 500; color: #ffffff !important;">$${hotel.customRoomPrice}</span>
+                                                    <span style="font-weight: 500; color: #ffffff !important;">$${hotel.price}</span>
                                                 </div>
                                             ` : ''}
                                             ${hotel.mealPlan && !hotel.mealPlan.includes('only') ? `
@@ -13165,8 +13378,9 @@ document.addEventListener('DOMContentLoaded', function() {
                                      <h6 class="text-primary fw-bold mb-3 d-flex align-items-center">
                                          <i class="ri-information-line me-2"></i>Location & Time Information
                                      </h6>
+                                     ${hasEnquiryLayout ? `
                                      <div class="row g-3">
-                                         <div class="col-md-2">
+                                         <div class="col-12 col-sm-4">
                                              <label class="form-label fw-semibold text-dark">
                                                  <i class="ri-building-line me-1 text-primary"></i>City
                                              </label>
@@ -13177,23 +13391,23 @@ document.addEventListener('DOMContentLoaded', function() {
                                                  <i class="ri-map-pin-fill position-absolute text-primary" style="left: 15px; top: 50%; transform: translateY(-50%); z-index: 5;"></i>
                                              </div>
                                          </div>
-                                         <div class="col-md-3">
+                                         <div class="col-12 col-sm-4">
                                              <label class="form-label fw-semibold text-dark">
                                                  <i class="ri-map-pin-line me-1 text-primary"></i>Pick Up Location
                                              </label>
                                              <div class="position-relative" id="entry_pickup_container">
-                                                 <!-- This will be populated based on zone_on value -->
                                              </div>
                                          </div>
-                                         <div class="col-md-3">
+                                         <div class="col-12 col-sm-4">
                                              <label class="form-label fw-semibold text-dark">
                                                  <i class="ri-map-pin-2-line me-1 text-primary"></i>Drop Off Location
                                              </label>
                                              <div class="position-relative" id="entry_dropoff_container">
-                                                 <!-- This will be populated based on zone_on value -->
                                              </div>
                                          </div>
-                                         <div class="col-md-2">
+                                     </div>
+                                     <div class="row g-3 mt-0">
+                                         <div class="col-12 col-sm-6">
                                              <label class="form-label fw-semibold text-dark">
                                                  <i class="ri-time-line me-1 text-primary"></i>Pick Up Time
                                              </label>
@@ -13228,12 +13442,81 @@ document.addEventListener('DOMContentLoaded', function() {
                                                  <i class="ri-time-fill position-absolute text-primary" style="left: 12px; top: 50%; transform: translateY(-50%); z-index: 5; pointer-events: none;"></i>
                                              </div>
                                          </div>
-                                        <div class="col-md-2 d-flex align-items-end">
+                                         <div class="col-12 col-sm-6 d-flex align-items-end">
+                                             <button type="button" class="btn w-100" onclick="searchVehicles(${day}, 'entry', 0)" id="day${day}_entry_search_btn" disabled style="height: 40px; border-radius: 6px; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); border: none; color: #ffffff; font-weight: 500; font-size: 0.9rem; display: flex; align-items: center; justify-content: center; box-shadow: 0 2px 6px rgba(102, 126, 234, 0.3); transition: all 0.2s; cursor: pointer; padding: 1.5rem 3rem;">
+                                                 <i class="ri-search-line me-1"></i> Search
+                                             </button>
+                                         </div>
+                                     </div>
+                                     ` : `
+                                     <div class="row g-3">
+                                         <div class="col-md-2">
+                                             <label class="form-label fw-semibold text-dark">
+                                                 <i class="ri-building-line me-1 text-primary"></i>City
+                                             </label>
+                                             <div class="position-relative">
+                                                 <select class="form-select shadow-sm" style="height: 42px; font-size: 0.735rem;" id="modal_local_transfer_city" name="city" style="padding-left: 45px; border: 1px solid #e5e7eb;" onchange="loadPortsForCity(this.value)">
+                                                     <option value="">Select city</option>
+                                                 </select>
+                                                 <i class="ri-map-pin-fill position-absolute text-primary" style="left: 15px; top: 50%; transform: translateY(-50%); z-index: 5;"></i>
+                                             </div>
+                                         </div>
+                                         <div class="col-md-3">
+                                             <label class="form-label fw-semibold text-dark">
+                                                 <i class="ri-map-pin-line me-1 text-primary"></i>Pick Up Location
+                                             </label>
+                                             <div class="position-relative" id="entry_pickup_container">
+                                             </div>
+                                         </div>
+                                         <div class="col-md-3">
+                                             <label class="form-label fw-semibold text-dark">
+                                                 <i class="ri-map-pin-2-line me-1 text-primary"></i>Drop Off Location
+                                             </label>
+                                             <div class="position-relative" id="entry_dropoff_container">
+                                             </div>
+                                         </div>
+                                         <div class="col-md-3">
+                                             <label class="form-label fw-semibold text-dark">
+                                                 <i class="ri-time-line me-1 text-primary"></i>Pick Up Time
+                                             </label>
+                                             <div class="position-relative">
+                                                 <select class="form-select shadow-sm" name="day${day}_entry_pickup_time" style="padding-left: 40px; padding-right: 8px; border: 1px solid #e5e7eb; height: 42px; font-size: 0.735rem;" id="day${day}_entry_pickup_time" onchange="enableSearchButton(1, 'entry')">
+                                                     <option value="">Select Time</option>
+                                                     <option value="12:00 AM">12:00 AM</option>
+                                                     <option value="01:00 AM">01:00 AM</option>
+                                                     <option value="02:00 AM">02:00 AM</option>
+                                                     <option value="03:00 AM">03:00 AM</option>
+                                                     <option value="04:00 AM">04:00 AM</option>
+                                                     <option value="05:00 AM">05:00 AM</option>
+                                                     <option value="06:00 AM">06:00 AM</option>
+                                                     <option value="07:00 AM">07:00 AM</option>
+                                                     <option value="08:00 AM">08:00 AM</option>
+                                                     <option value="09:00 AM">09:00 AM</option>
+                                                     <option value="10:00 AM">10:00 AM</option>
+                                                     <option value="11:00 AM">11:00 AM</option>
+                                                     <option value="12:00 PM">12:00 PM</option>
+                                                     <option value="01:00 PM">01:00 PM</option>
+                                                     <option value="02:00 PM">02:00 PM</option>
+                                                     <option value="03:00 PM">03:00 PM</option>
+                                                     <option value="04:00 PM">04:00 PM</option>
+                                                     <option value="05:00 PM">05:00 PM</option>
+                                                     <option value="06:00 PM">06:00 PM</option>
+                                                     <option value="07:00 PM">07:00 PM</option>
+                                                     <option value="08:00 PM">08:00 PM</option>
+                                                     <option value="09:00 PM">09:00 PM</option>
+                                                     <option value="10:00 PM">10:00 PM</option>
+                                                     <option value="11:00 PM">11:00 PM</option>
+                                                 </select>
+                                                 <i class="ri-time-fill position-absolute text-primary" style="left: 12px; top: 50%; transform: translateY(-50%); z-index: 5; pointer-events: none;"></i>
+                                             </div>
+                                         </div>
+                                        <div class="col-md-1 d-flex align-items-end">
                                             <button type="button" class="btn w-100" onclick="searchVehicles(${day}, 'entry', 0)" id="day${day}_entry_search_btn" disabled style="height: 40px; border-radius: 6px; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); border: none; color: #ffffff; font-weight: 500; font-size: 0.9rem; display: flex; align-items: center; justify-content: center; box-shadow: 0 2px 6px rgba(102, 126, 234, 0.3); transition: all 0.2s; cursor: pointer; padding: 1.5rem 3rem;">
                                                 <i class="ri-search-line me-1"></i> Search
                                             </button>
                                         </div>
                                      </div>
+                                     `}
                                  </div>
                                  
                                  <!-- Vehicle Results Section (Hidden Initially) -->
@@ -13731,6 +14014,85 @@ document.addEventListener('DOMContentLoaded', function() {
                               <div class="card border-0 shadow-sm attraction-item mb-4 overflow-hidden" data-attraction-index="1" style="border-radius: 12px;">
                               <div class="card-body bg-white p-4">
                                  
+                                 ${hasEnquiryLayout ? `
+                                 <div class="row g-3">
+                                     <div class="col-12 col-sm-4">
+                                         <label class="form-label fw-semibold mb-2" style="color: #495057; font-size: 0.875rem;">
+                                             <i class="ri-building-line me-1"></i>City
+                                         </label>
+                                         <select class="form-select attraction-city-select" name="day${day}_attraction_city_1" id="day${day}_attraction_city_1" onchange="loadAttractionsForCity(${day}, this.value, 1)">
+                                             <option value="">Select City</option>
+                                         </select>
+                                         <small class="text-danger" style="display: none;" id="day${day}_attraction_city_message_1">Please select a city first.</small>
+                                     </div>
+                                     <div class="col-12 col-sm-4">
+                                         <label class="form-label fw-semibold mb-2" style="color: #495057; font-size: 0.875rem;">Select Attraction</label>
+                                         <select class="form-select attraction-select" name="day${day}_attraction_1" id="day${day}_attraction_1" onchange="loadAttractionDetails(${day}, this.value, 1)" disabled>
+                                             <option value="">Select city first</option>
+                                         </select>
+                                     </div>
+                                    <div class="col-12 col-sm-4">
+                                        <label class="form-label fw-semibold mb-2" style="color: #495057; font-size: 0.875rem;">
+                                            <i class="ri-group-line me-1"></i>Guests
+                                        </label>
+                                        <div class="guest-selector">
+                                            <div class="guest-display border rounded d-flex align-items-start justify-content-between" style="min-height: 34px; padding: 0.3rem 0.75rem; background: #f8f9fa; border: 1px solid #dee2e6 !important; border-radius: 8px;">
+                                                <div class="guest-info d-flex flex-column gap-1" style="flex: 1;">
+                                                    <span id="day${day}_attraction_1_guest_summary" class="d-flex flex-column gap-1" style="font-size: 0.8rem;">
+                                                        <span class="d-flex align-items-center gap-1">
+                                                            <span class="badge d-flex align-items-center gap-1" style="background: #667eea; border-radius: 4px; font-size: 0.7rem; padding: 0.2rem 0.4rem;" title="Adults"><i class="ri-group-line" style="font-size: 0.75rem;"></i><span>${mainAdults} Adults</span></span>
+                                                            <span class="badge d-flex align-items-center gap-1" style="background: #667eea; border-radius: 4px; font-size: 0.7rem; padding: 0.2rem 0.4rem; opacity: 0.8;" title="Male"><i class="ri-men-line" style="font-size: 0.75rem;"></i><span>${mainMale}</span></span>
+                                                            <span class="badge d-flex align-items-center gap-1" style="background: #667eea; border-radius: 4px; font-size: 0.7rem; padding: 0.2rem 0.4rem; opacity: 0.8;" title="Female"><i class="ri-women-line" style="font-size: 0.75rem;"></i><span>${mainFemale}</span></span>
+                                                        </span>
+                                                        <span class="d-flex align-items-center gap-1">
+                                                            <span class="badge d-flex align-items-center gap-1" style="background: #28a745; border-radius: 4px; font-size: 0.7rem; padding: 0.2rem 0.4rem;" title="Children"><i class="ri-user-smile-line" style="font-size: 0.75rem;"></i><span>${mainChildren}</span></span>
+                                                            <span class="badge d-flex align-items-center gap-1" style="background: #ffc107; color: #000; border-radius: 4px; font-size: 0.7rem; padding: 0.2rem 0.4rem;" title="Infants"><i class="ri-user-heart-line" style="font-size: 0.75rem;"></i><span>${mainInfants}</span></span>
+                                                        </span>
+                                                    </span>
+                                                </div>
+                                                <button type="button" class="btn btn-sm btn-outline-primary" onclick="openGuestSelector('day${day}_attraction_1')" style="border-radius: 6px; padding: 0.25rem 0.5rem; margin-left: 0.5rem; flex-shrink: 0;">
+                                                    <i class="ri-edit-line"></i>
+                                                </button>
+                                            </div>
+                                        </div>
+                                    </div>
+                                 </div>
+                                 <div class="row g-2 mb-2 mt-0">
+                                     <div class="col-12 col-sm-3">
+                                         <label class="form-label fw-semibold mb-1" style="color: #495057; font-size: 0.8rem;">Select Time Slot</label>
+                                         <select class="form-select" style="height: 42px; font-size: 0.735rem;" name="day${day}_attraction_1_time" id="day${day}_attraction_1_time">
+                                             <option value="">Select Time Slot</option>
+                                         </select>
+                                     </div>
+                                     <div class="col-12 col-sm-3">
+                                         <label class="form-label fw-semibold mb-1" style="color: #495057; font-size: 0.8rem;">
+                                             <i class="ri-ticket-line me-1"></i>Select Ticket
+                                         </label>
+                                         <select class="form-select" style="height: 36px; border-radius: 6px; border: 1px solid #dee2e6; font-size: 0.8rem; padding: 0.375rem 0.75rem; line-height: 1.4; overflow: hidden; text-overflow: ellipsis;" name="day${day}_attraction_1_ticket" id="day${day}_attraction_1_ticket" onchange="updateAttractionPricing(${day}, 1)">
+                                             <option value="">Select Ticket</option>
+                                         </select>
+                                         <small class="text-muted d-block mt-1" style="font-size: 0.75rem;">Price grid updates when you choose a ticket</small>
+                                     </div>
+                                     <div class="col-12 col-sm-3">
+                                         <label class="form-label fw-semibold mb-1" style="color: #495057; font-size: 0.8rem;">
+                                             <i class="ri-car-line me-1"></i>Transfer Required?
+                                         </label>
+                                         <select class="form-select" style="height: 36px; border-radius: 6px; border: 1px solid #dee2e6; font-size: 0.8rem; padding: 0.375rem 0.75rem; line-height: 1.4; overflow: hidden; text-overflow: ellipsis;" name="day${day}_attraction_1_transfer_required" id="day${day}_attraction_1_transfer_required" onchange="toggleAttractionTransferFields(${day}, 1)">
+                                             <option value="No">No</option>
+                                             <option value="Yes">Yes</option>
+                                         </select>
+                                     </div>
+                                     <div class="col-12 col-sm-3">
+                                         <label class="form-label fw-semibold mb-1" style="color: #495057; font-size: 0.8rem;">
+                                             <i class="ri-user-star-line me-1"></i>Guide Required?
+                                         </label>
+                                         <select class="form-select" style="height: 36px; border-radius: 6px; border: 1px solid #dee2e6; font-size: 0.8rem; padding: 0.375rem 0.75rem; line-height: 1.4; overflow: hidden; text-overflow: ellipsis;" name="day${day}_attraction_1_guide_required" id="day${day}_attraction_1_guide_required" onchange="toggleAttractionGuideFields(${day}, 1)">
+                                             <option value="No">No</option>
+                                             <option value="Yes">Yes</option>
+                                         </select>
+                                     </div>
+                                 </div>
+                                 ` : `
                                  <div class="row g-3">
                                      <div class="col-md-2">
                                          <label class="form-label fw-semibold">
@@ -13748,7 +14110,9 @@ document.addEventListener('DOMContentLoaded', function() {
                                          </select>
                                      </div>
                                     <div class="col-md-3">
-                                        <label class="form-label fw-semibold">Select Guests</label>
+                                        <label class="form-label fw-semibold mb-2" style="color: #495057; font-size: 0.875rem;">
+                                            <i class="ri-group-line me-1"></i>Guests
+                                        </label>
                                         <div class="guest-selector">
                                             <div class="guest-display border rounded d-flex align-items-start justify-content-between" style="min-height: 34px; padding: 0.3rem 0.75rem; background: #f8f9fa; border: 1px solid #dee2e6 !important; border-radius: 8px;">
                                                 <div class="guest-info d-flex flex-column gap-1" style="flex: 1;">
@@ -13776,10 +14140,7 @@ document.addEventListener('DOMContentLoaded', function() {
                                              <option value="">Select Time Slot</option>
                                          </select>
                                      </div>
-                                    
                                  </div>
-                                 
-                                 <!-- Main Row: Ticket, Transfer Toggle, Guide Toggle -->
                                  <div class="row g-2 mb-2">
                                      <div class="col-md-4">
                                          <label class="form-label fw-semibold mb-1" style="color: #495057; font-size: 0.8rem;">
@@ -13809,6 +14170,7 @@ document.addEventListener('DOMContentLoaded', function() {
                                          </select>
                                      </div>
                                  </div>
+                                 `}
                                  
                                  <!-- Transfer Options Card (Expandable) -->
                                  <div class="card mb-2 attraction-transfer-card" id="day${day}_attraction_1_transfer_card" style="display: none; border: 1px solid #dee2e6; border-radius: 8px; box-shadow: 0 2px 6px rgba(0,0,0,0.05); overflow: hidden;">
@@ -14133,6 +14495,67 @@ document.addEventListener('DOMContentLoaded', function() {
                               <div class="card border-0 shadow-sm guide-item mb-4 overflow-hidden" data-guide-index="1" style="border-radius: 12px;">
                               <div class="card-body bg-white p-4">
                                  
+                                 ${hasEnquiryLayout ? `
+                                 <div class="row g-3">
+                                     <div class="col-12 col-sm-4">
+                                         <label class="form-label fw-semibold mb-2" style="color: #495057; font-size: 0.875rem;">
+                                             <i class="ri-building-line me-1"></i>City
+                                         </label>
+                                         <select class="form-select guide-city-select" name="day${day}_guide_city_1" id="day${day}_guide_city_1" onchange="loadGuidesForCity(${day}, this.value, 1)">
+                                             <option value="">Select City</option>
+                                         </select>
+                                         <small class="text-danger" style="display: none;" id="day${day}_guide_city_message_1">Please select a city first.</small>
+                                     </div>
+                                     <div class="col-12 col-sm-4">
+                                         <label class="form-label fw-semibold mb-2" style="color: #495057; font-size: 0.875rem;">Select Guide</label>
+                                         <select class="form-select guide-select" style="height: 42px; font-size: 0.735rem;" name="day${day}_guide_1" id="day${day}_guide_1" onchange="loadGuideDetails(${day}, this.value, 1)" disabled>
+                                             <option value="">Select city first</option>
+                                         </select>
+                                     </div>
+                                    <div class="col-12 col-sm-4">
+                                        <label class="form-label fw-semibold mb-2" style="color: #495057; font-size: 0.875rem;">
+                                            <i class="ri-group-line me-1"></i>Guests
+                                        </label>
+                                        <div class="guest-selector">
+                                            <div class="guest-display border rounded d-flex align-items-start justify-content-between" style="min-height: 34px; padding: 0.3rem 0.75rem; background: #f8f9fa; border: 1px solid #dee2e6 !important; border-radius: 8px;">
+                                                <div class="guest-info d-flex flex-column gap-1" style="flex: 1;">
+                                                    <span id="day${day}_guide_1_guest_summary" class="d-flex flex-column gap-1" style="font-size: 0.8rem;">
+                                                        <span class="d-flex align-items-center gap-1">
+                                                            <span class="badge d-flex align-items-center gap-1" style="background: #667eea; border-radius: 4px; font-size: 0.7rem; padding: 0.2rem 0.4rem;" title="Adults"><i class="ri-group-line" style="font-size: 0.75rem;"></i><span>1 Adults</span></span>
+                                                            <span class="badge d-flex align-items-center gap-1" style="background: #667eea; border-radius: 4px; font-size: 0.7rem; padding: 0.2rem 0.4rem; opacity: 0.8;" title="Male"><i class="ri-men-line" style="font-size: 0.75rem;"></i><span>1</span></span>
+                                                            <span class="badge d-flex align-items-center gap-1" style="background: #667eea; border-radius: 4px; font-size: 0.7rem; padding: 0.2rem 0.4rem; opacity: 0.8;" title="Female"><i class="ri-women-line" style="font-size: 0.75rem;"></i><span>0</span></span>
+                                                        </span>
+                                                        <span class="d-flex align-items-center gap-1">
+                                                            <span class="badge d-flex align-items-center gap-1" style="background: #28a745; border-radius: 4px; font-size: 0.7rem; padding: 0.2rem 0.4rem;" title="Children"><i class="ri-user-smile-line" style="font-size: 0.75rem;"></i><span>0</span></span>
+                                                            <span class="badge d-flex align-items-center gap-1" style="background: #ffc107; color: #000; border-radius: 4px; font-size: 0.7rem; padding: 0.2rem 0.4rem;" title="Infants"><i class="ri-user-heart-line" style="font-size: 0.75rem;"></i><span>0</span></span>
+                                                        </span>
+                                                    </span>
+                                                </div>
+                                                <button type="button" class="btn btn-sm btn-outline-primary" onclick="openGuestSelector('day${day}_guide_1')" style="border-radius: 6px; padding: 0.25rem 0.5rem; margin-left: 0.5rem; flex-shrink: 0;">
+                                                    <i class="ri-edit-line"></i>
+                                                </button>
+                                            </div>
+                                        </div>
+                                    </div>
+                                 </div>
+                                 <div class="row g-3 mt-0">
+                                    <div class="col-12 col-sm-6">
+                                        <label class="form-label fw-semibold mb-2" style="color: #495057; font-size: 0.875rem;">Pickup Time</label>
+                                        <div id="day${day}_guide_1_pickup_time_options" style="overflow: visible; position: relative;">
+                                            <select class="form-select" style="height: 42px; font-size: 0.735rem;" disabled>
+                                                <option value="">Select guide first</option>
+                                            </select>
+                                        </div>
+                                        <input type="hidden" name="day${day}_guide_1_pickup_time" id="day${day}_guide_1_pickup_time">
+                                    </div>
+                                    <div class="col-12 col-sm-6">
+                                        <label class="form-label fw-semibold mb-2" style="color: #495057; font-size: 0.875rem;">Select Package</label>
+                                        <select class="form-select" style="height: 42px; font-size: 0.735rem;" name="day${day}_guide_1_package" id="day${day}_guide_1_package" onchange="updateGuidePricing(${day}, 1)">
+                                            <option value="">Select Duration</option>
+                                        </select>
+                                    </div>
+                                 </div>
+                                 ` : `
                                  <div class="row g-3">
                                      <div class="col-md-2">
                                          <label class="form-label fw-semibold">
@@ -14150,7 +14573,9 @@ document.addEventListener('DOMContentLoaded', function() {
                                          </select>
                                      </div>
                                     <div class="col-md-3">
-                                        <label class="form-label fw-semibold">Select Guests</label>
+                                        <label class="form-label fw-semibold mb-2" style="color: #495057; font-size: 0.875rem;">
+                                            <i class="ri-group-line me-1"></i>Guests
+                                        </label>
                                         <div class="guest-selector">
                                             <div class="guest-display border rounded d-flex align-items-start justify-content-between" style="min-height: 34px; padding: 0.3rem 0.75rem; background: #f8f9fa; border: 1px solid #dee2e6 !important; border-radius: 8px;">
                                                 <div class="guest-info d-flex flex-column gap-1" style="flex: 1;">
@@ -14174,7 +14599,7 @@ document.addEventListener('DOMContentLoaded', function() {
                                     </div>
                                     <div class="col-md-2">
                                         <label class="form-label fw-semibold">Pickup Time</label>
-                                        <div id="day${day}_guide_1_pickup_time_options">
+                                        <div id="day${day}_guide_1_pickup_time_options" style="overflow: visible; position: relative;">
                                             <select class="form-select" style="height: 42px; font-size: 0.735rem;" disabled>
                                                 <option value="">Select guide first</option>
                                             </select>
@@ -14187,6 +14612,8 @@ document.addEventListener('DOMContentLoaded', function() {
                                             <option value="">Select Duration</option>
                                         </select>
                                     </div>
+                                 </div>
+                                 `}
                                      <div class="col-md-12">
                                          
                                          
@@ -14271,7 +14698,7 @@ document.addEventListener('DOMContentLoaded', function() {
                                          <input type="hidden" id="day${day}_guide_1_surcharge" name="day${day}_guide_1_surcharge" value="0">
                                          <input type="hidden" id="day${day}_guide_1_total_price" name="day${day}_guide_1_total_price" value="0">
                                      </div>
-                                 </div>
+                                
                                  
                                  </div>
                               </div>
@@ -14345,7 +14772,7 @@ document.addEventListener('DOMContentLoaded', function() {
                                                                  <option value="">Select city first</option>
                                                              </select>
                                                          </div>
-                                                         <div class="col-md-3">
+                                                         <div class="col-md-5">
                                                              <label class="form-label fw-semibold text-dark">
                                                                  <i class="ri-group-line me-1 text-primary"></i>Select Guests
                                                              </label>
@@ -15928,31 +16355,19 @@ document.addEventListener('DOMContentLoaded', function() {
      
     function initializeServiceGuestSummaries() {
          // Get current guest values from main form
-         const male = parseInt(document.getElementById('male').value) || 0;
-         const female = parseInt(document.getElementById('female').value) || 0;
-         const children = parseInt(document.getElementById('children').value) || 0;
-         const infants = parseInt(document.getElementById('infants').value) || 0;
-         
+         const male = parseInt(document.getElementById('male')?.value) || 0;
+         const female = parseInt(document.getElementById('female')?.value) || 0;
+         const children = parseInt(document.getElementById('children')?.value) || 0;
+         const infants = parseInt(document.getElementById('infants')?.value) || 0;
          const adults = male + female;
          
-         // Create formatted text like your image
-         const summaryText = `${adults} adults (${male} male), ${children} children -${infants} infants`;
+         // Use same badge design as main Guests section (406-436)
+         const summaryHTML = `<span class="d-flex align-items-center gap-1"><span class="badge d-flex align-items-center gap-1" style="background: #667eea; border-radius: 4px; font-size: 0.7rem; padding: 0.2rem 0.4rem;" title="Adults"><i class="ri-group-line" style="font-size: 0.75rem;"></i><span>${adults} Adults</span></span><span class="badge d-flex align-items-center gap-1" style="background: #667eea; border-radius: 4px; font-size: 0.7rem; padding: 0.2rem 0.4rem; opacity: 0.8;" title="Male"><i class="ri-men-line" style="font-size: 0.75rem;"></i><span>${male}</span></span><span class="badge d-flex align-items-center gap-1" style="background: #667eea; border-radius: 4px; font-size: 0.7rem; padding: 0.2rem 0.4rem; opacity: 0.8;" title="Female"><i class="ri-women-line" style="font-size: 0.75rem;"></i><span>${female}</span></span></span><span class="d-flex align-items-center gap-1"><span class="badge d-flex align-items-center gap-1" style="background: #28a745; border-radius: 4px; font-size: 0.7rem; padding: 0.2rem 0.4rem;" title="Children"><i class="ri-user-smile-line" style="font-size: 0.75rem;"></i><span>${children}</span></span><span class="badge d-flex align-items-center gap-1" style="background: #ffc107; color: #000; border-radius: 4px; font-size: 0.7rem; padding: 0.2rem 0.4rem;" title="Infants"><i class="ri-user-heart-line" style="font-size: 0.75rem;"></i><span>${infants}</span></span></span>`;
          
-         // Find all guest summary text elements and update them
          const summaryElements = document.querySelectorAll('[id$="_guest_summary"]');
          summaryElements.forEach(element => {
-             element.textContent = summaryText;
-         });
-         
-         // Update badge displays
-         const guestBadges = document.querySelectorAll('.guest-badges');
-         guestBadges.forEach(badgeContainer => {
-             const badges = badgeContainer.querySelectorAll('.badge');
-             if (badges.length >= 3) {
-                 badges[0].textContent = adults; // Total adults
-                 badges[1].textContent = children; // Children
-                 badges[2].textContent = infants; // Infants
-             }
+             if (element.id === 'mainGuestSummary' || element.id === 'guestSummary') return;
+             element.innerHTML = summaryHTML;
          });
     }
 
@@ -16393,18 +16808,8 @@ document.addEventListener('DOMContentLoaded', function() {
         const summaryElement = document.getElementById(`day${day}_attraction_${newIndex}_guest_summary`);
         if (summaryElement) {
             const adults = mainMale + mainFemale;
-            summaryElement.textContent = `${adults} adults (${mainMale} male, ${mainFemale} female), ${mainChildren} children - ${mainInfants} infants`;
-            
-            // Update badges
-            const guestDisplay = summaryElement.closest('.guest-display');
-            if (guestDisplay) {
-                const badges = guestDisplay.querySelectorAll('.guest-badges .badge');
-                if (badges.length >= 3) {
-                    badges[0].textContent = adults; // Total adults
-                    badges[1].textContent = mainChildren; // Children
-                    badges[2].textContent = mainInfants; // Infants
-                }
-            }
+            const summaryHTML = `<span class="d-flex align-items-center gap-1"><span class="badge d-flex align-items-center gap-1" style="background: #667eea; border-radius: 4px; font-size: 0.7rem; padding: 0.2rem 0.4rem;" title="Adults"><i class="ri-group-line" style="font-size: 0.75rem;"></i><span>${adults} Adults</span></span><span class="badge d-flex align-items-center gap-1" style="background: #667eea; border-radius: 4px; font-size: 0.7rem; padding: 0.2rem 0.4rem; opacity: 0.8;" title="Male"><i class="ri-men-line" style="font-size: 0.75rem;"></i><span>${mainMale}</span></span><span class="badge d-flex align-items-center gap-1" style="background: #667eea; border-radius: 4px; font-size: 0.7rem; padding: 0.2rem 0.4rem; opacity: 0.8;" title="Female"><i class="ri-women-line" style="font-size: 0.75rem;"></i><span>${mainFemale}</span></span></span><span class="d-flex align-items-center gap-1"><span class="badge d-flex align-items-center gap-1" style="background: #28a745; border-radius: 4px; font-size: 0.7rem; padding: 0.2rem 0.4rem;" title="Children"><i class="ri-user-smile-line" style="font-size: 0.75rem;"></i><span>${mainChildren}</span></span><span class="badge d-flex align-items-center gap-1" style="background: #ffc107; color: #000; border-radius: 4px; font-size: 0.7rem; padding: 0.2rem 0.4rem;" title="Infants"><i class="ri-user-heart-line" style="font-size: 0.75rem;"></i><span>${mainInfants}</span></span></span>`;
+            summaryElement.innerHTML = summaryHTML;
         }
         
         showNotification(`Attraction Booking #${newIndex} added for Day ${day}`, 'success');
@@ -17185,32 +17590,19 @@ document.addEventListener('DOMContentLoaded', function() {
     // Main guest selection modal functions
 
 
-    // Function to update all service guest summaries
+    // Function to update all service guest summaries (badge design same as main Guests section)
     function updateAllServiceGuestSummaries(male, female, children, infants) {
         const adults = male + female;
-        const summaryText = `${adults} adults (${male} male, ${female} female), ${children} children -${infants} infants`;
+        const summaryHTML = `<span class="d-flex align-items-center gap-1"><span class="badge d-flex align-items-center gap-1" style="background: #667eea; border-radius: 4px; font-size: 0.7rem; padding: 0.2rem 0.4rem;" title="Adults"><i class="ri-group-line" style="font-size: 0.75rem;"></i><span>${adults} Adults</span></span><span class="badge d-flex align-items-center gap-1" style="background: #667eea; border-radius: 4px; font-size: 0.7rem; padding: 0.2rem 0.4rem; opacity: 0.8;" title="Male"><i class="ri-men-line" style="font-size: 0.75rem;"></i><span>${male}</span></span><span class="badge d-flex align-items-center gap-1" style="background: #667eea; border-radius: 4px; font-size: 0.7rem; padding: 0.2rem 0.4rem; opacity: 0.8;" title="Female"><i class="ri-women-line" style="font-size: 0.75rem;"></i><span>${female}</span></span></span><span class="d-flex align-items-center gap-1"><span class="badge d-flex align-items-center gap-1" style="background: #28a745; border-radius: 4px; font-size: 0.7rem; padding: 0.2rem 0.4rem;" title="Children"><i class="ri-user-smile-line" style="font-size: 0.75rem;"></i><span>${children}</span></span><span class="badge d-flex align-items-center gap-1" style="background: #ffc107; color: #000; border-radius: 4px; font-size: 0.7rem; padding: 0.2rem 0.4rem;" title="Infants"><i class="ri-user-heart-line" style="font-size: 0.75rem;"></i><span>${infants}</span></span></span>`;
         
-        console.log('Updating all service guest summaries:', summaryText);
+        console.log('Updating all service guest summaries (badge format):', adults, 'adults');
         
-        // Find all guest summary elements across all service sections
         const guestSummaryElements = document.querySelectorAll('[id$="_guest_summary"]');
-        
         guestSummaryElements.forEach(function(element) {
-            element.textContent = summaryText;
+            if (element.id === 'mainGuestSummary' || element.id === 'guestSummary') return;
+            element.innerHTML = summaryHTML;
             console.log('Updated guest summary for:', element.id);
         });
-        
-        // Also update any badge displays (the colored badges showing numbers)
-        const badgeContainers = document.querySelectorAll('.guest-badges');
-        badgeContainers.forEach(function(container) {
-            const badges = container.querySelectorAll('.badge');
-            if (badges.length >= 3) {
-                badges[0].textContent = adults; // Primary badge (adults)
-                badges[1].textContent = children; // Success badge (children)
-                badges[2].textContent = infants; // Warning badge (infants)
-            }
-        });
-        
         console.log('Updated all service guest summaries and badges');
     }
 
@@ -18038,18 +18430,8 @@ document.addEventListener('DOMContentLoaded', function() {
         const summaryElement = document.getElementById(`day${day}_restaurant_${newIndex}_guest_summary`);
         if (summaryElement) {
             const adults = mainMale + mainFemale;
-            summaryElement.textContent = `${adults} adults (${mainMale} male, ${mainFemale} female), ${mainChildren} children - ${mainInfants} infants`;
-            
-            // Update badges
-            const guestDisplay = summaryElement.closest('.guest-display');
-            if (guestDisplay) {
-                const badges = guestDisplay.querySelectorAll('.guest-badges .badge');
-                if (badges.length >= 3) {
-                    badges[0].textContent = adults; // Total adults
-                    badges[1].textContent = mainChildren; // Children
-                    badges[2].textContent = mainInfants; // Infants
-                }
-            }
+            const summaryHTML = `<span class="d-flex align-items-center gap-1"><span class="badge d-flex align-items-center gap-1" style="background: #667eea; border-radius: 4px; font-size: 0.7rem; padding: 0.2rem 0.4rem;" title="Adults"><i class="ri-group-line" style="font-size: 0.75rem;"></i><span>${adults} Adults</span></span><span class="badge d-flex align-items-center gap-1" style="background: #667eea; border-radius: 4px; font-size: 0.7rem; padding: 0.2rem 0.4rem; opacity: 0.8;" title="Male"><i class="ri-men-line" style="font-size: 0.75rem;"></i><span>${mainMale}</span></span><span class="badge d-flex align-items-center gap-1" style="background: #667eea; border-radius: 4px; font-size: 0.7rem; padding: 0.2rem 0.4rem; opacity: 0.8;" title="Female"><i class="ri-women-line" style="font-size: 0.75rem;"></i><span>${mainFemale}</span></span></span><span class="d-flex align-items-center gap-1"><span class="badge d-flex align-items-center gap-1" style="background: #28a745; border-radius: 4px; font-size: 0.7rem; padding: 0.2rem 0.4rem;" title="Children"><i class="ri-user-smile-line" style="font-size: 0.75rem;"></i><span>${mainChildren}</span></span><span class="badge d-flex align-items-center gap-1" style="background: #ffc107; color: #000; border-radius: 4px; font-size: 0.7rem; padding: 0.2rem 0.4rem;" title="Infants"><i class="ri-user-heart-line" style="font-size: 0.75rem;"></i><span>${mainInfants}</span></span></span>`;
+            summaryElement.innerHTML = summaryHTML;
         }
         
         showNotification(`Restaurant Booking #${newIndex} added for Day ${day}`, 'success');
@@ -18530,23 +18912,24 @@ document.addEventListener('DOMContentLoaded', function() {
             const originalNightEnd = parseInt(nightEndTime.split(':')[0]);
             
             const nightInfo = document.createElement('div');
-            nightInfo.className = 'alert alert-warning py-2 mb-2 mt-2';
+            nightInfo.className = 'alert alert-warning py-1 px-2 mb-1 mt-1 small';
+            nightInfo.style.cssText = 'z-index: 0; position: relative; line-height: 1.3;';
             nightInfo.innerHTML = `
                 <i class="ri-moon-line me-1"></i>
                 <strong>Night Hours:</strong> ${formatTo12Hour(nightStart)} - ${formatTo12Hour(originalNightEnd)}
-                <br><small>Night surcharge applies during these hours</small>
+                <span class="d-block mt-0" style="font-size: 0.7rem;">Night surcharge applies during these hours</span>
             `;
             timeOptionsContainer.appendChild(nightInfo);
         }
         
-        // Initialize Select2 on the newly created select element
+        // Initialize Select2 on the newly created select element (dropdown to body so it is not clipped by parent overflow)
         setTimeout(() => {
             if (typeof jQuery !== 'undefined' && typeof jQuery.fn.select2 !== 'undefined') {
                 jQuery(selectElement).select2({
                     placeholder: "Select pickup time",
                     allowClear: true,
                     width: '100%',
-                    dropdownParent: jQuery(timeOptionsContainer)
+                    dropdownParent: jQuery('body')
                 });
                 
                 console.log('Select2 initialized for guide pickup time:', selectElement.id);
@@ -18646,6 +19029,67 @@ document.addEventListener('DOMContentLoaded', function() {
                     </div>
                 </div>
                 <div class="card-body bg-white">
+                    ${hasEnquiryLayout ? `
+                    <div class="row g-3">
+                        <div class="col-12 col-sm-4">
+                            <label class="form-label fw-semibold mb-2" style="color: #495057; font-size: 0.875rem;">
+                                <i class="ri-building-line me-1"></i>City
+                            </label>
+                            <select class="form-select guide-city-select" name="day${day}_guide_city_${newIndex}" id="day${day}_guide_city_${newIndex}" onchange="loadGuidesForCity(${day}, this.value, ${newIndex})">
+                                <option value="">Select City</option>
+                            </select>
+                            <small class="text-danger" style="display: none;" id="day${day}_guide_city_message_${newIndex}">Please select a city first.</small>
+                        </div>
+                        <div class="col-12 col-sm-4">
+                            <label class="form-label fw-semibold mb-2" style="color: #495057; font-size: 0.875rem;">Select Guide</label>
+                            <select class="form-select guide-select" name="day${day}_guide_${newIndex}" id="day${day}_guide_${newIndex}" onchange="loadGuideDetails(${day}, this.value, ${newIndex})" disabled>
+                                <option value="">Select city first</option>
+                            </select>
+                        </div>
+                        <div class="col-12 col-sm-4">
+                            <label class="form-label fw-semibold mb-2" style="color: #495057; font-size: 0.875rem;">
+                                <i class="ri-group-line me-1"></i>Guests
+                            </label>
+                            <div class="guest-selector">
+                                <div class="guest-display border rounded d-flex align-items-start justify-content-between" style="min-height: 34px; padding: 0.3rem 0.75rem; background: #f8f9fa; border: 1px solid #dee2e6 !important; border-radius: 8px;">
+                                    <div class="guest-info d-flex flex-column gap-1" style="flex: 1;">
+                                        <span id="day${day}_guide_${newIndex}_guest_summary" class="d-flex flex-column gap-1" style="font-size: 0.8rem;">
+                                            <span class="d-flex align-items-center gap-1">
+                                                <span class="badge d-flex align-items-center gap-1" style="background: #667eea; border-radius: 4px; font-size: 0.7rem; padding: 0.2rem 0.4rem;" title="Adults"><i class="ri-group-line" style="font-size: 0.75rem;"></i><span>1 Adults</span></span>
+                                                <span class="badge d-flex align-items-center gap-1" style="background: #667eea; border-radius: 4px; font-size: 0.7rem; padding: 0.2rem 0.4rem; opacity: 0.8;" title="Male"><i class="ri-men-line" style="font-size: 0.75rem;"></i><span>1</span></span>
+                                                <span class="badge d-flex align-items-center gap-1" style="background: #667eea; border-radius: 4px; font-size: 0.7rem; padding: 0.2rem 0.4rem; opacity: 0.8;" title="Female"><i class="ri-women-line" style="font-size: 0.75rem;"></i><span>0</span></span>
+                                            </span>
+                                            <span class="d-flex align-items-center gap-1">
+                                                <span class="badge d-flex align-items-center gap-1" style="background: #28a745; border-radius: 4px; font-size: 0.7rem; padding: 0.2rem 0.4rem;" title="Children"><i class="ri-user-smile-line" style="font-size: 0.75rem;"></i><span>0</span></span>
+                                                <span class="badge d-flex align-items-center gap-1" style="background: #ffc107; color: #000; border-radius: 4px; font-size: 0.7rem; padding: 0.2rem 0.4rem;" title="Infants"><i class="ri-user-heart-line" style="font-size: 0.75rem;"></i><span>0</span></span>
+                                            </span>
+                                        </span>
+                                    </div>
+                                    <button type="button" class="btn btn-sm btn-outline-primary" onclick="openGuestSelector('day${day}_guide_${newIndex}')" style="border-radius: 6px; padding: 0.25rem 0.5rem; margin-left: 0.5rem; flex-shrink: 0;">
+                                        <i class="ri-edit-line"></i>
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="row g-3 mt-0">
+                        <div class="col-12 col-sm-6">
+                            <label class="form-label fw-semibold mb-2" style="color: #495057; font-size: 0.875rem;">Pickup Time</label>
+                            <div id="day${day}_guide_${newIndex}_pickup_time_options" style="overflow: visible; position: relative;">
+                                <select class="form-select" disabled>
+                                    <option value="">Select guide first</option>
+                                </select>
+                            </div>
+                            <input type="hidden" name="day${day}_guide_${newIndex}_pickup_time" id="day${day}_guide_${newIndex}_pickup_time">
+                        </div>
+                        <div class="col-12 col-sm-6">
+                            <label class="form-label fw-semibold mb-2" style="color: #495057; font-size: 0.875rem;">Select Package</label>
+                            <select class="form-select" name="day${day}_guide_${newIndex}_package" id="day${day}_guide_${newIndex}_package" onchange="updateGuidePricing(${day}, ${newIndex})">
+                                <option value="">Select Duration</option>
+                            </select>
+                        </div>
+                    </div>
+                    ` : `
                     <div class="row g-3">
                         <div class="col-md-2">
                             <label class="form-label fw-semibold">
@@ -18663,7 +19107,9 @@ document.addEventListener('DOMContentLoaded', function() {
                             </select>
                         </div>
                         <div class="col-md-3">
-                            <label class="form-label fw-semibold">Select Guests</label>
+                            <label class="form-label fw-semibold mb-2" style="color: #495057; font-size: 0.875rem;">
+                                <i class="ri-group-line me-1"></i>Guests
+                            </label>
                             <div class="guest-selector">
                                 <div class="guest-display border rounded d-flex align-items-start justify-content-between" style="min-height: 34px; padding: 0.3rem 0.75rem; background: #f8f9fa; border: 1px solid #dee2e6 !important; border-radius: 8px;">
                                     <div class="guest-info d-flex flex-column gap-1" style="flex: 1;">
@@ -18687,7 +19133,7 @@ document.addEventListener('DOMContentLoaded', function() {
                         </div>
                         <div class="col-md-2">
                             <label class="form-label fw-semibold">Pickup Time</label>
-                            <div id="day${day}_guide_${newIndex}_pickup_time_options">
+                            <div id="day${day}_guide_${newIndex}_pickup_time_options" style="overflow: visible; position: relative;">
                                 <select class="form-select" disabled>
                                     <option value="">Select guide first</option>
                                 </select>
@@ -18701,6 +19147,7 @@ document.addEventListener('DOMContentLoaded', function() {
                             </select>
                         </div>
                     </div>
+                    `}
                     
                     <div class="row g-3 mt-2">
                         <div class="col-md-12">
@@ -18832,18 +19279,8 @@ document.addEventListener('DOMContentLoaded', function() {
         const summaryElement = document.getElementById(`day${day}_guide_${newIndex}_guest_summary`);
         if (summaryElement) {
             const adults = mainMale + mainFemale;
-            summaryElement.textContent = `${adults} adults (${mainMale} male, ${mainFemale} female), ${mainChildren} children - ${mainInfants} infants`;
-            
-            // Update badges
-            const guestDisplay = summaryElement.closest('.guest-display');
-            if (guestDisplay) {
-                const badges = guestDisplay.querySelectorAll('.guest-badges .badge');
-                if (badges.length >= 3) {
-                    badges[0].textContent = adults; // Total adults
-                    badges[1].textContent = mainChildren; // Children
-                    badges[2].textContent = mainInfants; // Infants
-                }
-            }
+            const summaryHTML = `<span class="d-flex align-items-center gap-1"><span class="badge d-flex align-items-center gap-1" style="background: #667eea; border-radius: 4px; font-size: 0.7rem; padding: 0.2rem 0.4rem;" title="Adults"><i class="ri-group-line" style="font-size: 0.75rem;"></i><span>${adults} Adults</span></span><span class="badge d-flex align-items-center gap-1" style="background: #667eea; border-radius: 4px; font-size: 0.7rem; padding: 0.2rem 0.4rem; opacity: 0.8;" title="Male"><i class="ri-men-line" style="font-size: 0.75rem;"></i><span>${mainMale}</span></span><span class="badge d-flex align-items-center gap-1" style="background: #667eea; border-radius: 4px; font-size: 0.7rem; padding: 0.2rem 0.4rem; opacity: 0.8;" title="Female"><i class="ri-women-line" style="font-size: 0.75rem;"></i><span>${mainFemale}</span></span></span><span class="d-flex align-items-center gap-1"><span class="badge d-flex align-items-center gap-1" style="background: #28a745; border-radius: 4px; font-size: 0.7rem; padding: 0.2rem 0.4rem;" title="Children"><i class="ri-user-smile-line" style="font-size: 0.75rem;"></i><span>${mainChildren}</span></span><span class="badge d-flex align-items-center gap-1" style="background: #ffc107; color: #000; border-radius: 4px; font-size: 0.7rem; padding: 0.2rem 0.4rem;" title="Infants"><i class="ri-user-heart-line" style="font-size: 0.75rem;"></i><span>${mainInfants}</span></span></span>`;
+            summaryElement.innerHTML = summaryHTML;
         }
         
         showNotification(`Tour Guide Booking #${newIndex} added for Day ${day}`, 'success');

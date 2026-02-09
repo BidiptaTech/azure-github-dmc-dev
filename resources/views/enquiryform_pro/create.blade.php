@@ -1285,9 +1285,11 @@
                             <th>Adults per Rm</th>
                             <th>Cost</th>
                             <th>Sell</th>
-                            <th>Extra Bed</th>
+                            <th>Extra Bed Price</th>
                             <th>CWB</th>
+                            <th>CWB Price</th>
                             <th>CNB</th>
+                            <th>CNB Price</th>
                             <th>Infant</th>
                             <th>Supplement</th>
                         </tr>
@@ -2032,6 +2034,16 @@
                                 </select>
                             </div>
                         </div>
+                        <div class="row g-2 mb-1">
+                            <div class="col-2" id="arrivalCostField">
+                                <label class="form-label small">Cost</label>
+                                <input type="number" class="form-control form-control-sm" id="arrivalCost" value="0" min="0" step="0.01" style="font-size: 10px;">
+                            </div>
+                            <div class="col-2" id="arrivalSellField">
+                                <label class="form-label small">Sell</label>
+                                <input type="number" class="form-control form-control-sm" id="arrivalSell" value="0" min="0" step="0.01" style="font-size: 10px;">
+                            </div>
+                        </div>
                     </div>
                     
                     <!-- Arrival Guide Section (outside transfer details so it's always visible) -->
@@ -2194,6 +2206,16 @@
                                     <option value="P">Private</option>
                                     <option value="S" selected>Shared</option>
                                 </select>
+                            </div>
+                        </div>
+                        <div class="row g-2 mb-1">
+                            <div class="col-2" id="departureCostField">
+                                <label class="form-label small">Cost</label>
+                                <input type="number" class="form-control form-control-sm" id="departureCost" value="0" min="0" step="0.01" style="font-size: 10px;">
+                            </div>
+                            <div class="col-2" id="departureSellField">
+                                <label class="form-label small">Sell</label>
+                                <input type="number" class="form-control form-control-sm" id="departureSell" value="0" min="0" step="0.01" style="font-size: 10px;">
                             </div>
                         </div>
                     </div>
@@ -10200,7 +10222,9 @@
             sell: singleSell || combo.price || 0,
             extraBedPrice: combo.extraBedPrice || 0,
             cwb: combo.extraBed || 0,
+            cwbPrice: calculateChildPricing(combo, true) || 0,
             cnb: combo.childWithoutBed || 0,
+            cnbPrice: calculateChildPricing(combo, false) || 0,
             infant: 0, // Infant count per room combination (can be set per room if needed)
             // Store room and bed data for reference
             roomData: combo.roomData,
@@ -10582,6 +10606,10 @@
                 const arrivalChild = parseInt(document.getElementById('arrivalChild')?.value || child);
                 const arrivalInfant = parseInt(document.getElementById('arrivalInfant')?.value || infant);
                 
+                // Get cost and sell from input fields
+                const arrivalCost = parseFloat(document.getElementById('arrivalCost')?.value || 0);
+                const arrivalSell = parseFloat(document.getElementById('arrivalSell')?.value || 0);
+                
                 const arrivalDestinationSelect = document.getElementById('arrivalDestination');
                 const arrivalDestinationId = arrivalDestinationSelect?.value || '';
                 const arrivalDestinationName = arrivalDestinationSelect?.selectedOptions[0]?.getAttribute('data-name') || '';
@@ -10646,6 +10674,10 @@
                             // Calculate prices
                             const prices = calculateTransferPrice(zonePrice, arrivalTransferType, arrivalTransferWay, arrivalAdults, arrivalChild);
                             
+                            // Use manual cost/sell if provided, otherwise use calculated prices
+                            const finalCost = arrivalCost > 0 ? arrivalCost : prices.cost;
+                            const finalSell = arrivalSell > 0 ? arrivalSell : prices.sell;
+                            
                             // Update existing transfer
                             transferList[transferIndex] = {
                                 ...transferList[transferIndex],
@@ -10659,17 +10691,19 @@
                                 way: arrivalTransferWay,
                                 adults: arrivalAdults,
                                 child: arrivalChild,
-                                cost: prices.cost,
-                                sell: prices.sell,
+                                cost: finalCost,
+                                sell: finalSell,
                                 zonePrivatePrice: prices.privatePrice,
                                 zoneSharedPrice: prices.sharedPrice
                             };
                             
                             // Update arrival/departure entry prices
-                            arrivalDepartureList[index].adultCost = prices.cost;
-                            arrivalDepartureList[index].adultSell = prices.sell;
-                            arrivalDepartureList[index].childCost = prices.cost;
-                            arrivalDepartureList[index].childSell = prices.sell;
+                            arrivalDepartureList[index].cost = finalCost;
+                            arrivalDepartureList[index].sell = finalSell;
+                            arrivalDepartureList[index].adultCost = finalCost;
+                            arrivalDepartureList[index].adultSell = finalSell;
+                            arrivalDepartureList[index].childCost = finalCost;
+                            arrivalDepartureList[index].childSell = finalSell;
                         } else {
                             // Remove transfer if unchecked
                             transferList.splice(transferIndex, 1);
@@ -10717,6 +10751,10 @@
                     // Calculate prices
                     const prices = calculateTransferPrice(zonePrice, arrivalTransferType, arrivalTransferWay, arrivalAdults, arrivalChild);
                     
+                    // Use manual cost/sell if provided, otherwise use calculated prices
+                    const finalCost = arrivalCost > 0 ? arrivalCost : prices.cost;
+                    const finalSell = arrivalSell > 0 ? arrivalSell : prices.sell;
+                    
                     // Create new transfer if checked and doesn't exist
                     const transferId = generateId('transfer');
                     transferList.push({
@@ -10736,17 +10774,19 @@
                         hasTransfer: true,
                         adults: arrivalAdults,
                         child: arrivalChild,
-                        cost: prices.cost,
-                        sell: prices.sell,
+                        cost: finalCost,
+                        sell: finalSell,
                         zonePrivatePrice: prices.privatePrice,
                         zoneSharedPrice: prices.sharedPrice,
                         taxIncluded: false
                     });
                     arrivalDepartureList[index].transferId = transferId;
-                    arrivalDepartureList[index].adultCost = prices.cost;
-                    arrivalDepartureList[index].adultSell = prices.sell;
-                    arrivalDepartureList[index].childCost = prices.cost;
-                    arrivalDepartureList[index].childSell = prices.sell;
+                    arrivalDepartureList[index].cost = finalCost;
+                    arrivalDepartureList[index].sell = finalSell;
+                    arrivalDepartureList[index].adultCost = finalCost;
+                    arrivalDepartureList[index].adultSell = finalSell;
+                    arrivalDepartureList[index].childCost = finalCost;
+                    arrivalDepartureList[index].childSell = finalSell;
                 }
             } else if (item.type === 'Departure' && departureDateTime && departurePortId) {
                 const departureTransfer = document.getElementById('departureTransfer')?.checked || false;
@@ -10763,6 +10803,10 @@
                 const departureAdults = parseInt(document.getElementById('departureAdults')?.value || adults);
                 const departureChild = parseInt(document.getElementById('departureChild')?.value || child);
                 const departureInfant = parseInt(document.getElementById('departureInfant')?.value || infant);
+                
+                // Get cost and sell from input fields
+                const departureCost = parseFloat(document.getElementById('departureCost')?.value || 0);
+                const departureSell = parseFloat(document.getElementById('departureSell')?.value || 0);
                 
                 const departureDestinationSelect = document.getElementById('departureDestination');
                 const departureDestinationId = departureDestinationSelect?.value || '';
@@ -10828,6 +10872,10 @@
                             // Calculate prices
                             const prices = calculateTransferPrice(zonePrice, departureTransferType, departureTransferWay, departureAdults, departureChild);
                             
+                            // Use manual cost/sell if provided, otherwise use calculated prices
+                            const finalCost = departureCost > 0 ? departureCost : prices.cost;
+                            const finalSell = departureSell > 0 ? departureSell : prices.sell;
+                            
                             // Update existing transfer
                             transferList[transferIndex] = {
                                 ...transferList[transferIndex],
@@ -10841,17 +10889,19 @@
                                 way: departureTransferWay,
                                 adults: departureAdults,
                                 child: departureChild,
-                                cost: prices.cost,
-                                sell: prices.sell,
+                                cost: finalCost,
+                                sell: finalSell,
                                 zonePrivatePrice: prices.privatePrice,
                                 zoneSharedPrice: prices.sharedPrice
                             };
                             
                             // Update arrival/departure entry prices
-                            arrivalDepartureList[index].adultCost = prices.cost;
-                            arrivalDepartureList[index].adultSell = prices.sell;
-                            arrivalDepartureList[index].childCost = prices.cost;
-                            arrivalDepartureList[index].childSell = prices.sell;
+                            arrivalDepartureList[index].cost = finalCost;
+                            arrivalDepartureList[index].sell = finalSell;
+                            arrivalDepartureList[index].adultCost = finalCost;
+                            arrivalDepartureList[index].adultSell = finalSell;
+                            arrivalDepartureList[index].childCost = finalCost;
+                            arrivalDepartureList[index].childSell = finalSell;
                         } else {
                             // Remove transfer if unchecked
                             transferList.splice(transferIndex, 1);
@@ -10887,6 +10937,10 @@
                     // Calculate prices
                     const prices = calculateTransferPrice(zonePrice, departureTransferType, departureTransferWay, departureAdults, departureChild);
                     
+                    // Use manual cost/sell if provided, otherwise use calculated prices
+                    const finalCost = departureCost > 0 ? departureCost : prices.cost;
+                    const finalSell = departureSell > 0 ? departureSell : prices.sell;
+                    
                     // Create new transfer if checked and doesn't exist
                     const transferId = generateId('transfer');
                     transferList.push({
@@ -10906,17 +10960,19 @@
                         hasTransfer: true,
                         adults: departureAdults,
                         child: departureChild,
-                        cost: prices.cost,
-                        sell: prices.sell,
+                        cost: finalCost,
+                        sell: finalSell,
                         zonePrivatePrice: prices.privatePrice,
                         zoneSharedPrice: prices.sharedPrice,
                         taxIncluded: false
                     });
                     arrivalDepartureList[index].transferId = transferId;
-                    arrivalDepartureList[index].adultCost = prices.cost;
-                    arrivalDepartureList[index].adultSell = prices.sell;
-                    arrivalDepartureList[index].childCost = prices.cost;
-                    arrivalDepartureList[index].childSell = prices.sell;
+                    arrivalDepartureList[index].cost = finalCost;
+                    arrivalDepartureList[index].sell = finalSell;
+                    arrivalDepartureList[index].adultCost = finalCost;
+                    arrivalDepartureList[index].adultSell = finalSell;
+                    arrivalDepartureList[index].childCost = finalCost;
+                    arrivalDepartureList[index].childSell = finalSell;
                 }
                 
                 // Handle arrival guide - only if arrival is properly booked (has date and port)
@@ -11746,7 +11802,7 @@
 
         // Close modal
         const accommodationModal = bootstrap.Modal.getInstance(document.getElementById('accommodationModal'));
-        accommodationModal.hide();
+        if (accommodationModal) accommodationModal.hide();
 
         // Clear fields - use header values for pax counts
         const headerValues = getHeaderValues();
@@ -11931,6 +11987,14 @@
                 // Calculate vehicle price
                 const arrivalVehiclePrice = calculateVehiclePrice('arrivalVehicleType', arrivalTransferType, adults, child);
                 
+                // Get manual cost/sell from input fields
+                const manualArrivalCost = parseFloat(document.getElementById('arrivalCost')?.value || 0);
+                const manualArrivalSell = parseFloat(document.getElementById('arrivalSell')?.value || 0);
+                
+                // Use manual cost/sell if provided, otherwise use calculated price
+                const finalArrivalCost = manualArrivalCost > 0 ? manualArrivalCost : arrivalVehiclePrice;
+                const finalArrivalSell = manualArrivalSell > 0 ? manualArrivalSell : arrivalVehiclePrice;
+                
                 arrivalDepartureList.push({
                     id: arrivalId,
                     dateTime: arrivalDateTime,
@@ -11939,11 +12003,13 @@
                     flightNo: arrivalFlightNo || '-',
                     type: 'Arrival',
                     adultsQty: adults,
-                    adultCost: arrivalVehiclePrice,
-                    adultSell: arrivalVehiclePrice, // Default: cost = sell
+                    cost: finalArrivalCost,
+                    sell: finalArrivalSell,
+                    adultCost: finalArrivalCost,
+                    adultSell: finalArrivalSell,
                     childQty: child,
-                    childCost: arrivalVehiclePrice,
-                    childSell: arrivalVehiclePrice, // Default: cost = sell
+                    childCost: finalArrivalCost,
+                    childSell: finalArrivalSell,
                     infantQty: infant,
                     amount: 0,
                     hasTransfer: arrivalTransfer,
@@ -11966,6 +12032,14 @@
                 // Calculate vehicle price
                 const departureVehiclePrice = calculateVehiclePrice('departureVehicleType', departureTransferType, adults, child);
                 
+                // Get manual cost/sell from input fields
+                const manualDepartureCost = parseFloat(document.getElementById('departureCost')?.value || 0);
+                const manualDepartureSell = parseFloat(document.getElementById('departureSell')?.value || 0);
+                
+                // Use manual cost/sell if provided, otherwise use calculated price
+                const finalDepartureCost = manualDepartureCost > 0 ? manualDepartureCost : departureVehiclePrice;
+                const finalDepartureSell = manualDepartureSell > 0 ? manualDepartureSell : departureVehiclePrice;
+                
                 arrivalDepartureList.push({
                     id: departureId,
                     dateTime: departureDateTime,
@@ -11974,11 +12048,13 @@
                     flightNo: departureFlightNo || '-',
                     type: 'Departure',
                     adultsQty: adults,
-                    adultCost: departureVehiclePrice,
-                    adultSell: departureVehiclePrice, // Default: cost = sell
+                    cost: finalDepartureCost,
+                    sell: finalDepartureSell,
+                    adultCost: finalDepartureCost,
+                    adultSell: finalDepartureSell,
                     childQty: child,
-                    childCost: departureVehiclePrice,
-                    childSell: departureVehiclePrice, // Default: cost = sell
+                    childCost: finalDepartureCost,
+                    childSell: finalDepartureSell,
                     infantQty: infant,
                     amount: 0,
                     hasTransfer: departureTransfer,
@@ -12166,7 +12242,7 @@
             
             // Close modal
             const accommodationModal = bootstrap.Modal.getInstance(document.getElementById('accommodationModal'));
-            accommodationModal.hide();
+            if (accommodationModal) accommodationModal.hide();
             
             // Reset arrival and departure guide checkboxes to prevent them from being processed again
             const arrivalGuideCheckbox = document.getElementById('arrivalGuideCheckbox');
@@ -12263,6 +12339,14 @@
                 const arrivalTransferWay = 'one-way';
                 const arrivalVehiclePrice = calculateVehiclePrice('arrivalVehicleType', arrivalTransferType, adults, child);
                 
+                // Get manual cost/sell from input fields
+                const manualArrivalCost = parseFloat(document.getElementById('arrivalCost')?.value || 0);
+                const manualArrivalSell = parseFloat(document.getElementById('arrivalSell')?.value || 0);
+                
+                // Use manual cost/sell if provided, otherwise use calculated price
+                const finalArrivalCost = manualArrivalCost > 0 ? manualArrivalCost : arrivalVehiclePrice;
+                const finalArrivalSell = manualArrivalSell > 0 ? manualArrivalSell : arrivalVehiclePrice;
+                
                 const arrival = {
                     id: arrivalId,
                     dateTime: arrivalDateTime,
@@ -12271,11 +12355,13 @@
                     flightNo: arrivalFlightNo || '-',
                     type: 'Arrival',
                     adultsQty: adults,
-                    adultCost: arrivalVehiclePrice,
-                    adultSell: arrivalVehiclePrice, // Default: cost = sell
+                    cost: finalArrivalCost,
+                    sell: finalArrivalSell,
+                    adultCost: finalArrivalCost,
+                    adultSell: finalArrivalSell,
                     childQty: child,
-                    childCost: arrivalVehiclePrice,
-                    childSell: arrivalVehiclePrice, // Default: cost = sell
+                    childCost: finalArrivalCost,
+                    childSell: finalArrivalSell,
                     infantQty: infant,
                     amount: 0,
                     hasTransfer: arrivalTransfer,
@@ -12342,6 +12428,14 @@
                 const departureTransferWay = 'one-way';
                 const departureVehiclePrice = calculateVehiclePrice('departureVehicleType', departureTransferType, adults, child);
                 
+                // Get manual cost/sell from input fields
+                const manualDepartureCost = parseFloat(document.getElementById('departureCost')?.value || 0);
+                const manualDepartureSell = parseFloat(document.getElementById('departureSell')?.value || 0);
+                
+                // Use manual cost/sell if provided, otherwise use calculated price
+                const finalDepartureCost = manualDepartureCost > 0 ? manualDepartureCost : departureVehiclePrice;
+                const finalDepartureSell = manualDepartureSell > 0 ? manualDepartureSell : departureVehiclePrice;
+                
                 const departure = {
                     id: departureId,
                     dateTime: departureDateTime,
@@ -12350,11 +12444,13 @@
                     flightNo: departureFlightNo || '-',
                     type: 'Departure',
                     adultsQty: adults,
-                    adultCost: departureVehiclePrice,
-                    adultSell: departureVehiclePrice, // Default: cost = sell
+                    cost: finalDepartureCost,
+                    sell: finalDepartureSell,
+                    adultCost: finalDepartureCost,
+                    adultSell: finalDepartureSell,
                     childQty: child,
-                    childCost: departureVehiclePrice,
-                    childSell: departureVehiclePrice, // Default: cost = sell
+                    childCost: finalDepartureCost,
+                    childSell: finalDepartureSell,
                     infantQty: infant,
                     amount: 0,
                     hasTransfer: departureTransfer,
@@ -12609,7 +12705,7 @@
 
         // Close modal
         const accommodationModal = bootstrap.Modal.getInstance(document.getElementById('accommodationModal'));
-        accommodationModal.hide();
+        if (accommodationModal) accommodationModal.hide();
 
         // Clear temp list and arrival/departure fields
         selectedHotelsTemp = [];
@@ -12695,7 +12791,9 @@
                 <td><input type="number" value="${(hotel.sell || hotel.roomPrice || 0).toFixed(2)}" step="1" min="0" onchange="updateAccommodationField(${index}, 'sell', parseFloat(this.value) || 0)"></td>
                 <td><input type="number" value="${(parseFloat(hotel.extraBedPrice) || 0).toFixed(2)}" step="1" min="0" onchange="updateAccommodationField(${index}, 'extraBedPrice', parseFloat(this.value) || 0)"></td>
                 <td><input type="number" value="${hotel.cwb || hotel.extraBed || 0}" min="0" onchange="updateAccommodationField(${index}, 'cwb', parseInt(this.value) || 0); updateAccommodationField(${index}, 'extraBed', parseInt(this.value) || 0)"></td>
+                <td><input type="number" value="${(parseFloat(hotel.cwbPrice) || 0).toFixed(2)}" step="1" min="0" onchange="updateAccommodationField(${index}, 'cwbPrice', parseFloat(this.value) || 0)"></td>
                 <td><input type="number" value="${hotel.cnb || hotel.childWithoutBed || 0}" min="0" onchange="updateAccommodationField(${index}, 'cnb', parseInt(this.value) || 0); updateAccommodationField(${index}, 'childWithoutBed', parseInt(this.value) || 0)"></td>
+                <td><input type="number" value="${(parseFloat(hotel.cnbPrice) || 0).toFixed(2)}" step="1" min="0" onchange="updateAccommodationField(${index}, 'cnbPrice', parseFloat(this.value) || 0)"></td>
                 <td><input type="number" value="${hotel.infant || 0}" min="0" onchange="updateAccommodationField(${index}, 'infant', parseInt(this.value) || 0)"></td>
                 <td style="text-align: center;"><input type="checkbox" ${hotel.supplement ? 'checked' : ''} onchange="updateAccommodationField(${index}, 'supplement', this.checked)"></td>
             </tr>
@@ -13124,6 +13222,8 @@
             departureGuideSection.style.display = 'block';
         }
         
+        // Note: Cost/sell fields are inside transfer details section and will be shown/hidden by toggle functions
+        
         // Trigger toggle functions to show transfer sections when transfer is checked
         toggleArrivalTransferFields();
         toggleDepartureTransferFields();
@@ -13546,6 +13646,9 @@
                     document.getElementById('arrivalAdults').value = arrivalDeparture.adultsQty || 2;
                     document.getElementById('arrivalChild').value = arrivalDeparture.childQty || 0;
                     document.getElementById('arrivalInfant').value = arrivalDeparture.infantQty || 0;
+                    // Populate cost and sell
+                    document.getElementById('arrivalCost').value = arrivalDeparture.cost || arrivalDeparture.adultCost || 0;
+                    document.getElementById('arrivalSell').value = arrivalDeparture.sell || arrivalDeparture.adultSell || 0;
                     
                     // Sync guide counts with transfer values
                     syncArrivalGuideCounts();
@@ -13559,7 +13662,32 @@
                                 arrivalGuideSection.style.display = 'block';
                             }
                             document.getElementById('arrivalGuideCheckbox').checked = true;
-                            document.getElementById('arrivalGuide').value = guideEntry.guideId;
+                            
+                            // Try to find guide ID by matching guide name if guideId is empty
+                            let guideIdToSet = guideEntry.guideId || guideEntry.guide_id || '';
+                            if (!guideIdToSet && guideEntry.guideName) {
+                                const arrivalGuideSelect = document.getElementById('arrivalGuide');
+                                if (arrivalGuideSelect) {
+                                    const guideOption = Array.from(arrivalGuideSelect.options).find(opt => {
+                                        const optName = opt.getAttribute('data-name') || '';
+                                        return optName === guideEntry.guideName || optName.trim() === guideEntry.guideName.trim();
+                                    });
+                                    if (guideOption) {
+                                        guideIdToSet = guideOption.value;
+                                    }
+                                }
+                            }
+                            
+                            document.getElementById('arrivalGuide').value = guideIdToSet;
+                            // Populate adult and child quantities
+                            const arrivalGuideAdultQty = document.getElementById('arrivalGuideAdultQty');
+                            const arrivalGuideChildQty = document.getElementById('arrivalGuideChildQty');
+                            if (arrivalGuideAdultQty) {
+                                arrivalGuideAdultQty.value = guideEntry.adultsQty || guideEntry.adults || 0;
+                            }
+                            if (arrivalGuideChildQty) {
+                                arrivalGuideChildQty.value = guideEntry.childQty || guideEntry.children || 0;
+                            }
                             const arrivalGuideFieldsRow = document.getElementById('arrivalGuideFieldsRow');
                             if (arrivalGuideFieldsRow) {
                                 arrivalGuideFieldsRow.style.display = 'block';
@@ -13607,6 +13735,9 @@
                     document.getElementById('departureAdults').value = arrivalDeparture.adultsQty || 2;
                     document.getElementById('departureChild').value = arrivalDeparture.childQty || 0;
                     document.getElementById('departureInfant').value = arrivalDeparture.infantQty || 0;
+                    // Populate cost and sell
+                    document.getElementById('departureCost').value = arrivalDeparture.cost || arrivalDeparture.adultCost || 0;
+                    document.getElementById('departureSell').value = arrivalDeparture.sell || arrivalDeparture.adultSell || 0;
                     
                     // Sync guide counts with transfer values
                     syncDepartureGuideCounts();
@@ -13620,7 +13751,32 @@
                                 departureGuideSection.style.display = 'block';
                             }
                             document.getElementById('departureGuideCheckbox').checked = true;
-                            document.getElementById('departureGuide').value = guideEntry.guideId;
+                            
+                            // Try to find guide ID by matching guide name if guideId is empty
+                            let guideIdToSet = guideEntry.guideId || guideEntry.guide_id || '';
+                            if (!guideIdToSet && guideEntry.guideName) {
+                                const departureGuideSelect = document.getElementById('departureGuide');
+                                if (departureGuideSelect) {
+                                    const guideOption = Array.from(departureGuideSelect.options).find(opt => {
+                                        const optName = opt.getAttribute('data-name') || '';
+                                        return optName === guideEntry.guideName || optName.trim() === guideEntry.guideName.trim();
+                                    });
+                                    if (guideOption) {
+                                        guideIdToSet = guideOption.value;
+                                    }
+                                }
+                            }
+                            
+                            document.getElementById('departureGuide').value = guideIdToSet;
+                            // Populate adult and child quantities
+                            const departureGuideAdultQty = document.getElementById('departureGuideAdultQty');
+                            const departureGuideChildQty = document.getElementById('departureGuideChildQty');
+                            if (departureGuideAdultQty) {
+                                departureGuideAdultQty.value = guideEntry.adultsQty || guideEntry.adults || 0;
+                            }
+                            if (departureGuideChildQty) {
+                                departureGuideChildQty.value = guideEntry.childQty || guideEntry.children || 0;
+                            }
                             const departureGuideFieldsRow = document.getElementById('departureGuideFieldsRow');
                             if (departureGuideFieldsRow) {
                                 departureGuideFieldsRow.style.display = 'block';
@@ -14767,6 +14923,7 @@
             // Create guide_options object if guide is selected
             let guide_options = null;
             if (guideChecked && guideId && guideInfo) {
+                const guideOptionForPrice = guideSelect.options[guideSelect.selectedIndex];
                 guide_options = {
                     guideId: guideId,
                     guide_id: guideId,
@@ -14784,8 +14941,8 @@
                     child_qty: childQty,
                     childrenQty: childQty,
                     children_qty: childQty,
-                    cost: parseFloat(guideOption.getAttribute('data-twelve-hour-price') || '0') || 0,
-                    sell: parseFloat(guideOption.getAttribute('data-twelve-hour-price') || '0') || 0,
+                    cost: parseFloat(guideOptionForPrice?.getAttribute('data-twelve-hour-price') || '0') || 0,
+                    sell: parseFloat(guideOptionForPrice?.getAttribute('data-twelve-hour-price') || '0') || 0,
                     serviceType: 'Full Day',
                     service_type: 'Full Day',
                     tourActivity: `${attractionName} - ${guideName}`,
@@ -14832,7 +14989,7 @@
             
             // Close modal
             const tourModal = bootstrap.Modal.getInstance(document.getElementById('tourModal'));
-            tourModal.hide();
+            if (tourModal) tourModal.hide();
             
             // Reset checkboxes
             document.getElementById('selectAllAttractions').checked = false;
@@ -15183,7 +15340,7 @@
         
         // Close modal
         const tourModal = bootstrap.Modal.getInstance(document.getElementById('tourModal'));
-        tourModal.hide();
+        if (tourModal) tourModal.hide();
         
         // Reset checkboxes
         document.getElementById('selectAllAttractions').checked = false;
@@ -15198,7 +15355,7 @@
     }
     
     // Add another attraction (keep modal open)
-    function addAnotherAttraction() {
+    async function addAnotherAttraction() {
         // Save current selections without closing
         const selectedRows = document.querySelectorAll('.attraction-checkbox:checked');
         
@@ -15207,12 +15364,14 @@
             return;
         }
         
-        // Process selected attractions (same logic as saveAndCloseAttractions)
-        saveAndCloseAttractions();
+        // Process selected attractions (same logic as saveAndCloseAttractions) - wait for it to complete
+        await saveAndCloseAttractions();
         
-        // Reopen the modal
-        const tourModal = new bootstrap.Modal(document.getElementById('tourModal'));
-        tourModal.show();
+        // Reopen the modal after save completes
+        setTimeout(() => {
+            const tourModal = new bootstrap.Modal(document.getElementById('tourModal'));
+            tourModal.show();
+        }, 300);
     }
     
     // Save tour
@@ -15360,7 +15519,7 @@
         
         // Close modal
         const tourModal = bootstrap.Modal.getInstance(document.getElementById('tourModal'));
-        tourModal.hide();
+        if (tourModal) tourModal.hide();
     }
     
     // Update tour table
@@ -15937,7 +16096,7 @@
         
         // Close modal
         const guideModal = bootstrap.Modal.getInstance(document.getElementById('guideModal'));
-        guideModal.hide();
+        if (guideModal) guideModal.hide();
         
         // Reset checkboxes
         document.getElementById('selectAllGuides').checked = false;
@@ -16151,7 +16310,22 @@
             
             // If linked to a meal/restaurant, find and edit the meal
             if (guide.linkedTo === 'restaurant') {
-                const mealIndex = mealList.findIndex(meal => meal.guideId === guide.id || meal.guideId === guide.guide_id);
+                // Try multiple matching strategies
+                let mealIndex = mealList.findIndex(meal => meal.guideId === guide.id || meal.guideId === guide.guide_id);
+                
+                // Fallback: match by restaurant name if guide has it
+                if (mealIndex === -1 && guide.restaurantName) {
+                    mealIndex = mealList.findIndex(meal => meal.restaurantName === guide.restaurantName);
+                }
+                
+                // Fallback: match by guideId field in guide_options
+                if (mealIndex === -1 && guide.guideId) {
+                    mealIndex = mealList.findIndex(meal => 
+                        (meal.guide_options && meal.guide_options.guideId === guide.guideId) ||
+                        (meal.guideInfo && meal.guideInfo.guideId === guide.guideId)
+                    );
+                }
+                
                 if (mealIndex !== -1) {
                     editMeal(mealIndex);
                     return;
@@ -16671,7 +16845,7 @@
         recalculateTotals();
         
         const miscModal = bootstrap.Modal.getInstance(document.getElementById('miscModal'));
-        miscModal.hide();
+        if (miscModal) miscModal.hide();
     }
     
     // Add another miscellaneous item
@@ -18159,6 +18333,7 @@
                         guideList[existingGuideIndex].sell = price;
                         guideList[existingGuideIndex].adultsQty = restaurantGuideAdultQty;
                         guideList[existingGuideIndex].childQty = restaurantGuideChildQty;
+                        guideId = oldMeal.guideId; // Keep the existing entry ID
                     }
                 }
             } else {
@@ -18171,28 +18346,29 @@
             // Create guide_options object if guide is selected
             let guide_options = null;
             if (guideChecked && guideId && guideInfo) {
+                const guideOptionForPrice = guideSelect.selectedOptions[0];
                 const hoursSelect = document.getElementById('restaurantGuideHours');
                 const hours = parseInt(hoursSelect?.value || '12') || 12;
                 let price = 0;
                 switch(hours) {
                     case 2:
-                        price = parseFloat(guideOption?.getAttribute('data-two-hour-price') || '0') || 0;
+                        price = parseFloat(guideOptionForPrice?.getAttribute('data-two-hour-price') || '0') || 0;
                         break;
                     case 4:
-                        price = parseFloat(guideOption?.getAttribute('data-four-hour-price') || '0') || 0;
+                        price = parseFloat(guideOptionForPrice?.getAttribute('data-four-hour-price') || '0') || 0;
                         break;
                     case 6:
-                        price = parseFloat(guideOption?.getAttribute('data-six-hour-price') || '0') || 0;
+                        price = parseFloat(guideOptionForPrice?.getAttribute('data-six-hour-price') || '0') || 0;
                         break;
                     case 8:
-                        price = parseFloat(guideOption?.getAttribute('data-eight-hour-price') || '0') || 0;
+                        price = parseFloat(guideOptionForPrice?.getAttribute('data-eight-hour-price') || '0') || 0;
                         break;
                     case 10:
-                        price = parseFloat(guideOption?.getAttribute('data-ten-hour-price') || '0') || 0;
+                        price = parseFloat(guideOptionForPrice?.getAttribute('data-ten-hour-price') || '0') || 0;
                         break;
                     case 12:
                     default:
-                        price = parseFloat(guideOption?.getAttribute('data-twelve-hour-price') || '0') || 0;
+                        price = parseFloat(guideOptionForPrice?.getAttribute('data-twelve-hour-price') || '0') || 0;
                         break;
                 }
                 
@@ -18611,7 +18787,7 @@
                     infantSell: infantSell,
                     transferId: transferId, // Shared transfer ID
                     transferInfo: transferInfo, // Shared transfer info
-                    guideId: guideId, // Shared guide ID
+                    guideId: guideEntryId, // Guide entry ID (links to guideList entry)
                     guideInfo: guideInfo, // Shared guide info
                     guide_options: guide_options // Shared guide options
                 };
@@ -18631,7 +18807,7 @@
         
         // Close modal
         const mealModal = bootstrap.Modal.getInstance(document.getElementById('mealModal'));
-        mealModal.hide();
+        if (mealModal) mealModal.hide();
         
         // Reset checkboxes
         document.getElementById('selectAllMeals').checked = false;
@@ -18758,7 +18934,7 @@
         
         // Close modal
         const mealModal = bootstrap.Modal.getInstance(document.getElementById('mealModal'));
-        mealModal.hide();
+        if (mealModal) mealModal.hide();
     }
     
     // Update meal table
@@ -18969,7 +19145,10 @@
                 
                 if (restaurantTransferCheckbox) {
                     restaurantTransferCheckbox.checked = true;
-                    toggleRestaurantTransferFields(); // Show the fields
+                    // Just show the section directly, don't call toggle which sets defaults
+                    if (restaurantTransferDetailsSection) {
+                        restaurantTransferDetailsSection.style.display = 'block';
+                    }
                 }
                 
                 // Get transfer info - prioritize meal.transferInfo, then lookup from transferList
@@ -19103,34 +19282,63 @@
             const restaurantGuideCheckbox = document.getElementById('restaurantGuideCheckbox');
             const restaurantGuideDetailsSection = document.getElementById('restaurantGuideDetailsSection');
             
-            if (meal.guideId || meal.guideInfo) {
+            if (meal.guideId || meal.guideInfo || meal.guide_options) {
                 console.log('=== Populating Guide Section for Edit ===');
-                console.log('Guide data:', meal.guideInfo);
+                console.log('Guide data:', meal.guideInfo || meal.guide_options);
                 
                 if (restaurantGuideCheckbox) {
                     restaurantGuideCheckbox.checked = true;
-                    toggleRestaurantGuideFields(); // Show the fields
+                    // Just show the section directly
+                    if (restaurantGuideDetailsSection) {
+                        restaurantGuideDetailsSection.style.display = 'block';
+                    }
                 }
                 
                 await new Promise(resolve => setTimeout(resolve, 100));
                 
                 const guideSelect = document.getElementById('restaurantGuideSelect');
                 const hoursSelect = document.getElementById('restaurantGuideHours');
-                if (guideSelect && meal.guideId) {
+                const adultQtyInput = document.getElementById('restaurantGuideAdultQty');
+                const childQtyInput = document.getElementById('restaurantGuideChildQty');
+                
+                // Get guide info - prioritize guideInfo or guide_options from meal, then lookup from guideList
+                let guideInfo = null;
+                if (meal.guideInfo && Object.keys(meal.guideInfo).length > 0) {
+                    guideInfo = meal.guideInfo;
+                } else if (meal.guide_options && Object.keys(meal.guide_options).length > 0) {
+                    guideInfo = meal.guide_options;
+                } else if (meal.guideId) {
                     // Find guide entry in guideList to get actual guide ID and hours
                     const guideEntry = guideList.find(g => String(g.id) === String(meal.guideId));
                     if (guideEntry) {
-                        guideSelect.value = guideEntry.guideId; // Use actual guide ID, not entry ID
-                        if (hoursSelect && guideEntry.hours) {
-                            hoursSelect.value = guideEntry.hours;
-                        }
-                        updateRestaurantGuidePricing(); // Update pricing based on hours
-                        console.log('Set guide to:', guideEntry.guideId, 'Hours:', guideEntry.hours);
-                    } else {
-                        // Fallback: try using meal.guideId directly (might be actual guide ID)
-                        guideSelect.value = meal.guideId;
-                        console.log('Set guide to (fallback):', meal.guideId);
+                        guideInfo = guideEntry;
                     }
+                }
+                
+                if (guideSelect && guideInfo) {
+                    // Use guideId from guideInfo (could be guideId or guide_id)
+                    const guideIdToUse = guideInfo.guideId || guideInfo.guide_id || meal.guideId;
+                    guideSelect.value = guideIdToUse;
+                    console.log('Set guide to:', guideIdToUse);
+                    
+                    if (hoursSelect && guideInfo.hours) {
+                        hoursSelect.value = guideInfo.hours;
+                        console.log('Set hours to:', guideInfo.hours);
+                    }
+                    
+                    if (adultQtyInput && guideInfo.adultsQty !== undefined) {
+                        adultQtyInput.value = guideInfo.adultsQty || guideInfo.adults_qty || 0;
+                    }
+                    
+                    if (childQtyInput && guideInfo.childQty !== undefined) {
+                        childQtyInput.value = guideInfo.childQty || guideInfo.child_qty || 0;
+                    }
+                    
+                    updateRestaurantGuidePricing(); // Update pricing based on hours
+                } else if (guideSelect && meal.guideId) {
+                    // Fallback: try using meal.guideId directly (might be actual guide ID)
+                    guideSelect.value = meal.guideId;
+                    console.log('Set guide to (fallback):', meal.guideId);
                 }
             } else {
                 console.log('No guide data for this meal');
@@ -20766,7 +20974,7 @@
         recalculateTotals();
         
         const transferModal = bootstrap.Modal.getInstance(document.getElementById('transferModal'));
-        transferModal.hide();
+        if (transferModal) transferModal.hide();
     }
     
     // Edit transfer
