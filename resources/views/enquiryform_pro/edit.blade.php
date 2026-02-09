@@ -1205,13 +1205,11 @@
                             <i class="ri-calendar-check-line field-icon"></i>
                             <span class="detail-label">Start:</span>
                             <input type="date" class="form-control form-control-sm beautiful-input" value="{{ $initialData['tour_start_date'] ?? '' }}" id="tourStartDate" name="tour_start_date" onchange="updateStartDate()" autocomplete="off">
-                            <small class="text-muted ms-1" id="tourStartDateDisplay"></small>
                         </div>
                         <div class="field-item">
                             <i class="ri-calendar-close-line field-icon"></i>
                             <span class="detail-label">End:</span>
                             <input type="date" class="form-control form-control-sm beautiful-input" value="{{ $initialData['tour_end_date'] ?? '' }}" id="tourEndDate" name="tour_end_date" onchange="updateEndDate()" autocomplete="off">
-                            <small class="text-muted ms-1" id="tourEndDateDisplay"></small>
                         </div>
                         <div class="field-item" id="nightsDisplayContainer" style="display: none;">
                             <i class="ri-moon-line field-icon"></i>
@@ -1933,6 +1931,7 @@
                                                 <option value="{{ $vehicle->vehicle_id }}" 
                                                     data-type="{{ $vehicle->vehicle_type }}"
                                                     data-seating="{{ $vehicle->seating_capacity }}"
+                                                    data-city-tour-seating="{{ $vehicle->city_tour_seating_capacity ?? $vehicle->seating_capacity }}"
                                                     data-base-price="{{ $vehicle->base_price ?? 0 }}"
                                                     data-sharable-price="{{ $vehicle->sharable_base_price ?? 0 }}"
                                                     data-sharable="{{ $vehicle->sharable ?? 3 }}">
@@ -2032,6 +2031,7 @@
                                                 <option value="{{ $vehicle->vehicle_id }}" 
                                                     data-type="{{ $vehicle->vehicle_type }}"
                                                     data-seating="{{ $vehicle->seating_capacity }}"
+                                                    data-city-tour-seating="{{ $vehicle->city_tour_seating_capacity ?? $vehicle->seating_capacity }}"
                                                     data-base-price="{{ $vehicle->base_price ?? 0 }}"
                                                     data-sharable-price="{{ $vehicle->sharable_base_price ?? 0 }}"
                                                     data-sharable="{{ $vehicle->sharable ?? 1 }}">
@@ -2206,6 +2206,7 @@
                                                 <option value="{{ $vehicle->vehicle_id }}" 
                                                     data-type="{{ $vehicle->vehicle_type }}"
                                                     data-seating="{{ $vehicle->seating_capacity }}"
+                                                    data-city-tour-seating="{{ $vehicle->city_tour_seating_capacity ?? $vehicle->seating_capacity }}"
                                                     data-base-price="{{ $vehicle->base_price ?? 0 }}"
                                                     data-sharable-price="{{ $vehicle->sharable_base_price ?? 0 }}"
                                                     data-sharable="{{ $vehicle->sharable ?? 1 }}">
@@ -2399,12 +2400,18 @@
                         </thead>
                         <tbody id="attractionsTableBody">
                             @foreach($attractions as $attr)
-                            <tr class="attraction-row" data-attraction-id="{{ $attr->id }}" data-attraction-name="{{ $attr->name }}" data-attraction-type="tour_sites">
+                            @php
+                                $attractionType = $attr->attraction_type ?? 1;
+                                $isAttraction = ($attractionType == 2);
+                                $typeLabel = $isAttraction ? 'Attraction' : 'Tour Sites';
+                            @endphp
+                            <tr class="attraction-row" data-attraction-id="{{ $attr->id }}" data-attraction-name="{{ $attr->name }}" data-attraction-type="{{ $attractionType }}">
                                 <td style="padding: 2px 8px; text-align: center;">
                                     <input type="checkbox" class="attraction-checkbox" data-attr-id="{{ $attr->id }}">
                                 </td>
                                 <td style="padding: 2px 8px;">
                                     {{ $attr->name }}
+                                    <br><small class="text-muted" style="font-size: 9px;">({{ $typeLabel }})</small>
                                 </td>
                                 <td style="padding: 2px 8px;">
                                     <input type="number" class="form-control form-control-sm attraction-adult-qty" data-attr-id="{{ $attr->id }}" value="0" min="0" style="font-size: 10px; padding: 2px 4px; text-align: center;">
@@ -2425,7 +2432,7 @@
                                     <input type="text" class="form-control form-control-sm attraction-infant-charge" data-attr-id="{{ $attr->id }}" value="SGD 0.00" style="font-size: 10px; padding: 2px 4px;">
                                 </td>
                                 <td style="padding: 2px 8px; text-align: center;">
-                                    <input type="checkbox" class="form-check-input attraction-transfer-checkbox" data-attr-id="{{ $attr->id }}" checked>
+                                    <input type="checkbox" class="form-check-input attraction-transfer-checkbox" data-attr-id="{{ $attr->id }}" {{ $isAttraction ? 'checked' : '' }} onchange="onAttractionTransferCheckboxChange(this)">
                                 </td>
                                 <td style="padding: 2px 8px;">
                                     <select class="form-select form-select-sm attraction-transfer-destination" data-attr-id="{{ $attr->id }}" style="font-size: 10px; padding: 2px 4px;">
@@ -2467,6 +2474,7 @@
                                                     <option value="{{ $vehicle->vehicle_id }}" 
                                                         data-type="{{ $vehicle->vehicle_type }}"
                                                         data-seating="{{ $vehicle->seating_capacity }}"
+                                                        data-city-tour-seating="{{ $vehicle->city_tour_seating_capacity ?? $vehicle->seating_capacity }}"
                                                         data-base-price="{{ $vehicle->base_price ?? 0 }}"
                                                         data-sharable-price="{{ $vehicle->sharable_base_price ?? 0 }}"
                                                         data-sharable="{{ $vehicle->sharable ?? 3 }}">
@@ -2551,13 +2559,34 @@
                                 <label class="form-label small mb-0" style="font-size: 11px; font-weight: 600;">Date & Time:</label>
                                 <input type="datetime-local" class="form-control form-control-sm" id="guideDate" style="font-size: 11px;">
                             </div>
-                            <div class="col-md-4">
+                            <div class="col-md-3">
                                 <label class="form-label small mb-0" style="font-size: 11px; font-weight: 600;">Destination:</label>
                                 <select class="form-select form-select-sm" id="guideDestination" onchange="loadGuidesByDestination()" style="font-size: 11px;">
                                     <option value="">Select Destination</option>
                                     @foreach($destinations as $dest)
                                         <option value="{{ $dest->name }}">{{ $dest->name }}</option>
                                     @endforeach
+                                </select>
+                            </div>
+                            <div class="col-md-4">
+                                <label class="form-label small mb-0" style="font-size: 11px; font-weight: 600;">Location:</label>
+                                <select class="form-select form-select-sm" id="guideLocation" style="font-size: 11px;">
+                                    <option value="">Select Location</option>
+                                    <optgroup label="Attractions">
+                                        @foreach($attractions as $index => $attr)
+                                            <option value="{{ $attr->attraction_id }}" data-name="{{ $attr->name }}" data-type="attraction" data-location="{{ $attr->location ?? '' }}" data-country="{{ $attr->country ?? '' }}" {{ $index === 0 ? 'selected' : '' }}>{{ $attr->name }}</option>
+                                        @endforeach
+                                    </optgroup>
+                                    <optgroup label="Restaurants">
+                                        @foreach($restaurants as $rest)
+                                            <option value="{{ $rest->restaurant_id }}" data-name="{{ $rest->name }}" data-type="restaurant" data-city="{{ $rest->city ?? '' }}" data-country="{{ $rest->country ?? '' }}">{{ $rest->name }}</option>
+                                        @endforeach
+                                    </optgroup>
+                                    <optgroup label="Ports">
+                                        @foreach($ports as $port)
+                                            <option value="{{ $port->port_id }}" data-name="{{ $port->port_name }}" data-type="port" data-country="{{ $port->country }}">{{ $port->port_name }}</option>
+                                        @endforeach
+                                    </optgroup>
                                 </select>
                             </div>
                         </div>
@@ -2801,6 +2830,7 @@
                                                 <option value="{{ $vehicle->vehicle_id }}" 
                                                     data-type="{{ $vehicle->vehicle_type }}"
                                                     data-seating="{{ $vehicle->seating_capacity }}"
+                                                    data-city-tour-seating="{{ $vehicle->city_tour_seating_capacity ?? $vehicle->seating_capacity }}"
                                                     data-base-price="{{ $vehicle->base_price ?? 0 }}"
                                                     data-sharable-price="{{ $vehicle->sharable_base_price ?? 0 }}"
                                                     data-sharable="{{ $vehicle->sharable ?? 3 }}">
@@ -3055,6 +3085,7 @@
                                             <option value="{{ $vehicle->vehicle_id }}" 
                                                 data-type="{{ $vehicle->vehicle_type }}"
                                                 data-seating="{{ $vehicle->seating_capacity }}"
+                                                data-city-tour-seating="{{ $vehicle->city_tour_seating_capacity ?? $vehicle->seating_capacity }}"
                                                 data-base-price="{{ $vehicle->base_price ?? 0 }}"
                                                 data-sharable-price="{{ $vehicle->sharable_base_price ?? 0 }}"
                                                 data-sharable="{{ $vehicle->sharable ?? 3 }}">
@@ -4328,10 +4359,16 @@
         
         if (!vehicleSelect || !vehicleSelect.options) return;
         
+        // Get passenger counts for arrival
+        const adults = parseInt(document.getElementById('arrivalAdults')?.value || '2');
+        const child = parseInt(document.getElementById('arrivalChild')?.value || '0');
+        const totalPassengers = adults + child;
+        
         const selectedValue = vehicleSelect.value;
         let isSelectedStillValid = false;
+        let matchingVehicles = [];
         
-        // Enable/disable options based on service type and sharable property
+        // Enable/disable options based on service type, sharable property, and seating capacity
         Array.from(vehicleSelect.options).forEach(option => {
             if (option.value === '') {
                 option.disabled = false;
@@ -4340,15 +4377,26 @@
             }
             
             const sharable = parseInt(option.getAttribute('data-sharable') || '1');
+            const seatingCapacity = parseInt(option.getAttribute('data-seating') || '0');
             let shouldShow = false;
             
-            // sharable: 1 = Private only, 2 = Shared only, 3 = Both
-            if (serviceType === 'P') {
+            // For shared transfers (S), only show vehicles with sharable = 2 or 3
+            if (serviceType === 'S') {
+                if (sharable === 2 || sharable === 3) {
+                    // For arrival/departure, check seating_capacity
+                    if (seatingCapacity >= totalPassengers) {
+                        shouldShow = true;
+                        matchingVehicles.push(option);
+                    }
+                }
+            } else if (serviceType === 'P') {
                 // Private: show vehicles with sharable = 1 or 3
-                shouldShow = (sharable === 1 || sharable === 3);
-            } else if (serviceType === 'S') {
-                // Shared: show vehicles with sharable = 2 or 3
-                shouldShow = (sharable === 2 || sharable === 3);
+                if (sharable === 1 || sharable === 3) {
+                    if (seatingCapacity >= totalPassengers) {
+                        shouldShow = true;
+                        matchingVehicles.push(option);
+                    }
+                }
             }
             
             option.disabled = !shouldShow;
@@ -4359,51 +4407,30 @@
             }
         });
         
-        // Auto-select default vehicle based on service type
-        let defaultVehicleId = null;
-        if (window.defaultValues) {
-            defaultVehicleId = serviceType === 'P' ? window.defaultValues.car_private : window.defaultValues.car_shared;
-        }
-        
-        // Always auto-select the appropriate default vehicle when changing service type
-        if (defaultVehicleId) {
-            // Check if default vehicle is available in filtered options
-            const defaultOption = Array.from(vehicleSelect.options).find(opt => 
-                opt.value === defaultVehicleId && !opt.disabled
-            );
+        // Auto-select the first matching vehicle
+        if (matchingVehicles.length > 0) {
+            const firstMatchingVehicle = matchingVehicles[0];
+            vehicleSelect.value = firstMatchingVehicle.value;
+            console.log('Auto-selected arrival vehicle:', firstMatchingVehicle.value, 'for type:', serviceType === 'P' ? 'Private' : 'Shared', 'passengers:', totalPassengers);
             
-            if (defaultOption) {
-                vehicleSelect.value = defaultVehicleId;
-                console.log('Auto-selected default arrival vehicle:', defaultVehicleId, 'for type:', serviceType === 'P' ? 'Private' : 'Shared');
-                
-                // Trigger Select2 update and change event (onchange handler will call updateArrivalVehiclePricing)
-                if (typeof jQuery !== 'undefined' && jQuery(vehicleSelect).data('select2')) {
-                    jQuery(vehicleSelect).val(defaultVehicleId).trigger('change').trigger('change.select2');
-                } else {
-                    // If not using Select2, manually trigger the onchange handler
-                    vehicleSelect.dispatchEvent(new Event('change', { bubbles: true }));
-                }
+            // Trigger Select2 update and change event
+            if (typeof jQuery !== 'undefined' && jQuery(vehicleSelect).data('select2')) {
+                jQuery(vehicleSelect).val(firstMatchingVehicle.value).trigger('change').trigger('change.select2');
             } else {
-                // If default not available, clear selection only if current is invalid
-                if (!isSelectedStillValid) {
-                    vehicleSelect.value = '';
-                    if (typeof jQuery !== 'undefined' && jQuery(vehicleSelect).data('select2')) {
-                        jQuery(vehicleSelect).val('').trigger('change').trigger('change.select2');
-                    }
-                    console.warn('Default vehicle not available in filtered options:', defaultVehicleId);
-                }
+                vehicleSelect.dispatchEvent(new Event('change', { bubbles: true }));
             }
         } else {
-            // No default configured, clear selection only if current is invalid
+            // No matching vehicle found, clear selection
             if (!isSelectedStillValid) {
                 vehicleSelect.value = '';
                 if (typeof jQuery !== 'undefined' && jQuery(vehicleSelect).data('select2')) {
                     jQuery(vehicleSelect).val('').trigger('change').trigger('change.select2');
                 }
+                console.warn('No matching arrival vehicle found for', totalPassengers, 'passengers');
             }
         }
         
-        console.log('Filtered arrival vehicles for service type:', serviceType === 'P' ? 'Private' : 'Shared');
+        console.log('Filtered arrival vehicles for service type:', serviceType === 'P' ? 'Private' : 'Shared', 'matching:', matchingVehicles.length);
     }
     
     // Filter departure vehicles based on service type (Private/Shared)
@@ -4413,10 +4440,16 @@
         
         if (!vehicleSelect || !vehicleSelect.options) return;
         
+        // Get passenger counts for departure
+        const adults = parseInt(document.getElementById('departureAdults')?.value || '2');
+        const child = parseInt(document.getElementById('departureChild')?.value || '0');
+        const totalPassengers = adults + child;
+        
         const selectedValue = vehicleSelect.value;
         let isSelectedStillValid = false;
+        let matchingVehicles = [];
         
-        // Enable/disable options based on service type and sharable property
+        // Enable/disable options based on service type, sharable property, and seating capacity
         Array.from(vehicleSelect.options).forEach(option => {
             if (option.value === '') {
                 option.disabled = false;
@@ -4425,15 +4458,26 @@
             }
             
             const sharable = parseInt(option.getAttribute('data-sharable') || '1');
+            const seatingCapacity = parseInt(option.getAttribute('data-seating') || '0');
             let shouldShow = false;
             
-            // sharable: 1 = Private only, 2 = Shared only, 3 = Both
-            if (serviceType === 'P') {
+            // For shared transfers (S), only show vehicles with sharable = 2 or 3
+            if (serviceType === 'S') {
+                if (sharable === 2 || sharable === 3) {
+                    // For arrival/departure, check seating_capacity
+                    if (seatingCapacity >= totalPassengers) {
+                        shouldShow = true;
+                        matchingVehicles.push(option);
+                    }
+                }
+            } else if (serviceType === 'P') {
                 // Private: show vehicles with sharable = 1 or 3
-                shouldShow = (sharable === 1 || sharable === 3);
-            } else if (serviceType === 'S') {
-                // Shared: show vehicles with sharable = 2 or 3
-                shouldShow = (sharable === 2 || sharable === 3);
+                if (sharable === 1 || sharable === 3) {
+                    if (seatingCapacity >= totalPassengers) {
+                        shouldShow = true;
+                        matchingVehicles.push(option);
+                    }
+                }
             }
             
             option.disabled = !shouldShow;
@@ -4444,51 +4488,30 @@
             }
         });
         
-        // Auto-select default vehicle based on service type
-        let defaultVehicleId = null;
-        if (window.defaultValues) {
-            defaultVehicleId = serviceType === 'P' ? window.defaultValues.car_private : window.defaultValues.car_shared;
-        }
-        
-        // Always auto-select the appropriate default vehicle when changing service type
-        if (defaultVehicleId) {
-            // Check if default vehicle is available in filtered options
-            const defaultOption = Array.from(vehicleSelect.options).find(opt => 
-                opt.value === defaultVehicleId && !opt.disabled
-            );
+        // Auto-select the first matching vehicle
+        if (matchingVehicles.length > 0) {
+            const firstMatchingVehicle = matchingVehicles[0];
+            vehicleSelect.value = firstMatchingVehicle.value;
+            console.log('Auto-selected departure vehicle:', firstMatchingVehicle.value, 'for type:', serviceType === 'P' ? 'Private' : 'Shared', 'passengers:', totalPassengers);
             
-            if (defaultOption) {
-                vehicleSelect.value = defaultVehicleId;
-                console.log('Auto-selected default departure vehicle:', defaultVehicleId, 'for type:', serviceType === 'P' ? 'Private' : 'Shared');
-                
-                // Trigger Select2 update and change event (onchange handler will call updateDepartureVehiclePricing)
-                if (typeof jQuery !== 'undefined' && jQuery(vehicleSelect).data('select2')) {
-                    jQuery(vehicleSelect).val(defaultVehicleId).trigger('change').trigger('change.select2');
-                } else {
-                    // If not using Select2, manually trigger the onchange handler
-                    vehicleSelect.dispatchEvent(new Event('change', { bubbles: true }));
-                }
+            // Trigger Select2 update and change event
+            if (typeof jQuery !== 'undefined' && jQuery(vehicleSelect).data('select2')) {
+                jQuery(vehicleSelect).val(firstMatchingVehicle.value).trigger('change').trigger('change.select2');
             } else {
-                // If default not available, clear selection only if current is invalid
-                if (!isSelectedStillValid) {
-                    vehicleSelect.value = '';
-                    if (typeof jQuery !== 'undefined' && jQuery(vehicleSelect).data('select2')) {
-                        jQuery(vehicleSelect).val('').trigger('change').trigger('change.select2');
-                    }
-                    console.warn('Default vehicle not available in filtered options:', defaultVehicleId);
-                }
+                vehicleSelect.dispatchEvent(new Event('change', { bubbles: true }));
             }
         } else {
-            // No default configured, clear selection only if current is invalid
+            // No matching vehicle found, clear selection
             if (!isSelectedStillValid) {
                 vehicleSelect.value = '';
                 if (typeof jQuery !== 'undefined' && jQuery(vehicleSelect).data('select2')) {
                     jQuery(vehicleSelect).val('').trigger('change').trigger('change.select2');
                 }
+                console.warn('No matching departure vehicle found for', totalPassengers, 'passengers');
             }
         }
         
-        console.log('Filtered departure vehicles for service type:', serviceType === 'P' ? 'Private' : 'Shared');
+        console.log('Filtered departure vehicles for service type:', serviceType === 'P' ? 'Private' : 'Shared', 'matching:', matchingVehicles.length);
     }
     
     // Toggle hotel transfer fields visibility
@@ -4570,10 +4593,16 @@
         
         if (!vehicleSelect || !vehicleSelect.options) return;
         
+        // Get passenger counts from main enquiry form header (adultCountInput and childCountInput)
+        const adults = parseInt(document.getElementById('adultCountInput')?.value || '2');
+        const child = parseInt(document.getElementById('childCountInput')?.value || '0');
+        const totalPassengers = adults + child || 2; // Minimum 2 if both are 0
+        
         const selectedValue = vehicleSelect.value;
         let isSelectedStillValid = false;
+        let matchingVehicles = [];
         
-        // Enable/disable options based on service type and sharable property
+        // Enable/disable options based on service type, sharable property, and city_tour_seating_capacity
         Array.from(vehicleSelect.options).forEach(option => {
             if (option.value === '') {
                 option.disabled = false;
@@ -4582,15 +4611,26 @@
             }
             
             const sharable = parseInt(option.getAttribute('data-sharable') || '1');
+            const cityTourSeating = parseInt(option.getAttribute('data-city-tour-seating') || '0');
             let shouldShow = false;
             
-            // sharable: 1 = Private only, 2 = Shared only, 3 = Both
-            if (serviceType === 'P') {
+            // For shared transfers (S), only show vehicles with sharable = 2 or 3
+            if (serviceType === 'S') {
+                if (sharable === 2 || sharable === 3) {
+                    // For city tours (hotel transfers), check city_tour_seating_capacity
+                    if (cityTourSeating >= totalPassengers) {
+                        shouldShow = true;
+                        matchingVehicles.push(option);
+                    }
+                }
+            } else if (serviceType === 'P') {
                 // Private: show vehicles with sharable = 1 or 3
-                shouldShow = (sharable === 1 || sharable === 3);
-            } else if (serviceType === 'S') {
-                // Shared: show vehicles with sharable = 2 or 3
-                shouldShow = (sharable === 2 || sharable === 3);
+                if (sharable === 1 || sharable === 3) {
+                    if (cityTourSeating >= totalPassengers) {
+                        shouldShow = true;
+                        matchingVehicles.push(option);
+                    }
+                }
             }
             
             option.disabled = !shouldShow;
@@ -4601,39 +4641,40 @@
             }
         });
         
-        // Auto-select default vehicle based on service type
-        let defaultVehicleId = null;
-        if (window.defaultValues) {
-            defaultVehicleId = serviceType === 'P' ? window.defaultValues.car_private : window.defaultValues.car_shared;
-        }
-        
-        // Always auto-select the appropriate default vehicle when changing service type
-        if (defaultVehicleId) {
-            // Check if default vehicle is available in filtered options
-            const defaultOption = Array.from(vehicleSelect.options).find(opt => 
-                opt.value === defaultVehicleId && !opt.disabled
-            );
+        // Auto-select vehicle - prefer default vehicle if available
+        if (matchingVehicles.length > 0) {
+            let vehicleToSelect = null;
             
-            if (defaultOption) {
-                vehicleSelect.value = defaultVehicleId;
-                console.log('Auto-selected default hotel transfer vehicle:', defaultVehicleId, 'for type:', serviceType === 'P' ? 'Private' : 'Shared');
-                
-                // Trigger change event
-                vehicleSelect.dispatchEvent(new Event('change', { bubbles: true }));
-            } else {
-                // If default not available, clear selection only if current is invalid
-                if (!isSelectedStillValid) {
-                    vehicleSelect.value = '';
+            // First, try to use default vehicle value if available
+            if (window.defaultValues && window.defaultValues.car_shared) {
+                const defaultVehicle = matchingVehicles.find(opt => 
+                    String(opt.value) === String(window.defaultValues.car_shared)
+                );
+                if (defaultVehicle) {
+                    vehicleToSelect = defaultVehicle;
+                    console.log('Auto-selected default hotel transfer vehicle:', vehicleToSelect.value, 'for type:', serviceType === 'P' ? 'Private' : 'Shared', 'passengers:', totalPassengers);
                 }
             }
+            
+            // If no default vehicle found or not in matching list, use first matching vehicle
+            if (!vehicleToSelect) {
+                vehicleToSelect = matchingVehicles[0];
+                console.log('Auto-selected hotel transfer vehicle:', vehicleToSelect.value, 'for type:', serviceType === 'P' ? 'Private' : 'Shared', 'passengers:', totalPassengers);
+            }
+            
+            vehicleSelect.value = vehicleToSelect.value;
+            
+            // Trigger change event
+            vehicleSelect.dispatchEvent(new Event('change', { bubbles: true }));
         } else {
-            // No default configured, clear selection only if current is invalid
+            // No matching vehicle found, clear selection
             if (!isSelectedStillValid) {
                 vehicleSelect.value = '';
+                console.warn('No matching hotel transfer vehicle found for', totalPassengers, 'passengers');
             }
         }
         
-        console.log('Filtered hotel transfer vehicles for service type:', serviceType === 'P' ? 'Private' : 'Shared');
+        console.log('Filtered hotel transfer vehicles for service type:', serviceType === 'P' ? 'Private' : 'Shared', 'matching:', matchingVehicles.length);
     }
     
     // Update hotel transfer vehicle pricing (placeholder for future enhancement)
@@ -4648,14 +4689,46 @@
         
         const serviceType = transferTypeSelect.value; // 'P' or 'S'
         const attrId = transferTypeSelect.getAttribute('data-attr-id');
-        const vehicleSelect = document.querySelector(`.attraction-vehicle-type[data-attr-id="${attrId}"]`);
+        const uniqueId = transferTypeSelect.getAttribute('data-unique-id');
+        
+        // Use unique-id for more precise selection when available (for dynamically generated rows with tickets)
+        let vehicleSelect;
+        if (uniqueId) {
+            vehicleSelect = document.querySelector(`.attraction-vehicle-type[data-unique-id="${uniqueId}"]`);
+        }
+        // Fallback to attr-id only for static rows
+        if (!vehicleSelect) {
+            vehicleSelect = document.querySelector(`.attraction-vehicle-type[data-attr-id="${attrId}"]`);
+        }
         
         if (!vehicleSelect || !vehicleSelect.options) return;
         
+        // Get passenger counts for this attraction - first try attraction-specific, then fall back to main header pax
+        let adultQtyInput, childQtyInput;
+        if (uniqueId) {
+            adultQtyInput = document.querySelector(`.attraction-adult-qty[data-unique-id="${uniqueId}"]`);
+            childQtyInput = document.querySelector(`.attraction-child-qty[data-unique-id="${uniqueId}"]`);
+        }
+        if (!adultQtyInput) {
+            adultQtyInput = document.querySelector(`.attraction-adult-qty[data-attr-id="${attrId}"]`);
+        }
+        if (!childQtyInput) {
+            childQtyInput = document.querySelector(`.attraction-child-qty[data-attr-id="${attrId}"]`);
+        }
+        let adults = parseInt(adultQtyInput?.value || '0');
+        let child = parseInt(childQtyInput?.value || '0');
+        // Fall back to main enquiry form pax if attraction pax is 0
+        if (adults + child === 0) {
+            adults = parseInt(document.getElementById('adultCountInput')?.value || '2');
+            child = parseInt(document.getElementById('childCountInput')?.value || '0');
+        }
+        const totalPassengers = adults + child || 2; // Minimum 2 if both are 0
+        
         const selectedValue = vehicleSelect.value;
         let isSelectedStillValid = false;
+        let matchingVehicles = [];
         
-        // Enable/disable options based on service type and sharable property
+        // Enable/disable options based on service type, sharable property, and city_tour_seating_capacity
         Array.from(vehicleSelect.options).forEach(option => {
             if (option.value === '') {
                 option.disabled = false;
@@ -4664,15 +4737,26 @@
             }
             
             const sharable = parseInt(option.getAttribute('data-sharable') || '3');
+            const cityTourSeating = parseInt(option.getAttribute('data-city-tour-seating') || '0');
             let shouldShow = false;
             
-            // sharable: 1 = Private only, 2 = Shared only, 3 = Both
-            if (serviceType === 'P') {
+            // For shared transfers (S), only show vehicles with sharable = 2 or 3
+            if (serviceType === 'S') {
+                if (sharable === 2 || sharable === 3) {
+                    // For city tours (attractions), check city_tour_seating_capacity
+                    if (cityTourSeating >= totalPassengers) {
+                        shouldShow = true;
+                        matchingVehicles.push(option);
+                    }
+                }
+            } else if (serviceType === 'P') {
                 // Private: show vehicles with sharable = 1 or 3
-                shouldShow = (sharable === 1 || sharable === 3);
-            } else if (serviceType === 'S') {
-                // Shared: show vehicles with sharable = 2 or 3
-                shouldShow = (sharable === 2 || sharable === 3);
+                if (sharable === 1 || sharable === 3) {
+                    if (cityTourSeating >= totalPassengers) {
+                        shouldShow = true;
+                        matchingVehicles.push(option);
+                    }
+                }
             }
             
             option.disabled = !shouldShow;
@@ -4683,40 +4767,65 @@
             }
         });
         
-        // Auto-select default vehicle based on service type
-        let defaultVehicleId = null;
-        if (window.defaultValues) {
-            defaultVehicleId = serviceType === 'P' ? window.defaultValues.car_private : window.defaultValues.car_shared;
-        }
-        
-        // Always auto-select the appropriate default vehicle when changing service type
-        if (defaultVehicleId) {
-            // Check if default vehicle is available in filtered options
-            const defaultOption = Array.from(vehicleSelect.options).find(opt => 
-                opt.value === defaultVehicleId && !opt.disabled
-            );
+        // Auto-select vehicle - prefer default vehicle if available
+        if (matchingVehicles.length > 0) {
+            let vehicleToSelect = null;
             
-            if (defaultOption) {
-                vehicleSelect.value = defaultVehicleId;
-                console.log('Auto-selected default attraction vehicle:', defaultVehicleId, 'for type:', serviceType === 'P' ? 'Private' : 'Shared');
-                
-                // Trigger change event
-                vehicleSelect.dispatchEvent(new Event('change', { bubbles: true }));
-            } else {
-                // If default not available, clear selection only if current is invalid
-                if (!isSelectedStillValid) {
-                    vehicleSelect.value = '';
-                    console.warn('Default vehicle not available in filtered options:', defaultVehicleId);
+            // First, try to use default vehicle value if available
+            if (window.defaultValues && window.defaultValues.car_shared) {
+                const defaultVehicle = matchingVehicles.find(opt => 
+                    String(opt.value) === String(window.defaultValues.car_shared)
+                );
+                if (defaultVehicle) {
+                    vehicleToSelect = defaultVehicle;
+                    console.log('Auto-selected default attraction vehicle:', vehicleToSelect.value, 'for type:', serviceType === 'P' ? 'Private' : 'Shared', 'passengers:', totalPassengers, 'attrId:', attrId);
                 }
             }
+            
+            // If no default vehicle found or not in matching list, use first matching vehicle
+            if (!vehicleToSelect) {
+                vehicleToSelect = matchingVehicles[0];
+                console.log('Auto-selected attraction vehicle:', vehicleToSelect.value, 'for type:', serviceType === 'P' ? 'Private' : 'Shared', 'passengers:', totalPassengers, 'attrId:', attrId);
+            }
+            
+            vehicleSelect.value = vehicleToSelect.value;
+            
+            // Trigger change event
+            vehicleSelect.dispatchEvent(new Event('change', { bubbles: true }));
         } else {
-            // No default configured, clear selection only if current is invalid
+            // No matching vehicle found, clear selection
             if (!isSelectedStillValid) {
                 vehicleSelect.value = '';
+                console.warn('No matching attraction vehicle found for', totalPassengers, 'passengers, attrId:', attrId);
             }
         }
         
-        console.log('Filtered attraction vehicles for service type:', serviceType === 'P' ? 'Private' : 'Shared', 'attrId:', attrId);
+        console.log('Filtered attraction vehicles for service type:', serviceType === 'P' ? 'Private' : 'Shared', 'attrId:', attrId, 'matching:', matchingVehicles.length);
+    }
+    
+    // Handler for attraction transfer checkbox change - auto-select vehicle when checked
+    function onAttractionTransferCheckboxChange(checkbox) {
+        if (!checkbox) return;
+        
+        if (checkbox.checked) {
+            const attrId = checkbox.getAttribute('data-attr-id');
+            const uniqueId = checkbox.getAttribute('data-unique-id');
+            
+            // Find the transfer type select for this attraction - prefer unique-id for dynamic rows
+            let transferTypeSelect;
+            if (uniqueId) {
+                transferTypeSelect = document.querySelector(`.attraction-transfer-type[data-unique-id="${uniqueId}"]`);
+            }
+            if (!transferTypeSelect) {
+                transferTypeSelect = document.querySelector(`.attraction-transfer-type[data-attr-id="${attrId}"]`);
+            }
+            
+            if (transferTypeSelect) {
+                setTimeout(() => {
+                    filterAttractionVehiclesByServiceType(transferTypeSelect);
+                }, 50);
+            }
+        }
     }
     
     // Filter restaurant vehicles based on service type (Private/Shared)
@@ -4726,10 +4835,16 @@
         
         if (!vehicleSelect || !vehicleSelect.options) return;
         
+        // Get passenger counts from main enquiry form header (adultCountInput and childCountInput)
+        const adults = parseInt(document.getElementById('adultCountInput')?.value || '2');
+        const child = parseInt(document.getElementById('childCountInput')?.value || '0');
+        const totalPassengers = adults + child || 2; // Minimum 2 if both are 0
+        
         const selectedValue = vehicleSelect.value;
         let isSelectedStillValid = false;
+        let matchingVehicles = [];
         
-        // Enable/disable options based on service type and sharable property
+        // Enable/disable options based on service type, sharable property, and city_tour_seating_capacity
         Array.from(vehicleSelect.options).forEach(option => {
             if (option.value === '') {
                 option.disabled = false;
@@ -4738,15 +4853,26 @@
             }
             
             const sharable = parseInt(option.getAttribute('data-sharable') || '3');
+            const cityTourSeating = parseInt(option.getAttribute('data-city-tour-seating') || '0');
             let shouldShow = false;
             
-            // sharable: 1 = Private only, 2 = Shared only, 3 = Both
-            if (serviceType === 'P') {
+            // For shared transfers (S), only show vehicles with sharable = 2 or 3
+            if (serviceType === 'S') {
+                if (sharable === 2 || sharable === 3) {
+                    // For city tours (restaurant transfers), check city_tour_seating_capacity
+                    if (cityTourSeating >= totalPassengers) {
+                        shouldShow = true;
+                        matchingVehicles.push(option);
+                    }
+                }
+            } else if (serviceType === 'P') {
                 // Private: show vehicles with sharable = 1 or 3
-                shouldShow = (sharable === 1 || sharable === 3);
-            } else if (serviceType === 'S') {
-                // Shared: show vehicles with sharable = 2 or 3
-                shouldShow = (sharable === 2 || sharable === 3);
+                if (sharable === 1 || sharable === 3) {
+                    if (cityTourSeating >= totalPassengers) {
+                        shouldShow = true;
+                        matchingVehicles.push(option);
+                    }
+                }
             }
             
             option.disabled = !shouldShow;
@@ -4757,40 +4883,40 @@
             }
         });
         
-        // Auto-select default vehicle based on service type
-        let defaultVehicleId = null;
-        if (window.defaultValues) {
-            defaultVehicleId = serviceType === 'P' ? window.defaultValues.car_private : window.defaultValues.car_shared;
-        }
-        
-        // Always auto-select the appropriate default vehicle when changing service type
-        if (defaultVehicleId) {
-            // Check if default vehicle is available in filtered options
-            const defaultOption = Array.from(vehicleSelect.options).find(opt => 
-                opt.value === defaultVehicleId && !opt.disabled
-            );
+        // Auto-select vehicle - prefer default vehicle if available
+        if (matchingVehicles.length > 0) {
+            let vehicleToSelect = null;
             
-            if (defaultOption) {
-                vehicleSelect.value = defaultVehicleId;
-                console.log('Auto-selected default restaurant vehicle:', defaultVehicleId, 'for type:', serviceType === 'P' ? 'Private' : 'Shared');
-                
-                // Trigger change event
-                vehicleSelect.dispatchEvent(new Event('change', { bubbles: true }));
-            } else {
-                // If default not available, clear selection only if current is invalid
-                if (!isSelectedStillValid) {
-                    vehicleSelect.value = '';
-                    console.warn('Default vehicle not available in filtered options:', defaultVehicleId);
+            // First, try to use default vehicle value if available
+            if (window.defaultValues && window.defaultValues.car_shared) {
+                const defaultVehicle = matchingVehicles.find(opt => 
+                    String(opt.value) === String(window.defaultValues.car_shared)
+                );
+                if (defaultVehicle) {
+                    vehicleToSelect = defaultVehicle;
+                    console.log('Auto-selected default restaurant transfer vehicle:', vehicleToSelect.value, 'for type:', serviceType === 'P' ? 'Private' : 'Shared', 'passengers:', totalPassengers);
                 }
             }
+            
+            // If no default vehicle found or not in matching list, use first matching vehicle
+            if (!vehicleToSelect) {
+                vehicleToSelect = matchingVehicles[0];
+                console.log('Auto-selected restaurant transfer vehicle:', vehicleToSelect.value, 'for type:', serviceType === 'P' ? 'Private' : 'Shared', 'passengers:', totalPassengers);
+            }
+            
+            vehicleSelect.value = vehicleToSelect.value;
+            
+            // Trigger change event
+            vehicleSelect.dispatchEvent(new Event('change', { bubbles: true }));
         } else {
-            // No default configured, clear selection only if current is invalid
+            // No matching vehicle found, clear selection
             if (!isSelectedStillValid) {
                 vehicleSelect.value = '';
+                console.warn('No matching restaurant transfer vehicle found for', totalPassengers, 'passengers');
             }
         }
         
-        console.log('Filtered restaurant vehicles for service type:', serviceType === 'P' ? 'Private' : 'Shared');
+        console.log('Filtered restaurant vehicles for service type:', serviceType === 'P' ? 'Private' : 'Shared', 'matching:', matchingVehicles.length);
     }
     
     // Filter local transfer vehicles based on service type (Private/Shared)
@@ -4800,10 +4926,21 @@
         
         if (!vehicleSelect || !vehicleSelect.options) return;
         
+        // Get passenger counts - first try local transfer fields, then fall back to main header pax
+        let adults = parseInt(document.getElementById('localAdults')?.value || '0');
+        let child = parseInt(document.getElementById('localChild')?.value || '0');
+        // Fall back to main enquiry form pax if local pax is 0
+        if (adults + child === 0) {
+            adults = parseInt(document.getElementById('adultCountInput')?.value || '2');
+            child = parseInt(document.getElementById('childCountInput')?.value || '0');
+        }
+        const totalPassengers = adults + child || 2; // Minimum 2 if both are 0
+        
         const selectedValue = vehicleSelect.value;
         let isSelectedStillValid = false;
+        let matchingVehicles = [];
         
-        // Enable/disable options based on service type and sharable property
+        // Enable/disable options based on service type, sharable property, and seating_capacity
         Array.from(vehicleSelect.options).forEach(option => {
             if (option.value === '') {
                 option.disabled = false;
@@ -4812,15 +4949,26 @@
             }
             
             const sharable = parseInt(option.getAttribute('data-sharable') || '3');
+            const seatingCapacity = parseInt(option.getAttribute('data-seating') || '0');
             let shouldShow = false;
             
-            // sharable: 1 = Private only, 2 = Shared only, 3 = Both
-            if (serviceType === 'P') {
+            // For shared transfers (S), only show vehicles with sharable = 2 or 3
+            if (serviceType === 'S') {
+                if (sharable === 2 || sharable === 3) {
+                    // For local transfers, check seating_capacity (same as arrival/departure)
+                    if (seatingCapacity >= totalPassengers) {
+                        shouldShow = true;
+                        matchingVehicles.push(option);
+                    }
+                }
+            } else if (serviceType === 'P') {
                 // Private: show vehicles with sharable = 1 or 3
-                shouldShow = (sharable === 1 || sharable === 3);
-            } else if (serviceType === 'S') {
-                // Shared: show vehicles with sharable = 2 or 3
-                shouldShow = (sharable === 2 || sharable === 3);
+                if (sharable === 1 || sharable === 3) {
+                    if (seatingCapacity >= totalPassengers) {
+                        shouldShow = true;
+                        matchingVehicles.push(option);
+                    }
+                }
             }
             
             option.disabled = !shouldShow;
@@ -4831,40 +4979,40 @@
             }
         });
         
-        // Auto-select default vehicle based on service type
-        let defaultVehicleId = null;
-        if (window.defaultValues) {
-            defaultVehicleId = serviceType === 'P' ? window.defaultValues.car_private : window.defaultValues.car_shared;
-        }
-        
-        // Always auto-select the appropriate default vehicle when changing service type
-        if (defaultVehicleId) {
-            // Check if default vehicle is available in filtered options
-            const defaultOption = Array.from(vehicleSelect.options).find(opt => 
-                opt.value === defaultVehicleId && !opt.disabled
-            );
+        // Auto-select vehicle - prefer default vehicle if available
+        if (matchingVehicles.length > 0) {
+            let vehicleToSelect = null;
             
-            if (defaultOption) {
-                vehicleSelect.value = defaultVehicleId;
-                console.log('Auto-selected default local transfer vehicle:', defaultVehicleId, 'for type:', serviceType === 'P' ? 'Private' : 'Shared');
-                
-                // Trigger change event
-                vehicleSelect.dispatchEvent(new Event('change', { bubbles: true }));
-            } else {
-                // If default not available, clear selection only if current is invalid
-                if (!isSelectedStillValid) {
-                    vehicleSelect.value = '';
-                    console.warn('Default vehicle not available in filtered options:', defaultVehicleId);
+            // First, try to use default vehicle value if available
+            if (window.defaultValues && window.defaultValues.car_shared) {
+                const defaultVehicle = matchingVehicles.find(opt => 
+                    String(opt.value) === String(window.defaultValues.car_shared)
+                );
+                if (defaultVehicle) {
+                    vehicleToSelect = defaultVehicle;
+                    console.log('Auto-selected default local transfer vehicle:', vehicleToSelect.value, 'for type:', serviceType === 'P' ? 'Private' : 'Shared', 'passengers:', totalPassengers);
                 }
             }
+            
+            // If no default vehicle found or not in matching list, use first matching vehicle
+            if (!vehicleToSelect) {
+                vehicleToSelect = matchingVehicles[0];
+                console.log('Auto-selected local transfer vehicle:', vehicleToSelect.value, 'for type:', serviceType === 'P' ? 'Private' : 'Shared', 'passengers:', totalPassengers);
+            }
+            
+            vehicleSelect.value = vehicleToSelect.value;
+            
+            // Trigger change event
+            vehicleSelect.dispatchEvent(new Event('change', { bubbles: true }));
         } else {
-            // No default configured, clear selection only if current is invalid
+            // No matching vehicle found, clear selection
             if (!isSelectedStillValid) {
                 vehicleSelect.value = '';
+                console.warn('No matching local transfer vehicle found for', totalPassengers, 'passengers');
             }
         }
         
-        console.log('Filtered local transfer vehicles for service type:', serviceType === 'P' ? 'Private' : 'Shared');
+        console.log('Filtered local transfer vehicles for service type:', serviceType === 'P' ? 'Private' : 'Shared', 'matching:', matchingVehicles.length);
     }
     
     // ==================== DESTINATION TAGS FUNCTIONALITY ====================
@@ -6407,18 +6555,7 @@
     }
     
     function updateHeaderDisplays() {
-        const startEl = getHeaderStartInput();
-        const endEl = getHeaderEndInput();
-        const startDisplay = document.getElementById('tourStartDateDisplay');
-        const endDisplay = document.getElementById('tourEndDateDisplay');
-        if (startDisplay) {
-            startDisplay.textContent = '';
-            startDisplay.style.display = 'none';
-        }
-        if (endDisplay) {
-            endDisplay.textContent = '';
-            endDisplay.style.display = 'none';
-        }
+        // Date displays removed - no longer showing formatted dates in header
     }
     
     function setHeaderInputValue(inputEl, isoValue) {
@@ -7998,6 +8135,9 @@
         console.log('Current header dates AFTER scan:');
         console.log('  Start:', startInput ? startInput.value : '');
         console.log('  End:', endInput ? endInput.value : '');
+        
+        // Update the date display elements after scanning
+        updateHeaderDisplays();
     }
     
     // Function to load existing orders from backend into JavaScript arrays (FRESH JSON FORMAT)
@@ -14792,6 +14932,7 @@
                         <option value="{{ $vehicle->vehicle_id }}" 
                             data-type="{{ $vehicle->vehicle_type }}"
                             data-seating="{{ $vehicle->seating_capacity }}"
+                            data-city-tour-seating="{{ $vehicle->city_tour_seating_capacity ?? $vehicle->seating_capacity }}"
                             data-base-price="{{ $vehicle->base_price ?? 0 }}"
                             data-sharable-price="{{ $vehicle->sharable_base_price ?? 0 }}"
                             data-sharable="{{ $vehicle->sharable ?? 3 }}">
@@ -14837,6 +14978,11 @@
                     data.attractions.forEach(attr => {
                         console.log('Attraction:', attr.name, 'Tickets:', attr.tickets);
                         
+                        // Determine attraction type and label
+                        const attractionType = attr.attraction_type ?? 1;
+                        const isAttraction = (attractionType == 2);
+                        const typeLabel = isAttraction ? 'Attraction' : 'Tour Sites';
+                        
                         // If attraction has tickets, create a row for each ticket
                         if (attr.tickets && attr.tickets.length > 0) {
                             attr.tickets.forEach(ticket => {
@@ -14844,12 +14990,13 @@
                                 const uniqueId = `${attr.id}_${ticket.ticket_id}`;
                                 
                                 html += `
-                                    <tr class="attraction-row" data-attraction-id="${attr.id}" data-attraction-name="${attr.name}" data-ticket-id="${ticket.ticket_id}" data-ticket-name="${ticket.name}">
+                                    <tr class="attraction-row" data-attraction-id="${attr.id}" data-attraction-name="${attr.name}" data-ticket-id="${ticket.ticket_id}" data-ticket-name="${ticket.name}" data-attraction-type="${attractionType}">
                                         <td style="padding: 2px 8px; text-align: center;">
                                             <input type="checkbox" class="attraction-checkbox" data-attr-id="${attr.id}" data-ticket-id="${ticket.ticket_id}" data-unique-id="${uniqueId}">
                                         </td>
                                         <td style="padding: 2px 8px;">
                                             ${displayName}
+                                            <br><small class="text-muted" style="font-size: 9px;">(${typeLabel})</small>
                                         </td>
                                         <td style="padding: 2px 8px;">
                                             <input type="number" class="form-control form-control-sm attraction-adult-qty" data-attr-id="${attr.id}" data-ticket-id="${ticket.ticket_id}" data-unique-id="${uniqueId}" value="${headerValues.adults || 0}" min="0" style="font-size: 10px; padding: 2px 4px; text-align: center;">
@@ -14870,7 +15017,7 @@
                                             <input type="text" class="form-control form-control-sm attraction-infant-charge" data-attr-id="${attr.id}" data-ticket-id="${ticket.ticket_id}" data-unique-id="${uniqueId}" value="SGD 0.00" style="font-size: 10px; padding: 2px 4px;">
                                         </td>
                                         <td style="padding: 2px 8px; text-align: center;">
-                                            <input type="checkbox" class="form-check-input attraction-transfer-checkbox" data-attr-id="${attr.id}" data-ticket-id="${ticket.ticket_id}" data-unique-id="${uniqueId}" checked>
+                                            <input type="checkbox" class="form-check-input attraction-transfer-checkbox" data-attr-id="${attr.id}" data-ticket-id="${ticket.ticket_id}" data-unique-id="${uniqueId}" ${isAttraction ? 'checked' : ''} onchange="onAttractionTransferCheckboxChange(this)">
                                         </td>
                                         <td style="padding: 2px 8px;">
                                             <select class="form-select form-select-sm attraction-transfer-destination" data-attr-id="${attr.id}" data-ticket-id="${ticket.ticket_id}" data-unique-id="${uniqueId}" style="font-size: 10px; padding: 2px 4px;">
@@ -14914,12 +15061,13 @@
                         } else {
                             // If no tickets, create a row with attraction name only (fallback)
                             html += `
-                                <tr class="attraction-row" data-attraction-id="${attr.id}" data-attraction-name="${attr.name}" data-ticket-id="0" data-ticket-name="">
+                                <tr class="attraction-row" data-attraction-id="${attr.id}" data-attraction-name="${attr.name}" data-ticket-id="0" data-ticket-name="" data-attraction-type="${attractionType}">
                                     <td style="padding: 2px 8px; text-align: center;">
                                         <input type="checkbox" class="attraction-checkbox" data-attr-id="${attr.id}" data-ticket-id="0" data-unique-id="${attr.id}_0">
                                     </td>
                                     <td style="padding: 2px 8px;">
                                         ${attr.name}
+                                        <br><small class="text-muted" style="font-size: 9px;">(${typeLabel})</small>
                                     </td>
                                     <td style="padding: 2px 8px;">
                                         <input type="number" class="form-control form-control-sm attraction-adult-qty" data-attr-id="${attr.id}" data-ticket-id="0" data-unique-id="${attr.id}_0" value="${headerValues.adults || 0}" min="0" style="font-size: 10px; padding: 2px 4px; text-align: center;">
@@ -14940,7 +15088,7 @@
                                         <input type="text" class="form-control form-control-sm attraction-infant-charge" data-attr-id="${attr.id}" data-ticket-id="0" data-unique-id="${attr.id}_0" value="SGD 0.00" style="font-size: 10px; padding: 2px 4px;">
                                     </td>
                                     <td style="padding: 2px 8px; text-align: center;">
-                                        <input type="checkbox" class="form-check-input attraction-transfer-checkbox" data-attr-id="${attr.id}" data-ticket-id="0" data-unique-id="${attr.id}_0" checked>
+                                        <input type="checkbox" class="form-check-input attraction-transfer-checkbox" data-attr-id="${attr.id}" data-ticket-id="0" data-unique-id="${attr.id}_0" ${isAttraction ? 'checked' : ''} onchange="onAttractionTransferCheckboxChange(this)">
                                     </td>
                                     <td style="padding: 2px 8px;">
                                         <select class="form-select form-select-sm attraction-transfer-destination" data-attr-id="${attr.id}" data-ticket-id="0" data-unique-id="${attr.id}_0" style="font-size: 10px; padding: 2px 4px;">
@@ -15056,19 +15204,15 @@
                         }
                     });
                     
-                    // Set default vehicle for all attraction vehicle dropdowns (based on vehicle type like arrival/departure)
-                    const vehicleSelects = tbody.querySelectorAll('.attraction-vehicle-type');
-                    if (window.defaultValues && window.defaultValues.car_shared) {
-                        vehicleSelects.forEach(vehicleSelect => {
-                            const vehicleOption = Array.from(vehicleSelect.options).find(opt => 
-                                String(opt.value) === String(window.defaultValues.car_shared)
-                            );
-                            if (vehicleOption) {
-                                vehicleSelect.value = vehicleOption.value;
-                                console.log('✓ Set default vehicle in attraction popup:', vehicleOption.value);
-                            }
+                    // Auto-select vehicle for all attraction rows based on pax and seat_capacity
+                    // This filters vehicles by service type (Shared by default) and selects the first matching vehicle
+                    const transferTypeSelects = tbody.querySelectorAll('.attraction-transfer-type');
+                    setTimeout(() => {
+                        transferTypeSelects.forEach(transferTypeSelect => {
+                            filterAttractionVehiclesByServiceType(transferTypeSelect);
                         });
-                    }
+                        console.log('✓ Auto-selected vehicles in attraction popup based on pax and seat capacity');
+                    }, 100);
                 } else {
                     tbody.innerHTML = '<tr><td colspan="15" class="text-center text-muted" style="padding: 20px;">No attractions found for this destination</td></tr>';
                 }
@@ -16278,6 +16422,19 @@
             destinationSelect.value = '';
         }
         
+        // Reset location select to first attraction (default)
+        const locationSelect = document.getElementById('guideLocation');
+        if (locationSelect) {
+            // Find the first option in the Attractions optgroup and select it
+            const attractionsOptgroup = locationSelect.querySelector('optgroup[label="Attractions"]');
+            if (attractionsOptgroup) {
+                const firstAttraction = attractionsOptgroup.querySelector('option');
+                if (firstAttraction) {
+                    locationSelect.value = firstAttraction.value;
+                }
+            }
+        }
+        
         // Set default date
         const guideDate = document.getElementById('guideDate');
         if (guideDate) {
@@ -16534,10 +16691,17 @@
             const totalCost = baseCost; // Fixed price for selected hours, not multiplied by pax
             const totalSell = baseSell; // Fixed price for selected hours, not multiplied by pax
             
+            // Get location data from the guide modal
+            const locationSelect = document.getElementById('guideLocation');
+            const locationOption = locationSelect?.selectedOptions[0];
+            const locationId = locationSelect?.value || '';
+            const locationName = locationOption?.getAttribute('data-name') || '';
+            const locationType = locationOption?.getAttribute('data-type') || 'attraction'; // Default to attraction
+            
             const guideData = {
                 id: generateId('guide'),
                 dateTime: dateTime,
-                tourName: `Guide Service - ${guideName}`,
+                tourName: `${locationName || 'Guide Service'} - ${guideName}`,
                 language: languages,
                 name: guideName,
                 hours: hours || 12, // Default to 12 hours if not specified
@@ -16551,7 +16715,11 @@
                 childCost: childCost,
                 childSell: childSell,
                 isStandalone: true,
-                guideId: guideId
+                guideId: guideId,
+                // Location data
+                locationId: locationId,
+                locationName: locationName,
+                locationType: locationType
             };
             
             console.log('Adding guide:', guideData);
@@ -16639,10 +16807,17 @@
             const totalCost = baseCost; // Fixed price for selected hours, not multiplied by pax
             const totalSell = baseSell; // Fixed price for selected hours, not multiplied by pax
             
+            // Get location data from the guide modal
+            const locationSelect = document.getElementById('guideLocation');
+            const locationOption = locationSelect?.selectedOptions[0];
+            const locationId = locationSelect?.value || '';
+            const locationName = locationOption?.getAttribute('data-name') || '';
+            const locationType = locationOption?.getAttribute('data-type') || 'attraction'; // Default to attraction
+            
             const guideData = {
                 id: generateId('guide'),
                 dateTime: dateTime,
-                tourName: `Guide Service - ${guideName}`,
+                tourName: `${locationName || 'Guide Service'} - ${guideName}`,
                 language: languages,
                 name: guideName,
                 hours: hours || 12, // Default to 12 hours if not specified
@@ -16656,7 +16831,11 @@
                 childCost: childCost,
                 childSell: childSell,
                 isStandalone: true,
-                guideId: guideId
+                guideId: guideId,
+                // Location data
+                locationId: locationId,
+                locationName: locationName,
+                locationType: locationType
             };
             
             guideList.push(guideData);
@@ -16855,6 +17034,12 @@
         const destinationSelect = document.getElementById('guideDestination');
         if (destinationSelect && guide.destination) {
             destinationSelect.value = guide.destination;
+        }
+        
+        // Set location
+        const locationSelect = document.getElementById('guideLocation');
+        if (locationSelect && guide.locationId) {
+            locationSelect.value = guide.locationId;
         }
         
         // Set date
@@ -17917,32 +18102,16 @@
                     // selectDefaultHotel will prioritize accommodation list hotels
                     selectDefaultHotel(destSelect, defaultHotel);
                     
-                    // Set default vehicle type to Shared
-                    const vehicleTypeSelect = document.getElementById('restaurantTransferVehicleType');
-                    if (vehicleTypeSelect) {
-                        vehicleTypeSelect.value = 'S';
-                        if (window.jQuery && jQuery(vehicleTypeSelect).hasClass('select2-hidden-accessible')) {
-                            jQuery(vehicleTypeSelect).val('S').trigger('change');
-                        }
+                    // Set default transfer type to Shared
+                    const transferTypeSelect = document.getElementById('restaurantTransferType');
+                    if (transferTypeSelect) {
+                        transferTypeSelect.value = 'S';
                     }
                     
-                    // Set default vehicle if available
-                    if (window.defaultValues && window.defaultValues.car_shared) {
-                        setTimeout(() => {
-                            if (vehicleTypeSelect) {
-                                const vehicleOption = Array.from(vehicleTypeSelect.options).find(opt => 
-                                    String(opt.value) === String(window.defaultValues.car_shared)
-                                );
-                                if (vehicleOption) {
-                                    vehicleTypeSelect.value = vehicleOption.value;
-                                    if (window.jQuery && jQuery(vehicleTypeSelect).hasClass('select2-hidden-accessible')) {
-                                        jQuery(vehicleTypeSelect).val(vehicleOption.value).trigger('change');
-                                    }
-                                    console.log('✓ Selected default vehicle in restaurant transfer:', window.defaultValues.car_shared);
-                                }
-                            }
-                        }, 100);
-                    }
+                    // Auto-select vehicle based on pax and seat_capacity using the filter function
+                    setTimeout(() => {
+                        filterRestaurantVehiclesByServiceType();
+                    }, 50);
                 }
             }, 100);
         } else {
@@ -18121,6 +18290,26 @@
         });
         
         console.log(`Loaded ${filteredRestaurants.length} restaurant(s) for ${destination}`);
+        
+        // Auto-select default restaurant if available
+        if (window.defaultValues && window.defaultValues.restaurant) {
+            const defaultRestaurantId = String(window.defaultValues.restaurant);
+            const defaultRestaurantOption = Array.from(restaurantSelect.options).find(opt => 
+                String(opt.value) === defaultRestaurantId
+            );
+            if (defaultRestaurantOption) {
+                restaurantSelect.value = defaultRestaurantOption.value;
+                console.log('✓ Auto-selected default restaurant:', defaultRestaurantId);
+                // Trigger change event to load meals automatically
+                setTimeout(() => {
+                    if (typeof updateMealsFromRestaurant === 'function') {
+                        updateMealsFromRestaurant();
+                    }
+                }, 100);
+            } else {
+                console.log('Default restaurant not found in filtered restaurants for this destination');
+            }
+        }
     }
     
     // Update meals from selected restaurant
@@ -20511,40 +20700,10 @@
                 }
             }
             
-            // Set default vehicle type to Shared
-            const localVehicleTypeSelect = document.getElementById('localVehicleType');
-            if (localVehicleTypeSelect) {
-                // Find Shared vehicle option (vehicles with sharable attribute or type 'shared')
-                const sharedOption = Array.from(localVehicleTypeSelect.options).find(opt => {
-                    const vehicleType = (opt.getAttribute('data-type') || '').toLowerCase();
-                    const sharable = opt.getAttribute('data-sharable') || '';
-                    return vehicleType === 'shared' || sharable === '1' || sharable === '3';
-                });
-                
-                if (sharedOption) {
-                    localVehicleTypeSelect.value = sharedOption.value;
-                    if (window.jQuery && jQuery(localVehicleTypeSelect).hasClass('select2-hidden-accessible')) {
-                        jQuery(localVehicleTypeSelect).val(sharedOption.value).trigger('change');
-                    }
-                    console.log('✓ Selected default vehicle type (Shared) in local transfer');
-                }
-            }
-            
-            // Set default vehicle if available
-            if (window.defaultValues && window.defaultValues.car_shared && localVehicleTypeSelect) {
-                setTimeout(() => {
-                    const vehicleOption = Array.from(localVehicleTypeSelect.options).find(opt => 
-                        String(opt.value) === String(window.defaultValues.car_shared)
-                    );
-                    if (vehicleOption) {
-                        localVehicleTypeSelect.value = vehicleOption.value;
-                        if (window.jQuery && jQuery(localVehicleTypeSelect).hasClass('select2-hidden-accessible')) {
-                            jQuery(localVehicleTypeSelect).val(vehicleOption.value).trigger('change');
-                        }
-                        console.log('✓ Selected default vehicle in local transfer:', window.defaultValues.car_shared);
-                    }
-                }, 200);
-            }
+            // Auto-select vehicle based on pax and seat_capacity using the filter function
+            setTimeout(() => {
+                filterLocalTransferVehiclesByServiceType();
+            }, 50);
         }, 300);
         
         const transferModal = new bootstrap.Modal(document.getElementById('transferModal'));
@@ -23751,8 +23910,8 @@
                 languagesValue = languagesValue ? [languagesValue] : [];
             }
             
-            // Get tour activity
-            const tourActivityValue = guide.tourName || guide.tourActivity || `Guide Service - ${guide.name || guide.guideName || ''}`;
+            // Get tour activity - use locationName if available, otherwise fall back to Guide Service
+            const tourActivityValue = guide.tourName || guide.tourActivity || `${guide.locationName || 'Guide Service'} - ${guide.name || guide.guideName || ''}`;
             
             return {
                 id: guide.id || `guide-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
@@ -25797,15 +25956,32 @@
                 // Parse the data field if it's a string
                 let orderData = typeof order.data === 'string' ? JSON.parse(order.data) : order.data;
                 
-                // IMPORTANT: The data field is stored as an array with a single object
-                // Extract the first element if it's an array
+                // Map order types (database uses different names than frontend)
+                const orderType = order.type.toLowerCase();
+                
+                // For hotel orders, process all hotels in the array (data can contain multiple hotels)
+                if (orderType === 'hotel' || orderType === 'hotels' || orderType === 'accommodation') {
+                    // Handle both array and single object formats
+                    const hotelDataArray = Array.isArray(orderData) ? orderData : [orderData];
+                    
+                    console.log(`Processing ${hotelDataArray.length} hotel(s) in order ${order.id}`);
+                    
+                    // Process each hotel in the array
+                    hotelDataArray.forEach((hotelData, hotelIndex) => {
+                        if (hotelData) {
+                            console.log(`Loading hotel ${hotelIndex + 1} of ${hotelDataArray.length} from order ${order.id}:`, hotelData.hotelName || hotelData.hotel_name);
+                            loadHotelOrder(hotelData, order);
+                        }
+                    });
+                    return; // Skip to next order
+                }
+                
+                // For other order types, extract the first element if it's an array
+                // IMPORTANT: The data field is stored as an array with a single object for non-hotel orders
                 if (Array.isArray(orderData) && orderData.length > 0) {
                     orderData = orderData[0];
                     console.log('Extracted first element from data array:', orderData);
                 }
-                
-                // Map order types (database uses different names than frontend)
-                const orderType = order.type.toLowerCase();
                 
                 // Check if this is a local_transport order linked to a hotel
                 const isLinkedTransport = (orderType === 'transfer' || orderType === 'transfers' || 
@@ -25831,12 +26007,6 @@
                     case 'departure':
                     case 'departures':
                         loadDepartureOrder(orderData, order);
-                        break;
-                    
-                    case 'hotel':
-                    case 'hotels':
-                    case 'accommodation':
-                        loadHotelOrder(orderData, order);
                         break;
                     
                     case 'tour':
