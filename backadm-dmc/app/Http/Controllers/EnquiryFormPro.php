@@ -731,10 +731,18 @@ class EnquiryFormPro extends Controller
                       ->where('is_active', 1)
                       ->where('is_complete', 1)
                       ->where('city', $destination)
-                      ->with(['rooms' => function($query) {
-                          $query->where('status', 1)
-                                ->with(['beds' => function($bedQuery) {
+                      ->with(['rooms' => function($query) use ($dmc_id) {
+                          $query->where('status', 1);
+                          // Filter rooms by created_by if DMC ID is available
+                          if ($dmc_id) {
+                              $query->where('created_by', $dmc_id);
+                          }
+                          $query->with(['beds' => function($bedQuery) use ($dmc_id) {
                                     $bedQuery->where('is_active', 1);
+                                    // Filter beds by dmc_id if available
+                                    if ($dmc_id) {
+                                        $bedQuery->where('dmc_id', $dmc_id);
+                                    }
                                 }])
                                 ->orderBy('room_type', 'asc');
                       }]);
