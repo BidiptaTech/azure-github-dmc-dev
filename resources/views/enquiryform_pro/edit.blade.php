@@ -2359,11 +2359,11 @@
                 <!-- Top Controls -->
                 <div class="border-bottom p-2" style="background: #f8f9fa;">
                     <div class="row g-2">
-                        <div class="col-md-6">
+                        <div class="col-md-4">
                             <label class="form-label small mb-0" style="font-size: 11px; font-weight: 600;">Date & Time:</label>
                             <input type="datetime-local" class="form-control form-control-sm" id="tourDateTime" style="font-size: 11px;">
                         </div>
-                        <div class="col-md-6">
+                        <div class="col-md-4">
                             <label class="form-label small mb-0" style="font-size: 11px; font-weight: 600;">Destination:</label>
                             <select class="form-select form-select-sm" id="tourDestination" onchange="loadAttractionsByDestination()" style="font-size: 11px;">
                                 <option value="">Select Destination</option>
@@ -2371,6 +2371,23 @@
                                     <option value="{{ $dest->name }}">{{ $dest->name }}</option>
                                 @endforeach
                             </select>
+                        </div>
+                        <div class="col-md-4">
+                            <label class="form-label small mb-0" style="font-size: 11px; font-weight: 600;">Filter By Type:</label>
+                            <div class="d-flex gap-2 mt-1">
+                                <div class="form-check form-check-inline mb-0">
+                                    <input class="form-check-input" type="radio" name="attractionTypeFilter" id="filterAttraction" value="attraction" checked onchange="filterAttractionsByType()">
+                                    <label class="form-check-label small" for="filterAttraction" style="font-size: 10px;">Attractions</label>
+                                </div>
+                                <div class="form-check form-check-inline mb-0">
+                                    <input class="form-check-input" type="radio" name="attractionTypeFilter" id="filterTourSite" value="toursite" onchange="filterAttractionsByType()">
+                                    <label class="form-check-label small" for="filterTourSite" style="font-size: 10px;">Tour Sites</label>
+                                </div>
+                                <div class="form-check form-check-inline mb-0">
+                                    <input class="form-check-input" type="radio" name="attractionTypeFilter" id="filterAll" value="all" onchange="filterAttractionsByType()">
+                                    <label class="form-check-label small" for="filterAll" style="font-size: 10px;">All</label>
+                                </div>
+                            </div>
                         </div>
                     </div>
                 </div>
@@ -2877,62 +2894,40 @@
                     <!-- Guide Details (shown when checkbox is checked) -->
                     <div id="restaurantGuideDetailsSection" style="display: none;">
                         <div class="row g-2 mb-1">
-                            <div class="col-5">
+                            <div class="col-6">
                                 <label class="form-label small fw-bold">Select Guide</label>
                             </div>
                             <div class="col-3">
-                                <label class="form-label small fw-bold">Hours</label>
-                            </div>
-                            <div class="col-2">
                                 <label class="form-label small fw-bold">Adult Count</label>
                             </div>
-                            <div class="col-2">
+                            <div class="col-3">
                                 <label class="form-label small fw-bold">Child Count</label>
                             </div>
                         </div>
                         <div class="row g-2 mb-1">
-                            <div class="col-5">
-                                <label class="form-label small">Select Guide</label>
+                            <div class="col-6">
+                                <label class="form-label small">Select Guide <small class="text-muted">(Full Day - 12 Hours)</small></label>
                                 <select class="form-select form-select-sm" id="restaurantGuideSelect" style="font-size: 10px;" onchange="updateRestaurantGuidePricing()">
                                     <option value="">Select Guide</option>
                                     @foreach($guides as $guide)
                                         @php
                                             $languages = $guide->languages->pluck('language')->join(', ');
-                                            $twoHourPrice = $guide->two_hour_price ?? 0;
-                                            $fourHourPrice = $guide->four_hour_price ?? 0;
-                                            $sixHourPrice = $guide->six_hour_price ?? 0;
-                                            $eightHourPrice = $guide->eight_hour_price ?? 0;
-                                            $tenHourPrice = $guide->ten_hour_price ?? 0;
                                             $twelveHourPrice = $guide->twelve_hour_price ?? $guide->day_rate ?? 0;
                                         @endphp
                                         <option value="{{ $guide->guide_id }}" 
                                                 data-name="{{ $guide->name }}" 
                                                 data-languages="{{ $languages }}"
-                                                data-two-hour-price="{{ $twoHourPrice }}"
-                                                data-four-hour-price="{{ $fourHourPrice }}"
-                                                data-six-hour-price="{{ $sixHourPrice }}"
-                                                data-eight-hour-price="{{ $eightHourPrice }}"
-                                                data-ten-hour-price="{{ $tenHourPrice }}"
                                                 data-twelve-hour-price="{{ $twelveHourPrice }}">{{ $guide->name }} @if($languages)({{ $languages }})@endif</option>
                                     @endforeach
                                 </select>
+                                <!-- Hidden hours field - always set to 12 (full day) -->
+                                <input type="hidden" id="restaurantGuideHours" value="12">
                             </div>
                             <div class="col-3">
-                                <label class="form-label small">Hours</label>
-                                <select class="form-select form-select-sm" id="restaurantGuideHours" style="font-size: 10px;" onchange="updateRestaurantGuidePricing()">
-                                    <option value="2">2 Hours</option>
-                                    <option value="4">4 Hours</option>
-                                    <option value="6">6 Hours</option>
-                                    <option value="8">8 Hours</option>
-                                    <option value="10">10 Hours</option>
-                                    <option value="12" selected>12 Hours</option>
-                                </select>
-                            </div>
-                            <div class="col-2">
                                 <label class="form-label small">Adult Qty</label>
                                 <input type="number" class="form-control form-control-sm" id="restaurantGuideAdultQty" value="0" min="0" max="99" style="font-size: 10px;">
                             </div>
-                            <div class="col-2">
+                            <div class="col-3">
                                 <label class="form-label small">Child Qty</label>
                                 <input type="number" class="form-control form-control-sm" id="restaurantGuideChildQty" value="0" min="0" max="99" style="font-size: 10px;">
                             </div>
@@ -3140,62 +3135,40 @@
                         <!-- Guide Details (shown when checkbox is checked) -->
                         <div id="localTransportGuideDetailsSection" style="display: none;">
                             <div class="row g-2 mb-1">
-                                <div class="col-5">
+                                <div class="col-6">
                                     <label class="form-label small fw-bold">Select Guide</label>
                                 </div>
                                 <div class="col-3">
-                                    <label class="form-label small fw-bold">Hours</label>
-                                </div>
-                                <div class="col-2">
                                     <label class="form-label small fw-bold">Adult Count</label>
                                 </div>
-                                <div class="col-2">
+                                <div class="col-3">
                                     <label class="form-label small fw-bold">Child Count</label>
                                 </div>
                             </div>
                             <div class="row g-2 mb-1">
-                                <div class="col-5">
-                                    <label class="form-label small">Select Guide</label>
+                                <div class="col-6">
+                                    <label class="form-label small">Select Guide <small class="text-muted">(Full Day - 12 Hours)</small></label>
                                     <select class="form-select form-select-sm" id="localTransportGuideSelect" style="font-size: 10px;" onchange="updateLocalTransportGuidePricing()">
                                         <option value="">Select Guide</option>
                                         @foreach($guides as $guide)
                                             @php
                                                 $languages = $guide->languages->pluck('language')->join(', ');
-                                                $twoHourPrice = $guide->two_hour_price ?? 0;
-                                                $fourHourPrice = $guide->four_hour_price ?? 0;
-                                                $sixHourPrice = $guide->six_hour_price ?? 0;
-                                                $eightHourPrice = $guide->eight_hour_price ?? 0;
-                                                $tenHourPrice = $guide->ten_hour_price ?? 0;
                                                 $twelveHourPrice = $guide->twelve_hour_price ?? $guide->day_rate ?? 0;
                                             @endphp
                                             <option value="{{ $guide->guide_id }}" 
                                                     data-name="{{ $guide->name }}" 
                                                     data-languages="{{ $languages }}"
-                                                    data-two-hour-price="{{ $twoHourPrice }}"
-                                                    data-four-hour-price="{{ $fourHourPrice }}"
-                                                    data-six-hour-price="{{ $sixHourPrice }}"
-                                                    data-eight-hour-price="{{ $eightHourPrice }}"
-                                                    data-ten-hour-price="{{ $tenHourPrice }}"
                                                     data-twelve-hour-price="{{ $twelveHourPrice }}">{{ $guide->name }} @if($languages)({{ $languages }})@endif</option>
                                         @endforeach
                                     </select>
+                                    <!-- Hidden hours field - always set to 12 (full day) -->
+                                    <input type="hidden" id="localTransportGuideHours" value="12">
                                 </div>
                                 <div class="col-3">
-                                    <label class="form-label small">Hours</label>
-                                    <select class="form-select form-select-sm" id="localTransportGuideHours" style="font-size: 10px;" onchange="updateLocalTransportGuidePricing()">
-                                        <option value="2">2 Hours</option>
-                                        <option value="4">4 Hours</option>
-                                        <option value="6">6 Hours</option>
-                                        <option value="8">8 Hours</option>
-                                        <option value="10">10 Hours</option>
-                                        <option value="12" selected>12 Hours</option>
-                                    </select>
-                                </div>
-                                <div class="col-2">
                                     <label class="form-label small">Adult Qty</label>
                                     <input type="number" class="form-control form-control-sm" id="localTransportGuideAdultQty" value="0" min="0" max="99" style="font-size: 10px;">
                                 </div>
-                                <div class="col-2">
+                                <div class="col-3">
                                     <label class="form-label small">Child Qty</label>
                                     <input type="number" class="form-control form-control-sm" id="localTransportGuideChildQty" value="0" min="0" max="99" style="font-size: 10px;">
                                 </div>
@@ -4433,6 +4406,9 @@
         }
         
         console.log('Filtered arrival vehicles for service type:', serviceType === 'P' ? 'Private' : 'Shared', 'matching:', matchingVehicles.length);
+        
+        // Update pricing after vehicle selection changes
+        updateArrivalVehiclePricing();
     }
     
     // Filter departure vehicles based on service type (Private/Shared)
@@ -4514,6 +4490,9 @@
         }
         
         console.log('Filtered departure vehicles for service type:', serviceType === 'P' ? 'Private' : 'Shared', 'matching:', matchingVehicles.length);
+        
+        // Update pricing after vehicle selection changes
+        updateDepartureVehiclePricing();
     }
     
     // Toggle hotel transfer fields visibility
@@ -5015,6 +4994,34 @@
         }
         
         console.log('Filtered local transfer vehicles for service type:', serviceType === 'P' ? 'Private' : 'Shared', 'matching:', matchingVehicles.length);
+        
+        // Update local transfer pricing after vehicle selection changes
+        updateLocalTransferVehiclePricing();
+    }
+    
+    // Update local transfer vehicle pricing when vehicle or type changes
+    function updateLocalTransferVehiclePricing() {
+        const vehicleSelect = document.getElementById('localVehicleType');
+        const selectedOption = vehicleSelect?.options[vehicleSelect?.selectedIndex];
+        
+        if (selectedOption && selectedOption.value) {
+            const transferType = document.getElementById('localType')?.value || 'S';
+            const transferWay = document.getElementById('localWay')?.value || 'one-way';
+            const basePrice = transferType === 'S' 
+                ? parseFloat(selectedOption.dataset.sharablePrice || 0)
+                : parseFloat(selectedOption.dataset.basePrice || 0);
+            
+            // Store the vehicle price for later use
+            vehicleSelect.dataset.currentPrice = basePrice;
+            
+            console.log('Local transfer vehicle selected:', {
+                vehicle: selectedOption.text,
+                type: transferType,
+                way: transferWay,
+                price: basePrice,
+                seating: selectedOption.dataset.seating
+            });
+        }
     }
     
     // ==================== DESTINATION TAGS FUNCTIONALITY ====================
@@ -15186,6 +15193,10 @@
                             filterAttractionVehiclesByServiceType(transferTypeSelect);
                         });
                         console.log('✓ Auto-selected vehicles in attraction popup based on pax and seat capacity');
+                        
+                        // Apply the attraction type filter based on radio button selection (default: attractions only)
+                        filterAttractionsByType();
+                        console.log('✓ Applied attraction type filter');
                     }, 100);
                 } else {
                     tbody.innerHTML = '<tr><td colspan="15" class="text-center text-muted" style="padding: 20px;">No attractions found for this destination</td></tr>';
@@ -15197,16 +15208,29 @@
             });
     }
     
-    // Filter attractions by type
+    // Filter attractions by type (attraction_type: 1 = Tour Sites, 2 = Attraction)
     function filterAttractionsByType(type) {
+        // If no type passed, get from radio button
+        if (!type) {
+            const selectedRadio = document.querySelector('input[name="attractionTypeFilter"]:checked');
+            type = selectedRadio ? selectedRadio.value : 'attraction';
+        }
+        
         const rows = document.querySelectorAll('.attraction-row');
         
         if (type === 'all') {
             rows.forEach(row => row.style.display = '');
-        } else {
+        } else if (type === 'attraction') {
+            // Show only attractions (attraction_type = 2)
             rows.forEach(row => {
                 const rowType = row.getAttribute('data-attraction-type');
-                row.style.display = (rowType === type) ? '' : 'none';
+                row.style.display = (rowType === '2') ? '' : 'none';
+            });
+        } else if (type === 'toursite') {
+            // Show only tour sites (attraction_type = 1)
+            rows.forEach(row => {
+                const rowType = row.getAttribute('data-attraction-type');
+                row.style.display = (rowType === '1') ? '' : 'none';
             });
         }
     }
@@ -19625,13 +19649,18 @@
                 dateTimeValue = dateTimeValue + 'T' + defaultTime;
             }
             
+            // Format meal type for display (capitalize first letter)
+            const displayMealType = meal.mealType ? (meal.mealType.charAt(0).toUpperCase() + meal.mealType.slice(1)) : 'Meal';
+            // Use mealName for dish name, fallback to mealType if not available
+            const displayMealName = meal.mealName || displayMealType;
+            
             return `
             <tr>
                 <td><input type="checkbox" class="meal-checkbox" value="${meal.id}"></td>
                 <td><input type="datetime-local" value="${dateTimeValue}" onchange="updateMealField(${index}, 'dateTime', this.value)" style="width: 130px; font-size: 11px; padding: 2px 4px;"></td>
                 <td>
                     <a href="javascript:void(0)" onclick="editMeal(${index})" style="color: #0d6efd; text-decoration: underline; cursor: pointer;">
-                        ${meal.restaurantName || 'Restaurant'} - ${meal.mealType || meal.mealName || 'Meal'}
+                        ${meal.restaurantName || 'Restaurant'} - ${displayMealName} (${displayMealType})
                     </a>
                 </td>
                 <td><input type="number" value="${meal.adultsQty}" onchange="updateMealField(${index}, 'adultsQty', this.value)"></td>
@@ -21370,7 +21399,7 @@
     // Calculate transfer price based on type and way
     function calculateTransferPrice(zonePrice, type, way, adults, child, vehicleOption = null) {
         let basePrice = 0;
-        const totalPax = (parseInt(adults) || 0) + (parseInt(child) || 0);
+        const totalPax = Math.max(1, (parseInt(adults) || 0) + (parseInt(child) || 0));
         
         // Get zone prices
         let zonePrivatePrice = zonePrice.private_price || 0;
@@ -21382,15 +21411,15 @@
         
         // Get base price based on type (SIC or Private)
         if (type === 'S' || type === 'sic' || type === 'Shared') {
-            // Shared prices are already per person - use directly without multiplying
-            basePrice = zoneSharedPrice || 0;
+            // Shared prices are per person - multiply by total passengers
+            basePrice = (zoneSharedPrice || 0) * totalPax;
         } else {
             // Private prices are fixed for the vehicle (not per person)
             basePrice = zonePrivatePrice || 0;
         }
         
         // Apply way multiplier (both-way = 2x, one-way = 1x)
-        if (way === 'both-way' || way === 'both') {
+        if (way === 'both-way' || way === 'both' || way === '2-way' || way === 'Two Way' || way === 'Both Way') {
             basePrice = basePrice * 2;
         }
         
@@ -21405,7 +21434,8 @@
             sell: sellPrice,
             basePrice: basePrice,
             sharedPrice: zoneSharedPrice,
-            privatePrice: zonePrivatePrice
+            privatePrice: zonePrivatePrice,
+            totalPax: totalPax
         };
     }
     
