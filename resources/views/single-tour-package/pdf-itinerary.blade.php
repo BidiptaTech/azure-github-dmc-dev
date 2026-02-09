@@ -1019,7 +1019,12 @@
             $base = (float) $amount;
             if ($isTriple && $base <= 0) return 'N/A';
             $existing = number_format($base, 0);
-            if ($selectedCurrency === $baseCurrency) return $existing;
+
+            // Show currency code even when selected currency is the base currency (e.g. "SGD 400")
+            if ($selectedCurrency === $baseCurrency) {
+                return $selectedCurrency . ' ' . $existing;
+            }
+
             $converted = number_format(ceil($exchangeRate * $base), 0);
             return $existing .' '.$baseCurrency. ' (' . $converted . ' '.$selectedCurrency.')';
         };
