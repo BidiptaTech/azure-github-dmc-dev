@@ -1801,7 +1801,18 @@ class SingleTourPackageController extends Controller
                 ->where(function ($q) use ($city) {
                     $q->whereRaw('LOWER(city) = ?', [strtolower($city)]);
                 })
-                ->select('hotel_unique_id', 'name', 'city', 'main_image', 'hotel_star_rating', 'latitude', 'longitude', 'check_in_time', 'check_out_time')
+                ->select(
+                    'hotel_unique_id',
+                    'name',
+                    'city',
+                    'main_image',
+                    'hotel_star_rating',
+                    'latitude',
+                    'longitude',
+                    'check_in_time',
+                    'check_out_time',
+                    'weekend_days'
+                )
                 ->orderBy('name')
                 ->get();
 
