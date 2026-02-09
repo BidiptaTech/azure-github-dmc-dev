@@ -1321,9 +1321,11 @@
                             <th>Adults per Rm</th>
                             <th>Cost</th>
                             <th>Sell</th>
-                            <th>Extra Bed</th>
+                            <th>Extra Bed Price</th>
                             <th>CWB</th>
+                            <th>CWB Price</th>
                             <th>CNB</th>
+                            <th>CNB Price</th>
                             <th>Infant</th>
                             <th>Supplement</th>
                         </tr>
@@ -10645,7 +10647,9 @@
             sell: singleSell || combo.price || 0,
             extraBedPrice: combo.extraBedPrice || 0,
             cwb: combo.extraBed || 0,
+            cwbPrice: calculateChildPricing(combo, true) || 0,
             cnb: combo.childWithoutBed || 0,
+            cnbPrice: calculateChildPricing(combo, false) || 0,
             infant: 0, // Infant count per room combination (can be set per room if needed)
             // Store room and bed data for reference
             roomData: combo.roomData,
@@ -12219,7 +12223,7 @@
 
         // Close modal
         const accommodationModal = bootstrap.Modal.getInstance(document.getElementById('accommodationModal'));
-        accommodationModal.hide();
+        if (accommodationModal) accommodationModal.hide();
 
         // Clear fields - use header values for pax counts
         const headerValues = getHeaderValues();
@@ -12674,7 +12678,7 @@
             
             // Close modal
             const accommodationModal = bootstrap.Modal.getInstance(document.getElementById('accommodationModal'));
-            accommodationModal.hide();
+            if (accommodationModal) accommodationModal.hide();
             
             // Reset arrival and departure guide checkboxes to prevent them from being processed again
             const arrivalGuideCheckbox = document.getElementById('arrivalGuideCheckbox');
@@ -13109,7 +13113,7 @@
 
         // Close modal
         const accommodationModal = bootstrap.Modal.getInstance(document.getElementById('accommodationModal'));
-        accommodationModal.hide();
+        if (accommodationModal) accommodationModal.hide();
 
         // Clear temp list and arrival/departure fields
         selectedHotelsTemp = [];
@@ -13195,7 +13199,9 @@
                 <td><input type="number" value="${(hotel.sell || hotel.roomPrice || 0).toFixed(2)}" step="1" min="0" onchange="updateAccommodationField(${index}, 'sell', parseFloat(this.value) || 0)"></td>
                 <td><input type="number" value="${(parseFloat(hotel.extraBedPrice) || 0).toFixed(2)}" step="1" min="0" onchange="updateAccommodationField(${index}, 'extraBedPrice', parseFloat(this.value) || 0)"></td>
                 <td><input type="number" value="${hotel.cwb || hotel.extraBed || 0}" min="0" onchange="updateAccommodationField(${index}, 'cwb', parseInt(this.value) || 0); updateAccommodationField(${index}, 'extraBed', parseInt(this.value) || 0)"></td>
+                <td><input type="number" value="${(parseFloat(hotel.cwbPrice) || 0).toFixed(2)}" step="1" min="0" onchange="updateAccommodationField(${index}, 'cwbPrice', parseFloat(this.value) || 0)"></td>
                 <td><input type="number" value="${hotel.cnb || hotel.childWithoutBed || 0}" min="0" onchange="updateAccommodationField(${index}, 'cnb', parseInt(this.value) || 0); updateAccommodationField(${index}, 'childWithoutBed', parseInt(this.value) || 0)"></td>
+                <td><input type="number" value="${(parseFloat(hotel.cnbPrice) || 0).toFixed(2)}" step="1" min="0" onchange="updateAccommodationField(${index}, 'cnbPrice', parseFloat(this.value) || 0)"></td>
                 <td><input type="number" value="${hotel.infant || 0}" min="0" onchange="updateAccommodationField(${index}, 'infant', parseInt(this.value) || 0)"></td>
                 <td style="text-align: center;"><input type="checkbox" ${hotel.supplement ? 'checked' : ''} onchange="updateAccommodationField(${index}, 'supplement', this.checked)"></td>
             </tr>
@@ -13805,23 +13811,7 @@
             departureGuideSection.style.display = 'block';
         }
         
-        // Hide cost and sell fields for arrival/departure
-        const arrivalCostField = document.getElementById('arrivalCostField');
-        if (arrivalCostField) {
-            arrivalCostField.style.display = 'none';
-        }
-        const arrivalSellField = document.getElementById('arrivalSellField');
-        if (arrivalSellField) {
-            arrivalSellField.style.display = 'none';
-        }
-        const departureCostField = document.getElementById('departureCostField');
-        if (departureCostField) {
-            departureCostField.style.display = 'none';
-        }
-        const departureSellField = document.getElementById('departureSellField');
-        if (departureSellField) {
-            departureSellField.style.display = 'none';
-        }
+        // Note: Cost/sell fields are inside transfer details section and will be shown/hidden by toggle functions
         
         // Trigger toggle functions to show transfer sections when transfer is checked
         toggleArrivalTransferFields();
@@ -14169,15 +14159,7 @@
                     departureGuideSection.style.display = 'none';
                 }
                 
-                // Hide cost and sell fields for arrival
-                const arrivalCostField = document.getElementById('arrivalCostField');
-                if (arrivalCostField) {
-                    arrivalCostField.style.display = 'none';
-                }
-                const arrivalSellField = document.getElementById('arrivalSellField');
-                if (arrivalSellField) {
-                    arrivalSellField.style.display = 'none';
-                }
+                // Note: Cost/sell fields are inside transfer details section and controlled by toggle functions
                 
                 // Update modal title
                 document.getElementById('modalTitleIcon').className = 'ri-flight-takeoff-line me-2';
@@ -14203,15 +14185,7 @@
                     departureGuideSection.style.display = 'block';
                 }
                 
-                // Hide cost and sell fields for departure
-                const departureCostField = document.getElementById('departureCostField');
-                if (departureCostField) {
-                    departureCostField.style.display = 'none';
-                }
-                const departureSellField = document.getElementById('departureSellField');
-                if (departureSellField) {
-                    departureSellField.style.display = 'none';
-                }
+                // Note: Cost/sell fields are inside transfer details section and controlled by toggle functions
                 
                 // Update modal title
                 document.getElementById('modalTitleIcon').className = 'ri-flight-land-line me-2';
@@ -15560,6 +15534,7 @@
             // Create guide_options object if guide is selected
             let guide_options = null;
             if (guideChecked && guideId && guideInfo) {
+                const guideOptionForPrice = guideSelect.options[guideSelect.selectedIndex];
                 guide_options = {
                     guideId: guideId,
                     guide_id: guideId,
@@ -15577,8 +15552,8 @@
                     child_qty: childQty,
                     childrenQty: childQty,
                     children_qty: childQty,
-                    cost: parseFloat(guideOption.getAttribute('data-twelve-hour-price') || '0') || 0,
-                    sell: parseFloat(guideOption.getAttribute('data-twelve-hour-price') || '0') || 0,
+                    cost: parseFloat(guideOptionForPrice?.getAttribute('data-twelve-hour-price') || '0') || 0,
+                    sell: parseFloat(guideOptionForPrice?.getAttribute('data-twelve-hour-price') || '0') || 0,
                     serviceType: 'Full Day',
                     service_type: 'Full Day',
                     tourActivity: `${attractionName} - ${guideName}`,
@@ -15625,7 +15600,7 @@
             
             // Close modal
             const tourModal = bootstrap.Modal.getInstance(document.getElementById('tourModal'));
-            tourModal.hide();
+            if (tourModal) tourModal.hide();
             
             // Reset checkboxes
             document.getElementById('selectAllAttractions').checked = false;
@@ -15976,7 +15951,7 @@
         
         // Close modal
         const tourModal = bootstrap.Modal.getInstance(document.getElementById('tourModal'));
-        tourModal.hide();
+        if (tourModal) tourModal.hide();
         
         // Reset checkboxes
         document.getElementById('selectAllAttractions').checked = false;
@@ -15991,7 +15966,7 @@
     }
     
     // Add another attraction (keep modal open)
-    function addAnotherAttraction() {
+    async function addAnotherAttraction() {
         // Save current selections without closing
         const selectedRows = document.querySelectorAll('.attraction-checkbox:checked');
         
@@ -16000,12 +15975,14 @@
             return;
         }
         
-        // Process selected attractions (same logic as saveAndCloseAttractions)
-        saveAndCloseAttractions();
+        // Process selected attractions (same logic as saveAndCloseAttractions) - wait for it to complete
+        await saveAndCloseAttractions();
         
-        // Reopen the modal
-        const tourModal = new bootstrap.Modal(document.getElementById('tourModal'));
-        tourModal.show();
+        // Reopen the modal after save completes
+        setTimeout(() => {
+            const tourModal = new bootstrap.Modal(document.getElementById('tourModal'));
+            tourModal.show();
+        }, 300);
     }
     
     // Save tour
@@ -16153,7 +16130,7 @@
         
         // Close modal
         const tourModal = bootstrap.Modal.getInstance(document.getElementById('tourModal'));
-        tourModal.hide();
+        if (tourModal) tourModal.hide();
     }
     
     // Update tour table
@@ -16734,7 +16711,7 @@
         
         // Close modal
         const guideModal = bootstrap.Modal.getInstance(document.getElementById('guideModal'));
-        guideModal.hide();
+        if (guideModal) guideModal.hide();
         
         // Reset checkboxes
         document.getElementById('selectAllGuides').checked = false;
@@ -16964,7 +16941,22 @@
             
             // If linked to a meal/restaurant, find and edit the meal
             if (guide.linkedTo === 'restaurant') {
-                const mealIndex = mealList.findIndex(meal => meal.guideId === guide.id || meal.guideId === guide.guide_id);
+                // Try multiple matching strategies
+                let mealIndex = mealList.findIndex(meal => meal.guideId === guide.id || meal.guideId === guide.guide_id);
+                
+                // Fallback: match by restaurant name if guide has it
+                if (mealIndex === -1 && guide.restaurantName) {
+                    mealIndex = mealList.findIndex(meal => meal.restaurantName === guide.restaurantName);
+                }
+                
+                // Fallback: match by guideId field in guide_options
+                if (mealIndex === -1 && guide.guideId) {
+                    mealIndex = mealList.findIndex(meal => 
+                        (meal.guide_options && meal.guide_options.guideId === guide.guideId) ||
+                        (meal.guideInfo && meal.guideInfo.guideId === guide.guideId)
+                    );
+                }
+                
                 if (mealIndex !== -1) {
                     editMeal(mealIndex);
                     return;
@@ -17539,7 +17531,7 @@
         recalculateTotals();
         
         const miscModal = bootstrap.Modal.getInstance(document.getElementById('miscModal'));
-        miscModal.hide();
+        if (miscModal) miscModal.hide();
     }
     
     // Add another miscellaneous item
@@ -19027,6 +19019,7 @@
                         guideList[existingGuideIndex].sell = price;
                         guideList[existingGuideIndex].adultsQty = restaurantGuideAdultQty;
                         guideList[existingGuideIndex].childQty = restaurantGuideChildQty;
+                        guideId = oldMeal.guideId; // Keep the existing entry ID
                     }
                 }
             } else {
@@ -19039,28 +19032,29 @@
             // Create guide_options object if guide is selected
             let guide_options = null;
             if (guideChecked && guideId && guideInfo) {
+                const guideOptionForPrice = guideSelect.selectedOptions[0];
                 const hoursSelect = document.getElementById('restaurantGuideHours');
                 const hours = parseInt(hoursSelect?.value || '12') || 12;
                 let price = 0;
                 switch(hours) {
                     case 2:
-                        price = parseFloat(guideOption?.getAttribute('data-two-hour-price') || '0') || 0;
+                        price = parseFloat(guideOptionForPrice?.getAttribute('data-two-hour-price') || '0') || 0;
                         break;
                     case 4:
-                        price = parseFloat(guideOption?.getAttribute('data-four-hour-price') || '0') || 0;
+                        price = parseFloat(guideOptionForPrice?.getAttribute('data-four-hour-price') || '0') || 0;
                         break;
                     case 6:
-                        price = parseFloat(guideOption?.getAttribute('data-six-hour-price') || '0') || 0;
+                        price = parseFloat(guideOptionForPrice?.getAttribute('data-six-hour-price') || '0') || 0;
                         break;
                     case 8:
-                        price = parseFloat(guideOption?.getAttribute('data-eight-hour-price') || '0') || 0;
+                        price = parseFloat(guideOptionForPrice?.getAttribute('data-eight-hour-price') || '0') || 0;
                         break;
                     case 10:
-                        price = parseFloat(guideOption?.getAttribute('data-ten-hour-price') || '0') || 0;
+                        price = parseFloat(guideOptionForPrice?.getAttribute('data-ten-hour-price') || '0') || 0;
                         break;
                     case 12:
                     default:
-                        price = parseFloat(guideOption?.getAttribute('data-twelve-hour-price') || '0') || 0;
+                        price = parseFloat(guideOptionForPrice?.getAttribute('data-twelve-hour-price') || '0') || 0;
                         break;
                 }
                 
@@ -19454,7 +19448,7 @@
                     infantSell: infantSell,
                     transferId: transferId, // Shared transfer ID
                     transferInfo: transferInfo, // Shared transfer info
-                    guideId: guideId, // Shared guide ID
+                    guideId: guideEntryId, // Guide entry ID (links to guideList entry)
                     guideInfo: guideInfo, // Shared guide info
                     guide_options: guide_options // Shared guide options
                 };
@@ -19474,7 +19468,7 @@
         
         // Close modal
         const mealModal = bootstrap.Modal.getInstance(document.getElementById('mealModal'));
-        mealModal.hide();
+        if (mealModal) mealModal.hide();
         
         // Reset checkboxes
         document.getElementById('selectAllMeals').checked = false;
@@ -19601,7 +19595,7 @@
         
         // Close modal
         const mealModal = bootstrap.Modal.getInstance(document.getElementById('mealModal'));
-        mealModal.hide();
+        if (mealModal) mealModal.hide();
     }
     
     // Update meal table
@@ -19825,7 +19819,10 @@
                 
                 if (restaurantTransferCheckbox) {
                     restaurantTransferCheckbox.checked = true;
-                    toggleRestaurantTransferFields(); // Show the fields
+                    // Just show the section directly, don't call toggle which sets defaults
+                    if (restaurantTransferDetailsSection) {
+                        restaurantTransferDetailsSection.style.display = 'block';
+                    }
                 }
                 
                 // Get transfer info - prioritize meal.transferInfo, then lookup from transferList
@@ -19856,7 +19853,7 @@
                     console.log('Final transfer info to populate:', tInfo);
                     
                     // Wait a bit for Select2 to be ready, then populate transfer fields
-                    await new Promise(resolve => setTimeout(resolve, 200));
+                    await new Promise(resolve => setTimeout(resolve, 150));
                     
                     const destSelect = document.getElementById('restaurantTransferDestination');
                     if (destSelect && tInfo.destination) {
@@ -19965,7 +19962,10 @@
                 
                 if (restaurantGuideCheckbox) {
                     restaurantGuideCheckbox.checked = true;
-                    toggleRestaurantGuideFields(); // Show the fields
+                    // Just show the section directly
+                    if (restaurantGuideDetailsSection) {
+                        restaurantGuideDetailsSection.style.display = 'block';
+                    }
                 }
                 
                 await new Promise(resolve => setTimeout(resolve, 100));
@@ -21737,7 +21737,7 @@
         recalculateTotals();
         
         const transferModal = bootstrap.Modal.getInstance(document.getElementById('transferModal'));
-        transferModal.hide();
+        if (transferModal) transferModal.hide();
     }
     
     // Edit transfer
@@ -26632,6 +26632,8 @@
             sell: parseFloat(firstBed.sell || firstBed.price || data.sell || 0),
             roomPrice: parseFloat(firstBed.sell || firstBed.price || data.sell || 0),
             extraBedPrice: parseFloat(data.extraBedPrice || data.extra_bed_price || 0),
+            cwbPrice: parseFloat(data.cwbPrice || data.cwb_price || data.child_with_bed_price || 0),
+            cnbPrice: parseFloat(data.cnbPrice || data.cnb_price || data.child_without_bed_price || 0),
             bedData: firstBed,
             rooms: data.rooms || [],
             hotelDetails: hotelDetails,
