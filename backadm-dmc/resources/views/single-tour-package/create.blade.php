@@ -6948,6 +6948,64 @@ function getTourDateForDay(day) {
     return moment(tourStartDate).add(day-1, 'days').format('YYYY-MM-DD');
 }
 
+// ------------------------- Hotel Helper Utilities -------------------------
+function parseWeekendDays(raw) {
+    if (!raw) return [];
+    if (Array.isArray(raw)) return raw;
+    try {
+        const parsed = JSON.parse(raw);
+        if (Array.isArray(parsed)) return parsed;
+    } catch (e) {}
+    if (typeof raw === 'string') {
+        return raw.split(',').map(d => d.trim()).filter(Boolean);
+    }
+    return [];
+}
+
+function getSelectedHotelWeekendDays() {
+    try {
+        const hotelSelect = document.getElementById('hotelSelect');
+        if (!hotelSelect || !hotelSelect.value || !Array.isArray(hotelData) || hotelData.length === 0) {
+            return [];
+        }
+
+        const selectedHotel = hotelData.find(h => h.hotel_unique_id == hotelSelect.value);
+        if (!selectedHotel || !selectedHotel.weekend_days) {
+            return [];
+        }
+
+        return parseWeekendDays(selectedHotel.weekend_days);
+    } catch (e) {
+        console.error('Error getting selected hotel weekend days:', e);
+        return [];
+    }
+}
+
+/**
+ * Determine if a given moment date should be treated as weekend
+ * based on the selected hotel's configured weekend_days.
+ * Falls back to Saturday/Sunday if config is missing.
+ */
+function isWeekendForSelectedHotel(nightDate) {
+    if (!nightDate || typeof moment === 'undefined') {
+        return false;
+    }
+
+    const weekendDays = getSelectedHotelWeekendDays();
+
+    // If hotel has no specific weekend_days configured, fall back to Sat/Sun
+    if (!weekendDays || weekendDays.length === 0) {
+        const dayOfWeek = nightDate.day(); // 0 = Sunday, 6 = Saturday
+        return dayOfWeek === 0 || dayOfWeek === 6;
+    }
+
+    const normalizedConfig = weekendDays.map(d => String(d).toLowerCase());
+    const dayName = nightDate.format('dddd'); // e.g. "Sunday"
+    const dayNameLower = dayName.toLowerCase();
+
+    return normalizedConfig.includes(dayNameLower);
+}
+
 document.addEventListener('DOMContentLoaded', function() {
 
     // Store tour_type globally and update it when changed
@@ -9945,8 +10003,9 @@ document.addEventListener('DOMContentLoaded', function() {
         
         newNights.forEach(nightNum => {
             const nightDate = moment(tourStartDate).add(nightNum - 1, 'days');
-            const dayOfWeek = nightDate.day(); // 0 = Sunday, 6 = Saturday
-            const isWeekend = dayOfWeek === 0 || dayOfWeek === 6;
+            
+            // Determine weekend based on hotel's configured weekend_days
+            const isWeekend = isWeekendForSelectedHotel(nightDate);
             
             const nightPrice = isWeekend ? weekendPrice : weekdayPrice;
             totalRoomPrice += nightPrice;
@@ -11385,6 +11444,10 @@ document.addEventListener('DOMContentLoaded', function() {
                         roomTypeSelect.onchange = function() {
                             clearRoomTypeDependentFields();
                             updateBedTypesForRoom(this.value);
+                            // Refresh meal plans based on the selected room type's meal availability
+                            if (typeof window.updateMealPlansForRoomType === 'function') {
+                                window.updateMealPlansForRoomType(this.value);
+                            }
                             updateRoomPriceDisplay(true); // Force update when room type changes
                         };
                     }
@@ -11716,6 +11779,94 @@ document.addEventListener('DOMContentLoaded', function() {
             });
     };
 
+    // Update meal plans for selected room type so that
+    // options like "room with breakfast" only appear when
+    // the chosen room type actually has those meals configured.
+    window.updateMealPlansForRoomType = function(roomType) {
+        const mealPlanSelect = document.getElementById('mealPlanSelect');
+
+        if (!mealPlanSelect) {
+            return;
+        }
+
+        // If no room type chosen or no room data yet, reset to default prompt
+        if (!roomType || !window.roomData || !Array.isArray(window.roomData) || window.roomData.length === 0) {
+            mealPlanSelect.innerHTML = '<option value="">Select meal plan</option>';
+            if (typeof window.reinitializeSelect2 === 'function') {
+                window.reinitializeSelect2('mealPlanSelect', 'Select meal plan');
+            }
+            return;
+        }
+
+        // Filter rooms for the selected room type
+        const roomsOfType = window.roomData.filter(room => room.room_type === roomType);
+
+        if (roomsOfType.length === 0) {
+            // No matching rooms for this type – show only a neutral option
+            mealPlanSelect.innerHTML = '<option value="">Select meal plan</option>';
+            if (typeof window.reinitializeSelect2 === 'function') {
+                window.reinitializeSelect2('mealPlanSelect', 'Select meal plan');
+            }
+            return;
+        }
+
+        console.log('Updating meal plans for room type:', roomType, 'Rooms:', roomsOfType);
+
+        // Determine meal availability for this specific room type
+        const hasBreakfast = roomsOfType.some(room => room.breakfast == 1 || room.breakfast === true);
+        const hasLunch = roomsOfType.some(room => room.lunch == 1 || room.lunch === true);
+        const hasDinner = roomsOfType.some(room => room.dinner == 1 || room.dinner === true);
+        const hasRoomsOnly = roomsOfType.some(room => room.rooms_only == 1 || room.rooms_only === true || room.rooms_only === '1');
+
+        const mealPlans = new Set();
+        const roomText = 'room';
+
+        // Follow the same rooms_only rule used when building hotel-wide plans
+        if (!hasRoomsOnly) {
+            mealPlans.add(`${roomText} only`);
+        }
+
+        // Add specific meal options only when that meal exists for this room type
+        if (hasBreakfast) {
+            mealPlans.add(`${roomText} with breakfast`);
+        }
+        if (hasLunch) {
+            mealPlans.add(`${roomText} with lunch`);
+        }
+        if (hasDinner) {
+            mealPlans.add(`${roomText} with dinner`);
+        }
+
+        // Add combination options based on availability for this room type
+        if (hasBreakfast && hasLunch) {
+            mealPlans.add(`${roomText} with breakfast + lunch`);
+        }
+        if (hasBreakfast && hasDinner) {
+            mealPlans.add(`${roomText} with breakfast + dinner`);
+        }
+        if (hasLunch && hasDinner) {
+            mealPlans.add(`${roomText} with lunch + dinner`);
+        }
+        if (hasBreakfast && hasLunch && hasDinner) {
+            mealPlans.add(`${roomText} with all meals (breakfast + lunch + dinner)`);
+        }
+
+        // Clean and sort options using existing helper
+        const cleanedMealPlans = typeof cleanMealPlanOptions === 'function'
+            ? cleanMealPlanOptions([...mealPlans])
+            : [...mealPlans];
+
+        // Rebuild dropdown
+        mealPlanSelect.innerHTML = '<option value="">Select meal plan</option>';
+        cleanedMealPlans.forEach(mealPlan => {
+            mealPlanSelect.innerHTML += `<option value="${mealPlan}">${mealPlan}</option>`;
+        });
+
+        if (typeof window.reinitializeSelect2 === 'function') {
+            window.reinitializeSelect2('mealPlanSelect', 'Select meal plan');
+        }
+    };
+
     // Update pricing when bed type is selected
     window.updatePricingForBed = function(bedTypeValue) {
         console.log('updatePricingForBed called with:', bedTypeValue);
@@ -11900,8 +12051,9 @@ document.addEventListener('DOMContentLoaded', function() {
             selectedNights.forEach(nightBtn => {
                 const nightNum = parseInt(nightBtn.dataset.night);
                 const nightDate = moment(startDate).add(nightNum - 1, 'days');
-                const dayOfWeek = nightDate.day(); // 0 = Sunday, 6 = Saturday
-                const isWeekend = dayOfWeek === 0 || dayOfWeek === 6;
+                
+                // Determine weekend based on hotel's configured weekend_days
+                const isWeekend = isWeekendForSelectedHotel(nightDate);
                 const nightPrice = isWeekend ? weekendPrice : weekdayPrice;
                 totalPrice += nightPrice;
                 
@@ -12522,29 +12674,30 @@ document.addEventListener('DOMContentLoaded', function() {
                     ? parseFloat(selectedOption.dataset.weekendPrice) || 0
                     : parseFloat(selectedOption.dataset.doubleWeekendPrice) || 0;
                 
-                // Calculate price for each selected night
-                nightNumbers.forEach(nightNum => {
-                    const nightDate = moment(tourStartDate).add(nightNum-1, 'days');
-                    const dayOfWeek = nightDate.day(); // 0 = Sunday, 6 = Saturday
-                    const isWeekend = dayOfWeek === 0 || dayOfWeek === 6;
-                    
-                    const nightPrice = isWeekend ? weekendPrice : weekdayPrice;
-                    totalRoomPrice += nightPrice;
-                    
-                    if (isWeekend) {
-                        weekendNights++;
-                    } else {
-                        weekdayNights++;
-                    }
-                    
-                    priceBreakdown.push({
-                        night: nightNum,
-                        date: nightDate.format('MMM DD'),
-                        dayOfWeek: nightDate.format('ddd'),
-                        isWeekend: isWeekend,
-                        price: nightPrice
-                    });
-                });
+        // Calculate price for each selected night
+        nightNumbers.forEach(nightNum => {
+            const nightDate = moment(tourStartDate).add(nightNum-1, 'days');
+            
+            // Determine weekend based on hotel's configured weekend_days
+            const isWeekend = isWeekendForSelectedHotel(nightDate);
+            
+            const nightPrice = isWeekend ? weekendPrice : weekdayPrice;
+            totalRoomPrice += nightPrice;
+            
+            if (isWeekend) {
+                weekendNights++;
+            } else {
+                weekdayNights++;
+            }
+            
+            priceBreakdown.push({
+                night: nightNum,
+                date: nightDate.format('MMM DD'),
+                dayOfWeek: nightDate.format('ddd'),
+                isWeekend: isWeekend,
+                price: nightPrice
+            });
+        });
                 
                 console.log(`=== PRICE BREAKDOWN FOR ${roomType} ===`);
                 console.log(`Total nights: ${nightNumbers.length}`);
@@ -13016,7 +13169,7 @@ document.addEventListener('DOMContentLoaded', function() {
                                             ${hotel.customRoomPrice ? `
                                                 <div class="d-flex justify-content-between mb-1" style="color: rgba(255, 255, 255, 0.9);">
                                                     <span>Custom Room Cost:</span>
-                                                    <span style="font-weight: 500; color: #ffffff !important;">$${hotel.customRoomPrice}</span>
+                                                    <span style="font-weight: 500; color: #ffffff !important;">$${hotel.price}</span>
                                                 </div>
                                             ` : ''}
                                             ${hotel.mealPlan && !hotel.mealPlan.includes('only') ? `
