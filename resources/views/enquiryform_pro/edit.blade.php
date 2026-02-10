@@ -9370,6 +9370,9 @@
                         child_lunch_price: room.child_lunch_price,
                         child_dinner_price: room.child_dinner_price,
                         extra_bed_price: room.extra_bed_price,
+                        // Child with bed and child without bed prices from rooms table
+                        child_with_bed: room.child_with_bed,
+                        child_without_bed: room.child_without_bed,
                         breakfast_included: room.breakfast_included,
                         max_occupancy: room.max_occupancy,
                         room_type: room.room_type,
@@ -9656,6 +9659,9 @@
                                 child_lunch_price: firstRoom.child_lunch_price,
                                 child_dinner_price: firstRoom.child_dinner_price,
                                 extra_bed_price: bed.extra_bed_price || firstRoom.extra_bed_price || 0,
+                                // Child with bed and child without bed prices from rooms table
+                                child_with_bed: firstRoom.child_with_bed,
+                                child_without_bed: firstRoom.child_without_bed,
                                 breakfast_included: firstRoom.breakfast_included,
                                 max_occupancy: bed.max_occupancy || firstRoom.max_occupancy || 2,
                                 room_type: firstRoom.room_type,
@@ -15154,12 +15160,15 @@
                     // Build table rows - one row per ticket
                     let html = '';
                     data.attractions.forEach(attr => {
-                        console.log('Attraction:', attr.name, 'Tickets:', attr.tickets);
+                        console.log('Attraction:', attr.name, 'attraction_type:', attr.attraction_type, 'Tickets:', attr.tickets);
                         
                         // Determine attraction type and label
-                        const attractionType = attr.attraction_type ?? 1;
-                        const isAttraction = (attractionType == 2);
+                        // attraction_type: 1 = Tour Sites, 2 = Attraction
+                        // Parse as integer to handle both string and number values
+                        const attractionType = parseInt(attr.attraction_type) || 1;
+                        const isAttraction = (attractionType === 2);
                         const typeLabel = isAttraction ? 'Attraction' : 'Tour Sites';
+                        console.log(`  -> ${attr.name}: type=${attractionType}, isAttraction=${isAttraction}, label=${typeLabel}`);
                         
                         // If attraction has tickets, create a row for each ticket
                         if (attr.tickets && attr.tickets.length > 0) {
@@ -15420,14 +15429,14 @@
         } else if (type === 'attraction') {
             // Show only attractions (attraction_type = 2)
             rows.forEach(row => {
-                const rowType = row.getAttribute('data-attraction-type');
-                row.style.display = (rowType === '2') ? '' : 'none';
+                const rowType = parseInt(row.getAttribute('data-attraction-type')) || 1;
+                row.style.display = (rowType === 2) ? '' : 'none';
             });
         } else if (type === 'toursite') {
             // Show only tour sites (attraction_type = 1)
             rows.forEach(row => {
-                const rowType = row.getAttribute('data-attraction-type');
-                row.style.display = (rowType === '1') ? '' : 'none';
+                const rowType = parseInt(row.getAttribute('data-attraction-type')) || 1;
+                row.style.display = (rowType === 1) ? '' : 'none';
             });
         }
     }
@@ -18742,8 +18751,17 @@
             const setMenuInfantValue = isSetMenu ? headerValues.infants : 0;
             
             // Parse prices from database - both cost and sell should be the same value from database
-            const adultPrice = parseFloat(meal.adult_price || meal.price || 0).toFixed(2);
-            const childPrice = parseFloat(meal.child_price || meal.price || 0).toFixed(2);
+            // Use explicit null check to avoid treating 0 as falsy
+            const adultPrice = parseFloat(
+                (meal.adult_price !== null && meal.adult_price !== undefined && meal.adult_price !== '') 
+                    ? meal.adult_price 
+                    : ((meal.price !== null && meal.price !== undefined && meal.price !== '') ? meal.price : 0)
+            ).toFixed(2);
+            const childPrice = parseFloat(
+                (meal.child_price !== null && meal.child_price !== undefined && meal.child_price !== '') 
+                    ? meal.child_price 
+                    : ((meal.price !== null && meal.price !== undefined && meal.price !== '') ? meal.price : 0)
+            ).toFixed(2);
             
             // Use the same database price for both cost and sell (no calculation)
             const adultCostPrice = adultPrice;
