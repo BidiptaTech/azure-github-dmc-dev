@@ -1066,7 +1066,7 @@
                             <input type="radio" name="type" value="FIT" {{ (isset($initialData['tour_type']) && $initialData['tour_type'] == 'FIT') || !isset($initialData) ? 'checked' : '' }}> FIT
                         </label>
                         <label style="font-size: 9px; margin: 0 0 0 4px; font-weight: 500;">
-                            <input type="radio" name="type" value="Group" {{ isset($initialData['tour_type']) && $initialData['tour_type'] == 'Group' ? 'checked' : '' }}> Group
+                            <input type="radio" name="type" value="GROUP" {{ isset($initialData['tour_type']) && $initialData['tour_type'] == 'GROUP' ? 'checked' : '' }}> Group
                         </label>
                     </div>
                     <div class="col-auto d-flex align-items-center">
@@ -2294,6 +2294,8 @@
                         <p class="text-muted small mb-0 text-center py-1" id="noHotelsMessage" style="font-size: 10px;">No hotels selected yet</p>
                     </div>
                 </div>
+
+                <!-- Room Pricing Summary Section removed - calculation is for footer only -->
             </div>
             <div class="modal-footer py-2">
                 <button type="button" class="btn btn-secondary btn-sm" data-bs-dismiss="modal">
@@ -2321,11 +2323,11 @@
                 <!-- Top Controls -->
                 <div class="border-bottom p-2" style="background: #f8f9fa;">
                     <div class="row g-2">
-                        <div class="col-md-6">
+                        <div class="col-md-4">
                             <label class="form-label small mb-0" style="font-size: 11px; font-weight: 600;">Date & Time:</label>
                             <input type="datetime-local" class="form-control form-control-sm" id="tourDateTime" style="font-size: 11px;">
                         </div>
-                        <div class="col-md-6">
+                        <div class="col-md-4">
                             <label class="form-label small mb-0" style="font-size: 11px; font-weight: 600;">Destination:</label>
                             <select class="form-select form-select-sm" id="tourDestination" onchange="loadAttractionsByDestination()" style="font-size: 11px;">
                                 <option value="">Select Destination</option>
@@ -2333,6 +2335,23 @@
                                     <option value="{{ $dest->name }}">{{ $dest->name }}</option>
                                 @endforeach
                             </select>
+                        </div>
+                        <div class="col-md-4">
+                            <label class="form-label small mb-0" style="font-size: 11px; font-weight: 600;">Filter By Type:</label>
+                            <div class="d-flex gap-2 mt-1">
+                                <div class="form-check form-check-inline mb-0">
+                                    <input class="form-check-input" type="radio" name="attractionTypeFilter" id="filterAttraction" value="attraction" checked onchange="filterAttractionsByType()">
+                                    <label class="form-check-label small" for="filterAttraction" style="font-size: 10px;">Attractions</label>
+                                </div>
+                                <div class="form-check form-check-inline mb-0">
+                                    <input class="form-check-input" type="radio" name="attractionTypeFilter" id="filterTourSite" value="toursite" onchange="filterAttractionsByType()">
+                                    <label class="form-check-label small" for="filterTourSite" style="font-size: 10px;">Tour Sites</label>
+                                </div>
+                                <div class="form-check form-check-inline mb-0">
+                                    <input class="form-check-input" type="radio" name="attractionTypeFilter" id="filterAll" value="all" onchange="filterAttractionsByType()">
+                                    <label class="form-check-label small" for="filterAll" style="font-size: 10px;">All</label>
+                                </div>
+                            </div>
                         </div>
                     </div>
                 </div>
@@ -2838,62 +2857,40 @@
                     <!-- Guide Details (shown when checkbox is checked) -->
                     <div id="restaurantGuideDetailsSection" style="display: none;">
                         <div class="row g-2 mb-1">
-                            <div class="col-5">
+                            <div class="col-6">
                                 <label class="form-label small fw-bold">Select Guide</label>
                             </div>
                             <div class="col-3">
-                                <label class="form-label small fw-bold">Hours</label>
-                            </div>
-                            <div class="col-2">
                                 <label class="form-label small fw-bold">Adult Count</label>
                             </div>
-                            <div class="col-2">
+                            <div class="col-3">
                                 <label class="form-label small fw-bold">Child Count</label>
                             </div>
                         </div>
                         <div class="row g-2 mb-1">
-                            <div class="col-5">
-                                <label class="form-label small">Select Guide</label>
+                            <div class="col-6">
+                                <label class="form-label small">Select Guide <small class="text-muted">(Full Day - 12 Hours)</small></label>
                                 <select class="form-select form-select-sm" id="restaurantGuideSelect" style="font-size: 10px;" onchange="updateRestaurantGuidePricing()">
                                     <option value="">Select Guide</option>
                                     @foreach($guides as $guide)
                                         @php
                                             $languages = $guide->languages->pluck('language')->join(', ');
-                                            $twoHourPrice = $guide->two_hour_price ?? 0;
-                                            $fourHourPrice = $guide->four_hour_price ?? 0;
-                                            $sixHourPrice = $guide->six_hour_price ?? 0;
-                                            $eightHourPrice = $guide->eight_hour_price ?? 0;
-                                            $tenHourPrice = $guide->ten_hour_price ?? 0;
                                             $twelveHourPrice = $guide->twelve_hour_price ?? $guide->day_rate ?? 0;
                                         @endphp
                                         <option value="{{ $guide->guide_id }}" 
                                                 data-name="{{ $guide->name }}" 
                                                 data-languages="{{ $languages }}"
-                                                data-two-hour-price="{{ $twoHourPrice }}"
-                                                data-four-hour-price="{{ $fourHourPrice }}"
-                                                data-six-hour-price="{{ $sixHourPrice }}"
-                                                data-eight-hour-price="{{ $eightHourPrice }}"
-                                                data-ten-hour-price="{{ $tenHourPrice }}"
                                                 data-twelve-hour-price="{{ $twelveHourPrice }}">{{ $guide->name }} @if($languages)({{ $languages }})@endif</option>
                                     @endforeach
                                 </select>
+                                <!-- Hidden hours field - always set to 12 (full day) -->
+                                <input type="hidden" id="restaurantGuideHours" value="12">
                             </div>
                             <div class="col-3">
-                                <label class="form-label small">Hours</label>
-                                <select class="form-select form-select-sm" id="restaurantGuideHours" style="font-size: 10px;" onchange="updateRestaurantGuidePricing()">
-                                    <option value="2">2 Hours</option>
-                                    <option value="4">4 Hours</option>
-                                    <option value="6">6 Hours</option>
-                                    <option value="8">8 Hours</option>
-                                    <option value="10">10 Hours</option>
-                                    <option value="12" selected>12 Hours</option>
-                                </select>
-                            </div>
-                            <div class="col-2">
                                 <label class="form-label small">Adult Qty</label>
                                 <input type="number" class="form-control form-control-sm" id="restaurantGuideAdultQty" value="0" min="0" max="99" style="font-size: 10px;">
                             </div>
-                            <div class="col-2">
+                            <div class="col-3">
                                 <label class="form-label small">Child Qty</label>
                                 <input type="number" class="form-control form-control-sm" id="restaurantGuideChildQty" value="0" min="0" max="99" style="font-size: 10px;">
                             </div>
@@ -3101,62 +3098,40 @@
                         <!-- Guide Details (shown when checkbox is checked) -->
                         <div id="localTransportGuideDetailsSection" style="display: none;">
                             <div class="row g-2 mb-1">
-                                <div class="col-5">
+                                <div class="col-6">
                                     <label class="form-label small fw-bold">Select Guide</label>
                                 </div>
                                 <div class="col-3">
-                                    <label class="form-label small fw-bold">Hours</label>
-                                </div>
-                                <div class="col-2">
                                     <label class="form-label small fw-bold">Adult Count</label>
                                 </div>
-                                <div class="col-2">
+                                <div class="col-3">
                                     <label class="form-label small fw-bold">Child Count</label>
                                 </div>
                             </div>
                             <div class="row g-2 mb-1">
-                                <div class="col-5">
-                                    <label class="form-label small">Select Guide</label>
+                                <div class="col-6">
+                                    <label class="form-label small">Select Guide <small class="text-muted">(Full Day - 12 Hours)</small></label>
                                     <select class="form-select form-select-sm" id="localTransportGuideSelect" style="font-size: 10px;" onchange="updateLocalTransportGuidePricing()">
                                         <option value="">Select Guide</option>
                                         @foreach($guides as $guide)
                                             @php
                                                 $languages = $guide->languages->pluck('language')->join(', ');
-                                                $twoHourPrice = $guide->two_hour_price ?? 0;
-                                                $fourHourPrice = $guide->four_hour_price ?? 0;
-                                                $sixHourPrice = $guide->six_hour_price ?? 0;
-                                                $eightHourPrice = $guide->eight_hour_price ?? 0;
-                                                $tenHourPrice = $guide->ten_hour_price ?? 0;
                                                 $twelveHourPrice = $guide->twelve_hour_price ?? $guide->day_rate ?? 0;
                                             @endphp
                                             <option value="{{ $guide->guide_id }}" 
                                                     data-name="{{ $guide->name }}" 
                                                     data-languages="{{ $languages }}"
-                                                    data-two-hour-price="{{ $twoHourPrice }}"
-                                                    data-four-hour-price="{{ $fourHourPrice }}"
-                                                    data-six-hour-price="{{ $sixHourPrice }}"
-                                                    data-eight-hour-price="{{ $eightHourPrice }}"
-                                                    data-ten-hour-price="{{ $tenHourPrice }}"
                                                     data-twelve-hour-price="{{ $twelveHourPrice }}">{{ $guide->name }} @if($languages)({{ $languages }})@endif</option>
                                         @endforeach
                                     </select>
+                                    <!-- Hidden hours field - always set to 12 (full day) -->
+                                    <input type="hidden" id="localTransportGuideHours" value="12">
                                 </div>
                                 <div class="col-3">
-                                    <label class="form-label small">Hours</label>
-                                    <select class="form-select form-select-sm" id="localTransportGuideHours" style="font-size: 10px;" onchange="updateLocalTransportGuidePricing()">
-                                        <option value="2">2 Hours</option>
-                                        <option value="4">4 Hours</option>
-                                        <option value="6">6 Hours</option>
-                                        <option value="8">8 Hours</option>
-                                        <option value="10">10 Hours</option>
-                                        <option value="12" selected>12 Hours</option>
-                                    </select>
-                                </div>
-                                <div class="col-2">
                                     <label class="form-label small">Adult Qty</label>
                                     <input type="number" class="form-control form-control-sm" id="localTransportGuideAdultQty" value="0" min="0" max="99" style="font-size: 10px;">
                                 </div>
-                                <div class="col-2">
+                                <div class="col-3">
                                     <label class="form-label small">Child Qty</label>
                                     <input type="number" class="form-control form-control-sm" id="localTransportGuideChildQty" value="0" min="0" max="99" style="font-size: 10px;">
                                 </div>
@@ -4363,6 +4338,9 @@
         }
         
         console.log('Filtered arrival vehicles for service type:', serviceType === 'P' ? 'Private' : 'Shared', 'matching:', matchingVehicles.length);
+        
+        // Update pricing after vehicle selection changes
+        updateArrivalVehiclePricing();
     }
     
     // Filter departure vehicles based on service type (Private/Shared)
@@ -4444,6 +4422,9 @@
         }
         
         console.log('Filtered departure vehicles for service type:', serviceType === 'P' ? 'Private' : 'Shared', 'matching:', matchingVehicles.length);
+        
+        // Update pricing after vehicle selection changes
+        updateDepartureVehiclePricing();
     }
     
     // Toggle hotel transfer fields visibility
@@ -4945,6 +4926,34 @@
         }
         
         console.log('Filtered local transfer vehicles for service type:', serviceType === 'P' ? 'Private' : 'Shared', 'matching:', matchingVehicles.length);
+        
+        // Update local transfer pricing after vehicle selection changes
+        updateLocalTransferVehiclePricing();
+    }
+    
+    // Update local transfer vehicle pricing when vehicle or type changes
+    function updateLocalTransferVehiclePricing() {
+        const vehicleSelect = document.getElementById('localVehicleType');
+        const selectedOption = vehicleSelect?.options[vehicleSelect?.selectedIndex];
+        
+        if (selectedOption && selectedOption.value) {
+            const transferType = document.getElementById('localType')?.value || 'S';
+            const transferWay = document.getElementById('localWay')?.value || 'one-way';
+            const basePrice = transferType === 'S' 
+                ? parseFloat(selectedOption.dataset.sharablePrice || 0)
+                : parseFloat(selectedOption.dataset.basePrice || 0);
+            
+            // Store the vehicle price for later use
+            vehicleSelect.dataset.currentPrice = basePrice;
+            
+            console.log('Local transfer vehicle selected:', {
+                vehicle: selectedOption.text,
+                type: transferType,
+                way: transferWay,
+                price: basePrice,
+                seating: selectedOption.dataset.seating
+            });
+        }
     }
     
     // ==================== DESTINATION TAGS FUNCTIONALITY ====================
@@ -9483,10 +9492,16 @@
         };
 
         // Function to distribute total pax across all checked rooms intelligently
-        // Example: 7 pax = 3 rooms with 2 pax each + 1 room with 1 pax
+        // Following real-world hotel booking logic:
+        // 1. Adults are allocated first (2 per room by default - double sharing)
+        // 2. If extra bed is available and needed, children with bed can be added
+        // 3. Children without bed share existing bed space
+        // 4. Rooms count is calculated based on total occupants respecting max occupancy
         const distributePaxAcrossRooms = () => {
             const headerValues = getHeaderValues();
-            const totalPax = headerValues.adults + headerValues.children;
+            const totalAdults = headerValues.adults || 0;
+            const totalChildren = headerValues.children || 0;
+            const totalInfants = headerValues.infants || 0;
             
             // Get all checked combinations
             const checkedBoxes = tbody.querySelectorAll('.room-combination-checkbox:checked');
@@ -9509,7 +9524,7 @@
                 const adultsInput = row.querySelector('.combo-adults');
                 const extraBedInput = row.querySelector('.combo-extra-bed');
                 const childWithoutInput = row.querySelector('.combo-child-without');
-                const maxOccupancy = parseInt(row.getAttribute('data-max-occupancy') || 0);
+                const maxOccupancy = parseInt(row.getAttribute('data-max-occupancy') || 2);
                 const extraBedAvailable = row.getAttribute('data-extra-bed-available') === 'true';
                 
                 checkedRooms.push({
@@ -9519,7 +9534,7 @@
                     adultsInput: adultsInput,
                     extraBedInput: extraBedInput,
                     childWithoutInput: childWithoutInput,
-                    maxOccupancy: maxOccupancy,
+                    maxOccupancy: maxOccupancy || 2,
                     extraBedAvailable: extraBedAvailable,
                     combo: combo
                 });
@@ -9529,148 +9544,134 @@
                 return;
             }
             
-            // If only one room is checked, set default to 2 pax and calculate rooms needed
+            // Default adults per room is 2 (double sharing)
+            const defaultAdultsPerRoom = 2;
+            
+            // If only one room type is checked
             if (checkedRooms.length === 1) {
                 const room = checkedRooms[0];
-                const defaultPaxPerRoom = 2;
-                const roomsNeeded = Math.ceil(totalPax / defaultPaxPerRoom);
+                const maxOcc = room.maxOccupancy;
                 
-                room.adultsInput.value = defaultPaxPerRoom;
-                room.extraBedInput.value = 0;
-                room.childWithoutInput.value = 0;
-                room.roomsInput.value = roomsNeeded;
+                // Calculate rooms needed based on adults (2 per room by default)
+                const roomsNeededForAdults = Math.ceil(totalAdults / defaultAdultsPerRoom);
                 
-                // Recalculate price
+                // Set adults per room (usually 2, but could be different if total is odd)
+                const adultsPerRoom = totalAdults > 0 ? Math.min(defaultAdultsPerRoom, totalAdults) : defaultAdultsPerRoom;
+                
+                // Calculate child with bed (extra bed) - limited by extra bed availability and remaining capacity
+                let childWithBedPerRoom = 0;
+                if (room.extraBedAvailable && totalChildren > 0) {
+                    // Each room can have up to (maxOcc - adultsPerRoom) extra occupants with bed
+                    const extraCapacity = Math.max(0, maxOcc - adultsPerRoom);
+                    childWithBedPerRoom = Math.min(totalChildren, extraCapacity);
+                }
+                
+                // Calculate child without bed (doesn't count towards max occupancy, but limited by header value)
+                const remainingChildren = Math.max(0, totalChildren - childWithBedPerRoom);
+                const childWithoutBedPerRoom = remainingChildren;
+                
+                // Final rooms needed considering all occupants
+                const totalOccupantsPerRoom = adultsPerRoom + childWithBedPerRoom;
+                let roomsNeeded = roomsNeededForAdults;
+                
+                // If occupancy exceeds max, we need more rooms
+                if (totalOccupantsPerRoom > maxOcc) {
+                    roomsNeeded = Math.ceil((totalAdults + childWithBedPerRoom) / maxOcc);
+                }
+                
+                room.adultsInput.value = adultsPerRoom;
+                room.extraBedInput.value = childWithBedPerRoom;
+                room.childWithoutInput.value = childWithoutBedPerRoom;
+                room.roomsInput.value = Math.max(1, roomsNeeded);
+                
+                // Update pricing summary for this combo
+                if (typeof updatePricingSummary === 'function') {
+                    updatePricingSummary(room.combo);
+                }
+                
                 recalcPrice(room.comboId);
                 return;
             }
             
-            // Multiple rooms: distribute pax intelligently
-            // Strategy: Ensure minimum 2 adults per room, then distribute remainder intelligently
-            const minAdultsPerRoom = 2;
-            const defaultPaxPerRoom = 2;
+            // Multiple room types: distribute pax across all room types
+            // First room type gets the primary allocation, subsequent types get remaining pax
             
-            // Calculate total rooms needed (minimum 2 adults per room)
-            const totalRoomsNeeded = Math.ceil(totalPax / minAdultsPerRoom);
+            let remainingAdults = totalAdults;
+            let remainingChildWithBed = totalChildren;
+            let remainingChildWithoutBed = 0;
             
-            // Initialize all checked rooms with 0 rooms
-            checkedRooms.forEach(room => {
-                room.roomsInput.value = 0;
-                room.adultsInput.value = minAdultsPerRoom;
-                room.extraBedInput.value = 0;
-                room.childWithoutInput.value = 0;
-            });
-            
-            let remainingPax = totalPax;
-            let totalRoomsAssigned = 0;
-            
-            // First pass: Assign at least 1 room with 2 adults to each checked combination
-            // This ensures each room type gets at least 1 room with minimum 2 adults
             checkedRooms.forEach((room, index) => {
-                if (remainingPax >= minAdultsPerRoom && totalRoomsAssigned < totalRoomsNeeded) {
-                    room.roomsInput.value = 1;
-                    room.adultsInput.value = minAdultsPerRoom;
+                const maxOcc = room.maxOccupancy;
+                
+                if (remainingAdults <= 0 && remainingChildWithBed <= 0) {
+                    // No more pax to allocate
+                    room.roomsInput.value = 0;
+                    room.adultsInput.value = 0;
                     room.extraBedInput.value = 0;
                     room.childWithoutInput.value = 0;
-                    remainingPax -= minAdultsPerRoom;
-                    totalRoomsAssigned += 1;
+                    return;
                 }
-            });
-            
-            // Second pass: Distribute remaining pax and additional rooms
-            // Strategy: Add rooms with 2 adults each until we can't fit another full room
-            while (remainingPax >= minAdultsPerRoom && totalRoomsAssigned < totalRoomsNeeded) {
-                // Find the room combination with the least rooms assigned
-                let minRoomsRoom = checkedRooms[0];
-                let minRooms = parseInt(minRoomsRoom.roomsInput.value || 0);
                 
-                checkedRooms.forEach(room => {
-                    const currentRooms = parseInt(room.roomsInput.value || 0);
-                    if (currentRooms < minRooms) {
-                        minRooms = currentRooms;
-                        minRoomsRoom = room;
-                    }
-                });
+                // Calculate adults for this room type
+                const adultsForThisRoom = Math.min(remainingAdults, defaultAdultsPerRoom);
+                const roomsNeeded = adultsForThisRoom > 0 ? Math.ceil(remainingAdults / defaultAdultsPerRoom) : 0;
                 
-                // Add one more room with 2 adults to balance distribution
-                const currentRooms = parseInt(minRoomsRoom.roomsInput.value || 0);
-                minRoomsRoom.roomsInput.value = currentRooms + 1;
-                minRoomsRoom.adultsInput.value = minAdultsPerRoom;
-                remainingPax -= minAdultsPerRoom;
-                totalRoomsAssigned += 1;
-            }
-            
-            // Third pass: Handle remaining pax (if less than 2, add to last room or add extra room)
-            if (remainingPax > 0 && remainingPax < minAdultsPerRoom) {
-                // Try to add remaining pax to the last room that was assigned
-                // Check if we can add it to an existing room without exceeding max occupancy
-                let addedToExisting = false;
-                
-                for (let i = checkedRooms.length - 1; i >= 0; i--) {
-                    const room = checkedRooms[i];
-                    const currentRooms = parseInt(room.roomsInput.value || 0);
+                // For first room type, take primary allocation
+                if (index === 0) {
+                    room.adultsInput.value = adultsForThisRoom;
                     
-                    if (currentRooms > 0) {
-                        const currentAdults = parseInt(room.adultsInput.value || minAdultsPerRoom);
-                        const maxOccupancy = room.maxOccupancy || 999; // Default to high value if not set
-                        const currentOccupancy = currentAdults + parseInt(room.extraBedInput.value || 0) + parseInt(room.childWithoutInput.value || 0);
+                    // Calculate child with bed for this room
+                    let childWithBed = 0;
+                    if (room.extraBedAvailable && remainingChildWithBed > 0) {
+                        const extraCapacity = Math.max(0, maxOcc - adultsForThisRoom);
+                        childWithBed = Math.min(remainingChildWithBed, extraCapacity);
+                    }
+                    room.extraBedInput.value = childWithBed;
+                    
+                    // Calculate child without bed
+                    const childWithoutBed = Math.max(0, remainingChildWithBed - childWithBed);
+                    room.childWithoutInput.value = childWithoutBed;
+                    
+                    room.roomsInput.value = Math.max(1, roomsNeeded);
+                    
+                    // Update remaining pax
+                    remainingAdults -= adultsForThisRoom * roomsNeeded;
+                    remainingChildWithBed -= childWithBed;
+                    remainingChildWithoutBed = childWithoutBed;
+                } else {
+                    // Subsequent room types get remaining pax
+                    if (remainingAdults > 0) {
+                        const adultsForRemaining = Math.min(remainingAdults, defaultAdultsPerRoom);
+                        const additionalRooms = Math.ceil(remainingAdults / defaultAdultsPerRoom);
                         
-                        // Check if we can add remaining pax to this room's last room
-                        if (currentOccupancy + remainingPax <= maxOccupancy) {
-                            // Add to adults (since we're ensuring minimum 2 adults, this is safe)
-                            room.adultsInput.value = currentAdults + remainingPax;
-                            remainingPax = 0;
-                            addedToExisting = true;
-                            break;
+                        room.adultsInput.value = adultsForRemaining;
+                        room.roomsInput.value = additionalRooms;
+                        
+                        // Allocate remaining children if any
+                        let childWithBed = 0;
+                        if (room.extraBedAvailable && remainingChildWithBed > 0) {
+                            const extraCapacity = Math.max(0, maxOcc - adultsForRemaining);
+                            childWithBed = Math.min(remainingChildWithBed, extraCapacity);
                         }
+                        room.extraBedInput.value = childWithBed;
+                        room.childWithoutInput.value = 0;
+                        
+                        remainingAdults -= adultsForRemaining * additionalRooms;
+                        remainingChildWithBed -= childWithBed;
+                    } else {
+                        room.roomsInput.value = 0;
+                        room.adultsInput.value = 0;
+                        room.extraBedInput.value = 0;
+                        room.childWithoutInput.value = 0;
                     }
                 }
                 
-                // If couldn't add to existing room, add a new room with minimum 2 adults
-                // The extra pax will be distributed across rooms
-                if (!addedToExisting) {
-                    // Find room with least rooms to add one more
-                    let minRoomsRoom = checkedRooms[0];
-                    let minRooms = parseInt(minRoomsRoom.roomsInput.value || 0);
-                    
-                    checkedRooms.forEach(room => {
-                        const currentRooms = parseInt(room.roomsInput.value || 0);
-                        if (currentRooms < minRooms) {
-                            minRooms = currentRooms;
-                            minRoomsRoom = room;
-                        }
-                    });
-                    
-                    const currentRooms = parseInt(minRoomsRoom.roomsInput.value || 0);
-                    minRoomsRoom.roomsInput.value = currentRooms + 1;
-                    // Set to minimum 2 adults (remaining pax will be handled by adjusting other rooms)
-                    minRoomsRoom.adultsInput.value = minAdultsPerRoom;
-                    
-                    // Now we have extra capacity, redistribute to balance
-                    // Add the remaining pax to the room that can accommodate it
-                    const totalExtraCapacity = minAdultsPerRoom - remainingPax;
-                    if (totalExtraCapacity > 0) {
-                        // Find a room that can take the extra capacity
-                        for (let i = 0; i < checkedRooms.length; i++) {
-                            const room = checkedRooms[i];
-                            const currentAdults = parseInt(room.adultsInput.value || minAdultsPerRoom);
-                            const maxOccupancy = room.maxOccupancy || 999;
-                            const currentOccupancy = currentAdults + parseInt(room.extraBedInput.value || 0) + parseInt(room.childWithoutInput.value || 0);
-                            
-                            if (currentOccupancy + totalExtraCapacity <= maxOccupancy) {
-                                room.adultsInput.value = currentAdults + totalExtraCapacity;
-                                break;
-                            }
-                        }
-                    }
+                // Update pricing summary for first combo
+                if (index === 0 && typeof updatePricingSummary === 'function') {
+                    updatePricingSummary(room.combo);
                 }
-            }
-            
-            // Recalculate prices for all rooms
-            checkedRooms.forEach(room => {
-                if (parseInt(room.roomsInput.value || 0) > 0) {
-                    recalcPrice(room.comboId);
-                }
+                
+                recalcPrice(room.comboId);
             });
         };
         
@@ -9761,16 +9762,44 @@
                     alert(`Adults cannot exceed ${max} (header value)`);
                 }
                 
-                // If adults changed to 3 and extra bed is available, adjust rooms
+                // Get the row and check max occupancy
                 const row = tbody.querySelector(`tr[data-combo-id="${comboId}"]`);
                 if (row) {
                     const extraBedAvailable = row.getAttribute('data-extra-bed-available') === 'true';
                     
-                    if (adults > 2 && !extraBedAvailable) {
-                        // If extra bed not available, limit to 2 adults
-                        adults = 2;
-                        this.value = 2;
-                        alert('Extra bed not available. Maximum 2 adults per room.');
+                    // Use maxOccupancy to limit adults, not extra bed availability
+                    const maxOccupancy = parseInt(row.getAttribute('data-max-occupancy') || 0);
+                    if (maxOccupancy > 0 && adults > maxOccupancy) {
+                        adults = maxOccupancy;
+                        this.value = maxOccupancy;
+                        alert(`Maximum ${maxOccupancy} adults per room (based on max occupancy).`);
+                    }
+                    
+                    // Auto-calculate room count based on total pax and adults per room
+                    const headerValues = getHeaderValues();
+                    const totalAdults = headerValues.adults || 0;
+                    const totalChildren = headerValues.children || 0;
+                    const roomsInput = row.querySelector('.combo-rooms');
+                    
+                    if (roomsInput && adults > 0) {
+                        // Calculate rooms needed for adults
+                        let roomsNeeded = Math.ceil(totalAdults / adults);
+                        
+                        // Also consider children with bed if extra bed is available
+                        if (extraBedAvailable && totalChildren > 0) {
+                            const childrenWithBed = row.querySelector('.combo-extra-bed');
+                            const childPerRoom = parseInt(childrenWithBed?.value || 0);
+                            if (childPerRoom > 0 && maxOccupancy > 0) {
+                                // Check if total occupancy per room exceeds max occupancy
+                                const totalPerRoom = adults + childPerRoom;
+                                if (totalPerRoom > maxOccupancy) {
+                                    // Need more rooms to accommodate
+                                    roomsNeeded = Math.ceil((totalAdults + totalChildren) / maxOccupancy);
+                                }
+                            }
+                        }
+                        
+                        roomsInput.value = Math.max(1, roomsNeeded);
                     }
                 }
                 
@@ -9843,6 +9872,14 @@
                 // Redistribute pax across all checked rooms
                 distributePaxAcrossRooms();
                 validateTotalOccupancy();
+                
+                // Update pricing summary when checkbox is checked
+                if (isChecked) {
+                    const combo = window.currentRoomCombinations.find(c => c.id === comboId);
+                    if (combo && typeof updatePricingSummary === 'function') {
+                        updatePricingSummary(combo);
+                    }
+                }
             });
         });
 
@@ -9963,6 +10000,93 @@
         return dates.length ? (totalPrice / dates.length) : 0;
     }
     
+    // Helper function to compute weekday-only price
+    function computeWeekdayPrice(combo, occupancy) {
+        const room = combo.roomData || {};
+        const mealPlan = combo.mealPlan || 'room_only';
+        
+        const parsePrice = (val) => {
+            if (val === null || val === undefined || val === '') return 0;
+            const num = parseFloat(val);
+            return (!isNaN(num) && num >= 0) ? num : 0;
+        };
+        
+        const weekdaySingle = parsePrice(room.weekday_price || room.weekdayPrice || 0);
+        const doubleWeekday = parsePrice(room.double_weekday_price || room.doubleWeekdayPrice || room.weekday_price || room.weekdayPrice || 0);
+        const extraBedPrice = parsePrice(combo.extraBedPrice || room.extra_bed_price || room.extraBedPrice || 0);
+        
+        const adults = parseInt(occupancy.adults || 0);
+        const childWithBed = parseInt(occupancy.childWithBed || 0);
+        const occupantsWithBed = adults + childWithBed;
+        const isSingleOccupancy = occupantsWithBed <= 1;
+        const isTripleOccupancy = occupantsWithBed >= 3;
+        
+        let basePrice = isSingleOccupancy ? weekdaySingle : (doubleWeekday || weekdaySingle);
+        
+        if (isTripleOccupancy) {
+            const extraBedsNeeded = occupantsWithBed - 2;
+            basePrice += extraBedPrice * extraBedsNeeded;
+        }
+        
+        const mealCost = computeMealCost(room, mealPlan, adults, (occupancy.childWithBed || 0) + (occupancy.childWithoutBed || 0));
+        return basePrice + mealCost;
+    }
+    
+    // Helper function to compute weekend-only price
+    function computeWeekendPrice(combo, occupancy) {
+        const room = combo.roomData || {};
+        const mealPlan = combo.mealPlan || 'room_only';
+        
+        const parsePrice = (val) => {
+            if (val === null || val === undefined || val === '') return 0;
+            const num = parseFloat(val);
+            return (!isNaN(num) && num >= 0) ? num : 0;
+        };
+        
+        const weekendSingle = parsePrice(room.weekend_price || room.weekendPrice || room.weekday_price || room.weekdayPrice || 0);
+        const doubleWeekend = parsePrice(room.double_weekend_price || room.doubleWeekendPrice || room.double_weekday_price || room.doubleWeekdayPrice || room.weekend_price || room.weekendPrice || 0);
+        const extraBedPrice = parsePrice(combo.extraBedPrice || room.extra_bed_price || room.extraBedPrice || 0);
+        
+        const adults = parseInt(occupancy.adults || 0);
+        const childWithBed = parseInt(occupancy.childWithBed || 0);
+        const occupantsWithBed = adults + childWithBed;
+        const isSingleOccupancy = occupantsWithBed <= 1;
+        const isTripleOccupancy = occupantsWithBed >= 3;
+        
+        let basePrice = isSingleOccupancy ? weekendSingle : (doubleWeekend || weekendSingle);
+        
+        if (isTripleOccupancy) {
+            const extraBedsNeeded = occupantsWithBed - 2;
+            basePrice += extraBedPrice * extraBedsNeeded;
+        }
+        
+        const mealCost = computeMealCost(room, mealPlan, adults, (occupancy.childWithBed || 0) + (occupancy.childWithoutBed || 0));
+        return basePrice + mealCost;
+    }
+    
+    // Helper function to compute child weekday price
+    function computeChildWeekdayPrice(combo, isWithBed) {
+        const room = combo.roomData || {};
+        const mealPlan = combo.mealPlan || 'room_only';
+        
+        const parsePrice = (val) => {
+            if (val === null || val === undefined || val === '') return 0;
+            const num = parseFloat(val);
+            return (!isNaN(num) && num >= 0) ? num : 0;
+        };
+        
+        const extraBedPrice = parsePrice(combo.extraBedPrice || room.extra_bed_price || room.extraBedPrice || 0);
+        let basePrice = isWithBed ? extraBedPrice : 0;
+        const mealCost = computeMealCost(room, mealPlan, 0, 1); // 0 adults, 1 child
+        return basePrice + mealCost;
+    }
+    
+    // Helper function to compute child weekend price (same as weekday for children since extra bed price is constant)
+    function computeChildWeekendPrice(combo, isWithBed) {
+        // Child prices typically don't differ between weekday/weekend (extra bed is flat rate)
+        return computeChildWeekdayPrice(combo, isWithBed);
+    }
+
     // Update pricing summary at the bottom
     function updatePricingSummary(combo) {
         if (!combo) return;
@@ -9986,6 +10110,29 @@
         const childWithoutBedCost = calculateChildPricing(combo, false);
         const infantCost = 0; // Infants typically free
         
+        // Calculate weekday prices
+        const singleWeekday = computeWeekdayPrice(combo, { adults: 1, childWithBed: 0, childWithoutBed: 0 });
+        const twinWeekday = computeWeekdayPrice(combo, { adults: 2, childWithBed: 0, childWithoutBed: 0 });
+        const tripleWeekday = computeWeekdayPrice(combo, { adults: 2, childWithBed: 1, childWithoutBed: 0 });
+        const childWithBedWeekday = computeChildWeekdayPrice(combo, true);
+        const childWithoutBedWeekday = computeChildWeekdayPrice(combo, false);
+        
+        // Calculate weekend prices
+        const singleWeekend = computeWeekendPrice(combo, { adults: 1, childWithBed: 0, childWithoutBed: 0 });
+        const twinWeekend = computeWeekendPrice(combo, { adults: 2, childWithBed: 0, childWithoutBed: 0 });
+        const tripleWeekend = computeWeekendPrice(combo, { adults: 2, childWithBed: 1, childWithoutBed: 0 });
+        const childWithBedWeekend = computeChildWeekendPrice(combo, true);
+        const childWithoutBedWeekend = computeChildWeekendPrice(combo, false);
+        
+        // Get extra bed price for display
+        const room = combo.roomData || {};
+        const parsePrice = (val) => {
+            if (val === null || val === undefined || val === '') return 0;
+            const num = parseFloat(val);
+            return (!isNaN(num) && num >= 0) ? num : 0;
+        };
+        const extraBedPrice = parsePrice(combo.extraBedPrice || room.extra_bed_price || room.extraBedPrice || 0);
+        
         // Round all prices to next 0 (ceiling)
         const singleCostRounded = roundToNextZero(singleCost);
         const twinCostRounded = roundToNextZero(twinCost);
@@ -9994,7 +10141,28 @@
         const childWithoutBedCostRounded = roundToNextZero(childWithoutBedCost);
         const infantCostRounded = roundToNextZero(infantCost);
         
-        // Update Cost display (read-only text)
+        // Update Weekday Cost display
+        const updateEl = (id, value) => {
+            const el = document.getElementById(id);
+            if (el) el.textContent = Number.isFinite(value) ? roundToNextZero(value).toFixed(2) : '--';
+        };
+        
+        updateEl('pricingSummarySingleWeekdayCost', singleWeekday);
+        updateEl('pricingSummaryTwinWeekdayCost', twinWeekday);
+        updateEl('pricingSummaryTripleWeekdayCost', tripleWeekday);
+        updateEl('pricingSummaryChildWithBedWeekdayCost', childWithBedWeekday);
+        updateEl('pricingSummaryChildWithoutBedWeekdayCost', childWithoutBedWeekday);
+        updateEl('pricingSummaryInfantWeekdayCost', 0);
+        
+        // Update Weekend Cost display
+        updateEl('pricingSummarySingleWeekendCost', singleWeekend);
+        updateEl('pricingSummaryTwinWeekendCost', twinWeekend);
+        updateEl('pricingSummaryTripleWeekendCost', tripleWeekend);
+        updateEl('pricingSummaryChildWithBedWeekendCost', childWithBedWeekend);
+        updateEl('pricingSummaryChildWithoutBedWeekendCost', childWithoutBedWeekend);
+        updateEl('pricingSummaryInfantWeekendCost', 0);
+        
+        // Update Average Cost display
         const singleCostEl = document.getElementById('pricingSummarySingleCost');
         const twinCostEl = document.getElementById('pricingSummaryTwinCost');
         const tripleCostEl = document.getElementById('pricingSummaryTripleCost');
@@ -10008,6 +10176,10 @@
         if (childWithBedCostEl) childWithBedCostEl.textContent = Number.isFinite(childWithBedCostRounded) ? childWithBedCostRounded.toFixed(2) : '--';
         if (childWithoutBedCostEl) childWithoutBedCostEl.textContent = Number.isFinite(childWithoutBedCostRounded) ? childWithoutBedCostRounded.toFixed(2) : '--';
         if (infantCostEl) infantCostEl.textContent = Number.isFinite(infantCostRounded) ? infantCostRounded.toFixed(2) : '--';
+        
+        // Update extra bed price display
+        const extraBedPriceEl = document.getElementById('pricingSummaryExtraBedPrice');
+        if (extraBedPriceEl) extraBedPriceEl.textContent = '$' + extraBedPrice.toFixed(2);
         
         // Update Sell inputs (editable, default to cost value if empty)
         const singleSellEl = document.getElementById('pricingSummarySingleSell');
@@ -13273,7 +13445,7 @@
             // Clear all arrival/departure fields ONLY if in ADD mode (not EDIT mode)
             if (window.isAddingNewArrivalDeparture) {
                 // Set arrival date to header start date with default time (00:00)
-                const tourStartDate = document.getElementById('tourStartDate')?.value;
+                const tourStartDate = getHeaderStartInput()?.value;
                 if (tourStartDate) {
                     document.getElementById('arrivalDateTime').value = tourStartDate + 'T00:00';
                 } else {
@@ -13314,7 +13486,7 @@
                 }
                 
                 // Set departure date to header end date with default time (00:00)
-                const tourEndDate = document.getElementById('tourEndDate')?.value;
+                const tourEndDate = getHeaderEndInput()?.value;
                 if (tourEndDate) {
                     document.getElementById('departureDateTime').value = tourEndDate + 'T00:00';
                 } else {
@@ -14575,6 +14747,10 @@
                             filterAttractionVehiclesByServiceType(transferTypeSelect);
                         });
                         console.log('✓ Auto-selected vehicles in attraction popup based on pax and seat capacity');
+                        
+                        // Apply the attraction type filter based on radio button selection (default: attractions only)
+                        filterAttractionsByType();
+                        console.log('✓ Applied attraction type filter');
                     }, 100);
                 } else {
                     tbody.innerHTML = '<tr><td colspan="15" class="text-center text-muted" style="padding: 20px;">No attractions found for this destination</td></tr>';
@@ -14586,16 +14762,29 @@
             });
     }
     
-    // Filter attractions by type
+    // Filter attractions by type (attraction_type: 1 = Tour Sites, 2 = Attraction)
     function filterAttractionsByType(type) {
+        // If no type passed, get from radio button
+        if (!type) {
+            const selectedRadio = document.querySelector('input[name="attractionTypeFilter"]:checked');
+            type = selectedRadio ? selectedRadio.value : 'attraction';
+        }
+        
         const rows = document.querySelectorAll('.attraction-row');
         
         if (type === 'all') {
             rows.forEach(row => row.style.display = '');
-        } else {
+        } else if (type === 'attraction') {
+            // Show only attractions (attraction_type = 2)
             rows.forEach(row => {
                 const rowType = row.getAttribute('data-attraction-type');
-                row.style.display = (rowType === type) ? '' : 'none';
+                row.style.display = (rowType === '2') ? '' : 'none';
+            });
+        } else if (type === 'toursite') {
+            // Show only tour sites (attraction_type = 1)
+            rows.forEach(row => {
+                const rowType = row.getAttribute('data-attraction-type');
+                row.style.display = (rowType === '1') ? '' : 'none';
             });
         }
     }
@@ -18964,13 +19153,18 @@
                 dateTimeValue = dateTimeValue + 'T' + defaultTime;
             }
             
+            // Format meal type for display (capitalize first letter)
+            const displayMealType = meal.mealType ? (meal.mealType.charAt(0).toUpperCase() + meal.mealType.slice(1)) : 'Meal';
+            // Use mealName for dish name, fallback to mealType if not available
+            const displayMealName = meal.mealName || displayMealType;
+            
             return `
             <tr>
                 <td><input type="checkbox" class="meal-checkbox" value="${meal.id}"></td>
                 <td><input type="datetime-local" value="${dateTimeValue}" onchange="updateMealField(${index}, 'dateTime', this.value)" style="width: 130px; font-size: 11px; padding: 2px 4px;"></td>
                 <td>
                     <a href="javascript:void(0)" onclick="editMeal(${index})" style="color: #0d6efd; text-decoration: underline; cursor: pointer;">
-                        ${meal.restaurantName || 'Restaurant'} - ${meal.mealType || meal.mealName || 'Meal'}
+                        ${meal.restaurantName || 'Restaurant'} - ${displayMealName} (${displayMealType})
                     </a>
                 </td>
                 <td><input type="number" value="${meal.adultsQty}" onchange="updateMealField(${index}, 'adultsQty', this.value)"></td>
@@ -20616,7 +20810,7 @@
     // Calculate transfer price based on type and way
     function calculateTransferPrice(zonePrice, type, way, adults, child, vehicleOption = null) {
         let basePrice = 0;
-        const totalPax = (parseInt(adults) || 0) + (parseInt(child) || 0);
+        const totalPax = Math.max(1, (parseInt(adults) || 0) + (parseInt(child) || 0));
         
         // Get zone prices
         let zonePrivatePrice = zonePrice.private_price || 0;
@@ -20628,15 +20822,15 @@
         
         // Get base price based on type (SIC or Private)
         if (type === 'S' || type === 'sic' || type === 'Shared') {
-            // Shared prices are already per person - use directly without multiplying
-            basePrice = zoneSharedPrice || 0;
+            // Shared prices are per person - multiply by total passengers
+            basePrice = (zoneSharedPrice || 0) * totalPax;
         } else {
             // Private prices are fixed for the vehicle (not per person)
             basePrice = zonePrivatePrice || 0;
         }
         
         // Apply way multiplier (both-way = 2x, one-way = 1x)
-        if (way === 'both-way' || way === 'both') {
+        if (way === 'both-way' || way === 'both' || way === '2-way' || way === 'Two Way' || way === 'Both Way') {
             basePrice = basePrice * 2;
         }
         
@@ -20651,7 +20845,8 @@
             sell: sellPrice,
             basePrice: basePrice,
             sharedPrice: zoneSharedPrice,
-            privatePrice: zonePrivatePrice
+            privatePrice: zonePrivatePrice,
+            totalPax: totalPax
         };
     }
     
@@ -23377,8 +23572,8 @@
         // Get values from header fields
         const destinationSelect = document.getElementById('destinationSelect');
         const destination = destinationSelect?.value || '';
-        const startDate = document.getElementById('tourStartDate')?.value;
-        const endDate = document.getElementById('tourEndDate')?.value;
+        const startDate = getHeaderStartInput()?.value;
+        const endDate = getHeaderEndInput()?.value;
         const adults = parseInt(document.getElementById('adultCountInput')?.value) || 0;
         const children = parseInt(document.getElementById('childCountInput')?.value) || 0;
         const infants = parseInt(document.getElementById('infantCountInput')?.value) || 0;
@@ -23429,6 +23624,10 @@
         formData.append('markup_type', markupType);
         formData.append('discount_value', discountValue);
         formData.append('discount_type', discountType);
+        
+        // Add tour type (FIT or GROUP)
+        const tourType = document.querySelector('input[name="type"]:checked')?.value || 'FIT';
+        formData.append('tour_type', tourType);
         
         // Transform and add service data in required format (await async functions)
         const { entryPortData, exitPortData } = await transformArrivalDepartureData();
