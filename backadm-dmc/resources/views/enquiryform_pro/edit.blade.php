@@ -14034,7 +14034,7 @@
             // Clear all arrival/departure fields ONLY if in ADD mode (not EDIT mode)
             if (window.isAddingNewArrivalDeparture) {
                 // Set arrival date to header start date with default time (00:00)
-                const tourStartDate = document.getElementById('tourStartDate')?.value;
+                const tourStartDate = getHeaderStartInput()?.value;
                 if (tourStartDate) {
                     document.getElementById('arrivalDateTime').value = tourStartDate + 'T00:00';
                 } else {
@@ -14075,7 +14075,7 @@
                 }
                 
                 // Set departure date to header end date with default time (00:00)
-                const tourEndDate = document.getElementById('tourEndDate')?.value;
+                const tourEndDate = getHeaderEndInput()?.value;
                 if (tourEndDate) {
                     document.getElementById('departureDateTime').value = tourEndDate + 'T00:00';
                 } else {
@@ -24447,8 +24447,8 @@
             destination = truncatedDest || headerCountries[0].substring(0, 191);
         }
         
-        const startDate = document.getElementById('tourStartDate')?.value;
-        const endDate = document.getElementById('tourEndDate')?.value;
+        const startDate = getHeaderStartInput()?.value;
+        const endDate = getHeaderEndInput()?.value;
         const adults = parseInt(document.getElementById('adultCountInput')?.value) || 0;
         const children = parseInt(document.getElementById('childCountInput')?.value) || 0;
         const infants = parseInt(document.getElementById('infantCountInput')?.value) || 0;
@@ -25354,8 +25354,8 @@
                         <div class="col-md-3">
                             <p class="mb-1"><strong>Adults:</strong> ${document.getElementById('adultCountInput')?.value || '0'} | 
                                <strong>Children:</strong> ${document.getElementById('childCountInput')?.value || '0'}</p>
-                            <p class="mb-1"><strong>Start:</strong> ${document.getElementById('tourStartDate')?.value || 'N/A'} | 
-                               <strong>End:</strong> ${document.getElementById('tourEndDate')?.value || 'N/A'}</p>
+                            <p class="mb-1"><strong>Start:</strong> ${getHeaderStartInput()?.value || 'N/A'} | 
+                               <strong>End:</strong> ${getHeaderEndInput()?.value || 'N/A'}</p>
                         </div>
                     </div>
         `);
@@ -25960,12 +25960,12 @@
         }
         
         // Dates
-        const startDateInput = document.getElementById('tourStartDate') || document.querySelector('input[name="tour_start_date"]');
+        const startDateInput = getHeaderStartInput() || document.querySelector('input[name="tour_start_date"]');
         if (startDateInput && tour.tour_start_date) {
             startDateInput.value = tour.tour_start_date;
         }
         
-        const endDateInput = document.getElementById('tourEndDate') || document.querySelector('input[name="tour_end_date"]');
+        const endDateInput = getHeaderEndInput() || document.querySelector('input[name="tour_end_date"]');
         if (endDateInput && tour.tour_end_date) {
             endDateInput.value = tour.tour_end_date;
         }
